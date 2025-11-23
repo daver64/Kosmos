@@ -4,6 +4,10 @@ bin/
 lib/
 cmake-build-*/
 
+# Executables in root
+Kosmos
+Kosmos.exe
+
 # IDE files
 .vscode/
 .idea/

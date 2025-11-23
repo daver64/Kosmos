@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <glm/glm.hpp>
 
 namespace Kosmos {
 
@@ -9,6 +10,9 @@ class Window;
 class Camera;
 class Shader;
 class Mesh;
+class PlanetRenderer;
+class SolarSystem;
+class CelestialBody;
 
 class Application {
 public:
@@ -32,13 +36,18 @@ private:
     
     std::unique_ptr<Window> m_window;
     std::unique_ptr<Camera> m_camera;
-    std::unique_ptr<Shader> m_shader;
-    std::unique_ptr<Mesh> m_testCube;
+    std::unique_ptr<PlanetRenderer> m_planetRenderer;
+    std::unique_ptr<SolarSystem> m_solarSystem;
     
-    float m_rotation;
+    CelestialBody* m_focusBody;
+    glm::dvec3 m_cameraPosition;
+    double m_cameraDistance;
+    double m_cameraYaw;
+    double m_cameraPitch;
     
     void ProcessEvents();
     void Update(double deltaTime);
+    void UpdateCamera();
     void Render();
 };
 

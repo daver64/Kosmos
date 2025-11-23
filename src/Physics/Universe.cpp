@@ -1,5 +1,15 @@
-// Placeholder files for physics modules - to be implemented
+// Universe - container for multiple solar systems
+// Manages hundreds of star systems
 
-// Universe.cpp, SolarSystem.cpp, CelestialBody.cpp, etc.
-// ReferenceFrame.cpp, Integrator.cpp, GravityEngine.cpp, VSOP87.cpp
-// These are stubs to allow the project to compile
+#include <memory>
+#include <vector>
+
+namespace Kosmos {
+
+// TODO: Implement Universe class
+// - Manage multiple SolarSystem instances
+// - Spatial partitioning for performance
+// - Interstellar navigation
+// - Star catalog loading
+
+} // namespace Kosmos

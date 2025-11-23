@@ -3,6 +3,9 @@
 #include "../Rendering/Camera.h"
 #include "../Rendering/Shader.h"
 #include "../Rendering/Mesh.h"
+#include "../Rendering/PlanetRenderer.h"
+#include "../Physics/SolarSystem.h"
+#include "../Physics/CelestialBody.h"
 #include "Logger.h"
 #include <iostream>
 #include <chrono>
@@ -17,12 +20,17 @@ Application* Application::s_instance = nullptr;
 Application::Application()
     : m_running(false)
     , m_lastFrameTime(0.0)
-    , m_rotation(0.0f)
+    , m_cameraDistance(3.0e7)  // 30 million meters from Earth
+    , m_cameraYaw(0.0)
+    , m_cameraPitch(0.3)
 {
     s_instance = this;
 }
 
 Application::~Application() {
+    if (m_planetRenderer) {
+        m_planetRenderer->Shutdown();
+    }
     s_instance = nullptr;
 }
 
@@ -44,23 +52,33 @@ bool Application::Initialize(int argc, char** argv) {
     
     // Initialize camera
     m_camera = std::make_unique<Camera>();
-    m_camera->SetPosition(glm::dvec3(5.0, 3.0, 5.0));
-    m_camera->SetTarget(glm::dvec3(0.0, 0.0, 0.0));
-    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 0.1f, 1000.0f);
+    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1000.0f, 1e12f);  // Large far plane for space
     
-    // Load shader
-    m_shader = std::make_unique<Shader>();
-    if (!m_shader->LoadFromFiles("../../data/shaders/basic.vert", "../../data/shaders/basic.frag")) {
-        LOG_ERROR("Failed to load shaders");
+    // Initialize planet renderer
+    m_planetRenderer = std::make_unique<PlanetRenderer>();
+    if (!m_planetRenderer->Initialize()) {
+        LOG_ERROR("Failed to initialize planet renderer");
         return false;
     }
     
-    // Create test cube
-    m_testCube.reset(Mesh::CreateCube(2.0f));
+    // Create solar system
+    m_solarSystem = SolarSystem::CreateTestSystem();
+    m_solarSystem->SetTimeAcceleration(100.0);  // Speed up time 100x
+    
+    // Focus camera on Earth
+    CelestialBody* earth = m_solarSystem->GetBody("Earth");
+    if (earth) {
+        m_focusBody = earth;
+        UpdateCamera();
+    }
     
     LOG_INFO("All systems initialized successfully");
     std::cout << "Initialization complete!" << std::endl;
-    std::cout << "Press ESC to exit." << std::endl;
+    std::cout << "Controls:" << std::endl;
+    std::cout << "  ESC - Exit" << std::endl;
+    std::cout << "  Mouse Wheel - Zoom" << std::endl;
+    std::cout << "  Arrow Keys - Rotate camera" << std::endl;
+    std::cout << "  1/2 - Decrease/Increase time acceleration" << std::endl;
     
     m_running = true;
     return true;
@@ -90,42 +108,44 @@ void Application::ProcessEvents() {
 }
 
 void Application::Update(double deltaTime) {
-    // Rotate the cube
-    m_rotation += static_cast<float>(deltaTime) * 45.0f; // 45 degrees per second
-    if (m_rotation > 360.0f) {
-        m_rotation -= 360.0f;
+    // Update solar system physics
+    if (m_solarSystem) {
+        m_solarSystem->Update(deltaTime);
+    }
+    
+    // Update camera to follow focus body
+    if (m_focusBody) {
+        UpdateCamera();
     }
 }
 
+void Application::UpdateCamera() {
+    if (!m_focusBody) return;
+    
+    glm::dvec3 focusPos = m_focusBody->GetPosition();
+    
+    // Position camera in orbit around focus body
+    glm::dvec3 camOffset;
+    camOffset.x = m_cameraDistance * cos(m_cameraPitch) * cos(m_cameraYaw);
+    camOffset.y = m_cameraDistance * sin(m_cameraPitch);
+    camOffset.z = m_cameraDistance * cos(m_cameraPitch) * sin(m_cameraYaw);
+    
+    m_cameraPosition = focusPos + camOffset;
+    m_camera->SetPosition(m_cameraPosition);
+    m_camera->SetTarget(focusPos);
+}
+
 void Application::Render() {
-    // Clear screen
-    glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+    // Clear screen with black space background
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    // Use shader
-    m_shader->Use();
-    
-    // Set up matrices
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::rotate(model, glm::radians(m_rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-    model = glm::rotate(model, glm::radians(m_rotation * 0.5f), glm::vec3(1.0f, 0.0f, 0.0f));
-    
-    glm::mat4 view = m_camera->GetViewMatrix();
-    glm::mat4 projection = m_camera->GetProjectionMatrix();
-    
-    m_shader->SetMat4("model", model);
-    m_shader->SetMat4("view", view);
-    m_shader->SetMat4("projection", projection);
-    m_shader->SetVec3("objectColor", glm::vec3(0.3f, 0.6f, 0.9f));
-    m_shader->SetVec3("lightPos", glm::vec3(5.0f, 5.0f, 5.0f));
-    m_shader->SetVec3("viewPos", glm::vec3(m_camera->GetPosition()));
-    
-    // Render cube
-    if (m_testCube) {
-        m_testCube->Render();
+    // Render all celestial bodies
+    if (m_solarSystem && m_planetRenderer) {
+        for (const auto& body : m_solarSystem->GetBodies()) {
+            m_planetRenderer->Render(body.get(), m_camera.get(), m_cameraPosition);
+        }
     }
-    
-    m_shader->Unuse();
 }
 
 void Application::Shutdown() {

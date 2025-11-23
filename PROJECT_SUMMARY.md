@@ -115,21 +115,30 @@ Kosmos/
 
 ### ✓ Fully Implemented
 - **Core System**: Application loop, Time management, Logger, Config
+- **Window & Input**: SDL2 window creation, OpenGL context, event handling
+- **Rendering System**: Camera, Shader, Mesh (spheres, cubes, planes), PlanetRenderer
+- **Math System**: StateVector, OrbitalElements (Keplerian conversion), using GLM
+- **Physics Engine**: CelestialBody, GravityEngine (N-body), Integrator (Euler/RK4/RK8)
+- **Solar System**: SolarSystem manager with test Sun-Earth system
 - **Propulsion System**: FuelTank, Thruster, ThrusterGroup classes
 - **Vessel Base**: Vessel class with full propulsion integration
 - **Plugin Example**: DeltaGlider vessel plugin stub
-- **Build System**: Complete CMake configuration
-- **Shaders**: Basic vertex and fragment shaders
+- **Build System**: Complete CMake configuration, outputs to project root
+- **Shaders**: Basic vertex and fragment shaders with lighting
 - **Documentation**: README, Architecture docs
 
 ### Stub/Placeholder
-- Math utilities (need GLM integration)
-- Physics (Universe, SolarSystem, CelestialBody, Gravity, VSOP87)
-- Rendering system (needs SDL3 and OpenGL)
-- Input system (needs SDL3)
+- Physics simulation integration (vessels in orbit)
+- Input system enhancements (camera controls, key bindings)
 - Audio system
-- Data loaders
-- Platform abstractions
+- Data loaders (scenarios, catalogs, configs)
+- Platform abstractions (file system helpers)
+- Plugin loading system
+- VSOP87 high-precision ephemeris
+- Texture loading (Celestia format support planned)
+- Star field background
+- Atmospheric rendering
+- HUD/UI system
 
 ## Key Features Implemented
 
@@ -183,55 +192,61 @@ sudo apt-get install libsdl3-dev libglm-dev libgl1-mesa-dev cmake g++
 ### Building
 ```bash
 cd ~/Documents/Projects/Kosmos
-./build.sh
-
-# Or manually:
-mkdir build && cd build
+mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
 ### Running
 ```bash
-cd build/bin
+cd ~/Documents/Projects/Kosmos
 ./Kosmos
 ```
 
+Binary outputs to project root, plugins to `lib/` folder.
+
 ## Next Development Steps
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation ✅ COMPLETE
 - [x] Project structure
 - [x] Build system
 - [x] Core application loop
 - [x] Propulsion system
-- [ ] Integrate SDL3
-- [ ] Integrate GLM
-- [ ] Basic OpenGL window
+- [x] Integrate SDL2
+- [x] Integrate GLM
+- [x] Basic OpenGL window
 
-### Phase 2: Physics
-- [ ] Reference frame system
-- [ ] Gravity calculations
-- [ ] RK4 integrator
-- [ ] Simple solar system (Sun + Earth)
+### Phase 2: Physics ✅ COMPLETE
+- [x] Reference frame system
+- [x] Gravity calculations (N-body)
+- [x] RK4 integrator
+- [x] Simple solar system (Sun + Earth)
 
-### Phase 3: Rendering
-- [ ] Camera system
-- [ ] Mesh rendering
-- [ ] Basic lighting
-- [ ] Planet rendering
+### Phase 3: Rendering Enhancement (Next Priority)
+- [ ] Fix planet visibility (scale/positioning issues)
+- [ ] Camera controls (mouse rotation, zoom)
+- [ ] Star field background
+- [ ] Simple lighting improvements
+- [ ] HUD with basic info (time, camera distance)
 
-### Phase 4: Vessels
-- [ ] Complete vessel physics integration
-- [ ] Test vessel with thrusters
-- [ ] Atmospheric model
-- [ ] Orbital mechanics
+### Phase 4: Physics Integration
+- [ ] Vessel physics integration with gravity
+- [ ] Test vessel in orbit around Earth
+- [ ] Atmospheric model (basic)
+- [ ] Add Moon to test system
 
-### Phase 5: VSOP87
+### Phase 5: Textures & Visuals
+- [ ] Texture loading system
+- [ ] Celestia texture format support
+- [ ] Apply textures to planets
+- [ ] Atmospheric scattering
+
+### Phase 6: VSOP87
 - [ ] Load VSOP87 data files
 - [ ] Calculate planetary positions
-- [ ] Full Sol system
+- [ ] Full Sol system with all planets
 
-### Phase 6: Multi-System
+### Phase 7: Multi-System
 - [ ] Load star catalogs
 - [ ] Spatial partitioning
 - [ ] Interstellar navigation
