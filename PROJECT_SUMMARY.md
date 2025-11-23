@@ -94,8 +94,14 @@ Kosmos/
 │
 ├── data/                        # Game data
 │   ├── catalogs/                # Star catalogs (empty)
-│   ├── textures/                # Texture files (empty)
+│   ├── textures/                # Texture files
+│   │   └── celestial/           # Celestial body textures ✓
+│   │       ├── Sol/             # Solar system (planets, moons, asteroids, comets)
+│   │       └── stars/           # Star textures by spectral type
 │   ├── models/                  # 3D models (empty)
+│   ├── plugins/                 # Plugin assets ✓
+│   │   └── vessels/             # Vessel plugin data
+│   │       └── DeltaGlider/     # Example: meshes, textures, sounds, config
 │   ├── shaders/                 # GLSL shaders
 │   │   ├── basic.vert           # Basic vertex shader ✓
 │   │   └── basic.frag           # Basic fragment shader ✓
@@ -251,6 +257,38 @@ Binary outputs to project root, plugins to `lib/` folder.
 - [ ] Spatial partitioning
 - [ ] Interstellar navigation
 
+## Asset Organization
+
+### Plugin Assets (`data/plugins/`)
+Each vessel plugin has its own folder structure:
+```
+vessels/<VesselName>/
+├── config/       # JSON configuration (vessel.json, animations.json)
+├── meshes/       # 3D models (OBJ, GLTF)
+├── textures/     # Vessel textures (diffuse, normal, specular, emissive)
+└── sounds/       # Audio samples (engines, RCS, mechanical sounds)
+```
+
+**Example:** DeltaGlider has complete folder structure with documented vessel.json
+
+### Celestial Textures (`data/textures/celestial/`)
+Organized by star system and body type:
+```
+celestial/
+├── Sol/
+│   ├── planets/      # Earth_color.png, Mars_color.png, etc.
+│   ├── moons/        # Moon_color.png, Titan_color.png, etc.
+│   ├── asteroids/    # Asteroid textures
+│   └── comets/       # Comet nucleus textures
+└── stars/
+    └── spectral_types/  # O, B, A, F, G, K, M class stars
+```
+
+**Texture Format:** Equirectangular projection (2:1 aspect ratio), PNG/DDS
+**Celestia Compatible:** Supports virtual texture tiles and standard naming
+
+See `data/plugins/README.md` and `data/textures/celestial/README.md` for details.
+
 ## Design Documents
 
 Detailed design documents are located in `/tmp/`:
@@ -261,10 +299,9 @@ Detailed design documents are located in `/tmp/`:
 
 - Project uses C++20 standard
 - Cross-platform: Linux, Windows, macOS
-- Many modules are currently stubs to allow compilation
-- Propulsion system is fully designed and implemented
-- Focus on implementing SDL3 window and OpenGL next
-- GLM will replace temporary vector stubs
+- Executable builds to project root, plugins to `lib/`
+- Asset organization supports both plugin and celestial content
+- Celestia texture format compatibility planned
 
 ## License
 
