@@ -84,43 +84,61 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             rm -f milky_way_gaia_8k.png milkyway.jpg 2>/dev/null
             echo "Trying multiple sources..."
         
-        # Try ESA Gaia (original source)
-        if download_file "https://www.cosmos.esa.int/documents/29201/1769576/GaiaDR2_FluxRGB_Cartesian_8192x4096.png" \
-                        "milky_way_gaia_8k.png"; then
-            echo "✓ Milky Way skybox downloaded from ESA Gaia (8K resolution)"
-        # Try alternative Gaia URL
-        elif download_file "https://sci.esa.int/documents/33356/35971/1567214882002-GaiaDR2_FluxRGB_Cartesian_8192x4096.png" \
-                          "milky_way_gaia_8k.png"; then
-            echo "✓ Milky Way skybox downloaded from ESA archive (8K resolution)"
-        # Try Celestia Motherlode
-        elif download_file "http://www.celestiamotherlode.net/catalog/images/screenshots/milkyway-4k.jpg" \
-                          "milkyway.jpg"; then
-            echo "✓ Milky Way skybox downloaded from Celestia (4K resolution)"
-        else
-            echo "⚠ Could not download Milky Way texture automatically"
-            echo ""
-            echo "Would you like to generate a procedural starfield instead? (requires Python + Pillow)"
-            read -p "Generate procedural skybox? (y/N) " -n 1 -r
-            echo
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
-                cd ../../..
-                if command -v python3 &> /dev/null; then
-                    python3 tools/generate_skybox.py
-                else
-                    echo "⚠ Python3 not found. Install with: sudo apt-get install python3 python3-pip"
-                    echo "   Then install Pillow: pip3 install Pillow"
-                fi
-                cd data/textures/skybox
+            # Try ESA Gaia (original source)
+            if download_file "https://www.cosmos.esa.int/documents/29201/1769576/GaiaDR2_FluxRGB_Cartesian_8192x4096.png" \
+                            "milky_way_gaia_8k.png"; then
+                echo "✓ Milky Way skybox downloaded from ESA Gaia (8K resolution)"
+            # Try alternative Gaia URL
+            elif download_file "https://sci.esa.int/documents/33356/35971/1567214882002-GaiaDR2_FluxRGB_Cartesian_8192x4096.png" \
+                              "milky_way_gaia_8k.png"; then
+                echo "✓ Milky Way skybox downloaded from ESA archive (8K resolution)"
+            # Try Celestia Motherlode
+            elif download_file "http://www.celestiamotherlode.net/catalog/images/screenshots/milkyway-4k.jpg" \
+                              "milkyway.jpg"; then
+                echo "✓ Milky Way skybox downloaded from Celestia (4K resolution)"
             else
+                echo "⚠ Could not download Milky Way texture automatically"
                 echo ""
-                echo "Manual download options:"
-                echo "  1. ESA Gaia: https://www.cosmos.esa.int/web/gaia/dr2"
-                echo "  2. Celestia: Search 'milky way texture' on celestiamotherlode.net"
-                echo "  3. NASA: https://svs.gsfc.nasa.gov/cgi-bin/search.cgi?query=milky+way"
-                echo ""
-                echo "Save any downloaded texture as:"
-                echo "  data/textures/skybox/milkyway.jpg (or .png)"
+                echo "Would you like to generate a procedural starfield instead? (requires Python + Pillow)"
+                read -p "Generate procedural skybox? (y/N) " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    cd ../../..
+                    if command -v python3 &> /dev/null; then
+                        echo "Checking Python dependencies..."
+                        if python3 -c "import PIL, numpy" 2>/dev/null; then
+                            python3 tools/generate_skybox.py
+                        else
+                            echo "Installing required packages (Pillow and numpy)..."
+                            sudo apt-get install -y python3-pil python3-numpy 2>/dev/null || {
+                                echo ""
+                                echo "⚠ Auto-install failed. Please install manually:"
+                                echo "  sudo apt-get install python3-pil python3-numpy"
+                                echo "Then run: python3 tools/generate_skybox.py"
+                            }
+                            # Try running after install attempt
+                            if python3 -c "import PIL, numpy" 2>/dev/null; then
+                                python3 tools/generate_skybox.py
+                            fi
+                        fi
+                    else
+                        echo "⚠ Python3 not found. Install with: sudo apt-get install python3"
+                        echo "   Then: sudo apt-get install python3-pil python3-numpy"
+                    fi
+                    cd data/textures/skybox
+                else
+                    echo ""
+                    echo "Manual download options:"
+                    echo "  1. ESA Gaia: https://www.cosmos.esa.int/web/gaia/dr2"
+                    echo "  2. Celestia: Search 'milky way texture' on celestiamotherlode.net"
+                    echo "  3. NASA: https://svs.gsfc.nasa.gov/cgi-bin/search.cgi?query=milky+way"
+                    echo ""
+                    echo "Save any downloaded texture as:"
+                    echo "  data/textures/skybox/milkyway.jpg (or .png)"
+                fi
             fi
+        else
+            echo "✓ Milky Way skybox already exists"
         fi
     else
         echo "✓ Milky Way skybox already exists"
