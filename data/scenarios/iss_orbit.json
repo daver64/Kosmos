@@ -1,0 +1,13 @@
+{
+  "scenario": {
+    "name": "ISS Orbit",
+    "description": "International Space Station in Low Earth Orbit",
+    "date": "2025-11-23T12:00:00Z",
+    "solar_system": "Sol",
+    "camera": {
+      "mode": "chase",
+      "distance": 100.0
+    },
+    "vessels": []
+  }
+}
