@@ -10,6 +10,8 @@ SolarSystem::SolarSystem(const std::string& name)
     , m_integrator(Integrator::Method::RK4)
     , m_simulationTime(0.0)
     , m_timeAcceleration(1.0)
+    , m_epoch(VSOP87::J2000_JD)
+    , m_useVSOP87(false)
 {
 }
 
@@ -29,37 +31,115 @@ CelestialBody* SolarSystem::GetBody(const std::string& name) {
     return nullptr;
 }
 
+void SolarSystem::EnableVSOP87(const std::string& dataPath, char variant) {
+    m_vsop87 = std::make_unique<VSOP87>();
+    if (m_vsop87->LoadData(dataPath, variant)) {
+        m_useVSOP87 = true;
+        LOG_INFO("VSOP87 enabled for solar system: " + m_name);
+    } else {
+        m_vsop87.reset();
+        m_useVSOP87 = false;
+        LOG_ERROR("Failed to enable VSOP87 for solar system: " + m_name);
+    }
+}
+
+double SolarSystem::GetJulianDate() const {
+    // Convert simulation time (seconds since epoch) to Julian Date
+    return m_epoch + (m_simulationTime / 86400.0);
+}
+
+void SolarSystem::SetJulianDate(double jd) {
+    m_epoch = jd;
+    m_simulationTime = 0.0;
+    if (m_useVSOP87) {
+        UpdateVSOP87Positions();
+    }
+}
+
+void SolarSystem::UpdateVSOP87Positions() {
+    if (!m_useVSOP87 || !m_vsop87) return;
+    
+    double jd = GetJulianDate();
+    
+    // Debug log
+    static bool logged = false;
+    if (!logged) {
+        LOG_INFO("UpdateVSOP87Positions called, JD=" + std::to_string(jd));
+        logged = true;
+    }
+    
+    // Map planet names to VSOP87 planets
+    const std::map<std::string, VSOP87::Planet> planetMap = {
+        {"Mercury", VSOP87::Planet::Mercury},
+        {"Venus", VSOP87::Planet::Venus},
+        {"Earth", VSOP87::Planet::Earth},
+        {"Mars", VSOP87::Planet::Mars},
+        {"Jupiter", VSOP87::Planet::Jupiter},
+        {"Saturn", VSOP87::Planet::Saturn},
+        {"Uranus", VSOP87::Planet::Uranus},
+        {"Neptune", VSOP87::Planet::Neptune}
+    };
+    
+    for (auto& body : m_bodies) {
+        // Skip the central star
+        if (body.get() == m_centralBody) continue;
+        
+        auto it = planetMap.find(body->GetName());
+        if (it != planetMap.end() && m_vsop87->HasData(it->second)) {
+            glm::dvec3 pos, vel;
+            m_vsop87->GetPositionVelocity(it->second, jd, pos, vel);
+            
+            // Debug log first update
+            if (!logged) {
+                LOG_INFO(body->GetName() + " VSOP87 pos (AU): " + 
+                         std::to_string(pos.x/1.496e11) + ", " +
+                         std::to_string(pos.y/1.496e11) + ", " +
+                         std::to_string(pos.z/1.496e11));
+            }
+            
+            // VSOP87 gives equatorial coordinates (for variant D)
+            body->SetPosition(pos);
+            body->SetVelocity(vel);
+        }
+    }
+}
+
 void SolarSystem::Update(double deltaTime) {
     double dt = deltaTime * m_timeAcceleration;
     m_simulationTime += dt;
     
-    // Collect raw pointers for gravity calculations
-    std::vector<CelestialBody*> bodyPtrs;
-    bodyPtrs.reserve(m_bodies.size());
-    for (auto& body : m_bodies) {
-        bodyPtrs.push_back(body.get());
-    }
-    
-    // Update each body's state using numerical integration
-    for (auto& body : m_bodies) {
-        // Skip the central star (assumed stationary for now)
-        if (body.get() == m_centralBody) continue;
+    if (m_useVSOP87) {
+        // Use VSOP87 for planetary positions
+        UpdateVSOP87Positions();
+    } else {
+        // Use numerical integration
+        std::vector<CelestialBody*> bodyPtrs;
+        bodyPtrs.reserve(m_bodies.size());
+        for (auto& body : m_bodies) {
+            bodyPtrs.push_back(body.get());
+        }
         
-        // Create derivative function for this body
-        auto derivative = [this, &bodyPtrs, bodyPtr = body.get()](double t, const StateVector& state) -> StateVector {
-            glm::dvec3 acceleration = m_gravityEngine.CalculateAcceleration(bodyPtr, bodyPtrs);
-            return StateVector(state.GetVelocity(), acceleration);
-        };
-        
-        // Integrate one step
-        StateVector newState = m_integrator.Step(
-            m_simulationTime,
-            body->GetState(),
-            dt,
-            derivative
-        );
-        
-        body->SetState(newState);
+        // Update each body's state using numerical integration
+        for (auto& body : m_bodies) {
+            // Skip the central star (assumed stationary for now)
+            if (body.get() == m_centralBody) continue;
+            
+            // Create derivative function for this body
+            auto derivative = [this, &bodyPtrs, bodyPtr = body.get()](double /*t*/, const StateVector& state) -> StateVector {
+                glm::dvec3 acceleration = m_gravityEngine.CalculateAcceleration(bodyPtr, bodyPtrs);
+                return StateVector(state.GetVelocity(), acceleration);
+            };
+            
+            // Integrate one step
+            StateVector newState = m_integrator.Step(
+                m_simulationTime,
+                body->GetState(),
+                dt,
+                derivative
+            );
+            
+            body->SetState(newState);
+        }
     }
 }
 
@@ -107,6 +187,89 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateTestSystem() {
     system->AddBody(std::move(sun));
     system->AddBody(std::move(earth));
     
+    return system;
+}
+
+std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
+    auto system = std::make_unique<SolarSystem>("Sol System");
+    
+    // Sun (central body)
+    auto sun = std::make_unique<CelestialBody>("Sol", CelestialBody::Type::Star);
+    sun->SetMass(1.98892e30);  // kg
+    sun->SetRadius(696000e3);  // meters
+    sun->SetColor(glm::vec3(1.0f, 1.0f, 0.8f));
+    sun->SetPosition(glm::dvec3(0.0));
+    sun->SetVelocity(glm::dvec3(0.0));
+    system->m_centralBody = sun.get();
+    system->AddBody(std::move(sun));
+    
+    // Mercury
+    auto mercury = std::make_unique<CelestialBody>("Mercury", CelestialBody::Type::Planet);
+    mercury->SetMass(3.3011e23);
+    mercury->SetRadius(2439.7e3);
+    mercury->SetColor(glm::vec3(0.7f, 0.7f, 0.7f));
+    mercury->SetParent(system->m_centralBody);
+    system->AddBody(std::move(mercury));
+    
+    // Venus
+    auto venus = std::make_unique<CelestialBody>("Venus", CelestialBody::Type::Planet);
+    venus->SetMass(4.8675e24);
+    venus->SetRadius(6051.8e3);
+    venus->SetColor(glm::vec3(0.9f, 0.8f, 0.6f));
+    venus->SetParent(system->m_centralBody);
+    system->AddBody(std::move(venus));
+    
+    // Earth
+    auto earth = std::make_unique<CelestialBody>("Earth", CelestialBody::Type::Planet);
+    earth->SetMass(5.97237e24);
+    earth->SetRadius(6371.0e3);
+    earth->SetColor(glm::vec3(0.3f, 0.5f, 0.9f));
+    earth->SetRotationPeriod(86400.0);
+    earth->SetAxialTilt(0.4091);  // 23.44 degrees in radians
+    earth->SetParent(system->m_centralBody);
+    system->AddBody(std::move(earth));
+    
+    // Mars
+    auto mars = std::make_unique<CelestialBody>("Mars", CelestialBody::Type::Planet);
+    mars->SetMass(6.4171e23);
+    mars->SetRadius(3389.5e3);
+    mars->SetColor(glm::vec3(0.9f, 0.5f, 0.3f));
+    mars->SetParent(system->m_centralBody);
+    system->AddBody(std::move(mars));
+    
+    // Jupiter
+    auto jupiter = std::make_unique<CelestialBody>("Jupiter", CelestialBody::Type::Planet);
+    jupiter->SetMass(1.8982e27);
+    jupiter->SetRadius(69911e3);
+    jupiter->SetColor(glm::vec3(0.8f, 0.7f, 0.6f));
+    jupiter->SetParent(system->m_centralBody);
+    system->AddBody(std::move(jupiter));
+    
+    // Saturn
+    auto saturn = std::make_unique<CelestialBody>("Saturn", CelestialBody::Type::Planet);
+    saturn->SetMass(5.6834e26);
+    saturn->SetRadius(58232e3);
+    saturn->SetColor(glm::vec3(0.9f, 0.8f, 0.6f));
+    saturn->SetParent(system->m_centralBody);
+    system->AddBody(std::move(saturn));
+    
+    // Uranus
+    auto uranus = std::make_unique<CelestialBody>("Uranus", CelestialBody::Type::Planet);
+    uranus->SetMass(8.6810e25);
+    uranus->SetRadius(25362e3);
+    uranus->SetColor(glm::vec3(0.5f, 0.8f, 0.9f));
+    uranus->SetParent(system->m_centralBody);
+    system->AddBody(std::move(uranus));
+    
+    // Neptune
+    auto neptune = std::make_unique<CelestialBody>("Neptune", CelestialBody::Type::Planet);
+    neptune->SetMass(1.02413e26);
+    neptune->SetRadius(24622e3);
+    neptune->SetColor(glm::vec3(0.3f, 0.4f, 0.9f));
+    neptune->SetParent(system->m_centralBody);
+    system->AddBody(std::move(neptune));
+    
+    LOG_INFO("Created Sol system with 8 planets (use EnableVSOP87 for positions)");
     return system;
 }
 

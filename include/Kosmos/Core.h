@@ -3,7 +3,7 @@
 // Platform detection
 #if defined(_WIN32) || defined(_WIN64)
     #define KOSMOS_PLATFORM_WINDOWS
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(KOSMOS_PLATFORM_LINUX)
     #define KOSMOS_PLATFORM_LINUX
 #elif defined(__APPLE__)
     #define KOSMOS_PLATFORM_MACOS

@@ -25,10 +25,12 @@ void Vessel::Update(double deltaTime) {
 }
 
 void Vessel::PreStep(double deltaTime) {
+    (void)deltaTime;  // Unused in base class
     // Override in derived classes
 }
 
 void Vessel::PostStep(double deltaTime) {
+    (void)deltaTime;  // Unused in base class
     // Override in derived classes
 }
 

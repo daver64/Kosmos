@@ -34,7 +34,7 @@ Application::~Application() {
     s_instance = nullptr;
 }
 
-bool Application::Initialize(int argc, char** argv) {
+bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     std::cout << "Kosmos Space Flight Simulator v0.1.0" << std::endl;
     std::cout << "Initializing..." << std::endl;
     
@@ -50,9 +50,10 @@ bool Application::Initialize(int argc, char** argv) {
         return false;
     }
     
-    // Initialize camera
+    // Initialize camera for astronomical scales
     m_camera = std::make_unique<Camera>();
-    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1000.0f, 1e12f);  // Large far plane for space
+    // Near: 1 km, Far: 1 billion km (beyond Neptune's orbit)
+    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1e3f, 1e12f);
     
     // Initialize planet renderer
     m_planetRenderer = std::make_unique<PlanetRenderer>();
@@ -61,9 +62,13 @@ bool Application::Initialize(int argc, char** argv) {
         return false;
     }
     
-    // Create solar system
-    m_solarSystem = SolarSystem::CreateTestSystem();
+    // Create solar system with VSOP87
+    m_solarSystem = SolarSystem::CreateSolSystem();
+    m_solarSystem->EnableVSOP87("data/vsop87", 'D');
     m_solarSystem->SetTimeAcceleration(100.0);  // Speed up time 100x
+    
+    // Set Julian Date to J2000.0 (January 1, 2000, 12:00 TT)
+    m_solarSystem->SetJulianDate(2451545.0);
     
     // Focus camera on Earth
     CelestialBody* earth = m_solarSystem->GetBody("Earth");
@@ -123,6 +128,17 @@ void Application::UpdateCamera() {
     if (!m_focusBody) return;
     
     glm::dvec3 focusPos = m_focusBody->GetPosition();
+    
+    // Debug log position
+    static bool logged = false;
+    if (!logged) {
+        LOG_INFO("Focus body: " + m_focusBody->GetName());
+        LOG_INFO("Position (Gm): " + std::to_string(focusPos.x/1e9) + ", " + 
+                 std::to_string(focusPos.y/1e9) + ", " + 
+                 std::to_string(focusPos.z/1e9));
+        LOG_INFO("Camera distance (Mm): " + std::to_string(m_cameraDistance/1e6));
+        logged = true;
+    }
     
     // Position camera in orbit around focus body
     glm::dvec3 camOffset;

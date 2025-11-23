@@ -1,5 +1,7 @@
 # Kosmos Space Flight Simulator
 
+![Luna3](images/Luna3.jpg)
+
 A cross-platform space flight simulator supporting realistic physics across hundreds of solar systems.
 
 ## Features
@@ -52,26 +54,85 @@ cmake --build . --config Release
 ### Ubuntu/Debian
 
 ```bash
-sudo apt-get install libsdl3-dev libglm-dev libgl1-mesa-dev
+sudo apt-get install libsdl2-dev libglm-dev libglew-dev libgl1-mesa-dev
 ```
 
 ### Fedora
 
 ```bash
-sudo dnf install SDL3-devel glm-devel mesa-libGL-devel
+sudo dnf install SDL2-devel glm-devel glew-devel mesa-libGL-devel
 ```
 
 ### macOS (Homebrew)
 
 ```bash
-brew install sdl3 glm
+brew install sdl2 glm glew
 ```
 
 ### Windows
 
 Download and install:
-- SDL3: https://github.com/libsdl-org/SDL
+- SDL2: https://www.libsdl.org/
 - GLM: https://github.com/g-truc/glm
+- GLEW: http://glew.sourceforge.net/
+
+## Downloading Data Files
+
+After building, download essential data files:
+
+### VSOP87 Planetary Data (Required)
+```bash
+cd data/vsop87
+wget -q ftp://ftp.imcce.fr/pub/ephem/planets/vsop87/VSOP87D.{mer,ven,ear,mar,jup,sat,ura,nep}
+```
+
+### Star Catalogs (Recommended)
+```bash
+cd data/catalogs
+# Quick start: Create minimal test catalog
+cat > nearest_stars.txt << 'EOF'
+# Name,Distance(ly),RA(deg),Dec(deg),Magnitude,SpectralType
+Sol,0.0,0.0,0.0,-26.74,G2V
+Proxima Centauri,4.24,217.42894,-62.67953,11.13,M5.5Ve
+Alpha Centauri A,4.37,219.90205,-60.83399,-0.01,G2V
+Sirius A,8.66,101.28715,-16.71611,-1.46,A1V
+EOF
+
+# Full Hipparcos catalog (~50 MB, ~118K stars)
+# wget https://cdsarc.cds.unistra.fr/ftp/cats/I/311/hip2.dat.gz
+# gunzip hip2.dat.gz
+```
+
+See `data/catalogs/README.md` for complete catalog options.
+
+### Milky Way Skybox (Recommended)
+```bash
+cd data/textures
+mkdir -p skybox
+cd skybox
+
+# ESA Gaia DR2 all-sky map (8K resolution)
+wget https://www.cosmos.esa.int/documents/29201/1769576/GaiaDR2_FluxRGB_Cartesian_8192x4096.png \
+     -O milky_way_gaia_8k.png
+```
+
+### Planet Textures (Optional)
+```bash
+cd data/textures/celestial/Sol/planets
+
+# Earth - NASA Blue Marble
+wget https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg \
+     -O Earth_color.jpg
+
+# Mars
+wget https://www.solarsystemscope.com/textures/download/2k_mars.jpg -O Mars_color.jpg
+
+# See data/textures/TEXTURE_SOURCES.md for Celestia and Orbiter texture packs
+```
+
+For complete download instructions:
+- **Star Catalogs**: `data/catalogs/README.md`
+- **Textures**: `data/textures/TEXTURE_SOURCES.md` (Celestia, Orbiter, NASA sources)
 
 ## Project Structure
 

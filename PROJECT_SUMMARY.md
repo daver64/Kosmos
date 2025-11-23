@@ -37,16 +37,16 @@ Kosmos/
 │   │
 │   ├── Physics/                 # Physics simulation
 │   │   ├── Universe.cpp         # Multi-system container (stub)
-│   │   ├── SolarSystem.cpp      # Star system simulation (stub)
-│   │   ├── CelestialBody.cpp    # Planets/moons/stars (stub)
+│   │   ├── SolarSystem.h/cpp    # Star system simulation ✓
+│   │   ├── CelestialBody.cpp    # Planets/moons/stars ✓
 │   │   ├── Vessel.h/cpp         # Spacecraft base class ✓
 │   │   ├── FuelTank.h/cpp       # Fuel tank system ✓
 │   │   ├── Thruster.h/cpp       # Thruster physics ✓
 │   │   ├── ThrusterGroup.h/cpp  # Thruster grouping ✓
-│   │   ├── GravityEngine.cpp    # N-body gravity (stub)
-│   │   ├── ReferenceFrame.cpp   # Hierarchical frames (stub)
-│   │   ├── Integrator.cpp       # RK4/RK8 integration (stub)
-│   │   └── VSOP87.cpp           # Sol system ephemeris (stub)
+│   │   ├── GravityEngine.cpp    # N-body gravity ✓
+│   │   ├── ReferenceFrame.cpp   # Hierarchical frames ✓
+│   │   ├── Integrator.cpp       # RK4/RK8 integration ✓
+│   │   └── VSOP87.h/cpp         # High-precision planetary positions ✓
 │   │
 │   ├── Rendering/               # Graphics subsystem (all stubs)
 │   │   ├── Renderer.cpp
@@ -93,11 +93,15 @@ Kosmos/
 │       └── DeltaGlider.cpp      # Example vessel plugin ✓
 │
 ├── data/                        # Game data
-│   ├── catalogs/                # Star catalogs (empty)
-│   ├── textures/                # Texture files
-│   │   └── celestial/           # Celestial body textures ✓
-│   │       ├── Sol/             # Solar system (planets, moons, asteroids, comets)
-│   │       └── stars/           # Star textures by spectral type
+│   ├── catalogs/                # Star catalogs ✓
+│   │   ├── README.md            # Catalog download guide (Hipparcos, Gliese, Gaia)
+│   │   └── nearest_stars.txt    # Test catalog (can be auto-generated)
+│   ├── textures/                # Texture files ✓
+│   │   ├── TEXTURE_SOURCES.md   # Complete texture download guide
+│   │   ├── celestial/           # Celestial body textures
+│   │   │   ├── Sol/             # Solar system (planets, moons, asteroids, comets)
+│   │   │   └── stars/           # Star textures by spectral type
+│   │   └── skybox/              # Milky Way panorama textures
 │   ├── models/                  # 3D models (empty)
 │   ├── plugins/                 # Plugin assets ✓
 │   │   └── vessels/             # Vessel plugin data
@@ -107,12 +111,18 @@ Kosmos/
 │   │   └── basic.frag           # Basic fragment shader ✓
 │   ├── scenarios/               # Mission scenarios
 │   │   └── iss_orbit.json       # Example scenario ✓
-│   └── vsop87/                  # VSOP87 data files (empty)
+│   └── vsop87/                  # VSOP87 planetary data ✓
+│       ├── README.md            # Data download instructions
+│       └── VSOP87D.*            # 8 planetary coefficient files (5.1 MB)
 │
 ├── docs/                        # Documentation
-│   └── Architecture.md          # Architecture overview ✓
+│   ├── Architecture.md          # Architecture overview ✓
+│   ├── VSOP87_IMPLEMENTATION.md # VSOP87 system documentation ✓
+│   └── STARFIELD_RENDERING.md   # Skybox and star rendering guide ✓
 │
-├── tests/                       # Unit tests (empty)
+├── tests/                       # Unit tests
+│   └── validate_vsop87.py       # VSOP87 accuracy validation ✓
+├── download_data.sh             # Quick data download script ✓
 │
 └── external/                    # Third-party libraries (empty)
 ```
@@ -125,22 +135,23 @@ Kosmos/
 - **Rendering System**: Camera, Shader, Mesh (spheres, cubes, planes), PlanetRenderer
 - **Math System**: StateVector, OrbitalElements (Keplerian conversion), using GLM
 - **Physics Engine**: CelestialBody, GravityEngine (N-body), Integrator (Euler/RK4/RK8)
-- **Solar System**: SolarSystem manager with test Sun-Earth system
+- **Solar System**: SolarSystem manager with full Sol system (Sun + 8 planets)
+- **VSOP87 System**: High-precision planetary positions using VSOP87D analytical theory
 - **Propulsion System**: FuelTank, Thruster, ThrusterGroup classes
 - **Vessel Base**: Vessel class with full propulsion integration
 - **Plugin Example**: DeltaGlider vessel plugin stub
 - **Build System**: Complete CMake configuration, outputs to project root
 - **Shaders**: Basic vertex and fragment shaders with lighting
-- **Documentation**: README, Architecture docs
+- **Documentation**: README, Architecture docs, VSOP87 implementation guide
+- **Asset Organization**: Complete folder structure for plugins and celestial textures
 
 ### Stub/Placeholder
-- Physics simulation integration (vessels in orbit)
+- Physics simulation integration (vessels in orbit with VSOP87)
 - Input system enhancements (camera controls, key bindings)
 - Audio system
-- Data loaders (scenarios, catalogs, configs)
+- Data loaders (scenarios, catalogs, vessel configs)
 - Platform abstractions (file system helpers)
 - Plugin loading system
-- VSOP87 high-precision ephemeris
 - Texture loading (Celestia format support planned)
 - Star field background
 - Atmospheric rendering
@@ -225,8 +236,12 @@ Binary outputs to project root, plugins to `lib/` folder.
 ### Phase 2: Physics ✅ COMPLETE
 - [x] Reference frame system
 - [x] Gravity calculations (N-body)
-- [x] RK4 integrator
+- [x] RK4/RK8 integrator
 - [x] Simple solar system (Sun + Earth)
+- [x] Full solar system (Sun + 8 planets)
+- [x] VSOP87 high-precision planetary positions
+- [x] Julian Date support
+- [x] Hybrid VSOP87/numerical integration mode
 
 ### Phase 3: Rendering Enhancement (Next Priority)
 - [ ] Fix planet visibility (scale/positioning issues)
@@ -247,15 +262,51 @@ Binary outputs to project root, plugins to `lib/` folder.
 - [ ] Apply textures to planets
 - [ ] Atmospheric scattering
 
-### Phase 6: VSOP87
-- [ ] Load VSOP87 data files
-- [ ] Calculate planetary positions
-- [ ] Full Sol system with all planets
+### Phase 6: User Interaction (Current Focus)
+- [ ] Camera controls (WASD, mouse)
+- [ ] Time acceleration controls
+- [ ] Planet focus switching
+- [ ] Information overlays
 
 ### Phase 7: Multi-System
 - [ ] Load star catalogs
 - [ ] Spatial partitioning
 - [ ] Interstellar navigation
+
+## VSOP87 Implementation
+
+### Overview
+Kosmos now includes complete VSOP87 (Variations Séculaires des Orbites Planétaires) support for high-precision planetary ephemerides. This analytical solution provides accurate positions for all 8 major planets over thousands of years.
+
+### Features
+- **Data Loading**: Reads IMCCE VSOP87 coefficient files (~5.1 MB for variant D)
+- **Series Evaluation**: Evaluates thousands of periodic terms: Σ A*cos(B + C*T)
+- **Position & Velocity**: Calculates both position (analytical) and velocity (numerical differentiation)
+- **Coordinate Systems**: Supports all VSOP87 variants (A-E), currently using D (rectangular heliocentric equatorial)
+- **Julian Date**: Proper epoch handling and time conversion
+- **Hybrid Mode**: Can switch between VSOP87 and numerical integration
+
+### Accuracy
+- Short term (centuries): Sub-arcsecond precision
+- Long term (millennia): Arcsecond to arcminute precision
+- Position error: ~10^-8 AU (~1500 km) for inner planets
+
+### Files
+- `src/Physics/VSOP87.h/cpp` - Core implementation
+- `src/Physics/SolarSystem.h/cpp` - Integration with simulation
+- `data/vsop87/` - VSOP87D coefficient files (downloaded)
+- `docs/VSOP87_IMPLEMENTATION.md` - Complete documentation
+- `tests/validate_vsop87.py` - Validation script against JPL Horizons
+
+### Usage
+```cpp
+auto solarSystem = SolarSystem::CreateSolSystem();
+solarSystem->EnableVSOP87("data/vsop87", 'D');  // Load VSOP87D
+solarSystem->SetJulianDate(2451545.0);  // Set epoch to J2000.0
+solarSystem->Update(deltaTime);  // VSOP87 provides positions
+```
+
+See `docs/VSOP87_IMPLEMENTATION.md` for complete details.
 
 ## Asset Organization
 

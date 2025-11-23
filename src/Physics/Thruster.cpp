@@ -43,6 +43,7 @@ double Thruster::GetCurrentIsp() const {
 }
 
 double Thruster::CalculateThrust(double atmosphericPressure, double altitude) const {
+    (void)altitude;  // TODO: Use for altitude-dependent effects
     if (m_currentLevel <= 0.0) return 0.0;
     
     double throttle = std::clamp(m_currentLevel, m_spec.throttleMin, m_spec.throttleMax);
@@ -52,7 +53,8 @@ double Thruster::CalculateThrust(double atmosphericPressure, double altitude) co
         case Type::MONOPROP:
         case Type::NUCLEAR_THERMAL:
         case Type::RCS: {
-            double isp = CalculateIsp(atmosphericPressure);
+            // Calculate ISP for atmospheric conditions
+            // double isp = CalculateIsp(atmosphericPressure);  // TODO: Use in efficiency calculations
             double vacuumThrust = m_spec.maxThrust * throttle;
             
             // Atmospheric back-pressure effect
@@ -115,6 +117,7 @@ double Thruster::GetOxidizerFlowRate() const {
 }
 
 bool Thruster::Update(double deltaTime, FuelTankManager& tankManager, double atmosphericPressure) {
+    (void)atmosphericPressure;  // TODO: Use for thrust calculations
     if (m_currentLevel <= 0.0) return true;
     
     double fuelNeeded = GetFuelFlowRate() * deltaTime;

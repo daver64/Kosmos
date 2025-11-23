@@ -24,6 +24,7 @@ PLUGIN_EXPORT int GetAPIVersion() {
 }
 
 PLUGIN_EXPORT void* CreateVessel(void* engineInterface) {
+    (void)engineInterface;  // Unused for now
     DeltaGliderData* vessel = new DeltaGliderData();
     vessel->mainThrust = 0.0;
     vessel->fuel = 1.0;
@@ -54,10 +55,12 @@ PLUGIN_EXPORT void Vessel_Update(void* vessel, double deltaTime) {
 }
 
 PLUGIN_EXPORT void Vessel_PreStep(void* vessel, double deltaTime) {
+    (void)vessel; (void)deltaTime;  // Unused for now
     // Pre-physics step processing
 }
 
 PLUGIN_EXPORT void Vessel_PostStep(void* vessel, double deltaTime) {
+    (void)vessel; (void)deltaTime;  // Unused for now
     // Post-physics step processing
 }
 
