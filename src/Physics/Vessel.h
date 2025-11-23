@@ -21,6 +21,7 @@ public:
     // Position and orientation
     glm::dvec3 GetPosition() const { return m_position; }
     glm::dvec3 GetVelocity() const { return m_velocity; }
+    void SetPosition(const glm::dvec3& position) { m_position = position; }
     
     // Mass properties
     double GetMass() const;

@@ -1,6 +1,7 @@
 #include "Window.h"
 #include "../Core/Logger.h"
 #include <iostream>
+#include <cstring>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 
@@ -12,7 +13,9 @@ Window::Window()
     , m_width(1280)
     , m_height(720)
     , m_shouldClose(false)
+    , m_keyboardState(nullptr)
 {
+    std::memset(m_previousKeyState, 0, sizeof(m_previousKeyState));
 }
 
 Window::~Window() {
@@ -92,6 +95,9 @@ bool Window::Initialize(const WindowConfig& config) {
     LOG_INFO("OpenGL Version: " + std::string((const char*)glGetString(GL_VERSION)));
     LOG_INFO("GLSL Version: " + std::string((const char*)glGetString(GL_SHADING_LANGUAGE_VERSION)));
     
+    // Get keyboard state
+    m_keyboardState = SDL_GetKeyboardState(nullptr);
+    
     return true;
 }
 
@@ -114,6 +120,8 @@ void Window::SwapBuffers() {
 }
 
 void Window::ProcessEvents() {
+    UpdateKeyboardState();
+    
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -136,6 +144,33 @@ void Window::ProcessEvents() {
                 break;
         }
     }
+}
+
+void Window::UpdateKeyboardState() {
+    // Save previous state before SDL updates
+    int numKeys;
+    const Uint8* currentState = SDL_GetKeyboardState(&numKeys);
+    if (currentState) {
+        for (int i = 0; i < 512 && i < numKeys; ++i) {
+            m_previousKeyState[i] = currentState[i];
+        }
+    }
+}
+
+bool Window::IsKeyPressed(int scancode) const {
+    // Key was just pressed this frame (not held from previous frame)
+    if (scancode < 0 || scancode >= 512) return false;
+    int numKeys;
+    const Uint8* currentState = SDL_GetKeyboardState(&numKeys);
+    return currentState && scancode < numKeys && currentState[scancode] && !m_previousKeyState[scancode];
+}
+
+bool Window::IsKeyHeld(int scancode) const {
+    // Key is currently held down
+    if (scancode < 0 || scancode >= 512) return false;
+    int numKeys;
+    const Uint8* currentState = SDL_GetKeyboardState(&numKeys);
+    return currentState && scancode < numKeys && currentState[scancode];
 }
 
 } // namespace Kosmos

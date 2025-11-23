@@ -52,6 +52,7 @@ endif()
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/external
 )
 
 # Source files
@@ -87,9 +88,11 @@ set(KOSMOS_PHYSICS_SOURCES
 set(KOSMOS_RENDERING_SOURCES
     src/Rendering/Renderer.cpp
     src/Rendering/Camera.cpp
+    src/Rendering/CameraController.cpp
     src/Rendering/Shader.cpp
     src/Rendering/Mesh.cpp
     src/Rendering/Texture.cpp
+    src/Rendering/DDSLoader.cpp
     src/Rendering/PlanetRenderer.cpp
     src/Rendering/StarField.cpp
     src/Rendering/Atmosphere.cpp

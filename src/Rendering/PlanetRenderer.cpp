@@ -42,6 +42,16 @@ void PlanetRenderer::Render(const CelestialBody* body, Camera* camera, const glm
     double distance = glm::length(bodyPosition - cameraPosition);
     double radius = body->GetRadius();
     
+    // Temporary debug for first frame
+    static int frameCount = 0;
+    if (frameCount < 2 && (body->GetName() == "Earth" || body->GetName() == "Sol")) {
+        LOG_INFO(body->GetName() + ": pos=(" + std::to_string(bodyPosition.x/1e6) + "," + 
+                 std::to_string(bodyPosition.y/1e6) + "," + std::to_string(bodyPosition.z/1e6) + ")Mm cam=(" +
+                 std::to_string(cameraPosition.x/1e6) + "," + std::to_string(cameraPosition.y/1e6) + "," + 
+                 std::to_string(cameraPosition.z/1e6) + ")Mm dist=" + std::to_string(distance/1e3) + "km");
+        if (body->GetName() == "Earth") frameCount++;
+    }
+    
     // Select LOD based on apparent size
     int segments = 32, rings = 16;
     double apparentSize = radius / distance;
@@ -60,14 +70,20 @@ void PlanetRenderer::Render(const CelestialBody* body, Camera* camera, const glm
     // Use shader
     m_shader->Use();
     
-    // Set up matrices relative to camera
+    // For camera-relative rendering, we translate objects relative to camera position
+    // and use an identity view matrix (camera at origin looking down -Z)
     glm::dvec3 relativePos = bodyPosition - cameraPosition;
     
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(relativePos));
     model = glm::scale(model, glm::vec3(body->GetRadius()));
     
-    glm::mat4 view = camera->GetViewMatrix();
+    // Create a view matrix that only includes rotation, not translation
+    // (since we've already translated to camera space)
+    glm::dmat4 rotationOnly = camera->GetViewMatrix();
+    rotationOnly[3] = glm::dvec4(0, 0, 0, 1);  // Remove translation component
+    glm::mat4 view = glm::mat4(rotationOnly);
+    
     glm::mat4 projection = camera->GetProjectionMatrix();
     
     m_shader->SetMat4("model", model);
@@ -75,11 +91,20 @@ void PlanetRenderer::Render(const CelestialBody* body, Camera* camera, const glm
     m_shader->SetMat4("projection", projection);
     m_shader->SetVec3("objectColor", body->GetColor());
     
-    // Simple lighting from origin (star)
-    glm::dvec3 lightPos(0.0, 0.0, 0.0);
-    glm::dvec3 relativeLightPos = lightPos - cameraPosition;
-    m_shader->SetVec3("lightPos", glm::vec3(relativeLightPos));
-    m_shader->SetVec3("viewPos", glm::vec3(0.0f, 0.0f, 0.0f));  // Camera is at origin in view space
+    // For stars (Sun), use full brightness. For planets, use lighting
+    if (body->GetName() == "Sol") {
+        // Sun is self-luminous - render at full brightness
+        m_shader->SetFloat("emissive", 1.0f);
+        m_shader->SetVec3("lightPos", glm::vec3(relativePos));  // Light position in camera space
+        m_shader->SetVec3("viewPos", glm::vec3(0.0f, 0.0f, 0.0f));  // Camera at origin
+    } else {
+        // Planets get lit by the Sun
+        m_shader->SetFloat("emissive", 0.0f);
+        glm::dvec3 sunPos(0.0, 0.0, 0.0);  // Sun at origin in world space
+        glm::dvec3 relativeSunPos = sunPos - cameraPosition;  // Sun in camera space
+        m_shader->SetVec3("lightPos", glm::vec3(relativeSunPos));
+        m_shader->SetVec3("viewPos", glm::vec3(0.0f, 0.0f, 0.0f));  // Camera at origin
+    }
     
     // Render the sphere
     sphereMesh->Render();

@@ -134,9 +134,9 @@ bool VSOP87::ParseDataFile(const std::string& filename, Planet planet) {
             // Check if we have enough fields (should be 19)
             if (fields.size() >= 19) {
                 Term term;
-                term.A = fields[14];  // Field 15 (0-indexed = 14)
-                term.B = fields[17];  // Field 18 (0-indexed = 17)
-                term.C = fields[18];  // Field 19 (0-indexed = 18)
+                term.A = fields[15];  // Amplitude (field 16, 0-indexed = 15)
+                term.B = fields[17];  // Phase (field 18, 0-indexed = 17)
+                term.C = fields[18];  // Frequency (field 19, 0-indexed = 18)
                 
                 CoordinateSeries* series = nullptr;
                 if (currentCoord == 0) series = &data.x;
@@ -288,17 +288,48 @@ void VSOP87::GetPositionVelocity(Planet planet, double julianDate,
     }
     
     // Evaluate position
-    position.x = EvaluateSeries(data.x, T);
-    position.y = EvaluateSeries(data.y, T);
-    position.z = EvaluateSeries(data.z, T);
+    position.x = EvaluateSeries(data.x, T);  // Should be L (longitude)
+    position.y = EvaluateSeries(data.y, T);  // Should be B (latitude)
+    position.z = EvaluateSeries(data.z, T);  // Should be R (radius)
     
     // Debug log for Earth
     if (planet == Planet::Earth) {
         static bool logged = false;
         if (!logged) {
-            LOG_INFO("VSOP87 Earth raw position (before AU conversion): " + std::to_string(position.x) + ", " + 
-                     std::to_string(position.y) + ", " + std::to_string(position.z));
+            LOG_INFO("VSOP87 Earth raw position (before conversion):");
+            LOG_INFO("  x (L longitude): " + std::to_string(position.x) + " rad");
+            LOG_INFO("  y (B latitude): " + std::to_string(position.y) + " rad");
+            LOG_INFO("  z (R radius): " + std::to_string(position.z) + " AU");
+            LOG_INFO("  First term of data.z (R) has " + std::to_string(data.z.powers.size()) + " powers");
+            if (!data.z.powers.empty()) {
+                LOG_INFO("  Power 0 has " + std::to_string(data.z.powers[0].terms.size()) + " terms");
+                if (!data.z.powers[0].terms.empty()) {
+                    LOG_INFO("  First term: A=" + std::to_string(data.z.powers[0].terms[0].A));
+                }
+            }
             logged = true;
+        }
+    }
+    
+    // Convert from spherical to rectangular if using variant D or B
+    if (m_variant == 'D' || m_variant == 'B') {
+        double L = position.x;  // Longitude (radians)
+        double B = position.y;  // Latitude (radians)
+        double R = position.z;  // Radius (AU)
+        
+        position.x = R * cos(B) * cos(L);
+        position.y = R * cos(B) * sin(L);
+        position.z = R * sin(B);
+        
+        // Debug log after spherical conversion
+        if (planet == Planet::Earth) {
+            static bool logged_sph = false;
+            if (!logged_sph) {
+                LOG_INFO("VSOP87 Earth after spherical->rectangular (AU): " + std::to_string(position.x) + ", " + 
+                         std::to_string(position.y) + ", " + std::to_string(position.z));
+                LOG_INFO("  (L=" + std::to_string(L) + " rad, B=" + std::to_string(B) + " rad, R=" + std::to_string(R) + " AU)");
+                logged_sph = true;
+            }
         }
     }
     
@@ -306,6 +337,23 @@ void VSOP87::GetPositionVelocity(Planet planet, double julianDate,
     velocity.x = EvaluateSeriesDerivative(data.x, T);
     velocity.y = EvaluateSeriesDerivative(data.y, T);
     velocity.z = EvaluateSeriesDerivative(data.z, T);
+    
+    // Convert velocity from spherical to rectangular if needed
+    // (simplified - just scale by position for now, proper conversion needs chain rule)
+    if (m_variant == 'D' || m_variant == 'B') {
+        // For now, approximate velocity conversion
+        // TODO: Implement proper spherical velocity derivative transformation
+        double L = EvaluateSeries(data.x, T);
+        double B = EvaluateSeries(data.y, T);
+        double R = EvaluateSeries(data.z, T);
+        double dL = velocity.x;
+        double dB = velocity.y;
+        double dR = velocity.z;
+        
+        velocity.x = dR * cos(B) * cos(L) - R * sin(B) * dB * cos(L) - R * cos(B) * sin(L) * dL;
+        velocity.y = dR * cos(B) * sin(L) - R * sin(B) * dB * sin(L) + R * cos(B) * cos(L) * dL;
+        velocity.z = dR * sin(B) + R * cos(B) * dB;
+    }
     
     // Convert position from AU to meters
     position *= AU;

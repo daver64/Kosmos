@@ -1,10 +1,12 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
 
 // Forward declare SDL types
 struct SDL_Window;
 typedef void* SDL_GLContext;
+typedef uint8_t Uint8;
 
 namespace Kosmos {
 
@@ -39,12 +41,22 @@ public:
     SDL_Window* GetSDLWindow() { return m_window; }
     SDL_GLContext GetGLContext() { return m_glContext; }
     
+    // Keyboard input
+    bool IsKeyPressed(int scancode) const;
+    bool IsKeyHeld(int scancode) const;
+    
 private:
     SDL_Window* m_window;
     SDL_GLContext m_glContext;
     int m_width;
     int m_height;
     bool m_shouldClose;
+    
+    // Keyboard state
+    const Uint8* m_keyboardState;
+    Uint8 m_previousKeyState[512];
+    
+    void UpdateKeyboardState();
 };
 
 } // namespace Kosmos
