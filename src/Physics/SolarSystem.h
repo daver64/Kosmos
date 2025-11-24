@@ -66,6 +66,9 @@ private:
     bool m_useVSOP87;
     std::unique_ptr<VSOP87> m_vsop87;
     
+    // Moon orbital state
+    double m_moonOrbitalPhase;  // Current angle in radians
+    
     void UpdateVSOP87Positions();
 };
 

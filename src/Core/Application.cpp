@@ -27,6 +27,8 @@ Application::Application()
     , m_cameraDistance(3.0e7)  // 30 million meters from Earth
     , m_cameraYaw(0.0)
     , m_cameraPitch(0.3)
+    , m_focusBody(nullptr)
+    , m_previousFocusPos(0.0)
 {
     s_instance = this;
 }
@@ -138,6 +140,8 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     std::cout << "  V - Attach camera to vessel" << std::endl;
     std::cout << "  C - Cycle cockpit cameras" << std::endl;
     std::cout << "  X - Cycle external cameras" << std::endl;
+    std::cout << "  , / . - Cycle focus body (prev/next planet)" << std::endl;
+    std::cout << "  Q / E - Roll camera" << std::endl;
     std::cout << "  Mouse Wheel - Zoom (external) / Move (free)" << std::endl;
     std::cout << "  Arrow Keys - Rotate camera" << std::endl;
     std::cout << "  WASD - Move camera (free mode)" << std::endl;
@@ -201,6 +205,16 @@ void Application::ProcessInput(double deltaTime) {
     }
     if (m_window->IsKeyPressed(SDL_SCANCODE_X)) {
         m_cameraController->NextExternalCamera();
+    }
+    
+    // Planet/body cycling
+    if (m_window->IsKeyPressed(SDL_SCANCODE_PERIOD)) {  // > key
+        LOG_INFO("Period key pressed - cycling forward");
+        CycleFocusBody(1);
+    }
+    if (m_window->IsKeyPressed(SDL_SCANCODE_COMMA)) {  // < key
+        LOG_INFO("Comma key pressed - cycling backward");
+        CycleFocusBody(-1);
     }
     
     // Camera controls based on mode
@@ -300,13 +314,18 @@ void Application::UpdateCamera() {
     
     glm::dvec3 focusPos = m_focusBody->GetPosition();
     
+    // Smooth interpolation of focus body position to reduce jitter
+    double smoothing = 0.85;  // Higher = more responsive, lower = smoother
+    glm::dvec3 smoothedFocusPos = m_previousFocusPos * (1.0 - smoothing) + focusPos * smoothing;
+    m_previousFocusPos = smoothedFocusPos;
+    
     // If in FREE mode, update camera position to follow the focus body
     // but preserve the user's rotation (forward direction)
     if (m_cameraController->GetMode() == CameraMode::FREE) {
         glm::dvec3 forward = m_cameraController->GetFreeForward();
         
         // Update position to maintain distance from focus body
-        glm::dvec3 newCameraPos = focusPos + m_cameraOffset;
+        glm::dvec3 newCameraPos = smoothedFocusPos + m_cameraOffset;
         m_cameraController->SetFreePosition(newCameraPos);
         
         // Update target using the preserved forward direction
@@ -351,6 +370,25 @@ void Application::Render() {
     // Render all celestial bodies
     if (m_solarSystem && m_planetRenderer) {
         glm::dvec3 camPos = m_camera->GetPosition();
+        
+        // Debug log once per run
+        static bool logged = false;
+        if (!logged) {
+            LOG_INFO("Rendering " + std::to_string(m_solarSystem->GetBodies().size()) + " celestial bodies");
+            for (const auto& body : m_solarSystem->GetBodies()) {
+                glm::dvec3 pos = body->GetPosition();
+                glm::dvec3 relPos = pos - camPos;
+                double distance = glm::length(relPos);
+                LOG_INFO(body->GetName() + ": pos=(" + 
+                         std::to_string(pos.x/1e9) + "," + 
+                         std::to_string(pos.y/1e9) + "," + 
+                         std::to_string(pos.z/1e9) + ")Gm dist=" + 
+                         std::to_string(distance/1e6) + "Mm radius=" + 
+                         std::to_string(body->GetRadius()/1e3) + "km");
+            }
+            logged = true;
+        }
+        
         for (const auto& body : m_solarSystem->GetBodies()) {
             m_planetRenderer->Render(body.get(), m_camera.get(), camPos);
         }
@@ -362,6 +400,43 @@ void Application::Shutdown() {
     m_running = false;
     
     // TODO: Cleanup subsystems
+}
+
+void Application::CycleFocusBody(int direction) {
+    if (!m_solarSystem || m_solarSystem->GetBodies().empty()) return;
+    
+    // Find current focus body index
+    int currentIndex = -1;
+    const auto& bodies = m_solarSystem->GetBodies();
+    for (size_t i = 0; i < bodies.size(); ++i) {
+        if (bodies[i].get() == m_focusBody) {
+            currentIndex = static_cast<int>(i);
+            break;
+        }
+    }
+    
+    // Cycle to next/previous body
+    int newIndex = (currentIndex + direction + bodies.size()) % bodies.size();
+    m_focusBody = bodies[newIndex].get();
+    
+    // Initialize smoothing
+    m_previousFocusPos = m_focusBody->GetPosition();
+    
+    // Reposition camera around new focus
+    glm::dvec3 focusPos = m_focusBody->GetPosition();
+    double distance = glm::max(m_focusBody->GetRadius() * 5.0, 10000.0);  // 5 radii or 10km min
+    
+    m_cameraOffset.x = distance;
+    m_cameraOffset.y = distance * 0.3;
+    m_cameraOffset.z = 0.0;
+    m_followDistance = glm::length(m_cameraOffset);
+    
+    glm::dvec3 cameraPos = focusPos + m_cameraOffset;
+    m_cameraController->SetFreePosition(cameraPos);
+    m_cameraController->SetFreeTarget(focusPos);
+    
+    LOG_INFO("Focus changed to: " + m_focusBody->GetName() + " (distance: " + 
+             std::to_string(distance/1000.0) + " km)");
 }
 
 } // namespace Kosmos

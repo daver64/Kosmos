@@ -29,6 +29,7 @@ public:
     Mesh* GetSphereMesh(int segments = 32, int rings = 16);
     
 private:
+    void RenderAsPoint(const CelestialBody* body, Camera* camera, const glm::dvec3& cameraPosition);
     std::unique_ptr<Shader> m_shader;
     std::unordered_map<int, std::unique_ptr<Mesh>> m_sphereMeshes;  // LOD system
     

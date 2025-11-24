@@ -49,6 +49,7 @@ private:
     CelestialBody* m_focusBody;
     glm::dvec3 m_cameraPosition;
     glm::dvec3 m_cameraOffset;  // Offset from focus body
+    glm::dvec3 m_previousFocusPos;  // For smooth interpolation
     double m_followDistance;    // Distance to maintain from focus body
     double m_cameraDistance;
     double m_cameraYaw;
@@ -59,6 +60,7 @@ private:
     void Update(double deltaTime);
     void UpdateCamera();
     void Render();
+    void CycleFocusBody(int direction);
 };
 
 } // namespace Kosmos

@@ -2,13 +2,16 @@
 
 ![Luna3](images/Luna3.jpg)
 
-A cross-platform space flight simulator supporting realistic physics across hundreds of solar systems.
+A cross-platform space flight simulator with realistic physics and high-precision orbital mechanics for exploring our solar system and beyond.
 
 ## Features
 
-- **Realistic Physics**: N-body gravity simulation with VSOP87 for Sol system
-- **Multi-System Support**: Explore hundreds of nearby star systems
-- **Advanced Propulsion**: Detailed fuel tank and thruster system modeling
+- **High-Precision Physics**: 64-bit double precision throughout for realistic solar system scale accuracy
+- **VSOP87D Ephemerides**: Accurate planetary positions for all 8 planets plus the Moon
+- **6DOF Camera System**: Free-flight camera with full 6 degrees of freedom (no gimbal lock)
+- **Camera-Relative Rendering**: Precision rendering at astronomical scales without floating-point jitter
+- **Realistic Lighting**: Physically-based lighting with proper shadow calculations
+- **Milky Way Background**: Beautiful procedural or Gaia-based starfield rendering
 - **Plugin Architecture**: Extensible vessel system via DLL/.so plugins
 - **Cross-Platform**: Windows, Linux, and macOS support
 
@@ -134,6 +137,44 @@ For complete download instructions:
 - **Star Catalogs**: `data/catalogs/README.md`
 - **Textures**: `data/textures/TEXTURE_SOURCES.md` (Celestia, Orbiter, NASA sources)
 
+## Controls
+
+### Camera Movement
+- **Arrow Keys**: Pitch (up/down) and Yaw (left/right)
+- **Q / E**: Roll camera left/right
+- **W / A / S / D**: Move camera in free mode (forward/left/back/right)
+- **Mouse Wheel**: Zoom in/out in external camera, move forward/back in free mode
+
+### Camera Modes
+- **F1**: Cockpit camera (internal view)
+- **F2**: External camera (orbiting around focus body)
+- **F3**: Track camera (follow mode)
+- **F4**: Free camera (unconstrained 6DOF flight)
+- **V**: Attach camera to vessel
+- **C**: Cycle through cockpit cameras
+- **X**: Cycle through external camera positions
+
+### Navigation
+- **,** (Comma): Cycle to previous celestial body
+- **.** (Period): Cycle to next celestial body
+  - Order: Sol → Mercury → Venus → Earth → Moon → Mars → Jupiter → Saturn → Uranus → Neptune
+
+### Time Control
+- **1**: Decrease time acceleration
+- **2**: Increase time acceleration
+
+### General
+- **ESC**: Exit simulation
+
+## Current Solar System Bodies
+
+The simulation includes the following celestial bodies with accurate VSOP87D positions:
+- **Sun** (Sol): Self-luminous star at the center
+- **8 Planets**: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune
+- **Moon**: Earth's natural satellite with realistic orbital motion
+
+All bodies are rendered at their actual physical sizes with proper lighting and can be viewed from any perspective.
+
 ## Project Structure
 
 ```
@@ -199,9 +240,17 @@ Contributions welcome! Please read CONTRIBUTING.md for guidelines.
 ## Documentation
 
 - [Architecture Overview](docs/Architecture.md)
+- [VSOP87 Implementation](docs/VSOP87_IMPLEMENTATION.md)
+- [Starfield Rendering](docs/STARFIELD_RENDERING.md)
 - [Plugin Development Guide](docs/PluginDevelopment.md)
-- [Physics System](docs/Physics.md)
-- [Rendering System](docs/Rendering.md)
+
+## Technical Highlights
+
+- **64-bit Precision**: All calculations use double precision until the final GPU conversion
+- **Camera-Relative Rendering**: Objects positioned relative to camera to avoid float precision loss
+- **Smooth Orbital Motion**: Phase-increment based orbital calculations for jitter-free movement
+- **Depth Management**: Smart depth testing for astronomical scales (skybox vs celestial bodies)
+- **Euler Angle Camera**: Accumulation-based rotation system (never recalculated from direction vectors)
 
 ## Credits
 

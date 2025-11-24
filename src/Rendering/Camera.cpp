@@ -11,7 +11,7 @@ Camera::Camera()
     , m_fov(45.0f)
     , m_aspectRatio(16.0f / 9.0f)
     , m_nearPlane(0.1f)
-    , m_farPlane(1.0e12f)  // 1 trillion meters = ~6.7 AU for solar system rendering
+    , m_farPlane(1.0e13f)  // 10 trillion meters = ~67 AU for solar system rendering
 {
     SetPerspective(m_fov, m_aspectRatio, m_nearPlane, m_farPlane);
 }

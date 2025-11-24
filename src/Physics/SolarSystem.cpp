@@ -12,6 +12,7 @@ SolarSystem::SolarSystem(const std::string& name)
     , m_timeAcceleration(1.0)
     , m_epoch(VSOP87::J2000_JD)
     , m_useVSOP87(false)
+    , m_moonOrbitalPhase(0.0)
 {
 }
 
@@ -111,6 +112,39 @@ void SolarSystem::Update(double deltaTime) {
     if (m_useVSOP87) {
         // Use VSOP87 for planetary positions
         UpdateVSOP87Positions();
+        
+        // Update Moon's position relative to Earth with smooth orbital motion
+        CelestialBody* earth = GetBody("Earth");
+        CelestialBody* moon = GetBody("Moon");
+        if (earth && moon) {
+            // Smooth circular orbit using incremental phase
+            double moonPeriod = 27.32 * 86400.0;  // 27.32 days
+            double moonRadius = 384400e3;  // 384,400 km
+            
+            // Increment phase smoothly
+            double angularVelocity = 2.0 * M_PI / moonPeriod;
+            m_moonOrbitalPhase += angularVelocity * dt;
+            
+            // Keep phase in [0, 2π] range
+            while (m_moonOrbitalPhase > 2.0 * M_PI) {
+                m_moonOrbitalPhase -= 2.0 * M_PI;
+            }
+            
+            glm::dvec3 moonOffset;
+            moonOffset.x = moonRadius * cos(m_moonOrbitalPhase);
+            moonOffset.y = 0.0;
+            moonOffset.z = moonRadius * sin(m_moonOrbitalPhase);
+            
+            moon->SetPosition(earth->GetPosition() + moonOffset);
+            
+            // Calculate orbital velocity (perpendicular to radius)
+            double speed = 2.0 * M_PI * moonRadius / moonPeriod;
+            glm::dvec3 moonVel;
+            moonVel.x = -speed * sin(m_moonOrbitalPhase);
+            moonVel.y = 0.0;
+            moonVel.z = speed * cos(m_moonOrbitalPhase);
+            moon->SetVelocity(earth->GetVelocity() + moonVel);
+        }
     } else {
         // Use numerical integration
         std::vector<CelestialBody*> bodyPtrs;
@@ -227,7 +261,23 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     earth->SetRotationPeriod(86400.0);
     earth->SetAxialTilt(0.4091);  // 23.44 degrees in radians
     earth->SetParent(system->m_centralBody);
+    CelestialBody* earthPtr = earth.get();  // Save pointer for Moon's parent
     system->AddBody(std::move(earth));
+    
+    // Moon (Earth's satellite)
+    auto moon = std::make_unique<CelestialBody>("Moon", CelestialBody::Type::Moon);
+    moon->SetMass(7.342e22);
+    moon->SetRadius(1737.4e3);
+    moon->SetColor(glm::vec3(0.7f, 0.7f, 0.7f));
+    moon->SetParent(earthPtr);  // Moon orbits Earth
+    // Set Moon's orbital parameters (circular orbit approximation)
+    double moonSemiMajorAxis = 384400e3;  // 384,400 km
+    double moonOrbitalPeriod = 27.32 * 86400.0;  // 27.32 days
+    double moonOrbitalSpeed = 2.0 * M_PI * moonSemiMajorAxis / moonOrbitalPeriod;
+    // Position Moon in orbit around Earth (will be relative to Earth)
+    moon->SetPosition(glm::dvec3(moonSemiMajorAxis, 0.0, 0.0));
+    moon->SetVelocity(glm::dvec3(0.0, moonOrbitalSpeed, 0.0));
+    system->AddBody(std::move(moon));
     
     // Mars
     auto mars = std::make_unique<CelestialBody>("Mars", CelestialBody::Type::Planet);
