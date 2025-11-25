@@ -12,10 +12,12 @@ class CameraController;
 class Shader;
 class Mesh;
 class PlanetRenderer;
+class VesselRenderer;
 class StarField;
 class SolarSystem;
 class CelestialBody;
 class Vessel;
+struct VertModel;
 
 class Application {
 public:
@@ -42,9 +44,11 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<CameraController> m_cameraController;
     std::unique_ptr<PlanetRenderer> m_planetRenderer;
+    std::unique_ptr<VesselRenderer> m_vesselRenderer;
     std::unique_ptr<StarField> m_starField;
     std::unique_ptr<SolarSystem> m_solarSystem;
     std::unique_ptr<Vessel> m_testVessel;
+    std::unique_ptr<VertModel> m_lunaE3Model;
     
     CelestialBody* m_focusBody;
     glm::dvec3 m_cameraPosition;
@@ -54,6 +58,7 @@ private:
     double m_cameraDistance;
     double m_cameraYaw;
     double m_cameraPitch;
+    double m_probeRotation;     // Rotation angle for LunaE3 probe
     
     void ProcessEvents();
     void ProcessInput(double deltaTime);

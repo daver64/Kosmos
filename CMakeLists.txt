@@ -93,7 +93,10 @@ set(KOSMOS_RENDERING_SOURCES
     src/Rendering/Mesh.cpp
     src/Rendering/Texture.cpp
     src/Rendering/DDSLoader.cpp
+    src/Rendering/MSHXLoader.cpp
+    src/Rendering/VertLoader.cpp
     src/Rendering/PlanetRenderer.cpp
+    src/Rendering/VesselRenderer.cpp
     src/Rendering/StarField.cpp
     src/Rendering/Atmosphere.cpp
     src/Rendering/HUD.cpp

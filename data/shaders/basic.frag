@@ -11,11 +11,21 @@ uniform vec3 lightPos;
 uniform vec3 viewPos;
 uniform vec3 objectColor;
 uniform float emissive;  // 1.0 for self-luminous (stars), 0.0 for planets
+uniform bool useTexture; // Whether to use texture or objectColor
+uniform sampler2D textureSampler;
 
 void main() {
+    vec3 baseColor;
+    
+    if (useTexture) {
+        baseColor = texture(textureSampler, TexCoord).rgb;
+    } else {
+        baseColor = objectColor;
+    }
+    
     if (emissive > 0.5) {
         // Self-luminous object (star) - render at full brightness
-        FragColor = vec4(objectColor, 1.0);
+        FragColor = vec4(baseColor, 1.0);
     } else {
         // Ambient
         float ambientStrength = 0.3;
@@ -34,7 +44,7 @@ void main() {
         float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
         vec3 specular = specularStrength * spec * vec3(1.0);
         
-        vec3 result = (ambient + diffuse + specular) * objectColor;
+        vec3 result = (ambient + diffuse + specular) * baseColor;
         
         FragColor = vec4(result, 1.0);
     }

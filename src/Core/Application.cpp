@@ -5,7 +5,9 @@
 #include "../Rendering/Shader.h"
 #include "../Rendering/Mesh.h"
 #include "../Rendering/PlanetRenderer.h"
+#include "../Rendering/VesselRenderer.h"
 #include "../Rendering/StarField.h"
+#include "../Rendering/VertLoader.h"
 #include "../Physics/SolarSystem.h"
 #include "../Physics/CelestialBody.h"
 #include "../Physics/Vessel.h"
@@ -29,6 +31,7 @@ Application::Application()
     , m_cameraPitch(0.3)
     , m_focusBody(nullptr)
     , m_previousFocusPos(0.0)
+    , m_probeRotation(0.0)
 {
     s_instance = this;
 }
@@ -58,8 +61,8 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     
     // Initialize camera for astronomical scales
     m_camera = std::make_unique<Camera>();
-    // Near: 1 km, Far: 1 billion km (beyond Neptune's orbit)
-    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1e3f, 1e12f);
+    // Near: 0.1 m (for close vessels), Far: 1 billion km (beyond Neptune's orbit)
+    m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 0.1f, 1e12f);
     
     // Initialize camera controller
     m_cameraController = std::make_unique<CameraController>(m_camera.get());
@@ -77,12 +80,29 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
         return false;
     }
     
+    // Initialize vessel renderer
+    m_vesselRenderer = std::make_unique<VesselRenderer>();
+    if (!m_vesselRenderer->Initialize()) {
+        LOG_ERROR("Failed to initialize vessel renderer");
+        return false;
+    }
+    
     // Initialize starfield background
     m_starField = std::make_unique<StarField>();
     if (!m_starField->Initialize()) {
         LOG_ERROR("Failed to initialize starfield");
         return false;
     }
+    
+    // Load LunaE3 probe mesh
+    LOG_INFO("Loading LunaE3 mesh...");
+    m_lunaE3Model = VertLoader::Load("data/plugins/vessels/LunaE3/meshes/probe.vert", "data/plugins/vessels/LunaE3/textures");
+    if (!m_lunaE3Model || m_lunaE3Model->groups.empty()) {
+        LOG_ERROR("Failed to load LunaE3 mesh");
+        return false;
+    }
+    
+    LOG_INFO("LunaE3 mesh loaded: " + std::to_string(m_lunaE3Model->groups.size()) + " groups");
     
     // Create solar system with VSOP87
     m_solarSystem = SolarSystem::CreateSolSystem();
@@ -289,6 +309,9 @@ void Application::Update(double deltaTime) {
         m_solarSystem->Update(deltaTime);
     }
     
+    // Update probe rotation (slow rotation: 0.2 radians per second)
+    m_probeRotation += 0.2 * deltaTime;
+    
     // Update test vessel position (orbit around focus body)
     if (m_testVessel && m_focusBody) {
         glm::dvec3 focusPos = m_focusBody->GetPosition();
@@ -392,6 +415,22 @@ void Application::Render() {
         for (const auto& body : m_solarSystem->GetBodies()) {
             m_planetRenderer->Render(body.get(), m_camera.get(), camPos);
         }
+    }
+    
+    // Render LunaE3 probe last (after celestial bodies) so it appears in front
+    if (m_lunaE3Model && m_vesselRenderer) {
+        glm::dvec3 camPos = m_camera->GetPosition();
+        glm::dvec3 camForward = m_cameraController->GetFreeForward();
+        glm::dvec3 probePos = camPos + camForward * 5.0;  // 5 meters in front
+        
+        // Create rotation matrix (rotate around Y axis)
+        glm::dmat3 orientation = glm::dmat3(
+            glm::cos(m_probeRotation), 0.0, glm::sin(m_probeRotation),
+            0.0, 1.0, 0.0,
+            -glm::sin(m_probeRotation), 0.0, glm::cos(m_probeRotation)
+        );
+        
+        m_vesselRenderer->Render(m_lunaE3Model.get(), probePos, orientation, m_camera.get(), camPos);
     }
 }
 

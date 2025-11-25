@@ -94,6 +94,7 @@ void PlanetRenderer::Render(const CelestialBody* body, Camera* camera, const glm
         m_shader->SetMat4("view", glm::mat4(view));
         m_shader->SetMat4("projection", glm::mat4(projection));
         m_shader->SetVec3("objectColor", body->GetColor() * 1.5f);  // Bright
+        m_shader->SetBool("useTexture", false);
         m_shader->SetFloat("emissive", 1.0f);  // Self-luminous
         m_shader->SetVec3("lightPos", glm::vec3(0.0f));
         m_shader->SetVec3("viewPos", glm::vec3(0.0f));
@@ -161,6 +162,7 @@ void PlanetRenderer::Render(const CelestialBody* body, Camera* camera, const glm
     m_shader->SetMat4("view", glm::mat4(view));
     m_shader->SetMat4("projection", glm::mat4(projection));
     m_shader->SetVec3("objectColor", body->GetColor());
+    m_shader->SetBool("useTexture", false);
     
     // For stars (Sun), use full brightness. For planets, use lighting
     if (body->GetName() == "Sol") {
@@ -223,6 +225,7 @@ void PlanetRenderer::RenderAsPoint(const CelestialBody* body, Camera* camera, co
     m_shader->SetMat4("view", glm::mat4(view));
     m_shader->SetMat4("projection", glm::mat4(projection));
     m_shader->SetVec3("objectColor", body->GetColor() * glm::vec3(brightness));
+    m_shader->SetBool("useTexture", false);
     m_shader->SetFloat("emissive", 1.0f);  // Self-luminous
     m_shader->SetVec3("lightPos", glm::vec3(0.0f));
     m_shader->SetVec3("viewPos", glm::vec3(0.0f));
