@@ -232,6 +232,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     sun->SetMass(1.98892e30);  // kg
     sun->SetRadius(696000e3);  // meters
     sun->SetColor(glm::vec3(1.0f, 1.0f, 0.8f));
+    sun->SetTexture("sun.jpg");  // Celestia texture
     sun->SetPosition(glm::dvec3(0.0));
     sun->SetVelocity(glm::dvec3(0.0));
     system->m_centralBody = sun.get();
@@ -242,6 +243,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     mercury->SetMass(3.3011e23);
     mercury->SetRadius(2439.7e3);
     mercury->SetColor(glm::vec3(0.7f, 0.7f, 0.7f));
+    mercury->SetTexture("mercury.jpg");  // Celestia texture
     mercury->SetParent(system->m_centralBody);
     system->AddBody(std::move(mercury));
     
@@ -250,6 +252,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     venus->SetMass(4.8675e24);
     venus->SetRadius(6051.8e3);
     venus->SetColor(glm::vec3(0.9f, 0.8f, 0.6f));
+    venus->SetTexture("venus.jpg");  // Celestia texture
     venus->SetParent(system->m_centralBody);
     system->AddBody(std::move(venus));
     
@@ -258,6 +261,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     earth->SetMass(5.97237e24);
     earth->SetRadius(6371.0e3);
     earth->SetColor(glm::vec3(0.3f, 0.5f, 0.9f));
+    earth->SetTexture("earth.jpg");  // Celestia Blue Marble texture
     earth->SetRotationPeriod(86400.0);
     earth->SetAxialTilt(0.4091);  // 23.44 degrees in radians
     earth->SetParent(system->m_centralBody);
@@ -269,6 +273,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     moon->SetMass(7.342e22);
     moon->SetRadius(1737.4e3);
     moon->SetColor(glm::vec3(0.7f, 0.7f, 0.7f));
+    moon->SetTexture("moon.jpg");  // Celestia LROC texture
     moon->SetParent(earthPtr);  // Moon orbits Earth
     // Set Moon's orbital parameters (circular orbit approximation)
     double moonSemiMajorAxis = 384400e3;  // 384,400 km
@@ -284,6 +289,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     mars->SetMass(6.4171e23);
     mars->SetRadius(3389.5e3);
     mars->SetColor(glm::vec3(0.9f, 0.5f, 0.3f));
+    mars->SetTexture("mars.jpg");  // Celestia Viking/MGS texture
     mars->SetParent(system->m_centralBody);
     system->AddBody(std::move(mars));
     
@@ -292,6 +298,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     jupiter->SetMass(1.8982e27);
     jupiter->SetRadius(69911e3);
     jupiter->SetColor(glm::vec3(0.8f, 0.7f, 0.6f));
+    jupiter->SetTexture("jupiter.jpg");  // Celestia texture
     jupiter->SetParent(system->m_centralBody);
     system->AddBody(std::move(jupiter));
     
@@ -300,6 +307,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     saturn->SetMass(5.6834e26);
     saturn->SetRadius(58232e3);
     saturn->SetColor(glm::vec3(0.9f, 0.8f, 0.6f));
+    saturn->SetTexture("saturn.jpg");  // Celestia texture
     saturn->SetParent(system->m_centralBody);
     system->AddBody(std::move(saturn));
     
@@ -308,6 +316,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     uranus->SetMass(8.6810e25);
     uranus->SetRadius(25362e3);
     uranus->SetColor(glm::vec3(0.5f, 0.8f, 0.9f));
+    uranus->SetTexture("uranus.jpg");  // Celestia texture
     uranus->SetParent(system->m_centralBody);
     system->AddBody(std::move(uranus));
     
@@ -316,6 +325,7 @@ std::unique_ptr<SolarSystem> SolarSystem::CreateSolSystem(bool /*useVSOP87*/) {
     neptune->SetMass(1.02413e26);
     neptune->SetRadius(24622e3);
     neptune->SetColor(glm::vec3(0.3f, 0.4f, 0.9f));
+    neptune->SetTexture("neptune.jpg");  // Celestia texture
     neptune->SetParent(system->m_centralBody);
     system->AddBody(std::move(neptune));
     

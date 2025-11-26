@@ -32,6 +32,7 @@ Application::Application()
     , m_focusBody(nullptr)
     , m_previousFocusPos(0.0)
     , m_probeRotation(0.0)
+    , m_focusJustChanged(false)
 {
     s_instance = this;
 }
@@ -139,6 +140,7 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
         m_focusBody = earth;
         m_cameraOffset = camOffset;
         m_followDistance = glm::length(camOffset);
+        m_previousFocusPos = focusPos;  // Initialize to avoid interpolation from origin
         
         m_cameraController->SetFreePosition(cameraPos);
         m_cameraController->SetFreeTarget(focusPos);  // Look at Earth's center
@@ -343,18 +345,42 @@ void Application::UpdateCamera() {
     m_previousFocusPos = smoothedFocusPos;
     
     // If in FREE mode, update camera position to follow the focus body
-    // but preserve the user's rotation (forward direction)
     if (m_cameraController->GetMode() == CameraMode::FREE) {
-        glm::dvec3 forward = m_cameraController->GetFreeForward();
-        
         // Update position to maintain distance from focus body
         glm::dvec3 newCameraPos = smoothedFocusPos + m_cameraOffset;
         m_cameraController->SetFreePosition(newCameraPos);
         
-        // Update target using the preserved forward direction
-        // Use SetFreeTargetDirect to avoid recalculating orientation!
-        glm::dvec3 newTarget = newCameraPos + forward * m_followDistance;
+        // Adjust near/far planes based on distance to focus body
+        double distanceToFocus = glm::length(m_cameraOffset);
+        float nearPlane = static_cast<float>(distanceToFocus * 0.001);  // 0.1% of distance
+        float farPlane = static_cast<float>(distanceToFocus * 1000.0);  // 1000x distance
+        nearPlane = glm::max(nearPlane, 0.1f);  // Minimum 0.1m
+        farPlane = glm::max(farPlane, 1.0e6f);   // Minimum 1000 km
+        m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), nearPlane, farPlane);
+        
+        // Always point camera at the focus body for now (can add user rotation later)
+        glm::dvec3 newTarget = focusPos;
         m_cameraController->SetFreeTargetDirect(newTarget);
+        
+        if (m_focusJustChanged) {
+            m_focusJustChanged = false;
+        }
+        
+        // Debug logging for focus changes
+        static std::string lastFocus = "";
+        if (lastFocus != m_focusBody->GetName()) {
+            LOG_INFO("UpdateCamera: Focus=" + m_focusBody->GetName() + 
+                     ", CamPos=(" + std::to_string(newCameraPos.x/1e9) + "," + 
+                     std::to_string(newCameraPos.y/1e9) + "," + 
+                     std::to_string(newCameraPos.z/1e9) + ")Gm");
+            LOG_INFO("  FocusPos=(" + std::to_string(smoothedFocusPos.x/1e9) + "," + 
+                     std::to_string(smoothedFocusPos.y/1e9) + "," + 
+                     std::to_string(smoothedFocusPos.z/1e9) + ")Gm");
+            LOG_INFO("  Offset=(" + std::to_string(m_cameraOffset.x/1e3) + "," + 
+                     std::to_string(m_cameraOffset.y/1e3) + "," + 
+                     std::to_string(m_cameraOffset.z/1e3) + ")km");
+            lastFocus = m_focusBody->GetName();
+        }
         return;
     }
     
@@ -417,11 +443,23 @@ void Application::Render() {
         }
     }
     
-    // Render LunaE3 probe last (after celestial bodies) so it appears in front
+    // Render LunaE3 probe with its own near/far planes for close-up viewing
     if (m_lunaE3Model && m_vesselRenderer) {
         glm::dvec3 camPos = m_camera->GetPosition();
-        glm::dvec3 camForward = m_cameraController->GetFreeForward();
-        glm::dvec3 probePos = camPos + camForward * 5.0;  // 5 meters in front
+        glm::dvec3 camTarget = m_camera->GetTarget();
+        
+        // Compute actual forward direction from camera position to target
+        glm::dvec3 camForward = glm::normalize(camTarget - camPos);
+        
+        // Position probe at 5 meters in front of camera (cockpit view)
+        double probeDistance = 5.0;
+        glm::dvec3 probePos = camPos + camForward * probeDistance;
+        
+        // Normal scale (no scaling)
+        double probeScale = 1.0;
+        
+        // Set near/far planes optimized for vessel rendering (1m to 100km)
+        m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1.0f, 100000.0f);
         
         // Create rotation matrix (rotate around Y axis)
         glm::dmat3 orientation = glm::dmat3(
@@ -431,6 +469,14 @@ void Application::Render() {
         );
         
         m_vesselRenderer->Render(m_lunaE3Model.get(), probePos, orientation, m_camera.get(), camPos);
+        
+        // Restore near/far planes for planetary rendering
+        double distanceToFocus = glm::length(m_cameraOffset);
+        float nearPlane = static_cast<float>(distanceToFocus * 0.001);
+        float farPlane = static_cast<float>(distanceToFocus * 1000.0);
+        nearPlane = glm::max(nearPlane, 0.1f);
+        farPlane = glm::max(farPlane, 1.0e6f);
+        m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), nearPlane, farPlane);
     }
 }
 
@@ -458,6 +504,9 @@ void Application::CycleFocusBody(int direction) {
     int newIndex = (currentIndex + direction + bodies.size()) % bodies.size();
     m_focusBody = bodies[newIndex].get();
     
+    // Set flag to reset camera orientation
+    m_focusJustChanged = true;
+    
     // Initialize smoothing
     m_previousFocusPos = m_focusBody->GetPosition();
     
@@ -474,8 +523,18 @@ void Application::CycleFocusBody(int direction) {
     m_cameraController->SetFreePosition(cameraPos);
     m_cameraController->SetFreeTarget(focusPos);
     
-    LOG_INFO("Focus changed to: " + m_focusBody->GetName() + " (distance: " + 
-             std::to_string(distance/1000.0) + " km)");
+    std::cerr << ">>> Focus changed to: " << m_focusBody->GetName() 
+              << " (radius: " << (m_focusBody->GetRadius()/1000.0) << " km, "
+              << "distance: " << (distance/1000.0) << " km)" << std::endl;
+    std::cerr << ">>> New camera offset: (" << (m_cameraOffset.x/1000.0) << ", "
+              << (m_cameraOffset.y/1000.0) << ", " 
+              << (m_cameraOffset.z/1000.0) << ") km" << std::endl;
+    std::cerr << ">>> Camera position: (" << (cameraPos.x/1000.0) << ", "
+              << (cameraPos.y/1000.0) << ", " 
+              << (cameraPos.z/1000.0) << ") km" << std::endl;
+    std::cerr << ">>> Focus position: (" << (focusPos.x/1000.0) << ", "
+              << (focusPos.y/1000.0) << ", " 
+              << (focusPos.z/1000.0) << ") km" << std::endl;
 }
 
 } // namespace Kosmos

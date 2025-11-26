@@ -59,6 +59,7 @@ private:
     double m_cameraYaw;
     double m_cameraPitch;
     double m_probeRotation;     // Rotation angle for LunaE3 probe
+    bool m_focusJustChanged;    // Flag to reset camera orientation on focus change
     
     void ProcessEvents();
     void ProcessInput(double deltaTime);

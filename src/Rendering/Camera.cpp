@@ -43,11 +43,23 @@ void Camera::SetOrthographic(float left, float right, float bottom, float top, f
 }
 
 glm::mat4 Camera::GetViewMatrix() const {
-    return glm::lookAt(
-        glm::vec3(m_position),
-        glm::vec3(m_target),
-        glm::vec3(m_up)
-    );
+    // For camera-relative rendering at astronomical scales,
+    // build a rotation-only view matrix to avoid precision loss
+    glm::dvec3 forward = glm::normalize(m_target - m_position);
+    glm::dvec3 right = glm::normalize(glm::cross(forward, m_up));
+    glm::dvec3 up = glm::cross(right, forward);
+    
+    // Build view matrix with only rotation (no translation)
+    // Camera is always at origin in view space for camera-relative rendering
+    // The view matrix rotates world coordinates into camera space
+    // In camera space: right=+X, up=+Y, -forward=+Z (looking down -Z)
+    glm::mat4 view = glm::mat4(1.0f);
+    view[0] = glm::vec4(right.x, up.x, -forward.x, 0.0f);
+    view[1] = glm::vec4(right.y, up.y, -forward.y, 0.0f);
+    view[2] = glm::vec4(right.z, up.z, -forward.z, 0.0f);
+    view[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    
+    return view;
 }
 
 void Camera::MoveForward(double distance) {
