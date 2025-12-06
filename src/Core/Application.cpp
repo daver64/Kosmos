@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "../Platform/Window.h"
+#include "../Platform/DynamicLibrary.h"
 #include "../Rendering/Camera.h"
 #include "../Rendering/CameraController.h"
 #include "../Rendering/Shader.h"
@@ -11,6 +12,7 @@
 #include "../Physics/SolarSystem.h"
 #include "../Physics/CelestialBody.h"
 #include "../Physics/Vessel.h"
+#include "../../include/Kosmos/PluginAPI.h"
 #include "Logger.h"
 #include <iostream>
 #include <chrono>
@@ -33,11 +35,20 @@ Application::Application()
     , m_previousFocusPos(0.0)
     , m_probeRotation(0.0)
     , m_focusJustChanged(false)
+    , m_lunaE3VesselInstance(nullptr)
 {
     s_instance = this;
 }
 
 Application::~Application() {
+    // Destroy vessel instance through plugin
+    if (m_lunaE3VesselInstance && m_lunaE3Plugin && m_lunaE3Plugin->IsLoaded()) {
+        auto destroyFunc = m_lunaE3Plugin->GetFunction<void(*)(void*)>("DestroyVessel");
+        if (destroyFunc) {
+            destroyFunc(m_lunaE3VesselInstance);
+        }
+    }
+    
     if (m_planetRenderer) {
         m_planetRenderer->Shutdown();
     }
@@ -105,6 +116,35 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     
     LOG_INFO("LunaE3 mesh loaded: " + std::to_string(m_lunaE3Model->groups.size()) + " groups");
     
+    // Load LunaE3 plugin
+    LOG_INFO("Loading LunaE3 plugin...");
+    m_lunaE3Plugin = std::make_unique<DynamicLibrary>();
+    if (!m_lunaE3Plugin->Load("lib/LunaE3.so")) {
+        LOG_ERROR("Failed to load LunaE3 plugin: " + m_lunaE3Plugin->GetError());
+        return false;
+    }
+    
+    // Get plugin functions
+    auto getNameFunc = m_lunaE3Plugin->GetFunction<const char*(*)()>("GetPluginName");
+    auto getVersionFunc = m_lunaE3Plugin->GetFunction<const char*(*)()>("GetPluginVersion");
+    auto createVesselFunc = m_lunaE3Plugin->GetFunction<void*(*)(void*)>("CreateVessel");
+    
+    if (!getNameFunc || !getVersionFunc || !createVesselFunc) {
+        LOG_ERROR("Failed to get plugin functions");
+        return false;
+    }
+    
+    LOG_INFO("Loaded plugin: " + std::string(getNameFunc()) + " v" + std::string(getVersionFunc()));
+    
+    // Create vessel instance
+    m_lunaE3VesselInstance = createVesselFunc(nullptr);  // Pass nullptr for engine interface for now
+    if (!m_lunaE3VesselInstance) {
+        LOG_ERROR("Failed to create LunaE3 vessel instance");
+        return false;
+    }
+    
+    LOG_INFO("LunaE3 vessel instance created");
+    
     // Create solar system with VSOP87
     m_solarSystem = SolarSystem::CreateSolSystem();
     m_solarSystem->EnableVSOP87("data/vsop87", 'D');
@@ -118,37 +158,36 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     if (earth) {
         m_focusBody = earth;
         
-        // Initialize free camera 100km above Earth's equator
         glm::dvec3 focusPos = earth->GetPosition();
         LOG_INFO("Earth position at startup: " + std::to_string(focusPos.x/1e9) + " Gm, " + 
                  std::to_string(focusPos.y/1e9) + " Gm, " + std::to_string(focusPos.z/1e9) + " Gm");
         
-        double altitude = 100000.0;  // 100 km in meters
+        double altitude = 250000.0;  // 250 km orbital altitude
         double earthRadius = earth->GetRadius();
         
-        // Use FREE camera mode positioned above Earth
-        m_cameraController->SetMode(CameraMode::FREE);
+        // Position vessel in orbit above Earth
+        glm::dvec3 vesselOffset;
+        vesselOffset.x = (earthRadius + altitude);  // On equator
+        vesselOffset.y = 0.0;
+        vesselOffset.z = 0.0;
         
-        glm::dvec3 camOffset;
-        camOffset.x = (earthRadius + altitude) * cos(0.0) * cos(0.0);  // On equator
-        camOffset.y = (earthRadius + altitude) * sin(0.0);
-        camOffset.z = (earthRadius + altitude) * cos(0.0) * sin(0.0);
+        glm::dvec3 vesselPos = focusPos + vesselOffset;
+        m_testVessel->SetPosition(vesselPos);
         
-        glm::dvec3 cameraPos = focusPos + camOffset;
+        // Set up camera offset for planetary view
+        m_cameraOffset = vesselOffset;
+        m_followDistance = glm::length(vesselOffset);
+        m_previousFocusPos = focusPos;
         
-        // Store Earth reference for camera tracking
-        m_focusBody = earth;
-        m_cameraOffset = camOffset;
-        m_followDistance = glm::length(camOffset);
-        m_previousFocusPos = focusPos;  // Initialize to avoid interpolation from origin
+        // Attach camera to vessel in COCKPIT mode
+        m_cameraController->AttachToVessel(m_testVessel.get());
+        m_cameraController->SetMode(CameraMode::COCKPIT);
         
-        m_cameraController->SetFreePosition(cameraPos);
-        m_cameraController->SetFreeTarget(focusPos);  // Look at Earth's center
-        
-        // Force an immediate update to apply the position
+        // Force an immediate update
         m_cameraController->Update(0.0);
         
-        LOG_INFO("Camera initialized at 100km above Earth");
+        LOG_INFO("LunaE3 positioned in 250km orbit around Earth");
+        LOG_INFO("Camera attached to vessel in cockpit mode");
     }
     
     LOG_INFO("All systems initialized successfully");
@@ -311,6 +350,14 @@ void Application::Update(double deltaTime) {
         m_solarSystem->Update(deltaTime);
     }
     
+    // Update LunaE3 plugin
+    if (m_lunaE3VesselInstance && m_lunaE3Plugin && m_lunaE3Plugin->IsLoaded()) {
+        auto updateFunc = m_lunaE3Plugin->GetFunction<void(*)(void*, double)>("Vessel_Update");
+        if (updateFunc) {
+            updateFunc(m_lunaE3VesselInstance, deltaTime);
+        }
+    }
+    
     // Update probe rotation (slow rotation: 0.2 radians per second)
     m_probeRotation += 0.2 * deltaTime;
     
@@ -443,20 +490,21 @@ void Application::Render() {
         }
     }
     
-    // Render LunaE3 probe with its own near/far planes for close-up viewing
-    if (m_lunaE3Model && m_vesselRenderer) {
+    // Render LunaE3 probe (but not in cockpit mode - can't see vessel from inside)
+    CameraMode camMode = m_cameraController->GetMode();
+    if (m_lunaE3Model && m_vesselRenderer && camMode != CameraMode::COCKPIT) {
         glm::dvec3 camPos = m_camera->GetPosition();
-        glm::dvec3 camTarget = m_camera->GetTarget();
         
-        // Compute actual forward direction from camera position to target
-        glm::dvec3 camForward = glm::normalize(camTarget - camPos);
-        
-        // Position probe at 5 meters in front of camera (cockpit view)
-        double probeDistance = 5.0;
-        glm::dvec3 probePos = camPos + camForward * probeDistance;
-        
-        // Normal scale (no scaling)
-        double probeScale = 1.0;
+        // Get vessel position (if attached) or use test position
+        glm::dvec3 probePos;
+        if (m_cameraController->GetAttachedVessel()) {
+            probePos = m_cameraController->GetAttachedVessel()->GetPosition();
+        } else {
+            // If not attached, position in front of camera for testing
+            glm::dvec3 camTarget = m_camera->GetTarget();
+            glm::dvec3 camForward = glm::normalize(camTarget - camPos);
+            probePos = camPos + camForward * 5.0;
+        }
         
         // Set near/far planes optimized for vessel rendering (1m to 100km)
         m_camera->SetPerspective(45.0f, m_window->GetAspectRatio(), 1.0f, 100000.0f);

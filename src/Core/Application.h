@@ -18,6 +18,7 @@ class SolarSystem;
 class CelestialBody;
 class Vessel;
 struct VertModel;
+class DynamicLibrary;
 
 class Application {
 public:
@@ -49,6 +50,10 @@ private:
     std::unique_ptr<SolarSystem> m_solarSystem;
     std::unique_ptr<Vessel> m_testVessel;
     std::unique_ptr<VertModel> m_lunaE3Model;
+    
+    // Plugin system
+    std::unique_ptr<DynamicLibrary> m_lunaE3Plugin;
+    void* m_lunaE3VesselInstance;
     
     CelestialBody* m_focusBody;
     glm::dvec3 m_cameraPosition;
