@@ -106,17 +106,7 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
         return false;
     }
     
-    // Load LunaE3 probe mesh
-    LOG_INFO("Loading LunaE3 mesh...");
-    m_lunaE3Model = VertLoader::Load("data/plugins/vessels/LunaE3/meshes/probe.vert", "data/plugins/vessels/LunaE3/textures");
-    if (!m_lunaE3Model || m_lunaE3Model->groups.empty()) {
-        LOG_ERROR("Failed to load LunaE3 mesh");
-        return false;
-    }
-    
-    LOG_INFO("LunaE3 mesh loaded: " + std::to_string(m_lunaE3Model->groups.size()) + " groups");
-    
-    // Load LunaE3 plugin
+    // Load LunaE3 plugin first
     LOG_INFO("Loading LunaE3 plugin...");
     m_lunaE3Plugin = std::make_unique<DynamicLibrary>();
     if (!m_lunaE3Plugin->Load("lib/LunaE3.so")) {
@@ -128,9 +118,11 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     auto getNameFunc = m_lunaE3Plugin->GetFunction<const char*(*)()>("GetPluginName");
     auto getVersionFunc = m_lunaE3Plugin->GetFunction<const char*(*)()>("GetPluginVersion");
     auto createVesselFunc = m_lunaE3Plugin->GetFunction<void*(*)(void*)>("CreateVessel");
+    auto getMeshPathFunc = m_lunaE3Plugin->GetFunction<const char*(*)(void*)>("Vessel_GetMeshPath");
+    auto setMeshFunc = m_lunaE3Plugin->GetFunction<void(*)(void*, void*)>("Vessel_SetMesh");
     
-    if (!getNameFunc || !getVersionFunc || !createVesselFunc) {
-        LOG_ERROR("Failed to get plugin functions");
+    if (!getNameFunc || !getVersionFunc || !createVesselFunc || !getMeshPathFunc) {
+        LOG_ERROR("Failed to get required plugin functions");
         return false;
     }
     
@@ -144,6 +136,39 @@ bool Application::Initialize(int /*argc*/, char** /*argv*/) {
     }
     
     LOG_INFO("LunaE3 vessel instance created");
+    
+    // Get mesh path from plugin
+    const char* meshPath = getMeshPathFunc(m_lunaE3VesselInstance);
+    if (!meshPath) {
+        LOG_ERROR("Plugin did not provide mesh path");
+        return false;
+    }
+    
+    // Extract texture directory from mesh path (same directory structure)
+    std::string meshPathStr(meshPath);
+    size_t lastSlash = meshPathStr.find_last_of("/\\");
+    size_t meshesPos = meshPathStr.find("/meshes/");
+    std::string textureDir;
+    if (meshesPos != std::string::npos) {
+        textureDir = meshPathStr.substr(0, meshesPos) + "/textures";
+    } else {
+        textureDir = meshPathStr.substr(0, lastSlash);
+    }
+    
+    // Load mesh specified by plugin
+    LOG_INFO("Loading vessel mesh: " + std::string(meshPath));
+    m_lunaE3Model = VertLoader::Load(meshPath, textureDir);
+    if (!m_lunaE3Model || m_lunaE3Model->groups.empty()) {
+        LOG_ERROR("Failed to load vessel mesh from: " + std::string(meshPath));
+        return false;
+    }
+    
+    LOG_INFO("Vessel mesh loaded: " + std::to_string(m_lunaE3Model->groups.size()) + " groups");
+    
+    // Pass mesh back to plugin (optional, for plugin to track it)
+    if (setMeshFunc) {
+        setMeshFunc(m_lunaE3VesselInstance, m_lunaE3Model.get());
+    }
     
     // Create solar system with VSOP87
     m_solarSystem = SolarSystem::CreateSolSystem();

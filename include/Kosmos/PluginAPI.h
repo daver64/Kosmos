@@ -52,6 +52,7 @@ extern "C" {
     PLUGIN_EXPORT void Vessel_SetGroupLevel(void* group, double level);
     
     // Mesh loading
+    PLUGIN_EXPORT const char* Vessel_GetMeshPath(void* vessel);
     PLUGIN_EXPORT void* Vessel_LoadMesh(void* vessel, const char* filepath);
     PLUGIN_EXPORT void Vessel_SetMesh(void* vessel, void* mesh);
 }

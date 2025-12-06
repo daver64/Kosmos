@@ -189,6 +189,12 @@ PLUGIN_EXPORT void Vessel_SetGroupLevel(void* group, double level) {
     // TODO: Implement
 }
 
+PLUGIN_EXPORT const char* Vessel_GetMeshPath(void* vessel) {
+    (void)vessel;
+    // Return the path to the LunaE3 mesh file
+    return "data/plugins/vessels/LunaE3/meshes/probe.vert";
+}
+
 PLUGIN_EXPORT void* Vessel_LoadMesh(void* vessel, const char* filepath) {
     (void)vessel;
     (void)filepath;
