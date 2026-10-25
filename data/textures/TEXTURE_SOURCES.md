@@ -7,7 +7,7 @@ Keep source data separate from the images Kosmos loads at runtime:
 | Celestia texture collections and virtual-tile packs | `data/celestia/` | `data/textures/` for bundled defaults, `data/textures-hires/` for optional single-image overrides |
 | Orbiter archives and `Surf.tree` data | `data/orbiter/` | `data/textures-hires/` for optional converted maps |
 
-The repository and release contain low-resolution runtime fallback textures. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. The `data/celestia/hires/` source directory, `data/orbiter/` and `data/textures-hires/` are git-ignored.
+The repository and release contain low-resolution runtime fallback textures. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. The `data/celestia/hires/` source directory, `data/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `data/celestia/moons/` tree is excluded from release packages.
 
 ## Celestia
 
