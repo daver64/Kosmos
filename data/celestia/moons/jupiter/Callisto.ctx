@@ -1,0 +1,7 @@
+VirtualTexture
+{
+        ImageDirectory "Callisto"
+        BaseSplit 0
+        TileSize 512
+        TileType "png"
+}

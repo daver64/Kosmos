@@ -1,0 +1,4 @@
+1. Copy the "amalthea.cmod" file to your "models" folder and over right the old one.
+ a.The default directory is "C:\Program Files\Celestia\models".
+
+2. Start Celestia and go to Amalthea.
