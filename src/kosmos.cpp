@@ -115,6 +115,7 @@ namespace
         std::string system_name;
         bool list_stars = false;
         bool check_data = false;
+        std::string export_base, export_file;
         bool galaxy_view = false;
         bool quantum_window = false;
         int test_jump = -1; // --test-jump N: quantum-jump to star N a second into the run (for testing)
@@ -2443,6 +2444,11 @@ int main(int argc, char **argv)
             options.settings_window = true;
         else if (!std::strcmp(argv[i], "--lua-window"))
             options.lua_window = true;
+        else if (!std::strcmp(argv[i], "--export-base") && i + 2 < argc)
+        {
+            options.export_base = argv[++i];
+            options.export_file = argv[++i];
+        }
         else if (!std::strcmp(argv[i], "--check-data"))
             options.check_data = true;
         else if (!std::strcmp(argv[i], "--menu"))
@@ -2564,6 +2570,28 @@ int main(int argc, char **argv)
         for (const kosmos::Scenario &sc : sim.scenarios())
             std::printf("%-22s %s\n", sc.id.c_str(), sc.name.c_str());
         return 0;
+    }
+    if (!options.export_base.empty())
+    {
+        // Every built-in prop of a base, one scene object each, as a GLB (also a check of the Blender bake).
+        for (const kosmos::Base &base : sim.bases)
+            if (base.id == options.export_base)
+            {
+                std::vector<kosmos::GlbNode> nodes;
+                for (std::size_t i = 0; i < base.objects.size(); ++i)
+                {
+                    kosmos::GlbNode node;
+                    node.name = std::to_string(i) + "_" + base.objects[i].type;
+                    if (kosmos::bake_base_object(base.objects[i], node.mesh))
+                        nodes.push_back(std::move(node));
+                }
+                std::string error;
+                const bool ok = kosmos::write_glb(nodes, options.export_file, error);
+                std::printf("%zu objects -> %s %s\n", nodes.size(), options.export_file.c_str(), ok ? "" : error.c_str());
+                return ok ? 0 : 1;
+            }
+        std::printf("no base %s\n", options.export_base.c_str());
+        return 1;
     }
     if (options.check_data)
     {
@@ -2930,6 +2958,8 @@ int main(int argc, char **argv)
     }
     settings_defaults(sim.props);
     settings_load(sim.props);
+    if (!kosmos::Sim::user_dir().empty())
+        kosmos::set_base_model_folder((std::filesystem::path(kosmos::Sim::user_dir()) / "bases").string());
     if (!options.blender.empty())
         sim.props.set_string("/sim/settings/blender", options.blender);
     int applied_volume = -1;
@@ -3286,6 +3316,7 @@ int main(int argc, char **argv)
         {
             edit_paused = false;
             props.set_bool("/sim/paused", edit_was_paused);
+            props.set_bool("/sim/blender-edit", false);
             part_status = "Blender closed; simulation resumed";
         }
         model_poll += frame;
@@ -4348,6 +4379,7 @@ int main(int argc, char **argv)
                         if (ImGui::Button("Resume, keep Blender open"))
                         {
                             edit_paused = false;
+                            props.set_bool("/sim/blender-edit", false);
                             props.set_bool("/sim/paused", edit_was_paused);
                         }
                         ImGui::SameLine();
@@ -4360,6 +4392,7 @@ int main(int argc, char **argv)
                             part_edit.model.clear();
                             part_edit.converted = false;
                             edit_paused = false;
+                            props.set_bool("/sim/blender-edit", false);
                             props.set_bool("/sim/paused", edit_was_paused);
                             part_status = "Edit cancelled; the original was restored";
                         }
@@ -4417,6 +4450,11 @@ int main(int argc, char **argv)
                                                 part_status = "Reusing the existing " + file.filename().string();
                                         }
                                     }
+                                    if (ok && props.get_bool("/sim/blender-edit"))
+                                    {
+                                        ok = false;
+                                        part_status = "Another Blender edit is already running";
+                                    }
                                     if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
                                     {
                                         part_edit.part = &part;
@@ -4437,6 +4475,7 @@ int main(int argc, char **argv)
                                         }
                                         edit_was_paused = props.get_bool("/sim/paused");
                                         props.set_bool("/sim/paused", true);
+                                        props.set_bool("/sim/blender-edit", true);
                                         edit_paused = true;
                                         part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; Blender started" : "Blender started";
                                     }

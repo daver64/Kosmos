@@ -173,75 +173,84 @@ namespace kosmos
 
     bool write_glb(const sl::MeshData &mesh, const std::filesystem::path &file, std::string &error)
     {
-        const std::size_t n = mesh.vertices.size(), ni = mesh.indices.size();
-        if (n == 0 || ni == 0)
-        {
-            error = "the part has no geometry";
-            return false;
-        }
+        return write_glb({{file.stem().string(), mesh}}, file, error);
+    }
+
+    bool write_glb(const std::vector<GlbNode> &nodes, const std::filesystem::path &file, std::string &error)
+    {
+        using J = nlohmann::json;
         std::vector<std::uint8_t> bin;
-        auto append = [&](const void *data, std::size_t bytes)
+        J views = J::array(), accessors = J::array(), meshes = J::array(), scene_nodes = J::array(), node_list = J::array();
+        auto add_view = [&](const void *data, std::size_t bytes, int target)
         {
+            while (bin.size() % 4)
+                bin.push_back(0);
+            views.push_back(J::object({{"buffer", 0}, {"byteOffset", bin.size()}, {"byteLength", bytes}, {"target", target}}));
             const auto *p = static_cast<const std::uint8_t *>(data);
             bin.insert(bin.end(), p, p + bytes);
-        };
-        std::vector<float> positions, normals, colours, uvs;
-        float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
-        for (const sl::Vertex3D &v : mesh.vertices)
-        {
-            for (int i = 0; i < 3; ++i)
-            {
-                positions.push_back(v.position[i]);
-                normals.push_back(v.normal[i]);
-                lo[i] = std::min(lo[i], v.position[i]);
-                hi[i] = std::max(hi[i], v.position[i]);
-            }
-            for (int i = 0; i < 4; ++i)
-                colours.push_back(v.colour[i]);
-            uvs.push_back(v.uv[0]);
-            uvs.push_back(v.uv[1]);
-        }
-        nlohmann::json views = nlohmann::json::array();
-        auto view = [&](const void *data, std::size_t bytes, int target)
-        {
-            views.push_back({{"buffer", 0}, {"byteOffset", bin.size()}, {"byteLength", bytes}, {"target", target}});
-            append(data, bytes);
             return static_cast<int>(views.size()) - 1;
         };
-        const int vp = view(positions.data(), positions.size() * 4, 34962), vn = view(normals.data(), normals.size() * 4, 34962),
-                  vc = view(colours.data(), colours.size() * 4, 34962), vu = view(uvs.data(), uvs.size() * 4, 34962),
-                  vi = view(mesh.indices.data(), ni * 4, 34963);
-        using J = nlohmann::json;
-        auto accessor = [&](int bufferView, int component, std::size_t count, const char *type)
+        auto add_accessor = [&](int view, int component, std::size_t count, const char *type)
         {
-            J a = J::object();
-            a["bufferView"] = bufferView;
-            a["componentType"] = component;
-            a["count"] = count;
-            a["type"] = type;
-            return a;
+            accessors.push_back(J::object({{"bufferView", view}, {"componentType", component}, {"count", count}, {"type", type}}));
+            return static_cast<int>(accessors.size()) - 1;
         };
-        J position = accessor(vp, 5126, n, "VEC3");
-        position["min"] = J::array({lo[0], lo[1], lo[2]});
-        position["max"] = J::array({hi[0], hi[1], hi[2]});
+        for (const GlbNode &node : nodes)
+        {
+            const sl::MeshData &mesh = node.mesh;
+            const std::size_t n = mesh.vertices.size(), ni = mesh.indices.size();
+            if (n == 0 || ni == 0)
+                continue;
+            std::vector<float> positions, normals, colours, uvs;
+            float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+            for (const sl::Vertex3D &v : mesh.vertices)
+            {
+                for (int i = 0; i < 3; ++i)
+                {
+                    positions.push_back(v.position[i]);
+                    normals.push_back(v.normal[i]);
+                    lo[i] = std::min(lo[i], v.position[i]);
+                    hi[i] = std::max(hi[i], v.position[i]);
+                }
+                for (int i = 0; i < 4; ++i)
+                    colours.push_back(v.colour[i]);
+                uvs.push_back(v.uv[0]);
+                uvs.push_back(v.uv[1]);
+            }
+            const int ap = add_accessor(add_view(positions.data(), positions.size() * 4, 34962), 5126, n, "VEC3");
+            accessors[static_cast<std::size_t>(ap)]["min"] = J::array({lo[0], lo[1], lo[2]});
+            accessors[static_cast<std::size_t>(ap)]["max"] = J::array({hi[0], hi[1], hi[2]});
+            const int an = add_accessor(add_view(normals.data(), normals.size() * 4, 34962), 5126, n, "VEC3");
+            const int ac = add_accessor(add_view(colours.data(), colours.size() * 4, 34962), 5126, n, "VEC4");
+            const int au = add_accessor(add_view(uvs.data(), uvs.size() * 4, 34962), 5126, n, "VEC2");
+            const int ai = add_accessor(add_view(mesh.indices.data(), ni * 4, 34963), 5125, ni, "SCALAR");
+            J attributes = J::object({{"POSITION", ap}, {"NORMAL", an}, {"COLOR_0", ac}, {"TEXCOORD_0", au}});
+            J primitive = J::object({{"attributes", attributes}, {"indices", ai}, {"material", 0}});
+            meshes.push_back(J::object({{"name", node.name}, {"primitives", J::array({primitive})}}));
+            node_list.push_back(J::object({{"mesh", static_cast<int>(meshes.size()) - 1}, {"name", node.name}}));
+            scene_nodes.push_back(static_cast<int>(node_list.size()) - 1);
+        }
+        if (meshes.empty())
+        {
+            error = "there is no geometry to export";
+            return false;
+        }
         J gltf = J::object();
         gltf["asset"] = J::object({{"version", "2.0"}, {"generator", "Kosmos"}});
         gltf["scene"] = 0;
-        gltf["scenes"] = J::array({J::object({{"nodes", J::array({0})}})});
-        gltf["nodes"] = J::array({J::object({{"mesh", 0}, {"name", file.stem().string()}})});
-        J attributes = J::object({{"POSITION", 0}, {"NORMAL", 1}, {"COLOR_0", 2}, {"TEXCOORD_0", 3}});
-        J primitive = J::object({{"attributes", attributes}, {"indices", 4}, {"material", 0}});
-        gltf["meshes"] = J::array({J::object({{"primitives", J::array({primitive})}})});
+        gltf["scenes"] = J::array({J::object({{"nodes", scene_nodes}})});
+        gltf["nodes"] = node_list;
+        gltf["meshes"] = meshes;
         J pbr = J::object({{"metallicFactor", 0.0}, {"roughnessFactor", 0.7}});
         gltf["materials"] = J::array({J::object({{"name", "kosmos"}, {"pbrMetallicRoughness", pbr}, {"doubleSided", true}})});
-        gltf["accessors"] = J::array({position, accessor(vn, 5126, n, "VEC3"), accessor(vc, 5126, n, "VEC4"), accessor(vu, 5126, n, "VEC2"), accessor(vi, 5125, ni, "SCALAR")});
+        gltf["accessors"] = accessors;
         gltf["bufferViews"] = views;
+        while (bin.size() % 4)
+            bin.push_back(0);
         gltf["buffers"] = J::array({J::object({{"byteLength", bin.size()}})});
         std::string json = gltf.dump();
         while (json.size() % 4)
             json.push_back(' ');
-        while (bin.size() % 4)
-            bin.push_back(0);
         const std::uint32_t magic = 0x46546C67, version = 2, json_type = 0x4E4F534A, bin_type = 0x004E4942;
         const std::uint32_t json_len = static_cast<std::uint32_t>(json.size()), bin_len = static_cast<std::uint32_t>(bin.size());
         const std::uint32_t total = 12 + 8 + json_len + 8 + bin_len;

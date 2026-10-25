@@ -568,8 +568,102 @@ namespace kosmos
         return true;
     }
 
+    void BaseEditor::tick_blender(Sim &sim)
+    {
+        if (blender_paused_ && !blender_.active())
+            end_blender(sim);
+    }
+
+    void BaseEditor::end_blender(Sim &sim)
+    {
+        blender_paused_ = false;
+        sim.props.set_bool("/sim/paused", blender_was_paused_);
+        sim.props.set_bool("/sim/blender-edit", false);
+        blender_status_ = "Blender closed; simulation resumed";
+    }
+
+    // Bakes the chosen objects into one GLB (one scene object each, so Blender can join them) and swaps them for a model object.
+    bool BaseEditor::begin_blender(Sim &sim, Base &base, const std::vector<int> &indices)
+    {
+        if (sim.props.get_bool("/sim/blender-edit"))
+        {
+            blender_status_ = "Another Blender edit is already running";
+            return false;
+        }
+        std::string error;
+        fs::path file;
+        std::vector<BaseObject> saved = base.objects;
+        if (indices.size() == 1 && base.objects[static_cast<std::size_t>(indices[0])].type == "model")
+        {
+            const BaseObject &o = base.objects[static_cast<std::size_t>(indices[0])];
+            const std::string found = resolve_base_model(base, o.model);
+            if (found.empty())
+            {
+                blender_status_ = "Model file not found: " + o.model;
+                return false;
+            }
+            file = found;
+        }
+        else
+        {
+            std::vector<GlbNode> nodes;
+            std::string slug = base.id;
+            for (int i : indices)
+            {
+                const BaseObject &o = base.objects[static_cast<std::size_t>(i)];
+                GlbNode node;
+                node.name = std::to_string(i) + "_" + o.type;
+                if (!bake_base_object(o, node.mesh))
+                {
+                    blender_status_ = "Cannot convert a '" + o.type + "' object (only built-in props can be baked)";
+                    return false;
+                }
+                nodes.push_back(std::move(node));
+            }
+            slug += indices.size() == 1 ? "_obj" + std::to_string(indices[0]) + "_" + nodes[0].name.substr(nodes[0].name.find('_') + 1) : "_group" + std::to_string(indices[0]);
+            for (char &c : slug)
+                if (!std::isalnum(static_cast<unsigned char>(c)))
+                    c = '_';
+            file = fs::path(user_folder("bases")) / "models" / (slug + ".glb");
+            std::error_code ec;
+            fs::create_directories(file.parent_path(), ec);
+            if (!fs::exists(file, ec) && !write_glb(nodes, file, error))
+            {
+                blender_status_ = "Not exported: " + error;
+                return false;
+            }
+        }
+        if (!blender_.start(sim.props.get_string("/sim/settings/blender", "blender"), fs::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
+        {
+            blender_status_ = "Cannot start Blender: " + error;
+            return false;
+        }
+        blender_saved_ = saved;
+        blender_base_ = base_;
+        if (!(indices.size() == 1 && saved[static_cast<std::size_t>(indices[0])].type == "model"))
+        {
+            BaseObject model;
+            model.type = "model";
+            model.model = (fs::path("models") / file.filename()).generic_string();
+            std::vector<BaseObject> rest;
+            for (std::size_t i = 0; i < saved.size(); ++i)
+                if (std::find(indices.begin(), indices.end(), static_cast<int>(i)) == indices.end())
+                    rest.push_back(saved[i]);
+            rest.push_back(model);
+            base.objects = rest;
+            object_ = static_cast<int>(rest.size()) - 1;
+        }
+        blender_was_paused_ = sim.props.get_bool("/sim/paused");
+        sim.props.set_bool("/sim/paused", true);
+        sim.props.set_bool("/sim/blender-edit", true);
+        blender_paused_ = true;
+        blender_status_ = "Editing " + file.filename().string() + " in Blender";
+        return true;
+    }
+
     void BaseEditor::draw(bool &open, Sim &sim, FileDialog &dialog)
     {
+        tick_blender(sim);
         if (!open)
             return;
         ImGui::SetNextWindowPos(ImVec2(60.0f, 80.0f), ImGuiCond_FirstUseEver);
@@ -716,6 +810,73 @@ namespace kosmos
                         object_ = std::clamp(object_, 0, static_cast<int>(b.objects.size()) - 1);
                         BaseObject &o = b.objects[static_cast<std::size_t>(object_)];
                         ImGui::Separator();
+                        ImGui::SeparatorText("Edit in Blender");
+                        picked_.resize(b.objects.size(), 0);
+                        if (ImGui::TreeNode("Pick objects to join"))
+                        {
+                            for (std::size_t i = 0; i < b.objects.size(); ++i)
+                            {
+                                bool on = picked_[i] != 0;
+                                const std::string label = std::to_string(i) + "  " + b.objects[i].type + "##pick" + std::to_string(i);
+                                if (ImGui::Checkbox(label.c_str(), &on))
+                                    picked_[i] = on ? 1 : 0;
+                            }
+                            ImGui::TreePop();
+                        }
+                        if (blender_paused_)
+                        {
+                            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Paused; editing in Blender");
+                            ImGui::TextWrapped("Save in Blender (Ctrl+S) to see it here; closing Blender resumes.");
+                            if (ImGui::Button("Resume, keep Blender open"))
+                            {
+                                blender_paused_ = false;
+                                sim.props.set_bool("/sim/paused", blender_was_paused_);
+                                sim.props.set_bool("/sim/blender-edit", false);
+                            }
+                            ImGui::SameLine();
+                            if (ImGui::Button("Cancel and restore"))
+                            {
+                                blender_.stop();
+                                blender_.restore();
+                                if (blender_base_ == base_)
+                                    b.objects = blender_saved_;
+                                end_blender(sim);
+                                blender_status_ = "Edit cancelled; the objects and the model file were restored";
+                            }
+                        }
+                        else
+                        {
+                            const bool is_model = o.type == "model";
+                            if (ImGui::Button(is_model ? "Edit this model in Blender" : "Convert this object + edit"))
+                                begin_blender(sim, b, {object_});
+                            std::vector<int> chosen;
+                            for (std::size_t i = 0; i < picked_.size() && i < b.objects.size(); ++i)
+                                if (picked_[i] && b.objects[i].type != "model")
+                                    chosen.push_back(static_cast<int>(i));
+                            ImGui::BeginDisabled(chosen.size() < 2);
+                            ImGui::SameLine();
+                            if (ImGui::Button("Join picked + edit"))
+                            {
+                                if (begin_blender(sim, b, chosen))
+                                    picked_.assign(b.objects.size(), 0);
+                            }
+                            ImGui::EndDisabled();
+                        }
+                        if (!blender_status_.empty())
+                            ImGui::TextWrapped("%s", blender_status_.c_str());
+                        ImGui::Separator();
+                        if (o.type == "model")
+                        {
+                            text("Model file", o.model);
+                            dbl("x (right)", o.x, 0.5f);
+                            dbl("z (forward)", o.z, 0.5f);
+                            dbl("Lift y", o.y, 0.1f);
+                            dbl("Heading", o.heading, 1.0f, -360.0, 360.0, "%.0f deg");
+                            dbl("Scale", o.scale, 0.01f, 0.05, 50.0, "%.2f");
+                            ImGui::TextDisabled("Models are not repeated; add another object for another copy.");
+                        }
+                        else
+                        {
                         const std::vector<std::string> &types = base_object_types();
                         int ti = index_of(types, o.type);
                         if (combo("Type", ti, types) && ti >= 0)
@@ -757,6 +918,7 @@ namespace kosmos
                         {
                             o.has_colour2 = true;
                             o.colour2 = {static_cast<std::uint8_t>(c2[0] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[1] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[2] * 255.0f + 0.5f), 255};
+                        }
                         }
                     }
                     ImGui::EndTabItem();

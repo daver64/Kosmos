@@ -1,5 +1,6 @@
 #pragma once
 
+#include "blender_edit.h"
 #include "sim.h"
 
 #include <functional>
@@ -77,6 +78,15 @@ namespace kosmos
     private:
         void snapshot_changes(Sim &sim);
         void restore(Sim &sim, const std::string &text);
+        void tick_blender(Sim &sim);
+        bool begin_blender(Sim &sim, Base &base, const std::vector<int> &indices);
+        void end_blender(Sim &sim);
+        BlenderEdit blender_;
+        bool blender_paused_ = false, blender_was_paused_ = false;
+        int blender_base_ = -1;
+        std::vector<BaseObject> blender_saved_;
+        std::vector<char> picked_;
+        std::string blender_status_;
         int base_ = 0, object_ = 0, runway_ = 0, navaid_ = 0, camera_ = 0;
         std::string status_, committed_;
         int committed_base_ = -1;

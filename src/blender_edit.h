@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 namespace kosmos
 {
@@ -42,6 +43,15 @@ namespace kosmos
      */
     bool write_part_model(const std::filesystem::path &ship_file, int stage, int part, const std::string &model, std::string &error);
 
+    /** One named object of a glTF scene; Blender shows each as its own object, ready to edit or join. */
+    struct GlbNode
+    {
+        std::string name;
+        sl::MeshData mesh;
+    };
+
     /** Writes a mesh as a binary glTF with positions, normals, colours and UVs. */
     bool write_glb(const sl::MeshData &mesh, const std::filesystem::path &file, std::string &error);
+    /** As above, with one scene object per node. */
+    bool write_glb(const std::vector<GlbNode> &nodes, const std::filesystem::path &file, std::string &error);
 }

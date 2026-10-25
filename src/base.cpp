@@ -2,8 +2,11 @@
 
 #include "json.hpp"
 #include "props3d.h"
+#include "sl.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -50,6 +53,7 @@ namespace kosmos
         {
             BaseObject o;
             o.type = j.at("type").get<std::string>();
+            o.model = j.value("model", "");
             o.x = j.value("x", 0.0);
             o.z = j.value("z", 0.0);
             o.y = j.value("y", 0.0);
@@ -237,7 +241,13 @@ namespace kosmos
         }
         std::stringstream text;
         text << in.rdbuf();
-        return parse_bases(text.str(), file, out, error);
+        const std::size_t before = out.size();
+        if (!parse_bases(text.str(), file, out, error))
+            return false;
+        const std::string folder = std::filesystem::path(file).parent_path().string();
+        for (std::size_t i = before; i < out.size(); ++i)
+            out[i].source_dir = folder;
+        return true;
     }
 
     bool parse_bases(const std::string &text, const std::string &file, std::vector<Base> &out, std::string &error)
@@ -365,11 +375,75 @@ namespace kosmos
         z = glm::dot(offset, forward);
     }
 
+    namespace
+    {
+        std::string &model_folder()
+        {
+            static std::string folder;
+            return folder;
+        }
+    }
+
+    void set_base_model_folder(const std::string &folder)
+    {
+        model_folder() = folder;
+    }
+
+    std::string resolve_base_model(const Base &base, const std::string &model)
+    {
+        namespace fs = std::filesystem;
+        if (model.empty())
+            return {};
+        std::error_code ec;
+        const fs::path given(model);
+        if (given.is_absolute())
+            return fs::exists(given, ec) ? given.string() : std::string();
+        for (const std::string &folder : {base.source_dir, model_folder()})
+            if (!folder.empty() && fs::exists(fs::path(folder) / given, ec))
+                return (fs::path(folder) / given).string();
+        return {};
+    }
+
+    bool base_object_mesh(const BaseObject &object, sl::MeshData &mesh)
+    {
+        if (object.type == "model")
+            return false;
+        mesh = build(object);
+        return !mesh.indices.empty();
+    }
+
+    bool bake_base_object(const BaseObject &object, sl::MeshData &out)
+    {
+        sl::MeshData base;
+        if (!base_object_mesh(object, base))
+            return false;
+        const double h = object.heading * pi / 180.0, c = std::cos(h), s = std::sin(h), k = object.scale;
+        for (int i = 0; i < std::max(1, object.count); ++i)
+        {
+            const double ox = object.x + object.step_x * i, oz = object.z + object.step_z * i;
+            const std::uint32_t first = static_cast<std::uint32_t>(out.vertices.size());
+            for (const sl::Vertex3D &v : base.vertices)
+            {
+                sl::Vertex3D t = v;
+                // Object frame to the base frame (x right, z forward), then to the model frame (x left).
+                t.position[0] = static_cast<float>(-ox + k * (v.position[0] * c - v.position[2] * s));
+                t.position[1] = static_cast<float>(object.y + k * v.position[1]);
+                t.position[2] = static_cast<float>(oz + k * (v.position[0] * s + v.position[2] * c));
+                t.normal[0] = static_cast<float>(v.normal[0] * c - v.normal[2] * s);
+                t.normal[2] = static_cast<float>(v.normal[0] * s + v.normal[2] * c);
+                out.vertices.push_back(t);
+            }
+            for (std::uint32_t index : base.indices)
+                out.indices.push_back(first + index);
+        }
+        return true;
+    }
+
     const std::vector<std::string> &base_object_types()
     {
         static const std::vector<std::string> types = {"house", "office", "skyscraper", "hangar", "wall", "fence", "water_tower", "radar", "domed_radar", "pressure_dome", "habitat_tube", "lunar_rover", "landing_pad", "control_tower", "street_lamp",
                                                        "road", "barrel", "crate", "container", "tank", "conifer", "rock", "tree", "bush", "rock_cluster", "car", "spaceship", "aeroplane",
-                                                       "launch_tower", "launch_pad", "saturn_v", "rocket_stage", "station_module", "solar_array", "solar_windmill", "antenna_dish",
+                                                       "model", "launch_tower", "launch_pad", "saturn_v", "rocket_stage", "station_module", "solar_array", "solar_windmill", "antenna_dish",
                                                        "satellite", "skylab"};
         return types;
     }
@@ -427,6 +501,8 @@ namespace kosmos
             for (const BaseObject &o : b.objects)
             {
                 json jo = {{"type", o.type}, {"x", o.x}, {"z", o.z}};
+                if (!o.model.empty())
+                    jo["model"] = o.model;
                 const auto put = [&](const char *key, double v, double def) { if (v != def) jo[key] = v; };
                 put("y", o.y, 0.0);
                 put("heading", o.heading, 0.0);
@@ -646,6 +722,56 @@ namespace kosmos
             if (entry.second)
                 sl::destroy_mesh(entry.second);
         meshes_.clear();
+        for (auto &entry : models_)
+            if (entry.second.model)
+                sl::destroy_model(entry.second.model);
+        models_.clear();
+    }
+
+    sl::Model *BaseRenderer::model_for(const Base &base, const BaseObject &object)
+    {
+        const std::string key = base.source_dir + "|" + object.model;
+        const auto found = models_.find(key);
+        if (found != models_.end())
+            return found->second.model;
+        LoadedModel loaded;
+        loaded.path = resolve_base_model(base, object.model);
+        if (!loaded.path.empty())
+        {
+            std::error_code ec;
+            loaded.stamp = std::filesystem::last_write_time(loaded.path, ec);
+            loaded.model = sl::load_model(loaded.path);
+            if (!loaded.model)
+                std::fprintf(stderr, "[kosmos] cannot load base model %s: %s\n", loaded.path.c_str(), sl::last_error().c_str());
+            else
+                for (sl::ModelPart &part : loaded.model->parts)
+                    part.material.cull = sl::CullMode::none;
+        }
+        else
+            std::fprintf(stderr, "[kosmos] base %s: model '%s' not found\n", base.id.c_str(), object.model.c_str());
+        models_[key] = loaded;
+        return loaded.model;
+    }
+
+    // A model file that changed on disk (saved from Blender, say) is dropped and read again at its next use.
+    void BaseRenderer::reload_changed_models()
+    {
+        const auto now = std::filesystem::file_time_type::clock::now();
+        for (auto it = models_.begin(); it != models_.end();)
+        {
+            std::error_code ec;
+            const auto stamp = it->second.path.empty() ? it->second.stamp : std::filesystem::last_write_time(it->second.path, ec);
+            if (!ec && !it->second.path.empty() && stamp != it->second.stamp && now - stamp > std::chrono::milliseconds(600))
+            {
+                if (it->second.model)
+                    sl::destroy_model(it->second.model);
+                it = models_.erase(it);
+            }
+            else if (it->second.path.empty() && !it->second.model && std::filesystem::exists(std::filesystem::path(it->first.substr(0, it->first.find('|'))) / it->first.substr(it->first.find('|') + 1), ec))
+                it = models_.erase(it); // a model that was missing may have appeared
+            else
+                ++it;
+        }
     }
 
     double base_night(const Universe &universe, const Base &base)
@@ -747,6 +873,12 @@ namespace kosmos
 
     void BaseRenderer::draw(const Universe &universe, const std::vector<Base> &bases, const sl::dvec3 &eye, double range, const sl::Material &material)
     {
+        const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (wall - last_poll_ > 0.5)
+        {
+            last_poll_ = wall;
+            reload_changed_models();
+        }
         for (const Base &base : bases)
         {
             const int body = universe.find(base.body);
@@ -785,8 +917,10 @@ namespace kosmos
             }
             for (const BaseObject &o : base.objects)
             {
-                sl::Mesh *mesh = mesh_for(o);
-                if (!mesh)
+                const bool is_model = o.type == "model";
+                sl::Mesh *mesh = is_model ? nullptr : mesh_for(o);
+                sl::Model *model = is_model ? model_for(base, o) : nullptr;
+                if (!mesh && !model)
                     continue;
                 for (int i = 0; i < o.count; ++i)
                 {
@@ -800,12 +934,15 @@ namespace kosmos
                     base_axes(pf, base.heading + o.heading, pforward, pright);
                     // Right-handed basis (a mirrored one would flip the winding): +Z faces forward, so +X is to the left.
                     const glm::vec3 ax(-pright), ay(pf.up), az(pforward);
-                    glm::mat4 model(1.0f);
-                    model[0] = glm::vec4(ax * static_cast<float>(o.scale), 0.0f);
-                    model[1] = glm::vec4(ay * static_cast<float>(o.scale), 0.0f);
-                    model[2] = glm::vec4(az * static_cast<float>(o.scale), 0.0f);
-                    model[3] = glm::vec4(glm::vec3(position + pf.up * o.y - eye), 1.0f);
-                    sl::draw_mesh(mesh, model, material);
+                    glm::mat4 placed(1.0f);
+                    placed[0] = glm::vec4(ax * static_cast<float>(o.scale), 0.0f);
+                    placed[1] = glm::vec4(ay * static_cast<float>(o.scale), 0.0f);
+                    placed[2] = glm::vec4(az * static_cast<float>(o.scale), 0.0f);
+                    placed[3] = glm::vec4(glm::vec3(position + pf.up * o.y - eye), 1.0f);
+                    if (model)
+                        sl::draw_model(model, placed);
+                    else
+                        sl::draw_mesh(mesh, placed, material);
                 }
             }
         }

@@ -7,6 +7,9 @@
 #include "clutter.h"
 #include "terrain.h"
 
+#include "model3d.h"
+
+#include <filesystem>
 #include <map>
 #include <memory>
 #include <string>
@@ -20,7 +23,12 @@ namespace kosmos
      */
     struct BaseObject
     {
-        std::string type;
+        std::string type; // "model" draws `model` instead of a builder
+        /**
+         * type "model": an OBJ/glTF file, relative to the folder of the base file (or the user's bases folder). Its frame
+         * is the props library's: +Z forward, +Y up and +X to the left, so it sits at the object's place unturned.
+         */
+        std::string model;
         double x = 0.0, z = 0.0, y = 0.0; // y lifts the prop, e.g. onto a pad
         double heading = 0.0; // degrees, clockwise from the base heading
         double scale = 1.0;
@@ -78,6 +86,7 @@ namespace kosmos
     struct Base
     {
         std::string id, name, body;
+        std::string source_dir; // folder of the file it was read from; model paths are relative to it
         double latitude = 0.0, longitude = 0.0;
         double heading = 0.0;       // degrees, 0 = north, 90 = east
         double flat_radius = 300.0; // metres of level ground around the centre
@@ -105,6 +114,17 @@ namespace kosmos
     bool save_bases(const std::string &file, const std::vector<Base> &bases, std::string &error);
     /** Position of a world point in a base's frame (x right, z forward, metres). */
     void base_local_xz(const Universe &universe, const Base &base, const sl::dvec3 &world_point, double &x, double &z);
+    /** Where the user's models live; model paths that are not found beside the base file are looked for here. */
+    void set_base_model_folder(const std::string &folder);
+    /** The file a model object refers to, or an empty string when it is not found. */
+    std::string resolve_base_model(const Base &base, const std::string &model);
+    /** A builder-made object's mesh in its own frame (scale not applied), or false for "model" and unknown types. */
+    bool base_object_mesh(const BaseObject &object, sl::MeshData &mesh);
+    /**
+     * Every copy of an object with its place, heading and scale baked in, in the frame of a "model" object at the base
+     * origin (+Z forward, +X left); a model object at x = z = 0 then shows exactly what the original did.
+     */
+    bool bake_base_object(const BaseObject &object, sl::MeshData &mesh);
     /** The prop types a base can hold. */
     const std::vector<std::string> &base_object_types();
     /** Load every .json file in a folder. Errors are appended to errors. */
@@ -187,6 +207,16 @@ namespace kosmos
 
     private:
         sl::Mesh *mesh_for(const BaseObject &object);
+        sl::Model *model_for(const Base &base, const BaseObject &object);
+        void reload_changed_models();
+        struct LoadedModel
+        {
+            sl::Model *model = nullptr;
+            std::string path;
+            std::filesystem::file_time_type stamp{};
+        };
         std::map<std::string, sl::Mesh *> meshes_;
+        std::map<std::string, LoadedModel> models_;
+        double last_poll_ = 0.0;
     };
 }
