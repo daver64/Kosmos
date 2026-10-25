@@ -28,7 +28,7 @@ fi
 
 if [ $publish -eq 1 ]; then
     # shellcheck disable=SC2086
-    "$SRC/scripts/publish-web.sh" kosmos $archives
+    "$SRC/scripts/publish-web.sh" $archives
 else
     echo "built:$archives (not published)"
 fi

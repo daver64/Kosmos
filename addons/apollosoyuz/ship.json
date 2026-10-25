@@ -1,0 +1,33 @@
+{
+ "name": "Apollo-Soyuz",
+ "lights": [
+  {"position": [-2.4, 0, 6], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3},
+  {"position": [2.4, 0, 6], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3},
+  {"position": [0, 2.6, 0], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45}
+ ],
+ "class": "station",
+ "torque_accel": 0.08,
+ "max_rate": 0.3,
+ "rcs_thrust": 2500,
+ "drag_area": 12,
+ "camera_distance": 40,
+ "stages": [
+  {
+   "name": "Apollo-Soyuz",
+   "dry_mass": 24000,
+   "propellant": 18500,
+   "z": 0,
+   "length": 21.6,
+   "radius": 2.6,
+   "engines": [
+    {"position": [0, 0, 10.4], "direction": [0, 0, -1], "thrust": 91200, "isp": 314, "plume": 4, "type": "rocket", "fuel": "hypergolic"}
+   ],
+   "parts": [
+    {"model": "../../data/parts/apollo-soyuz/apollo-soyuz.glb", "rotate": [0, 90, 0], "offset": [0, -0.24, -1.43]}
+   ]
+  }
+ ],
+ "ports": [
+  {"name": "Soyuz", "position": [0, 0, -10.8], "direction": [0, 0, -1], "up": [0, 1, 0]}
+ ]
+}

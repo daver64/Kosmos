@@ -463,6 +463,48 @@ namespace kosmos
         update_telemetry();
     }
 
+    void Ship::place_on_ellipse(int body_id, double periapsis, double apoapsis, double true_anomaly_degrees, int toward)
+    {
+        const Body &planet = universe_.bodies[static_cast<std::size_t>(body_id)];
+        const sl::FlightBody &pb = *universe_.world.body(body_id);
+        sl::FlightBody &b = body();
+        const double rp = planet.radius + periapsis, ra = planet.radius + std::max(apoapsis, periapsis);
+        const double a = 0.5 * (rp + ra), e = (ra - rp) / (ra + rp), mu = planet.gm;
+        const double nu = true_anomaly_degrees * pi / 180.0;
+        const double p = a * (1.0 - e * e);
+
+        sl::dvec3 normal(0.0, 1.0, 0.0), apse(-1.0, 0.0, 0.0); // normal of the orbit plane, direction of periapsis
+        if (toward >= 0 && toward != body_id)
+        {
+            const sl::FlightBody &tb = *universe_.world.body(toward);
+            const sl::dvec3 m = tb.position - pb.position, vm = tb.velocity - pb.velocity;
+            normal = glm::normalize(glm::cross(m, vm));
+            // Time from the starting anomaly to apoapsis, by Kepler's equation; the target moves on meanwhile.
+            const double E = 2.0 * std::atan2(std::sqrt(1.0 - e) * std::sin(0.5 * nu), std::sqrt(1.0 + e) * std::cos(0.5 * nu));
+            const double M = E - e * std::sin(E);
+            double M_now = std::fmod(M + 2.0 * pi, 2.0 * pi);
+            const double n = std::sqrt(mu / (a * a * a));
+            const double flight = (pi - M_now) / n;
+            const double omega = glm::length(vm) / glm::length(m);
+            const sl::dvec3 ahead = m * std::cos(omega * flight) + glm::cross(normal, m) * std::sin(omega * flight);
+            apse = -glm::normalize(ahead);
+        }
+        else
+            normal = glm::normalize(normal);
+        const sl::dvec3 side = glm::cross(normal, apse); // 90 degrees ahead of periapsis
+        const double r = p / (1.0 + e * std::cos(nu));
+        const sl::dvec3 up = apse * std::cos(nu) + side * std::sin(nu);
+        const sl::dvec3 prograde = side * std::cos(nu) - apse * std::sin(nu);
+        const double h = std::sqrt(mu * p);
+        const double vr = mu / h * e * std::sin(nu), vt = mu / h * (1.0 + e * std::cos(nu));
+        b.position = pb.position + up * r;
+        b.velocity = pb.velocity + up * vr + prograde * vt;
+        b.orientation = orientation_from(prograde, up);
+        b.angular_velocity = sl::dvec3(0.0);
+        crashed_ = false;
+        update_telemetry();
+    }
+
     sl::dvec3 Ship::relative_velocity() const
     {
         const int soi = universe_.soi_body(body().position);

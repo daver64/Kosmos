@@ -218,7 +218,12 @@ namespace
             if (!entry.label.empty())
                 ship->name = entry.label;
             if (!entry.landed)
-                ship->place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
+            {
+                if (entry.apoapsis_km > 0.0)
+                    ship->place_on_ellipse(body, entry.altitude_km * km, entry.apoapsis_km * km, entry.phase, entry.toward.empty() ? -1 : sim.universe.find(entry.toward));
+                else
+                    ship->place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
+            }
             else
             {
                 double height = 0.0;
@@ -3497,9 +3502,24 @@ int main(int argc, char **argv)
             extent = std::max(extent, std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
         const double eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
         const double nearest_ground = std::max(1.0, 0.9 * (eye_soi_altitude - 10.0e3));
-        const double near_plane = in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : in_base_cam ? 1.0 : std::max(1.0, std::min(cam_distance - extent, nearest_ground));
+        const double ship_near = in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : in_base_cam ? 1.0 : std::max(1.0, std::min(cam_distance - extent, nearest_ground));
+        // As Orbiter does: out in space the planets are drawn first with a near plane set by the nearest body, then the depth buffer
+        // is cleared and the ships go over them with their own near plane, so neither range has to share one depth buffer.
+        static bool depth_layers_work = true;
+        const bool layered = depth_layers_work && !in_cockpit3d && !in_cockpit && !in_interior && !in_base_cam && eye_soi_altitude > 20.0e3;
+        double near_plane = ship_near;
+        if (layered)
+        {
+            double nearest_surface = 1.0e30;
+            for (std::size_t bi = 0; bi < universe.bodies.size(); ++bi)
+                nearest_surface = std::min(nearest_surface, glm::length(universe.position(static_cast<int>(bi)) - eye_world) - universe.bodies[bi].radius);
+            near_plane = std::max(ship_near, 0.8 * nearest_surface);
+        }
         camera.near_plane = static_cast<float>(near_plane);
-        camera.far_plane = static_cast<float>(cam_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));
+        camera.far_plane = static_cast<float>(layered || cam_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));
+        sl::Camera ship_camera = camera;
+        ship_camera.near_plane = static_cast<float>(ship_near);
+        ship_camera.far_plane = 1.0e8f;
 
         sl::Environment3D environment;
         environment.sun_direction = -to_sun;
@@ -3856,6 +3876,16 @@ int main(int argc, char **argv)
                 }
                 else
                     sl::draw_mesh(vis.sphere, model, rock);
+                // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
+                // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
+                const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
+                auto lifted = [&](double fraction)
+                {
+                    const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
+                    return glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1)) *
+                           glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) *
+                           glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
+                };
                 if (static_cast<int>(i) == earth_id && vis.lights_texture)
                 {
                     // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
@@ -3867,7 +3897,7 @@ int main(int argc, char **argv)
                     lights.texture = vis.lights_texture;
                     lights.fog = false;
                     lights.blend = sl::MaterialBlend::additive;
-                    sl::draw_mesh(vis.sphere, model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f)), lights);
+                    sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f)), lights);
                     sl::set_light_3d(light);
                 }
                 if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
@@ -3879,7 +3909,7 @@ int main(int argc, char **argv)
                     veil.blend = sl::MaterialBlend::additive;
                     veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * 0.5f), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * 0.5f),
                                  static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * 0.5f), 255};
-                    sl::draw_mesh(vis.sphere, model * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
+                    sl::draw_mesh(vis.sphere, lifted(0.5) * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
                 }
                 if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i])
                 {
@@ -3889,9 +3919,6 @@ int main(int argc, char **argv)
                     weather.fog = false;
                     weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
                                     static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 150};
-                    // Depth precision thins with distance, so the shell is scaled about the eye towards the camera: it looks the same
-                    // but sits clear of the planet in depth.
-                    const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
                     const float k = static_cast<float>(1.0 - depth_gap / distance);
                     const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
                     sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
@@ -3950,6 +3977,14 @@ int main(int argc, char **argv)
 
             if (earth_id >= 0 && near_earth)
                 draw_atmosphere_glow(universe.position(earth_id) - eye_world, universe.bodies[static_cast<std::size_t>(earth_id)]);
+
+            if (layered)
+            {
+                if (sl::clear_depth_3d())
+                    sl::set_camera_3d(ship_camera);
+                else
+                    depth_layers_work = false;
+            }
 
             // Ships and their jettisoned stages.
             for (int s = 0; s < sim.ship_count(); ++s)

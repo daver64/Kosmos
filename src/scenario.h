@@ -14,6 +14,10 @@ namespace kosmos
         bool landed = false;
         // Orbit.
         double altitude_km = 200.0, inclination = 0.0, phase = 0.0;
+        // Optional: an ellipse instead of a circle. altitude_km is then the periapsis, phase the true anomaly, and when
+        // `toward` names a body the orbit lies in that body's orbital plane with its apoapsis aimed where the body will be.
+        double apoapsis_km = 0.0;
+        std::string toward;
         // Surface: either latitude/longitude, or the home planet's launch pad when pad is set.
         bool pad = false;
         std::string base; // a base id: stand on that base's pad instead

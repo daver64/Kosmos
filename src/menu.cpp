@@ -479,6 +479,8 @@ namespace kosmos
                 dbl("Altitude km", s.altitude_km, 1.0f, 0.0, 400000.0, "%.1f");
                 dbl("Inclination", s.inclination, 0.5f, -180.0, 180.0, "%.1f deg");
                 dbl("Phase", s.phase, 0.5f, -360.0, 360.0, "%.1f deg");
+                dbl("Apoapsis km (0 = circular)", s.apoapsis_km, 100.0f, 0.0, 100000000.0, "%.0f");
+                text("Aim at body", s.toward);
             }
             else
             {

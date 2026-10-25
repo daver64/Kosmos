@@ -261,6 +261,11 @@ namespace kosmos
         /** Put the ship at a position and velocity relative to the centre of body `body` (world axes), e.g. beside another player. */
         void place_relative(int body, const sl::dvec3 &position, const sl::dvec3 &velocity, const sl::dquat &orientation);
                 void place_in_orbit(int body, double altitude, double inclination_degrees, double phase_degrees = 0.0);
+        /**
+         * Place on an ellipse with the given periapsis and apoapsis altitudes at a true anomaly. With `toward` >= 0 the orbit
+         * lies in that body's orbital plane and its apoapsis points at where the body will be when the ship gets there.
+         */
+        void place_on_ellipse(int body, double periapsis, double apoapsis, double true_anomaly_degrees, int toward);
 
         /** Docking port `index` in the world frame: position, outward direction and up. */
         void port_world(int index, sl::dvec3 &position, sl::dvec3 &direction, sl::dvec3 &up) const;

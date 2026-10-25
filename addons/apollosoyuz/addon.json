@@ -1,0 +1,6 @@
+{
+  "id": "apollosoyuz",
+  "name": "Apollo-Soyuz",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

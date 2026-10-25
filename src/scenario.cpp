@@ -36,6 +36,8 @@ namespace kosmos
                     s.altitude_km = o.value("altitude_km", 200.0);
                     s.inclination = o.value("inclination", 0.0);
                     s.phase = o.value("phase", 0.0);
+                    s.apoapsis_km = o.value("apoapsis_km", 0.0);
+                    s.toward = o.value("toward", "");
                 }
                 else if (js.contains("surface"))
                 {
@@ -101,7 +103,13 @@ namespace kosmos
                 js["name"] = s.label;
             js["body"] = s.body;
             if (!s.landed)
+            {
                 js["orbit"] = {{"altitude_km", s.altitude_km}, {"inclination", s.inclination}, {"phase", s.phase}};
+                if (s.apoapsis_km > 0.0)
+                    js["orbit"]["apoapsis_km"] = s.apoapsis_km;
+                if (!s.toward.empty())
+                    js["orbit"]["toward"] = s.toward;
+            }
             else
             {
                 nlohmann::json o;

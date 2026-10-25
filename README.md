@@ -70,10 +70,9 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 ## Versions
 
-Versions are `major.build`. The major number is 0 for Kosmos (1 for exdefender and exinvaders), and the build number counts published binaries. The [VERSION](VERSION) file holds the number the next published build will carry, so a fresh binary already shows it in **Help > About**, in `--version`, and on the web pages. `scripts/publish-web.sh APP ARCHIVE...` copies built archives to the web site; if their SHA-256 differs from the published one it updates `SHA256SUMS.txt`, stamps the version on the landing page, download pages and docs, and then bumps `VERSION` to the next build. If the checksums are unchanged nothing happens.
+Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the number the next published build will carry, so a fresh binary already shows it in **Help > About**, in `--version`, and on the web pages. `scripts/publish-web.sh ARCHIVE...` copies built archives to the web site; if their SHA-256 differs from the published one it updates `SHA256SUMS.txt`, stamps the version on the landing page, download pages and docs, and then bumps `VERSION` to the next build. If the checksums are unchanged nothing happens.
 
-    scripts/publish-web.sh kosmos build/package/kosmos-beta-Linux.tar.gz build-win/package/kosmos-beta-Windows.zip
-    scripts/publish-web.sh exdefender ../rsimlib/build/package/exdefender-Linux.tar.gz   # its VERSION is src/examples/exdefender/VERSION in simlib
+    scripts/publish-web.sh build/package/kosmos-beta-Linux.tar.gz build-win/package/kosmos-beta-Windows.zip
 
 ## Galaxy
 
