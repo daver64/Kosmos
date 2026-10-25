@@ -6,4 +6,6 @@ __pycache__/
 !/docs/*.png
 imgui.ini
 kosmos-*.png
-/data/textures-hires/
+data/textures-hires/
+data/textures/celestia/hires/earth/
+data/textures/celestia/hires/earth_specular/
