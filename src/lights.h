@@ -37,6 +37,8 @@ namespace kosmos
         /** Bases switch their lamps on at dusk; a lamp with `always` stays lit by day too. */
         bool always = false;
         bool shadow = false;
+        /** Ship navigation lights (running lights and strobes) are drawn subdued. Defaults to on for point lamps; spots are never navigation. */
+        bool navigation = false;
         /** Ships: lit only while this stage has not been jettisoned (-1 for always). */
         int stage = -1;
     };
@@ -99,6 +101,7 @@ namespace kosmos
         l.glow = j.value("glow", l.glow);
         l.always = j.value("always", false);
         l.shadow = j.value("shadow", false);
+        l.navigation = j.value("navigation", l.outer <= 0.0f);
         l.stage = j.value("stage", -1);
         return l;
     }
@@ -132,6 +135,7 @@ namespace kosmos
         if (l.glow != d.glow) j["glow"] = l.glow;
         if (l.always) j["always"] = true;
         if (l.shadow) j["shadow"] = true;
+        if (l.navigation != (l.outer <= 0.0f)) j["navigation"] = l.navigation;
         if (l.stage >= 0) j["stage"] = l.stage;
         return j;
     }
@@ -144,5 +148,6 @@ namespace kosmos
         float glow_size = 0.0f; // metres; 0 for none
         float glow_strength = 0.0f;
         float distance = 0.0f;
+        float far_size = 0.007f; // minimum glow size as a fraction of distance
     };
 }

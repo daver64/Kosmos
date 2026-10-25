@@ -3433,6 +3433,13 @@ int main(int argc, char **argv)
                             p.glow_colour = p.light.colour;
                             p.glow_size = spec.glow;
                             p.glow_strength = on;
+                            if (spec.navigation)
+                            {
+                                p.light.intensity *= 0.35f;
+                                p.glow_size *= 0.5f;
+                                p.glow_strength *= 0.7f;
+                                p.far_size = 0.003f;
+                            }
                             p.distance = static_cast<float>(distance);
                             lamps.push_back(p);
                         }
@@ -3856,7 +3863,7 @@ int main(int argc, char **argv)
                     if (p.glow_size <= 0.0f || p.distance < 0.5f)
                         continue;
                     // Far lamps stay a few pixels wide so a strobe still reads from kilometres away.
-                    const float size = std::max(p.glow_size, p.distance * 0.007f);
+                    const float size = std::max(p.glow_size, p.distance * p.far_size);
                     const glm::vec3 c = glm::clamp(p.glow_colour * 255.0f, 0.0f, 255.0f);
                     bulb.tint = {static_cast<std::uint8_t>(c.r), static_cast<std::uint8_t>(c.g), static_cast<std::uint8_t>(c.b), static_cast<std::uint8_t>(std::clamp(p.glow_strength * 230.0f, 0.0f, 255.0f))};
                     sl::draw_mesh(vis.quad, facing(p.light.position, size * 7.0f), bulb);
