@@ -1,0 +1,7 @@
+{
+ "length": 12,
+ "radius": 2.0,
+ "dry_mass": 5000,
+ "propellant": 90000,
+ "model": "tank_2m.glb"
+}

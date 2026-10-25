@@ -1,9 +1,11 @@
 #include "ship.h"
 
 #include "json.hpp"
+#include "part_kit.h"
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 
 namespace kosmos
@@ -72,6 +74,11 @@ namespace kosmos
         try
         {
             in >> json;
+            if (!expand_part_kits(json, std::filesystem::path(file).parent_path(), error))
+            {
+                error = file + ": " + error;
+                return false;
+            }
             spec = ShipSpec();
             spec.name = json.value("name", "Ship");
             spec.kind = json.value("class", "ship");
@@ -200,6 +207,9 @@ namespace kosmos
                             part.colour[i] = jp["colour"][i].get<float>() / 255.0f;
                     part.emissive = jp.value("emissive", 0.0f);
                     part.offset = vec3(jp.value("offset", nlohmann::json()));
+                    if (jp.contains("scale"))
+                        part.scale = jp["scale"].is_array() ? vec3(jp["scale"], part.scale) : sl::dvec3(jp["scale"].get<double>());
+                    part.rotate = vec3(jp.value("rotate", nlohmann::json()), part.rotate);
                     stage.parts.push_back(std::move(part));
                 }
                 spec.stages.push_back(std::move(stage));

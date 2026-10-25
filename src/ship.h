@@ -83,6 +83,9 @@ namespace kosmos
         float colour[3] = {0.8f, 0.8f, 0.8f};
         float emissive = 0.0f;
         sl::dvec3 offset{0.0};
+        /** Model parts only: a scale, then a rotation in degrees about X, Y and Z, applied before `offset`. */
+        sl::dvec3 scale{1.0};
+        sl::dvec3 rotate{0.0};
     };
 
     /** One separable section of a ship. Stages are listed from the bottom of the stack, which is jettisoned first. */
@@ -233,6 +236,8 @@ namespace kosmos
         Ship &operator=(const Ship &) = delete;
 
         const ShipSpec &spec() const { return spec_; }
+        /** For the part editor, which swaps a procedural part for an exported mesh while the ship flies. */
+        ShipSpec &editable_spec() { return spec_; }
         std::string name;
         int body_id() const { return body_; }
         int active_stage() const { return active_stage_; }

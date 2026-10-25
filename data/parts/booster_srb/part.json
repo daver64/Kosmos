@@ -1,0 +1,25 @@
+{
+ "length": 14,
+ "radius": 0.8,
+ "dry_mass": 2500,
+ "propellant": 20000,
+ "engines": [
+  {
+   "position": [
+    0,
+    0,
+    -0.1
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "thrust": 900000,
+   "isp": 250,
+   "plume": 12,
+   "type": "solid"
+  }
+ ],
+ "model": "booster_srb.glb"
+}

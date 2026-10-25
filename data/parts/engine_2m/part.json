@@ -1,0 +1,25 @@
+{
+ "length": 3.0,
+ "radius": 2.0,
+ "dry_mass": 1800,
+ "engines": [
+  {
+   "position": [
+    0,
+    0,
+    -0.3
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "thrust": 1800000,
+   "isp": 330,
+   "plume": 18,
+   "type": "rocket",
+   "fuel": "kerosene"
+  }
+ ],
+ "model": "engine_2m.glb"
+}

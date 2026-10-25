@@ -8,3 +8,10 @@ imgui.ini
 kosmos-*.png
 data/textures-hires/
 /data/celestia/hires/
+*.glb.blend
+*.glb.blend1
+*.gltf.blend
+*.obj.blend
+*.glb.bak
+*.gltf.bak
+*.obj.bak

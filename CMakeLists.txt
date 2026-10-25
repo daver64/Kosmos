@@ -50,6 +50,8 @@ add_executable(kosmos
     src/base.cpp
     src/galaxy.cpp
     src/ship.cpp
+    src/part_kit.cpp
+    src/blender_edit.cpp
     src/mfd.cpp
     src/nav.cpp
     src/planet_data.cpp

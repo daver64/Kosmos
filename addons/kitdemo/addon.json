@@ -1,0 +1,6 @@
+{
+  "id": "kitdemo",
+  "name": "Part kit demo rocket",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

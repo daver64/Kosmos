@@ -7,6 +7,7 @@
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
+#include "blender_edit.h"
 
 #include <algorithm>
 #include <chrono>
@@ -79,6 +80,8 @@ namespace
         bool orbit_start = false;
         bool hide_info = false;
         bool no_relief = false;
+        std::string blender;
+        bool part_window = false;
         // Multiplayer
         bool net_host = false, net_window = false;
         int net_port = kosmos::NetPlay::default_port;
@@ -997,6 +1000,7 @@ namespace
         props.set_bool("/sim/settings/orbit-line", true);
         props.set_bool("/sim/settings/sound", true);
         props.set_int("/sim/settings/volume", 20);
+        props.set_string("/sim/settings/blender", "blender");
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -1013,6 +1017,8 @@ namespace
                 props.set_bool(std::string("/sim/settings/") + key, j[key].get<bool>());
         if (j.contains("volume") && j["volume"].is_number())
             props.set_int("/sim/settings/volume", std::clamp(j["volume"].get<int>(), 0, 100));
+        if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
+            props.set_string("/sim/settings/blender", j["blender"].get<std::string>());
     }
 
     void settings_save(sl::PropertyTree &props)
@@ -1024,6 +1030,7 @@ namespace
         for (const char *key : {"labels", "ship-labels", "help-text", "orbit-line", "sound"})
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
+        j["blender"] = props.get_string("/sim/settings/blender", "blender");
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);
@@ -1492,11 +1499,10 @@ namespace
     };
 
     // A props-library part moved into the ship frame: the prop's +Y becomes the nose direction (-Z) and its +Z umbilical faces +Y.
-    sl::Mesh *make_prop_mesh(const kosmos::PartSpec &part)
+    bool make_prop_data(const kosmos::PartSpec &part, sl::MeshData &data)
     {
         auto colour = [](const float c[3]) { return sl::Colour{static_cast<std::uint8_t>(c[0] * 255.0f), static_cast<std::uint8_t>(c[1] * 255.0f), static_cast<std::uint8_t>(c[2] * 255.0f), 255}; };
         const sl::Colour body = colour(part.colour), accent = colour(part.accent);
-        sl::MeshData data;
         if (part.prop == "stage")
             data = sl::make_rocket_stage_data(part.radius, part.length, body, accent);
         else if (part.prop == "adapter")
@@ -1516,12 +1522,12 @@ namespace
             glm::mat4 turn = glm::rotate(glm::mat4(1.0f), 3.14159265f, glm::vec3(0.0f, 1.0f, 0.0f));
             turn[3] = glm::vec4(0.0f, 0.0f, part.z, 1.0f);
             sl::transform_mesh_data(data, turn);
-            return sl::create_mesh(data.vertices, data.indices);
+            return true;
         }
         else
         {
             std::fprintf(stderr, "[kosmos] unknown prop part '%s'\n", part.prop.c_str());
-            return nullptr;
+            return false;
         }
         glm::mat4 to_ship(1.0f);
         to_ship[0] = glm::vec4(1.0f, 0.0f, 0.0f, 0.0f);
@@ -1529,9 +1535,54 @@ namespace
         to_ship[2] = glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
         to_ship[3] = glm::vec4(0.0f, 0.0f, part.z, 1.0f);
         sl::transform_mesh_data(data, to_ship);
-        return sl::create_mesh(data.vertices, data.indices);
+        return true;
     }
 
+    // A props-library part moved into the ship frame: the prop's +Y becomes the nose direction (-Z) and its +Z umbilical faces +Y.
+    sl::Mesh *make_prop_mesh(const kosmos::PartSpec &part)
+    {
+        sl::MeshData data;
+        return make_prop_data(part, data) ? sl::create_mesh(data.vertices, data.indices) : nullptr;
+    }
+
+    // A profile of revolution about Z as mesh data, in the part's colour; the same shape the lathe draws.
+    sl::MeshData make_lathe_data(const kosmos::PartSpec &part, int segments = 28)
+    {
+        sl::MeshData data;
+        const auto &profile = part.profile;
+        const int rows = static_cast<int>(profile.size());
+        for (int i = 0; i < rows; ++i)
+        {
+            const int a = std::max(i - 1, 0), b = std::min(i + 1, rows - 1);
+            const float dz = profile[static_cast<std::size_t>(b)].first - profile[static_cast<std::size_t>(a)].first;
+            const float dr = profile[static_cast<std::size_t>(b)].second - profile[static_cast<std::size_t>(a)].second;
+            const float len = std::max(std::sqrt(dz * dz + dr * dr), 1e-6f);
+            for (int s = 0; s <= segments; ++s)
+            {
+                const float angle = 6.2831853f * static_cast<float>(s) / static_cast<float>(segments);
+                const float cs = std::cos(angle), sn = std::sin(angle);
+                sl::Vertex3D v;
+                v.position[0] = cs * profile[static_cast<std::size_t>(i)].second;
+                v.position[1] = sn * profile[static_cast<std::size_t>(i)].second;
+                v.position[2] = profile[static_cast<std::size_t>(i)].first;
+                v.normal[0] = cs * dz / len;
+                v.normal[1] = sn * dz / len;
+                v.normal[2] = -dr / len;
+                for (int c = 0; c < 3; ++c)
+                    v.colour[c] = part.colour[c];
+                v.uv[0] = static_cast<float>(s) / static_cast<float>(segments);
+                v.uv[1] = static_cast<float>(i) / static_cast<float>(rows - 1);
+                data.vertices.push_back(v);
+            }
+        }
+        for (int i = 0; i + 1 < rows; ++i)
+            for (int s = 0; s < segments; ++s)
+            {
+                const std::uint32_t p = static_cast<std::uint32_t>(i * (segments + 1) + s), q = p + segments + 1;
+                data.indices.insert(data.indices.end(), {p, p + 1, q, p + 1, q + 1, q});
+            }
+        return data;
+    }
 
     // A box-filtered halving, used when an image is larger than the GPU accepts.
     void halve_bitmap(sl::Bitmap &bitmap)
@@ -2008,26 +2059,58 @@ namespace
             parts[&part] = mesh;
             return mesh;
         }
-        std::map<const kosmos::PartSpec *, sl::Model *> models;
+        struct LoadedModel
+        {
+            sl::Model *model = nullptr;
+            std::filesystem::path path;
+            std::filesystem::file_time_type stamp{};
+        };
+        std::map<const kosmos::PartSpec *, LoadedModel> models;
         sl::Model *part_model(const kosmos::PartSpec &part, const std::string &directory)
         {
             auto found = models.find(&part);
             if (found != models.end())
-                return found->second;
-            sl::Model *model = sl::load_model((std::filesystem::path(directory) / part.model).string());
-            if (!model)
+                return found->second.model;
+            LoadedModel loaded;
+            loaded.path = std::filesystem::path(directory) / part.model;
+            std::error_code ec;
+            loaded.stamp = std::filesystem::last_write_time(loaded.path, ec);
+            loaded.model = sl::load_model(loaded.path.string());
+            if (!loaded.model)
                 std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
-            if (model)
-                for (sl::ModelPart &mp : model->parts)
+            if (loaded.model)
+                for (sl::ModelPart &mp : loaded.model->parts)
                     mp.material.cull = sl::CullMode::none; // Orbiter draws meshes double-sided and many are not closed
-            models[&part] = model;
-            return model;
+            models[&part] = loaded;
+            return loaded.model;
+        }
+        // Drops models whose file changed on disk so the next draw loads them again; this is how an edit made in
+        // Blender appears. A file is left alone until it has stopped changing, as exporters write it in pieces.
+        int reload_models()
+        {
+            int dropped = 0;
+            const auto now = std::filesystem::file_time_type::clock::now();
+            for (auto it = models.begin(); it != models.end();)
+            {
+                std::error_code ec;
+                const auto stamp = std::filesystem::last_write_time(it->second.path, ec);
+                if (!ec && stamp != it->second.stamp && now - stamp > std::chrono::milliseconds(600))
+                {
+                    if (it->second.model)
+                        sl::destroy_model(it->second.model);
+                    it = models.erase(it);
+                    ++dropped;
+                }
+                else
+                    ++it;
+            }
+            return dropped;
         }
         void clear_parts()
         {
             for (auto &entry : models)
-                if (entry.second)
-                    sl::destroy_model(entry.second);
+                if (entry.second.model)
+                    sl::destroy_model(entry.second.model);
             models.clear();
             for (auto &entry : parts)
                 if (entry.second)
@@ -2044,7 +2127,18 @@ namespace
                 if (!part.model.empty())
                 {
                     if (sl::Model *part_model = v.part_model(part, spec.directory))
-                        sl::draw_model(part_model, model * glm::translate(glm::mat4(1.0f), glm::vec3(part.offset)));
+                    {
+                        glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(part.offset));
+                        if (part.rotate != sl::dvec3(0.0))
+                        {
+                            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.z)), glm::vec3(0.0f, 0.0f, 1.0f));
+                            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.y)), glm::vec3(0.0f, 1.0f, 0.0f));
+                            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.x)), glm::vec3(1.0f, 0.0f, 0.0f));
+                        }
+                        if (part.scale != sl::dvec3(1.0))
+                            place = glm::scale(place, glm::vec3(part.scale));
+                        sl::draw_model(part_model, model * place);
+                    }
                     continue;
                 }
                 sl::Mesh *mesh = v.part_mesh(part);
@@ -2337,6 +2431,10 @@ int main(int argc, char **argv)
             options.no_tiles = true;
         else if (!std::strcmp(argv[i], "--no-relief"))
             options.no_relief = true;
+        else if (!std::strcmp(argv[i], "--blender") && i + 1 < argc)
+            options.blender = argv[++i];
+        else if (!std::strcmp(argv[i], "--part-editor"))
+            options.part_window = true;
         else if (!std::strcmp(argv[i], "--hide-info"))
             options.hide_info = true;
         else if (!std::strcmp(argv[i], "--camera-window"))
@@ -2791,6 +2889,19 @@ int main(int argc, char **argv)
     int interior_cam = -1, base_view = -1, base_view_cam = 0;
     bool camera_window = options.camera_window, settings_window = options.settings_window, property_window = options.property_window, lua_window = options.lua_window;
     bool net_window = options.net_window;
+    // Part editor: meshes are edited in Blender while the simulation waits (the pause property is restored afterwards).
+    bool part_window = options.part_window, edit_paused = false, edit_was_paused = false;
+    kosmos::BlenderEdit blender_edit;
+    struct PartEdit
+    {
+        kosmos::PartSpec *part = nullptr;
+        kosmos::PartSpec original;
+        bool converted = false;
+        std::filesystem::path file;
+    } part_edit;
+    std::string part_status;
+    char blender_buffer[260] = "";
+    double model_poll = 0.0;
     kosmos::NetPlay netplay;
     NetUi net_ui;
     copy_text(net_ui.nick, sizeof net_ui.nick, options.net_name.empty() ? "Pilot" : options.net_name);
@@ -2817,6 +2928,8 @@ int main(int argc, char **argv)
     }
     settings_defaults(sim.props);
     settings_load(sim.props);
+    if (!options.blender.empty())
+        sim.props.set_string("/sim/settings/blender", options.blender);
     int applied_volume = -1;
     if (!options.view_base.empty())
     {
@@ -2846,7 +2959,7 @@ int main(int argc, char **argv)
     menu_bar.keep_visible = options.menu_visible;
     menu_bar.scenario_editor_open = options.scenario_editor;
     menu_bar.base_editor_open = options.base_editor;
-    std::vector<kosmos::MenuWindow> menu_windows = {{"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
     kosmos::MenuActions menu_actions;
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
@@ -3167,6 +3280,19 @@ int main(int argc, char **argv)
         if (netplay.shared())
             props.set_int("/sim/warp-index", 0);
 
+        if (edit_paused && !blender_edit.active())
+        {
+            edit_paused = false;
+            props.set_bool("/sim/paused", edit_was_paused);
+            part_status = "Blender closed; simulation resumed";
+        }
+        model_poll += frame;
+        if (model_poll > 0.5)
+        {
+            model_poll = 0.0;
+            if (vis.reload_models() > 0 && edit_paused)
+                part_status = "Reloaded the edited mesh";
+        }
         sim.step(frame);
         lua_console.tick(frame);
         ship = sim.active_ship();
@@ -4182,6 +4308,132 @@ int main(int argc, char **argv)
                 ImGui::End();
             }
             menu_bar.draw_windows(sim, menu_actions);
+            if (part_window)
+            {
+                ImGui::SetNextWindowPos(ImVec2(330.0f, 80.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(ImVec2(460.0f, 360.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowBgAlpha(0.92f);
+                if (ImGui::Begin("Part editor", &part_window))
+                {
+                    kosmos::Ship &flown = *sim.active_ship();
+                    kosmos::ShipSpec &fspec = flown.editable_spec();
+                    if (blender_buffer[0] == '\0')
+                        copy_text(blender_buffer, sizeof blender_buffer, props.get_string("/sim/settings/blender", "blender"));
+                    ImGui::SetNextItemWidth(260.0f);
+                    if (ImGui::InputText("Blender", blender_buffer, sizeof blender_buffer))
+                        props.set_string("/sim/settings/blender", blender_buffer);
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
+                    if (edit_paused)
+                    {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in Blender", part_edit.file.filename().string().c_str());
+                        ImGui::TextWrapped("The simulation is paused. Save in Blender (Ctrl+S) to see the change here; closing Blender resumes.");
+                        if (ImGui::Button("Resume, keep Blender open"))
+                        {
+                            edit_paused = false;
+                            props.set_bool("/sim/paused", edit_was_paused);
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Cancel and restore"))
+                        {
+                            blender_edit.stop();
+                            if (part_edit.converted && part_edit.part)
+                            {
+                                *part_edit.part = part_edit.original;
+                                std::error_code ec;
+                                std::filesystem::remove(part_edit.file, ec);
+                            }
+                            else
+                                blender_edit.restore();
+                            edit_paused = false;
+                            props.set_bool("/sim/paused", edit_was_paused);
+                            part_status = "Edit cancelled; the original was restored";
+                        }
+                    }
+                    else
+                    {
+                        ImGui::SeparatorText("Meshes of the flown ship");
+                        int stage_index = 0;
+                        for (kosmos::StageSpec &stage : fspec.stages)
+                        {
+                            int part_index = 0;
+                            for (kosmos::PartSpec &part : stage.parts)
+                            {
+                                ImGui::PushID(&part);
+                                const bool is_model = !part.model.empty();
+                                const std::string what = is_model ? part.model : (part.prop.empty() ? std::string("profile") : part.prop);
+                                ImGui::Text("%s: %s", stage.name.c_str(), what.c_str());
+                                ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120.0f);
+                                if (ImGui::SmallButton(is_model ? "Edit in Blender" : "Convert + edit") && !netplay.shared())
+                                {
+                                    std::filesystem::path file;
+                                    std::string error;
+                                    bool ok = true;
+                                    kosmos::PartSpec saved = part;
+                                    if (is_model)
+                                    {
+                                        file = std::filesystem::path(fspec.directory) / part.model;
+                                        std::string ext = file.extension().string();
+                                        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                                        if (ext != ".glb" && ext != ".gltf" && ext != ".obj")
+                                        {
+                                            error = "Blender can edit .glb, .gltf and .obj parts; convert " + ext + " first";
+                                            ok = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        sl::MeshData data;
+                                        ok = part.prop.empty() ? (data = make_lathe_data(part), !data.indices.empty()) : make_prop_data(part, data);
+                                        if (!ok)
+                                            error = "this part has no geometry to export";
+                                        else
+                                        {
+                                            std::string slug = fspec.name + "_" + std::to_string(stage_index) + "_" + std::to_string(part_index);
+                                            for (char &c : slug)
+                                                if (!std::isalnum(static_cast<unsigned char>(c)))
+                                                    c = '_';
+                                            file = std::filesystem::path(fspec.directory) / "models" / (slug + ".glb");
+                                            std::error_code ec;
+                                            std::filesystem::create_directories(file.parent_path(), ec);
+                                            ok = kosmos::write_glb(data, file, error);
+                                        }
+                                    }
+                                    if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
+                                    {
+                                        part_edit.part = &part;
+                                        part_edit.original = saved;
+                                        part_edit.converted = !is_model;
+                                        part_edit.file = file;
+                                        if (!is_model)
+                                        {
+                                            part.model = std::filesystem::relative(file, fspec.directory).generic_string();
+                                            part.prop.clear();
+                                            const std::string snippet = "{\"model\": \"" + part.model + "\", \"offset\": [" + std::to_string(part.offset.x) + ", " + std::to_string(part.offset.y) + ", " + std::to_string(part.offset.z) + "]}";
+                                            ImGui::SetClipboardText(snippet.c_str());
+                                            sim.log("Copied part entry for ship.json: " + snippet);
+                                        }
+                                        edit_was_paused = props.get_bool("/sim/paused");
+                                        props.set_bool("/sim/paused", true);
+                                        edit_paused = true;
+                                        part_status = "Blender started";
+                                    }
+                                    else if (!error.empty())
+                                        part_status = error;
+                                }
+                                ImGui::PopID();
+                                ++part_index;
+                            }
+                            ++stage_index;
+                        }
+                        if (fspec.stages.empty())
+                            ImGui::TextDisabled("This ship has no parts.");
+                    }
+                    if (!part_status.empty())
+                        ImGui::TextWrapped("%s", part_status.c_str());
+                }
+                ImGui::End();
+            }
             if (lua_window)
                 lua_console.draw(lua_window);
             if (net_window)
