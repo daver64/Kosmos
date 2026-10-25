@@ -21,7 +21,7 @@ done
 
 cd "$SRC"
 [ -d data/textures-hires ] || { echo "data/textures-hires not found" >&2; exit 1; }
-set -- data/textures-hires
+set -- data/textures-hires data/CREDITS-textures.md
 [ $sources -eq 1 ] && [ -d data/celestia/hires ] && set -- "$@" data/celestia/hires
 
 if [ $procedural -eq 0 ]; then

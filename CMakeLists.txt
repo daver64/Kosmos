@@ -74,8 +74,8 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-Linux.tar.gz        Windows: build/package/kosmos-beta-Windows.zip
-# Optional terrain/source tile packs and high-resolution overrides are never shipped; only the monospace font of assets/.
+# Optional terrain/source tile packs are never shipped; the hi-res textures (data/textures-hires) are.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
     ASSETS data addons assets
     EXTRA_FILES README.md
-    EXCLUDE "/data/orbiter(/|$)" "/data/celestia/hires(/|$)" "/data/celestia/moons(/|$)" "/data/textures-hires(/|$)")
+    EXCLUDE "/data/orbiter(/|$)" "/data/celestia/hires(/|$)" "/data/celestia/moons(/|$)")

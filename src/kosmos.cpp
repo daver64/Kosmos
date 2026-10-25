@@ -4344,7 +4344,7 @@ int main(int argc, char **argv)
             if (part_window)
             {
                 ImGui::SetNextWindowPos(ImVec2(330.0f, 80.0f), ImGuiCond_FirstUseEver);
-                ImGui::SetNextWindowSize(ImVec2(460.0f, 360.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(ImVec2(520.0f, 360.0f), ImGuiCond_FirstUseEver);
                 ImGui::SetNextWindowBgAlpha(0.92f);
                 if (ImGui::Begin("Part editor", &part_window))
                 {
@@ -4408,9 +4408,9 @@ int main(int argc, char **argv)
                             {
                                 ImGui::PushID(&part);
                                 const bool is_model = !part.model.empty();
-                                const std::string what = is_model ? part.model : (part.prop.empty() ? std::string("profile") : part.prop);
+                                const std::string what = is_model ? std::filesystem::path(part.model).filename().string() : (part.prop.empty() ? std::string("profile") : part.prop);
                                 ImGui::Text("%s: %s", stage.name.c_str(), what.c_str());
-                                ImGui::SameLine(ImGui::GetContentRegionAvail().x - 120.0f);
+                                ImGui::SameLine(ImGui::GetWindowWidth() - 150.0f);
                                 if (ImGui::SmallButton(is_model ? "Edit in Blender" : "Convert + edit") && !netplay.shared())
                                 {
                                     std::filesystem::path file;
