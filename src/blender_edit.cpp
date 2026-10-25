@@ -49,8 +49,8 @@ namespace kosmos
         }
         fs::path backup = mesh;
         backup += ".bak";
-        if (!fs::exists(backup, ec))
-            fs::copy_file(mesh, backup, ec);
+        // The backup is of the file as this session found it, so Cancel never undoes an earlier session's work.
+        fs::copy_file(mesh, backup, fs::copy_options::overwrite_existing, ec);
         file_ = mesh;
 #ifdef _WIN32
         std::string command = "\"" + blender + "\" --python \"" + script.string() + "\" -- \"" + mesh.string() + "\"";
@@ -119,6 +119,56 @@ namespace kosmos
             return false;
         fs::copy_file(backup, file_, fs::copy_options::overwrite_existing, ec);
         return !ec;
+    }
+
+    bool write_part_model(const std::filesystem::path &ship_file, int stage, int part, const std::string &model, std::string &error)
+    {
+        nlohmann::json json;
+        {
+            std::ifstream in(ship_file);
+            if (!in)
+            {
+                error = "cannot open " + ship_file.string();
+                return false;
+            }
+            json = nlohmann::json::parse(in, nullptr, false);
+        }
+        if (!json.is_object() || !json.contains("stages") || stage < 0 || stage >= static_cast<int>(json["stages"].size()))
+        {
+            error = "stage " + std::to_string(stage) + " not found in " + ship_file.filename().string();
+            return false;
+        }
+        nlohmann::json &js = json["stages"][static_cast<std::size_t>(stage)];
+        if (js.contains("kits"))
+        {
+            error = "this stage is built from kits; edit the kit instead";
+            return false;
+        }
+        if (!js.contains("parts") || part < 0 || part >= static_cast<int>(js["parts"].size()))
+        {
+            error = "part " + std::to_string(part) + " not found in " + ship_file.filename().string();
+            return false;
+        }
+        nlohmann::json &entry = js["parts"][static_cast<std::size_t>(part)];
+        if (entry.contains("model") && entry["model"] == model)
+            return true;
+        nlohmann::json replacement = {{"model", model}};
+        if (entry.contains("offset"))
+            replacement["offset"] = entry["offset"];
+        entry = replacement;
+        std::filesystem::path backup = ship_file;
+        backup += ".bak";
+        std::error_code ec;
+        if (!std::filesystem::exists(backup, ec))
+            std::filesystem::copy_file(ship_file, backup, ec);
+        std::ofstream out(ship_file);
+        if (!out)
+        {
+            error = "cannot write " + ship_file.string();
+            return false;
+        }
+        out << json.dump(1) << "\n";
+        return true;
     }
 
     bool write_glb(const sl::MeshData &mesh, const std::filesystem::path &file, std::string &error)

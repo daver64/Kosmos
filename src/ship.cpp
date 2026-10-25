@@ -80,6 +80,7 @@ namespace kosmos
                 return false;
             }
             spec = ShipSpec();
+            spec.source_file = file;
             spec.name = json.value("name", "Ship");
             spec.kind = json.value("class", "ship");
             spec.script = json.value("script", "");

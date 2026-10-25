@@ -2898,6 +2898,8 @@ int main(int argc, char **argv)
         kosmos::PartSpec original;
         bool converted = false;
         std::filesystem::path file;
+        int stage = 0, index = 0;
+        std::string model;
     } part_edit;
     std::string part_status;
     char blender_buffer[260] = "";
@@ -4324,6 +4326,21 @@ int main(int argc, char **argv)
                         props.set_string("/sim/settings/blender", blender_buffer);
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
+                    // Stays after Blender closes, so the converted mesh can still be written into the ship file.
+                    if (part_edit.converted && !part_edit.model.empty())
+                    {
+                        ImGui::Separator();
+                        ImGui::Text("Converted: %s", part_edit.model.c_str());
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Use in ship.json"))
+                        {
+                            std::string error;
+                            part_status = kosmos::write_part_model(fspec.source_file, part_edit.stage, part_edit.index, part_edit.model, error)
+                                              ? "ship.json now uses " + part_edit.model + " (original kept as ship.json.bak); effective on the next launch"
+                                              : "Not written: " + error;
+                        }
+                        ImGui::Separator();
+                    }
                     if (edit_paused)
                     {
                         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in Blender", part_edit.file.filename().string().c_str());
@@ -4338,13 +4355,10 @@ int main(int argc, char **argv)
                         {
                             blender_edit.stop();
                             if (part_edit.converted && part_edit.part)
-                            {
                                 *part_edit.part = part_edit.original;
-                                std::error_code ec;
-                                std::filesystem::remove(part_edit.file, ec);
-                            }
-                            else
-                                blender_edit.restore();
+                            blender_edit.restore();
+                            part_edit.model.clear();
+                            part_edit.converted = false;
                             edit_paused = false;
                             props.set_bool("/sim/paused", edit_was_paused);
                             part_status = "Edit cancelled; the original was restored";
@@ -4396,7 +4410,11 @@ int main(int argc, char **argv)
                                             file = std::filesystem::path(fspec.directory) / "models" / (slug + ".glb");
                                             std::error_code ec;
                                             std::filesystem::create_directories(file.parent_path(), ec);
-                                            ok = kosmos::write_glb(data, file, error);
+                                            // An earlier conversion may hold edits: use it rather than rebuild the shape.
+                                            if (!std::filesystem::exists(file, ec))
+                                                ok = kosmos::write_glb(data, file, error);
+                                            else
+                                                part_status = "Reusing the existing " + file.filename().string();
                                         }
                                     }
                                     if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
@@ -4405,10 +4423,14 @@ int main(int argc, char **argv)
                                         part_edit.original = saved;
                                         part_edit.converted = !is_model;
                                         part_edit.file = file;
+                                        part_edit.stage = stage_index;
+                                        part_edit.index = part_index;
+                                        part_edit.model.clear();
                                         if (!is_model)
                                         {
                                             part.model = std::filesystem::relative(file, fspec.directory).generic_string();
                                             part.prop.clear();
+                                            part_edit.model = part.model;
                                             const std::string snippet = "{\"model\": \"" + part.model + "\", \"offset\": [" + std::to_string(part.offset.x) + ", " + std::to_string(part.offset.y) + ", " + std::to_string(part.offset.z) + "]}";
                                             ImGui::SetClipboardText(snippet.c_str());
                                             sim.log("Copied part entry for ship.json: " + snippet);
@@ -4416,7 +4438,7 @@ int main(int argc, char **argv)
                                         edit_was_paused = props.get_bool("/sim/paused");
                                         props.set_bool("/sim/paused", true);
                                         edit_paused = true;
-                                        part_status = "Blender started";
+                                        part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; Blender started" : "Blender started";
                                     }
                                     else if (!error.empty())
                                         part_status = error;

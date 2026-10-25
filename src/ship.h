@@ -146,6 +146,8 @@ namespace kosmos
         std::string name;
         std::string kind = "ship";
         std::string directory;
+        /** The ship.json this was read from, so the part editor can write a converted part back. */
+        std::string source_file;
         std::string script;
         Cockpit cockpit;
         std::vector<PortSpec> ports;

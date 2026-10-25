@@ -36,6 +36,12 @@ namespace kosmos
         bool running_ = false;
     };
 
+    /**
+     * Rewrites one part of a ship file to use `model` (a path relative to the addon), keeping its offset and keeping the
+     * original as `<file>.bak` the first time. Fails for a stage built from kits or a part that is not at that index.
+     */
+    bool write_part_model(const std::filesystem::path &ship_file, int stage, int part, const std::string &model, std::string &error);
+
     /** Writes a mesh as a binary glTF with positions, normals, colours and UVs. */
     bool write_glb(const sl::MeshData &mesh, const std::filesystem::path &file, std::string &error);
 }
