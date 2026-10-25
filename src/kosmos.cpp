@@ -812,7 +812,10 @@ namespace
         return layers;
     }
 
-    // A body's streaming terrain. Heights and surface colour come from Orbiter archives under data/orbiter when present.
+    std::string find_tile_source(const std::string &directory);
+    std::string find_surface_image(const std::string &root, const kosmos::Body &body);
+
+    // A body's streaming terrain. Elevation comes from Orbiter when available; colour uses the finer available imagery.
     struct BodyTerrain
     {
         int body = -1;
@@ -852,21 +855,73 @@ namespace
             else
                 std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), data->error().c_str());
         }
+        std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
+        const std::string surface = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Surf");
+        if (source && !surface.empty())
+        {
+            orbiter_imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
+            if (!orbiter_imagery->ok())
+            {
+                std::fprintf(stderr, "[kosmos] %s imagery: %s\n", b.name.c_str(), orbiter_imagery->error().c_str());
+                orbiter_imagery.reset();
+            }
+        }
+        std::string lower_name = b.name;
+        for (char &c : lower_name)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        std::vector<std::shared_ptr<kosmos::CelestiaImagery>> surface_imagery;
+        const std::string celestia_tiles = find_tile_source(sim.root() + "/data/celestia/hires/" + lower_name);
+        const std::string surface_image = find_surface_image(sim.root(), b);
+        std::vector<std::string> surface_paths;
+        if (!celestia_tiles.empty())
+            surface_paths.push_back(celestia_tiles);
+        else if (!surface_image.empty())
+            surface_paths.push_back(surface_image);
+        for (const std::string &path : surface_paths)
+        {
+            auto imagery = std::make_shared<kosmos::CelestiaImagery>(path, frame, b.radius);
+            if (!imagery->ok())
+            {
+                if (!imagery->error().empty())
+                    std::fprintf(stderr, "[kosmos] %s surface imagery: %s\n", b.name.c_str(), imagery->error().c_str());
+                continue;
+            }
+            std::fprintf(stderr, "[kosmos] %s terrain imagery candidate: %s\n", b.name.c_str(), path.c_str());
+            surface_imagery.push_back(std::move(imagery));
+        }
+        if (orbiter_imagery || !surface_imagery.empty())
+        {
+            config.colour_function = [orbiter_imagery, surface_imagery](const sl::TerrainSample &sample, float rgb[3])
+            {
+                float orbiter_rgb[3], celestia_rgb[3];
+                double orbiter_resolution = std::numeric_limits<double>::infinity();
+                const bool has_orbiter = orbiter_imagery &&
+                                         orbiter_imagery->colour(sample.position, sample.cell_size, orbiter_rgb, orbiter_resolution);
+                bool has_celestia = false;
+                double celestia_resolution = std::numeric_limits<double>::infinity();
+                for (const auto &imagery : surface_imagery)
+                {
+                    float candidate_rgb[3];
+                    double candidate_resolution = std::numeric_limits<double>::infinity();
+                    if (imagery->colour(sample.position, sample.cell_size, candidate_rgb, candidate_resolution) &&
+                        candidate_resolution < celestia_resolution)
+                    {
+                        std::copy(std::begin(candidate_rgb), std::end(candidate_rgb), celestia_rgb);
+                        celestia_resolution = candidate_resolution;
+                        has_celestia = true;
+                    }
+                }
+                if (has_celestia && (!has_orbiter || celestia_resolution < orbiter_resolution))
+                    std::copy(std::begin(celestia_rgb), std::end(celestia_rgb), rgb);
+                else if (has_orbiter)
+                    std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
+                else
+                    return false;
+                return true;
+            };
+        }
         if (source)
         {
-            const std::string surface = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Surf");
-            if (!surface.empty())
-            {
-                auto imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
-                if (imagery->ok())
-                    config.colour_function = [imagery](const sl::TerrainSample &sample, float rgb[3])
-                    {
-                        imagery->colour(sample.position, sample.cell_size, rgb);
-                        return true;
-                    };
-                else
-                    std::fprintf(stderr, "[kosmos] %s imagery: %s\n", b.name.c_str(), imagery->error().c_str());
-            }
             std::fprintf(stderr, "[kosmos] %s terrain from Orbiter data\n", b.name.c_str());
         }
         else if (home)

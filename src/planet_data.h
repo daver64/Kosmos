@@ -64,7 +64,7 @@ namespace kosmos
         explicit TileCache(std::size_t capacity) : capacity_(capacity) {}
 
         template <class Loader>
-        std::shared_ptr<const T> get(std::uint32_t key, Loader load)
+        std::shared_ptr<const T> get(std::uint64_t key, Loader load)
         {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -91,10 +91,10 @@ namespace kosmos
         }
 
     private:
-        using Entry = std::pair<std::uint32_t, std::shared_ptr<const T>>;
+        using Entry = std::pair<std::uint64_t, std::shared_ptr<const T>>;
         std::mutex mutex_;
         std::list<Entry> order_;
-        std::unordered_map<std::uint32_t, typename std::list<Entry>::iterator> map_;
+        std::unordered_map<std::uint64_t, typename std::list<Entry>::iterator> map_;
         std::size_t capacity_;
     };
 
@@ -152,7 +152,7 @@ namespace kosmos
         bool ok() const { return static_cast<bool>(tree_); }
         const std::string &error() const { return error_; }
         /** Colour in 0-1 for a world direction, from the tile level whose texels are about cell_size metres. */
-        void colour(const glm::dvec3 &direction, double cell_size, float rgb[3]) const;
+        bool colour(const glm::dvec3 &direction, double cell_size, float rgb[3], double &metres_per_pixel) const;
 
     private:
         struct Tile
@@ -170,5 +170,22 @@ namespace kosmos
         double radius_;
         mutable TileCache<Tile> cache_{900};
         int max_level_ = 4;
+    };
+
+    /** Equirectangular image or Celestia virtual-texture imagery, sampled at the terrain's local LOD. */
+    class CelestiaImagery
+    {
+    public:
+        CelestiaImagery(const std::string &path, const SurfaceFrame &frame, double radius);
+        ~CelestiaImagery();
+
+        bool ok() const;
+        const std::string &error() const;
+        /** Colour in 0-1 and local texel size in metres. False means no usable tile covers this direction. */
+        bool colour(const glm::dvec3 &direction, double cell_size, float rgb[3], double &metres_per_pixel) const;
+
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> impl_;
     };
 }

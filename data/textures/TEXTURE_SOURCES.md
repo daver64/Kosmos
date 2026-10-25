@@ -52,7 +52,7 @@ data/celestia/hires/earth_specular/
 data/celestia/hires/earth_normal/
 ```
 
-These tile packs are optional and are not needed for a clean checkout. `--no-tiles` forces the ordinary Earth image. For other bodies, `tools/ctx_import.py` stitches a Celestia `.ctx` pyramid into one image in `data/textures-hires/`:
+These tile packs are optional and are not needed for a clean checkout. Earth also samples the tiled colour map for close-up terrain where it has finer texels than the available Orbiter `Surf.tree`; Orbiter `Elev.tree` remains the source of terrain heights. `--no-tiles` forces the ordinary Earth image for the orbital sphere. For other bodies, `tools/ctx_import.py` stitches a Celestia `.ctx` pyramid into one image in `data/textures-hires/`:
 
 ```sh
 python3 tools/ctx_import.py "data/celestia/hires/path/to/map.ctx" mars

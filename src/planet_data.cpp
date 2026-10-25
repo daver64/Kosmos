@@ -1,11 +1,20 @@
 #include "planet_data.h"
 
+#include "dds.h"
+#include "draw.h"
+
 #include <algorithm>
 #include <cmath>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <zlib.h>
+#include <sstream>
+#include <unordered_set>
 
 namespace kosmos
 {
@@ -13,6 +22,18 @@ namespace kosmos
     {
         constexpr double pi = 3.14159265358979323846;
         constexpr int deepest = 22;
+
+        std::uint64_t image_tile_key(int level, int column, int row)
+        {
+            return (static_cast<std::uint64_t>(level) << 56) | (static_cast<std::uint64_t>(column) << 28) | static_cast<std::uint64_t>(row);
+        }
+
+        std::string lower(std::string text)
+        {
+            for (char &c : text)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return text;
+        }
 
         // The tile a direction falls in at each level, from the root down to the deepest tile that carries data.
         struct Hit
@@ -294,17 +315,21 @@ namespace kosmos
         }
     }
 
-    void OrbiterImagery::colour(const glm::dvec3 &direction, double cell_size, float rgb[3]) const
+    bool OrbiterImagery::colour(const glm::dvec3 &direction, double cell_size, float rgb[3], double &metres_per_pixel) const
     {
         double lat, lon;
         frame_.to_lat_lon(direction, lat, lon);
         const Hit hit = locate(tree_, lat, lon, level_for(radius_, cell_size, 512.0));
-        rgb[0] = rgb[1] = rgb[2] = 0.0f;
+        metres_per_pixel = std::numeric_limits<double>::infinity();
         if (hit.node == OrbiterTree::none)
-            return;
+            return false;
         const std::shared_ptr<const Tile> tile = cache_.get(hit.node, [&] { return load(hit.node); });
         if (tile->blocks.empty())
-            return;
+            return false;
+        const double rows = static_cast<double>(std::int64_t(1) << (hit.level - 4));
+        const double cols = rows * 2.0;
+        metres_per_pixel = std::max(pi * radius_ / (rows * tile->height),
+                                    2.0 * pi * radius_ * std::max(std::cos(lat), 0.0) / (cols * tile->width));
         const double x = std::clamp(hit.u * tile->width - 0.5, 0.0, tile->width - 1.001);
         const double y = std::clamp(hit.v * tile->height - 0.5, 0.0, tile->height - 1.001);
         const int ix = static_cast<int>(x), iy = static_cast<int>(y);
@@ -316,5 +341,343 @@ namespace kosmos
         texel(tile->blocks, tile->width, tile->dxt5, ix + 1, iy + 1, c[3]);
         for (int k = 0; k < 3; ++k)
             rgb[k] = (c[0][k] * (1 - fx) + c[1][k] * fx) * (1 - fy) + (c[2][k] * (1 - fx) + c[3][k] * fx) * fy;
+        return true;
+    }
+
+    struct CelestiaImagery::Impl
+    {
+        struct Tile
+        {
+            sl::Bitmap *bitmap = nullptr;
+            ~Tile() { sl::destroy_bitmap(bitmap); }
+        };
+
+        struct TileSet
+        {
+            std::string root;
+            std::string extension;
+            int base_split = 0;
+            int min_level = 0;
+            int max_level = -1;
+            int tile_size = 0;
+            std::vector<std::unordered_set<std::uint64_t>> present;
+
+            bool valid() const { return max_level >= min_level; }
+            bool has(int level, int column, int row) const
+            {
+                return level >= min_level && level <= max_level &&
+                       present[static_cast<std::size_t>(level)].count(image_tile_key(level, column, row)) != 0;
+            }
+            std::string path(int level, int column, int row) const
+            {
+                char name[64];
+                std::snprintf(name, sizeof(name), "tx_%d_%d.%s", column, row, extension.c_str());
+                return (std::filesystem::path(root) / ("level" + std::to_string(level)) / name).string();
+            }
+        };
+
+        std::string error;
+        SurfaceFrame frame;
+        double radius = 0.0;
+        std::string single_image;
+        int image_width = 0, image_height = 0;
+        TileSet tiles;
+        mutable TileCache<Tile> cache{96};
+
+        explicit Impl(const std::string &path, const SurfaceFrame &surface_frame, double body_radius) : frame(surface_frame), radius(body_radius)
+        {
+            namespace fs = std::filesystem;
+            std::error_code ec;
+            fs::path source(path);
+            if (path.empty())
+            {
+                error = "no Celestia surface image";
+                return;
+            }
+            if (fs::is_regular_file(source, ec) && lower(source.extension().string()) != ".ctx")
+            {
+                single_image = source.string();
+                const std::shared_ptr<const Tile> tile = cache.get(0, [&] { return load_tile(single_image); });
+                if (tile->bitmap)
+                {
+                    image_width = tile->bitmap->width;
+                    image_height = tile->bitmap->height;
+                    return;
+                }
+                single_image.clear();
+                error = "cannot decode surface image " + path;
+                return;
+            }
+
+            std::string ctx;
+            if (fs::is_regular_file(source, ec) && lower(source.extension().string()) == ".ctx")
+                ctx = source.string();
+            else if (fs::is_directory(source, ec))
+            {
+                for (const fs::directory_entry &entry : fs::directory_iterator(source, ec))
+                    if (entry.is_regular_file(ec) && lower(entry.path().extension().string()) == ".ctx")
+                    {
+                        ctx = entry.path().string();
+                        break;
+                    }
+            }
+
+            std::string tile_type;
+            if (!ctx.empty())
+            {
+                std::ifstream in(ctx);
+                std::stringstream buffer;
+                buffer << in.rdbuf();
+                const std::string text = buffer.str();
+                auto field = [&](const std::string &key)
+                {
+                    const std::size_t at = text.find(key);
+                    if (at == std::string::npos)
+                        return std::string{};
+                    std::size_t begin = at + key.size();
+                    while (begin < text.size() && std::isspace(static_cast<unsigned char>(text[begin])))
+                        ++begin;
+                    if (begin < text.size() && text[begin] == '"')
+                    {
+                        const std::size_t end = text.find('"', begin + 1);
+                        return end == std::string::npos ? std::string{} : text.substr(begin + 1, end - begin - 1);
+                    }
+                    std::size_t end = begin;
+                    while (end < text.size() && !std::isspace(static_cast<unsigned char>(text[end])) && text[end] != '}')
+                        ++end;
+                    return text.substr(begin, end - begin);
+                };
+                const std::string directory = field("ImageDirectory");
+                const std::string split = field("BaseSplit");
+                tile_type = lower(field("TileType"));
+                if (!split.empty())
+                    tiles.base_split = std::max(0, std::atoi(split.c_str()));
+                const fs::path beside = fs::path(ctx).parent_path();
+                const fs::path named = beside / directory;
+                tiles.root = !directory.empty() && fs::is_directory(named, ec) ? named.string() : beside.string();
+            }
+            else if (fs::is_directory(source, ec))
+                tiles.root = source.string();
+
+            if (!tiles.root.empty())
+            {
+                for (const fs::directory_entry &level_dir : fs::directory_iterator(tiles.root, ec))
+                {
+                    const std::string name = level_dir.path().filename().string();
+                    if (!level_dir.is_directory() || name.rfind("level", 0) != 0 || name.size() < 6)
+                        continue;
+                    const int level = std::atoi(name.c_str() + 5);
+                    if (level < 0 || level > 26)
+                        continue;
+                    if (static_cast<int>(tiles.present.size()) <= level)
+                        tiles.present.resize(static_cast<std::size_t>(level) + 1);
+                    for (const fs::directory_entry &file : fs::directory_iterator(level_dir.path(), ec))
+                    {
+                        if (!file.is_regular_file(ec))
+                            continue;
+                        const std::string filename = file.path().filename().string();
+                        int column = 0, row = 0;
+                        if (std::sscanf(filename.c_str(), "tx_%d_%d.", &column, &row) != 2 || column < 0 || row < 0)
+                            continue;
+                        const std::string extension = file.path().extension().string();
+                        if (tiles.extension.empty())
+                            tiles.extension = extension.substr(1);
+                        if (lower(tiles.extension) != lower(extension.substr(1)))
+                            continue;
+                        tiles.present[static_cast<std::size_t>(level)].insert(image_tile_key(level, column, row));
+                        tiles.max_level = std::max(tiles.max_level, level);
+                    }
+                }
+                tiles.min_level = 0;
+                while (tiles.min_level <= tiles.max_level && tiles.present[static_cast<std::size_t>(tiles.min_level)].empty())
+                    ++tiles.min_level;
+                if (!tiles.valid() && !tile_type.empty())
+                    tiles.extension = tile_type;
+            }
+
+            if (tiles.valid())
+            {
+                for (int level = tiles.min_level; level <= tiles.max_level && tiles.tile_size == 0; ++level)
+                    for (std::uint64_t key : tiles.present[static_cast<std::size_t>(level)])
+                    {
+                        const int column = static_cast<int>((key >> 28) & 0x0FFFFFFF);
+                        const int row = static_cast<int>(key & 0x0FFFFFFF);
+                        const std::shared_ptr<const Tile> tile = cache.get(key, [&] { return load_tile(tiles.path(level, column, row)); });
+                        if (tile->bitmap)
+                            tiles.tile_size = tile->bitmap->width;
+                        break;
+                    }
+                if (tiles.tile_size > 0)
+                    return;
+                tiles.max_level = -1;
+                error = "no readable Celestia tiles under " + tiles.root;
+            }
+
+            if (fs::is_directory(source, ec))
+            {
+                for (const fs::directory_entry &entry : fs::directory_iterator(source, ec))
+                {
+                    if (!entry.is_regular_file(ec))
+                        continue;
+                    const std::string ext = lower(entry.path().extension().string());
+                    if (ext == ".dds" || ext == ".png" || ext == ".jpg" || ext == ".jpeg")
+                    {
+                        single_image = entry.path().string();
+                        break;
+                    }
+                }
+            }
+            if (!single_image.empty())
+            {
+                const std::shared_ptr<const Tile> tile = cache.get(0, [&] { return load_tile(single_image); });
+                if (tile->bitmap)
+                {
+                    image_width = tile->bitmap->width;
+                    image_height = tile->bitmap->height;
+                    return;
+                }
+                single_image.clear();
+            }
+            if (error.empty())
+                error = "no readable image or tile pyramid at " + path;
+        }
+
+        std::shared_ptr<const Tile> load_tile(const std::string &path) const
+        {
+            auto tile = std::make_shared<Tile>();
+            const std::string ext = lower(std::filesystem::path(path).extension().string());
+            if (ext == ".dds")
+            {
+                sl::DdsOptions options;
+                options.allow_compressed_upload = false;
+                tile->bitmap = sl::load_dds(path, options);
+            }
+            else
+                tile->bitmap = sl::load_bitmap(path);
+            if (tile->bitmap && (tile->bitmap->compressed || tile->bitmap->pixels.empty()))
+            {
+                sl::destroy_bitmap(tile->bitmap);
+                tile->bitmap = nullptr;
+            }
+            constexpr int max_image_size = 4096;
+            if (tile->bitmap && std::max(tile->bitmap->width, tile->bitmap->height) > max_image_size)
+            {
+                const int width = std::max(1, tile->bitmap->width * max_image_size / std::max(tile->bitmap->width, tile->bitmap->height));
+                const int height = std::max(1, tile->bitmap->height * max_image_size / std::max(tile->bitmap->width, tile->bitmap->height));
+                sl::Bitmap *smaller = sl::create_bitmap(width, height);
+                if (smaller)
+                {
+                    for (int y = 0; y < height; ++y)
+                        for (int x = 0; x < width; ++x)
+                        {
+                            const int sx = std::min(tile->bitmap->width - 1, x * tile->bitmap->width / width);
+                            const int sy = std::min(tile->bitmap->height - 1, y * tile->bitmap->height / height);
+                            const std::size_t source = (static_cast<std::size_t>(sy) * tile->bitmap->width + sx) * 4;
+                            const std::size_t destination = (static_cast<std::size_t>(y) * width + x) * 4;
+                            std::copy_n(tile->bitmap->pixels.data() + source, 4, smaller->pixels.data() + destination);
+                        }
+                    sl::destroy_bitmap(tile->bitmap);
+                    tile->bitmap = smaller;
+                }
+            }
+            return tile;
+        }
+
+        static void sample(const sl::Bitmap &bitmap, double u, double v, float rgb[3])
+        {
+            const double x = std::clamp(u * bitmap.width - 0.5, 0.0, bitmap.width - 1.001);
+            const double y = std::clamp(v * bitmap.height - 0.5, 0.0, bitmap.height - 1.001);
+            const int ix = static_cast<int>(x), iy = static_cast<int>(y);
+            const double fx = x - ix, fy = y - iy;
+            auto texel = [&](int px, int py, int channel)
+            {
+                return static_cast<float>(bitmap.pixels[(static_cast<std::size_t>(py) * bitmap.width + px) * 4 + channel]) / 255.0f;
+            };
+            for (int channel = 0; channel < 3; ++channel)
+            {
+                const float top = static_cast<float>(texel(ix, iy, channel) * (1.0 - fx) + texel(ix + 1, iy, channel) * fx);
+                const float bottom = static_cast<float>(texel(ix, iy + 1, channel) * (1.0 - fx) + texel(ix + 1, iy + 1, channel) * fx);
+                rgb[channel] = static_cast<float>(top * (1.0 - fy) + bottom * fy);
+            }
+        }
+
+        bool colour(const glm::dvec3 &direction, double cell_size, float rgb[3], double &metres_per_pixel) const
+        {
+            double lat, lon;
+            frame.to_lat_lon(direction, lat, lon);
+            const double t_lat = std::clamp((0.5 * pi - lat) / pi, 0.0, 1.0);
+            double t_lon = std::fmod((lon + pi) / (2.0 * pi), 1.0);
+            if (t_lon < 0.0)
+                t_lon += 1.0;
+            metres_per_pixel = std::numeric_limits<double>::infinity();
+            if (!single_image.empty())
+            {
+                const std::shared_ptr<const Tile> tile = cache.get(0, [&] { return load_tile(single_image); });
+                if (!tile->bitmap)
+                    return false;
+                sample(*tile->bitmap, t_lon, t_lat, rgb);
+                metres_per_pixel = std::max(pi * radius / image_height,
+                                            2.0 * pi * radius * std::max(std::cos(lat), 0.0) / image_width);
+                return true;
+            }
+            if (!tiles.valid() || tiles.tile_size <= 0)
+                return false;
+            auto rows_at = [&](int level) { return std::int64_t(1) << (level + tiles.base_split); };
+            auto pixel_size = [&](int level, int width, int height)
+            {
+                const double rows = static_cast<double>(rows_at(level));
+                const double cols = rows * 2.0;
+                return std::max(pi * radius / (rows * height),
+                                2.0 * pi * radius * std::max(std::cos(lat), 0.0) / (cols * width));
+            };
+            int target = tiles.max_level;
+            if (cell_size > 0.0 && tiles.min_level < tiles.max_level)
+            {
+                const double base_size = pixel_size(tiles.min_level, tiles.tile_size, tiles.tile_size);
+                const int extra = std::max(0, static_cast<int>(std::ceil(std::log2(std::max(base_size / cell_size, 1.0)))));
+                target = std::min(tiles.max_level, tiles.min_level + extra);
+            }
+            for (int level = target; level >= tiles.min_level; --level)
+            {
+                const std::int64_t rows = rows_at(level);
+                const std::int64_t cols = rows * 2;
+                const int column = std::min(static_cast<int>(t_lon * cols), static_cast<int>(cols - 1));
+                const int row = std::min(static_cast<int>(t_lat * rows), static_cast<int>(rows - 1));
+                if (!tiles.has(level, column, row))
+                    continue;
+                const std::uint64_t key = image_tile_key(level, column, row);
+                const std::shared_ptr<const Tile> tile = cache.get(key, [&] { return load_tile(tiles.path(level, column, row)); });
+                if (!tile->bitmap)
+                    continue;
+                const double u = t_lon * cols - column, v = t_lat * rows - row;
+                sample(*tile->bitmap, u, v, rgb);
+                metres_per_pixel = pixel_size(level, tile->bitmap->width, tile->bitmap->height);
+                return true;
+            }
+            return false;
+        }
+    };
+
+    CelestiaImagery::CelestiaImagery(const std::string &path, const SurfaceFrame &frame, double radius)
+        : impl_(std::make_unique<Impl>(path, frame, radius))
+    {
+    }
+
+    CelestiaImagery::~CelestiaImagery() = default;
+
+    bool CelestiaImagery::ok() const
+    {
+        return impl_ && ((!impl_->single_image.empty() && impl_->image_width > 0 && impl_->image_height > 0) ||
+                         (impl_->tiles.valid() && impl_->tiles.tile_size > 0));
+    }
+
+    const std::string &CelestiaImagery::error() const
+    {
+        return impl_->error;
+    }
+
+    bool CelestiaImagery::colour(const glm::dvec3 &direction, double cell_size, float rgb[3], double &metres_per_pixel) const
+    {
+        return impl_ && ok() && impl_->colour(direction, cell_size, rgb, metres_per_pixel);
     }
 }
