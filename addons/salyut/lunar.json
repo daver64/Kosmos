@@ -1,0 +1,83 @@
+{
+ "name": "Lunar Salyut",
+ "class": "station",
+ "torque_accel": 0.15,
+ "max_rate": 0.5,
+ "rcs_thrust": 2440,
+ "drag_area": 12,
+ "camera_distance": 40,
+ "stages": [
+  {
+   "name": "Lunar Salyut",
+   "dry_mass": 9000,
+   "propellant": 28000,
+   "z": 0,
+   "length": 15.4,
+   "radius": 2.1,
+   "engines": [
+    {
+     "position": [
+      -1.18,
+      0,
+      9.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 119760,
+     "isp": 382,
+     "plume": 8,
+     "type": "rocket", "fuel": "hypergolic"
+    },
+    {
+     "position": [
+      1.18,
+      0,
+      9.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 119760,
+     "isp": 382,
+     "plume": 8,
+     "type": "rocket", "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/lunar_salyut.obj",
+     "offset": [
+      0,
+      0,
+      9
+     ]
+    }
+   ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Fore",
+   "position": [
+    0,
+    0,
+    -6.5
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ]
+}

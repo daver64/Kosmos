@@ -1,0 +1,11 @@
+{
+ "name": "Moon: Wren rendezvous",
+ "description": "Wren 300 m from the Lunar Salyut in a 60 km lunar orbit. NAV1 is tuned to the station's port.",
+ "active": 1,
+ "target": "Lunar Salyut",
+ "nav": [131.0, 108.0],
+ "ships": [
+  {"ship": "Lunar Salyut", "body": "Moon", "orbit": {"altitude_km": 60, "inclination": 0, "phase": 0.0096}},
+  {"ship": "Wren", "body": "Moon", "orbit": {"altitude_km": 60, "inclination": 0, "phase": 0}}
+ ]
+}

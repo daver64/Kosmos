@@ -1,0 +1,72 @@
+{
+ "name": "Proxima Centauri",
+ "home": "Proxima b",
+ "bodies": [
+  {
+   "name": "Proxima Centauri",
+   "kind": "star",
+   "gm": 1.62041889261978e+19,
+   "radius": 107276940.0,
+   "spin": 2e-06,
+   "colour": [
+    255,
+    120,
+    70
+   ]
+  },
+  {
+   "name": "Proxima d",
+   "kind": "planet",
+   "parent": "Proxima Centauri",
+   "gm": 103636114868000.0,
+   "radius": 5160510.0,
+   "colour": [
+    170,
+    120,
+    95
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "orbit": {
+    "a_au": 0.02885,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 222.0,
+    "argp": 114.0,
+    "m0": 60
+   }
+  },
+  {
+   "name": "Proxima b",
+   "kind": "planet",
+   "parent": "Proxima Centauri",
+   "gm": 426502472726000.0,
+   "radius": 6880680.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "atmosphere": {
+    "density": 1.0,
+    "scale_height": 8000.0,
+    "colour": [
+     150,
+     150,
+     200
+    ]
+   },
+   "terrain": "earth",
+   "orbit": {
+    "a_au": 0.04857,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 20.0,
+    "argp": 20.0,
+    "m0": 200
+   }
+  }
+ ]
+}

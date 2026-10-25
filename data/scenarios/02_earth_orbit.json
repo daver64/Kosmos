@@ -1,0 +1,43 @@
+{
+ "name": "Earth: low orbit fleet",
+ "description": "Every ship type sharing a 200 km orbit.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 0
+   }
+  },
+  {
+   "ship": "Wren",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 1
+   }
+  },
+  {
+   "ship": "Argo",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 2
+   }
+  },
+  {
+   "ship": "Salyut",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 51.6,
+    "phase": 0
+   }
+  }
+ ]
+}

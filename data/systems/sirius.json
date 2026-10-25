@@ -1,0 +1,133 @@
+{
+ "name": "Sirius",
+ "home": "Sirius Prime",
+ "bodies": [
+  {
+   "name": "Sirius",
+   "kind": "star",
+   "gm": 2.7378576375713402e+20,
+   "radius": 1190342700.0,
+   "spin": 2.9e-06,
+   "colour": [
+    185,
+    205,
+    255
+   ]
+  },
+  {
+   "name": "Sirius B",
+   "kind": "star",
+   "parent": "Sirius",
+   "gm": 1.35101263938324e+20,
+   "radius": 5843880.0,
+   "spin": 0.001,
+   "colour": [
+    200,
+    215,
+    255
+   ],
+   "orbit": {
+    "a_au": 19.8,
+    "e": 0.59,
+    "i": 136.5,
+    "raan": 44.0,
+    "argp": 149.0,
+    "m0": 120.0
+   }
+  },
+  {
+   "name": "Sirius Scorch",
+   "kind": "planet",
+   "parent": "Sirius",
+   "gm": 318880353440000.0,
+   "radius": 5925030.0,
+   "colour": [
+    225,
+    190,
+    120
+   ],
+   "tilt": 10,
+   "spin": 7e-05,
+   "atmosphere": {
+    "density": 40.0,
+    "scale_height": 15000.0,
+    "colour": [
+     235,
+     200,
+     130
+    ]
+   },
+   "orbit": {
+    "a_au": 1.8,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 111.0,
+    "argp": 57.0,
+    "m0": 30
+   }
+  },
+  {
+   "name": "Sirius Prime",
+   "kind": "planet",
+   "parent": "Sirius",
+   "gm": 418530463890000.0,
+   "radius": 6434710.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 10,
+   "spin": 7e-05,
+   "atmosphere": {
+    "density": 1.225,
+    "scale_height": 8500.0,
+    "colour": [
+     110,
+     160,
+     235
+    ]
+   },
+   "terrain": "earth",
+   "orbit": {
+    "a_au": 5.0,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 232.0,
+    "argp": 304.0,
+    "m0": 160
+   }
+  },
+  {
+   "name": "Sirius Giant",
+   "kind": "planet",
+   "parent": "Sirius",
+   "gm": 3.7867041971e+16,
+   "radius": 63710000.0,
+   "colour": [
+    215,
+    185,
+    150
+   ],
+   "tilt": 10,
+   "spin": 0.00018,
+   "atmosphere": {
+    "density": 0.2,
+    "scale_height": 27000.0,
+    "colour": [
+     225,
+     200,
+     170
+    ]
+   },
+   "orbit": {
+    "a_au": 9.0,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 205.0,
+    "argp": 115.0,
+    "m0": 250
+   }
+  }
+ ]
+}

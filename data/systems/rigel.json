@@ -1,0 +1,103 @@
+{
+ "name": "Rigel",
+ "home": "Rigel Prime",
+ "bodies": [
+  {
+   "name": "Rigel",
+   "kind": "star",
+   "gm": 2.7869612403780003e+21,
+   "radius": 54890730000.00001,
+   "spin": 1e-07,
+   "colour": [
+    170,
+    200,
+    255
+   ]
+  },
+  {
+   "name": "Rigel Cinder",
+   "kind": "planet",
+   "parent": "Rigel",
+   "gm": 239160265080000.0,
+   "radius": 5415350.0,
+   "colour": [
+    150,
+    140,
+    130
+   ],
+   "tilt": 10,
+   "spin": 7e-05,
+   "orbit": {
+    "a_au": 14,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 277.5,
+    "argp": 142.5,
+    "m0": 75
+   }
+  },
+  {
+   "name": "Rigel Prime",
+   "kind": "planet",
+   "parent": "Rigel",
+   "gm": 478320530160000.0,
+   "radius": 6689550.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 10,
+   "spin": 7e-05,
+   "atmosphere": {
+    "density": 1.225,
+    "scale_height": 8500.0,
+    "colour": [
+     110,
+     160,
+     235
+    ]
+   },
+   "terrain": "earth",
+   "orbit": {
+    "a_au": 340,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 57.0,
+    "argp": 39.0,
+    "m0": 210
+   }
+  },
+  {
+   "name": "Rigel Giant",
+   "kind": "planet",
+   "parent": "Rigel",
+   "gm": 9.965011045e+16,
+   "radius": 68806800.0,
+   "colour": [
+    190,
+    200,
+    225
+   ],
+   "tilt": 10,
+   "spin": 0.00019,
+   "atmosphere": {
+    "density": 0.2,
+    "scale_height": 27000.0,
+    "colour": [
+     190,
+     205,
+     235
+    ]
+   },
+   "orbit": {
+    "a_au": 900,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 74.0,
+    "argp": 38.0,
+    "m0": 20
+   }
+  }
+ ]
+}

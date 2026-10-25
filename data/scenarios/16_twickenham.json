@@ -1,0 +1,18 @@
+{
+ "name": "Earth: Twickenham spaceport",
+ "description": "Kestrel on the pad at Twickenham.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "surface": {
+    "base": "twickenham"
+   }
+  }
+ ],
+ "nav": [
+  110.1,
+  113.8
+ ]
+}

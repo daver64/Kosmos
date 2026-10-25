@@ -1,0 +1,13 @@
+{
+ "name": "Earth: Skylark ILS approach, Chippenham",
+ "description": "Skylark on a 3 degree glideslope, 3 km out from the Chippenham runway. Tune ILS 109.5.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Skylark",
+   "body": "Earth",
+   "surface": {"base": "chippenham", "runway": 0, "along": -3000, "altitude": 175, "speed": 55}
+  }
+ ],
+ "nav": [109.5, 113.4]
+}

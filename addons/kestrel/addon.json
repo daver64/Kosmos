@@ -1,0 +1,6 @@
+{
+  "id": "kestrel",
+  "name": "Kestrel two-stage launcher",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

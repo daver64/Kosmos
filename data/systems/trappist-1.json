@@ -1,0 +1,200 @@
+{
+ "name": "TRAPPIST-1",
+ "home": "TRAPPIST-1 e",
+ "bodies": [
+  {
+   "name": "TRAPPIST-1",
+   "kind": "star",
+   "gm": 1.19175771136164e+19,
+   "radius": 82927440.0,
+   "spin": 2e-06,
+   "colour": [
+    255,
+    110,
+    60
+   ]
+  },
+  {
+   "name": "TRAPPIST-1 b",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 547677007033200.06,
+   "radius": 7110036.000000001,
+   "colour": [
+    190,
+    150,
+    110
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "atmosphere": {
+    "density": 8.0,
+    "scale_height": 12000.0,
+    "colour": [
+     220,
+     170,
+     120
+    ]
+   },
+   "orbit": {
+    "a_au": 0.01154,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 0.0,
+    "argp": 0.0,
+    "m0": 0.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 c",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 521369377874400.0,
+   "radius": 6988987.0,
+   "colour": [
+    200,
+    160,
+    110
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "atmosphere": {
+    "density": 8.0,
+    "scale_height": 12000.0,
+    "colour": [
+     220,
+     170,
+     120
+    ]
+   },
+   "orbit": {
+    "a_au": 0.0158,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 188.70000000000002,
+    "argp": 96.89999999999999,
+    "m0": 51.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 d",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 154656971418400.0,
+   "radius": 5020348.0,
+   "colour": [
+    150,
+    170,
+    190
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "orbit": {
+    "a_au": 0.02227,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 17.400000000000034,
+    "argp": 193.79999999999998,
+    "m0": 102.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 e",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 275831505725599.97,
+   "radius": 5861320.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "atmosphere": {
+    "density": 1.225,
+    "scale_height": 8500.0,
+    "colour": [
+     110,
+     160,
+     235
+    ]
+   },
+   "terrain": "earth",
+   "orbit": {
+    "a_au": 0.02925,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 206.10000000000002,
+    "argp": 290.7,
+    "m0": 153.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 f",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 414145859030200.0,
+   "radius": 6657695.0,
+   "colour": [
+    110,
+    150,
+    170
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "orbit": {
+    "a_au": 0.03849,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 34.80000000000007,
+    "argp": 27.599999999999966,
+    "m0": 204.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 g",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 526551183617800.0,
+   "radius": 7192859.0,
+   "colour": [
+    150,
+    160,
+    170
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "orbit": {
+    "a_au": 0.04683,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 223.5,
+    "argp": 124.5,
+    "m0": 255.0
+   }
+  },
+  {
+   "name": "TRAPPIST-1 h",
+   "kind": "planet",
+   "parent": "TRAPPIST-1",
+   "gm": 129943744026800.0,
+   "radius": 4810105.0,
+   "colour": [
+    140,
+    150,
+    175
+   ],
+   "tilt": 10,
+   "synchronous": true,
+   "orbit": {
+    "a_au": 0.06189,
+    "e": 0.0,
+    "i": 0.0,
+    "raan": 52.200000000000045,
+    "argp": 221.39999999999998,
+    "m0": 306.0
+   }
+  }
+ ]
+}

@@ -1,0 +1,108 @@
+{
+ "name": "Salyut",
+ "lights": [
+  { "position": [-2.2, 0, -5.5], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [2.2, 0, -5.5], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [0, 2.2, 5.5], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
+  { "position": [0, -2.2, -5.5], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 },
+  { "position": [0, 1.0, -6.9], "direction": [0, 0, -1], "colour": [255, 248, 235], "intensity": 7, "range": 160, "inner": 14, "outer": 35, "glow": 0.4 }
+ ],
+ "class": "station",
+ "torque_accel": 0.05,
+ "max_rate": 0.3,
+ "rcs_thrust": 1500,
+ "drag_area": 12,
+ "camera_distance": 45,
+ "stages": [
+  {
+   "name": "Station",
+   "dry_mass": 18000,
+   "propellant": 2000,
+   "z": 0,
+   "length": 13.6,
+   "radius": 2.1,
+   "engines": [
+    {
+     "position": [
+      -1.18,
+      0,
+      5.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 2045,
+     "isp": 282,
+     "plume": 1.5,
+     "type": "rocket", "fuel": "hypergolic"
+    },
+    {
+     "position": [
+      1.18,
+      0,
+      5.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 2045,
+     "isp": 282,
+     "plume": 1.5,
+     "type": "rocket", "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/salyut.obj",
+     "offset": [
+      0,
+      0,
+      5
+     ]
+    }
+   ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Fore",
+   "position": [
+    0,
+    0,
+    -8.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Aft",
+   "position": [
+    0,
+    0,
+    4.6
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ]
+}

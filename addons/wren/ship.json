@@ -1,0 +1,209 @@
+{
+ "name": "Wren",
+ "lights": [
+  { "position": [-1.75, 0, 0], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [1.75, 0, 0], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [0, 1.7, -2], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
+  { "position": [0, 0.6, -4.6], "direction": [0, 0, -1], "colour": [255, 248, 235], "intensity": 6, "range": 120, "inner": 12, "outer": 32, "glow": 0.4 }
+ ],
+ "class": "tug",
+ "torque_accel": 0.6,
+ "max_rate": 1.0,
+ "rcs_thrust": 6000,
+ "drag_area": 6.0,
+ "camera_distance": 18,
+ "cockpit": {
+  "eye": [
+   0,
+   0.45,
+   -2.2
+  ],
+  "panel": [
+   {
+    "label": "ALT",
+    "property": "{ship}/altitude",
+    "scale": 0.001,
+    "format": "%.1f km"
+   },
+   {
+    "label": "SPD",
+    "property": "{ship}/speed",
+    "format": "%.0f m/s"
+   },
+   {
+    "label": "APO",
+    "property": "{ship}/orbit/apoapsis",
+    "scale": 0.001,
+    "format": "%.1f km"
+   },
+   {
+    "label": "PER",
+    "property": "{ship}/orbit/periapsis",
+    "scale": 0.001,
+    "format": "%.1f km"
+   },
+   {
+    "label": "FUEL",
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f kg"
+   },
+   {
+    "label": "THR",
+    "property": "/controls/throttle",
+    "scale": 100,
+    "format": "%.0f %%"
+   }
+  ]
+ },
+ "stages": [
+  {
+   "name": "Tug",
+   "dry_mass": 5500,
+   "propellant": 2500,
+   "z": 0,
+   "length": 9,
+   "radius": 1.6,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      4.2
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 25000,
+     "isp": 330,
+     "plume": 5,
+     "type": "rocket", "fuel": "methane"
+    }
+   ],
+   "parts": [
+    {
+     "prop": "fairing",
+     "radius": 1.6,
+     "length": 2.4,
+     "z": -1.6,
+     "colour": [
+      225,
+      225,
+      230
+     ]
+    },
+    {
+     "prop": "stage",
+     "radius": 1.6,
+     "length": 5.0,
+     "z": 3.4,
+     "colour": [
+      225,
+      225,
+      230
+     ]
+    },
+    {
+     "prop": "adapter",
+     "radius": 1.0,
+     "top_radius": 1.6,
+     "length": 0.3,
+     "z": 3.7,
+     "colour": [
+      225,
+      225,
+      230
+     ]
+    },
+    {
+     "prop": "engines",
+     "radius": 1.0,
+     "count": 1,
+     "length": 0.8,
+     "z": 4.5
+    },
+    {
+     "profile": [
+      [
+       -1.0,
+       0.0
+      ],
+      [
+       -1.0,
+       0.3
+      ],
+      [
+       1.0,
+       0.3
+      ],
+      [
+       1.0,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      2.2,
+      0,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       -1.0,
+       0.0
+      ],
+      [
+       -1.0,
+       0.3
+      ],
+      [
+       1.0,
+       0.3
+      ],
+      [
+       1.0,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      -2.2,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Nose",
+   "position": [
+    0,
+    0,
+    -4.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ]
+}

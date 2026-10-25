@@ -1,0 +1,15 @@
+{
+ "name": "Mercury: landed",
+ "description": "Luna E3 on the baked plains of Mercury.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Luna E3",
+   "body": "Mercury",
+   "surface": {"base": "caloris"}
+  }
+ ],
+ "nav": [
+  93.2
+ ]
+}

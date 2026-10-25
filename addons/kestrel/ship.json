@@ -1,0 +1,421 @@
+{
+ "name": "Kestrel",
+ "lights": [
+  { "position": [-1.6, 0, -20], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [1.6, 0, -20], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [0, 2.1, 14], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
+  { "position": [0, 1.6, -23], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 }
+ ],
+ "class": "launcher",
+ "script": "ascent.lua",
+ "torque_accel": 0.35,
+ "max_rate": 0.5,
+ "rcs_thrust": 4000,
+ "drag_area": 4.0,
+ "camera_distance": 70,
+ "stages": [
+  {
+   "name": "Booster",
+   "dry_mass": 12000,
+   "propellant": 170000,
+   "z": 10,
+   "length": 24,
+   "radius": 2.0,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      23.6
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 3400000,
+     "isp": 310,
+     "plume": 26,
+     "type": "rocket", "fuel": "kerosene"
+    }
+   ],
+   "gear": [
+    [
+     3.3,
+     0,
+     24.5
+    ],
+    [
+     -3.3,
+     0,
+     24.5
+    ],
+    [
+     0,
+     3.3,
+     24.5
+    ],
+    [
+     0,
+     -3.3,
+     24.5
+    ]
+   ],
+   "parts": [
+    {
+     "prop": "stage",
+     "radius": 2.0,
+     "length": 24,
+     "z": 22,
+     "colour": [
+      236,
+      236,
+      240
+     ]
+    },
+    {
+     "prop": "fins",
+     "radius": 2.0,
+     "span": 1.9,
+     "length": 5.5,
+     "count": 4,
+     "z": 22,
+     "colour": [
+      60,
+      62,
+      72
+     ]
+    },
+    {
+     "prop": "engines",
+     "radius": 2.0,
+     "count": 4,
+     "length": 1.6,
+     "z": 23.6
+    },
+    {
+     "profile": [
+      [
+       21.5,
+       0.0
+      ],
+      [
+       21.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      3.3,
+      0,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       21.5,
+       0.0
+      ],
+      [
+       21.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      -3.3,
+      0,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       21.5,
+       0.0
+      ],
+      [
+       21.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      0,
+      3.3,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       21.5,
+       0.0
+      ],
+      [
+       21.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.28
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      200,
+      200,
+      205
+     ],
+     "offset": [
+      0,
+      -3.3,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       24.2,
+       0.0
+      ],
+      [
+       24.2,
+       0.6
+      ],
+      [
+       24.5,
+       0.6
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      255,
+      170,
+      40
+     ],
+     "offset": [
+      3.3,
+      0,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       24.2,
+       0.0
+      ],
+      [
+       24.2,
+       0.6
+      ],
+      [
+       24.5,
+       0.6
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      255,
+      170,
+      40
+     ],
+     "offset": [
+      -3.3,
+      0,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       24.2,
+       0.0
+      ],
+      [
+       24.2,
+       0.6
+      ],
+      [
+       24.5,
+       0.6
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      255,
+      170,
+      40
+     ],
+     "offset": [
+      0,
+      3.3,
+      0
+     ]
+    },
+    {
+     "profile": [
+      [
+       24.2,
+       0.0
+      ],
+      [
+       24.2,
+       0.6
+      ],
+      [
+       24.5,
+       0.6
+      ],
+      [
+       24.5,
+       0.0
+      ]
+     ],
+     "colour": [
+      255,
+      170,
+      40
+     ],
+     "offset": [
+      0,
+      -3.3,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Upper stage",
+   "dry_mass": 3500,
+   "propellant": 30000,
+   "z": -10,
+   "length": 16,
+   "radius": 1.8,
+   "separation_speed": 1.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -0.6
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 450000,
+     "isp": 345,
+     "plume": 14,
+     "type": "rocket", "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "prop": "adapter",
+     "radius": 2.0,
+     "top_radius": 1.8,
+     "length": 1.2,
+     "z": -2.0,
+     "colour": [
+      236,
+      236,
+      240
+     ]
+    },
+    {
+     "prop": "stage",
+     "radius": 1.8,
+     "length": 14.8,
+     "z": -3.2,
+     "colour": [
+      236,
+      236,
+      240
+     ]
+    },
+    {
+     "prop": "engines",
+     "radius": 1.8,
+     "count": 1,
+     "length": 1.4,
+     "z": -0.6
+    }
+   ]
+  },
+  {
+   "name": "Capsule",
+   "dry_mass": 4000,
+   "propellant": 0,
+   "z": -22,
+   "length": 8,
+   "radius": 1.8,
+   "separation_speed": 0.5,
+   "parts": [
+    {
+     "prop": "fairing",
+     "radius": 1.8,
+     "length": 8,
+     "z": -18,
+     "colour": [
+      226,
+      226,
+      232
+     ]
+    }
+   ]
+  }
+ ]
+}

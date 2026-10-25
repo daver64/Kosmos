@@ -1,0 +1,18 @@
+{
+ "name": "Default start",
+ "description": "Loaded when Kosmos is run with no arguments. Copy this file to ~/.config/kosmos/scenarios/default.json to change it.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "surface": {
+    "base": "chippenham"
+   }
+  }
+ ],
+ "nav": [
+  109.5,
+  113.4
+ ]
+}

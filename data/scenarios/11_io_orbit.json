@@ -1,0 +1,16 @@
+{
+ "name": "Io: orbit",
+ "description": "Wren in a low orbit of Io, with Jupiter in the sky.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Wren",
+   "body": "Io",
+   "orbit": {
+    "altitude_km": 150,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

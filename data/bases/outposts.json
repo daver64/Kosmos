@@ -1,0 +1,103 @@
+{
+  "bases": [
+    {
+      "id": "tranquility",
+      "name": "Tranquility Base",
+      "body": "Moon",
+      "latitude": 0.67,
+      "longitude": 23.47,
+      "heading": 90,
+      "flat_radius": 160,
+      "blend": 120,
+      "cameras": [
+        { "name": "Pad", "x": -26, "y": 2, "z": -30, "fov": 55 },
+        { "name": "Overview (fixed)", "x": 0, "y": 60, "z": -140, "fov": 60, "track": false, "pitch": -22 }
+      ],
+      "pad": { "x": 0, "z": 0, "heading": 0 },
+      "objects": [
+        { "type": "landing_pad", "radius": 14, "x": 0, "z": 0 },
+        { "type": "pressure_dome", "radius": 9, "x": -48, "z": 22, "heading": 40 },
+        { "type": "pressure_dome", "radius": 6, "x": -30, "z": 62, "heading": 10 },
+        { "type": "habitat_tube", "length": 14, "radius": 2.2, "x": -47, "z": -4, "heading": 90 },
+        { "type": "habitat_tube", "length": 10, "radius": 1.6, "x": -41, "z": 44, "heading": 60 },
+        { "type": "habitat_tube", "length": 12, "radius": 2.2, "x": 40, "z": 30, "heading": 0 },
+        { "type": "tank", "radius": 2.5, "height": 5, "count": 3, "x": 34, "z": -30, "step_x": 6.5, "colour": [214, 214, 208] },
+        { "type": "solar_array", "length": 14, "width": 4, "number": 6, "x": 62, "z": 4, "heading": 90, "count": 3, "step_z": 12 },
+        { "type": "antenna_dish", "radius": 3, "x": 20, "z": 58 },
+        { "type": "radar", "height": 7, "radius": 3, "x": 52, "z": 56 },
+        { "type": "container", "count": 3, "x": 22, "z": -48, "step_x": 3.2, "colour": [200, 200, 196] },
+        { "type": "lunar_rover", "x": 24, "z": 16, "heading": 120 },
+        { "type": "lunar_rover", "length": 4, "x": -22, "z": -34, "heading": 40, "seed": 2 },
+        { "type": "street_lamp", "height": 6, "count": 4, "x": -20, "z": 12, "step_z": -9 },
+        { "type": "rock_cluster", "radius": 2.5, "x": 70, "z": -40, "colour": [110, 108, 104], "seed": 4 },
+        { "type": "rock_cluster", "radius": 3.5, "x": -80, "z": -50, "colour": [110, 108, 104], "seed": 9 },
+        { "type": "rock", "radius": 1.4, "count": 8, "x": -70, "z": 80, "step_x": 17, "step_z": -9, "colour": [112, 110, 106], "seed": 6 }
+      ]
+    },
+    {
+      "id": "luna_e3",
+      "name": "Mare Frigoris Outpost",
+      "body": "Moon",
+      "latitude": 38.2,
+      "longitude": -35.0,
+      "heading": 90,
+      "flat_radius": 140,
+      "blend": 100,
+      "pad": { "x": 0, "z": 0, "heading": 0 },
+      "objects": [
+        { "type": "landing_pad", "radius": 8, "x": 0, "z": 0 },
+        { "type": "pressure_dome", "radius": 7, "x": -34, "z": 20, "heading": 30 },
+        { "type": "habitat_tube", "length": 12, "radius": 2, "x": -32, "z": -6, "heading": 90 },
+        { "type": "solar_array", "length": 12, "width": 4, "number": 5, "x": 36, "z": 6, "heading": 90, "count": 2, "step_z": 10 },
+        { "type": "antenna_dish", "radius": 2.5, "x": 18, "z": 34 },
+        { "type": "lunar_rover", "x": 22, "z": -14, "heading": 70 },
+        { "type": "rock_cluster", "radius": 3, "x": -50, "z": -40, "colour": [110, 108, 104], "seed": 5 }
+      ]
+    },
+    {
+      "id": "gale",
+      "name": "Gale Crater Base",
+      "body": "Mars",
+      "latitude": -5.4,
+      "longitude": 137.8,
+      "heading": 90,
+      "flat_radius": 160,
+      "blend": 120,
+      "pad": { "x": 0, "z": 0, "heading": 0 },
+      "objects": [
+        { "type": "landing_pad", "radius": 14, "x": 0, "z": 0 },
+        { "type": "pressure_dome", "radius": 9, "x": -48, "z": 22, "heading": 40 },
+        { "type": "pressure_dome", "radius": 6, "x": -30, "z": 62, "heading": 10 },
+        { "type": "habitat_tube", "length": 14, "radius": 2.2, "x": -47, "z": -4, "heading": 90 },
+        { "type": "habitat_tube", "length": 12, "radius": 2.2, "x": 40, "z": 30, "heading": 0 },
+        { "type": "tank", "radius": 2.5, "height": 5, "count": 3, "x": 34, "z": -30, "step_x": 6.5, "colour": [214, 214, 208] },
+        { "type": "solar_array", "length": 14, "width": 4, "number": 6, "x": 62, "z": 4, "heading": 90, "count": 3, "step_z": 12 },
+        { "type": "solar_windmill", "length": 7, "width": 3, "x": 55, "z": 60 },
+        { "type": "antenna_dish", "radius": 3, "x": 20, "z": 58 },
+        { "type": "container", "count": 3, "x": 22, "z": -48, "step_x": 3.2, "colour": [200, 200, 196] },
+        { "type": "lunar_rover", "x": 24, "z": 16, "heading": 120 },
+        { "type": "rock_cluster", "radius": 3, "x": 70, "z": -40, "colour": [140, 88, 62], "seed": 4 },
+        { "type": "rock_cluster", "radius": 4, "x": -80, "z": -50, "colour": [140, 88, 62], "seed": 9 }
+      ]
+    },
+    {
+      "id": "caloris",
+      "name": "Caloris Outpost",
+      "body": "Mercury",
+      "latitude": 30.0,
+      "longitude": 0.0,
+      "heading": 90,
+      "flat_radius": 140,
+      "blend": 100,
+      "pad": { "x": 0, "z": 0, "heading": 0 },
+      "objects": [
+        { "type": "landing_pad", "radius": 8, "x": 0, "z": 0 },
+        { "type": "pressure_dome", "radius": 7, "x": -34, "z": 20, "heading": 30 },
+        { "type": "habitat_tube", "length": 12, "radius": 2, "x": -32, "z": -6, "heading": 90 },
+        { "type": "solar_array", "length": 12, "width": 4, "number": 5, "x": 36, "z": 6, "heading": 90, "count": 2, "step_z": 10 },
+        { "type": "antenna_dish", "radius": 2.5, "x": 18, "z": 34 },
+        { "type": "rock_cluster", "radius": 3, "x": -50, "z": -40, "colour": [110, 104, 98], "seed": 5 }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+ "name": "Titan: orbit",
+ "description": "Argo high above Titan.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Titan",
+   "orbit": {
+    "altitude_km": 600,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "name": "Luna E3",
+ "lights": [
+  { "position": [0, 0.85, 0], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 }
+ ],
+ "class": "probe",
+ "torque_accel": 0.4,
+ "max_rate": 0.8,
+ "rcs_thrust": 20,
+ "drag_area": 2,
+ "camera_distance": 6,
+ "stages": [
+  {
+   "name": "Probe",
+   "dry_mass": 279,
+   "propellant": 100,
+   "z": 0,
+   "length": 1.8,
+   "radius": 0.8,
+   "engines": [
+    {"position": [0, 0, 0.9], "direction": [0, 0, -1], "thrust": 40, "isp": 347, "plume": 0.6, "type": "rocket", "fuel": "hypergolic"}
+   ],
+   "parts": [
+    {"model": "models/probe.obj"}
+   ]
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "name": "Mars: orbit",
+ "description": "Lunar Salyut in a 300 km Mars orbit.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Lunar Salyut",
+   "body": "Mars",
+   "orbit": {
+    "altitude_km": 300,
+    "inclination": 25,
+    "phase": 0
+   }
+  }
+ ],
+ "nav": [
+  115.6
+ ]
+}

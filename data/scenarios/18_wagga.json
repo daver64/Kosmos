@@ -1,0 +1,18 @@
+{
+ "name": "Earth: Wagga Wagga spaceport",
+ "description": "Kestrel on the pad at Wagga Wagga.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "surface": {
+    "base": "wagga"
+   }
+  }
+ ],
+ "nav": [
+  111.5,
+  114.6
+ ]
+}

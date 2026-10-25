@@ -1,0 +1,73 @@
+{
+  "bases": [
+    {
+      "id": "wagga",
+      "name": "Wagga Wagga Spaceport",
+      "body": "Earth",
+      "latitude": -35.1082,
+      "longitude": 147.3598,
+      "heading": 330,
+      "flat_radius": 350,
+      "blend": 250,
+      "elevation": 180,
+      "cameras": [
+        { "name": "Control tower", "x": 60, "y": 28, "z": -120, "fov": 40 },
+        { "name": "Pad", "x": -70, "y": 3, "z": -90, "fov": 55 },
+        { "name": "Runway threshold", "x": 585, "y": 2.5, "z": -690, "fov": 45 },
+        { "name": "Overview (fixed)", "x": 0, "y": 120, "z": -500, "fov": 60, "track": false, "pitch": -12 }
+      ],
+      "navaids": [
+        { "type": "vtol", "name": "Pad", "frequency": 92.60, "heading": 0 },
+        { "type": "vor", "name": "VOR", "x": -60, "z": -170, "frequency": 114.60 },
+        { "type": "ndb", "name": "NDB", "x": 230, "z": -170, "frequency": 0.415 }
+      ],
+      "runways": [
+        { "name": "Runway 1", "x": 560, "z": 0, "length": 1500, "width": 45,
+          "ils": [ { "frequency": 111.50 }, { "frequency": 111.70, "reverse": true } ] }
+      ],
+      "pad": { "x": -110, "z": 150, "heading": 0 },
+      "lights": [
+        { "x": -139.0, "y": 30.0, "z": 150.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-110, 12, 150], "glow": 0.9 },
+        { "x": -139.0, "y": 62.0, "z": 150.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-110, 30, 150], "glow": 0.9 },
+        { "x": -139.0, "y": 94.0, "z": 150.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-110, 46, 150], "glow": 0.9 },
+        { "x": -144, "y": 101.5, "z": 150, "colour": [255, 40, 30], "intensity": 0.5, "range": 30, "pattern": "beacon", "period": 2, "glow": 1.2, "always": true },
+        { "x": 60, "y": 27, "z": -80, "colour": [255, 255, 255], "intensity": 0, "pattern": "strobe", "period": 2.5, "glow": 1.4, "always": true },
+        { "x": 60, "y": 23, "z": -80, "colour": [255, 190, 110], "intensity": 2, "range": 40, "glow": 0.8 },
+        { "x": 140, "y": 15, "z": 30, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": 140, "y": 15, "z": 100, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": -100, "y": 6.7, "z": -25, "count": 10, "step_x": 22, "colour": [255, 205, 140], "intensity": 6, "range": 32, "glow": 0.5 },
+        { "x": 536.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 584.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 544, "y": 0.4, "z": -750.0, "colour": [60, 255, 90], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 },
+        { "x": 544, "y": 0.4, "z": 750.0, "colour": [255, 60, 50], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 }
+      ],
+      "objects": [
+        { "type": "road", "y": 0.2, "length": 280, "width": 14, "x": 420, "z": -35, "heading": 90 },
+        { "type": "launch_pad", "size": 60, "x": -110, "z": 150 },
+        { "type": "launch_tower", "height": 100, "x": -144, "z": 150, "heading": 0 },
+        { "type": "tank", "radius": 5, "height": 11, "count": 3, "x": -190, "z": 60, "step_z": 14 },
+        { "type": "control_tower", "height": 26, "x": 60, "z": -80, "heading": 180 },
+        { "type": "hangar", "width": 40, "depth": 48, "height": 16, "x": 140, "z": 30, "heading": 270 },
+        { "type": "hangar", "width": 40, "depth": 48, "height": 16, "x": 140, "z": 100, "heading": 270 },
+        { "type": "spaceship", "length": 18, "x": 100, "z": -10, "heading": 20 },
+        { "type": "radar", "height": 12, "radius": 5, "x": -30, "z": -140 },
+        { "type": "domed_radar", "radius": 5, "x": 10, "z": -140 },
+        { "type": "antenna_dish", "radius": 4, "x": 50, "z": -150 },
+        { "type": "solar_array", "length": 14, "width": 4, "number": 6, "count": 4, "x": -80, "z": -100, "step_x": 18 },
+        { "type": "house", "width": 8, "depth": 6, "height": 3.2, "x": 90, "z": -120, "colour": [230, 210, 170] },
+        { "type": "house", "width": 8, "depth": 6, "height": 3.2, "x": 110, "z": -130, "heading": 15, "colour": [220, 190, 150] },
+        { "type": "road", "y": 0.2, "length": 300, "width": 8, "x": 0, "z": -30, "heading": 90 },
+        { "type": "road", "y": 0.2, "length": 200, "width": 6, "x": 0, "z": 70, "heading": 0 },
+        { "type": "street_lamp", "height": 7, "count": 10, "x": -100, "z": -25, "step_x": 22 },
+        { "type": "fence", "length": 6, "count": 110, "x": -330, "z": -200, "step_x": 6 },
+        { "type": "fence", "length": 6, "count": 110, "x": -330, "z": 330, "step_x": 6 },
+        { "type": "container", "count": 4, "x": 60, "z": 150, "step_z": 3.2, "colour": [200, 120, 40] },
+        { "type": "car", "x": 40, "z": -60, "heading": 90, "colour": [240, 240, 242] },
+        { "type": "aeroplane", "width": 12, "x": 190, "z": -80, "heading": 300 },
+        { "type": "bush", "radius": 1.2, "count": 24, "x": -300, "z": -150, "step_x": 25, "step_z": 14, "colour": [120, 130, 70], "seed": 2 },
+        { "type": "tree", "height": 8, "radius": 3, "count": 10, "x": 250, "z": -150, "step_z": 30, "colour": [90, 120, 60], "seed": 6 },
+        { "type": "rock_cluster", "radius": 2.5, "count": 8, "x": -260, "z": 200, "step_x": 28, "step_z": -10, "colour": [150, 110, 80], "seed": 5 }
+      ]
+    }
+  ]
+}

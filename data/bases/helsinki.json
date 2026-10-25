@@ -1,0 +1,71 @@
+{
+  "bases": [
+    {
+      "id": "helsinki",
+      "name": "Helsinki Spaceport",
+      "body": "Earth",
+      "latitude": 60.1699,
+      "longitude": 24.9384,
+      "heading": 180,
+      "flat_radius": 320,
+      "blend": 220,
+      "elevation": 5,
+      "cameras": [
+        { "name": "Control tower", "x": 60, "y": 28, "z": -120, "fov": 40 },
+        { "name": "Pad", "x": -70, "y": 3, "z": -90, "fov": 55 },
+        { "name": "Runway threshold", "x": 585, "y": 2.5, "z": -690, "fov": 45 },
+        { "name": "Overview (fixed)", "x": 0, "y": 120, "z": -500, "fov": 60, "track": false, "pitch": -12 }
+      ],
+      "navaids": [
+        { "type": "vtol", "name": "Pad", "frequency": 92.50, "heading": 0 },
+        { "type": "vor", "name": "VOR", "x": 0, "z": -170, "frequency": 114.20 },
+        { "type": "ndb", "name": "NDB", "x": -250, "z": -150, "frequency": 0.388 }
+      ],
+      "runways": [
+        { "name": "Runway 1", "x": 560, "z": 0, "length": 1500, "width": 45,
+          "ils": [ { "frequency": 111.10 }, { "frequency": 111.30, "reverse": true } ] }
+      ],
+      "pad": { "x": 100, "z": 140, "heading": 0 },
+      "lights": [
+        { "x": 71.0, "y": 28.5, "z": 140.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [100, 12, 140], "glow": 0.9 },
+        { "x": 71.0, "y": 58.9, "z": 140.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [100, 30, 140], "glow": 0.9 },
+        { "x": 71.0, "y": 89.3, "z": 140.0, "colour": [235, 240, 255], "intensity": 30, "range": 144, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [100, 46, 140], "glow": 0.9 },
+        { "x": 66, "y": 96.5, "z": 140, "colour": [255, 40, 30], "intensity": 0.5, "range": 30, "pattern": "beacon", "period": 2, "glow": 1.2, "always": true },
+        { "x": -20, "y": 33, "z": -90, "colour": [255, 255, 255], "intensity": 0, "pattern": "strobe", "period": 2.5, "glow": 1.4, "always": true },
+        { "x": -20, "y": 29, "z": -90, "colour": [255, 190, 110], "intensity": 2, "range": 40, "glow": 0.8 },
+        { "x": -150, "y": 14, "z": -40, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": -150, "y": 14, "z": 30, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": -140, "y": 6.7, "z": -35, "count": 12, "step_x": 25, "colour": [255, 205, 140], "intensity": 6, "range": 32, "glow": 0.5 },
+        { "x": 536.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 584.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 544, "y": 0.4, "z": -750.0, "colour": [60, 255, 90], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 },
+        { "x": 544, "y": 0.4, "z": 750.0, "colour": [255, 60, 50], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 }
+      ],
+      "objects": [
+        { "type": "road", "y": 0.2, "length": 280, "width": 14, "x": 420, "z": -35, "heading": 90 },
+        { "type": "launch_pad", "size": 56, "x": 100, "z": 140 },
+        { "type": "launch_tower", "height": 95, "x": 66, "z": 140, "heading": 0, "colour": [230, 230, 235] },
+        { "type": "tank", "radius": 5, "height": 12, "count": 2, "x": 170, "z": 60, "step_z": 14, "colour": [230, 232, 235] },
+        { "type": "control_tower", "height": 32, "x": -20, "z": -90 },
+        { "type": "hangar", "width": 40, "depth": 44, "height": 15, "x": -150, "z": -40, "heading": 90 },
+        { "type": "hangar", "width": 40, "depth": 44, "height": 15, "x": -150, "z": 30, "heading": 90 },
+        { "type": "domed_radar", "radius": 6, "x": 40, "z": -150 },
+        { "type": "antenna_dish", "radius": 4, "x": 80, "z": -150 },
+        { "type": "solar_windmill", "length": 9, "width": 3, "x": -200, "z": 170 },
+        { "type": "solar_windmill", "length": 9, "width": 3, "x": -240, "z": 170 },
+        { "type": "office", "width": 22, "depth": 12, "number": 3, "x": 20, "z": -110, "colour": [190, 120, 90] },
+        { "type": "road", "y": 0.2, "length": 340, "width": 8, "x": 0, "z": -40, "heading": 90 },
+        { "type": "road", "y": 0.2, "length": 200, "width": 6, "x": 20, "z": 60, "heading": 0 },
+        { "type": "street_lamp", "height": 7, "count": 12, "x": -140, "z": -35, "step_x": 25 },
+        { "type": "fence", "length": 6, "count": 100, "x": -300, "z": -250, "step_x": 6 },
+        { "type": "fence", "length": 6, "count": 100, "x": -300, "z": 280, "step_x": 6 },
+        { "type": "container", "count": 6, "x": -100, "z": 120, "step_x": 2.8, "heading": 90, "colour": [40, 110, 160] },
+        { "type": "car", "x": 0, "z": -70, "heading": 90, "colour": [30, 30, 36] },
+        { "type": "car", "x": -35, "z": -70, "heading": 90, "colour": [210, 210, 215], "seed": 3 },
+        { "type": "conifer", "height": 14, "radius": 3, "count": 18, "x": -300, "z": -200, "step_z": 28, "seed": 2 },
+        { "type": "conifer", "height": 12, "radius": 3, "count": 18, "x": 280, "z": -200, "step_z": 26, "seed": 8 },
+        { "type": "rock_cluster", "radius": 3, "count": 6, "x": 200, "z": -120, "step_x": 20, "step_z": 15, "seed": 4 }
+      ]
+    }
+  ]
+}

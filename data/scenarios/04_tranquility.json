@@ -1,0 +1,16 @@
+{
+ "name": "Moon: Tranquility Base",
+ "description": "Ares Spider standing on the Sea of Tranquility.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Ares Spider",
+   "body": "Moon",
+   "surface": {"base": "tranquility"}
+  }
+ ],
+ "nav": [
+  92.4,
+  113.2
+ ]
+}

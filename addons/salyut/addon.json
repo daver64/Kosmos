@@ -1,0 +1,6 @@
+{
+  "id": "salyut",
+  "name": "CVE-Lite Salyut station and Lunar Salyut",
+  "version": "0.1",
+  "ships": ["ship.json", "lunar.json"]
+}

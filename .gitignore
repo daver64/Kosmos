@@ -1,0 +1,9 @@
+/build*/
+/data/orbiter/
+__pycache__/
+*.swp
+*.png
+!/docs/*.png
+imgui.ini
+kosmos-*.png
+/data/textures-hires/

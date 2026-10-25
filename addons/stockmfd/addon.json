@@ -1,0 +1,63 @@
+{
+  "id": "stockmfd",
+  "name": "Stock MFD modes",
+  "version": "0.1",
+  "mfds": [
+    {
+      "id": "orbit",
+      "script": "orbit.lua"
+    },
+    {
+      "id": "surface",
+      "script": "surface.lua"
+    },
+    {
+      "id": "map",
+      "script": "map.lua"
+    },
+    {
+      "id": "attitude",
+      "script": "attitude.lua"
+    },
+    {
+      "id": "ascent",
+      "script": "ascent.lua"
+    },
+    {
+      "id": "align",
+      "script": "align.lua"
+    },
+    {
+      "id": "sync",
+      "script": "sync.lua"
+    },
+    {
+      "id": "transfer",
+      "script": "transfer.lua"
+    },
+    {
+      "id": "comnav",
+      "script": "comnav.lua"
+    },
+    {
+      "id": "vor",
+      "script": "vor.lua"
+    },
+    {
+      "id": "vtol",
+      "script": "vtol.lua"
+    },
+    {
+      "id": "adf",
+      "script": "adf.lua"
+    },
+    {
+      "id": "hsi",
+      "script": "hsi.lua"
+    },
+    {
+      "id": "docking",
+      "script": "docking.lua"
+    }
+  ]
+}

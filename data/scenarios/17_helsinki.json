@@ -1,0 +1,18 @@
+{
+ "name": "Earth: Helsinki spaceport",
+ "description": "Kestrel on the pad at Helsinki.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "surface": {
+    "base": "helsinki"
+   }
+  }
+ ],
+ "nav": [
+  111.1,
+  114.2
+ ]
+}

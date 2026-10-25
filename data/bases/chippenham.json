@@ -1,0 +1,81 @@
+{
+  "bases": [
+    {
+      "id": "chippenham",
+      "name": "Chippenham Spaceport",
+      "body": "Earth",
+      "latitude": 51.4585,
+      "longitude": -2.1190,
+      "heading": 90,
+      "flat_radius": 330,
+      "blend": 220,
+      "elevation": 40,
+      "cameras": [
+        { "name": "Control tower", "x": 60, "y": 28, "z": -120, "fov": 40 },
+        { "name": "Pad", "x": -70, "y": 3, "z": -90, "fov": 55 },
+        { "name": "Runway threshold", "x": 585, "y": 2.5, "z": -690, "fov": 45 },
+        { "name": "Overview (fixed)", "x": 0, "y": 120, "z": -500, "fov": 60, "track": false, "pitch": -12 }
+      ],
+      "navaids": [
+        { "type": "vtol", "name": "Pad", "frequency": 92.30, "heading": 0 },
+        { "type": "vor", "name": "VOR", "x": 20, "z": -170, "frequency": 113.40 },
+        { "type": "ndb", "name": "NDB", "x": 200, "z": -200, "frequency": 0.341 }
+      ],
+      "runways": [
+        { "name": "Runway 1", "x": 560, "z": 0, "length": 1500, "width": 45,
+          "ils": [ { "frequency": 109.50 }, { "frequency": 109.90, "reverse": true } ] }
+      ],
+      "pad": { "x": 70, "z": 0, "heading": 0 },
+      "lights": [
+        { "x": 47.0, "y": 21.0, "z": 0.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [70, 12, 0], "glow": 0.9 },
+        { "x": 47.0, "y": 43.4, "z": 0.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [70, 30, 0], "glow": 0.9 },
+        { "x": 47.0, "y": 65.8, "z": 0.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [70, 46, 0], "glow": 0.9 },
+        { "x": 42, "y": 71.5, "z": 0, "colour": [255, 40, 30], "intensity": 0.5, "range": 30, "pattern": "beacon", "period": 2, "glow": 1.2, "always": true },
+        { "x": -113.0, "y": 24.0, "z": 130.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-90, 12, 130], "glow": 0.9 },
+        { "x": -113.0, "y": 49.6, "z": 130.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-90, 30, 130], "glow": 0.9 },
+        { "x": -113.0, "y": 75.2, "z": 130.0, "colour": [235, 240, 255], "intensity": 30, "range": 138, "inner": 5, "outer": 17, "aim": "ship", "aim_point": [-90, 46, 130], "glow": 0.9 },
+        { "x": -118, "y": 81.5, "z": 130, "colour": [255, 40, 30], "intensity": 0.5, "range": 30, "pattern": "beacon", "period": 2, "glow": 1.2, "always": true },
+        { "x": 40, "y": 29, "z": -90, "colour": [255, 255, 255], "intensity": 0, "pattern": "strobe", "period": 2.5, "glow": 1.4, "always": true },
+        { "x": 40, "y": 25, "z": -90, "colour": [255, 190, 110], "intensity": 2, "range": 40, "glow": 0.8 },
+        { "x": 140, "y": 13, "z": -60, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": 140, "y": 13, "z": 0, "colour": [255, 245, 225], "intensity": 2.5, "range": 55, "inner": 25, "outer": 70, "direction": [0, -1, 0], "glow": 0.7 },
+        { "x": 20, "y": 6.7, "z": -35, "count": 6, "step_x": 25, "colour": [255, 205, 140], "intensity": 6, "range": 32, "glow": 0.5 },
+        { "x": 40, "y": 6.7, "z": 30, "count": 4, "step_x": 25, "colour": [255, 205, 140], "intensity": 6, "range": 32, "glow": 0.5 },
+        { "x": 536.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 584.0, "y": 0.4, "z": -750.0, "count": 31, "step_z": 50, "colour": [255, 250, 235], "intensity": 0, "glow": 0.6 },
+        { "x": 544, "y": 0.4, "z": -750.0, "colour": [60, 255, 90], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 },
+        { "x": 544, "y": 0.4, "z": 750.0, "colour": [255, 60, 50], "intensity": 0, "glow": 1.0, "count": 5, "step_x": 8 }
+      ],
+      "objects": [
+        { "type": "road", "y": 0.2, "length": 280, "width": 14, "x": 420, "z": -35, "heading": 90 },
+        { "type": "launch_pad", "size": 50, "x": -90, "z": 130 },
+        { "type": "launch_pad", "size": 40, "x": 70, "z": 0 },
+        { "type": "launch_tower", "height": 70, "x": 42, "z": 0, "heading": 0 },
+        { "type": "launch_tower", "height": 80, "x": -118, "z": 130, "heading": 0 },
+        { "type": "saturn_v", "size": 0.55, "x": -90, "z": 130, "y": 1.5 },
+        { "type": "tank", "radius": 4, "height": 10, "x": -150, "z": 200, "count": 3, "step_x": 12 },
+        { "type": "control_tower", "height": 28, "x": 40, "z": -90, "heading": 180 },
+        { "type": "hangar", "width": 36, "depth": 40, "height": 14, "x": 140, "z": -60, "heading": 270 },
+        { "type": "hangar", "width": 36, "depth": 40, "height": 14, "x": 140, "z": 0, "heading": 270 },
+        { "type": "domed_radar", "radius": 5, "x": -40, "z": -140 },
+        { "type": "radar", "height": 10, "radius": 4, "x": 0, "z": -150 },
+        { "type": "antenna_dish", "radius": 3, "x": 40, "z": -150 },
+        { "type": "office", "width": 20, "depth": 12, "number": 3, "x": 90, "z": -110 },
+        { "type": "road", "y": 0.2, "length": 200, "width": 8, "x": 0, "z": -40, "heading": 90 },
+        { "type": "road", "y": 0.2, "length": 160, "width": 6, "x": -60, "z": 40, "heading": 0 },
+        { "type": "street_lamp", "height": 7, "count": 6, "x": 20, "z": -35, "step_x": 25 },
+        { "type": "street_lamp", "height": 7, "count": 4, "x": 40, "z": 30, "step_x": 25 },
+        { "type": "fence", "length": 6, "count": 56, "x": -170, "z": -170, "step_x": 6 },
+        { "type": "fence", "length": 6, "count": 56, "x": -170, "z": 250, "step_x": 6 },
+        { "type": "container", "count": 4, "x": 100, "z": 60, "step_z": 3.2, "colour": [60, 90, 150] },
+        { "type": "container", "count": 3, "x": 107, "z": 60, "step_z": 3.2, "colour": [160, 52, 42] },
+        { "type": "car", "x": 55, "z": -75, "heading": 90, "colour": [190, 44, 40] },
+        { "type": "car", "x": 80, "z": -75, "heading": 90, "colour": [230, 230, 232], "seed": 2 },
+        { "type": "tree", "height": 9, "radius": 3, "count": 14, "x": -250, "z": -80, "step_z": 22, "seed": 3 },
+        { "type": "tree", "height": 8, "radius": 3, "count": 14, "x": 260, "z": -120, "step_z": 24, "seed": 7 },
+        { "type": "house", "x": -330, "z": -300 },
+        { "type": "house", "x": -300, "z": -320, "heading": 20, "colour": [190, 120, 100] }
+      ]
+    }
+  ]
+}

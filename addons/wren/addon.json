@@ -1,0 +1,6 @@
+{
+  "id": "wren",
+  "name": "Wren orbital tug",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

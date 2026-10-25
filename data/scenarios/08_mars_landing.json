@@ -1,0 +1,16 @@
+{
+ "name": "Mars: Gale Crater",
+ "description": "Ares Spider on the Martian surface.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Ares Spider",
+   "body": "Mars",
+   "surface": {"base": "gale"}
+  }
+ ],
+ "nav": [
+  93.0,
+  115.6
+ ]
+}

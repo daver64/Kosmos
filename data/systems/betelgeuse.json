@@ -1,0 +1,152 @@
+{
+ "name": "Betelgeuse",
+ "home": "Betelgeuse Prime",
+ "bodies": [
+  {
+   "name": "Betelgeuse",
+   "kind": "star",
+   "gm": 2.189755260297e+21,
+   "radius": 531514800000.0,
+   "spin": 1e-09,
+   "colour": [
+    255,
+    140,
+    80
+   ]
+  },
+  {
+   "name": "Betelgeuse Ember",
+   "kind": "planet",
+   "parent": "Betelgeuse",
+   "gm": 358740397620000.0,
+   "radius": 6179870.0,
+   "colour": [
+    170,
+    90,
+    60
+   ],
+   "tilt": 10,
+   "spin": 7e-05,
+   "atmosphere": {
+    "density": 0.3,
+    "scale_height": 9000.0,
+    "colour": [
+     210,
+     130,
+     90
+    ]
+   },
+   "orbit": {
+    "a_au": 12,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 148.0,
+    "argp": 76.0,
+    "m0": 40
+   }
+  },
+  {
+   "name": "Betelgeuse Prime",
+   "kind": "planet",
+   "parent": "Betelgeuse",
+   "gm": 438460485980000.06,
+   "radius": 6562130.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 10,
+   "spin": 7.2e-05,
+   "atmosphere": {
+    "density": 1.225,
+    "scale_height": 8500.0,
+    "colour": [
+     110,
+     160,
+     235
+    ]
+   },
+   "terrain": "earth",
+   "orbit": {
+    "a_au": 350,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 20.0,
+    "argp": 20.0,
+    "m0": 200
+   }
+  },
+  {
+   "name": "Betelgeuse Titan",
+   "kind": "planet",
+   "parent": "Betelgeuse",
+   "gm": 4.7832053016e+16,
+   "radius": 64984199.99999999,
+   "colour": [
+    215,
+    160,
+    110
+   ],
+   "tilt": 10,
+   "spin": 0.00017,
+   "atmosphere": {
+    "density": 0.2,
+    "scale_height": 27000.0,
+    "colour": [
+     220,
+     190,
+     150
+    ]
+   },
+   "rings": {
+    "inner": 84479460.0,
+    "outer": 142965240.0,
+    "colour": [
+     205,
+     190,
+     165
+    ]
+   },
+   "orbit": {
+    "a_au": 60,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 47.0,
+    "argp": 209.0,
+    "m0": 110
+   }
+  },
+  {
+   "name": "Betelgeuse Far",
+   "kind": "planet",
+   "parent": "Betelgeuse",
+   "gm": 7174807952400000.0,
+   "radius": 25484000.0,
+   "colour": [
+    100,
+    170,
+    215
+   ],
+   "tilt": 10,
+   "spin": 0.00012,
+   "atmosphere": {
+    "density": 0.15,
+    "scale_height": 20000.0,
+    "colour": [
+     130,
+     200,
+     230
+    ]
+   },
+   "orbit": {
+    "a_au": 900,
+    "e": 0.02,
+    "i": 1.0,
+    "raan": 30.0,
+    "argp": 210.0,
+    "m0": 300
+   }
+  }
+ ]
+}

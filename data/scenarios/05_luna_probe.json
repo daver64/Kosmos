@@ -1,0 +1,15 @@
+{
+ "name": "Moon: Luna probe landed",
+ "description": "Luna E3 on Mare Imbrium.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Luna E3",
+   "body": "Moon",
+   "surface": {"base": "luna_e3"}
+  }
+ ],
+ "nav": [
+  92.8
+ ]
+}

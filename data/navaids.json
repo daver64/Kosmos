@@ -1,0 +1,24 @@
+{
+ "navaids": [
+  {"type": "vor", "id": "cape-vor", "name": "Cape VOR", "body": "Earth", "latitude": 28.52, "longitude": -80.68, "frequency": 112.40},
+  {"type": "ils", "id": "slf15", "name": "Cape SLF 15 ILS", "body": "Earth", "latitude": 28.64, "longitude": -80.71, "frequency": 110.30, "heading": 150, "glide": 3.0},
+  {"type": "vtol", "id": "cape-39a", "name": "Cape Pad 39A", "body": "Earth", "latitude": 28.608, "longitude": -80.604, "frequency": 92.00, "heading": 90},
+  {"type": "vor", "id": "edwards-vor", "name": "Edwards VOR", "body": "Earth", "latitude": 34.91, "longitude": -117.88, "frequency": 113.60},
+  {"type": "ils", "id": "edwards22", "name": "Edwards 22 ILS", "body": "Earth", "latitude": 34.90, "longitude": -117.87, "frequency": 109.10, "heading": 220, "glide": 3.0},
+  {"type": "vor", "id": "baikonur-vor", "name": "Baikonur VOR", "body": "Earth", "latitude": 45.96, "longitude": 63.31, "frequency": 114.00},
+  {"type": "vor", "id": "kourou-vor", "name": "Kourou VOR", "body": "Earth", "latitude": 5.23, "longitude": -52.77, "frequency": 115.20},
+
+  {"type": "vor", "id": "tranquility-vor", "name": "Tranquility VOR", "body": "Moon", "latitude": 0.70, "longitude": 23.50, "frequency": 113.20},
+  {"type": "vtol", "id": "tranquility-pad", "name": "Tranquility Pad", "body": "Moon", "latitude": 0.68, "longitude": 23.49, "frequency": 92.40, "heading": 0},
+  {"type": "ils", "id": "tranquility-ils", "name": "Tranquility Approach", "body": "Moon", "latitude": 0.68, "longitude": 23.49, "frequency": 110.80, "heading": 90, "glide": 12.0},
+  {"type": "vtol", "id": "taurus-pad", "name": "Taurus-Littrow Pad", "body": "Moon", "latitude": 20.19, "longitude": 30.77, "frequency": 92.60, "heading": 0},
+  {"type": "vtol", "id": "luna-pad", "name": "Mare Frigoris Pad", "body": "Moon", "latitude": 38.2, "longitude": -35.0, "frequency": 92.80, "heading": 0},
+
+  {"type": "vtol", "id": "gale-pad", "name": "Gale Crater Pad", "body": "Mars", "latitude": -5.38, "longitude": 137.82, "frequency": 93.00, "heading": 0},
+  {"type": "vor", "id": "gale-vor", "name": "Gale VOR", "body": "Mars", "latitude": -5.5, "longitude": 137.7, "frequency": 115.60},
+  {"type": "vor", "id": "olympus-vor", "name": "Olympus VOR", "body": "Mars", "latitude": 18.65, "longitude": -133.8, "frequency": 116.00},
+
+  {"type": "vtol", "id": "caloris-pad", "name": "Caloris Pad", "body": "Mercury", "latitude": 30.0, "longitude": 0.0, "frequency": 93.20, "heading": 0},
+  {"type": "vor", "id": "venus-vor", "name": "Maxwell VOR", "body": "Venus", "latitude": 65.0, "longitude": 3.0, "frequency": 116.40}
+ ]
+}

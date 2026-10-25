@@ -1,0 +1,16 @@
+{
+ "name": "Venus: orbit",
+ "description": "Argo above the clouds of Venus.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Venus",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

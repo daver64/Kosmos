@@ -1,0 +1,6 @@
+{
+  "id": "argo",
+  "name": "Argo lunar transfer vehicle",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}
