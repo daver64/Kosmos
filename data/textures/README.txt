@@ -15,8 +15,8 @@ Earth: below 300 km altitude the procedural terrain is drawn (the image is not u
 above 300 km the planet is drawn as a plain sphere with the image. Other bodies scale that distance by radius / 6371 km,
 and bodies without terrain always use the image on their sphere.
 
-Celestia textures: tools/celestia_import.py copies the best resolution of each Celestia moon/planet image in textures/celestia
-(hires, then medres, then lores) to textures/<body>.jpg. It covers Mercury, the moons of Mars, Jupiter, Saturn, Uranus and Neptune.
+Celestia source textures live in data/celestia (hires, then medres, then lores).
+tools/celestia_import.py installs the best resolution of each supported moon/planet image here as <body>.jpg.
 
 Orbiter textures: tools/orbiter_import.py converts an Orbiter Surf.tree archive (Textures/<Planet>/Archive/Surf.tree)
 into one of these .dds files without decoding the tiles, keeping the tree's levels as the mip chain:

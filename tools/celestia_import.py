@@ -6,7 +6,7 @@ one available, so a moon with only a 512 x 256 image still gets a texture. Bodie
 (earth.dds, moon.dds, ...) are left alone because the loader prefers .dds.
 
 Usage:
-    celestia_import.py [--src data/textures/celestia] [--out data/textures] [--list]
+    celestia_import.py [--src data/celestia] [--out data/textures] [--list]
 """
 import argparse
 import os
@@ -34,7 +34,7 @@ def best_source(src, stem):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=os.path.join(here, "..", "data", "textures", "celestia"))
+    ap.add_argument("--src", default=os.path.join(here, "..", "data", "celestia"))
     ap.add_argument("--out", default=os.path.join(here, "..", "data", "textures"))
     ap.add_argument("--list", action="store_true", help="show what would be copied")
     args = ap.parse_args()

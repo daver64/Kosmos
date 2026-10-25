@@ -63,6 +63,8 @@ namespace
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;
+        /** Ignore the tiled Earth imagery and use the single image (--no-tiles). */
+        bool no_tiles = false;
         bool camera_window = false;
         bool settings_window = false;
         bool property_window = false;
@@ -1557,18 +1559,65 @@ namespace
         return std::filesystem::exists(path) ? load_surface_texture(path, max_size) : nullptr;
     }
 
+    std::string find_texture_in_directory(const std::string &root, const std::string &directory, const std::string &name,
+                                          std::initializer_list<const char *> extensions)
+    {
+        namespace fs = std::filesystem;
+        for (const char *extension : extensions)
+        {
+            const std::string path = root + directory + name + extension;
+            if (fs::exists(path))
+                return path;
+        }
+        return {};
+    }
+
     // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
     std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions)
     {
-        namespace fs = std::filesystem;
-        for (const char *dir : {"/data/textures-hires/", "/data/textures/"})
-            for (const char *ext : extensions)
-            {
-                const std::string path = root + dir + name + ext;
-                if (fs::exists(path))
-                    return path;
-            }
+        for (const char *directory : {"/data/textures-hires/", "/data/textures/"})
+        {
+            const std::string path = find_texture_in_directory(root, directory, name, extensions);
+            if (!path.empty())
+                return path;
+        }
         return {};
+    }
+
+    // The first .ctx in a Celestia virtual-texture folder, or the folder itself when it has none. Empty if the folder is missing.
+    std::string find_tile_source(const std::string &directory)
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        if (!fs::is_directory(directory, ec))
+            return {};
+        for (const fs::directory_entry &entry : fs::directory_iterator(directory, ec))
+            if (entry.path().extension() == ".ctx")
+                return entry.path().string();
+        return directory;
+    }
+
+    std::string find_image_in_folder(const std::string &directory)
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        if (!fs::is_directory(directory, ec))
+            return {};
+        std::vector<fs::path> images;
+        for (const fs::directory_entry &entry : fs::directory_iterator(directory, ec))
+        {
+            if (!entry.is_regular_file(ec))
+                continue;
+            const std::string extension = entry.path().extension().string();
+            std::string filename = entry.path().filename().string();
+            for (char &c : filename)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            if ((extension == ".dds" || extension == ".png" || extension == ".jpg" || extension == ".jpeg") &&
+                filename.find("bump") == std::string::npos)
+                images.push_back(entry.path());
+        }
+        std::sort(images.begin(), images.end());
+        return images.empty() ? std::string{} : images.front().string();
     }
 
     std::string find_surface_image(const std::string &root, const kosmos::Body &b)
@@ -1578,7 +1627,13 @@ namespace
         std::string lower = b.name;
         for (char &c : lower)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return find_texture_file(root, lower, {".dds", ".png", ".jpg", ".jpeg"});
+        const std::string override = find_texture_in_directory(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        if (!override.empty())
+            return override;
+        const std::string celestia = find_image_in_folder(root + "/data/celestia/hires/" + lower);
+        if (!celestia.empty())
+            return celestia;
+        return find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
     }
 
     // A 3D cockpit's two MFD screens sit on a console in the ship frame (-Z is forward): a position, and a tilt back from the pilot.
@@ -1885,6 +1940,7 @@ namespace
         std::vector<sl::Bitmap *> body_textures;
         // Optional per-body normal maps (fake relief for airless moons); entries may be null.
         std::vector<sl::Bitmap *> body_normals;
+        std::unique_ptr<sl::PlanetTiles> earth_tiles;
         std::vector<int> surface_textured;
         std::map<const kosmos::PartSpec *, sl::Mesh *> parts;
 
@@ -2222,6 +2278,8 @@ int main(int argc, char **argv)
             options.net_channel = argv[++i];
         else if (!std::strcmp(argv[i], "--lobby"))
             options.net_window = true;
+        else if (!std::strcmp(argv[i], "--no-tiles"))
+            options.no_tiles = true;
         else if (!std::strcmp(argv[i], "--no-relief"))
             options.no_relief = true;
         else if (!std::strcmp(argv[i], "--hide-info"))
@@ -2485,6 +2543,7 @@ int main(int argc, char **argv)
                 sl::destroy_mesh(m);
         vis.body_textures.clear();
         vis.body_normals.clear();
+        vis.earth_tiles.reset();
         vis.rings.clear();
         vis.surface_textured.clear();
     };
@@ -2521,9 +2580,15 @@ int main(int argc, char **argv)
                 std::string lower = b.name;
                 for (char &c : lower)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                const std::string normal_path = find_texture_file(sim.root(), lower + "_normal", {".jpg"});
-                if (!b.minor && !options.no_relief && std::filesystem::exists(normal_path))
-                    normal = sl::load_bitmap(normal_path);
+                std::string celestia_normal = find_texture_in_directory(sim.root(), "/data/textures-hires/", lower + "_normal",
+                                                                         {".dds", ".png", ".jpg", ".jpeg"});
+                if (celestia_normal.empty())
+                    celestia_normal = find_image_in_folder(sim.root() + "/data/celestia/hires/" + lower + "_normal");
+                if (celestia_normal.empty())
+                    celestia_normal = find_texture_in_directory(sim.root(), "/data/textures/", lower + "_normal",
+                                                                 {".dds", ".png", ".jpg", ".jpeg"});
+                if (!b.minor && !options.no_relief && !celestia_normal.empty())
+                    normal = load_surface_texture(celestia_normal, options.max_texture);
                 if (normal)
                 {
                     normal->smooth = true;
@@ -2536,6 +2601,41 @@ int main(int argc, char **argv)
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
             if (!vis.body_textures[i])
                 vis.body_textures[i] = shared_rock;
+
+        // Tiled Earth imagery (optional, not in the repository: see the Developers Manual) replaces the single image on the sphere.
+        if (!options.no_tiles)
+        {
+            const int home = sim.universe.home_id();
+            if (home >= 0 && sim.universe.bodies[static_cast<std::size_t>(home)].name == "Earth")
+            {
+                const std::string hires = sim.root() + "/data/celestia/hires/";
+                sl::PlanetTilesOptions tiles;
+                tiles.colour = find_tile_source(hires + "earth");
+                tiles.specular = find_tile_source(hires + "earth_specular");
+                if (!options.no_relief)
+                    tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                if (!tiles.colour.empty())
+                {
+                    vis.earth_tiles = sl::PlanetTiles::create(tiles);
+                    if (!vis.earth_tiles)
+                        std::fprintf(stderr, "kosmos: tiled Earth unavailable: %s\n", sl::last_error().c_str());
+                }
+                if (vis.earth_tiles)
+                {
+                    const std::size_t index = static_cast<std::size_t>(home);
+                    if (index < vis.body_textures.size())
+                    {
+                        sl::destroy_bitmap(vis.body_textures[index]);
+                        vis.body_textures[index] = nullptr;
+                    }
+                    if (index < vis.body_normals.size())
+                    {
+                        sl::destroy_bitmap(vis.body_normals[index]);
+                        vis.body_normals[index] = nullptr;
+                    }
+                }
+            }
+        }
 
         // The home planet is a streaming procedural terrain whose heights the launch gear also collides with.
         earth_id = sim.universe.home_id();
@@ -3521,7 +3621,20 @@ int main(int argc, char **argv)
                 const glm::mat4 frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
                 const glm::mat4 model = frame * glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) *
                                         glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
-                sl::draw_mesh(vis.sphere, model, rock);
+                if (static_cast<int>(i) == earth_id && vis.earth_tiles)
+                {
+                    // The tiles run east to the right seen from outside; the body's sphere mesh runs the other way, so mirror the frame
+                    // (which also reverses the triangle winding, hence the culling swap) to keep the surface where the rest of Kosmos expects it.
+                    const glm::mat4 tile_model = model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f));
+                    const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
+                    const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                    vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+                    sl::Material tiled = rock;
+                    tiled.cull = sl::CullMode::front;
+                    vis.earth_tiles->draw(tile_model, tiled);
+                }
+                else
+                    sl::draw_mesh(vis.sphere, model, rock);
                 if (static_cast<int>(i) == earth_id && vis.lights_texture)
                 {
                     // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.

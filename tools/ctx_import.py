@@ -4,13 +4,14 @@
 Celestia splits very large planet maps into tiles. Level 0 is 2 x 1 tiles (with BaseSplit 0) and every level doubles
 both directions; column 0 starts at longitude -180 and row 0 is the north. Kosmos draws one texture per body, so this
 picks the deepest level whose stitched width fits --max-width (16384 suits most GPUs) and writes it to
-data/textures-hires/<body>.jpg. Runtime streaming of the full-resolution tiles is not supported yet.
+data/textures-hires/<body>.jpg. Kosmos streams Earth's Celestia tiles directly; use this tool to install a single
+image for other bodies or where you prefer a non-streamed map.
 
 Usage:
     ctx_import.py PATH/TO/name.ctx BODY [--max-width 16384] [--level N] [--out data/textures-hires] [--quality 92] [--list]
 
 Example:
-    ctx_import.py "data/textures/celestia/hires/earth/JMII DDS.ctx" earth
+    ctx_import.py "data/celestia/hires/earth/JMII DDS.ctx" earth
 """
 import argparse
 import os
