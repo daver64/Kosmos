@@ -100,7 +100,11 @@ Simulation state is published in simlib's property tree (`sl::PropertyTree`), sh
 
 ## Addons
 
-Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Native DLL addons through a C ABI are not implemented; Lua covers scripting.
+Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Native DLL addons through a C ABI are not implemented (see the [roadmap](docs/native_addon_roadmap.md)); Lua covers scripting.
+
+## Roadmap
+
+- [Native addon modules (C interface)](docs/native_addon_roadmap.md): exploratory design for compiled vessel, MFD and rendering modules. Not scheduled.
 
 ## Engines and exhaust
 
