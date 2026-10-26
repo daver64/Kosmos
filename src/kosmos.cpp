@@ -49,8 +49,9 @@ namespace
 
     constexpr double km = 1000.0;
     constexpr double pi = 3.14159265358979323846;
-    constexpr int screen_w = 1280;
-    constexpr int screen_h = 720;
+    // The window can be resized or made fullscreen, so these follow the display every frame.
+    int screen_w = 1280;
+    int screen_h = 720;
     constexpr double cloud_height = 60.0e3;
     const char *const sas_modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "off"};
     constexpr int sas_mode_count = sizeof(sas_modes) / sizeof(sas_modes[0]);
@@ -120,6 +121,7 @@ namespace
         bool orbit_half = false;
         float ambient = 0.3f;
         bool sunlit = false;
+        bool fullscreen = false;
         double orbit_phase = 0.0;
         int system = 0;
         std::string system_name;
@@ -2610,6 +2612,8 @@ int main(int argc, char **argv)
             options.net_channel = argv[++i];
         else if (!std::strcmp(argv[i], "--lobby"))
             options.net_window = true;
+        else if (!std::strcmp(argv[i], "--fullscreen"))
+            options.fullscreen = true;
         else if (!std::strcmp(argv[i], "--no-clouds"))
             options.no_clouds = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
@@ -2880,7 +2884,18 @@ int main(int argc, char **argv)
         return -1;
     }
     sl::set_window_title("Kosmos");
+    {
+        bool want_fullscreen = options.fullscreen;
+        if (!options.scenario.empty())
+            if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+                want_fullscreen = want_fullscreen || sc->fullscreen;
+        if (want_fullscreen)
+            sl::set_fullscreen(true);
+        screen_w = sl::screen_width();
+        screen_h = sl::screen_height();
+    }
     sl::Surface3D *surface = sl::create_surface_3d(screen_w, screen_h, 1);
+    int surface_w = screen_w, surface_h = screen_h;
     if (!surface)
     {
         std::fprintf(stderr, "3D surface unavailable on this backend: %s\n", sl::last_error().c_str());
@@ -3286,6 +3301,8 @@ int main(int argc, char **argv)
                 return;
             }
         }
+        if (sc.fullscreen && !sl::is_fullscreen())
+            sl::set_fullscreen(true);
         if (Ship *flown = apply_scenario(sim, sc, terrain_set))
         {
             ship = flown;
@@ -3514,6 +3531,8 @@ int main(int argc, char **argv)
                     map_mode = !map_mode;
                 else if (key == sl::Event::Key::letter_g)
                     galaxy_mode = !galaxy_mode;
+                else if ((key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter) && (sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)))
+                    sl::toggle_fullscreen();
                 else if (galaxy_mode && key == sl::Event::Key::arrow_right)
                     gview.step_selection(1);
                 else if (galaxy_mode && key == sl::Event::Key::arrow_left)
@@ -3596,6 +3615,23 @@ int main(int argc, char **argv)
                     props.set_int("/sim/warp-index", std::max(props.get_int("/sim/warp-index") - 1, 0));
             }
             sl::display_handle_event(event);
+        }
+
+        // Follow the window: resizing or going fullscreen resizes the 3D surface to match.
+        if (sl::screen_width() > 0 && sl::screen_height() > 0 && (sl::screen_width() != screen_w || sl::screen_height() != screen_h))
+        {
+            screen_w = sl::screen_width();
+            screen_h = sl::screen_height();
+        }
+        if (screen_w != surface_w || screen_h != surface_h)
+        {
+            if (sl::Surface3D *resized = sl::create_surface_3d(screen_w, screen_h, 1))
+            {
+                sl::destroy_surface_3d(surface);
+                surface = resized;
+                surface_w = screen_w;
+                surface_h = screen_h;
+            }
         }
 
         // M and O keep their own flags; the settings (and the F4 browser) share them through the tree.

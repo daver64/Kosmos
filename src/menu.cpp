@@ -1330,6 +1330,8 @@ namespace kosmos
                     ImGui::MenuItem("Base editor", nullptr, &base_editor_open);
                     ImGui::Separator();
                     ImGui::MenuItem("Keep menu bar visible", nullptr, &keep_visible);
+                    if (ImGui::MenuItem("Full screen", "Alt+Enter", sl::is_fullscreen()))
+                        sl::toggle_fullscreen();
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Tools"))

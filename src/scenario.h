@@ -47,6 +47,8 @@ namespace kosmos
         std::string target;
         /** "off", "warn" or "fatal": what failing life support does to the crew. Empty keeps the setting. */
         std::string life_support;
+        /** Start in desktop fullscreen. */
+        bool fullscreen = false;
         std::vector<double> nav;
         /** Start date as a Julian date (UTC); 0 starts on the system's default date. date_text keeps the text it was written as, if any. */
         double epoch_jd = 0.0;

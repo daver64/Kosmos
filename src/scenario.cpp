@@ -25,6 +25,7 @@ namespace kosmos
             out.active = json.value("active", 0);
             out.target = json.value("target", "");
             out.life_support = json.value("life_support", "");
+            out.fullscreen = json.value("fullscreen", false);
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -115,6 +116,8 @@ namespace kosmos
             json["target"] = sc.target;
         if (!sc.life_support.empty())
             json["life_support"] = sc.life_support;
+        if (sc.fullscreen)
+            json["fullscreen"] = true;
         if (!sc.nav.empty())
             json["nav"] = sc.nav;
         if (sc.epoch_jd > 0.0)

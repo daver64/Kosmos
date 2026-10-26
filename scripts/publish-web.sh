@@ -63,6 +63,7 @@ mkdir -p "$DOWNLOAD/notes"
 cp "$NOTES" "$DOWNLOAD/notes/$VER.md"
 ls "$DOWNLOAD"/notes/*.md | sed -E 's|.*/([0-9.]+)\.md$|\1|' | sort -t. -k1,1nr -k2,2nr |
     while read -r v; do cat "$DOWNLOAD/notes/$v.md"; echo; done > "$DOWNLOAD/RELEASE_NOTES.md"
+"$SRC/scripts/notes-html.py" "$DOWNLOAD/RELEASE_NOTES.md" "$WEB_ROOT/kosmos/release-notes.html"
 stamp "$VER"
 echo "$MAJOR.$((BUILD + 1))" > "$VERSION_FILE"
 echo "$APP: published $VER; the next build will be $MAJOR.$((BUILD + 1))"
