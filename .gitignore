@@ -1,6 +1,7 @@
 /build*/
 /data/orbiter/
 /data/nasa/
+/data/open-game-art/
 __pycache__/
 *.swp
 *.png

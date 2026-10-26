@@ -288,8 +288,10 @@ namespace
             return;
         const sl::FlightBody &planet = *sim.universe.world.body(soi);
         const sl::dvec3 r = here - planet.position, s = sim.universe.world.body(sun)->position - planet.position;
-        const double angle = std::atan2(r.x, r.z) - std::atan2(s.x, s.z);
-        const sl::dquat spin = glm::angleAxis(angle, sl::dvec3(0.0, 1.0, 0.0));
+        const sl::dvec3 axis = sim.universe.pole(soi);
+        const sl::dvec3 rp = r - axis * glm::dot(r, axis), sp = s - axis * glm::dot(s, axis);
+        const double angle = std::atan2(glm::dot(axis, glm::cross(rp, sp)), glm::dot(rp, sp));
+        const sl::dquat spin = glm::angleAxis(angle, axis);
         for (int i = 0; i < sim.ship_count(); ++i)
         {
             sl::FlightBody &b = sim.ship(i)->body();
@@ -2681,7 +2683,7 @@ int main(int argc, char **argv)
                 std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
                 return 1;
             }
-            sim.log("Start date " + kosmos::format_utc(start_jd));
+            if (!options.hide_info) sim.log("Start date " + kosmos::format_utc(start_jd));
         }
     }
     if (options.selftest > 0.0)
