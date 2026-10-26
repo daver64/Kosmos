@@ -2815,6 +2815,8 @@ int main(int argc, char **argv)
             {
                 const std::string hires = sim.root() + "/data/celestia/hires/";
                 sl::PlanetTilesOptions tiles;
+                // Skirts show as bright lines along tile edges from orbit.
+                tiles.skirt = 0.0f;
                 tiles.colour = find_tile_source(hires + "earth");
                 tiles.specular = find_tile_source(hires + "earth_specular");
                 if (!options.no_relief)
