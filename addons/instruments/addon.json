@@ -3,7 +3,33 @@
   "name": "Bitmap instruments",
   "version": "0.1",
   "mfds": [
-    { "id": "adi", "script": "adi.lua" },
-    { "id": "altimeter", "script": "altimeter.lua" }
+    {
+      "id": "adi",
+      "script": "adi.lua"
+    },
+    {
+      "id": "altimeter",
+      "script": "altimeter.lua"
+    },
+    {
+      "id": "asi",
+      "script": "asi.lua"
+    },
+    {
+      "id": "vsi",
+      "script": "vsi.lua"
+    },
+    {
+      "id": "dg",
+      "script": "dg.lua"
+    },
+    {
+      "id": "turn",
+      "script": "turn.lua"
+    },
+    {
+      "id": "engine",
+      "script": "engine.lua"
+    }
   ]
 }

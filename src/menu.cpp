@@ -1228,7 +1228,7 @@ namespace kosmos
         const float eased = 1.0f - (1.0f - slide_) * (1.0f - slide_);
         ImGui::SetNextWindowPos(ImVec2(0.0f, -height * (1.0f - eased)));
         ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, height));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings |

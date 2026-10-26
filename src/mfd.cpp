@@ -158,9 +158,16 @@ namespace kosmos
         return -1;
     }
 
+    void MfdSystem::set_unit_count(int count)
+    {
+        units_.resize(static_cast<std::size_t>(std::max(count, 2)));
+    }
+
     void MfdSystem::set_mode(int side, int mode)
     {
-        MfdUnit &u = units_[side];
+        if (side < 0 || side >= unit_count())
+            return;
+        MfdUnit &u = unit(side);
         if (mode < 0 || mode >= static_cast<int>(modes_.size()))
             return;
         u.mode = mode;
@@ -180,7 +187,7 @@ namespace kosmos
 
     void MfdSystem::press(int side, int button)
     {
-        MfdUnit &u = units_[side];
+        MfdUnit &u = unit(side);
         if (button == 12)
         {
             u.power = !u.power;
@@ -342,8 +349,14 @@ namespace kosmos
 
     void MfdSystem::draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons)
     {
-        MfdUnit &u = units_[side];
-        if (!layout.hud)
+        MfdUnit &u = unit(side);
+        if (layout.bare)
+        {
+            const float s = layout.size / mfd_size;
+            sl::rectfill(sl::screen, layout.x, layout.y, layout.x + layout.size, layout.y + layout.size, {10, 12, 16, 255});
+            sl::rect(sl::screen, layout.x, layout.y, layout.x + layout.size, layout.y + layout.size, {70, 78, 90, 255}, std::max(1.0f, 2.0f * s));
+        }
+        else if (!layout.hud)
             draw_frame(layout, u, nullptr);
         if (buttons)
             buttons->clear();
@@ -361,7 +374,7 @@ namespace kosmos
             sol::protected_function fn = mode->table["draw"];
             if (fn.valid())
             {
-                sol::protected_function_result r = fn(u.self, std::ref(g), mfd_size, mfd_size);
+                sol::protected_function_result r = fn(u.self, std::ref(g), mfd_size, mfd_size, layout.bare);
                 if (!r.valid())
                 {
                     sol::error e = r;
@@ -386,6 +399,8 @@ namespace kosmos
 
     int MfdSystem::hit_test(int, const MfdLayout &layout, float px, float py) const
     {
+        if (layout.bare)
+            return -1;
         const float s = layout.size / mfd_size;
         const float bw = 22.0f * s, bh = 18.0f * s;
         const float l = layout.x, t = layout.y, r = layout.x + layout.size, b = layout.y + layout.size;

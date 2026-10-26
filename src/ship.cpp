@@ -99,6 +99,28 @@ namespace kosmos
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 for (const nlohmann::json &ji : jc.value("panel", nlohmann::json::array()))
                     spec.cockpit.panel.push_back({ji.value("label", ""), ji.value("property", ""), ji.value("scale", 1.0), ji.value("format", "%.1f")});
+                if (jc.contains("layout"))
+                {
+                    const nlohmann::json &jl = jc["layout"];
+                    spec.cockpit.panel_width = jl.value("width", spec.cockpit.panel_width);
+                    spec.cockpit.panel_height = jl.value("height", spec.cockpit.panel_height);
+                    spec.cockpit.panel_image = jl.value("image", "");
+                    if (jl.contains("position"))
+                        spec.cockpit.panel_pos = vec3(jl["position"]);
+                    spec.cockpit.panel_size = jl.value("size", spec.cockpit.panel_size);
+                    spec.cockpit.panel_tilt = jl.value("tilt", spec.cockpit.panel_tilt);
+                }
+                for (const nlohmann::json &ji : jc.value("instruments", nlohmann::json::array()))
+                {
+                    Cockpit::PanelInstrument pi;
+                    pi.mode = ji.value("mode", "");
+                    pi.x = ji.value("x", 0.0f);
+                    pi.y = ji.value("y", 0.0f);
+                    pi.size = ji.value("size", 200.0f);
+                    pi.frame = ji.value("frame", false);
+                    if (!pi.mode.empty())
+                        spec.cockpit.instruments.push_back(pi);
+                }
             }
             spec.transponder = json.value("transponder", 0.0);
             for (const nlohmann::json &jd : json.value("ports", nlohmann::json::array()))
@@ -790,8 +812,9 @@ namespace kosmos
             return "crashed";
         if (telemetry_.landed)
             return "landed";
-        if (c.throttle > 0.0)
-            return "throttle is up";
+        // A throttle left up with empty tanks does nothing, so it must not hold the clock back.
+        if (c.throttle > 0.0 && telemetry_.thrust > 0.0)
+            return "engines are firing";
         const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
         const double top = atmosphere_top(planet);
         if (telemetry_.altitude < top + 1000.0)
@@ -913,12 +936,11 @@ namespace kosmos
             if (th.level > 0.0 && th.tank >= 0 && b.tanks[static_cast<std::size_t>(th.tank)].mass > 0.0)
                 t.thrust += th.level * th.max_thrust;
         const double g_local = planet.gm / std::max(glm::dot(r, r), 1.0);
-        t.twr = b.mass() > 0.0 ? b.thrusters.empty() ? 0.0 : [&] {
-            double full = 0.0;
+        t.max_thrust = 0.0;
+        if (!b.thrusters.empty())
             for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
-                full += b.thrusters[static_cast<std::size_t>(i)].max_thrust;
-            return full / (b.mass() * g_local);
-        }() : 0.0;
+                t.max_thrust += b.thrusters[static_cast<std::size_t>(i)].max_thrust;
+        t.twr = b.mass() > 0.0 ? t.max_thrust / (b.mass() * g_local) : 0.0;
         t.acceleration_g = t.thrust / (b.mass() * g0);
         t.stage_fuel = b.tanks[static_cast<std::size_t>(active_stage_)].mass;
         t.total_fuel = 0.0;
@@ -1049,6 +1071,7 @@ namespace kosmos
         num("mass", [this] { return telemetry_.mass; });
         num("thrust", [this] { return telemetry_.thrust; });
         num("twr", [this] { return telemetry_.twr; });
+        num("max-thrust", [this] { return telemetry_.max_thrust; });
         num("acceleration-g", [this] { return telemetry_.acceleration_g; });
         num("stage-fuel", [this] { return telemetry_.stage_fuel; });
         num("total-fuel", [this] { return telemetry_.total_fuel; });

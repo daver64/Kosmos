@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Draws the placeholder bitmaps for addons/instruments (attitude indicator and altimeter).
+"""Draws the placeholder bitmaps for addons/instruments (the six-pack: attitude indicator, altimeter, airspeed, vertical speed,
+heading and turn coordinator).
 
 They are ordinary PNGs that the MFD scripts draw with g:image(), so artists can replace any of them with proper
 artwork of the same size without touching the Lua. Run from the repository root: python3 tools/make_instrument_bitmaps.py
@@ -183,6 +184,135 @@ def rim_marker():
     return img
 
 
+# ---- Airspeed, vertical speed, heading and turn coordinator ---------------------------------------------------------------
+
+ASI_MAX_KT = 500  # the dial sweeps 300 degrees, starting at -150 (7:30 on the clock)
+VSI_MAX_FPM = 3000  # zero at 9 o'clock, 170 degrees either way
+
+
+def bezel(d, fill=(10, 11, 14, 255)):
+    d.ellipse([2 * SS, 2 * SS, (DIAL - 2) * SS, (DIAL - 2) * SS], fill=fill, outline=(150, 156, 170, 255), width=5 * SS)
+    d.ellipse([12 * SS, 12 * SS, (DIAL - 12) * SS, (DIAL - 12) * SS], outline=(60, 64, 74, 255), width=2 * SS)
+
+
+def tick(d, c, deg, r_out, r_in, width, colour=(240, 240, 240, 255)):
+    x1, y1 = polar(c, c, r_out, deg)
+    x2, y2 = polar(c, c, r_in, deg)
+    d.line([x1 * SS, y1 * SS, x2 * SS, y2 * SS], fill=colour, width=int(width * SS))
+
+
+def asi_face():
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    bezel(d)
+    for kt in range(0, ASI_MAX_KT + 1, 10):
+        deg = -150 + kt / ASI_MAX_KT * 300
+        major = kt % 50 == 0
+        tick(d, c, deg, c - 16, c - (36 if major else 28), 4 if major else 2)
+        if major:
+            x, y = polar(c, c, c - 56, deg)
+            centred_text(d, x, y, str(kt), 17, (245, 245, 245, 255))
+    centred_text(d, c, c - 44, "AIRSPEED", 13, (255, 200, 80, 255))
+    centred_text(d, c, c + 52, "KNOTS", 13, (170, 176, 190, 255))
+    return img
+
+
+def vsi_angle(fpm):
+    return -90 + fpm / VSI_MAX_FPM * 170
+
+
+def vsi_face():
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    bezel(d)
+    for fpm in range(-VSI_MAX_FPM, VSI_MAX_FPM + 1, 250):
+        major = fpm % 500 == 0
+        tick(d, c, vsi_angle(fpm), c - 16, c - (34 if major else 26), 4 if major else 2)
+    for thousand in range(-3, 4):
+        x, y = polar(c, c, c - 56, vsi_angle(thousand * 1000))
+        centred_text(d, x, y, str(abs(thousand)), 26, (245, 245, 245, 255))
+    centred_text(d, c, c - 62, "UP", 14, (255, 200, 80, 255))
+    centred_text(d, c, c + 62, "DN", 14, (255, 200, 80, 255))
+    centred_text(d, c + 8, c - 14, "VERTICAL", 11, (170, 176, 190, 255))
+    centred_text(d, c + 8, c + 2, "SPEED", 11, (170, 176, 190, 255))
+    centred_text(d, c + 8, c + 18, "x1000 fpm", 11, (170, 176, 190, 255))
+    return img
+
+
+def dg_card():
+    """The rotating compass card: ticks every 5 degrees, numerals every 30 (N, E, S, W at the quarters)."""
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    d.ellipse([6 * SS, 6 * SS, (DIAL - 6) * SS, (DIAL - 6) * SS], fill=(10, 11, 14, 255))
+    for deg in range(0, 360, 5):
+        major = deg % 10 == 0
+        tick(d, c, deg, c - 12, c - (30 if deg % 30 == 0 else 24 if major else 20), 4 if deg % 30 == 0 else 2)
+    for deg in range(0, 360, 30):
+        label = {0: "N", 90: "E", 180: "S", 270: "W"}.get(deg, str(deg // 10))
+        x, y = polar(c, c, c - 48, deg)
+        glyph = canvas(40, 40)
+        gd = ImageDraw.Draw(glyph)
+        centred_text(gd, 20, 20, label, 26 if deg % 90 == 0 else 22, (255, 200, 80, 255) if deg % 90 == 0 else (245, 245, 245, 255))
+        glyph = glyph.rotate(-deg, resample=Image.BICUBIC)
+        img.alpha_composite(glyph, (int((x - 20) * SS), int((y - 20) * SS)))
+    return img
+
+
+def dg_face():
+    """The fixed overlay on the heading card: bezel ring, lubber line and the aircraft symbol."""
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    d.ellipse([2 * SS, 2 * SS, (DIAL - 2) * SS, (DIAL - 2) * SS], outline=(150, 156, 170, 255), width=5 * SS)
+    d.polygon([c * SS, 20 * SS, (c - 8) * SS, 4 * SS, (c + 8) * SS, 4 * SS], fill=(255, 150, 30, 255))
+    d.line([c * SS, (c - 44) * SS, c * SS, (c + 40) * SS], fill=(255, 255, 255, 255), width=5 * SS)
+    d.line([(c - 38) * SS, (c - 4) * SS, (c + 38) * SS, (c - 4) * SS], fill=(255, 255, 255, 255), width=5 * SS)
+    d.line([(c - 14) * SS, (c + 36) * SS, (c + 14) * SS, (c + 36) * SS], fill=(255, 255, 255, 255), width=4 * SS)
+    return img
+
+
+def tc_face():
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    bezel(d)
+    # Standard-rate marks: the aircraft symbol lines up with these in a 3 degree per second turn.
+    for deg in (70, 110, 250, 290):
+        tick(d, c, deg, c - 18, c - 44, 5, (255, 255, 255, 255))
+    tick(d, c, 0, c - 18, c - 44, 4, (255, 150, 30, 255))
+    centred_text(d, 34, c - 4, "L", 24, (245, 245, 245, 255))
+    centred_text(d, DIAL - 34, c - 4, "R", 24, (245, 245, 245, 255))
+    centred_text(d, c, c - 62, "TURN", 14, (255, 200, 80, 255))
+    centred_text(d, c, c + 18, "2 MIN", 13, (170, 176, 190, 255))
+    centred_text(d, c, c + 34, "NO PITCH INFORMATION", 8, (170, 176, 190, 255))
+    # The inclinometer tube; the slip ball rides in it (see turn.lua).
+    pts = [((c + dx) * SS, (TUBE_Y - dx * dx / TUBE_CURVE) * SS) for dx in range(-62, 63, 2)]
+    d.line(pts, fill=(70, 74, 84, 255), width=24 * SS, joint="curve")
+    d.line(pts, fill=(18, 20, 26, 255), width=20 * SS, joint="curve")
+    for dx in (-13, 13):
+        d.line([(c + dx) * SS, (TUBE_Y - dx * dx / TUBE_CURVE - 12) * SS, (c + dx) * SS, (TUBE_Y - dx * dx / TUBE_CURVE + 12) * SS], fill=(240, 240, 240, 255), width=2 * SS)
+    return img
+
+
+TUBE_Y, TUBE_CURVE = 236, 100
+
+
+def tc_aircraft():
+    """The miniature aircraft seen from behind; it banks with the turn rate."""
+    img = canvas(DIAL, DIAL)
+    d = ImageDraw.Draw(img)
+    c = DIAL / 2
+    white = (250, 250, 250, 255)
+    d.line([(c - 96) * SS, c * SS, (c + 96) * SS, c * SS], fill=white, width=7 * SS)
+    d.ellipse([(c - 14) * SS, (c - 14) * SS, (c + 14) * SS, (c + 14) * SS], fill=white)
+    d.line([c * SS, (c - 4) * SS, c * SS, (c - 44) * SS], fill=white, width=7 * SS)
+    d.line([(c - 22) * SS, (c - 40) * SS, (c + 22) * SS, (c - 40) * SS], fill=white, width=5 * SS)
+    return img
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     save(ball_strip(), "adi_ball.png")
@@ -192,6 +322,13 @@ def main():
     save(needle(112, 5, 28, (245, 245, 245, 255)), "alt_needle_100m.png")
     save(needle(72, 8, 14, (255, 255, 255, 255), hub=9), "alt_needle_1km.png")
     save(rim_marker(), "alt_marker_10km.png")
+    save(asi_face(), "asi_face.png")
+    save(needle(112, 6, 28, (245, 245, 245, 255)), "needle_long.png")
+    save(vsi_face(), "vsi_face.png")
+    save(dg_card(), "dg_card.png")
+    save(dg_face(), "dg_face.png")
+    save(tc_face(), "tc_face.png")
+    save(tc_aircraft(), "tc_aircraft.png")
 
 
 if __name__ == "__main__":

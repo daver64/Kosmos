@@ -110,7 +110,7 @@ namespace kosmos
         void open_base_editor() { base_editor_open = true; }
         /** Windows opened by the menus themselves; the program lists them in the View menu too. */
         bool scenario_editor_open = false, base_editor_open = false, help_open = false, about_open = false;
-        bool keep_visible = false;
+        bool keep_visible = true;
         bool visible() const { return slide_ > 0.01f; }
 
         ScenarioEditor scenario_editor;

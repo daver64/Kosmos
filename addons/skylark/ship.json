@@ -6,7 +6,7 @@
   { "position": [0, 1.9, 7], "colour": [255, 255, 255], "intensity": 1.2, "range": 24, "glow": 0.3 },
   { "position": [-4.35, 0, 0.3], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
   { "position": [4.35, 0, 0.3], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 },
-  { "position": [0, -0.3, -5.2], "direction": [0, -0.12, -1], "colour": [255, 248, 235], "intensity": 9, "range": 300, "inner": 8, "outer": 24, "glow": 0.4 }
+  { "position": [0, -0.3, -5.2], "direction": [0, -0.12, -1], "colour": [255, 248, 235], "intensity": 3.5, "range": 220, "inner": 8, "outer": 24, "glow": 0.1 }
  ],
  "class": "aircraft",
  "torque_accel": 0.0,
@@ -17,10 +17,21 @@
  "inertia": [14000, 20000, 12000],
  "damping": [0.8, 1.0, 0.8],
  "cockpit": {
-  "eye": [0, 0.6, -4.2],
+  "eye": [0, 0.9, -4.2],
   "mfds": true,
-  "mfd_left": "adi",
-  "mfd_right": "altimeter",
+  "mfd_left": "engine",
+  "mfd_right": "surface",
+  "layout": { "width": 1500, "height": 500, "size": 0.85, "position": [0, -0.15, -0.75], "tilt": 25 },
+  "instruments": [
+   { "mode": "engine", "x": 760, "y": 60, "size": 290, "frame": true },
+   { "mode": "surface", "x": 1110, "y": 60, "size": 290, "frame": true },
+   { "mode": "asi", "x": 30, "y": 30, "size": 210 },
+   { "mode": "adi", "x": 250, "y": 30, "size": 210 },
+   { "mode": "altimeter", "x": 470, "y": 30, "size": 210 },
+   { "mode": "turn", "x": 30, "y": 260, "size": 210 },
+   { "mode": "dg", "x": 250, "y": 260, "size": 210 },
+   { "mode": "vsi", "x": 470, "y": 260, "size": 210 }
+  ],
   "panel": [
    { "label": "IAS", "property": "{ship}/speed", "format": "%.0f m/s" },
    { "label": "ALT", "property": "{ship}/altitude", "format": "%.0f m" },

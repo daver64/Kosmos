@@ -96,7 +96,7 @@ namespace
         bool cockpit = false;
         bool cockpit3d = false;
         int mfd_display = 0; // 0 off, 1 panels, 2 heads-up
-        std::string mfd_left = "orbit", mfd_right = "surface";
+        std::string mfd_left, mfd_right;
         int ship_index = 0;
         std::string ship_name = "Kestrel";
         std::string scenario;
@@ -1847,6 +1847,58 @@ namespace
         return glm::mat3(glm::vec3(1.0f, 0.0f, 0.0f), up, normal);
     }
 
+    // An instrument panel (Cockpit::instruments) is one flat board. In the 3D cockpit it is drawn into a texture at panel_target_width
+    // pixels across; on the 2D screen it is drawn straight onto the display. Either way `scale` converts panel units to pixels.
+    constexpr int panel_target_width = 2048;
+
+    kosmos::MfdLayout panel_layout(const kosmos::Cockpit::PanelInstrument &pi, float ox, float oy, float scale)
+    {
+        kosmos::MfdLayout layout;
+        layout.x = ox + pi.x * scale;
+        layout.y = oy + pi.y * scale;
+        layout.size = pi.size * scale;
+        layout.bare = !pi.frame;
+        return layout;
+    }
+
+    void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale)
+    {
+        const float w = cp.panel_width * scale, h = cp.panel_height * scale;
+        sl::Bitmap *back = image.empty() ? nullptr : sim.mfd.bitmap(image);
+        if (back)
+            sl::draw_sprite_region_rotated(back, 0, 0, back->width, back->height, ox, oy, w, h, w / 2, h / 2, 0.0f);
+        else
+        {
+            sl::rectfill(sl::screen, ox, oy, ox + w, oy + h, {24, 26, 32, 255});
+            sl::rect(sl::screen, ox, oy, ox + w, oy + h, {70, 78, 90, 255}, 2.0f);
+        }
+        for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
+            sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
+    }
+
+    // Press the button under (px, py), given in the same pixels the panel was drawn in. Returns true if one was hit.
+    bool panel_click(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
+    {
+        for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
+        {
+            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
+            if (button >= 0)
+            {
+                sim.mfd.press(static_cast<int>(i), button);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    glm::mat3 panel_basis(const kosmos::Cockpit &cp)
+    {
+        const float tilt = static_cast<float>(glm::radians(cp.panel_tilt));
+        const glm::vec3 up(0.0f, std::cos(tilt), -std::sin(tilt));
+        const glm::vec3 normal(0.0f, std::sin(tilt), std::cos(tilt));
+        return glm::mat3(glm::vec3(1.0f, 0.0f, 0.0f), up, normal);
+    }
+
     sl::Mesh *make_screen_quad()
     {
         std::vector<sl::Vertex3D> v(4);
@@ -2743,6 +2795,9 @@ int main(int argc, char **argv)
         if (start_jd <= 0.0 && !options.scenario.empty())
             if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
                 start_jd = sc->epoch_jd;
+        // Unless the command line or the scenario gives a date, start on the real date and time, so the Earth is turned the way it really is.
+        if (start_jd <= 0.0 && options.selftest <= 0.0)
+            start_jd = 2440587.5 + std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count() / 86400.0;
         if (start_jd > 0.0 && options.system == 0)
         {
             sim.start_epoch_jd = start_jd;
@@ -3144,10 +3199,12 @@ int main(int argc, char **argv)
     }
     sl::gui_init();
     sl::Bitmap *mfd_target[2] = {sl::create_render_target(mfd_target_size, mfd_target_size), sl::create_render_target(mfd_target_size, mfd_target_size)};
+    sl::Bitmap *panel_target = nullptr;
+    int panel_target_height = 0;
     vis.screen_quad = make_screen_quad();
     vis.cockpit_box = sl::create_cube_mesh(1.0f, {255, 255, 255, 255});
-    sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(options.mfd_left)));
-    sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(options.mfd_right)));
+    const Ship *mfd_ship = nullptr;
+    std::string mfd_ship_id;
     float look_yaw = 0.0f, look_pitch = 0.0f;
     if (options.map_scale > 0.0)
         map.metres_per_pixel = options.map_scale;
@@ -3159,7 +3216,8 @@ int main(int argc, char **argv)
     int last_mouse_x = 0, last_mouse_y = 0;
     kosmos::MenuBar menu_bar;
     bool screenshot_requested = false;
-    menu_bar.keep_visible = options.menu_visible;
+    // Pinned open unless the menu is switched off from its View menu; --hide-info (screenshots) leaves it to slide away.
+    menu_bar.keep_visible = options.menu_visible || !options.hide_info;
     menu_bar.scenario_editor_open = options.scenario_editor;
     menu_bar.base_editor_open = options.base_editor;
     std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
@@ -3537,6 +3595,20 @@ int main(int argc, char **argv)
         sim.step(frame);
         lua_console.tick(frame);
         ship = sim.active_ship();
+        if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
+        {
+            // Each ship brings its own default instruments whenever it becomes the flown one.
+            mfd_ship = ship;
+            mfd_ship_id = ship->spec().name;
+            const auto &cockpit_spec = ship->spec().cockpit;
+            sim.mfd.set_unit_count(static_cast<int>(cockpit_spec.instruments.size()));
+            for (std::size_t i = 0; i < cockpit_spec.instruments.size(); ++i)
+                sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(cockpit_spec.instruments[i].mode)));
+            if (cockpit_spec.instruments.empty() || !options.mfd_left.empty())
+                sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left)));
+            if (cockpit_spec.instruments.empty() || !options.mfd_right.empty())
+                sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right)));
+        }
         const kosmos::Telemetry &tm = ship->telemetry();
         if (netplay.joined())
         {
@@ -3778,8 +3850,25 @@ int main(int argc, char **argv)
         {
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
-            for (int side = 0; side < 2; ++side)
-                sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+            const kosmos::Cockpit &pcp = ship->spec().cockpit;
+            if (pcp.instruments.empty())
+            {
+                for (int side = 0; side < 2; ++side)
+                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+            }
+            else
+            {
+                const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
+                if (!panel_target || wanted != panel_target_height)
+                    panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
+                if (panel_target && sl::begin_render_target(panel_target))
+                {
+                    sl::clear_render_target({18, 20, 26, 255});
+                    draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / pcp.panel_image).string(),
+                               0.0f, 0.0f, static_cast<float>(panel_target_width) / pcp.panel_width);
+                    sl::end_render_target();
+                }
+            }
         }
         if (sl::begin_surface_3d(surface, camera))
         {
@@ -4244,6 +4333,25 @@ int main(int argc, char **argv)
                     sl::Material console;
                     console.tint = {38, 40, 46, 255};
                     console.cull = sl::CullMode::none;
+                    if (!cp.instruments.empty())
+                    {
+                        const glm::vec3 centre = glm::vec3(cp.eye) + glm::vec3(cp.panel_pos);
+                        const float pw = static_cast<float>(cp.panel_size), ph = pw * cp.panel_height / cp.panel_width;
+                        const glm::mat3 pb = panel_basis(cp);
+                        // The console is a slab just behind the board.
+                        sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
+                        if (panel_target)
+                        {
+                            sl::Material board;
+                            board.texture = panel_target;
+                            board.lit = false;
+                            board.fog = false;
+                            board.cull = sl::CullMode::none;
+                            sl::draw_mesh(vis.screen_quad, model * glm::translate(glm::mat4(1.0f), centre) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw, ph, 1.0f)), board);
+                        }
+                    }
+                    else
+                    {
                     sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), glm::vec3(cp.eye) + glm::vec3(0.0f, -0.36f, -0.8f)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.8f, 0.3f, 0.5f)), console);
                     for (int side = 0; side < 2; ++side)
                     {
@@ -4254,6 +4362,7 @@ int main(int argc, char **argv)
                         screen.fog = false;
                         screen.cull = sl::CullMode::none;
                         sl::draw_mesh(vis.screen_quad, model * glm::translate(glm::mat4(1.0f), cs.centre) * glm::mat4(basis) * glm::scale(glm::mat4(1.0f), glm::vec3(cs.width * 1.18f, cs.height * 1.13f, 1.0f)), screen);
+                    }
                     }
                 }
                 for (const kosmos::Debris &d : other.debris())
@@ -4562,6 +4671,7 @@ int main(int argc, char **argv)
         for (std::size_t i = 0; i < messages.size(); ++i)
             sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
         const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
+        const bool panel2d = dashboard && !ship->spec().cockpit.instruments.empty();
         const bool cockpit_mfd_overlay = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd != 0;
         if (in_cockpit3d)
         {
@@ -4581,6 +4691,25 @@ int main(int argc, char **argv)
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(fb.position - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
+                if (!cp.instruments.empty())
+                {
+                    const glm::mat3 pb = panel_basis(cp);
+                    const glm::vec3 centre = glm::vec3(cp.eye) + glm::vec3(cp.panel_pos);
+                    const float denom = glm::dot(dir_local, pb[2]);
+                    const float t = std::fabs(denom) < 1e-5f ? -1.0f : glm::dot(centre - origin_local, pb[2]) / denom;
+                    if (t > 0.0f)
+                    {
+                        const glm::vec3 hit = origin_local + dir_local * t - centre;
+                        const float pw = static_cast<float>(cp.panel_size), ph = pw * cp.panel_height / cp.panel_width;
+                        const float u = glm::dot(hit, pb[0]) / pw + 0.5f, v = 0.5f - glm::dot(hit, pb[1]) / ph;
+                        if (u >= 0.0f && u <= 1.0f && v >= 0.0f && v <= 1.0f)
+                        {
+                            const float scale = static_cast<float>(panel_target_width) / cp.panel_width;
+                            panel_click(sim, cp, 0.0f, 0.0f, scale, u * cp.panel_width * scale, v * cp.panel_height * scale);
+                        }
+                    }
+                }
+                else
                 for (int side = 0; side < 2; ++side)
                 {
                     const CockpitScreen cs = cockpit_screen(cp, side);
@@ -4603,7 +4732,20 @@ int main(int argc, char **argv)
             }
             mfd_mouse_prev = down;
         }
-        if (dashboard)
+        if (panel2d)
+        {
+            const kosmos::Cockpit &cp = ship->spec().cockpit;
+            const float scale = std::min(screen_w * 0.8f / cp.panel_width, screen_h * 0.4f / cp.panel_height);
+            const float ox = (screen_w - cp.panel_width * scale) * 0.5f, oy = screen_h - cp.panel_height * scale;
+            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
+            sim.mfd.update(frame);
+            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            if (down && !mfd_mouse_prev)
+                panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
+            mfd_mouse_prev = down;
+            draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
+        }
+        else if (dashboard)
         {
             const float size = std::min(260.0f, screen_h * 0.3f);
             const float top = screen_h - size - 100.0f;
@@ -4622,7 +4764,7 @@ int main(int argc, char **argv)
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
         }
-        if (in_cockpit && !in_cockpit3d)
+        if (in_cockpit && !in_cockpit3d && !panel2d)
         {
             const std::string root = "/ships/ship[" + std::to_string(props.get_int("/sim/active-ship")) + "]";
             const std::vector<kosmos::Instrument> &panel = ship->spec().cockpit.panel;

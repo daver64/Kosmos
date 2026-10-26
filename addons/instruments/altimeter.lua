@@ -16,7 +16,7 @@ return {
   buttons = {},
   init = function(self) end,
 
-  draw = function(self, g, w, h)
+  draw = function(self, g, w, h, bare)
     local alt = math.max(0, ship("altitude"))
     g:image("alt_face.png", 200, 190, 300, 300)
     g:image("alt_marker_10km.png", 200, 190, 300, 300, (alt % 1.0e5) / 1.0e5 * 360)
@@ -25,9 +25,11 @@ return {
 
     g:colour(255, 240, 140)
     g:text(200, 14, "ALTIMETER", 1)
-    g:colour(120, 255, 140)
-    g:text(200, 362, "ALT " .. distance(alt), 1)
-    g:text(200, 382, string.format("VS %+.1f m/s", ship("vertical-speed")), 1)
+    if not bare then
+      g:colour(120, 255, 140)
+      g:text(200, 362, "ALT " .. distance(alt), 1)
+      g:text(200, 382, string.format("VS %+.1f m/s", ship("vertical-speed")), 1)
+    end
   end,
 
   button = function(self, i) end,

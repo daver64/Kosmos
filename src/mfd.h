@@ -64,6 +64,7 @@ namespace kosmos
     {
         float x = 0, y = 0, size = 400;
         bool hud = false; // no background or frame, shapes and text only
+        bool bare = false; // a panel gauge: a plain backing square instead of the MFD frame and buttons
     };
 
     class MfdSystem
@@ -76,7 +77,10 @@ namespace kosmos
         const std::vector<MfdMode> &modes() const { return modes_; }
         int mode_by_id(const std::string &id) const;
 
-        MfdUnit &unit(int side) { return units_[side]; }
+        /** Units are numbered from 0; the stock display uses 0 and 1, and a cockpit panel can add more. */
+        void set_unit_count(int count);
+        int unit_count() const { return static_cast<int>(units_.size()); }
+        MfdUnit &unit(int side) { return units_[static_cast<std::size_t>(side)]; }
         void set_mode(int side, int mode);
         /** Press button 0..11 (left column top to bottom, then right column), 12 PWR, 13 SEL, 14 MNU. */
         void press(int side, int button);
@@ -93,19 +97,19 @@ namespace kosmos
         /** False when the active ship's electrical bus is browned out: every MFD acts as if switched off. */
         bool bus_power = true;
         const std::string &last_error() const { return error_; }
+        /** A cached bitmap from disk, or null. */
+        sl::Bitmap *bitmap(const std::string &path);
 
     private:
         void draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons);
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
         void draw_select(MfdUnit &unit, MfdCanvas &g);
         void draw_frame(const MfdLayout &layout, const MfdUnit &unit, const MfdMode *mode);
-        sl::Bitmap *bitmap(const std::string &path);
-
         std::map<std::string, sl::Bitmap *> bitmaps_;
 
         sl::LuaRuntime *lua_ = nullptr;
         std::vector<MfdMode> modes_;
-        MfdUnit units_[2];
+        std::vector<MfdUnit> units_ = std::vector<MfdUnit>(2);
         std::string error_;
     };
 } // namespace kosmos

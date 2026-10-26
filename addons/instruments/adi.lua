@@ -14,7 +14,7 @@ return {
   buttons = {},
   init = function(self) end,
 
-  draw = function(self, g, w, h)
+  draw = function(self, g, w, h, bare)
     local pitch = math.max(-90, math.min(90, ship("pitch")))
     local roll = ship("roll")
     local sy = math.floor(STRIP_H / 2 - BALL / 2 - pitch * PX_PER_DEG + 0.5)
@@ -24,10 +24,12 @@ return {
 
     g:colour(255, 240, 140)
     g:text(200, 22, "ATTITUDE", 1)
-    g:colour(120, 255, 140)
-    g:text(70, 378, string.format("PIT %+.1f", pitch), 0)
-    g:text(200, 378, string.format("HDG %03.0f", ship("heading")), 1)
-    g:text(330, 378, string.format("ROL %+.1f", roll), 2)
+    if not bare then
+      g:colour(120, 255, 140)
+      g:text(70, 378, string.format("PIT %+.1f", pitch), 0)
+      g:text(200, 378, string.format("HDG %03.0f", ship("heading")), 1)
+      g:text(330, 378, string.format("ROL %+.1f", roll), 2)
+    end
   end,
 
   button = function(self, i) end,

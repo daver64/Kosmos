@@ -138,6 +138,25 @@ namespace kosmos
         /** Draw the dashboard with two MFDs (default modes orbit and surface) below the instrument row. */
         bool mfds = true;
         std::string mfd_left = "orbit", mfd_right = "surface";
+
+        /** One instrument on the cockpit panel: an MFD mode drawn in a square at (x, y) in panel units, with its buttons if `frame`. */
+        struct PanelInstrument
+        {
+            std::string mode;
+            float x = 0, y = 0, size = 200;
+            bool frame = false;
+        };
+        /**
+         * An Orbiter-style instrument panel, used for both the 2D panel and the 3D cockpit. When `instruments` is not empty it replaces
+         * the left and right MFD pair. The panel is `panel_width` x `panel_height` units, optionally over a background bitmap; in the 3D
+         * cockpit it is a flat board `panel_size` metres wide, centred `panel_pos` from the eye and tilted back by `panel_tilt` degrees.
+         * The first two instruments are the ones the F6 to F9 keys drive.
+         */
+        std::vector<PanelInstrument> instruments;
+        float panel_width = 1400.0f, panel_height = 500.0f;
+        std::string panel_image;
+        sl::dvec3 panel_pos{0.0, -0.2, -0.7};
+        double panel_size = 0.9, panel_tilt = 25.0;
     };
 
     /** An extra viewpoint inside or around a ship, in the ship frame (nose is -Z). Angles are degrees from straight ahead. */
@@ -223,7 +242,7 @@ namespace kosmos
         double pitch = 0.0, heading = 0.0;
         /** Bank angle in degrees, positive with the right wing down; 180 is inverted. */
         double roll = 0.0;
-        double mass = 0.0, thrust = 0.0, twr = 0.0, acceleration_g = 0.0;
+        double mass = 0.0, thrust = 0.0, max_thrust = 0.0, twr = 0.0, acceleration_g = 0.0;
         double stage_fuel = 0.0, total_fuel = 0.0;
         /** Aerodynamics: angle of attack and sideslip in degrees, dynamic pressure in pascals and the climb angle in degrees. */
         double alpha = 0.0, sideslip = 0.0, dynamic_pressure = 0.0, flight_path = 0.0;
