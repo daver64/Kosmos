@@ -970,15 +970,20 @@ namespace
         result->terrain = std::make_unique<sl::Terrain>(config, source);
         if (!detail_disabled)
         {
-            // A seamless dirt map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
-            static sl::Bitmap *detail = sl::load_bitmap((sim.root() + "/data/textures/detail_dirt.jpg").c_str());
+            // A seamless map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
+            static std::map<std::string, sl::Bitmap *> detail_maps;
+            const std::string file = b.detail.empty() ? "detail_dirt.jpg" : b.detail;
+            auto found = detail_maps.find(file);
+            if (found == detail_maps.end())
+                found = detail_maps.emplace(file, sl::load_bitmap((sim.root() + "/data/textures/" + file).c_str())).first;
+            sl::Bitmap *detail = found->second;
             if (detail)
             {
                 sl::TerrainTextureOptions opts;
                 opts.colour_detail = true;
                 opts.macro_texture = detail;
-                opts.macro_tile_metres = 128.0;
-                opts.macro_strength = 0.9;
+                opts.macro_tile_metres = b.detail_tile;
+                opts.macro_strength = b.detail_strength;
                 opts.fade_start = 400.0;
                 opts.fade_end = 4000.0;
                 opts.max_size = 2048;

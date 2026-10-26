@@ -144,6 +144,9 @@ namespace kosmos
             body.radius = entry.value("radius", 1000.0);
             body.spin = entry.value("spin", 0.0);
             body.terrain = entry.value("terrain", "");
+            body.detail = entry.value("detail", "");
+            body.detail_tile = entry.value("detail_tile", 128.0);
+            body.detail_strength = entry.value("detail_strength", 0.9);
             body.texture = entry.value("texture", "");
             body.mesh = entry.value("mesh", "");
             body.minor = entry.value("minor", false);

@@ -40,6 +40,10 @@ namespace kosmos
         float colour[3] = {0.6f, 0.6f, 0.6f};
         /** Name of a procedural terrain recipe for the body, empty for a plain sphere. */
         std::string terrain;
+        /** Optional seamless brightness map laid over the ground imagery near the surface (in data/textures/), its repeat size in metres and strength. */
+        std::string detail;
+        double detail_tile = 128.0;
+        double detail_strength = 0.9;
         /** Optional surface image (equirectangular, any size up to 16384 x 8192 or more) relative to data/; empty looks for data/textures/<name>.jpg|png. */
         std::string texture;
         /** Optional glTF mesh relative to data/ drawn instead of the sphere; unit mean radius, scaled by `radius`. Physics stays a sphere. */
