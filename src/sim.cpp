@@ -50,6 +50,7 @@ namespace kosmos
 
         for (const char *name : {"throttle", "pitch", "yaw", "roll", "rcs-x", "rcs-y", "rcs-z", "brake", "flaps"})
             props.set_double(std::string("/controls/") + name, 0.0);
+        props.set_double("/controls/gear", 1.0);
         props.set_string("/controls/sas", "stability");
         props.set_double("/controls/target-pitch", 90.0);
         props.set_double("/controls/target-heading", 90.0);
@@ -354,6 +355,7 @@ namespace kosmos
         c.roll = props.get_double("/controls/roll");
         c.brake = props.get_double("/controls/brake");
         c.flaps = props.get_double("/controls/flaps");
+        c.gear = props.get_double("/controls/gear");
         c.rcs_x = props.get_double("/controls/rcs-x");
         c.rcs_y = props.get_double("/controls/rcs-y");
         c.rcs_z = props.get_double("/controls/rcs-z");
@@ -418,7 +420,9 @@ namespace kosmos
                 ship.go_rails();
             else
                 ship.go_dynamic();
-            ship.apply_controls(static_cast<int>(i) == active_ ? controls : idle, frame * warp);
+            Controls held = idle;
+            held.gear = ship.gear_position() > 0.5 ? 1.0 : 0.0;
+            ship.apply_controls(static_cast<int>(i) == active_ ? controls : held, frame * warp);
         }
 
         universe.world.step(frame * warp);

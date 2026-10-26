@@ -161,6 +161,8 @@ namespace kosmos
                 spec.wheels.push_back(w);
             }
             spec.camera_distance = json.value("camera_distance", spec.camera_distance);
+            spec.retractable_gear = json.value("retractable_gear", false);
+            spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
             {
                 StageSpec stage;
@@ -196,6 +198,7 @@ namespace kosmos
                     PartSpec part;
                     part.prop = jp.value("prop", "");
                     part.model = jp.value("model", "");
+                    part.animations = jp.value("animations", "");
                     if (part.prop.empty() && part.model.empty())
                         for (const nlohmann::json &pt : jp.at("profile"))
                             part.profile.emplace_back(pt[0].get<float>(), pt[1].get<float>());
@@ -665,6 +668,16 @@ namespace kosmos
         if (crashed_)
             return;
         sl::FlightBody &b = body();
+        if (spec_.retractable_gear)
+        {
+            const double target = c.gear > 0.5 ? 1.0 : 0.0;
+            const double step = dt / spec_.gear_time;
+            gear_position_ = std::clamp(gear_position_ + std::clamp(target - gear_position_, -step, step), 0.0, 1.0);
+            const bool locked = gear_position_ >= 0.999;
+            for (sl::GearContact &g : b.gear)
+                g.enabled = locked;
+        }
+
         if (c.stage)
             stage_once();
         const double throttle = std::clamp(c.throttle, 0.0, 1.0);
@@ -887,6 +900,10 @@ namespace kosmos
         sl::dvec3 u, east, north;
         local_frame(u, east, north);
         t.pitch = std::asin(std::clamp(glm::dot(nose, u), -1.0, 1.0)) * 180.0 / pi;
+        {
+            const sl::dvec3 right = b.direction_to_world({1.0, 0.0, 0.0}), roof = b.direction_to_world({0.0, 1.0, 0.0});
+            t.roll = std::atan2(-glm::dot(right, u), glm::dot(roof, u)) * 180.0 / pi;
+        }
         const sl::dvec3 flat = nose - u * glm::dot(nose, u);
         t.heading = glm::length(flat) > 1e-6 ? std::fmod(std::atan2(glm::dot(flat, east), glm::dot(flat, north)) * 180.0 / pi + 360.0, 360.0) : 0.0;
 
@@ -1005,6 +1022,7 @@ namespace kosmos
         base_ = base;
         const auto num = [&](const char *path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
         tree.node(base + "/name")->tie_string([this] { return name; });
+        tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
         tree.node(base + "/stage")->tie_int([this] { return active_stage_; });
         tree.node(base + "/stage-count")->tie_int([this] { return stage_count(); });
         tree.node(base + "/crashed")->tie_bool([this] { return crashed_; });
@@ -1023,6 +1041,7 @@ namespace kosmos
         num("vertical-speed", [this] { return telemetry_.vertical_speed; });
         num("pitch", [this] { return telemetry_.pitch; });
         num("heading", [this] { return telemetry_.heading; });
+        num("roll", [this] { return telemetry_.roll; });
         num("alpha", [this] { return telemetry_.alpha; });
         num("sideslip", [this] { return telemetry_.sideslip; });
         num("dynamic-pressure", [this] { return telemetry_.dynamic_pressure; });

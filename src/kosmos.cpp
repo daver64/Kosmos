@@ -32,7 +32,7 @@
 
 // Kosmos: a space flight simulator. The first milestone flies a two-stage launcher from the pad to Earth orbit.
 //
-//   B: wheel brakes   F: cycle flaps (aircraft)
+//   B: wheel brakes   F: cycle flaps (aircraft)   L: landing gear up/down (retractable gear)
 //   Z/X: full / cut throttle   Shift/Ctrl: raise / lower throttle   Space: stage
 //   W/S: pitch   A/D: yaw   Q/E: roll   Arrows: RCS translate   T: cycle attitude hold   P: ascent autopilot
 //   , / . : time warp   [ / ] : zoom   Right-drag: look   O: orbit line   M: sound   R: reset   Esc: exit
@@ -63,6 +63,7 @@ namespace
         double selftest = 0.0;
         int max_texture = 16384;
         double selftest_warp = 0.0;
+        bool selftest_gear_up = false;
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;
@@ -412,6 +413,8 @@ namespace
                 sim.props.set_double("/controls/throttle", options.selftest_throttle);
                 sim.props.set_double("/controls/pitch", now.surface_speed > 40.0 && now.pitch < 8.0 ? 0.4 : (now.pitch > 12.0 ? -0.2 : 0.0));
             }
+            if (options.selftest_gear_up && ship->telemetry().altitude > 30.0)
+                sim.props.set_double("/controls/gear", 0.0);
             sim.step(dt);
             const kosmos::Telemetry &tm = ship->telemetry();
             const double report_every = ship->spec().aircraft() ? 2.0 : 10.0;
@@ -419,8 +422,8 @@ namespace
             {
                 next_report = sim.universe.time() + report_every;
                 if (ship->spec().aircraft())
-                    std::printf("t=%5.0f ias=%5.1f alt=%6.1f vs=%5.1f pitch=%5.1f aoa=%5.1f slip=%5.1f hdg=%5.1f landed=%d fuel=%4.0f%s\n", sim.universe.time(), tm.surface_speed,
-                                tm.altitude, tm.vertical_speed, tm.pitch, tm.alpha, tm.sideslip, tm.heading, tm.landed ? 1 : 0, tm.stage_fuel, ship->crashed() ? " CRASHED" : "");
+                    std::printf("t=%5.0f ias=%5.1f alt=%6.1f vs=%5.1f pitch=%5.1f aoa=%5.1f slip=%5.1f hdg=%5.1f landed=%d fuel=%4.0f gear=%.2f%s\n", sim.universe.time(), tm.surface_speed,
+                                tm.altitude, tm.vertical_speed, tm.pitch, tm.alpha, tm.sideslip, tm.heading, tm.landed ? 1 : 0, tm.stage_fuel, ship->gear_position(), ship->crashed() ? " CRASHED" : "");
                 if (ship->spec().aircraft() && sim.props.get_bool("/nav/nav[0]/valid"))
                     std::printf("   nav0: loc %.2f gs %.2f dist %.0f\n", sim.props.get_double("/nav/nav[0]/ils/localizer"), sim.props.get_double("/nav/nav[0]/ils/glideslope"), sim.props.get_double("/nav/nav[0]/distance"));
                 if (!ship->spec().aircraft())
@@ -1509,12 +1512,32 @@ namespace
         sl::Sample *rocket = nullptr, *hiss = nullptr, *wind = nullptr;
         std::uint64_t rocket_voice = 0, hiss_voice = 0, wind_voice = 0;
         bool started = false;
+        std::string data_root;
+        // One-shot effects from data/sounds (XRSound, MIT); a missing file just means silence for that event.
+        std::map<std::string, sl::Sample *> effects;
+
+        sl::Sample *effect(const std::string &name)
+        {
+            auto it = effects.find(name);
+            if (it == effects.end())
+                it = effects.emplace(name, sl::load_sample(data_root + "/data/sounds/" + name + ".wav")).first;
+            return it->second;
+        }
+        void play(const std::string &name, int volume = 200)
+        {
+            if (sl::Sample *s = effect(name))
+                sl::play_sample(s, volume, 128, 1000, 0);
+        }
 
         void start()
         {
             started = true;
-            rocket = fx::make_rocket_sound();
-            hiss = fx::make_hiss_sound();
+            rocket = effect("main_engines");
+            if (!rocket)
+                rocket = fx::make_rocket_sound();
+            hiss = effect("rcs_sustain");
+            if (!hiss)
+                hiss = fx::make_hiss_sound();
             wind = make_breeze_sound();
             rocket_voice = rocket ? sl::play_sample(rocket, 0, 128, 1000, -1) : 0;
             hiss_voice = hiss ? sl::play_sample(hiss, 0, 128, 1000, -1) : 0;
@@ -1535,12 +1558,16 @@ namespace
         void stop()
         {
             sl::stop_all_samples();
-            for (sl::Sample **s : {&rocket, &hiss, &wind})
-            {
-                if (*s)
+            for (const auto &e : effects)
+                if (e.second)
+                    sl::destroy_sample(e.second);
+            if (wind)
+                sl::destroy_sample(wind);
+            for (sl::Sample **s : {&rocket, &hiss})
+                if (*s && !std::any_of(effects.begin(), effects.end(), [&](const auto &e) { return e.second == *s; }))
                     sl::destroy_sample(*s);
-                *s = nullptr;
-            }
+            effects.clear();
+            rocket = hiss = wind = nullptr;
             sl::audio_fx_shutdown();
         }
     };
@@ -2127,6 +2154,8 @@ namespace
             loaded.model = sl::load_model(loaded.path.string());
             if (!loaded.model)
                 std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
+            if (loaded.model && !part.animations.empty() && !sl::load_model_animations_json(loaded.model, (std::filesystem::path(directory) / part.animations).string()))
+                std::fprintf(stderr, "[kosmos] cannot load animations %s: %s\n", part.animations.c_str(), sl::last_error().c_str());
             if (loaded.model)
                 for (sl::ModelPart &mp : loaded.model->parts)
                 {
@@ -2172,7 +2201,17 @@ namespace
         }
     };
 
-    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true)
+    // Drives a model's animations: simlib JSON animations read these named properties, and a glTF clip called "gear" is posed from
+    // gear-up (start) to gear-down (end).
+    void pose_model(sl::Model *model, double gear)
+    {
+        sl::set_model_property(model, "gear-position", static_cast<float>(gear));
+        const int clip = sl::find_model_clip(model, "gear");
+        if (clip >= 0)
+            sl::sample_model_clip(model, clip, static_cast<float>(gear) * sl::model_clip_duration(model, clip), false);
+    }
+
+    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0)
     {
         for (int s = first_stage; s <= last_stage; ++s)
             for (const kosmos::PartSpec &part : spec.stages[static_cast<std::size_t>(s)].parts)
@@ -2190,6 +2229,7 @@ namespace
                         }
                         if (part.scale != sl::dvec3(1.0))
                             place = glm::scale(place, glm::vec3(part.scale));
+                        pose_model(part_model, gear);
                         sl::draw_model(part_model, model * place);
                     }
                     continue;
@@ -2523,6 +2563,8 @@ int main(int argc, char **argv)
             options.view_base = argv[++i];
         else if (!std::strcmp(argv[i], "--selftest-throttle") && i + 1 < argc)
             options.selftest_throttle = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--selftest-gear-up"))
+            options.selftest_gear_up = true;
         else if (!std::strcmp(argv[i], "--selftest-warp") && i + 1 < argc)
             options.selftest_warp = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--shot-throttle") && i + 1 < argc)
@@ -3336,6 +3378,12 @@ int main(int argc, char **argv)
                 }
                 else if (key == sl::Event::Key::f8 || key == sl::Event::Key::f9)
                     sim.mfd.press(key == sl::Event::Key::f8 ? 0 : 1, 12);
+                else if (key == sl::Event::Key::letter_l && ship->spec().retractable_gear)
+                {
+                    const bool down = props.get_double("/controls/gear") > 0.5;
+                    props.set_double("/controls/gear", down ? 0.0 : 1.0);
+                    sound.play(down ? "gear_up" : "gear_down", 200);
+                }
                 else if (key == sl::Event::Key::letter_u)
                     props.set_bool("/dock/undock", true);
                 else if (key == sl::Event::Key::letter_o)
@@ -4188,7 +4236,7 @@ int main(int argc, char **argv)
                 const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(ob.position - eye_world)) *
                                         glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
                 if (!((in_cockpit || in_interior) && &other == ship))
-                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model);
+                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position());
                 else if (in_cockpit3d)
                 {
                     const kosmos::Cockpit &cp = other.spec().cockpit;
@@ -4409,7 +4457,42 @@ int main(int argc, char **argv)
         // Wind: a calm breeze near the ground, rising with airspeed, and drowned out by the engines.
         const double near_ground = home ? 1.0 - fx::smoothstep(200.0, 3000.0, tm.altitude) : 0.0;
         const double wind_level = air * std::max(0.45 * near_ground, std::min(1.0, tm.surface_speed / 200.0)) * (1.0 - std::min(1.0, rocket_level * 2.0));
-        sound.set(sound_on ? rocket_level * (0.35 + 0.65 * air) : 0.0, 0.0, sound_on ? wind_level : 0.0);
+        double rcs_level = 0.0;
+        for (const sl::Thruster &t : fb.thrusters)
+            if (t.max_thrust > 0.0 && t.level > 0.0 && t.tank >= 0 && t.max_thrust < 4000.0 && fb.tanks[static_cast<std::size_t>(t.tank)].mass > 0.0)
+                rcs_level = std::max(rcs_level, t.level);
+        sound.data_root = sim.root();
+        sound.set(sound_on ? rocket_level * (0.35 + 0.65 * air) : 0.0, sound_on ? rcs_level : 0.0, sound_on ? wind_level : 0.0);
+        {
+            // Event cues: one-shots on the edge of a state change. The first frame only records the state.
+            static bool seen = false, was_landed = false, was_crashed = false, was_docked = false, was_alarm = false;
+            static int was_stage = 0;
+            static double alarm_next = 0.0;
+            const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = props.get_bool("/dock/docked");
+            const bool alarm_now = ship->systems() && !ship->systems()->alarms().empty();
+            if (seen && sound_on)
+            {
+                if (crashed_now && !was_crashed)
+                    sound.play("crash", 255);
+                else if (landed_now && !was_landed && !crashed_now)
+                    sound.play("touchdown", 220);
+                if (docked_now != was_docked)
+                    sound.play(docked_now ? "docking" : "undocking", 200);
+                if (ship->active_stage() != was_stage)
+                    sound.play("thump", 230);
+                if (alarm_now && (!was_alarm || sl::time_ms() / 1000.0 > alarm_next))
+                {
+                    sound.play("warning_beep", 160);
+                    alarm_next = sl::time_ms() / 1000.0 + 4.0;
+                }
+            }
+            seen = true;
+            was_landed = landed_now;
+            was_crashed = crashed_now;
+            was_docked = docked_now;
+            was_alarm = alarm_now;
+            was_stage = ship->active_stage();
+        }
 
         // HUD.
         const std::string soi_name = soi_body.name;
@@ -4423,8 +4506,9 @@ int main(int argc, char **argv)
         {
             sl::gprintf(16, 34, {200, 220, 255}, "%s  Alt %s   Speed %.1f m/s   Vertical %.1f m/s", soi_name.c_str(), format_distance(tm.altitude).c_str(), tm.surface_speed, tm.vertical_speed);
             if (ship->spec().aircraft())
-                sl::gprintf(16, 52, {120, 255, 150}, "Climb %.1f m/s   Flight path %.1f deg   AoA %.1f deg   Slip %.1f deg   Q %.0f Pa   Flaps %.0f%%%s", tm.vertical_speed, tm.flight_path,
-                            tm.alpha, tm.sideslip, tm.dynamic_pressure, props.get_double("/controls/flaps") * 100.0, props.get_double("/controls/brake") > 0.5 ? "   BRAKES" : "");
+                sl::gprintf(16, 52, {120, 255, 150}, "Climb %.1f m/s   Flight path %.1f deg   AoA %.1f deg   Slip %.1f deg   Q %.0f Pa   Flaps %.0f%%%s%s", tm.vertical_speed, tm.flight_path,
+                            tm.alpha, tm.sideslip, tm.dynamic_pressure, props.get_double("/controls/flaps") * 100.0, props.get_double("/controls/brake") > 0.5 ? "   BRAKES" : "",
+                            !ship->spec().retractable_gear ? "" : ship->gear_position() >= 0.999 ? "   GEAR DOWN" : ship->gear_position() <= 0.001 ? "   GEAR UP" : "   GEAR MOVING");
             else if (tm.bound)
                 sl::gprintf(16, 52, {120, 255, 150}, "Apoapsis %s   Periapsis %s   Period %.1f min   Ecc %.3f", format_distance(tm.apoapsis).c_str(),
                             format_distance(tm.periapsis).c_str(), tm.period / 60.0, tm.eccentricity);

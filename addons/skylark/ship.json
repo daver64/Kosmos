@@ -12,11 +12,15 @@
  "torque_accel": 0.0,
  "drag_area": 0.8,
  "camera_distance": 22,
+ "retractable_gear": true,
+ "gear_time": 5,
  "inertia": [14000, 20000, 12000],
  "damping": [0.8, 1.0, 0.8],
  "cockpit": {
   "eye": [0, 0.6, -4.2],
   "mfds": true,
+  "mfd_left": "adi",
+  "mfd_right": "altimeter",
   "panel": [
    { "label": "IAS", "property": "{ship}/speed", "format": "%.0f m/s" },
    { "label": "ALT", "property": "{ship}/altitude", "format": "%.0f m" },

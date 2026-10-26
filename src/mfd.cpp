@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
@@ -53,6 +54,36 @@ namespace kosmos
         commands.push_back(std::move(cmd));
     }
 
+    void MfdCanvas::image(const std::string &file, float cx, float cy, float w, float h, sol::optional<float> angle, sol::optional<int> sx, sol::optional<int> sy, sol::optional<int> sw, sol::optional<int> sh)
+    {
+        MfdCommand cmd;
+        cmd.kind = MfdCommand::Kind::image;
+        cmd.a = cx;
+        cmd.b = cy;
+        cmd.c = w;
+        cmd.d = h;
+        cmd.e = angle.value_or(0.0f);
+        cmd.text = (std::filesystem::path(directory) / file).string();
+        cmd.src[0] = sx.value_or(0);
+        cmd.src[1] = sy.value_or(0);
+        cmd.src[2] = sw.value_or(0);
+        cmd.src[3] = sh.value_or(0);
+        commands.push_back(std::move(cmd));
+    }
+
+    sl::Bitmap *MfdSystem::bitmap(const std::string &path)
+    {
+        auto found = bitmaps_.find(path);
+        if (found == bitmaps_.end())
+        {
+            sl::Bitmap *loaded = sl::load_bitmap(path);
+            if (!loaded)
+                error_ = "cannot load image " + path;
+            found = bitmaps_.emplace(path, loaded).first;
+        }
+        return found->second;
+    }
+
     void MfdCanvas::arc(float cx, float cy, float r, float a0, float a1)
     {
         // Angles are degrees clockwise from 12 o'clock.
@@ -82,6 +113,7 @@ namespace kosmos
             "disc", [](MfdCanvas &g, float x, float y, float r) { g.push(MfdCommand::Kind::disc, x, y, r, 0); },
             "tri", [](MfdCanvas &g, float x1, float y1, float x2, float y2, float x3, float y3) { g.push(MfdCommand::Kind::tri, x1, y1, x2, y2, x3, y3); },
             "arc", &MfdCanvas::arc,
+            "image", &MfdCanvas::image,
             "text", &MfdCanvas::text);
     }
 
@@ -111,6 +143,7 @@ namespace kosmos
         MfdMode mode;
         mode.table = result.as<sol::table>();
         mode.id = id;
+        mode.directory = std::filesystem::path(path).parent_path().string();
         mode.addon = addon;
         mode.name = mode.table.get_or<std::string>("name", id);
         modes_.push_back(std::move(mode));
@@ -226,6 +259,14 @@ namespace kosmos
             case MfdCommand::Kind::tri:
                 sl::trianglefill(sl::screen, X(c.a), Y(c.b), X(c.c), Y(c.d), X(c.e), Y(c.f), c.colour);
                 break;
+            case MfdCommand::Kind::image:
+                if (sl::Bitmap *bmp = bitmap(c.text))
+                {
+                    const int sw = c.src[2] > 0 ? c.src[2] : bmp->width, sh = c.src[3] > 0 ? c.src[3] : bmp->height;
+                    const float w = c.c * s, h = c.d * s;
+                    sl::draw_sprite_region_rotated(bmp, c.src[0], c.src[1], sw, sh, X(c.a) - w / 2, Y(c.b) - h / 2, w, h, w / 2, h / 2, c.e);
+                }
+                break;
             case MfdCommand::Kind::text:
             {
                 int x = static_cast<int>(X(c.a));
@@ -311,6 +352,8 @@ namespace kosmos
         MfdCanvas g;
         g.set_colour(120, 255, 140);
         const MfdMode *mode = u.mode >= 0 ? &modes_[static_cast<std::size_t>(u.mode)] : nullptr;
+        if (mode)
+            g.directory = mode->directory;
         if (u.selecting || !mode)
             draw_select(u, g);
         else

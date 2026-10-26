@@ -6,6 +6,7 @@
 
 #include <sol/sol.hpp>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,11 +19,13 @@ namespace kosmos
     /** One recorded drawing command from a mode script. */
     struct MfdCommand
     {
-        enum class Kind { line, rect, fillrect, circle, disc, tri, text } kind = Kind::line;
+        enum class Kind { line, rect, fillrect, circle, disc, tri, text, image } kind = Kind::line;
         float a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
         sl::Colour colour{255, 255, 255, 255};
         std::string text;
         int align = 0; // 0 left, 1 centre, 2 right
+        /** Image commands: the source region in pixels (all zero for the whole bitmap). The path is in `text`, centre and size in a..d, angle in e. */
+        int src[4] = {0, 0, 0, 0};
     };
 
     /** The drawing surface handed to a mode script's draw(self, g). Records commands in mfd_size units. */
@@ -30,6 +33,9 @@ namespace kosmos
     {
         std::vector<MfdCommand> commands;
         sl::Colour colour{120, 255, 140, 255};
+        /** The folder of the mode being drawn; image() names are relative to it. */
+        std::string directory;
+        void image(const std::string &file, float cx, float cy, float w, float h, sol::optional<float> angle, sol::optional<int> sx, sol::optional<int> sy, sol::optional<int> sw, sol::optional<int> sh);
         void set_colour(int r, int g, int b) { colour = {static_cast<std::uint8_t>(r), static_cast<std::uint8_t>(g), static_cast<std::uint8_t>(b), 255}; }
         void push(MfdCommand::Kind k, float a, float b, float c, float d, float e = 0, float f = 0);
         void text(float x, float y, const std::string &s, sol::optional<int> align);
@@ -39,7 +45,7 @@ namespace kosmos
     /** A mode registered by an addon script: its Lua table and the folder it came from. */
     struct MfdMode
     {
-        std::string id, name, addon;
+        std::string id, name, addon, directory;
         sol::table table;
     };
 
@@ -93,6 +99,9 @@ namespace kosmos
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
         void draw_select(MfdUnit &unit, MfdCanvas &g);
         void draw_frame(const MfdLayout &layout, const MfdUnit &unit, const MfdMode *mode);
+        sl::Bitmap *bitmap(const std::string &path);
+
+        std::map<std::string, sl::Bitmap *> bitmaps_;
 
         sl::LuaRuntime *lua_ = nullptr;
         std::vector<MfdMode> modes_;

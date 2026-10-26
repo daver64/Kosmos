@@ -1,0 +1,9 @@
+{
+  "id": "instruments",
+  "name": "Bitmap instruments",
+  "version": "0.1",
+  "mfds": [
+    { "id": "adi", "script": "adi.lua" },
+    { "id": "altimeter", "script": "altimeter.lua" }
+  ]
+}

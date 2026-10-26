@@ -87,6 +87,8 @@ namespace kosmos
         /** Model parts only: a scale, then a rotation in degrees about X, Y and Z, applied before `offset`. */
         sl::dvec3 scale{1.0};
         sl::dvec3 rotate{0.0};
+        /** Model parts only: a simlib animation JSON (relative to the addon folder) loaded onto the model. */
+        std::string animations;
     };
 
     /** One separable section of a ship. Stages are listed from the bottom of the stack, which is jettisoned first. */
@@ -167,6 +169,9 @@ namespace kosmos
         double drag_area = 10.0;
         /** Camera distance that frames the ship. */
         double camera_distance = 60.0;
+        /** Landing gear that folds away: it takes `gear_time` seconds to move and only carries load while fully down. */
+        bool retractable_gear = false;
+        double gear_time = 6.0;
         std::vector<StageSpec> stages;
         /** Aerodynamic surfaces and wheels, for aircraft and anything else that flies in an atmosphere. */
         std::vector<CameraSpec> cameras;
@@ -199,6 +204,8 @@ namespace kosmos
         double brake = 0.0;
         /** Flaps, 0 (up) to 1 (full). */
         double flaps = 0.0;
+        /** Landing gear, 0 (up) or 1 (down); only ships with retractable gear react. */
+        double gear = 1.0;
     };
 
     /** Values derived from the ship's state once per frame; published to the property tree. */
@@ -214,6 +221,8 @@ namespace kosmos
         double time_to_apoapsis = 0.0, time_to_periapsis = 0.0;
         bool bound = false;
         double pitch = 0.0, heading = 0.0;
+        /** Bank angle in degrees, positive with the right wing down; 180 is inverted. */
+        double roll = 0.0;
         double mass = 0.0, thrust = 0.0, twr = 0.0, acceleration_g = 0.0;
         double stage_fuel = 0.0, total_fuel = 0.0;
         /** Aerodynamics: angle of attack and sideslip in degrees, dynamic pressure in pascals and the climb angle in degrees. */
@@ -250,6 +259,8 @@ namespace kosmos
         std::string name;
         int body_id() const { return body_; }
         int active_stage() const { return active_stage_; }
+        /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
+        double gear_position() const { return gear_position_; }
         int stage_count() const { return static_cast<int>(spec_.stages.size()); }
         bool crashed() const { return crashed_; }
         const Telemetry &telemetry() const { return telemetry_; }
@@ -325,6 +336,7 @@ namespace kosmos
         int active_stage_ = 0;
         bool crashed_ = false;
         double gear_k_ = 0.0;
+        double gear_position_ = 1.0;
         double attached_mass_ = 0.0;
         Telemetry telemetry_;
         std::vector<Debris> debris_;

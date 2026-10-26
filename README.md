@@ -43,6 +43,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | **F12** | **Multiplayer** window: host or join a game, browse the IRC lobby, chat |
 | **Menu bar** | Move the mouse to the top of the screen and a **File / Edit / View / Tools / Help** bar slides in (View > *Keep menu bar visible* pins it). **File**: open a scenario (built-in list or a `.json` file), *Save scenario* (captures every ship's live position; orbits are saved as circular), restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
 | B / F | Wheel brakes / cycle flaps (aircraft) |
+| L | Landing gear up / down (retractable gear) |
 | V | Switch ship |
 | O | Orbit line |
 | I | Show or hide all on-screen text (title, telemetry, nearest base, key help) |
@@ -142,7 +143,7 @@ Modes are Lua addons. An addon.json lists them:
 {"id": "mymfd", "mfds": [{"id": "fuel", "script": "fuel.lua"}]}
 ```
 
-A script returns a table: `name`, `buttons` (12 labels, left column then right), `init(self)`, `update(self, dt)`, `draw(self, g, w, h)` and `button(self, i)` (1-based). Each MFD gets its own `self` table. `g` draws in a 400x400 box: `g:colour(r,g,b)`, `line`, `rect`, `fillrect`, `circle`, `disc`, `tri`, `arc(cx,cy,r,deg0,deg1)` and `g:text(x,y,s,align)` with align 0 left, 1 centre, 2 right. Scripts read the property tree (`props.get`), for example `/ships/ship[0]/latitude`. See `addons/stockmfd` for Orbit, Surface and Map. 
+A script returns a table: `name`, `buttons` (12 labels, left column then right), `init(self)`, `update(self, dt)`, `draw(self, g, w, h)` and `button(self, i)` (1-based). Each MFD gets its own `self` table. `g` draws in a 400x400 box: `g:colour(r,g,b)`, `line`, `rect`, `fillrect`, `circle`, `disc`, `tri`, `arc(cx,cy,r,deg0,deg1)` `g:text(x,y,s,align)` with align 0 left, 1 centre, 2 right, and `g:image(file,cx,cy,w,h,angle,sx,sy,sw,sh)` for a PNG from the mode's folder (rotated, optionally a source region). `addons/instruments` has an Attitude Indicator and an Altimeter built from bitmaps (`tools/make_instrument_bitmaps.py` draws the placeholders; replace them with real artwork of the same size). Scripts read the property tree (`props.get`), for example `/ships/ship[0]/latitude`. See `addons/stockmfd` for Orbit, Surface and Map. 
 
 **Cockpits.** Press **C** to cycle chase view, 2D cockpit and 3D cockpit (`--cockpit`, `--cockpit3d`). A ship with a `cockpit` block in ship.json gets a dashboard with two MFDs under its instrument row; set `"mfds": false` to turn that off and `"mfd_left"`/`"mfd_right"` to name the default modes. In the 3D cockpit the MFDs are render-to-texture screens on a console in the ship frame, and the buttons are clicked by ray picking. The console and screen positions are fixed in code for now. Not done yet: Orbiter's other nine stock modes, and per-ship interior models.
 
@@ -212,7 +213,7 @@ A ship with `"class": "aircraft"` flies in an atmosphere using simlib's flight m
 - `inertia` (optional): moments about X, Y, Z in kg m^2.
 - `cameras` (optional, any ship): extra interior viewpoints with `name`, `position`, `yaw`, `pitch`, `fov`, listed in the F2 window.
 
-The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. See `addons/skylark` and scenarios 19 (takeoff) and 20 (ILS approach). Property tree: `/ships/ship/alpha`, `sideslip`, `dynamic-pressure`, `flight-path`, and `/controls/brake`, `/controls/flaps`.
+The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. See `addons/skylark` and scenarios 19 (takeoff) and 20 (ILS approach). Property tree: `/ships/ship/alpha`, `sideslip`, `dynamic-pressure`, `flight-path`, and `/controls/brake`, `/controls/flaps`, `/controls/gear`. Ships with `"retractable_gear": true` (and `gear_time`) fold their gear away: it carries load only when fully down, and `/ships/ship/gear-position` reports the travel. A model part may name an `animations` JSON (simlib format, driven by `gear-position`), or a glTF model may carry a `gear` clip.
 
 Headless test: `--scenario 19_skylark_takeoff --selftest 60 --selftest-throttle 1` flies a scripted takeoff and prints airspeed, climb and ILS deviations.
 
