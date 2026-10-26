@@ -58,6 +58,10 @@
     {
       "id": "docking",
       "script": "docking.lua"
+    },
+    {
+      "id": "systems",
+      "script": "systems.lua"
     }
   ]
 }

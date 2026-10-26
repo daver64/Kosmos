@@ -171,11 +171,31 @@ int main()
         assert(load_ship_spec((dir / "ship.json").string(), ship, error));
         assert(ship.systems.vessels.size() == 1);
         const VesselSpec &v = ship.systems.vessels[0];
-        std::printf("from_mesh %d crew %d seats %zu vents %zu\n", v.from_mesh, v.crew, v.crew_at.size(), v.vents.size());
         assert(v.from_mesh && v.crew == 2 && v.crew_at.size() == 2 && v.vents.size() == 1);
         assert(std::fabs(v.size.x - 2.4) < 1e-3 && std::fabs(v.size.z - 7.0) < 1e-3);
         assert(std::fabs(v.centre.z - 10.0) < 1e-3 && std::fabs(v.pressure_kpa - 90.0) < 1e-9);
         std::filesystem::remove_all(dir);
+    }
+    {
+        // An enabled electrolyser turns water into oxygen and hydrogen (8:1 by mass) and is off by default.
+        SystemsSpec s = parse(R"({"systems":[{"type":"battery","capacity_wh":5000,"max_w":2000},
+            {"type":"tank","gas":"water","capacity_kg":10},{"type":"tank","gas":"oxygen","capacity_kg":10,"kg":0},
+            {"type":"tank","gas":"hydrogen","capacity_kg":10,"kg":0},{"type":"electrolyser","watts":1000,"enabled":true}]})");
+        Systems sys(s, LifeSupportMode::warn);
+        SystemsContext c;
+        for (int i = 1; i <= 360; ++i)
+        {
+            c.mission_time = i * 10.0;
+            sys.step(10.0, c);
+        }
+        const double water_used = 10.0 - sys.tank_kg("water");
+        assert(std::fabs(water_used - 0.18) < 0.01);
+        assert(std::fabs(sys.tank_kg("oxygen") - water_used * 8.0 / 9.0) < 1e-6);
+        assert(std::fabs(sys.tank_kg("hydrogen") - water_used / 9.0) < 1e-6);
+        SystemsSpec off = parse(R"({"systems":[{"type":"tank","gas":"water","capacity_kg":10},{"type":"electrolyser","watts":1000}]})");
+        Systems idle(off, LifeSupportMode::warn);
+        idle.step(100.0, c);
+        assert(idle.tank_kg("water") == 10.0);
     }
     std::puts("systems_test ok");
     return 0;

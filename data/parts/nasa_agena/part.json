@@ -24,5 +24,19 @@
    "fuel": "hypergolic"
   }
  ],
- "model": "nasa_agena.glb"
+ "model": "nasa_agena.glb",
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 2000,
+   "max_w": 3000
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ]
 }

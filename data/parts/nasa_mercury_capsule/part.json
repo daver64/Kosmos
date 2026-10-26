@@ -4,5 +4,52 @@
  "length": 2.9,
  "radius": 0.94,
  "dry_mass": 1100,
- "model": "nasa_mercury_capsule.glb"
+ "model": "nasa_mercury_capsule.glb",
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 3000,
+   "max_w": 3000
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 4
+  },
+  {
+   "type": "regulator",
+   "name": "Cabin regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 2,
+   "sorbent_kg": 15
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0,
+    1.0
+   ],
+   "size": [
+    1.2,
+    1.2,
+    1.5
+   ],
+   "crew": 1
+  }
+ ]
 }

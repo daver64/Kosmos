@@ -422,6 +422,7 @@ namespace kosmos
         supply_w_ = fixed;
         demand_w_ = wanted;
         bus_powered_ = !shed;
+        instruments_powered_ = budget > 1e-9 || loads.empty();
 
         double need = used - fixed;
         if (need > 0.0)
@@ -628,6 +629,7 @@ namespace kosmos
         tree.node(base + "/life-support")->tie_string([this] { return std::string(life_support_name(mode_)); });
         tree.node(base + "/alarm")->tie_string([this] { return alarm_text(); });
         tree.node(base + "/crew-lost")->tie_bool([this] { return crew_lost_; });
+        tree.node(base + "/bus/instruments")->tie_bool([this] { return instruments_powered_; });
         tree.node(base + "/bus/powered")->tie_bool([this] { return bus_powered_; });
         num("bus/supply-w", [this] { return supply_w_; });
         num("bus/demand-w", [this] { return demand_w_; });
@@ -636,6 +638,7 @@ namespace kosmos
             const double cap = battery_capacity_wh();
             return cap > 0.0 ? 100.0 * battery_wh() / cap : 0.0;
         });
+        num("vessel-count", [this] { return static_cast<double>(vessels_.size()); });
         for (const char *gas : {"oxygen", "nitrogen", "water", "hydrogen", "deuterium"})
             num(std::string("tank/") + gas + "-kg", [this, gas] { return tank_kg(gas); });
         for (std::size_t i = 0; i < vessels_.size(); ++i)
@@ -648,6 +651,11 @@ namespace kosmos
             num(vb + "ppco2-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].ppco2_kpa() : 0.0; });
             num(vb + "health", [this, i] { return vessels_[i].health; });
             num(vb + "leak-rate", [this, i] { return vessels_[i].leak_k; });
+            // Writing an area (cm2) here opens a leak in this vessel; it reads back as 0.
+            tree.node(base + "/" + vb + "breach-cm2")->tie_double([] { return 0.0; }, [this, i](double area) {
+                if (area > 0.0)
+                    breach(static_cast<int>(i), area);
+            });
         }
     }
 } // namespace kosmos

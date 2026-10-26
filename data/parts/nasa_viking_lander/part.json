@@ -4,5 +4,24 @@
  "length": 2.3,
  "radius": 2.15,
  "dry_mass": 600,
- "model": "nasa_viking_lander.glb"
+ "model": "nasa_viking_lander.glb",
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 1500,
+   "max_w": 3000
+  },
+  {
+   "type": "rtg",
+   "name": "RTG",
+   "watts": 70
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 150,
+   "priority": 0
+  }
+ ]
 }

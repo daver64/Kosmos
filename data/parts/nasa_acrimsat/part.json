@@ -4,5 +4,30 @@
  "length": 0.76,
  "radius": 1.0,
  "dry_mass": 119,
- "model": "nasa_acrimsat.glb"
+ "model": "nasa_acrimsat.glb",
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 500,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Panels",
+   "area_m2": 2,
+   "efficiency": 0.2,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 60,
+   "priority": 0
+  }
+ ]
 }

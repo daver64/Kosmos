@@ -442,6 +442,14 @@ namespace kosmos
             text("Target", scenario_.target);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("A ship or body name for the Target MFD; empty for none");
+            {
+                const std::vector<std::string> modes = {"(program default)", "off", "warn", "fatal"};
+                int index = scenario_.life_support == "off" ? 1 : scenario_.life_support == "warn" ? 2 : scenario_.life_support == "fatal" ? 3 : 0;
+                if (combo("Life support", index, modes))
+                    scenario_.life_support = index == 0 ? "" : modes[static_cast<std::size_t>(index)];
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("What failing life support does to a crew: nothing, alarms only, or the crew dies");
+            }
             for (std::size_t i = 0; i < 2; ++i)
             {
                 if (scenario_.nav.size() <= i)
@@ -466,6 +474,20 @@ namespace kosmos
             if (combo("Ship", ship_index, ships) && ship_index >= 0)
                 s.ship = ships[static_cast<std::size_t>(ship_index)];
             text("Label", s.label);
+            dbl("Cabin leak cm2", s.leak_cm2, 0.1f, 0.0, 1000.0, "%.1f");
+            if (s.battery < 0.0)
+                s.battery = -1.0;
+            {
+                bool custom = s.battery >= 0.0;
+                if (ImGui::Checkbox("Set battery charge", &custom))
+                    s.battery = custom ? 1.0 : -1.0;
+                if (custom)
+                {
+                    ImGui::SameLine();
+                    ImGui::SetNextItemWidth(120.0f);
+                    dbl("##battery", s.battery, 0.01f, 0.0, 1.0, "%.2f");
+                }
+            }
             int body_index = index_of(bodies, s.body);
             if (combo("Body", body_index, bodies) && body_index >= 0)
                 s.body = bodies[static_cast<std::size_t>(body_index)];

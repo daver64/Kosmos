@@ -127,6 +127,8 @@ namespace kosmos
 
         bool crew_lost() const { return crew_lost_; }
         bool powered() const { return bus_powered_; }
+        /** True while any electricity is available; MFDs and lights go dark when it is not. */
+        bool instruments_powered() const { return instruments_powered_; }
         const std::vector<std::string> &alarms() const { return alarms_; }
         std::string alarm_text() const;
 
@@ -172,6 +174,7 @@ namespace kosmos
         LifeSupportMode mode_ = LifeSupportMode::warn;
         bool crew_lost_ = false;
         bool bus_powered_ = true;
+        bool instruments_powered_ = true;
         double supply_w_ = 0.0, demand_w_ = 0.0;
         std::vector<std::string> alarms_;
     };

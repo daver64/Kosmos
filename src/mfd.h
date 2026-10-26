@@ -84,6 +84,8 @@ namespace kosmos
         int hit_test(int side, const MfdLayout &layout, float px, float py) const;
         /** Draw the stock MFD pair as 2D panels on the screen bottom. Returns true if the mouse was used. */
         bool handle_mouse(const MfdLayout &left, const MfdLayout &right, bool clicked, int mx, int my);
+        /** False when the active ship's electrical bus is browned out: every MFD acts as if switched off. */
+        bool bus_power = true;
         const std::string &last_error() const { return error_; }
 
     private:

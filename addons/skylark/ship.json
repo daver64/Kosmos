@@ -18,32 +18,32 @@
   "eye": [0, 0.6, -4.2],
   "mfds": true,
   "panel": [
-   {"label": "IAS", "property": "{ship}/speed", "format": "%.0f m/s"},
-   {"label": "ALT", "property": "{ship}/altitude", "format": "%.0f m"},
-   {"label": "VS", "property": "{ship}/vertical-speed", "format": "%.1f m/s"},
-   {"label": "HDG", "property": "{ship}/heading", "format": "%.0f"},
-   {"label": "AOA", "property": "{ship}/alpha", "format": "%.1f deg"},
-   {"label": "FUEL", "property": "{ship}/stage-fuel", "format": "%.0f kg"},
-   {"label": "THR", "property": "/controls/throttle", "scale": 100, "format": "%.0f %%"},
-   {"label": "FLAP", "property": "/controls/flaps", "scale": 100, "format": "%.0f %%"}
+   { "label": "IAS", "property": "{ship}/speed", "format": "%.0f m/s" },
+   { "label": "ALT", "property": "{ship}/altitude", "format": "%.0f m" },
+   { "label": "VS", "property": "{ship}/vertical-speed", "format": "%.1f m/s" },
+   { "label": "HDG", "property": "{ship}/heading", "format": "%.0f" },
+   { "label": "AOA", "property": "{ship}/alpha", "format": "%.1f deg" },
+   { "label": "FUEL", "property": "{ship}/stage-fuel", "format": "%.0f kg" },
+   { "label": "THR", "property": "/controls/throttle", "scale": 100, "format": "%.0f %%" },
+   { "label": "FLAP", "property": "/controls/flaps", "scale": 100, "format": "%.0f %%" }
   ]
  },
  "cameras": [
-  {"name": "Passenger cabin", "position": [0, 0.3, 0.5], "fov": 70},
-  {"name": "Tail", "position": [0, 2.6, 7.2], "yaw": 180, "pitch": 5, "fov": 55}
+  { "name": "Passenger cabin", "position": [0, 0.3, 0.5], "fov": 70 },
+  { "name": "Tail", "position": [0, 2.6, 7.2], "yaw": 180, "pitch": 5, "fov": 55 }
  ],
  "surfaces": [
-  {"control": "", "position": [0, 0, 0.15], "area": 10, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15},
-  {"control": "flaps", "position": [0, 0, 0.15], "area": 8, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": 8},
-  {"control": "aileron", "position": [4.2, 0, 0.3], "area": 1, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": 12},
-  {"control": "aileron", "position": [-4.2, 0, 0.3], "area": 1, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": -12},
-  {"control": "elevator", "position": [0, 0.3, 6.5], "area": 4, "cl0": -0.12, "cl_alpha": 4.0, "cd0": 0.015, "induced_drag": 0.06, "stall_deg": 16, "gain_deg": -12},
-  {"control": "rudder", "position": [0, 1.2, 6.5], "forward": [0, 0, -1], "up": [1, 0, 0], "area": 2.5, "cl0": 0, "cl_alpha": 3.5, "cd0": 0.015, "induced_drag": 0.06, "stall_deg": 16, "gain_deg": 15}
+  { "control": "", "position": [0, 0, 0.15], "area": 10, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15 },
+  { "control": "flaps", "position": [0, 0, 0.15], "area": 8, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": 8 },
+  { "control": "aileron", "position": [4.2, 0, 0.3], "area": 1, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": 12 },
+  { "control": "aileron", "position": [-4.2, 0, 0.3], "area": 1, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15, "gain_deg": -12 },
+  { "control": "elevator", "position": [0, 0.3, 6.5], "area": 4, "cl0": -0.12, "cl_alpha": 4.0, "cd0": 0.015, "induced_drag": 0.06, "stall_deg": 16, "gain_deg": -12 },
+  { "control": "rudder", "position": [0, 1.2, 6.5], "forward": [0, 0, -1], "up": [1, 0, 0], "area": 2.5, "cl0": 0, "cl_alpha": 3.5, "cd0": 0.015, "induced_drag": 0.06, "stall_deg": 16, "gain_deg": 15 }
  ],
  "wheels": [
-  {"position": [0, -2.1, -3.5], "steer_deg": 40, "rolling_resistance": 0.03},
-  {"position": [1.8, -2.1, 1.0], "rolling_resistance": 0.03},
-  {"position": [-1.8, -2.1, 1.0], "rolling_resistance": 0.03}
+  { "position": [0, -2.1, -3.5], "steer_deg": 40, "rolling_resistance": 0.03 },
+  { "position": [1.8, -2.1, 1.0], "rolling_resistance": 0.03 },
+  { "position": [-1.8, -2.1, 1.0], "rolling_resistance": 0.03 }
  ],
  "stages": [
   {
@@ -54,12 +54,24 @@
    "length": 11,
    "radius": 1.0,
    "engines": [
-    {"position": [2.3, 0, 0], "direction": [0, 0, -1], "thrust": 7000, "isp": 3000, "plume": 4, "type": "jet"},
-    {"position": [-2.3, 0, 0], "direction": [0, 0, -1], "thrust": 7000, "isp": 3000, "plume": 4, "type": "jet"}
+    { "position": [2.3, 0, 0], "direction": [0, 0, -1], "thrust": 7000, "isp": 3000, "plume": 4, "type": "jet" },
+    { "position": [-2.3, 0, 0], "direction": [0, 0, -1], "thrust": 7000, "isp": 3000, "plume": 4, "type": "jet" }
    ],
    "parts": [
-    {"prop": "aeroplane", "span": 12, "offset": [0, -2.1, 0.3], "colour": [232, 234, 238], "accent": [40, 90, 170]}
+    { "prop": "aeroplane", "span": 12, "offset": [0, -2.1, 0.3], "colour": [232, 234, 238], "accent": [40, 90, 170] }
    ]
   }
+ ],
+ "systems": [
+  { "type": "battery", "name": "Batteries", "capacity_wh": 6000, "max_w": 3000 },
+  { "type": "load", "name": "Avionics", "watts": 300, "priority": 0 },
+  { "type": "tank", "gas": "oxygen", "capacity_kg": 10 },
+  { "type": "tank", "gas": "nitrogen", "capacity_kg": 6 },
+  { "type": "tank", "gas": "water", "capacity_kg": 20 },
+  { "type": "regulator", "name": "Cabin regulator", "vessel": "Cabin" },
+  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 4, "sorbent_kg": 30 }
+ ],
+ "vessels": [
+  { "name": "Cabin", "position": [0, 0.3, 2.5], "size": [2.0, 1.6, 3.5], "crew": 2 }
  ]
 }

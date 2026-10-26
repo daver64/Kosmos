@@ -153,7 +153,7 @@ namespace kosmos
             u.power = !u.power;
             return;
         }
-        if (!u.power)
+        if (!u.power || !bus_power)
             return;
         if (button == 13 || button == 14)
         {
@@ -184,7 +184,7 @@ namespace kosmos
     {
         for (MfdUnit &u : units_)
         {
-            if (!u.power || u.mode < 0 || u.selecting)
+            if (!u.power || !bus_power || u.mode < 0 || u.selecting)
                 continue;
             sol::protected_function fn = modes_[static_cast<std::size_t>(u.mode)].table["update"];
             if (!fn.valid())
@@ -273,7 +273,7 @@ namespace kosmos
         {
             const float x = l + (i + 0.5f) * layout.size / 3.0f - bw;
             const float y = b + 8 * s;
-            const bool lit = i == 0 && unit.power;
+            const bool lit = i == 0 && unit.power && bus_power;
             sl::rectfill(sl::screen, x, y, x + 2 * bw, y + bh, lit ? sl::Colour{60, 150, 70, 255} : sl::Colour{70, 74, 84, 255});
             sl::gprintf(static_cast<int>(x + 6 * s), static_cast<int>(y + 2 * s), font_for(static_cast<int>(11 * s * 1.2f)), {230, 230, 230}, "%s", button_names[i]);
         }
@@ -306,7 +306,7 @@ namespace kosmos
             draw_frame(layout, u, nullptr);
         if (buttons)
             buttons->clear();
-        if (!u.power)
+        if (!u.power || !bus_power)
             return;
         MfdCanvas g;
         g.set_colour(120, 255, 140);

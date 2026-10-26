@@ -3711,6 +3711,7 @@ int main(int argc, char **argv)
 
         if (in_cockpit3d)
         {
+            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             for (int side = 0; side < 2; ++side)
                 sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
@@ -3767,6 +3768,8 @@ int main(int argc, char **argv)
                     for (const kosmos::LightSpec &spec : lit_ship.spec().lights)
                     {
                         if (spec.stage >= 0 && lit_ship.active_stage() > spec.stage)
+                            continue;
+                        if (lit_ship.systems() && !lit_ship.systems()->instruments_powered())
                             continue;
                         for (int i = 0; i < spec.count; ++i)
                         {
@@ -4510,6 +4513,7 @@ int main(int argc, char **argv)
             left.y = right.y = top;
             left.x = screen_w / 2.0f - size - 70.0f;
             right.x = screen_w / 2.0f + 70.0f;
+            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
             sim.mfd.handle_mouse(left, right, down && !mfd_mouse_prev, sl::mouse_x(), sl::mouse_y());
@@ -4549,6 +4553,7 @@ int main(int argc, char **argv)
             left.y = right.y = hud ? 140.0f : screen_h - size - 90.0f;
             left.x = hud ? 20.0f : screen_w / 2.0f - size - 70.0f;
             right.x = hud ? screen_w - size - 20.0f : screen_w / 2.0f + 70.0f;
+            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
             if (!hud)

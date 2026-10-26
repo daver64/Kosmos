@@ -4,5 +4,18 @@
  "length": 6.6,
  "radius": 1.81,
  "dry_mass": 258,
- "model": "nasa_pioneer10.glb"
+ "model": "nasa_pioneer10.glb",
+ "systems": [
+  {
+   "type": "rtg",
+   "name": "RTG",
+   "watts": 155
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 100,
+   "priority": 0
+  }
+ ]
 }

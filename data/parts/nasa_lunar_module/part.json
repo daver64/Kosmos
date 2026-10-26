@@ -24,5 +24,52 @@
    "fuel": "hypergolic"
   }
  ],
- "model": "nasa_lunar_module.glb"
+ "model": "nasa_lunar_module.glb",
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 3000,
+   "max_w": 3000
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 20
+  },
+  {
+   "type": "regulator",
+   "name": "Cabin regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 2,
+   "sorbent_kg": 15
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0,
+    3.0
+   ],
+   "size": [
+    2.4,
+    2.4,
+    2.3
+   ],
+   "crew": 2
+  }
+ ]
 }
