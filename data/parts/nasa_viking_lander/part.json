@@ -1,0 +1,8 @@
+{
+ "name": "Viking Lander",
+ "description": "Viking lander.",
+ "length": 2.3,
+ "radius": 2.15,
+ "dry_mass": 600,
+ "model": "nasa_viking_lander.glb"
+}

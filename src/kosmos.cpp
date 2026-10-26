@@ -2050,6 +2050,8 @@ namespace
         sl::Bitmap *glow_texture = nullptr, *puff_texture = nullptr, *cloud_texture = nullptr, *lights_texture = nullptr;
         sl::Bitmap *star_surface = nullptr, *star_filaments = nullptr, *star_corona = nullptr, *star_corona_far = nullptr, *star_rays = nullptr, *star_limb = nullptr, *sky = nullptr;
         std::vector<sl::Bitmap *> body_textures;
+        // Optional per-body shape replacing the sphere; entries may be null.
+        std::vector<sl::Model *> body_meshes;
         // Optional per-body normal maps (fake relief for airless moons); entries may be null.
         std::vector<sl::Bitmap *> body_normals;
         std::unique_ptr<sl::PlanetTiles> earth_tiles;
@@ -2729,6 +2731,10 @@ int main(int argc, char **argv)
                 sl::destroy_mesh(m);
         vis.body_textures.clear();
         vis.body_normals.clear();
+        for (sl::Model *m : vis.body_meshes)
+            if (m)
+                sl::destroy_model(m);
+        vis.body_meshes.clear();
         vis.earth_tiles.reset();
         vis.rings.clear();
         vis.surface_textured.clear();
@@ -2750,6 +2756,19 @@ int main(int argc, char **argv)
                 if (b.minor)
                     shared_rock = vis.body_textures.back();
             }
+            sl::Model *shape = nullptr;
+            if (!b.mesh.empty())
+            {
+                shape = sl::load_model(sim.root() + "/data/" + b.mesh);
+                if (!shape || shape->parts.empty() || !shape->parts[0].mesh)
+                {
+                    std::fprintf(stderr, "[kosmos] cannot load body mesh %s: %s\n", b.mesh.c_str(), sl::last_error().c_str());
+                    if (shape)
+                        sl::destroy_model(shape);
+                    shape = nullptr;
+                }
+            }
+            vis.body_meshes.push_back(shape);
             if (!b.minor)
             {
                 const std::string image = find_surface_image(sim.root(), b);
@@ -2963,6 +2982,7 @@ int main(int argc, char **argv)
     }
     settings_defaults(sim.props);
     settings_load(sim.props);
+    kosmos::set_stock_model_folder(sim.root() + "/data");
     if (!kosmos::Sim::user_dir().empty())
         kosmos::set_base_model_folder((std::filesystem::path(kosmos::Sim::user_dir()) / "bases").string());
     if (!options.blender.empty())
@@ -3875,7 +3895,7 @@ int main(int argc, char **argv)
                     vis.earth_tiles->draw(tile_model, tiled);
                 }
                 else
-                    sl::draw_mesh(vis.sphere, model, rock);
+                    sl::draw_mesh(i < vis.body_meshes.size() && vis.body_meshes[i] ? vis.body_meshes[i]->parts[0].mesh : vis.sphere, model, rock);
                 // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
                 // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
                 const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);

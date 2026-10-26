@@ -1,5 +1,6 @@
 /build*/
 /data/orbiter/
+/data/nasa/
 __pycache__/
 *.swp
 *.png

@@ -605,6 +605,22 @@ namespace kosmos
                 return false;
             }
             file = found;
+            if (is_stock_model(found))
+            {
+                // Shipped models are never edited in place: work on a copy in the user's models folder.
+                const fs::path copy = fs::path(user_folder("bases")) / "models" / fs::path(found).filename();
+                std::error_code copy_ec;
+                fs::create_directories(copy.parent_path(), copy_ec);
+                if (!fs::exists(copy, copy_ec))
+                    fs::copy_file(found, copy, copy_ec);
+                if (copy_ec)
+                {
+                    blender_status_ = "Cannot copy the stock model: " + copy_ec.message();
+                    return false;
+                }
+                file = copy;
+                base.objects[static_cast<std::size_t>(indices[0])].model = (fs::path("models") / copy.filename()).generic_string();
+            }
         }
         else
         {
@@ -807,6 +823,23 @@ namespace kosmos
                         std::snprintf(buf, sizeof buf, "%s  (%.0f, %.0f)%s", o.type.c_str(), o.x, o.z, o.count > 1 ? "  x" : "");
                         return std::string(buf) + (o.count > 1 ? std::to_string(o.count) : std::string());
                     }, fresh);
+                    {
+                        static std::vector<std::string> stock = stock_base_models();
+                        static int stock_pick = 0;
+                        if (!stock.empty())
+                        {
+                            combo("Stock model", stock_pick, stock);
+                            ImGui::SameLine();
+                            if (ImGui::Button("Add##stock"))
+                            {
+                                BaseObject model;
+                                model.type = "model";
+                                model.model = stock[static_cast<std::size_t>(std::clamp(stock_pick, 0, static_cast<int>(stock.size()) - 1))];
+                                b.objects.push_back(model);
+                                object_ = static_cast<int>(b.objects.size()) - 1;
+                            }
+                        }
+                    }
                     if (!b.objects.empty())
                     {
                         object_ = std::clamp(object_, 0, static_cast<int>(b.objects.size()) - 1);

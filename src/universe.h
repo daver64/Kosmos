@@ -42,6 +42,8 @@ namespace kosmos
         std::string terrain;
         /** Optional surface image (equirectangular, any size up to 16384 x 8192 or more) relative to data/; empty looks for data/textures/<name>.jpg|png. */
         std::string texture;
+        /** Optional glTF mesh relative to data/ drawn instead of the sphere; unit mean radius, scaled by `radius`. Physics stays a sphere. */
+        std::string mesh;
         /** A procedurally generated rock: drawn but not labelled or listed on the map. */
         bool minor = false;
         /** Axial tilt in radians, applied to the drawn body and its rings only. */

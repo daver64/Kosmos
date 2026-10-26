@@ -116,6 +116,12 @@ namespace kosmos
     void base_local_xz(const Universe &universe, const Base &base, const sl::dvec3 &world_point, double &x, double &z);
     /** Where the user's models live; model paths that are not found beside the base file are looked for here. */
     void set_base_model_folder(const std::string &folder);
+    /** The data folder; model paths such as parts/nasa_vab/nasa_vab.glb are looked for under it last, so shipped models can be placed in a base. */
+    void set_stock_model_folder(const std::string &folder);
+    /** The shipped models (parts/<name>/<name>.glb under the data folder) as paths relative to it. */
+    std::vector<std::string> stock_base_models();
+    /** True when a resolved path lies inside the data folder, where files must not be edited in place. */
+    bool is_stock_model(const std::string &path);
     /** The file a model object refers to, or an empty string when it is not found. */
     std::string resolve_base_model(const Base &base, const std::string &model);
     /** A builder-made object's mesh in its own frame (scale not applied), or false for "model" and unknown types. */

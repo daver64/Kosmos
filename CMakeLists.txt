@@ -78,4 +78,4 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
     ASSETS data addons assets
     EXTRA_FILES README.md
-    EXCLUDE "/data/orbiter(/|$)" "/data/celestia/hires(/|$)" "/data/celestia/moons(/|$)")
+    EXCLUDE "/data/orbiter(/|$)" "/data/nasa(/|$)" "/data/celestia/hires(/|$)" "/data/celestia/moons(/|$)")

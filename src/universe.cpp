@@ -134,6 +134,7 @@ namespace kosmos
             body.spin = entry.value("spin", 0.0);
             body.terrain = entry.value("terrain", "");
             body.texture = entry.value("texture", "");
+            body.mesh = entry.value("mesh", "");
             body.minor = entry.value("minor", false);
             body.tilt = entry.value("tilt", 0.0) * pi / 180.0;
             if (const auto r = entry.find("rings"); r != entry.end())

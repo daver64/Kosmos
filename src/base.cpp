@@ -382,11 +382,49 @@ namespace kosmos
             static std::string folder;
             return folder;
         }
+
+        std::string &stock_folder()
+        {
+            static std::string folder;
+            return folder;
+        }
     }
 
     void set_base_model_folder(const std::string &folder)
     {
         model_folder() = folder;
+    }
+
+    void set_stock_model_folder(const std::string &folder)
+    {
+        stock_folder() = folder;
+    }
+
+    std::vector<std::string> stock_base_models()
+    {
+        namespace fs = std::filesystem;
+        std::vector<std::string> found;
+        std::error_code ec;
+        const fs::path root = fs::path(stock_folder()) / "parts";
+        if (stock_folder().empty() || !fs::is_directory(root, ec))
+            return found;
+        for (const fs::directory_entry &folder : fs::directory_iterator(root, ec))
+            if (folder.is_directory(ec))
+                for (const fs::directory_entry &file : fs::directory_iterator(folder.path(), ec))
+                    if (file.path().extension() == ".glb")
+                        found.push_back(fs::relative(file.path(), stock_folder(), ec).generic_string());
+        std::sort(found.begin(), found.end());
+        return found;
+    }
+
+    bool is_stock_model(const std::string &path)
+    {
+        if (stock_folder().empty() || path.empty())
+            return false;
+        std::error_code ec;
+        const std::filesystem::path root = std::filesystem::weakly_canonical(stock_folder(), ec);
+        const std::string rel = std::filesystem::relative(std::filesystem::weakly_canonical(path, ec), root, ec).generic_string();
+        return !rel.empty() && rel.compare(0, 2, "..") != 0;
     }
 
     std::string resolve_base_model(const Base &base, const std::string &model)
@@ -398,7 +436,7 @@ namespace kosmos
         const fs::path given(model);
         if (given.is_absolute())
             return fs::exists(given, ec) ? given.string() : std::string();
-        for (const std::string &folder : {base.source_dir, model_folder()})
+        for (const std::string &folder : {base.source_dir, model_folder(), stock_folder()})
             if (!folder.empty() && fs::exists(fs::path(folder) / given, ec))
                 return (fs::path(folder) / given).string();
         return {};

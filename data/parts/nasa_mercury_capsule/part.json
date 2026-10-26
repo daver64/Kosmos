@@ -1,0 +1,8 @@
+{
+ "name": "Mercury Capsule",
+ "description": "Mercury capsule (Friendship 7).",
+ "length": 2.9,
+ "radius": 0.94,
+ "dry_mass": 1100,
+ "model": "nasa_mercury_capsule.glb"
+}

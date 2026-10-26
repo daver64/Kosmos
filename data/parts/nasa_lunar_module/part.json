@@ -1,0 +1,28 @@
+{
+ "name": "Lunar Module",
+ "description": "Apollo Lunar Module, descent and ascent stages together.",
+ "length": 7.0,
+ "radius": 4.49,
+ "dry_mass": 4700,
+ "propellant": 10500,
+ "engines": [
+  {
+   "position": [
+    0,
+    0,
+    -0.9
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "thrust": 45040,
+   "isp": 311,
+   "plume": 2.0,
+   "type": "rocket",
+   "fuel": "hypergolic"
+  }
+ ],
+ "model": "nasa_lunar_module.glb"
+}

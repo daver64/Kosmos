@@ -1,0 +1,28 @@
+{
+ "name": "Agena",
+ "description": "Gemini Agena target vehicle with its main engine at the bottom.",
+ "length": 8.0,
+ "radius": 1.89,
+ "dry_mass": 800,
+ "propellant": 6100,
+ "engines": [
+  {
+   "position": [
+    0,
+    0,
+    -0.2
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "thrust": 71000,
+   "isp": 285,
+   "plume": 2.5,
+   "type": "rocket",
+   "fuel": "hypergolic"
+  }
+ ],
+ "model": "nasa_agena.glb"
+}

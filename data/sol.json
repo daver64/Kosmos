@@ -24,7 +24,7 @@
      "orbit": {"a_km": 23463, "e": 0.0005, "i": 27.6, "raan": 49, "argp": 0, "m0": 120}},
     {"name": "Ceres", "kind": "asteroid", "parent": "Sun", "gm": 6.2628e10, "radius": 4.697e5, "spin": 1.9e-4,
      "colour": [140, 135, 130], "orbit": {"a_au": 2.7675, "e": 0.0758, "i": 10.594, "raan": 80.305, "argp": 73.597, "m0": 77.372}},
-    {"name": "Vesta", "kind": "asteroid", "parent": "Sun", "gm": 1.7288e10, "radius": 2.627e5, "spin": 3.26e-4,
+    {"name": "Vesta", "kind": "asteroid", "parent": "Sun", "gm": 1.7288e10, "radius": 2.627e5, "spin": 3.26e-4, "mesh": "bodies/vesta.glb",
      "colour": [170, 160, 145], "orbit": {"a_au": 2.3615, "e": 0.0887, "i": 7.14, "raan": 103.8, "argp": 151.2, "m0": 20.9}},
     {"name": "Pallas", "kind": "asteroid", "parent": "Sun", "gm": 1.43e10, "radius": 2.56e5, "spin": 2.7e-4,
      "colour": [135, 135, 140], "orbit": {"a_au": 2.7706, "e": 0.2313, "i": 34.93, "raan": 173.0, "argp": 310.2, "m0": 60.0}},

@@ -1,0 +1,8 @@
+{
+ "name": "Pioneer10",
+ "description": "Pioneer 10 with its magnetometer boom; the dish faces the nose.",
+ "length": 6.6,
+ "radius": 1.81,
+ "dry_mass": 258,
+ "model": "nasa_pioneer10.glb"
+}
