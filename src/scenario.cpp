@@ -4,6 +4,7 @@
 #include "universe.h"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -181,16 +182,36 @@ namespace kosmos
         if (!fs::is_directory(folder))
             return result;
         std::vector<fs::path> files;
-        for (const fs::directory_entry &e : fs::directory_iterator(folder))
-            if (e.is_regular_file() && e.path().extension() == ".json")
-                files.push_back(e.path());
+        std::error_code ec;
+        for (fs::recursive_directory_iterator it(folder, fs::directory_options::skip_permission_denied, ec), end; !ec && it != end; it.increment(ec))
+            if (it->is_regular_file() && it->path().extension() == ".json")
+                files.push_back(it->path());
         std::sort(files.begin(), files.end());
         for (const fs::path &f : files)
         {
             Scenario s;
             std::string error;
             if (load_scenario(f.string(), s, error))
+            {
+                std::string group;
+                for (const fs::path &part : fs::relative(f.parent_path(), folder))
+                {
+                    std::string name = part.string();
+                    if (name == "." || name.empty())
+                        continue;
+                    std::size_t digits = 0;
+                    while (digits < name.size() && std::isdigit(static_cast<unsigned char>(name[digits])))
+                        ++digits;
+                    if (digits > 0 && digits + 1 < name.size() && name[digits] == '_')
+                        name = name.substr(digits + 1);
+                    for (char &c : name)
+                        if (c == '_')
+                            c = ' ';
+                    group += (group.empty() ? "" : "/") + name;
+                }
+                s.group = group;
                 result.push_back(std::move(s));
+            }
             else
                 errors.push_back(error);
         }

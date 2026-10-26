@@ -36,6 +36,8 @@ namespace kosmos
     struct Scenario
     {
         std::string id, name, description, path;
+        /** Menu folder, from the sub-folders the file sits in ("Saturn", "Saturn/Moons"); empty at the top level. Not stored in the file. */
+        std::string group;
         int active = 0;
         /** Initial /sim/target (a ship or body name) and NAV1/NAV2 frequencies; empty or 0 leaves them unset. */
         std::string target;
@@ -53,6 +55,6 @@ namespace kosmos
     /** Parse scenario JSON text; `path` names the file for the id and for error messages. */
     bool parse_scenario(const std::string &text, const std::string &path, Scenario &out, std::string &error);
     bool load_scenario(const std::string &path, Scenario &out, std::string &error);
-    /** Every *.json in a folder, sorted by file name. Unreadable files are reported through `errors`. */
+    /** Every *.json in a folder and its sub-folders, sorted by path (a leading "NN_" is dropped from group names). Unreadable files are reported through `errors`. */
     std::vector<Scenario> load_scenarios_in(const std::string &folder, std::vector<std::string> &errors);
 } // namespace kosmos

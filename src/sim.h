@@ -72,6 +72,8 @@ namespace kosmos
         static std::string user_dir();
         /** Re-read the user's scenarios and bases, replacing entries with the same id. Bases are only added or replaced when not yet loaded. */
         void load_user_content();
+        /** Re-read every scenario folder (bundled, addons, user), so scenario files edited outside Kosmos show up. */
+        void refresh_scenarios();
 
         Galaxy galaxy;
         Universe universe;

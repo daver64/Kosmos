@@ -1,11 +1,11 @@
 {
  "name": "Ares Spider",
  "lights": [
-  { "position": [-4.95, 0, 0], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [4.95, 0, 0], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [0, 4.95, -1], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
-  { "position": [2.5, 0, 4.5], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 8, "range": 180, "inner": 15, "outer": 40, "glow": 0.4 },
-  { "position": [-2.5, 0, 4.5], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 8, "range": 180, "inner": 15, "outer": 40, "glow": 0.4 }
+  { "position": [-4.45, 0, -0.7], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [4.45, 0, -0.7], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [0, 0, -5.45], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
+  { "position": [2.4, 0, 1.15], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 8, "range": 180, "inner": 15, "outer": 40, "glow": 0.4 },
+  { "position": [-2.4, 0, 1.15], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 8, "range": 180, "inner": 15, "outer": 40, "glow": 0.4 }
  ],
  "class": "lander",
  "torque_accel": 0.5,

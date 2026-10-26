@@ -1159,6 +1159,30 @@ namespace kosmos
         }
     }
 
+    void MenuBar::scenario_menu(const std::vector<Scenario> &all, const std::string &prefix, const Scenario *&chosen)
+    {
+        const std::string head = prefix.empty() ? std::string() : prefix + "/";
+        std::vector<std::string> children;
+        for (const Scenario &sc : all)
+        {
+            if (sc.group.compare(0, head.size(), head) != 0 || sc.group.size() <= head.size() || (!prefix.empty() && sc.group == prefix))
+                continue;
+            const std::string rest = sc.group.substr(head.size());
+            const std::string child = rest.substr(0, rest.find('/'));
+            if (std::find(children.begin(), children.end(), child) == children.end())
+                children.push_back(child);
+        }
+        for (const std::string &child : children)
+            if (ImGui::BeginMenu(child.c_str()))
+            {
+                scenario_menu(all, head + child, chosen);
+                ImGui::EndMenu();
+            }
+        for (const Scenario &sc : all)
+            if (sc.group == prefix && ImGui::MenuItem(sc.name.c_str()))
+                chosen = &sc;
+    }
+
     void MenuBar::draw(Sim &sim, std::vector<MenuWindow> &windows, const MenuActions &actions)
     {
         ImGuiIO &io = ImGui::GetIO();
@@ -1195,10 +1219,22 @@ namespace kosmos
                 {
                     if (ImGui::BeginMenu("Open scenario"))
                     {
-                        for (const Scenario &sc : sim.scenarios())
-                            if (ImGui::MenuItem(sc.name.c_str()) && actions.start_scenario)
-                                actions.start_scenario(sc);
+                        // The folders are re-read while the menu is open (at most once a second), so edits made outside Kosmos appear.
+                        const double now = ImGui::GetTime();
+                        if (now - scenario_scan_time > 1.0)
+                        {
+                            sim.refresh_scenarios();
+                            scenario_scan_time = now;
+                        }
+                        const std::vector<Scenario> &all = sim.scenarios();
+                        const Scenario *chosen = nullptr;
+                        scenario_menu(all, "", chosen);
                         ImGui::EndMenu();
+                        if (chosen && actions.start_scenario)
+                        {
+                            const Scenario copy = *chosen;
+                            actions.start_scenario(copy);
+                        }
                     }
                     if (ImGui::MenuItem("Open scenario file..."))
                         dialog.show(FileDialog::Mode::open, "Open scenario", user_folder("scenarios"), "", [this, &actions](const std::string &path) {

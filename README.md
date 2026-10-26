@@ -133,7 +133,7 @@ with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. O
 
 ## MFDs (multi-function displays)
 
-Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). **F6/F7** cycle the left/right mode, **F8/F9** toggle power. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
+Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
 
 Modes are Lua addons. An addon.json lists them:
 
@@ -157,6 +157,8 @@ JSON files in `data/scenarios/` (and `scenarios/` inside any addon) describe a s
 {"name": "...", "description": "...", "active": 0,
  "ships": [{"ship": "Wren", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 51.6, "phase": 0}}]}
 ```
+
+Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
 `data/scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 

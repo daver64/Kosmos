@@ -227,6 +227,19 @@ namespace kosmos
         return dir.empty() ? std::string() : (dir / "kosmos").string();
     }
 
+    void Sim::refresh_scenarios()
+    {
+        namespace fs = std::filesystem;
+        std::vector<std::string> errors;
+        scenarios_ = load_scenarios_in((fs::path(root_) / "data" / "scenarios").string(), errors);
+        for (const Addon &addon : addons_)
+            for (Scenario &sc : load_scenarios_in((fs::path(addon.directory) / "scenarios").string(), errors))
+                scenarios_.push_back(std::move(sc));
+        for (const std::string &e : errors)
+            log("scenario " + e);
+        load_user_content();
+    }
+
     void Sim::load_user_content()
     {
         namespace fs = std::filesystem;

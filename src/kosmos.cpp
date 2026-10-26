@@ -2610,7 +2610,7 @@ int main(int argc, char **argv)
     if (options.list_scenarios)
     {
         for (const kosmos::Scenario &sc : sim.scenarios())
-            std::printf("%-22s %s\n", sc.id.c_str(), sc.name.c_str());
+            std::printf("%-22s %-16s %s\n", sc.id.c_str(), sc.group.c_str(), sc.name.c_str());
         return 0;
     }
     if (!options.export_base.empty())
@@ -3008,6 +3008,8 @@ int main(int argc, char **argv)
     if (!options.target.empty())
         sim.props.set_string("/sim/target", options.target);
     int mfd_display = options.mfd_display;
+    // In the 2D cockpit the MFDs are the dashboard by default; F5 steps dashboard, heads-up, off.
+    int cockpit_mfd = 0;
     bool mfd_mouse_prev = false;
     bool cockpit3d = options.cockpit3d;
     // Camera selection (F2): a ship's interior camera or a base camera, besides the chase and cockpit views.
@@ -3286,7 +3288,14 @@ int main(int argc, char **argv)
                     cam_distance = ship->spec().camera_distance;
                 }
                 else if (key == sl::Event::Key::f5)
-                    mfd_display = (mfd_display + 1) % 3;
+                {
+                    const bool on_dashboard = cockpit_view && !cockpit3d && ship->spec().cockpit.present && ship->spec().cockpit.mfds &&
+                                              !map_mode && interior_cam < 0 && base_view < 0;
+                    if (on_dashboard)
+                        cockpit_mfd = (cockpit_mfd + 1) % 3;
+                    else
+                        mfd_display = (mfd_display + 1) % 3;
+                }
                 else if (key == sl::Event::Key::f6 || key == sl::Event::Key::f7)
                 {
                     const int side = key == sl::Event::Key::f6 ? 0 : 1;
@@ -4415,7 +4424,8 @@ int main(int argc, char **argv)
         const std::vector<std::string> &messages = sim.messages();
         for (std::size_t i = 0; i < messages.size(); ++i)
             sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
-        const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds;
+        const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
+        const bool cockpit_mfd_overlay = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd != 0;
         if (in_cockpit3d)
         {
             // Pick MFD buttons by casting the mouse ray at the two screen quads.
@@ -4496,9 +4506,9 @@ int main(int argc, char **argv)
                 sl::gprintf(x + 6, panel_y + 22, {200, 255, 220}, "%s", value);
             }
         }
-        if (mfd_display > 0 && !dashboard && !in_cockpit3d && !map_mode && !galaxy_mode)
+        if ((cockpit_mfd_overlay ? cockpit_mfd == 1 : mfd_display > 0) && !dashboard && !in_cockpit3d && !map_mode && !galaxy_mode)
         {
-            const bool hud = mfd_display == 2;
+            const bool hud = cockpit_mfd_overlay || mfd_display == 2;
             const float size = hud ? 300.0f : std::min(320.0f, screen_h * 0.38f);
             kosmos::MfdLayout left, right;
             left.size = right.size = size;

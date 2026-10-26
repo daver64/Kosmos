@@ -116,6 +116,9 @@ namespace kosmos
         ScenarioEditor scenario_editor;
         BaseEditor base_editor;
         FileDialog dialog;
+        double scenario_scan_time = -10.0;
+        /** One level of the Open scenario menu: sub-menus for the folders under `prefix`, then its own scenarios. */
+        void scenario_menu(const std::vector<Scenario> &all, const std::string &prefix, const Scenario *&chosen);
 
     private:
         float slide_ = 0.0f;
