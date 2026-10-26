@@ -350,6 +350,7 @@ namespace kosmos
     {
         Controls c;
         c.throttle = props.get_double("/controls/throttle");
+        c.hover = props.get_double("/controls/hover");
         c.pitch = props.get_double("/controls/pitch");
         c.yaw = props.get_double("/controls/yaw");
         c.roll = props.get_double("/controls/roll");

@@ -4,5 +4,11 @@
   "version": "0.1",
   "ships": [
     "ship.json"
+  ],
+  "mfds": [
+    {
+      "id": "shuttlea_levels",
+      "script": "levels.lua"
+    }
   ]
 }

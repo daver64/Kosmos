@@ -41,7 +41,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | **F4** | **Property browser**: browse, filter, read and write the property tree (like FlightGear). Typing in its boxes does not fly the ship |
 | **F11** | **Lua console** (like FlightGear's Nasal console): edit scripts with syntax highlighting, **Run** (Ctrl+Enter), **Save** (Ctrl+S, to `~/.config/kosmos/scripts/`). Choose the event that runs a script: manual, scenario load / ship change, every frame, timer, or when a property changes, and tick **Armed**. Scripts see `props` plus `event`, `dt`, `event_path`, `event_value`; `print` and errors go to the output pane. Examples live in `data/scripts/` |
 | **F12** | **Multiplayer** window: host or join a game, browse the IRC lobby, chat |
-| **Menu bar** | A **File / Edit / View / Tools / Help** bar is pinned along the top (untick View > *Keep menu bar visible* and it slides in only when the mouse touches the top edge). **File**: open a scenario (built-in list or a `.json` file), *Save scenario* (captures every ship's live position; orbits are saved as circular), restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
+| **Menu bar** | A **File / Edit / View / Tools / Help** bar is pinned along the top (untick View > *Keep menu bar visible* and it slides in only when the mouse touches the top edge). **File**: open a scenario (built-in list or a `.json` file), *Save scenario* (captures every ship's live position; orbits are saved as circular), restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, *Start/Stop recording video* (H.264 + AAC sound, `kosmos-<time>.mp4` in the working directory, needs `ffmpeg` on the path), reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
 | B / F | Wheel brakes / cycle flaps (aircraft) |
 | L | Landing gear up / down (retractable gear) |
 | V | Switch ship |
@@ -59,9 +59,11 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | `--galaxy-map` | Start in the galaxy map |
 | `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit |
 | `--max-texture N` | Largest body texture accepted (default 16384; halved until the GPU accepts it) |
+| `--gl`, `--vulkan`, `--d3d12` | Choose the graphics backend (D3D12 is Windows only). Vulkan prefers a discrete GPU (`SIMLIB_VULKAN_DEVICE_TYPE=discrete\|integrated\|any` overrides); the chosen GPU is printed at startup |
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot |
+| `--record SECS` | Record a video from the start for SECS seconds, then quit |
 | `--host [PORT]` | Host a multiplayer game (default UDP port 7777) |
 | `--join HOST[:PORT]` | Join a hosted game |
 | `--name NAME` | Your name in multiplayer and the lobby |
@@ -121,11 +123,13 @@ Each engine in a stage has a `type` and, for rockets, a `fuel`; together they de
 | `rocket` | by `fuel`: `kerosene` yellow and billowy (default), `hydrogen` longer, tighter and blue-white, `methane`, `hypergolic` |
 | `solid` | short, fat and orange |
 | `nuclear` | violet glow |
-| `scramjet` | blue with shock diamonds; air-breathing |
+| `scramjet` | blue with shock diamonds; air-breathing unless `"air_breathing": false` is set |
 | `jet` | invisible, unless `"afterburner": true` and the throttle is above 80%; air-breathing |
 | `hyperjump` | no thrust and no plume (the interstellar jump drive) |
 
 A ship's `camera_target` (`[x, y, z]` in the ship frame, nose along -Z) is the point the external camera orbits and looks at instead of the centre of mass, with `camera_distance` as the range; use it on a tall ship. `"horizontal": true` makes a non-aircraft ship (a rocket-class vessel such as the Shuttle-A) rest level on its `gear` (roof +Y, nose along the base heading) instead of standing nose-up; put the gear at negative Y.
+
+An engine with `"group": "hover"` is driven by a separate hover throttle (`/controls/hover`) instead of the main throttle: Keypad + / − raise and lower it, Keypad 0 is full hover and Keypad . cuts it; the HUD shows `Hover %` on ships that have such engines. An aircraft-class ship with hover thrust holds itself level with RCS (SAS not off), since its control surfaces have no airflow to work with.
 
 `plume` is the plume length in metres; `plume_width` and `plume_glow` (default 1) scale its width and brightness, for a very big engine. `plume_density` (default 1) scales how many particles it spawns, so a big plume looks smooth rather than dotty.
 
@@ -167,6 +171,8 @@ A script returns a table: `name`, `buttons` (12 labels, left column then right),
 Align Planes, Sync Orbit and Transfer work against a target ship or body. Set it with the TGT+/TGT- buttons, `--target NAME`, or `/sim/target`. Telemetry appears under `/target/...`.
 
 ### Cameras
+
+In the chase view, dragging with the mouse orbits the ship (the ship stays centred); the camera is kept above the terrain.
 
 **C** cycles chase, 2D cockpit, 3D cockpit and then your own cameras, which include a built-in orbiting **External** camera that always looks at the ship. **View > Camera editor** (or the button in F2) makes more: *orbit* cameras circle a ship, planet or moon (right-drag swings, `[` `]` zoom, optional spin), and *mounted* cameras sit at an offset on a ship or body and face a direction or look at another ship or body. They are saved in `~/.config/kosmos/cameras.json`. `--user-camera N` starts through the Nth one and `--camera-editor` opens the editor.
 
@@ -236,7 +242,7 @@ A ship with `"class": "aircraft"` flies in an atmosphere using simlib's flight m
 - `inertia` (optional): moments about X, Y, Z in kg m^2.
 - `cameras` (optional, any ship): extra interior viewpoints with `name`, `position`, `yaw`, `pitch`, `fov`, listed in the F2 window.
 
-The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. See `addons/skylark` and scenarios 19 (takeoff) and 20 (ILS approach). Property tree: `/ships/ship/alpha`, `sideslip`, `dynamic-pressure`, `flight-path`, and `/controls/brake`, `/controls/flaps`, `/controls/gear`. Ships with `"retractable_gear": true` (and `gear_time`) fold their gear away: it carries load only when fully down, and `/ships/ship/gear-position` reports the travel. A model part may name an `animations` JSON (simlib format, driven by `gear-position`), or a glTF model may carry a `gear` clip.
+The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. See `addons/skylark` and scenarios 19 (takeoff) and 20 (ILS approach). Property tree: `/ships/ship/alpha`, `sideslip`, `dynamic-pressure`, `flight-path`, `rate-pitch`, `rate-yaw`, `rate-roll` (angular rates in deg/s; nose up, nose right and right bank are positive), and `/controls/brake`, `/controls/flaps`, `/controls/gear`. Ships with `"retractable_gear": true` (and `gear_time`) fold their gear away: it carries load only when fully down, and `/ships/ship/gear-position` reports the travel. A model part may name an `animations` JSON (simlib format, driven by `gear-position`), or a glTF model may carry a `gear` clip.
 
 Headless test: `--scenario 19_skylark_takeoff --selftest 60 --selftest-throttle 1` flies a scripted takeoff and prints airspeed, climb and ILS deviations.
 

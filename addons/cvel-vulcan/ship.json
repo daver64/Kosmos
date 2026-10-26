@@ -31,10 +31,10 @@
    ],
    "area": 300,
    "cl0": 0.1,
-   "cl_alpha": 3.6,
+   "cl_alpha": 2.6,
    "cd0": 0.012,
-   "induced_drag": 0.12,
-   "stall_deg": 18
+   "induced_drag": 0.2,
+   "stall_deg": 30
   },
   {
    "control": "flaps",
@@ -45,10 +45,10 @@
    ],
    "area": 60,
    "cl0": 0.1,
-   "cl_alpha": 3.0,
+   "cl_alpha": 2.6,
    "cd0": 0.012,
-   "induced_drag": 0.12,
-   "stall_deg": 18,
+   "induced_drag": 0.2,
+   "stall_deg": 30,
    "gain_deg": 10
   },
   {

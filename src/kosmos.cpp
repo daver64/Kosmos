@@ -29,11 +29,13 @@
 #else
 #include <unistd.h>
 #endif
+#include <mutex>
 #include <vector>
 
 // Kosmos: a space flight simulator. The first milestone flies a two-stage launcher from the pad to Earth orbit.
 //
 //   B: wheel brakes   F: cycle flaps (aircraft)   L: landing gear up/down (retractable gear)
+//   Keypad +/-/0/.: hover engines (ships with a hover group)
 //   Z/X: full / cut throttle   Shift/Ctrl: raise / lower throttle   Space: stage
 //   W/S: pitch   A/D: yaw   Q/E: roll   Arrows: RCS translate   T: cycle attitude hold   P: ascent autopilot
 //   , / . : time warp   [ / ] : zoom   Right-drag: look   O: orbit line   M: sound   R: reset   Esc: exit
@@ -85,6 +87,7 @@ namespace
         std::string view_base; // "base:index" to start looking through a base camera
         std::string shot;
         double shot_at = 10.0;
+        double record_seconds = 0.0; // --record SECONDS: record a video from the start, then quit
         double shot_time = 0.0;
         double earth_turn = 0.0;
         /** Julian date (UTC) to start on, from --date or --mjd; 0 uses the scenario's date or the default. */
@@ -296,6 +299,7 @@ namespace
         for (int i = 0; i < kosmos::NavSystem::receivers; ++i)
             sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
         sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");
         sim.props.set_bool("/autopilot/enabled", false);
         sim.props.set_int("/sim/warp-index", 0);
@@ -396,6 +400,7 @@ namespace
         }
         sim.activate(options.ship_index);
         sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");
         sim.props.set_bool("/autopilot/enabled", options.autopilot);
         sim.props.set_int("/sim/warp-index", 0);
@@ -1836,7 +1841,7 @@ namespace
         sl::Bitmap *bitmap = sl::load_bitmap(path);
         if (!bitmap)
         {
-            std::fprintf(stderr, "[kosmos] could not load %s\n", path.c_str());
+            std::fprintf(stderr, "[kosmos] could not load %s (%s)\n", path.c_str(), sl::last_error().c_str());
             return nullptr;
         }
         return finish_cpu_texture(bitmap, path, max_size);
@@ -2096,6 +2101,7 @@ namespace
             glm::vec3 position, velocity;
             float age, life, size, body = 0.55f, bright = 1.0f;
             std::uint8_t kind = kerosene;
+            bool splashed = false;
         };
         std::vector<Particle> particles;
         std::vector<Diamond> diamonds;
@@ -2109,7 +2115,7 @@ namespace
             return static_cast<float>(seed >> 8) / 16777216.0f;
         }
 
-        void update(const kosmos::Ship &ship, double vacuum, float dt, bool spawn)
+        void update(const kosmos::Ship &ship, double vacuum, float dt, bool spawn, bool has_ground = false, float ground_up_height = 0.0f, glm::vec3 up = glm::vec3(0, 1, 0))
         {
             if (owner != &ship)
             {
@@ -2120,6 +2126,32 @@ namespace
             {
                 p.age += dt;
                 p.position += p.velocity * dt;
+                if (has_ground)
+                {
+                    // Fake ground splash: the plume cannot pass the ground plane, so it is turned and sprayed along it.
+                    const float height = ground_up_height + glm::dot(up, p.position - glm::vec3(ship.com_offset()));
+                    if (height < 0.2f)
+                    {
+                        p.position += up * (0.2f - height);
+                        const float down = -glm::dot(up, p.velocity);
+                        if (down > 0.0f)
+                        {
+                            glm::vec3 along = p.velocity + up * down;
+                            glm::vec3 out = glm::vec3(random01() - 0.5f, random01() - 0.5f, random01() - 0.5f);
+                            out -= up * glm::dot(up, out);
+                            const float flat = glm::length(out);
+                            if (flat > 1e-4f)
+                                out /= flat;
+                            p.velocity = along * 0.25f + out * (down * 0.9f) + up * (down * 0.08f * random01());
+                        }
+                        if (!p.splashed)
+                        {
+                            p.splashed = true;
+                            p.life = std::min(p.life, p.age + 0.35f + 0.25f * random01());
+                            p.size *= 1.5f;
+                        }
+                    }
+                }
             }
             particles.erase(std::remove_if(particles.begin(), particles.end(), [](const Particle &p) { return p.age >= p.life; }), particles.end());
             diamonds.clear();
@@ -2801,6 +2833,8 @@ int main(int argc, char **argv)
             options.shot_throttle = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--shot") && i + 1 < argc)
             options.shot = argv[++i];
+        else if (!std::strcmp(argv[i], "--record") && i + 1 < argc)
+            options.record_seconds = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--shot-at") && i + 1 < argc)
             options.shot_at = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--autopilot"))
@@ -3499,6 +3533,91 @@ int main(int argc, char **argv)
     };
     menu_actions.quit = [&]() { running = false; };
     menu_actions.screenshot = [&]() { screenshot_requested = true; };
+    // Video capture: raw frames from the screen are piped to ffmpeg, which stamps them by wall clock and encodes 30 fps H.264.
+    FILE *record_pipe = nullptr, *record_pcm = nullptr;
+    std::string record_file, record_video, record_pcm_file;
+    long record_frames = 0;
+    int record_w = 0, record_h = 0, record_rate = 48000, record_channels = 2;
+    std::mutex record_audio_mutex;
+    std::vector<std::int16_t> record_audio;
+    auto flush_record_audio = [&]()
+    {
+        std::vector<std::int16_t> chunk;
+        {
+            std::lock_guard<std::mutex> lock(record_audio_mutex);
+            chunk.swap(record_audio);
+        }
+        if (record_pcm && !chunk.empty())
+            std::fwrite(chunk.data(), sizeof(std::int16_t), chunk.size(), record_pcm);
+    };
+    auto stop_recording = [&]()
+    {
+        if (!record_pipe)
+            return;
+        sl::audio_set_capture({});
+        pclose(record_pipe);
+        record_pipe = nullptr;
+        flush_record_audio();
+        bool audio = false;
+        if (record_pcm)
+        {
+            audio = std::ftell(record_pcm) > 0;
+            std::fclose(record_pcm);
+            record_pcm = nullptr;
+        }
+        bool ok = true;
+        if (audio)
+        {
+            const std::string mux = "ffmpeg -loglevel error -y -i \"" + record_video + "\" -f s16le -ar " + std::to_string(record_rate) +
+                                    " -ac " + std::to_string(record_channels) + " -i \"" + record_pcm_file +
+                                    "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + record_file + "\"";
+            ok = std::system(mux.c_str()) == 0;
+        }
+        if (!audio || !ok)
+            std::rename(record_video.c_str(), record_file.c_str());
+        else
+            std::remove(record_video.c_str());
+        std::remove(record_pcm_file.c_str());
+        sim.log("Saved " + record_file + " (" + std::to_string(record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
+    };
+    menu_actions.recording = [&]() { return record_pipe != nullptr; };
+    menu_actions.toggle_recording = [&]()
+    {
+        if (record_pipe)
+        {
+            stop_recording();
+            return;
+        }
+        record_w = sl::screen->width & ~1;
+        record_h = sl::screen->height & ~1;
+        record_file = "kosmos-" + std::to_string(sl::time_ms()) + ".mp4";
+        record_video = record_file + ".video.mp4";
+        record_pcm_file = record_file + ".pcm";
+        const std::string command = "ffmpeg -loglevel error -y -use_wallclock_as_timestamps 1 -f rawvideo -pix_fmt rgba -s " +
+                                    std::to_string(sl::screen->width) + "x" + std::to_string(sl::screen->height) +
+                                    " -i - -vf \"crop=" + std::to_string(record_w) + ":" + std::to_string(record_h) +
+                                    ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + record_video + "\"";
+        record_pipe = popen(command.c_str(), "w");
+        record_frames = 0;
+        if (record_pipe)
+        {
+            record_pcm = std::fopen(record_pcm_file.c_str(), "wb");
+            if (record_pcm && !sl::audio_set_capture(
+                                  [&](const std::int16_t *samples, std::size_t frames)
+                                  {
+                                      std::lock_guard<std::mutex> lock(record_audio_mutex);
+                                      record_audio.insert(record_audio.end(), samples, samples + frames * static_cast<std::size_t>(record_channels));
+                                  },
+                                  &record_rate, &record_channels))
+            {
+                std::fclose(record_pcm);
+                record_pcm = nullptr;
+            }
+            sim.log("Recording " + record_file);
+        }
+        else
+            sim.log("Could not start ffmpeg");
+    };
     ExhaustFx exhaust_fx;
     sl::Event event_discard;
     loading.note("Settling the terrain");
@@ -3635,6 +3754,10 @@ int main(int argc, char **argv)
                     props.set_bool("/autopilot/enabled", false);
                     props.set_double("/controls/throttle", 0.0);
                 }
+                else if (key == sl::Event::Key::keypad_0)
+                    props.set_double("/controls/hover", 1.0);
+                else if (key == sl::Event::Key::keypad_period)
+                    props.set_double("/controls/hover", 0.0);
                 else if (key == sl::Event::Key::space)
                     props.set_bool("/controls/stage", true);
                 else if (key == sl::Event::Key::letter_p)
@@ -3735,6 +3858,7 @@ int main(int argc, char **argv)
                     sim.activate((props.get_int("/sim/active-ship") + 1) % sim.ship_count());
                     ship = sim.active_ship();
                     props.set_double("/controls/throttle", 0.0);
+                    props.set_double("/controls/hover", 0.0);
                     props.set_string("/controls/sas", "stability");
                     sas_index = 0;
                     cam_distance = ship->spec().camera_distance;
@@ -3830,6 +3954,11 @@ int main(int argc, char **argv)
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", std::max(0.0, throttle - throttle_rate));
         }
+        const double hover = props.get_double("/controls/hover");
+        if (!typing && sl::key_down(sl::Key::keypad_plus))
+            props.set_double("/controls/hover", std::min(1.0, hover + throttle_rate));
+        if (!typing && sl::key_down(sl::Key::keypad_minus))
+            props.set_double("/controls/hover", std::max(0.0, hover - throttle_rate));
         for (; options.shot_stages > 0; --options.shot_stages)
             ship->stage_once();
         if (options.shot_throttle >= 0.0)
@@ -3985,8 +4114,9 @@ int main(int argc, char **argv)
         {
             if (dragging)
             {
-                free_yaw -= static_cast<float>(dx) * 0.004f;
-                free_pitch = std::clamp(free_pitch - static_cast<float>(dy) * 0.004f, -1.5f, 1.5f);
+                // Dragging swings the chase camera around the ship, which stays centred.
+                cam_yaw -= static_cast<float>(dx) * 0.006f;
+                cam_pitch = std::clamp(cam_pitch + static_cast<float>(dy) * 0.006f, -1.5f, 1.5f);
             }
             cam_distance = std::clamp(cam_distance * zoom_in * zoom_out, 8.0, 3.0e9);
         }
@@ -4145,6 +4275,27 @@ int main(int argc, char **argv)
         const int soi = tm.soi;
         const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)];
         const sl::dvec3 soi_pos = universe.position(soi);
+        // The chase camera may not dip below the ground.
+        if (!in_cockpit && !in_cockpit3d && !in_interior && !in_base_cam)
+        {
+            const sl::Terrain *soi_terrain = nullptr;
+            for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+                if (bt->body == soi)
+                    soi_terrain = bt->terrain.get();
+            const sl::dvec3 from_centre = eye_world - soi_pos;
+            const double dist = glm::length(from_centre);
+            if (soi_terrain && dist > 1.0)
+            {
+                const sl::dvec3 dir = from_centre / dist;
+                const double floor_r = soi_body.radius + soi_terrain->height_at_direction(dir) + 2.0;
+                if (dist < floor_r)
+                {
+                    const sl::dvec3 shift = dir * (floor_r - dist);
+                    eye_world += shift;
+                    ship_rel -= glm::vec3(shift);
+                }
+            }
+        }
         const bool home = soi == earth_id;
         const sl::dvec3 earth_pos = universe.position(earth_id);
         const sl::dvec3 eye_from_earth = eye_world - earth_pos;
@@ -4842,7 +4993,10 @@ int main(int argc, char **argv)
             {
                 const glm::mat4 hull = glm::translate(glm::mat4(1.0f), glm::vec3(ship->origin() - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(fb.orientation)));
                 const double vacuum = home ? fx::smoothstep(8.0e3, 70.0e3, tm.altitude) : 1.0;
-                exhaust_fx.update(*ship, vacuum, static_cast<float>(frame), !ship->on_rails() && sim.current_warp() < 4.5);
+                const double com_altitude = universe.world.altitude_of(fb.position);
+                const sl::dvec3 world_up = glm::normalize(fb.position - universe.world.body(tm.soi)->position);
+                const glm::vec3 local_up = glm::vec3(glm::inverse(fb.orientation) * world_up);
+                exhaust_fx.update(*ship, vacuum, static_cast<float>(frame), !ship->on_rails() && sim.current_warp() < 4.5, com_altitude < 150.0 && !ship->on_rails(), static_cast<float>(com_altitude), local_up);
                 exhaust_fx.draw(vis.glow, hull);
             }
             sl::end_surface_3d();
@@ -5040,6 +5194,8 @@ int main(int argc, char **argv)
                             format_distance(tm.periapsis).c_str(), tm.period / 60.0, tm.eccentricity);
             else
                 sl::gprintf(16, 52, {255, 200, 120}, "Escape trajectory   Periapsis %s", format_distance(tm.periapsis).c_str());
+            if (ship->spec().has_hover())
+                sl::gprintf(16, 106, {255, 220, 150}, "Hover %3.0f%%", props.get_double("/controls/hover") * 100.0);
             sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
                         tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
             sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   Warp x%g%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(), sim.current_warp(),
@@ -5782,6 +5938,7 @@ int main(int argc, char **argv)
                             sim.activate(ship_index);
                             ship = sim.active_ship();
                             props.set_double("/controls/throttle", 0.0);
+                            props.set_double("/controls/hover", 0.0);
                             props.set_string("/controls/sas", "stability");
                             sas_index = 0;
                             cam_distance = ship->spec().camera_distance;
@@ -5871,10 +6028,24 @@ int main(int argc, char **argv)
             sl::save_bitmap(sl::screen, file);
             sim.log("Saved " + file);
         }
+        if (options.record_seconds > 0.0)
+        {
+            if (!record_pipe && record_frames == 0)
+                menu_actions.toggle_recording();
+            else if (clock >= options.record_seconds)
+                running = false;
+        }
+        if (record_pipe && sl::download_bitmap(sl::screen))
+        {
+            std::fwrite(sl::screen->pixels.data(), 1, sl::screen->pixels.size(), record_pipe);
+            ++record_frames;
+            flush_record_audio();
+        }
         sl::show_video_bitmap();
         sl::end_frame();
     }
 
+    stop_recording();
     netplay.leave();
     netplay.lobby_disconnect();
     settings_save(sim.props);

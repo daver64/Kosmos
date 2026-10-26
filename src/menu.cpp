@@ -1342,6 +1342,8 @@ namespace kosmos
                     ImGui::Separator();
                     if (ImGui::MenuItem("Screenshot") && actions.screenshot)
                         actions.screenshot();
+                    if (actions.toggle_recording && ImGui::MenuItem(actions.recording && actions.recording() ? "Stop recording" : "Start recording video"))
+                        actions.toggle_recording();
                     if (ImGui::MenuItem("Reload user scenarios and bases"))
                         sim.load_user_content();
                     ImGui::EndMenu();

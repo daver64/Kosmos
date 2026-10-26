@@ -1,9 +1,9 @@
 {
  "name": "CVEL Deltaglider",
  "class": "aircraft",
- "torque_accel": 0.5,
+ "torque_accel": 6.0,
  "max_rate": 0.6,
- "rcs_thrust": 2500,
+ "rcs_thrust": 10000,
  "drag_area": 25,
  "camera_distance": 32,
  "retractable_gear": true,
@@ -53,10 +53,10 @@
    ],
    "area": 70,
    "cl0": 0.1,
-   "cl_alpha": 3.5,
+   "cl_alpha": 2.6,
    "cd0": 0.02,
-   "induced_drag": 0.08,
-   "stall_deg": 18
+   "induced_drag": 0.2,
+   "stall_deg": 30
   },
   {
    "control": "flaps",
@@ -67,10 +67,10 @@
    ],
    "area": 12,
    "cl0": 0.1,
-   "cl_alpha": 3,
+   "cl_alpha": 2.6,
    "cd0": 0.02,
-   "induced_drag": 0.08,
-   "stall_deg": 18,
+   "induced_drag": 0.2,
+   "stall_deg": 30,
    "gain_deg": 10
   },
   {
@@ -148,25 +148,25 @@
   {
    "position": [
     0,
-    -2.5,
-    -6.5
+    -2.57,
+    -10
    ],
    "steer_deg": 40,
    "rolling_resistance": 0.03
   },
   {
    "position": [
-    3,
-    -2.5,
-    1.5
+    3.5,
+    -2.57,
+    3
    ],
    "rolling_resistance": 0.03
   },
   {
    "position": [
-    -3,
-    -2.5,
-    1.5
+    -3.5,
+    -2.57,
+    3
    ],
    "rolling_resistance": 0.03
   }
@@ -190,7 +190,7 @@
  "stages": [
   {
    "name": "Deltaglider",
-   "dry_mass": 11000,
+   "dry_mass": 12000,
    "propellant": 11400,
    "z": -1,
    "length": 19,
@@ -198,43 +198,66 @@
    "engines": [
     {
      "position": [
-      1.5,
+      1,
       0,
-      8.0
+      7.7
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 60000,
+     "thrust": 120000,
      "isp": 4077,
      "plume": 14,
      "plume_width": 1.2,
      "plume_glow": 1.4,
      "plume_density": 1.5,
-     "type": "rocket",
+     "type": "scramjet",
+     "air_breathing": false,
      "fuel": "hydrogen"
     },
     {
      "position": [
-      -1.5,
+      -1,
       0,
-      8.0
+      7.7
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 60000,
+     "thrust": 120000,
      "isp": 4077,
      "plume": 14,
      "plume_width": 1.2,
      "plume_glow": 1.4,
      "plume_density": 1.5,
-     "type": "rocket",
+     "type": "scramjet",
+     "air_breathing": false,
      "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      0,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 270000,
+     "isp": 4077,
+     "plume": 6,
+     "plume_width": 1.5,
+     "plume_glow": 1.2,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
     }
    ],
    "parts": [
@@ -243,5 +266,87 @@
     }
    ]
   }
- ]
+ ],
+ "cockpit": {
+  "eye": [
+   0,
+   1.4,
+   -6.8
+  ],
+  "mfds": true,
+  "mfd_left": "orbit",
+  "mfd_right": "surface",
+  "layout": {
+   "name": "Main panel",
+   "width": 1152,
+   "height": 500,
+   "image": "panel/panel1.png",
+   "size": 0.9,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "panels": [
+   {
+    "name": "Overhead",
+    "width": 1152,
+    "height": 282,
+    "image": "panel/panel2.png",
+    "instruments": []
+   }
+  ],
+  "instruments": [
+   {
+    "mode": "surface",
+    "x": 636,
+    "y": 61,
+    "size": 290
+   },
+   {
+    "mode": "orbit",
+    "x": 227,
+    "y": 61,
+    "size": 290
+   },
+   {
+    "mode": "adi",
+    "x": 569,
+    "y": 394,
+    "size": 96
+   },
+   {
+    "mode": "dg_aoa",
+    "x": 206,
+    "y": 413,
+    "size": 56
+   },
+   {
+    "mode": "dg_slip",
+    "x": 305,
+    "y": 413,
+    "size": 56
+   },
+   {
+    "mode": "dg_slope",
+    "x": 414,
+    "y": 405,
+    "size": 41
+   },
+   {
+    "mode": "dg_propellant",
+    "x": 27,
+    "y": 81,
+    "size": 117
+   },
+   {
+    "mode": "dg_status",
+    "x": 1000,
+    "y": 90,
+    "size": 112
+   }
+  ]
+ }
 }

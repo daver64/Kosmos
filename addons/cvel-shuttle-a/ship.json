@@ -2,9 +2,9 @@
  "name": "CVEL Shuttle-A",
  "class": "transfer",
  "torque_accel": 0.15,
- "max_rate": 0.3,
- "rcs_thrust": 10000,
- "drag_area": 40,
+ "max_rate": 0.35,
+ "rcs_thrust": 18000,
+ "drag_area": 90,
  "camera_distance": 60,
  "systems": [
   {
@@ -50,53 +50,119 @@
  "stages": [
   {
    "name": "Shuttle-A",
-   "dry_mass": 22000,
-   "propellant": 26000,
-   "z": -1.5,
-   "length": 35,
-   "radius": 7,
+   "dry_mass": 13000,
+   "propellant": 71500,
+   "z": 0,
+   "length": 36,
+   "radius": 7.7,
    "engines": [
     {
      "position": [
+      -1.76,
       0,
-      0,
-      15
+      13.87
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 293520,
-     "isp": 4077,
-     "plume": 40,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 1.5,
+     "thrust": 1064360,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 25,
+     "plume_width": 1.6,
+     "plume_glow": 1.8,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      1.76,
+      0,
+      13.87
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1064360,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 25,
+     "plume_width": 1.6,
+     "plume_glow": 1.8,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      0,
+      -1.49,
+      -13.0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 744975,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 14,
+     "plume_width": 1.3,
+     "plume_glow": 1.6,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    },
+    {
+     "position": [
+      0,
+      -1.49,
+      13.0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 744975,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 14,
+     "plume_width": 1.3,
+     "plume_glow": 1.6,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
     }
    ],
    "gear": [
     [
-     4.5,
-     -2.9,
-     -12
+     -3,
+     -3.05,
+     -12.5
     ],
     [
-     -4.5,
-     -2.9,
-     -12
+     3,
+     -3.05,
+     -12.5
     ],
     [
-     4.5,
-     -2.9,
-     6
+     -3,
+     -3.05,
+     13.5
     ],
     [
-     -4.5,
-     -2.9,
-     6
+     3,
+     -3.05,
+     13.5
     ]
    ],
    "parts": [
@@ -111,5 +177,109 @@
   0,
   -2
  ],
- "horizontal": true
+ "horizontal": true,
+ "cockpit": {
+  "eye": [
+   -0.575,
+   2.4,
+   -15.9
+  ],
+  "mfds": true,
+  "mfd_left": "orbit",
+  "mfd_right": "surface",
+  "layout": {
+   "name": "Main panel",
+   "width": 1152,
+   "height": 382,
+   "image": "panel/panel1.png",
+   "size": 0.9,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "panels": [
+   {
+    "name": "Fuel and systems",
+    "width": 1152,
+    "height": 300,
+    "image": "panel/panel2.png",
+    "instruments": [
+     {
+      "mode": "engine",
+      "x": 62,
+      "y": 22,
+      "size": 262
+     }
+    ]
+   }
+  ],
+  "instruments": [
+   {
+    "mode": "adi",
+    "x": 66,
+    "y": 83,
+    "size": 260
+   },
+   {
+    "mode": "surface",
+    "x": 828,
+    "y": 83,
+    "size": 260
+   }
+  ],
+  "panel": [
+   {
+    "label": "FUEL",
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f kg"
+   },
+   {
+    "label": "MAIN",
+    "property": "/controls/throttle",
+    "scale": 100,
+    "format": "%.0f %%"
+   },
+   {
+    "label": "HOVER",
+    "property": "/controls/hover",
+    "scale": 100,
+    "format": "%.0f %%"
+   },
+   {
+    "label": "ALT",
+    "property": "{ship}/altitude",
+    "format": "%.0f m"
+   }
+  ]
+ },
+ "cameras": [
+  {
+   "name": "Cockpit",
+   "position": [
+    -0.575,
+    2.4,
+    -15.9
+   ],
+   "fov": 70
+  }
+ ],
+ "surfaces": [
+  {
+   "control": "",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "area": 120,
+   "cl0": 0,
+   "cl_alpha": 0.3,
+   "cd0": 0.25,
+   "induced_drag": 0.5,
+   "stall_deg": 15
+  }
+ ]
 }

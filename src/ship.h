@@ -45,6 +45,8 @@ namespace kosmos
         std::string fuel = "kerosene";
         /** A jet with an afterburner shows a plume at high throttle; without one it is invisible. */
         bool afterburner = false;
+        /** Engines with `"group": "hover"` follow /controls/hover (keypad + and -) instead of the main throttle. */
+        bool hover = false;
         /** Jump range of a hyperjump drive, in light years. */
         double range_ly = 50.0;
     };
@@ -240,6 +242,14 @@ namespace kosmos
         /** Rate damping gains for pitch, yaw and roll while the stability hold is on (fly-by-wire). */
         sl::dvec3 damping{0.6, 0.6, 0.6};
         bool aircraft() const { return kind == "aircraft"; }
+        bool has_hover() const
+        {
+            for (const StageSpec &st : stages)
+                for (const EngineSpec &e : st.engines)
+                    if (e.hover)
+                        return true;
+            return false;
+        }
         /** The MfdSystem domain this ship flies in, from cockpit.mfd_filter. */
         std::string mfd_domain() const
         {
@@ -256,6 +266,8 @@ namespace kosmos
     struct Controls
     {
         double throttle = 0.0;
+        /** Level of the hover engine group, 0 to 1. */
+        double hover = 0.0;
         double pitch = 0.0, yaw = 0.0, roll = 0.0;
         double rcs_x = 0.0, rcs_y = 0.0, rcs_z = 0.0;
         /** off, stability, prograde, retrograde, radial-out, radial-in, normal, antinormal or attitude. */
@@ -414,6 +426,7 @@ namespace kosmos
         sl::PropertyTree *tree_ = nullptr;
         std::string base_;
         std::vector<int> stage_first_thruster_;
+        std::vector<bool> thruster_hover_;
         sl::dvec3 rcs_torque_{0.0}, rcs_push_{0.0};
         std::unique_ptr<Systems> systems_;
         LifeSupportMode life_support_ = LifeSupportMode::warn;

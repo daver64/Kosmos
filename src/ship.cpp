@@ -236,13 +236,14 @@ namespace kosmos
                     e.plume_width = je.value("plume_width", e.plume_width);
                     e.plume_glow = je.value("plume_glow", e.plume_glow);
                     e.plume_density = std::max(0.1, je.value("plume_density", e.plume_density));
+                    e.hover = je.value("group", std::string("main")) == "hover";
                     e.air_breathing = je.value("air_breathing", false);
                     // Older specs only had air_breathing; that still means a jet.
                     e.type = engine_type_from_name(je.value("type", ""), e.air_breathing ? EngineType::jet : EngineType::rocket);
                     e.fuel = je.value("fuel", e.type == EngineType::solid ? std::string("solid") : e.type == EngineType::nuclear ? std::string("hydrogen") : e.fuel);
                     e.afterburner = je.value("afterburner", false);
                     e.range_ly = je.value("range_ly", e.range_ly);
-                    if (e.type == EngineType::jet || e.type == EngineType::scramjet)
+                    if (e.type == EngineType::jet || (e.type == EngineType::scramjet && !je.contains("air_breathing")))
                         e.air_breathing = true;
                     stage.engines.push_back(e);
                 }
@@ -377,6 +378,7 @@ namespace kosmos
                 t.tank = static_cast<int>(s);
                 t.air_breathing = e.air_breathing;
                 b.thrusters.push_back(t);
+                thruster_hover_.push_back(e.hover);
             }
             for (const sl::dvec3 &g : stage.gear)
             {
@@ -742,7 +744,7 @@ namespace kosmos
             b.thrusters[i].level = 0.0;
         for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
              i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
-            b.thrusters[static_cast<std::size_t>(i)].level = throttle;
+            b.thrusters[static_cast<std::size_t>(i)].level = thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
         if (spec_.aircraft())
         {
             // A parked aircraft holds its brakes; once rolling, only the pedal brakes.
@@ -755,6 +757,21 @@ namespace kosmos
         if (spec_.aircraft())
         {
             apply_flight_controls(c);
+            // On hover thrust there is no airflow over the surfaces, so the RCS thrusters hold attitude.
+            if (c.hover > 0.02 && b.mode == sl::FlightBodyMode::dynamic && c.sas != "off")
+            {
+                sl::dvec3 up, east, north;
+                local_frame(up, east, north);
+                const sl::dvec3 ub = b.direction_to_local(up);
+                const sl::dvec3 w = b.angular_velocity;
+                const sl::dvec3 desired(std::clamp(ub.z * 1.5, -0.6, 0.6), 0.0, std::clamp(-ub.x * 1.5, -0.6, 0.6));
+                sl::dvec3 command(0.0);
+                command.x = std::clamp((desired.x - w.x) * 3.0, -1.0, 1.0);
+                command.z = std::clamp((desired.z - w.z) * 3.0, -1.0, 1.0);
+                command.y = std::clamp(-w.y * 3.0, -1.0, 1.0);
+                rcs_torque_ = command;
+                universe_.world.apply_torque(body_, b.direction_to_world(command * spec_.torque_accel * b.inertia()));
+            }
             return;
         }
 
@@ -877,7 +894,7 @@ namespace kosmos
         if (telemetry_.landed)
             return "landed";
         // A throttle left up with empty tanks does nothing, so it must not hold the clock back.
-        if (c.throttle > 0.0 && telemetry_.thrust > 0.0)
+        if ((c.throttle > 0.0 || c.hover > 0.0) && telemetry_.thrust > 0.0)
             return "engines are firing";
         const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
         const double top = atmosphere_top(planet);
@@ -897,7 +914,7 @@ namespace kosmos
         const sl::FlightBody &pb = *universe_.world.body(t.soi);
 
         double lowest = 0.0;
-        if (spec_.aircraft())
+        if (spec_.aircraft() || spec_.horizontal)
         {
             for (const sl::GearContact &g : b.gear)
                 lowest = std::max(lowest, -g.position.y);
@@ -1073,9 +1090,20 @@ namespace kosmos
             double gear_z = 0.0;
             for (const sl::GearContact &g : b.gear)
                 gear_z = std::max(gear_z, g.position.z);
+            if (spec_.aircraft() || spec_.horizontal)
+            {
+                tail = 0.0;
+                for (const sl::GearContact &g : b.gear)
+                    tail = std::max(tail, -g.position.y);
+                gear_z = tail;
+            }
             if (telemetry_.altitude + std::max(tail, gear_z) < 0.4 * std::max(tail, gear_z))
             {
                 crashed_ = true;
+                // The wreck rests on the surface rather than sunk into it.
+                const double origin_alt = universe_.world.altitude_of(b.position);
+                if (origin_alt < 1.5)
+                    b.position += glm::normalize(b.position - universe_.position(telemetry_.soi)) * (1.5 - origin_alt);
                 b.mode = sl::FlightBodyMode::kinematic;
                 b.velocity = universe_.world.body(telemetry_.soi)->velocity;
                 b.angular_velocity = sl::dvec3(0.0);
@@ -1129,6 +1157,10 @@ namespace kosmos
         num("heading", [this] { return telemetry_.heading; });
         num("roll", [this] { return telemetry_.roll; });
         num("alpha", [this] { return telemetry_.alpha; });
+        // Body rates in degrees per second: nose up, nose right and right bank are positive.
+        num("rate-pitch", [this] { return body().angular_velocity.x * 180.0 / pi; });
+        num("rate-yaw", [this] { return -body().angular_velocity.y * 180.0 / pi; });
+        num("rate-roll", [this] { return -body().angular_velocity.z * 180.0 / pi; });
         num("sideslip", [this] { return telemetry_.sideslip; });
         num("dynamic-pressure", [this] { return telemetry_.dynamic_pressure; });
         num("flight-path", [this] { return telemetry_.flight_path; });
