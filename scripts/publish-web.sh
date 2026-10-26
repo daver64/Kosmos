@@ -9,6 +9,7 @@
 # shows it. When an archive's SHA-256 differs from the one on the site, the archives are copied to the download
 # folder, SHA256SUMS.txt and every version marker on the pages (class="ver" data-ver="kosmos") are updated, and VERSION
 # moves on to the next build. When every checksum matches the published one nothing changes.
+# Each build needs docs/release-notes/VERSION.md (user-facing changes); publishing stops without it.
 # Overrides (env): WEB_ROOT (default /var/www/html)
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
@@ -33,6 +34,9 @@ VER=$(head -n 1 "$VERSION_FILE" | tr -d '[:space:]')
 MAJOR=${VER%%.*}
 BUILD=${VER#*.}
 
+NOTES=$SRC/docs/release-notes/$VER.md
+[ -f "$NOTES" ] || { echo "$APP: missing release notes $NOTES (write them before publishing)"; exit 1; }
+
 changed=0
 for f in "$@"; do
     name=$(basename "$f")
@@ -54,6 +58,11 @@ for f in "$@"; do
     mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
 done
 echo "$VER" > "$DOWNLOAD/VERSION.txt"
+# RELEASE_NOTES.md on the site is every version's notes, newest first
+mkdir -p "$DOWNLOAD/notes"
+cp "$NOTES" "$DOWNLOAD/notes/$VER.md"
+ls "$DOWNLOAD"/notes/*.md | sed -E 's|.*/([0-9.]+)\.md$|\1|' | sort -t. -k1,1nr -k2,2nr |
+    while read -r v; do cat "$DOWNLOAD/notes/$v.md"; echo; done > "$DOWNLOAD/RELEASE_NOTES.md"
 stamp "$VER"
 echo "$MAJOR.$((BUILD + 1))" > "$VERSION_FILE"
 echo "$APP: published $VER; the next build will be $MAJOR.$((BUILD + 1))"

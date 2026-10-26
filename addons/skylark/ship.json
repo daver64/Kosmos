@@ -21,7 +21,18 @@
   "mfds": true,
   "mfd_left": "engine",
   "mfd_right": "surface",
-  "layout": { "width": 1500, "height": 500, "size": 0.85, "position": [0, -0.15, -0.75], "tilt": 25 },
+  "layout": { "name": "Flight instruments", "width": 1500, "height": 500, "size": 0.85, "position": [0, -0.15, -0.75], "tilt": 25 },
+  "panels": [
+   {
+    "name": "Navigation",
+    "width": 1100, "height": 500,
+    "instruments": [
+     { "mode": "orbit", "x": 60, "y": 60, "size": 290, "frame": true },
+     { "mode": "surface", "x": 420, "y": 60, "size": 290, "frame": true },
+     { "mode": "dg", "x": 790, "y": 30, "size": 260 }
+    ]
+   }
+  ],
   "instruments": [
    { "mode": "engine", "x": 760, "y": 60, "size": 290, "frame": true },
    { "mode": "surface", "x": 1110, "y": 60, "size": 290, "frame": true },

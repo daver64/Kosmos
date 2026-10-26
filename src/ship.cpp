@@ -105,6 +105,7 @@ namespace kosmos
                     spec.cockpit.panel_width = jl.value("width", spec.cockpit.panel_width);
                     spec.cockpit.panel_height = jl.value("height", spec.cockpit.panel_height);
                     spec.cockpit.panel_image = jl.value("image", "");
+                    spec.cockpit.panel_name = jl.value("name", spec.cockpit.panel_name);
                     if (jl.contains("position"))
                         spec.cockpit.panel_pos = vec3(jl["position"]);
                     spec.cockpit.panel_size = jl.value("size", spec.cockpit.panel_size);
@@ -120,6 +121,27 @@ namespace kosmos
                     pi.frame = ji.value("frame", false);
                     if (!pi.mode.empty())
                         spec.cockpit.instruments.push_back(pi);
+                }
+                for (const nlohmann::json &jp : jc.value("panels", nlohmann::json::array()))
+                {
+                    Cockpit::Panel2D extra;
+                    extra.name = jp.value("name", "Panel " + std::to_string(spec.cockpit.extra_panels.size() + 2));
+                    extra.width = jp.value("width", extra.width);
+                    extra.height = jp.value("height", extra.height);
+                    extra.image = jp.value("image", "");
+                    for (const nlohmann::json &ji : jp.value("instruments", nlohmann::json::array()))
+                    {
+                        Cockpit::PanelInstrument pi;
+                        pi.mode = ji.value("mode", "");
+                        pi.x = ji.value("x", 0.0f);
+                        pi.y = ji.value("y", 0.0f);
+                        pi.size = ji.value("size", 200.0f);
+                        pi.frame = ji.value("frame", false);
+                        if (!pi.mode.empty())
+                            extra.instruments.push_back(pi);
+                    }
+                    if (!extra.instruments.empty())
+                        spec.cockpit.extra_panels.push_back(extra);
                 }
             }
             spec.transponder = json.value("transponder", 0.0);

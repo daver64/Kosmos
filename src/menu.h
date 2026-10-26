@@ -23,6 +23,7 @@ namespace kosmos
         std::function<void()> restart;
         std::function<void()> quit;
         std::function<void()> screenshot;
+        std::function<void(int)> show_panel; // switch to the flown ship's 2D panel with this index
     };
 
     /** The scenario as it stands in the sim: each ship's place, captured from its live state. Orbits are saved as circular at the current altitude. */

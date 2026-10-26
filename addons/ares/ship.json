@@ -91,9 +91,9 @@
       -1
      ],
      "thrust": 60000,
-     "isp": 320,
+     "isp": 440,
      "plume": 6,
-     "type": "rocket", "fuel": "hypergolic"
+     "type": "rocket", "fuel": "hydrogen"
     }
    ],
    "gear": [

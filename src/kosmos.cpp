@@ -67,6 +67,10 @@ namespace
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;
+        /** Separate this many stages before a --shot, to photograph the upper stages. */
+        int shot_stages = 0;
+        /** Which 2D panel the 2D cockpit starts on (--panel N, from 0). */
+        int panel = 0;
         /** Ignore the tiled Earth imagery and use the single image (--no-tiles). */
         bool no_tiles = false;
         bool camera_window = false;
@@ -83,7 +87,7 @@ namespace
         double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
-        bool hide_info = false;
+        bool hide_info = false, no_clouds = false;
         std::string hud;
         bool no_relief = false;
         std::string blender;
@@ -1935,7 +1939,7 @@ namespace
                 {1.15f, 0.8f, 1.0f, 0.8f, 0.09f, {255, 240, 225, 255}, {255, 150, 70, 255}, {110, 145, 255, 255}},  // methane
                 {0.8f, 0.85f, 0.9f, 0.8f, 0.06f, {255, 225, 190, 255}, {255, 150, 90, 255}, {255, 150, 80, 255}},   // hypergolic
                 {0.95f, 1.5f, 1.35f, 1.6f, 0.16f, {255, 245, 205, 255}, {255, 85, 20, 255}, {255, 90, 30, 255}},    // solid
-                {1.4f, 0.5f, 1.0f, 0.4f, 0.16f, {205, 150, 255, 255}, {150, 60, 255, 255}, {130, 50, 255, 255}},    // nuclear
+                {1.4f, 0.5f, 1.0f, 0.4f, 0.16f, {235, 245, 255, 255}, {90, 170, 255, 255}, {60, 130, 255, 255}},    // nuclear
                 {1.3f, 0.5f, 0.9f, 0.35f, 0.14f, {205, 228, 255, 255}, {70, 120, 255, 255}, {60, 110, 255, 255}},   // scramjet
                 {1.1f, 0.5f, 0.8f, 0.4f, 0.12f, {255, 235, 190, 255}, {255, 110, 40, 255}, {255, 120, 50, 255}},    // afterburner
                 {1.0f, 1.0f, 1.0f, 1.0f, 0.10f, {255, 235, 190, 255}, {255, 120, 40, 255}, {255, 110, 40, 255}},    // rcs
@@ -1974,7 +1978,7 @@ namespace
         struct Particle
         {
             glm::vec3 position, velocity;
-            float age, life, size;
+            float age, life, size, body = 0.55f;
             std::uint8_t kind = kerosene;
         };
         std::vector<Particle> particles;
@@ -2033,18 +2037,26 @@ namespace
                 const double plume = i < engines.size() ? engines[i]->plume : 10.0;
                 // An afterburner only lights above 80% throttle and ramps up from there.
                 const float level = kind == afterburner ? static_cast<float>((t.level - 0.8) / 0.2) : static_cast<float>(t.level);
-                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(vacuum));
-                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width;
+                // A hydrogen engine in thin air or vacuum runs a short, tight, clean plume with shock diamonds, like a scramjet's.
+                const float crisp = kind == hydrogen ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
+                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(vacuum)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
+                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * (kind == hydrogen ? 1.0f - 0.45f * crisp : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
                 const glm::vec3 side2 = glm::cross(dir, side1);
-                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * level;
+                if (kind == nuclear)
+                {
+                    // A nuclear engine has no flame: a hot, neon-lit panel across the nozzle with a soft glow around it.
+                    diamonds.push_back({glm::vec3(t.position) + dir * 0.1f, dir, static_cast<float>(plume) * 0.16f, level, static_cast<std::uint8_t>(nuclear)});
+                    continue;
+                }
+                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * level * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
                 float &carry = carry_main;
                 carry += rate * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
                 {
-                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(vacuum)) * st.spread * random01();
+                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(vacuum)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * crisp : 1.0f);
                     const float life = (0.45f + random01() * 0.35f) * st.life;
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
@@ -2055,16 +2067,17 @@ namespace
                     p.life = life;
                     p.size = width * 0.35f * (0.75f + 0.5f * random01());
                     p.kind = static_cast<std::uint8_t>(kind);
+                    p.body = 0.55f - 0.48f * crisp;
                     particles.push_back(p);
                 }
-                if (kind == scramjet || kind == afterburner)
+                if (crisp > 0.05f)
                 {
                     // Shock diamonds sit at fixed spacing down the plume, shrinking and fading with distance.
                     const float reach = length * 0.9f, gap = reach / 5.5f;
                     for (int k = 0; k < 5; ++k)
                     {
                         const float fall = 1.0f - 0.16f * static_cast<float>(k);
-                        diamonds.push_back({glm::vec3(t.position) + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall, static_cast<std::uint8_t>(kind)});
+                        diamonds.push_back({glm::vec3(t.position) + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall * crisp, static_cast<std::uint8_t>(kind)});
                     }
                 }
             }
@@ -2138,13 +2151,38 @@ namespace
                 glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * fade * 255.0f, 0.0f, 255.0f));
                 sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size * 2.6f)), glow);
                 glow.tint = age < 0.35f ? st.core : st.tail;
-                const float body = p.kind == scramjet || p.kind == afterburner ? 0.22f : 0.55f;
+                const float body = p.body;
                 glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(body * fade * 255.0f, 0.0f, 255.0f));
                 sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size)), glow);
             }
             for (const Diamond &d : diamonds)
             {
                 const Style &st = style(d.kind);
+                if (d.kind == nuclear)
+                {
+                    const glm::mat4 disc_frame = hull * glm::translate(glm::mat4(1.0f), d.position);
+                    glm::vec3 u = std::fabs(d.axis.x) < 0.9f ? glm::cross(d.axis, glm::vec3(1, 0, 0)) : glm::cross(d.axis, glm::vec3(0, 1, 0));
+                    u = glm::normalize(u);
+                    const glm::mat4 f = disc_frame * glm::mat4(glm::vec4(u, 0.0f), glm::vec4(glm::cross(d.axis, u), 0.0f), glm::vec4(d.axis, 0.0f), glm::vec4(0, 0, 0, 1));
+                    const float flicker = 0.92f + 0.08f * std::sin(static_cast<float>(sl::time_ms() % 100000) * 0.021f + d.position.x);
+                    const float k = d.strength * flicker;
+                    // Soft blur first: many faint, graduated layers so no single outline shows.
+                    glow.tint = st.glow;
+                    for (int layer = 0; layer < 32; ++layer)
+                    {
+                        const float t = static_cast<float>(layer) / 31.0f;
+                        const float r = d.size * (1.0f + 3.2f * t * t);
+                        glow.tint.alpha = static_cast<std::uint8_t>(std::clamp((0.012f + 0.020f * (1.0f - t)) * k * 255.0f, 0.0f, 255.0f));
+                        sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(r, r, r * 0.35f)), glow);
+                    }
+                    glow.tint = st.tail;
+                    glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(0.85f * k * 255.0f, 0.0f, 255.0f));
+                    sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.25f, d.size * 1.25f, d.size * 0.12f)), glow);
+                    glow.tint = st.core;
+                    glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(0.95f * k * 255.0f, 0.0f, 255.0f));
+                    sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 0.8f, d.size * 0.8f, d.size * 0.1f)), glow);
+                    continue;
+                }
                 glm::vec3 side1 = std::fabs(d.axis.x) < 0.9f ? glm::cross(d.axis, glm::vec3(1, 0, 0)) : glm::cross(d.axis, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
                 const glm::mat4 frame(glm::vec4(side1, 0.0f), glm::vec4(glm::cross(d.axis, side1), 0.0f), glm::vec4(d.axis, 0.0f), glm::vec4(d.position, 1.0f));
@@ -2572,6 +2610,8 @@ int main(int argc, char **argv)
             options.net_channel = argv[++i];
         else if (!std::strcmp(argv[i], "--lobby"))
             options.net_window = true;
+        else if (!std::strcmp(argv[i], "--no-clouds"))
+            options.no_clouds = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
             options.no_tiles = true;
         else if (!std::strcmp(argv[i], "--no-detail"))
@@ -2619,6 +2659,10 @@ int main(int argc, char **argv)
             options.selftest_gear_up = true;
         else if (!std::strcmp(argv[i], "--selftest-warp") && i + 1 < argc)
             options.selftest_warp = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--panel") && i + 1 < argc)
+            options.panel = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--shot-stages") && i + 1 < argc)
+            options.shot_stages = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--shot-throttle") && i + 1 < argc)
             options.shot_throttle = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--shot") && i + 1 < argc)
@@ -2807,7 +2851,7 @@ int main(int argc, char **argv)
                 std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
                 return 1;
             }
-            if (!options.hide_info) sim.log("Start date " + kosmos::format_utc(start_jd));
+            
         }
     }
     if (options.selftest > 0.0)
@@ -3136,6 +3180,8 @@ int main(int argc, char **argv)
     int mfd_display = options.mfd_display;
     // In the 2D cockpit the MFDs are the dashboard by default; F5 steps dashboard, heads-up, off.
     int cockpit_mfd = 0;
+    bool first_ship_seen = true;
+    int panel_index = options.panel; // which of the ship's 2D panels the 2D cockpit shows
     bool mfd_mouse_prev = false;
     bool cockpit3d = options.cockpit3d;
     // Camera selection (F2): a ship's interior camera or a base camera, besides the chase and cockpit views.
@@ -3213,6 +3259,8 @@ int main(int argc, char **argv)
     int sas_index = 0;
     float cam_yaw = static_cast<float>(options.cam_yaw), cam_pitch = static_cast<float>(options.cam_pitch);
     double cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
+    // Right-drag in the chase view turns the camera on the spot; the ship moves across the screen instead of the camera swinging round it.
+    float free_yaw = 0.0f, free_pitch = 0.0f;
     int last_mouse_x = 0, last_mouse_y = 0;
     kosmos::MenuBar menu_bar;
     bool screenshot_requested = false;
@@ -3252,6 +3300,22 @@ int main(int argc, char **argv)
         vis.clear_parts();
         ship = start_scenario(sim, options, terrain_set);
         cam_distance = ship->spec().camera_distance;
+    };
+    menu_actions.show_panel = [&](int index)
+    {
+        const auto panels = sim.active_ship()->spec().cockpit.panels_2d();
+        if (index < 0 || index >= static_cast<int>(panels.size()))
+            return;
+        panel_index = index;
+        sim.mfd.set_unit_count(static_cast<int>(panels[static_cast<std::size_t>(index)].instruments.size()));
+        for (std::size_t i = 0; i < panels[static_cast<std::size_t>(index)].instruments.size(); ++i)
+            sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(panels[static_cast<std::size_t>(index)].instruments[i].mode)));
+        cockpit_view = true;
+        cockpit3d = false;
+        cockpit_mfd = 0;
+        interior_cam = base_view = -1;
+        map_mode = galaxy_mode = false;
+        look_yaw = look_pitch = 0.0f;
     };
     menu_actions.quit = [&]() { running = false; };
     menu_actions.screenshot = [&]() { screenshot_requested = true; };
@@ -3461,6 +3525,7 @@ int main(int argc, char **argv)
                 }
                 else if (key == sl::Event::Key::letter_c)
                 {
+                    free_yaw = free_pitch = 0.0f;
                     // C cycles chase view, 2D cockpit and (for ships with MFDs) the 3D cockpit.
                     interior_cam = base_view = -1;
                     if (!cockpit_view)
@@ -3556,6 +3621,8 @@ int main(int argc, char **argv)
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", std::max(0.0, throttle - throttle_rate));
         }
+        for (; options.shot_stages > 0; --options.shot_stages)
+            ship->stage_once();
         if (options.shot_throttle >= 0.0)
             props.set_double("/controls/throttle", options.shot_throttle);
         auto axis = [typing](sl::Key plus, sl::Key minus) { return typing ? 0.0 : (sl::key_down(plus) ? 1.0 : 0.0) - (sl::key_down(minus) ? 1.0 : 0.0); };
@@ -3600,14 +3667,22 @@ int main(int argc, char **argv)
             // Each ship brings its own default instruments whenever it becomes the flown one.
             mfd_ship = ship;
             mfd_ship_id = ship->spec().name;
+            panel_index = first_ship_seen ? options.panel : 0;
+            first_ship_seen = false;
             const auto &cockpit_spec = ship->spec().cockpit;
-            sim.mfd.set_unit_count(static_cast<int>(cockpit_spec.instruments.size()));
-            for (std::size_t i = 0; i < cockpit_spec.instruments.size(); ++i)
-                sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(cockpit_spec.instruments[i].mode)));
-            if (cockpit_spec.instruments.empty() || !options.mfd_left.empty())
-                sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left)));
-            if (cockpit_spec.instruments.empty() || !options.mfd_right.empty())
-                sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right)));
+            if (panel_index > 0 && panel_index < static_cast<int>(cockpit_spec.panels_2d().size()))
+                menu_actions.show_panel(panel_index);
+            else
+            {
+                panel_index = 0;
+                sim.mfd.set_unit_count(static_cast<int>(cockpit_spec.instruments.size()));
+                for (std::size_t i = 0; i < cockpit_spec.instruments.size(); ++i)
+                    sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(cockpit_spec.instruments[i].mode)));
+                if (cockpit_spec.instruments.empty() || !options.mfd_left.empty())
+                    sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left)));
+                if (cockpit_spec.instruments.empty() || !options.mfd_right.empty())
+                    sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right)));
+            }
         }
         const kosmos::Telemetry &tm = ship->telemetry();
         if (netplay.joined())
@@ -3667,8 +3742,8 @@ int main(int argc, char **argv)
         {
             if (dragging)
             {
-                cam_yaw -= static_cast<float>(dx) * 0.008f;
-                cam_pitch = std::clamp(cam_pitch + static_cast<float>(dy) * 0.008f, -1.5f, 1.5f);
+                free_yaw -= static_cast<float>(dx) * 0.004f;
+                free_pitch = std::clamp(free_pitch - static_cast<float>(dy) * 0.004f, -1.5f, 1.5f);
             }
             cam_distance = std::clamp(cam_distance * zoom_in * zoom_out, 8.0, 3.0e9);
         }
@@ -3703,6 +3778,13 @@ int main(int argc, char **argv)
         glm::vec3 ship_rel = glm::vec3(fb.position - eye_world);
         if (options.cam_antisun)
             ship_rel = glm::vec3(glm::normalize(universe.position(0) - eye_world) * 1000.0);
+        if (!in_cockpit && !in_interior && !in_base_cam && !map_mode && !galaxy_mode && (free_yaw != 0.0f || free_pitch != 0.0f))
+        {
+            const sl::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));
+            const sl::dvec3 right = glm::normalize(glm::cross(fwd, up));
+            const sl::dvec3 turned = glm::angleAxis(static_cast<double>(free_yaw), up) * (glm::angleAxis(static_cast<double>(free_pitch), right) * fwd);
+            ship_rel = glm::vec3(turned * glm::length(sl::dvec3(ship_rel)));
+        }
         double view_fov = options.cam_fov;
         if (in_cockpit || in_interior)
         {
@@ -4186,27 +4268,32 @@ int main(int argc, char **argv)
                 const double distance = glm::length(rel);
                 if (distance - b.radius > camera.far_plane * 0.95)
                     continue;
+                // Earth's sphere image has to be turned half a revolution to put longitude 0 where the terrain and the bases have it.
+                const glm::dquat sphere_flip = static_cast<int>(i) == earth_id ? glm::angleAxis(pi, sl::dvec3(0.0, 1.0, 0.0)) : glm::dquat(1.0, 0.0, 0.0, 0.0);
                 sl::Material rock;
                 rock.texture = vis.body_textures[i];
                 rock.normal_map = vis.body_normals[i];
                 rock.fog = false;
                 const glm::mat4 frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                const glm::mat4 model = frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) *
+                const glm::mat4 model = frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                                         glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
                 if (static_cast<int>(i) == earth_id && vis.earth_tiles)
                 {
-                    // The tiles run east to the right seen from outside; the body's sphere mesh runs the other way, so mirror the frame
-                    // (which also reverses the triangle winding, hence the culling swap) to keep the surface where the rest of Kosmos expects it.
-                    const glm::mat4 tile_model = model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f));
+                    // The tile mesh already runs east the same way as the body frame, so only the half turn above is needed.
+                    const glm::mat4 tile_model = model;
                     const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
                     const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
                     vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
-                    sl::Material tiled = rock;
-                    tiled.cull = sl::CullMode::front;
-                    vis.earth_tiles->draw(tile_model, tiled);
+                    vis.earth_tiles->draw(tile_model, rock);
                 }
                 else
-                    sl::draw_mesh(i < vis.body_meshes.size() && vis.body_meshes[i] ? vis.body_meshes[i]->parts[0].mesh : vis.sphere, model, rock);
+                {
+                    // The single-image sphere mesh runs east the other way, so mirror it (and swap the culling to match).
+                    if (static_cast<int>(i) == earth_id)
+                        rock.cull = sl::CullMode::front;
+                    sl::draw_mesh(i < vis.body_meshes.size() && vis.body_meshes[i] ? vis.body_meshes[i]->parts[0].mesh : vis.sphere,
+                                  static_cast<int>(i) == earth_id ? model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f)) : model, rock);
+                }
                 // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
                 // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
                 const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
@@ -4214,7 +4301,7 @@ int main(int argc, char **argv)
                 {
                     const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
                     return glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1)) *
-                           glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) *
+                           glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                            glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
                 };
                 if (static_cast<int>(i) == earth_id && vis.lights_texture)
@@ -4252,7 +4339,7 @@ int main(int argc, char **argv)
                                     static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 150};
                     const float k = static_cast<float>(1.0 - depth_gap / distance);
                     const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                    sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
+                    sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
                 }
                 draw_atmosphere_glow(rel, b);
                 if (vis.rings[i])
@@ -4292,7 +4379,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            if (near_earth)
+            if (near_earth && !options.no_clouds)
             {
                 // From space the terrain hides the sky's clouds, so the weather is a translucent shell lifted as depth coarsens.
                 sl::Material cloud;
@@ -4734,7 +4821,13 @@ int main(int argc, char **argv)
         }
         if (panel2d)
         {
-            const kosmos::Cockpit &cp = ship->spec().cockpit;
+            kosmos::Cockpit cp = ship->spec().cockpit;
+            const auto panels = cp.panels_2d();
+            const auto &shown = panels[static_cast<std::size_t>(std::clamp(panel_index, 0, static_cast<int>(panels.size()) - 1))];
+            cp.instruments = shown.instruments;
+            cp.panel_width = shown.width;
+            cp.panel_height = shown.height;
+            cp.panel_image = shown.image;
             const float scale = std::min(screen_w * 0.8f / cp.panel_width, screen_h * 0.4f / cp.panel_height);
             const float ox = (screen_w - cp.panel_width * scale) * 0.5f, oy = screen_h - cp.panel_height * scale;
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();

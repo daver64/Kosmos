@@ -1314,6 +1314,18 @@ namespace kosmos
                         if (w.open)
                             ImGui::MenuItem(w.label.c_str(), w.key.empty() ? nullptr : w.key.c_str(), w.open);
                     ImGui::Separator();
+                    {
+                        const Ship *flown = sim.active_ship();
+                        const auto panels = flown ? flown->spec().cockpit.panels_2d() : std::vector<Cockpit::Panel2D>();
+                        if (ImGui::BeginMenu("2D Panels", !panels.empty()))
+                        {
+                            for (std::size_t pi = 0; pi < panels.size(); ++pi)
+                                if (ImGui::MenuItem(panels[pi].name.c_str()) && actions.show_panel)
+                                    actions.show_panel(static_cast<int>(pi));
+                            ImGui::EndMenu();
+                        }
+                    }
+                    ImGui::Separator();
                     ImGui::MenuItem("Scenario editor", nullptr, &scenario_editor_open);
                     ImGui::MenuItem("Base editor", nullptr, &base_editor_open);
                     ImGui::Separator();

@@ -155,6 +155,26 @@ namespace kosmos
         std::vector<PanelInstrument> instruments;
         float panel_width = 1400.0f, panel_height = 500.0f;
         std::string panel_image;
+        /** A name for the panel above in the 2D Panels menu. */
+        std::string panel_name = "Instrument panel";
+        /** Further 2D panels (the "panels" list in the ship file), each its own set of instruments. They show on screen only, not in the 3D cockpit. */
+        struct Panel2D
+        {
+            std::string name;
+            float width = 1400.0f, height = 500.0f;
+            std::string image;
+            std::vector<PanelInstrument> instruments;
+        };
+        std::vector<Panel2D> extra_panels;
+        /** Every 2D panel the ship has: the main instrument panel first, then the extra ones. */
+        std::vector<Panel2D> panels_2d() const
+        {
+            std::vector<Panel2D> all;
+            if (!instruments.empty())
+                all.push_back({panel_name, panel_width, panel_height, panel_image, instruments});
+            all.insert(all.end(), extra_panels.begin(), extra_panels.end());
+            return all;
+        }
         sl::dvec3 panel_pos{0.0, -0.2, -0.7};
         double panel_size = 0.9, panel_tilt = 25.0;
     };
