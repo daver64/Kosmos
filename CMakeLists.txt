@@ -50,6 +50,7 @@ add_executable(kosmos
     src/base.cpp
     src/galaxy.cpp
     src/ship.cpp
+    src/systems.cpp
     src/part_kit.cpp
     src/blender_edit.cpp
     src/mfd.cpp
@@ -70,6 +71,13 @@ target_compile_definitions(kosmos PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HAND
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" KOSMOS_VERSION LIMIT_COUNT 1)
 target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
+
+# Ship systems (power, consumables, pressure vessels) tests: cmake --build build --target systems_test && build/systems_test
+add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/part_kit.cpp src/universe.cpp
+    src/vsop87.cpp src/planet_data.cpp)
+target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(systems_test PRIVATE src)
+target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package

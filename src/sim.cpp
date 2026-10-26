@@ -302,6 +302,7 @@ namespace kosmos
                 tuned.ports[i].frequency = 131.0 + 0.1 * (slot * 4.0 + static_cast<double>(i));
         ships_.push_back(std::make_unique<Ship>(universe, tuned));
         Ship *ship = ships_.back().get();
+        ship->set_life_support(life_support);
         ship->publish(props, "/ships/ship[" + std::to_string(ships_.size() - 1) + "]");
         props.set_int("/ships/count", static_cast<int>(ships_.size()));
         return ship;

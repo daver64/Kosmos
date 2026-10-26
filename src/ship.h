@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lights.h"
+#include "systems.h"
 #include "universe.h"
 
 #include <memory>
@@ -173,6 +174,8 @@ namespace kosmos
         std::vector<WheelSpec> wheels;
         /** Running lights, strobes and floodlamps, in the ship frame. */
         std::vector<LightSpec> lights;
+        /** Power, consumables and pressure vessels (empty for ships without any). */
+        SystemsSpec systems;
         /** Moments of inertia about the ship X, Y and Z axes in kg m^2; zero estimates them from the stages. */
         sl::dvec3 inertia{0.0};
         /** Rate damping gains for pitch, yaw and roll while the stability hold is on (fly-by-wire). */
@@ -256,6 +259,11 @@ namespace kosmos
         const std::vector<Debris> &debris() const { return debris_; }
         sl::FlightBody &body();
         const sl::FlightBody &body() const;
+        /** Power, life-support and pressure-vessel state; null for ships that declare none. */
+        Systems *systems() { return systems_.get(); }
+        const Systems *systems() const { return systems_.get(); }
+        /** Whether failing life support only warns, can kill the crew (ending the flight), or is ignored. */
+        void set_life_support(LifeSupportMode mode);
 
         /** Stand on a body's surface at the given direction from its centre, nose up, facing a compass heading. */
         void place_on_surface(int body, const sl::dvec3 &direction, double heading_degrees, double ground_height);
@@ -322,5 +330,8 @@ namespace kosmos
         std::string base_;
         std::vector<int> stage_first_thruster_;
         sl::dvec3 rcs_torque_{0.0}, rcs_push_{0.0};
+        std::unique_ptr<Systems> systems_;
+        LifeSupportMode life_support_ = LifeSupportMode::warn;
+        double mission_time_ = 0.0;
     };
 } // namespace kosmos

@@ -41,6 +41,8 @@ namespace kosmos
         bool init(const std::string &root, std::string &error, int system = 0);
         /** Julian date (UTC) the home system starts on; 0 keeps the system file's epoch (J2000). */
         double start_epoch_jd = 0.0;
+        /** What failing life support does to new ships' crews; a scenario's own setting or --life-support replaces it. */
+        LifeSupportMode life_support = LifeSupportMode::warn;
         int system_index() const { return system_; }
         /** Replace the universe with another galaxy star's system and drop every ship. Visual state tied to the old bodies must be rebuilt by the caller. */
         bool change_system(int system, std::string &error);

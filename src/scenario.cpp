@@ -24,6 +24,7 @@ namespace kosmos
             out.description = json.value("description", "");
             out.active = json.value("active", 0);
             out.target = json.value("target", "");
+            out.life_support = json.value("life_support", "");
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -67,6 +68,15 @@ namespace kosmos
                 }
                 else
                     throw std::runtime_error("ship needs \"orbit\" or \"surface\"");
+                if (js.contains("systems"))
+                {
+                    const nlohmann::json &o = js["systems"];
+                    s.leak_cm2 = o.value("leak_cm2", 0.0);
+                    s.battery = o.value("battery", -1.0);
+                    if (o.contains("tanks"))
+                        for (auto it = o["tanks"].begin(); it != o["tanks"].end(); ++it)
+                            s.tanks.emplace_back(it.key(), it.value().get<double>());
+                }
                 out.ships.push_back(std::move(s));
             }
             if (out.ships.empty())
@@ -103,6 +113,8 @@ namespace kosmos
         json["active"] = sc.active;
         if (!sc.target.empty())
             json["target"] = sc.target;
+        if (!sc.life_support.empty())
+            json["life_support"] = sc.life_support;
         if (!sc.nav.empty())
             json["nav"] = sc.nav;
         if (sc.epoch_jd > 0.0)
@@ -155,6 +167,17 @@ namespace kosmos
                     o["speed"] = s.speed;
                 }
                 js["surface"] = o;
+            }
+            if (s.leak_cm2 > 0.0 || s.battery >= 0.0 || !s.tanks.empty())
+            {
+                nlohmann::json o;
+                if (s.leak_cm2 > 0.0)
+                    o["leak_cm2"] = s.leak_cm2;
+                if (s.battery >= 0.0)
+                    o["battery"] = s.battery;
+                for (const auto &t : s.tanks)
+                    o["tanks"][t.first] = t.second;
+                js["systems"] = o;
             }
             json["ships"].push_back(js);
         }

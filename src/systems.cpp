@@ -1,0 +1,819 @@
+#include <sstream>
+#include <fstream>
+#include "systems.h"
+
+#include "ship.h"
+
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#include <functional>
+
+namespace kosmos
+{
+    namespace
+    {
+        constexpr double gas_constant = 8.314462;
+        constexpr double molar_o2 = 0.032, molar_n2 = 0.028, molar_co2 = 0.044;
+        constexpr double solar_constant = 1361.0;
+        constexpr double energy_per_kg_fuel = 8.2e13;     // fission or fusion fuel, J/kg of fuel burned
+        constexpr double fuel_cell_j_per_kg_h2 = 7.2e7;   // usable electricity per kg of hydrogen
+        constexpr double electrolysis_j_per_kg_water = 2.0e7;
+        constexpr double crew_o2_kg_per_s = 0.84 / 86400.0;
+        constexpr double crew_co2_kg_per_s = 1.0 / 86400.0;
+        constexpr double crew_water_kg_per_s = 3.0 / 86400.0;
+        constexpr double regulator_kg_per_s = 0.02;
+
+        sl::dvec3 vec3(const nlohmann::json &j, sl::dvec3 fallback)
+        {
+            if (!j.is_array() || j.size() < 3)
+                return fallback;
+            return {j[0].get<double>(), j[1].get<double>(), j[2].get<double>()};
+        }
+
+        int resolve_stage(const nlohmann::json &j, const std::vector<std::string> &names)
+        {
+            const int last = std::max(0, static_cast<int>(names.size()) - 1);
+            if (!j.contains("stage"))
+                return last;
+            const nlohmann::json &s = j["stage"];
+            if (s.is_number_integer())
+                return std::clamp(s.get<int>(), 0, last);
+            if (s.is_string())
+                for (std::size_t i = 0; i < names.size(); ++i)
+                    if (names[i] == s.get<std::string>())
+                        return static_cast<int>(i);
+            return last;
+        }
+
+        std::string upper(std::string text)
+        {
+            for (char &c : text)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return text;
+        }
+
+        double pressure_to_mass(double kpa, double volume, double temperature, double molar)
+        {
+            return kpa * 1000.0 * volume * molar / (gas_constant * temperature);
+        }
+
+        double mass_to_pressure(double kg, double volume, double temperature, double molar)
+        {
+            return volume > 0.0 ? kg / molar * gas_constant * temperature / volume / 1000.0 : 0.0;
+        }
+    } // namespace
+
+    LifeSupportMode parse_life_support(const std::string &text, LifeSupportMode fallback)
+    {
+        if (text == "off")
+            return LifeSupportMode::off;
+        if (text == "warn")
+            return LifeSupportMode::warn;
+        if (text == "fatal")
+            return LifeSupportMode::fatal;
+        return fallback;
+    }
+
+    const char *life_support_name(LifeSupportMode mode)
+    {
+        switch (mode)
+        {
+        case LifeSupportMode::off:
+            return "off";
+        case LifeSupportMode::fatal:
+            return "fatal";
+        default:
+            return "warn";
+        }
+    }
+
+    void parse_systems(const nlohmann::json &json, const std::vector<std::string> &stage_names, SystemsSpec &out)
+    {
+        for (const nlohmann::json &jc : json.value("systems", nlohmann::json::array()))
+        {
+            SystemComponent c;
+            c.type = jc.value("type", "");
+            if (c.type.empty())
+                continue;
+            c.name = jc.value("name", c.type);
+            c.stage = resolve_stage(jc, stage_names);
+            c.gas = jc.value("gas", "");
+            c.vessel = jc.value("vessel", "");
+            c.watts = jc.value("watts", 0.0);
+            c.max_w = jc.value("max_w", 0.0);
+            c.area = jc.value("area_m2", 0.0);
+            c.efficiency = jc.value("efficiency", c.efficiency);
+            c.half_life_years = jc.value("half_life_years", c.half_life_years);
+            c.age_years = jc.value("age_years", 0.0);
+            c.kg_per_day = jc.value("kg_per_day", 0.0);
+            c.enabled = jc.value("enabled", c.type != "electrolyser");
+            c.priority = jc.value("priority", (c.type == "regulator" || c.type == "scrubber") ? 0 : 1);
+            c.facing = vec3(jc.value("facing", nlohmann::json()), c.facing);
+            if (c.type == "battery")
+            {
+                c.capacity = jc.value("capacity_wh", 1000.0);
+                c.amount = c.capacity * std::clamp(jc.value("charge", 1.0), 0.0, 1.0);
+                if (c.max_w <= 0.0)
+                    c.max_w = c.capacity; // a one-hour rate unless told otherwise
+            }
+            else if (c.type == "tank")
+            {
+                c.capacity = jc.value("capacity_kg", 10.0);
+                c.amount = jc.value("kg", c.capacity);
+            }
+            else if (c.type == "fission" || c.type == "fusion")
+            {
+                c.capacity = c.amount = jc.value("fuel_kg", 10.0);
+            }
+            else if (c.type == "scrubber")
+            {
+                c.capacity = c.amount = jc.value("sorbent_kg", 1e9);
+                if (c.kg_per_day <= 0.0)
+                    c.kg_per_day = 6.0;
+                if (c.watts <= 0.0)
+                    c.watts = 60.0;
+            }
+            else if (c.type == "regulator" && c.watts <= 0.0)
+                c.watts = 20.0;
+            out.components.push_back(std::move(c));
+        }
+        for (const nlohmann::json &jv : json.value("vessels", nlohmann::json::array()))
+        {
+            VesselSpec v;
+            v.name = jv.value("name", v.name);
+            v.stage = resolve_stage(jv, stage_names);
+            v.centre = vec3(jv.value("position", nlohmann::json()), v.centre);
+            v.size = vec3(jv.value("size", nlohmann::json()), v.size);
+            v.crew = jv.value("crew", 0);
+            v.pressure_kpa = jv.value("pressure_kpa", v.pressure_kpa);
+            v.o2_fraction = jv.value("o2_fraction", v.o2_fraction);
+            v.co2_kpa = jv.value("co2_kpa", 0.0);
+            v.temperature_k = jv.value("temperature_k", v.temperature_k);
+            for (const nlohmann::json &jc : jv.value("crew_at", nlohmann::json::array()))
+                v.crew_at.push_back(vec3(jc, {0.5, 0.5, 0.5}));
+            for (const nlohmann::json &jt : jv.value("vents", nlohmann::json::array()))
+            {
+                VesselSpec::Vent vent;
+                vent.at = vec3(jt.value("at", nlohmann::json()), vent.at);
+                vent.area_cm2 = jt.value("area_cm2", 0.0);
+                v.vents.push_back(vent);
+            }
+            out.vessels.push_back(std::move(v));
+        }
+    }
+
+    double Systems::Vessel::pressure_kpa() const
+    {
+        return mass_to_pressure(o2, volume, spec.temperature_k, molar_o2) + mass_to_pressure(n2, volume, spec.temperature_k, molar_n2) +
+               mass_to_pressure(co2, volume, spec.temperature_k, molar_co2);
+    }
+    double Systems::Vessel::ppo2_kpa() const { return mass_to_pressure(o2, volume, spec.temperature_k, molar_o2); }
+    double Systems::Vessel::ppco2_kpa() const { return mass_to_pressure(co2, volume, spec.temperature_k, molar_co2); }
+
+    namespace
+    {
+        void grid_cell_for(const sl::dvec3 &unit, int n, int &x, int &y, int &z)
+        {
+            x = std::clamp(static_cast<int>(std::lround(unit.x * (n - 1))), 1, n - 2);
+            y = std::clamp(static_cast<int>(std::lround(unit.y * (n - 1))), 1, n - 2);
+            z = std::clamp(static_cast<int>(std::lround(unit.z * (n - 1))), 1, n - 2);
+        }
+
+        // Vents sit in the hull layer: move the cell to the nearest face of the cube.
+        void hull_cell_for(const sl::dvec3 &unit, int n, int &x, int &y, int &z)
+        {
+            x = std::clamp(static_cast<int>(std::lround(unit.x * (n - 1))), 0, n - 1);
+            y = std::clamp(static_cast<int>(std::lround(unit.y * (n - 1))), 0, n - 1);
+            z = std::clamp(static_cast<int>(std::lround(unit.z * (n - 1))), 0, n - 1);
+            int *c[3] = {&x, &y, &z};
+            int best = 0, depth = n;
+            for (int i = 0; i < 3; ++i)
+            {
+                const int d = std::min(*c[i], n - 1 - *c[i]);
+                if (d < depth)
+                    depth = d, best = i;
+            }
+            *c[best] = *c[best] < n / 2 ? 0 : n - 1;
+        }
+    } // namespace
+
+    Systems::Systems(const SystemsSpec &spec, LifeSupportMode mode) : components_(spec.components), mode_(mode)
+    {
+        for (const VesselSpec &vs : spec.vessels)
+        {
+            Vessel v;
+            v.spec = vs;
+            v.volume = std::max(vs.size.x * vs.size.y * vs.size.z, 0.01);
+            const double o2_kpa = vs.pressure_kpa * vs.o2_fraction;
+            const double n2_kpa = std::max(vs.pressure_kpa - o2_kpa - vs.co2_kpa, 0.0);
+            v.o2 = pressure_to_mass(o2_kpa, v.volume, vs.temperature_k, molar_o2);
+            v.n2 = pressure_to_mass(n2_kpa, v.volume, vs.temperature_k, molar_n2);
+            v.co2 = pressure_to_mass(vs.co2_kpa, v.volume, vs.temperature_k, molar_co2);
+            if (v.spec.crew_at.empty())
+                for (int i = 0; i < std::max(v.spec.crew, 0); ++i)
+                    v.spec.crew_at.push_back({0.3 + 0.4 * ((i % 3) / 2.0), 0.35, 0.3 + 0.4 * ((i / 3 % 3) / 2.0)});
+            v.grid = sl::create_gas_vessel(12);
+            if (v.grid)
+            {
+                v.grid->cell_volume = static_cast<float>(v.volume / 1000.0);
+                sl::gas_vessel_fill(v.grid, sl::VesselGas::Oxygen, static_cast<float>(v.o2));
+                sl::gas_vessel_fill(v.grid, sl::VesselGas::Nitrogen, static_cast<float>(v.n2));
+                sl::gas_vessel_fill(v.grid, sl::VesselGas::CarbonDioxide, static_cast<float>(v.co2));
+            }
+            for (const VesselSpec::Vent &vent : v.spec.vents)
+                if (vent.area_cm2 > 0.0)
+                {
+                    v.leak_k += vent.area_cm2 * 1e-4 * 170.0 / v.volume;
+                    if (v.grid)
+                    {
+                        int x, y, z;
+                        hull_cell_for(vent.at, v.grid->size, x, y, z);
+                        sl::gas_vessel_set_vent(v.grid, x, y, z, 0.4f);
+                    }
+                }
+            vessels_.push_back(std::move(v));
+        }
+    }
+
+    Systems::~Systems()
+    {
+        for (Vessel &v : vessels_)
+            sl::destroy_gas_vessel(v.grid);
+    }
+
+    SystemComponent *Systems::find_tank(const std::string &gas)
+    {
+        for (SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == gas)
+                return &c;
+        return nullptr;
+    }
+
+    double Systems::take(const std::string &gas, double kg)
+    {
+        double got = 0.0;
+        for (SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == gas && got < kg)
+            {
+                const double t = std::min(c.amount, kg - got);
+                c.amount -= t;
+                got += t;
+            }
+        return got;
+    }
+
+    double Systems::give(const std::string &gas, double kg)
+    {
+        double put = 0.0;
+        for (SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == gas && put < kg)
+            {
+                const double t = std::min(c.capacity - c.amount, kg - put);
+                c.amount += t;
+                put += t;
+            }
+        return put;
+    }
+
+    double Systems::tank_kg(const std::string &gas) const
+    {
+        double sum = 0.0;
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == gas)
+                sum += c.amount;
+        return sum;
+    }
+
+    double Systems::battery_wh() const
+    {
+        double sum = 0.0;
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.type == "battery")
+                sum += c.amount;
+        return sum;
+    }
+
+    double Systems::battery_capacity_wh() const
+    {
+        double sum = 0.0;
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.type == "battery")
+                sum += c.capacity;
+        return sum;
+    }
+
+    void Systems::drop_stage(int stage)
+    {
+        for (SystemComponent &c : components_)
+            if (c.stage == stage)
+                c.alive = false, c.output_w = 0.0;
+        for (Vessel &v : vessels_)
+            if (v.spec.stage == stage && v.alive)
+            {
+                v.alive = false;
+                sl::destroy_gas_vessel(v.grid);
+                v.grid = nullptr;
+            }
+    }
+
+    void Systems::set_tank_fraction(const std::string &gas, double fraction)
+    {
+        for (SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == gas)
+                c.amount = c.capacity * std::clamp(fraction, 0.0, 1.0);
+    }
+
+    void Systems::set_battery_fraction(double fraction)
+    {
+        for (SystemComponent &c : components_)
+            if (c.alive && c.type == "battery")
+                c.amount = c.capacity * std::clamp(fraction, 0.0, 1.0);
+    }
+
+    bool Systems::breach(int index, double area_cm2, const sl::dvec3 &at)
+    {
+        if (index < 0 || index >= static_cast<int>(vessels_.size()) || !vessels_[static_cast<std::size_t>(index)].alive)
+            return false;
+        Vessel &v = vessels_[static_cast<std::size_t>(index)];
+        v.spec.vents.push_back({at, area_cm2});
+        v.leak_k += area_cm2 * 1e-4 * 170.0 / v.volume;
+        if (v.grid)
+        {
+            int x, y, z;
+            hull_cell_for(at, v.grid->size, x, y, z);
+            sl::gas_vessel_set_vent(v.grid, x, y, z, 0.4f);
+        }
+        return true;
+    }
+
+    float Systems::grid_cell(int vessel, int x, int y, int z, int gas) const
+    {
+        if (vessel < 0 || vessel >= static_cast<int>(vessels_.size()) || !vessels_[static_cast<std::size_t>(vessel)].grid)
+            return 0.0f;
+        return sl::gas_vessel_cell(vessels_[static_cast<std::size_t>(vessel)].grid, x, y, z, static_cast<sl::VesselGas>(gas));
+    }
+
+    void Systems::solve_bus(double dt, const SystemsContext &ctx)
+    {
+        const double sun_len = std::sqrt(ctx.sun_dir.x * ctx.sun_dir.x + ctx.sun_dir.y * ctx.sun_dir.y + ctx.sun_dir.z * ctx.sun_dir.z);
+        const sl::dvec3 sun = sun_len > 0.0 ? ctx.sun_dir / sun_len : sl::dvec3(0.0, 1.0, 0.0);
+
+        // Fixed sources first.
+        double fixed = 0.0;
+        for (SystemComponent &c : components_)
+        {
+            c.output_w = 0.0;
+            if (!c.alive || !c.enabled)
+                continue;
+            if (c.type == "solar")
+            {
+                const double len = std::sqrt(c.facing.x * c.facing.x + c.facing.y * c.facing.y + c.facing.z * c.facing.z);
+                const double cosine = len > 0.0 ? (c.facing.x * sun.x + c.facing.y * sun.y + c.facing.z * sun.z) / len : 0.0;
+                c.output_w = c.area * c.efficiency * solar_constant * ctx.sun_flux * std::max(cosine, 0.0);
+            }
+            else if (c.type == "rtg")
+            {
+                const double age = c.age_years + ctx.mission_time / (365.25 * 86400.0);
+                c.output_w = c.watts * std::pow(0.5, age / std::max(c.half_life_years, 1e-6));
+            }
+            fixed += c.output_w;
+        }
+
+        // Loads, in priority order.
+        std::vector<SystemComponent *> loads;
+        for (SystemComponent &c : components_)
+            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser"))
+                loads.push_back(&c);
+        std::stable_sort(loads.begin(), loads.end(), [](const SystemComponent *a, const SystemComponent *b) { return a->priority < b->priority; });
+
+        double dispatch_capacity = 0.0;
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.enabled && (c.type == "fission" || c.type == "fusion") && c.amount > 0.0)
+                dispatch_capacity += c.watts;
+            else if (c.alive && c.enabled && c.type == "fuel_cell" && find_tank("hydrogen") && tank_kg("hydrogen") > 0.0 && tank_kg("oxygen") > 0.0)
+                dispatch_capacity += c.watts;
+
+        double discharge_capacity = 0.0, charge_room = 0.0;
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.type == "battery")
+            {
+                discharge_capacity += std::min(c.max_w, c.amount * 3600.0 / dt);
+                charge_room += std::min(c.max_w, (c.capacity - c.amount) * 3600.0 / dt);
+            }
+
+        double budget = fixed + dispatch_capacity + discharge_capacity;
+        double used = 0.0, wanted = 0.0;
+        bool shed = false;
+        for (SystemComponent *c : loads)
+        {
+            wanted += c->watts;
+            c->powered = c->watts <= budget - used + 1e-9;
+            if (c->powered)
+                used += c->watts;
+            else
+                shed = true;
+        }
+        supply_w_ = fixed;
+        demand_w_ = wanted;
+        bus_powered_ = !shed;
+
+        double need = used - fixed;
+        if (need > 0.0)
+        {
+            for (SystemComponent &c : components_)
+            {
+                if (need <= 0.0)
+                    break;
+                if (!c.alive || !c.enabled)
+                    continue;
+                double produce = 0.0;
+                if (c.type == "fission" || c.type == "fusion")
+                {
+                    produce = std::min({c.watts, need, c.amount * energy_per_kg_fuel * 0.3 / dt});
+                    c.amount -= produce * dt / (energy_per_kg_fuel * 0.3);
+                }
+                else if (c.type == "fuel_cell")
+                {
+                    produce = std::min(c.watts, need);
+                    const double h2 = take("hydrogen", produce * dt / fuel_cell_j_per_kg_h2);
+                    const double ratio = produce * dt / fuel_cell_j_per_kg_h2;
+                    if (ratio > 0.0)
+                        produce *= h2 / ratio;
+                    const double o2 = take("oxygen", h2 * 8.0);
+                    if (h2 > 0.0)
+                        produce *= o2 / (h2 * 8.0);
+                    give("water", (h2 + o2) * 0.99);
+                }
+                c.output_w = produce;
+                supply_w_ += produce;
+                need -= produce;
+            }
+            if (need > 0.0 && discharge_capacity > 0.0)
+            {
+                const double draw = std::min(need, discharge_capacity);
+                for (SystemComponent &c : components_)
+                    if (c.alive && c.type == "battery")
+                    {
+                        const double cap = std::min(c.max_w, c.amount * 3600.0 / dt);
+                        c.amount -= draw * (cap / discharge_capacity) * dt / 3600.0;
+                    }
+                supply_w_ += draw;
+            }
+        }
+        else if (need < 0.0 && charge_room > 0.0)
+        {
+            const double put = std::min(-need, charge_room);
+            for (SystemComponent &c : components_)
+                if (c.alive && c.type == "battery")
+                {
+                    const double room = std::min(c.max_w, (c.capacity - c.amount) * 3600.0 / dt);
+                    c.amount = std::min(c.capacity, c.amount + put * (room / charge_room) * dt / 3600.0);
+                }
+        }
+
+        // Electrolyser output.
+        for (SystemComponent *c : loads)
+            if (c->type == "electrolyser" && c->powered)
+            {
+                const double water = take("water", c->watts * dt / electrolysis_j_per_kg_water);
+                const double o2 = give("oxygen", water * 8.0 / 9.0);
+                give("hydrogen", water / 9.0);
+                if (o2 < water * 8.0 / 9.0)
+                    give("water", water - o2 * 9.0 / 8.0);
+            }
+    }
+
+    void Systems::step_vessels(double dt, const SystemsContext &ctx)
+    {
+        for (std::size_t vi = 0; vi < vessels_.size(); ++vi)
+        {
+            Vessel &v = vessels_[vi];
+            if (!v.alive)
+                continue;
+            const double crew = std::max(v.spec.crew, 0);
+            const double o2_use = std::min(crew * crew_o2_kg_per_s * dt, v.o2);
+            v.o2 -= o2_use;
+            v.co2 += crew * crew_co2_kg_per_s * dt;
+            if (crew > 0.0)
+                take("water", crew * crew_water_kg_per_s * dt);
+
+            // Local sources and sinks go into the grid before it mixes.
+            if (v.grid && crew > 0.0 && !v.spec.crew_at.empty())
+            {
+                const double share = 1.0 / static_cast<double>(v.spec.crew_at.size());
+                for (const sl::dvec3 &at : v.spec.crew_at)
+                {
+                    int x, y, z;
+                    grid_cell_for(at, v.grid->size, x, y, z);
+                    sl::gas_vessel_inject(v.grid, x, y, z, sl::VesselGas::CarbonDioxide, static_cast<float>(crew * crew_co2_kg_per_s * dt * share));
+                    sl::gas_vessel_consume(v.grid, x, y, z, sl::VesselGas::Oxygen, static_cast<float>(o2_use * share));
+                }
+            }
+
+            for (SystemComponent &c : components_)
+            {
+                if (!c.alive || !c.enabled || !c.powered)
+                    continue;
+                const bool mine = c.vessel.empty() ? vi == 0 : c.vessel == v.spec.name;
+                if (!mine)
+                    continue;
+                if (c.type == "scrubber" && c.amount > 0.0)
+                {
+                    const double removed = std::min({v.co2, c.kg_per_day / 86400.0 * dt, c.amount});
+                    v.co2 -= removed;
+                    c.amount -= removed;
+                }
+                else if (c.type == "regulator")
+                {
+                    const double o2_target = pressure_to_mass(v.spec.pressure_kpa * v.spec.o2_fraction, v.volume, v.spec.temperature_k, molar_o2);
+                    const double n2_target = pressure_to_mass(v.spec.pressure_kpa * (1.0 - v.spec.o2_fraction), v.volume, v.spec.temperature_k, molar_n2);
+                    if (v.o2 < o2_target)
+                        v.o2 += take("oxygen", std::min(o2_target - v.o2, regulator_kg_per_s * dt));
+                    if (v.n2 < n2_target)
+                        v.n2 += take("nitrogen", std::min(n2_target - v.n2, regulator_kg_per_s * dt));
+                }
+            }
+
+            if (v.leak_k > 0.0)
+            {
+                const double keep = std::exp(-v.leak_k * dt);
+                v.o2 *= keep;
+                v.n2 *= keep;
+                v.co2 *= keep;
+            }
+
+            if (v.grid)
+            {
+                if (dt <= ctx.grid_dt_limit)
+                    sl::gas_vessel_step(v.grid, static_cast<float>(std::min(dt, 4.0)));
+                sl::gas_vessel_set_total(v.grid, sl::VesselGas::Oxygen, static_cast<float>(v.o2));
+                sl::gas_vessel_set_total(v.grid, sl::VesselGas::Nitrogen, static_cast<float>(v.n2));
+                sl::gas_vessel_set_total(v.grid, sl::VesselGas::CarbonDioxide, static_cast<float>(v.co2));
+            }
+
+            const double p = v.pressure_kpa(), po2 = v.ppo2_kpa(), pco2 = v.ppco2_kpa();
+            v.hazard.clear();
+            double rate = -1.0 / 3600.0; // recovery
+            if (po2 < 12.0 || p < 30.0 || pco2 > 8.0)
+                rate = 1.0 / 180.0;
+            else if (po2 < 16.0 || p < 50.0 || pco2 > 4.0 || po2 > 50.0)
+                rate = 1.0 / 1800.0;
+            if (rate > 0.0 && crew > 0.0)
+                v.hazard = pco2 > 4.0 ? "CO2 HIGH" : (po2 > 50.0 ? "O2 HIGH" : (p < 50.0 ? "LOW PRESSURE" : "O2 LOW"));
+            if (crew > 0.0 && mode_ != LifeSupportMode::off)
+            {
+                v.health = std::clamp(v.health - rate * dt, 0.0, 1.0);
+                if (v.health <= 0.0 && mode_ == LifeSupportMode::fatal)
+                    crew_lost_ = true;
+            }
+        }
+    }
+
+    void Systems::step(double dt, const SystemsContext &ctx)
+    {
+        if (dt <= 0.0 || crew_lost_)
+            return;
+        const int n = std::clamp(static_cast<int>(std::ceil(dt / 10.0)), 1, 2000);
+        const double h = dt / n;
+        for (int i = 0; i < n; ++i)
+        {
+            SystemsContext c = ctx;
+            c.mission_time = ctx.mission_time - dt + h * (i + 1);
+            solve_bus(h, c);
+            step_vessels(h, c);
+        }
+
+        alarms_.clear();
+        if (!bus_powered_)
+            alarms_.push_back("POWER SHORTAGE");
+        const double cap = battery_capacity_wh();
+        if (cap > 0.0 && battery_wh() < 0.15 * cap)
+            alarms_.push_back("BATTERY LOW");
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.type == "tank" && c.gas == "oxygen" && c.capacity > 0.0 && c.amount < 0.1 * c.capacity)
+            {
+                alarms_.push_back("O2 TANK LOW");
+                break;
+            }
+        for (const Vessel &v : vessels_)
+            if (v.alive)
+            {
+                if (v.leak_k > 0.0)
+                    alarms_.push_back(upper(v.spec.name) + " LEAK");
+                if (!v.hazard.empty())
+                    alarms_.push_back(upper(v.spec.name) + " " + v.hazard);
+            }
+        if (crew_lost_)
+            alarms_.push_back("CREW LOST");
+    }
+
+    std::string Systems::alarm_text() const
+    {
+        std::string text;
+        for (const std::string &a : alarms_)
+            text += (text.empty() ? "" : "  ") + a;
+        return text;
+    }
+
+    void Systems::publish(sl::PropertyTree &tree, const std::string &base)
+    {
+        const auto num = [&](const std::string &path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
+        tree.node(base + "/present")->tie_bool([] { return true; });
+        tree.node(base + "/life-support")->tie_string([this] { return std::string(life_support_name(mode_)); });
+        tree.node(base + "/alarm")->tie_string([this] { return alarm_text(); });
+        tree.node(base + "/crew-lost")->tie_bool([this] { return crew_lost_; });
+        tree.node(base + "/bus/powered")->tie_bool([this] { return bus_powered_; });
+        num("bus/supply-w", [this] { return supply_w_; });
+        num("bus/demand-w", [this] { return demand_w_; });
+        num("battery/wh", [this] { return battery_wh(); });
+        num("battery/percent", [this] {
+            const double cap = battery_capacity_wh();
+            return cap > 0.0 ? 100.0 * battery_wh() / cap : 0.0;
+        });
+        for (const char *gas : {"oxygen", "nitrogen", "water", "hydrogen", "deuterium"})
+            num(std::string("tank/") + gas + "-kg", [this, gas] { return tank_kg(gas); });
+        for (std::size_t i = 0; i < vessels_.size(); ++i)
+        {
+            const std::string vb = "vessel[" + std::to_string(i) + "]/";
+            tree.node(base + "/" + vb + "name")->tie_string([this, i] { return vessels_[i].spec.name; });
+            tree.node(base + "/" + vb + "hazard")->tie_string([this, i] { return vessels_[i].hazard; });
+            num(vb + "pressure-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].pressure_kpa() : 0.0; });
+            num(vb + "ppo2-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].ppo2_kpa() : 0.0; });
+            num(vb + "ppco2-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].ppco2_kpa() : 0.0; });
+            num(vb + "health", [this, i] { return vessels_[i].health; });
+            num(vb + "leak-rate", [this, i] { return vessels_[i].leak_k; });
+        }
+    }
+} // namespace kosmos
+
+namespace kosmos
+{
+    namespace
+    {
+        bool starts_with(const std::string &text, const char *prefix) { return text.rfind(prefix, 0) == 0; }
+
+        std::string tag_name(const std::string &object, const char *prefix)
+        {
+            std::string rest = object.substr(std::strlen(prefix));
+            while (!rest.empty() && (rest[0] == '_' || rest[0] == '.' || rest[0] == ' '))
+                rest.erase(0, 1);
+            return rest;
+        }
+    } // namespace
+
+    void find_tagged_vessels(ShipSpec &spec)
+    {
+        struct Tag
+        {
+            std::string name;
+            glm::dvec3 lo, hi;
+            int stage = 0;
+        };
+        std::vector<Tag> boxes, vents, seats;
+        for (std::size_t s = 0; s < spec.stages.size(); ++s)
+            for (const PartSpec &part : spec.stages[s].parts)
+            {
+                if (part.model.empty())
+                    continue;
+                struct Box
+                {
+                    std::string name;
+                    glm::vec3 lo{1e30f}, hi{-1e30f};
+                };
+                std::vector<Box> found;
+                const std::filesystem::path file = std::filesystem::path(spec.directory) / part.model;
+                std::string ext = file.extension().string();
+                for (char &ch : ext)
+                    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                if (ext == ".obj")
+                {
+                    // Parsed directly so discovery needs no graphics context; OBJ parts are the usemtl groups.
+                    std::ifstream in(file);
+                    std::vector<glm::vec3> verts;
+                    std::string line;
+                    Box *current = nullptr;
+                    std::vector<Box> groups;
+                    std::vector<std::vector<int>> used;
+                    while (std::getline(in, line))
+                    {
+                        std::istringstream words(line);
+                        std::string key;
+                        words >> key;
+                        if (key == "v")
+                        {
+                            glm::vec3 p;
+                            if (words >> p.x >> p.y >> p.z)
+                                verts.push_back(p);
+                        }
+                        else if (key == "usemtl")
+                        {
+                            std::string name;
+                            words >> name;
+                            std::size_t at = 0;
+                            while (at < groups.size() && groups[at].name != name)
+                                ++at;
+                            if (at == groups.size())
+                            {
+                                groups.push_back(Box{name, glm::vec3(1e30f), glm::vec3(-1e30f)});
+                            }
+                            current = nullptr;
+                            current = &groups[at];
+                        }
+                        else if (key == "f" && current)
+                        {
+                            std::string tok;
+                            while (words >> tok)
+                            {
+                                int idx = std::atoi(tok.c_str());
+                                idx = idx < 0 ? static_cast<int>(verts.size()) + idx : idx - 1;
+                                if (idx >= 0 && idx < static_cast<int>(verts.size()))
+                                {
+                                    current->lo = glm::min(current->lo, verts[idx]);
+                                    current->hi = glm::max(current->hi, verts[idx]);
+                                }
+                            }
+                        }
+                    }
+                    found = groups;
+                }
+                else if (sl::Model *model = sl::load_model(file.string()))
+                {
+                    for (const sl::ModelPart &mp : model->parts)
+                        if (mp.has_bounds)
+                            found.push_back(Box{mp.name, mp.bounds_min, mp.bounds_max});
+                    sl::destroy_model(model);
+                }
+                glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(part.offset));
+                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.z)), glm::vec3(0.0f, 0.0f, 1.0f));
+                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.y)), glm::vec3(0.0f, 1.0f, 0.0f));
+                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.x)), glm::vec3(1.0f, 0.0f, 0.0f));
+                place = glm::scale(place, glm::vec3(part.scale));
+                for (const Box &b : found)
+                {
+                    const bool vessel = starts_with(b.name, "vessel"), vent = starts_with(b.name, "vent"), crew = starts_with(b.name, "crew");
+                    if (!(vessel || vent || crew) || b.lo.x > b.hi.x)
+                        continue;
+                    glm::dvec3 lo(1e30), hi(-1e30);
+                    for (int c = 0; c < 8; ++c)
+                    {
+                        const glm::vec3 corner((c & 1) ? b.hi.x : b.lo.x, (c & 2) ? b.hi.y : b.lo.y, (c & 4) ? b.hi.z : b.lo.z);
+                        const glm::dvec3 p = glm::dvec3(place * glm::vec4(corner, 1.0f));
+                        lo = glm::min(lo, p);
+                        hi = glm::max(hi, p);
+                    }
+                    Tag tag{vessel ? tag_name(b.name, "vessel") : vent ? tag_name(b.name, "vent") : tag_name(b.name, "crew"), lo, hi,
+                            static_cast<int>(s)};
+                    if (vessel && tag.name.empty())
+                        tag.name = "Cabin";
+                    (vessel ? boxes : vent ? vents : seats).push_back(tag);
+                }
+            }
+
+        for (const Tag &box : boxes)
+        {
+            VesselSpec *target = nullptr;
+            for (VesselSpec &v : spec.systems.vessels)
+                if (v.name == box.name)
+                    target = &v;
+            if (!target)
+            {
+                spec.systems.vessels.emplace_back();
+                target = &spec.systems.vessels.back();
+                target->name = box.name;
+                target->stage = box.stage;
+            }
+            target->centre = (box.lo + box.hi) * 0.5;
+            target->size = glm::max(box.hi - box.lo, glm::dvec3(0.05));
+            target->from_mesh = true;
+            const auto unit = [&](const Tag &t) {
+                const glm::dvec3 c = (t.lo + t.hi) * 0.5 - box.lo;
+                const glm::dvec3 size = box.hi - box.lo;
+                return glm::clamp(c / glm::max(size, glm::dvec3(1e-6)), glm::dvec3(0.0), glm::dvec3(1.0));
+            };
+            const auto inside = [&](const Tag &t) {
+                const glm::dvec3 c = (t.lo + t.hi) * 0.5;
+                return c.x >= box.lo.x - 1e-3 && c.x <= box.hi.x + 1e-3 && c.y >= box.lo.y - 1e-3 && c.y <= box.hi.y + 1e-3 && c.z >= box.lo.z - 1e-3 &&
+                       c.z <= box.hi.z + 1e-3;
+            };
+            for (const Tag &t : vents)
+                if (inside(t))
+                {
+                    // Tagged vents start closed; they mark where a breach() or hatch leak will show.
+                    VesselSpec::Vent vent;
+                    vent.at = unit(t);
+                    target->vents.push_back(vent);
+                }
+            for (const Tag &t : seats)
+                if (inside(t))
+                    target->crew_at.push_back(unit(t));
+            if (!target->crew_at.empty() && target->crew == 0)
+                target->crew = static_cast<int>(target->crew_at.size());
+        }
+    }
+} // namespace kosmos

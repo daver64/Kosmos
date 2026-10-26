@@ -1,4 +1,79 @@
 {
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 2500
+  },
+  {
+   "type": "solar",
+   "name": "Solar wings",
+   "area_m2": 6,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 250,
+   "priority": 0
+  },
+  {
+   "type": "load",
+   "name": "Cabin lighting",
+   "watts": 80,
+   "priority": 2
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 25
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 30
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 40
+  },
+  {
+   "type": "regulator",
+   "name": "Cabin regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 6,
+   "sorbent_kg": 60
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "stage": "Capsule",
+   "position": [
+    0,
+    0,
+    -23
+   ],
+   "size": [
+    2.4,
+    2.4,
+    3.0
+   ],
+   "crew": 3
+  }
+ ],
  "name": "Kestrel",
  "lights": [
   { "position": [-1.6, 0, -20], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },

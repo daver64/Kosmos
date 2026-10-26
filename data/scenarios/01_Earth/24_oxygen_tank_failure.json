@@ -1,0 +1,14 @@
+{
+ "name": "Earth: oxygen tank failure",
+ "description": "An oxygen tank has failed on Apollo-Soyuz and the batteries are low. Conserve power and keep the fuel cells fed. Life support is fatal here.",
+ "active": 0,
+ "life_support": "fatal",
+ "ships": [
+  {
+   "ship": "Apollo-Soyuz",
+   "body": "Earth",
+   "orbit": {"altitude_km": 220, "inclination": 51.6, "phase": 0},
+   "systems": {"tanks": {"oxygen": 0.04}, "battery": 0.25}
+  }
+ ]
+}

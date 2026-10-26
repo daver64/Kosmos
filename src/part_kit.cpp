@@ -94,8 +94,10 @@ namespace kosmos
         if (!ship.contains("stages") || !ship["stages"].is_array())
             return true;
         double cursor = ship.value("stack_z", 0.0);
+        int stage_index = -1;
         for (nlohmann::json &stage : ship["stages"])
         {
+            ++stage_index;
             if (!stage.contains("kits"))
                 continue;
             cursor = stage.value("stack_z", cursor);
@@ -160,6 +162,21 @@ namespace kosmos
                     }
                     for (const nlohmann::json &g : kit.value("gear", nlohmann::json::array()))
                         stage["gear"].push_back(place_point(g, at));
+                    // Equipment and pressure vessels a kit carries belong to the stage it is stacked in.
+                    for (nlohmann::json c : kit.value("systems", nlohmann::json::array()))
+                    {
+                        c["stage"] = stage_index;
+                        ship["systems"].push_back(c);
+                    }
+                    for (nlohmann::json v : kit.value("vessels", nlohmann::json::array()))
+                    {
+                        v["stage"] = stage_index;
+                        v["position"] = place_point(v.value("position", nlohmann::json::array({0.0, 0.0, 0.0})), at);
+                        if (scale != 1.0 && v.contains("size"))
+                            for (nlohmann::json &d : v["size"])
+                                d = d.get<double>() * scale;
+                        ship["vessels"].push_back(v);
+                    }
                 }
                 radius = std::max(radius, radial > 0.0 ? radial + kit_radius : kit_radius);
                 if (radial <= 0.0)

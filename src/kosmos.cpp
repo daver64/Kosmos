@@ -58,6 +58,8 @@ namespace
     struct Options
     {
         std::string root = KOSMOS_ROOT;
+        std::string life_support;
+        bool systems_window = false;
         double selftest = 0.0;
         int max_texture = 16384;
         double selftest_warp = 0.0;
@@ -205,6 +207,8 @@ namespace
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
         sim.clear_ships();
+        if (!sc.life_support.empty())
+            sim.life_support = kosmos::parse_life_support(sc.life_support, sim.life_support);
         const int home = sim.universe.home_id();
         for (const kosmos::ScenarioShip &entry : sc.ships)
         {
@@ -219,6 +223,15 @@ namespace
             Ship *ship = sim.spawn(*spec);
             if (!entry.label.empty())
                 ship->name = entry.label;
+            if (kosmos::Systems *systems = ship->systems())
+            {
+                for (const auto &tank : entry.tanks)
+                    systems->set_tank_fraction(tank.first, tank.second);
+                if (entry.battery >= 0.0)
+                    systems->set_battery_fraction(entry.battery);
+                if (entry.leak_cm2 > 0.0)
+                    systems->breach(0, entry.leak_cm2);
+            }
             if (!entry.landed)
             {
                 if (entry.apoapsis_km > 0.0)
@@ -2116,7 +2129,11 @@ namespace
                 std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
             if (loaded.model)
                 for (sl::ModelPart &mp : loaded.model->parts)
+                {
                     mp.material.cull = sl::CullMode::none; // Orbiter draws meshes double-sided and many are not closed
+                    if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
+                        mp.visible = false; // systems markers, not geometry
+                }
             models[&part] = loaded;
             return loaded.model;
         }
@@ -2475,6 +2492,10 @@ int main(int argc, char **argv)
             options.part_window = true;
         else if (!std::strcmp(argv[i], "--hide-info"))
             options.hide_info = true;
+        else if (!std::strcmp(argv[i], "--systems-window"))
+            options.systems_window = true;
+        else if (!std::strcmp(argv[i], "--life-support") && i + 1 < argc)
+            options.life_support = argv[++i];
         else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
             options.hud = argv[++i];
         else if (!std::strcmp(argv[i], "--camera-window"))
@@ -2605,6 +2626,7 @@ int main(int argc, char **argv)
         std::fprintf(stderr, "kosmos: %s\n", error.c_str());
         return 1;
     }
+    sim.life_support = kosmos::parse_life_support(options.life_support, sim.life_support);
     if (options.list_stars)
     {
         std::printf("%d stars; system %d %s (class %c)\n", sim.galaxy.size(), sim.system_index(), sim.galaxy.star(sim.system_index()).name.c_str(),
@@ -3021,7 +3043,7 @@ int main(int argc, char **argv)
     bool cockpit3d = options.cockpit3d;
     // Camera selection (F2): a ship's interior camera or a base camera, besides the chase and cockpit views.
     int interior_cam = -1, base_view = -1, base_view_cam = 0;
-    bool camera_window = options.camera_window, settings_window = options.settings_window, property_window = options.property_window, lua_window = options.lua_window;
+    bool systems_window = options.systems_window, camera_window = options.camera_window, settings_window = options.settings_window, property_window = options.property_window, lua_window = options.lua_window;
     bool net_window = options.net_window;
     // Part editor: meshes are edited in Blender while the simulation waits (the pause property is restored afterwards).
     bool part_window = options.part_window, edit_paused = false, edit_was_paused = false;
@@ -3098,7 +3120,7 @@ int main(int argc, char **argv)
     menu_bar.keep_visible = options.menu_visible;
     menu_bar.scenario_editor_open = options.scenario_editor;
     menu_bar.base_editor_open = options.base_editor;
-    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
     kosmos::MenuActions menu_actions;
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
@@ -3241,6 +3263,8 @@ int main(int argc, char **argv)
                     settings_window = !settings_window;
                 else if (key == sl::Event::Key::f4)
                     property_window = !property_window;
+                else if (key == sl::Event::Key::f1)
+                    systems_window = !systems_window;
                 else if (key == sl::Event::Key::f11)
                     lua_window = !lua_window;
                 else if (key == sl::Event::Key::f12)
@@ -4372,7 +4396,9 @@ int main(int argc, char **argv)
         if (show_info)
             sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
         if (ship->crashed())
-            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, "*** VESSEL LOST - press R to reset ***");
+            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press R to reset ***" : "*** VESSEL LOST - press R to reset ***");
+        else if (ship->systems() && !ship->systems()->alarms().empty() && ((sl::time_ms() / 450) % 4 != 0 || ship->systems()->mode() == kosmos::LifeSupportMode::off))
+            sl::gprintf_center(96, {255, 80, 70}, "!! %s !!", ship->systems()->alarm_text().c_str());
         if (show_info)
         {
             sl::gprintf(16, 34, {200, 220, 255}, "%s  Alt %s   Speed %.1f m/s   Vertical %.1f m/s", soi_name.c_str(), format_distance(tm.altitude).c_str(), tm.surface_speed, tm.vertical_speed);
@@ -4541,6 +4567,94 @@ int main(int argc, char **argv)
         if (sl::gui_available())
         {
             sl::gui_new_frame();
+            if (systems_window)
+            {
+                ImGui::SetNextWindowPos(ImVec2(330.0f, 60.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowBgAlpha(0.9f);
+                if (ImGui::Begin("Ship systems [F1]", &systems_window, ImGuiWindowFlags_AlwaysAutoResize))
+                {
+                    kosmos::Systems *sys = ship->systems();
+                    if (!sys)
+                        ImGui::TextUnformatted("This ship has no power or life-support systems.");
+                    else
+                    {
+                        int mode = static_cast<int>(sys->mode());
+                        const char *modes[] = {"Off", "Warn", "Fatal"};
+                        if (ImGui::Combo("Life support", &mode, modes, 3))
+                            sys->set_mode(static_cast<kosmos::LifeSupportMode>(mode));
+                        ImGui::SeparatorText("Power");
+                        ImGui::Text("Supply %.0f W   Demand %.0f W   %s", sys->supply_w(), sys->demand_w(), sys->powered() ? "" : "SHORTAGE");
+                        const double cap = sys->battery_capacity_wh();
+                        if (cap > 0.0)
+                        {
+                            char label[64];
+                            std::snprintf(label, sizeof label, "Battery %.0f / %.0f Wh", sys->battery_wh(), cap);
+                            ImGui::ProgressBar(static_cast<float>(sys->battery_wh() / cap), ImVec2(260.0f, 0.0f), label);
+                        }
+                        for (const kosmos::SystemComponent &c : sys->components())
+                        {
+                            if (!c.alive)
+                                continue;
+                            if (c.type == "tank" && c.capacity > 0.0)
+                            {
+                                char label[96];
+                                std::snprintf(label, sizeof label, "%s tank %.2f / %.0f kg", c.gas.c_str(), c.amount, c.capacity);
+                                ImGui::ProgressBar(static_cast<float>(c.amount / c.capacity), ImVec2(260.0f, 0.0f), label);
+                            }
+                            else if (c.output_w > 0.0)
+                                ImGui::Text("%s  %.0f W", c.name.c_str(), c.output_w);
+                            else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && c.enabled)
+                                ImGui::TextColored(c.powered ? ImVec4(0.7f, 1.0f, 0.7f, 1.0f) : ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "%s  %.0f W %s", c.name.c_str(), c.watts, c.powered ? "" : "(shed)");
+                        }
+                        static int selected_vessel = 0, slice_y = 5, slice_gas = 0;
+                        for (int vi = 0; vi < sys->vessel_count(); ++vi)
+                        {
+                            const kosmos::Systems::Vessel &v = sys->vessels()[static_cast<std::size_t>(vi)];
+                            ImGui::SeparatorText(v.spec.name.c_str());
+                            if (!v.alive)
+                            {
+                                ImGui::TextUnformatted("(separated)");
+                                continue;
+                            }
+                            ImGui::Text("%.1f kPa   O2 %.1f   CO2 %.2f kPa   crew %d   health %.0f%%  %s", v.pressure_kpa(), v.ppo2_kpa(), v.ppco2_kpa(), v.spec.crew, v.health * 100.0, v.hazard.c_str());
+                            ImGui::PushID(vi);
+                            if (ImGui::SmallButton("Open 5 cm2 leak"))
+                                sys->breach(vi, 5.0);
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("Show gas grid"))
+                                selected_vessel = vi;
+                            ImGui::PopID();
+                        }
+                        if (selected_vessel < sys->vessel_count() && sys->vessels()[static_cast<std::size_t>(selected_vessel)].alive)
+                        {
+                            ImGui::SeparatorText("Cabin gas grid");
+                            ImGui::SliderInt("Height", &slice_y, 1, 10);
+                            ImGui::RadioButton("O2", &slice_gas, 0);
+                            ImGui::SameLine();
+                            ImGui::RadioButton("N2", &slice_gas, 1);
+                            ImGui::SameLine();
+                            ImGui::RadioButton("CO2", &slice_gas, 2);
+                            const kosmos::Systems::Vessel &v = sys->vessels()[static_cast<std::size_t>(selected_vessel)];
+                            // Colour each cell by its density relative to the well-mixed value; CO2 pockets stand out.
+                            const float mixed = static_cast<float>((slice_gas == 0 ? v.o2 : slice_gas == 1 ? v.n2 : v.co2) / 1000.0);
+                            const ImVec2 origin = ImGui::GetCursorScreenPos();
+                            const float cell = 14.0f;
+                            ImDrawList *draw = ImGui::GetWindowDrawList();
+                            for (int z = 0; z < 12; ++z)
+                                for (int x = 0; x < 12; ++x)
+                                {
+                                    const float d = mixed > 0.0f ? sys->grid_cell(selected_vessel, x, slice_y, z, slice_gas) / mixed : 0.0f;
+                                    const float t = std::min(d / 2.0f, 1.0f);
+                                    const bool hull = x == 0 || z == 0 || x == 11 || z == 11;
+                                    const ImU32 colour = hull ? IM_COL32(70, 70, 80, 255) : IM_COL32(static_cast<int>(40 + 215 * t), static_cast<int>(60 + 120 * (1.0f - std::abs(t * 2.0f - 1.0f))), static_cast<int>(220 - 190 * t), 255);
+                                    draw->AddRectFilled(ImVec2(origin.x + x * cell, origin.y + z * cell), ImVec2(origin.x + (x + 1) * cell - 1.0f, origin.y + (z + 1) * cell - 1.0f), colour);
+                                }
+                            ImGui::Dummy(ImVec2(12 * cell, 12 * cell));
+                        }
+                    }
+                }
+                ImGui::End();
+            }
             if (settings_window)
             {
                 ImGui::SetNextWindowPos(ImVec2(330.0f, 12.0f), ImGuiCond_FirstUseEver);

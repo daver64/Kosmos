@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <cstdio>
 #include <fstream>
 
 namespace kosmos
@@ -219,6 +220,13 @@ namespace kosmos
                 }
                 spec.stages.push_back(std::move(stage));
             }
+            std::vector<std::string> stage_names;
+            for (const StageSpec &st : spec.stages)
+                stage_names.push_back(st.name);
+            parse_systems(json, stage_names, spec.systems);
+            if (spec.directory.empty())
+                spec.directory = std::filesystem::path(file).parent_path().string();
+            find_tagged_vessels(spec);
         }
         catch (const std::exception &e)
         {
@@ -267,6 +275,15 @@ namespace kosmos
     Ship::Ship(Universe &universe, ShipSpec spec) : name(spec.name), universe_(universe), spec_(std::move(spec))
     {
         build_body();
+        if (!spec_.systems.empty())
+            systems_ = std::make_unique<Systems>(spec_.systems, life_support_);
+    }
+
+    void Ship::set_life_support(LifeSupportMode mode)
+    {
+        life_support_ = mode;
+        if (systems_)
+            systems_->set_mode(mode);
     }
 
     Ship::~Ship()
@@ -729,6 +746,8 @@ namespace kosmos
             b.thrusters[static_cast<std::size_t>(i)].level = 0.0;
         }
         b.tanks[static_cast<std::size_t>(index)] = {0.0, 0.0};
+        if (systems_)
+            systems_->drop_stage(index);
         // Gear belongs to stages in order, and stages leave in order, so the leading contacts are this stage's.
         b.gear.erase(b.gear.begin(), b.gear.begin() + static_cast<std::ptrdiff_t>(std::min(st.gear.size(), b.gear.size())));
     }
@@ -889,6 +908,54 @@ namespace kosmos
         update_telemetry();
         sl::FlightBody &b = body();
 
+        if (systems_ && dt > 0.0)
+        {
+            mission_time_ += dt;
+            SystemsContext ctx;
+            ctx.mission_time = mission_time_;
+            int star = -1;
+            for (std::size_t i = 0; i < universe_.bodies.size(); ++i)
+                if (universe_.bodies[i].kind == BodyKind::star)
+                {
+                    star = static_cast<int>(i);
+                    break;
+                }
+            if (star >= 0)
+            {
+                const sl::dvec3 to_star = universe_.position(star) - b.position;
+                const double distance = std::max(glm::length(to_star), 1.0);
+                const sl::dvec3 dir = to_star / distance;
+                ctx.sun_dir = b.direction_to_local(dir);
+                ctx.sun_flux = std::pow(149597870700.0 / distance, 2.0);
+                // Eclipse: the ray to the star passes through any other body.
+                for (std::size_t i = 0; i < universe_.bodies.size(); ++i)
+                {
+                    if (static_cast<int>(i) == star)
+                        continue;
+                    const sl::dvec3 to_body = universe_.position(static_cast<int>(i)) - b.position;
+                    const double along = glm::dot(to_body, dir);
+                    if (along <= 0.0 || along >= distance)
+                        continue;
+                    if (glm::length(to_body - dir * along) < universe_.bodies[i].radius)
+                    {
+                        ctx.sun_flux = 0.0;
+                        break;
+                    }
+                }
+            }
+            systems_->step(dt, ctx);
+            if (systems_->crew_lost() && !crashed_)
+            {
+                std::fprintf(stderr, "[kosmos] %s: crew lost\n", name.c_str());
+                crashed_ = true;
+                b.mode = sl::FlightBodyMode::kinematic;
+                b.velocity = universe_.world.body(telemetry_.soi)->velocity;
+                b.angular_velocity = sl::dvec3(0.0);
+                for (sl::Thruster &t : b.thrusters)
+                    t.level = 0.0;
+            }
+        }
+
         if (!crashed_ && b.mode == sl::FlightBodyMode::dynamic && !telemetry_.landed)
         {
             double tail = 0.0;
@@ -981,6 +1048,8 @@ namespace kosmos
         num("velocity/x", [this] { return body().velocity.x; });
         num("velocity/y", [this] { return body().velocity.y; });
         num("velocity/z", [this] { return body().velocity.z; });
+        if (systems_)
+            systems_->publish(tree, base + "/systems");
     }
 
     void Ship::unpublish()

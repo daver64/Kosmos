@@ -1,4 +1,89 @@
 {
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 20000,
+   "max_w": 6000
+  },
+  {
+   "type": "solar",
+   "name": "Solar arrays",
+   "area_m2": 40,
+   "efficiency": 0.25,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "solar",
+   "name": "Solar arrays (aft)",
+   "area_m2": 40,
+   "efficiency": 0.25,
+   "facing": [
+    0,
+    -1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Station systems",
+   "watts": 1500,
+   "priority": 0
+  },
+  {
+   "type": "load",
+   "name": "Experiments",
+   "watts": 600,
+   "priority": 2
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 120
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 100
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 300
+  },
+  {
+   "type": "regulator",
+   "name": "Cabin regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 6,
+   "sorbent_kg": 400
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "size": [
+    3.6,
+    3.6,
+    8.0
+   ],
+   "crew": 3
+  }
+ ],
  "name": "Salyut",
  "lights": [
   { "position": [-2.2, 0, -5.5], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },

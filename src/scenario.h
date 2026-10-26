@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,9 @@ namespace kosmos
         double altitude = 0.0;   // metres above the ground; above zero starts airborne
         double speed = 0.0;      // airspeed in m/s when airborne
         double latitude = 0.0, longitude = 0.0, heading = 90.0;
+        // Systems state at the start (see the ship's "systems"): a cabin leak in cm2, tank fill fractions by gas, and battery charge (-1 keeps full).
+        double leak_cm2 = 0.0, battery = -1.0;
+        std::vector<std::pair<std::string, double>> tanks;
     };
 
     /**
@@ -41,6 +45,8 @@ namespace kosmos
         int active = 0;
         /** Initial /sim/target (a ship or body name) and NAV1/NAV2 frequencies; empty or 0 leaves them unset. */
         std::string target;
+        /** "off", "warn" or "fatal": what failing life support does to the crew. Empty keeps the setting. */
+        std::string life_support;
         std::vector<double> nav;
         /** Start date as a Julian date (UTC); 0 starts on the system's default date. date_text keeps the text it was written as, if any. */
         double epoch_jd = 0.0;
