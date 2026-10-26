@@ -14,6 +14,8 @@ namespace kosmos
     {
         std::string type; // "vor", "ndb", "ils" or "vtol"
         std::string id, name;
+        /** Short code for the displays, like "EGCP VOR"; the name is used when empty. */
+        std::string ident;
         std::string body;
         double latitude = 0.0, longitude = 0.0;
         /** MHz (an NDB is 0.19-0.535, i.e. kHz / 1000). A receiver locks on when tuned within 0.025 of this, or 0.0015 for an NDB. */
@@ -81,7 +83,7 @@ namespace kosmos
         };
         struct Contact
         {
-            std::string type, name;
+            std::string type, name, ident;
             double frequency = 0.0, distance = 0.0;
             int ship = -1, port = -1;
             const Transmitter *beacon = nullptr;

@@ -55,7 +55,7 @@ return {
     end
     local kind = props.get(base .. "type")
     g:colour(120, 255, 140)
-    g:text(200, 372, (props.get(base .. "name") or "") .. string.format("  %.1f km", n(base .. "distance") / 1000), 1)
+    g:text(200, 372, (props.get(base .. "ident") or "") .. string.format("  %.1f km", n(base .. "distance") / 1000), 1)
 
     -- Bearing pointer to the transmitter.
     local bx, by = at(n(base .. "bearing"), r - 40)

@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "twickenham",
+      "icao": "EGTK",
       "name": "Twickenham Spaceport",
       "body": "Earth",
       "latitude": 51.4559,

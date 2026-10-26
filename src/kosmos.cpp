@@ -1879,7 +1879,8 @@ namespace
             sl::rect(sl::screen, ox, oy, ox + w, oy + h, {70, 78, 90, 255}, 2.0f);
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
-            sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
+            if (sim.mfd.allowed(cp.instruments[i].mode))
+                sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
     }
 
     // Press the button under (px, py), given in the same pixels the panel was drawn in. Returns true if one was hit.
@@ -1887,6 +1888,8 @@ namespace
     {
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
         {
+            if (!sim.mfd.allowed(cp.instruments[i].mode))
+                continue;
             const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
             if (button >= 0)
             {
@@ -3706,6 +3709,7 @@ int main(int argc, char **argv)
             panel_index = first_ship_seen ? options.panel : 0;
             first_ship_seen = false;
             const auto &cockpit_spec = ship->spec().cockpit;
+            sim.mfd.set_domain(ship->spec().mfd_domain());
             if (panel_index > 0 && panel_index < static_cast<int>(cockpit_spec.panels_2d().size()))
                 menu_actions.show_panel(panel_index);
             else
@@ -3714,10 +3718,12 @@ int main(int argc, char **argv)
                 sim.mfd.set_unit_count(static_cast<int>(cockpit_spec.instruments.size()));
                 for (std::size_t i = 0; i < cockpit_spec.instruments.size(); ++i)
                     sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(cockpit_spec.instruments[i].mode)));
+                // A default the ship's regime hides falls back to the surface display.
+                const auto usable = [&](const std::string &id) { return sim.mfd.allowed(id) ? id : std::string("surface"); };
                 if (cockpit_spec.instruments.empty() || !options.mfd_left.empty())
-                    sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left)));
+                    sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(usable(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left))));
                 if (cockpit_spec.instruments.empty() || !options.mfd_right.empty())
-                    sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right)));
+                    sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(usable(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right))));
             }
         }
         const kosmos::Telemetry &tm = ship->telemetry();

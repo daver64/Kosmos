@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "tranquility",
+      "icao": "LTRQ",
       "name": "Tranquility Base",
       "body": "Moon",
       "latitude": 0.67,
@@ -36,6 +37,7 @@
     },
     {
       "id": "luna_e3",
+      "icao": "LUE3",
       "name": "Mare Frigoris Outpost",
       "body": "Moon",
       "latitude": 38.2,
@@ -56,6 +58,7 @@
     },
     {
       "id": "gale",
+      "icao": "MGAL",
       "name": "Gale Crater Base",
       "body": "Mars",
       "latitude": -5.4,
@@ -82,6 +85,7 @@
     },
     {
       "id": "caloris",
+      "icao": "MCAL",
       "name": "Caloris Outpost",
       "body": "Mercury",
       "latitude": 30.0,

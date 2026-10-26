@@ -23,7 +23,7 @@ local function dial(g, cx, cy, r, rec)
   end
   local kind = props.get(base .. "type")
   g:colour(120, 255, 140)
-  g:text(cx, cy - r - 18, props.get(base .. "name") or "", 1)
+  g:text(cx, cy - r - 18, props.get(base .. "ident") or "", 1)
   g:text(cx, cy + r + 14, string.format("%.1f km", n(base .. "distance") / 1000), 1)
   local course, dev, per, flag = n(base .. "obs"), 0, 10, ""
   if kind == "ils" and props.get(base .. "ils/valid") then

@@ -808,6 +808,7 @@ namespace kosmos
                 {
                     text("Id", b.id);
                     text("Name", b.name);
+                    text("ICAO code", b.icao);
                     std::vector<std::string> bodies = body_names(sim);
                     int bi = index_of(bodies, b.body);
                     bool moved = false;

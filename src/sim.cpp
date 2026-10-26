@@ -190,7 +190,7 @@ namespace kosmos
             {
                 std::string error;
                 const std::string id = entry.value("id", "");
-                if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error))
+                if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any")))
                     log("addon " + addon.id + ": " + error);
             }
             for (const nlohmann::json &file : json.value("navaids", nlohmann::json::array()))

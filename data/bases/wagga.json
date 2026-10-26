@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "wagga",
+      "icao": "YWGS",
       "name": "Wagga Wagga Spaceport",
       "body": "Earth",
       "latitude": -35.1082,

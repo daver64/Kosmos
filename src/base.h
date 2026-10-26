@@ -86,6 +86,8 @@ namespace kosmos
     struct Base
     {
         std::string id, name, body;
+        /** Four-letter code shown on the nav displays; made up from the id when the file has none. */
+        std::string icao;
         std::string source_dir; // folder of the file it was read from; model paths are relative to it
         double latitude = 0.0, longitude = 0.0;
         double heading = 0.0;       // degrees, 0 = north, 90 = east

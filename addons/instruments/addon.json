@@ -13,18 +13,22 @@
     },
     {
       "id": "asi",
+      "domain": "atmosphere",
       "script": "asi.lua"
     },
     {
       "id": "vsi",
+      "domain": "atmosphere",
       "script": "vsi.lua"
     },
     {
       "id": "dg",
+      "domain": "atmosphere",
       "script": "dg.lua"
     },
     {
       "id": "turn",
+      "domain": "atmosphere",
       "script": "turn.lua"
     },
     {

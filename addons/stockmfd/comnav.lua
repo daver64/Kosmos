@@ -28,7 +28,7 @@ mode = {
       g:text(60, 40 + r * 18, string.format("NAV%d %s", r + 1, n(path) < 1.0 and freq(n(path)) or freq(n(path)) .. " MHz"), 0)
       if valid then
         g:colour(120, 255, 140)
-        g:text(250, 40 + r * 18, (props.get("/nav/nav[" .. r .. "]/name") or ""), 0)
+        g:text(250, 40 + r * 18, string.sub(props.get("/nav/nav[" .. r .. "]/ident") or "", 1, 16), 0)
       else
         g:colour(150, 150, 150)
         g:text(250, 40 + r * 18, "no signal", 0)
@@ -37,10 +37,9 @@ mode = {
     g:colour(60, 110, 255)
     g:line(60, 86, 340, 86)
     g:colour(200, 210, 220)
-    g:text(60, 94, "Type", 0)
-    g:text(110, 94, "Name", 0)
-    g:text(330, 94, "MHz", 2)
-    g:text(390, 94, "Range km", 2)
+    g:text(60, 94, "Ident", 0)
+    g:text(310, 94, "MHz", 2)
+    g:text(374, 94, "km", 2)
     local count = n("/nav/count")
     for k = 0, math.min(count, 6) - 1 do
       local base = "/nav/item[" .. k .. "]/"
@@ -48,11 +47,10 @@ mode = {
       g:colour(255, 240, 140)
       g:text(34, y, tostring(k + 1), 0)
       g:colour(120, 255, 140)
-      g:text(60, y, string.upper(props.get(base .. "type") or ""), 0)
-      g:text(110, y, props.get(base .. "name") or "", 0)
+      g:text(60, y, string.sub(props.get(base .. "ident") or "", 1, 14), 0)
       g:colour(120, 200, 255)
-      g:text(330, y, freq(n(base .. "frequency")), 2)
-      g:text(390, y, string.format("%.1f", n(base .. "distance") / 1000), 2)
+      g:text(318, y, freq(n(base .. "frequency")), 2)
+      g:text(374, y, string.format("%.1f", n(base .. "distance") / 1000), 2)
     end
     if count == 0 then
       g:colour(255, 200, 80)

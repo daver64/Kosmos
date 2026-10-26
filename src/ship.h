@@ -138,6 +138,8 @@ namespace kosmos
         /** Draw the dashboard with two MFDs (default modes orbit and surface) below the instrument row. */
         bool mfds = true;
         std::string mfd_left = "orbit", mfd_right = "surface";
+        /** Which MFD modes the ship offers: "auto" (aircraft get no orbital modes, everything else no airspeed-style flight gauges), "atmosphere", "space", or "none" to offer all. */
+        std::string mfd_filter = "auto";
 
         /** One instrument on the cockpit panel: an MFD mode drawn in a square at (x, y) in panel units, with its buttons if `frame`. */
         struct PanelInstrument
@@ -225,6 +227,14 @@ namespace kosmos
         /** Rate damping gains for pitch, yaw and roll while the stability hold is on (fly-by-wire). */
         sl::dvec3 damping{0.6, 0.6, 0.6};
         bool aircraft() const { return kind == "aircraft"; }
+        /** The MfdSystem domain this ship flies in, from cockpit.mfd_filter. */
+        std::string mfd_domain() const
+        {
+            const std::string &f = cockpit.mfd_filter;
+            if (f == "atmosphere" || f == "space")
+                return f;
+            return f == "none" ? "any" : aircraft() ? "atmosphere" : "space";
+        }
     };
 
     bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error);

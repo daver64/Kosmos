@@ -5,6 +5,7 @@
 #include "sl.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cmath>
@@ -260,6 +261,15 @@ namespace kosmos
                 Base b;
                 b.id = j.at("id").get<std::string>();
                 b.name = j.value("name", b.id);
+                b.icao = j.value("icao", "");
+                if (b.icao.empty())
+                {
+                    for (char ch : b.id)
+                        if (std::isalnum(static_cast<unsigned char>(ch)) && b.icao.size() < 4)
+                            b.icao += static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                    while (b.icao.size() < 4)
+                        b.icao += 'X';
+                }
                 b.body = j.value("body", "Earth");
                 b.latitude = j.at("latitude").get<double>();
                 b.longitude = j.at("longitude").get<double>();
@@ -497,6 +507,7 @@ namespace kosmos
             json j;
             j["id"] = b.id;
             j["name"] = b.name;
+            j["icao"] = b.icao;
             j["body"] = b.body;
             j["latitude"] = b.latitude;
             j["longitude"] = b.longitude;
@@ -619,6 +630,11 @@ namespace kosmos
             t.type = n.type;
             t.id = n.id;
             t.name = n.name;
+            {
+                std::string kind = n.type;
+                std::transform(kind.begin(), kind.end(), kind.begin(), [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
+                t.ident = base.icao + " " + kind;
+            }
             t.body = base.body;
             t.frequency = n.frequency;
             t.heading = base.heading + n.heading;
@@ -643,6 +659,8 @@ namespace kosmos
                 t.type = "ils";
                 t.id = base.id + "-ils-" + std::to_string(r) + (ils.reverse ? "r" : "f");
                 t.name = base.name + " " + rw.name + (ils.reverse ? " (rev)" : "") + " ILS";
+                std::string number = rw.name.rfind("Runway ", 0) == 0 ? rw.name.substr(7) : rw.name;
+                t.ident = base.icao + " ILS " + number + (ils.reverse ? "R" : "");
                 t.body = base.body;
                 t.frequency = ils.frequency;
                 t.range = 3.0e5;

@@ -27,7 +27,7 @@
     "name": "Navigation",
     "width": 1100, "height": 500,
     "instruments": [
-     { "mode": "orbit", "x": 60, "y": 60, "size": 290, "frame": true },
+     { "mode": "hsi", "x": 60, "y": 60, "size": 290, "frame": true },
      { "mode": "surface", "x": 420, "y": 60, "size": 290, "frame": true },
      { "mode": "dg", "x": 790, "y": 30, "size": 260 }
     ]

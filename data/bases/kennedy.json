@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "kennedy",
+      "icao": "KLCS",
       "name": "Kennedy Space Center, Launch Complex 39A",
       "body": "Earth",
       "latitude": 28.6081,

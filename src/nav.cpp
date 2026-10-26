@@ -92,6 +92,7 @@ namespace kosmos
                 t.type = j.at("type").get<std::string>();
                 t.id = j.value("id", t.type + std::to_string(out.size()));
                 t.name = j.value("name", t.id);
+                t.ident = j.value("ident", "");
                 t.body = j.value("body", "Earth");
                 t.latitude = j.value("latitude", 0.0);
                 t.longitude = j.value("longitude", 0.0);
@@ -330,6 +331,7 @@ namespace kosmos
                 continue;
             c.type = t.type;
             c.name = t.name;
+            c.ident = t.ident;
             c.frequency = t.frequency;
             c.beacon = &t;
             list.push_back(std::move(c));
@@ -381,10 +383,12 @@ namespace kosmos
         {
             p.set_string(base + "type", "");
             p.set_string(base + "name", "");
+            p.set_string(base + "ident", "");
             return;
         }
         p.set_string(base + "type", c->type);
         p.set_string(base + "name", c->name);
+        p.set_string(base + "ident", c->ident.empty() ? c->name : c->ident);
         p.set_double(base + "distance", c->distance);
 
         sl::dvec3 up, east, north;
@@ -529,6 +533,7 @@ namespace kosmos
             const Contact &c = contacts[static_cast<std::size_t>(k)];
             p.set_string(base + "type", c.type);
             p.set_string(base + "name", c.name);
+            p.set_string(base + "ident", c.ident.empty() ? c.name : c.ident);
             p.set_double(base + "frequency", c.frequency);
             p.set_double(base + "distance", c.distance);
         }

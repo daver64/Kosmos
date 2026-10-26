@@ -46,6 +46,8 @@ namespace kosmos
     struct MfdMode
     {
         std::string id, name, addon, directory;
+        /** Where the mode makes sense: "any", "atmosphere" (aircraft instruments) or "space" (orbital instruments). */
+        std::string domain = "any";
         sol::table table;
     };
 
@@ -73,9 +75,13 @@ namespace kosmos
         MfdSystem() = default;
         void init(sl::LuaRuntime &lua, sl::PropertyTree &props);
         /** Load a mode script from an addon folder; returns false and sets error on failure. */
-        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error);
+        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any");
         const std::vector<MfdMode> &modes() const { return modes_; }
         int mode_by_id(const std::string &id) const;
+        /** The flown ship's regime: "atmosphere" hides the "space" modes, "space" hides the "atmosphere" ones, anything else hides none. */
+        void set_domain(const std::string &domain);
+        bool allowed(int mode) const;
+        bool allowed(const std::string &id) const;
 
         /** Units are numbered from 0; the stock display uses 0 and 1, and a cockpit panel can add more. */
         void set_unit_count(int count);
@@ -105,10 +111,14 @@ namespace kosmos
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
         void draw_select(MfdUnit &unit, MfdCanvas &g);
         void draw_frame(const MfdLayout &layout, const MfdUnit &unit, const MfdMode *mode);
+        int visible_count() const;
+        /** The n-th mode the current domain allows, as an index into modes_ (-1 when out of range). */
+        int visible_mode(int n) const;
         std::map<std::string, sl::Bitmap *> bitmaps_;
 
         sl::LuaRuntime *lua_ = nullptr;
         std::vector<MfdMode> modes_;
+        std::string domain_ = "any";
         std::vector<MfdUnit> units_ = std::vector<MfdUnit>(2);
         std::string error_;
     };

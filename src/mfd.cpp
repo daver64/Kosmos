@@ -117,7 +117,7 @@ namespace kosmos
             "text", &MfdCanvas::text);
     }
 
-    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error)
+    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain)
     {
         std::ifstream in(path);
         if (!in)
@@ -145,6 +145,7 @@ namespace kosmos
         mode.id = id;
         mode.directory = std::filesystem::path(path).parent_path().string();
         mode.addon = addon;
+        mode.domain = domain;
         mode.name = mode.table.get_or<std::string>("name", id);
         modes_.push_back(std::move(mode));
         return true;
@@ -158,6 +159,45 @@ namespace kosmos
         return -1;
     }
 
+    bool MfdSystem::allowed(int mode) const
+    {
+        if (mode < 0 || mode >= static_cast<int>(modes_.size()))
+            return false;
+        const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
+        return !((domain_ == "atmosphere" && d == "space") || (domain_ == "space" && d == "atmosphere"));
+    }
+
+    bool MfdSystem::allowed(const std::string &id) const
+    {
+        const int mode = mode_by_id(id);
+        return mode < 0 || allowed(mode);
+    }
+
+    void MfdSystem::set_domain(const std::string &domain)
+    {
+        domain_ = domain;
+        const int fallback = mode_by_id("surface");
+        for (std::size_t i = 0; i < units_.size(); ++i)
+            if (units_[i].mode >= 0 && !allowed(units_[i].mode))
+                set_mode(static_cast<int>(i), fallback);
+    }
+
+    int MfdSystem::visible_count() const
+    {
+        int n = 0;
+        for (int i = 0; i < static_cast<int>(modes_.size()); ++i)
+            n += allowed(i) ? 1 : 0;
+        return n;
+    }
+
+    int MfdSystem::visible_mode(int n) const
+    {
+        for (int i = 0; i < static_cast<int>(modes_.size()); ++i)
+            if (allowed(i) && n-- == 0)
+                return i;
+        return -1;
+    }
+
     void MfdSystem::set_unit_count(int count)
     {
         units_.resize(static_cast<std::size_t>(std::max(count, 2)));
@@ -168,7 +208,7 @@ namespace kosmos
         if (side < 0 || side >= unit_count())
             return;
         MfdUnit &u = unit(side);
-        if (mode < 0 || mode >= static_cast<int>(modes_.size()))
+        if (mode < 0 || mode >= static_cast<int>(modes_.size()) || !allowed(mode))
             return;
         u.mode = mode;
         u.selecting = false;
@@ -204,7 +244,7 @@ namespace kosmos
         {
             // In the mode list the side buttons pick the n-th mode.
             if (button < 12)
-                set_mode(side, u.select_scroll + button);
+                set_mode(side, visible_mode(u.select_scroll + button));
             return;
         }
         if (u.mode < 0)
@@ -294,11 +334,11 @@ namespace kosmos
         g.set_colour(255, 240, 140);
         g.text(200, 20, "SELECT MODE", 1);
         g.set_colour(120, 255, 140);
-        const int count = static_cast<int>(modes_.size());
+        const int count = visible_count();
         for (int i = 0; i < 12 && unit.select_scroll + i < count; ++i)
         {
             const float y = (i % 6 + 0.5f) * mfd_size / 6.0f;
-            const MfdMode &m = modes_[static_cast<std::size_t>(unit.select_scroll + i)];
+            const MfdMode &m = modes_[static_cast<std::size_t>(visible_mode(unit.select_scroll + i))];
             g.text(i < 6 ? 14.0f : 386.0f, y, m.name, i < 6 ? 0 : 2);
         }
     }

@@ -23,7 +23,7 @@ local function needle(g, cx, cy, r, rec)
     return
   end
   g:colour(120, 255, 140)
-  g:text(cx, cy - r - 18, props.get(base .. "name") or "", 1)
+  g:text(cx, cy - r - 18, props.get(base .. "ident") or "", 1)
   g:text(cx, cy + r + 14, string.format("%.1f km", n(base .. "distance") / 1000), 1)
   local a = math.rad(n(base .. "relative-bearing"))
   local tx, ty = cx + math.sin(a) * r * 0.8, cy - math.cos(a) * r * 0.8

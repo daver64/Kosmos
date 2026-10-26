@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "helsinki",
+      "icao": "EFHS",
       "name": "Helsinki Spaceport",
       "body": "Earth",
       "latitude": 60.1699,

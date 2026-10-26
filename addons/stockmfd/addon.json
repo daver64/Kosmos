@@ -5,6 +5,7 @@
   "mfds": [
     {
       "id": "orbit",
+      "domain": "space",
       "script": "orbit.lua"
     },
     {
@@ -13,6 +14,7 @@
     },
     {
       "id": "map",
+      "domain": "space",
       "script": "map.lua"
     },
     {
@@ -21,18 +23,22 @@
     },
     {
       "id": "ascent",
+      "domain": "space",
       "script": "ascent.lua"
     },
     {
       "id": "align",
+      "domain": "space",
       "script": "align.lua"
     },
     {
       "id": "sync",
+      "domain": "space",
       "script": "sync.lua"
     },
     {
       "id": "transfer",
+      "domain": "space",
       "script": "transfer.lua"
     },
     {
@@ -57,6 +63,7 @@
     },
     {
       "id": "docking",
+      "domain": "space",
       "script": "docking.lua"
     },
     {

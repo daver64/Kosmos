@@ -73,7 +73,7 @@ return {
     g:text(220, 330, string.format("Ground  %5.2f m/s", math.sqrt(vx * vx + vy * vy)), 0)
     g:text(220, 346, string.format("Scale   %5.0f m", span), 0)
     g:colour(200, 210, 220)
-    g:text(200, 386, props.get(base .. "name") or "", 1)
+    g:text(200, 386, props.get(base .. "ident") or "", 1)
   end,
 
   button = function(self, i)

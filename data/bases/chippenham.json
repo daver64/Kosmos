@@ -2,6 +2,7 @@
   "bases": [
     {
       "id": "chippenham",
+      "icao": "EGCP",
       "name": "Chippenham Spaceport",
       "body": "Earth",
       "latitude": 51.4585,
