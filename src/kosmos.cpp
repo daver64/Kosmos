@@ -4205,7 +4205,8 @@ int main(int argc, char **argv)
             double nearest_surface = 1.0e30;
             for (std::size_t bi = 0; bi < universe.bodies.size(); ++bi)
                 nearest_surface = std::min(nearest_surface, glm::length(universe.position(static_cast<int>(bi)) - eye_world) - universe.bodies[bi].radius);
-            near_plane = std::max(ship_near, 0.8 * nearest_surface);
+            // Capped so a star-sized distance cannot push the near plane past the far one.
+            near_plane = std::max(ship_near, std::min(0.8 * nearest_surface, 1.0e8));
         }
         camera.near_plane = static_cast<float>(near_plane);
         camera.far_plane = static_cast<float>(layered || view_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));
@@ -4353,6 +4354,8 @@ int main(int argc, char **argv)
                 sl::set_local_lights_3d(chosen);
             }
 
+            // Where the sky and the stars sit: inside the far plane, and beyond the near plane even when that is pushed out by a distant nearest body.
+            const double backdrop = std::clamp(std::min(camera.far_plane * 0.05, camera.near_plane * 1.0e5), camera.near_plane * 1.5, camera.far_plane * 0.9);
             // Every star is a real sphere at its true angular size, placed inside the far plane without changing how big it looks.
             struct StarPlace
             {
@@ -4368,7 +4371,7 @@ int main(int argc, char **argv)
                 const double dist = glm::length(rel);
                 if (b.kind != kosmos::BodyKind::star || dist <= b.radius * 1.02)
                     return sp;
-                const double limit = std::min(camera.far_plane * 0.05, camera.near_plane * 1.0e5);
+                const double limit = backdrop;
                 sp.valid = true;
                 sp.dir = glm::vec3(rel / dist);
                 sp.angular = std::asin(std::min(1.0, b.radius / dist));
@@ -4430,7 +4433,6 @@ int main(int argc, char **argv)
 
             // The sky, stars and every star's glare go first, close in where the depth buffer still has resolution, and write no depth;
             // the opaque scene drawn afterwards then covers them wherever it is in front.
-            const double backdrop = std::min(camera.far_plane * 0.05, camera.near_plane * 1.0e5);
             // Stars fade in as the sky darkens.
             {
                 const double altitude = home ? tm.altitude : 1.0e6;
@@ -4689,7 +4691,10 @@ int main(int argc, char **argv)
                 cloud.fog = false;
                 const double altitude_now = eye_earth_distance - earth_body->radius;
                 const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
-                const double shell_height = earth_as_sphere ? cloud_height : std::clamp(2.0 * resolution, cloud_height, 600.0e3);
+                double shell_height = earth_as_sphere ? cloud_height : std::clamp(2.0 * resolution, cloud_height, 600.0e3);
+                // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it beyond that plane.
+                if (layered)
+                    shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
                 const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + cloud_height));
                 sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
             }
