@@ -40,6 +40,9 @@ namespace kosmos
         /** Initial /sim/target (a ship or body name) and NAV1/NAV2 frequencies; empty or 0 leaves them unset. */
         std::string target;
         std::vector<double> nav;
+        /** Start date as a Julian date (UTC); 0 starts on the system's default date. date_text keeps the text it was written as, if any. */
+        double epoch_jd = 0.0;
+        std::string date_text;
         std::vector<ScenarioShip> ships;
     };
 

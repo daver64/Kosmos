@@ -1,0 +1,84 @@
+{
+  "bases": [
+    {
+      "id": "kennedy",
+      "name": "Kennedy Space Center, Launch Complex 39A",
+      "body": "Earth",
+      "latitude": 28.6081,
+      "longitude": -80.6041,
+      "heading": 90,
+      "flat_radius": 260,
+      "blend": 200,
+      "elevation": 3,
+      "cameras": [
+        {
+          "name": "Pad",
+          "x": -70,
+          "y": 3,
+          "z": -90,
+          "fov": 55
+        },
+        {
+          "name": "Overview (fixed)",
+          "x": 0,
+          "y": 120,
+          "z": -420,
+          "fov": 60,
+          "track": false,
+          "pitch": -12
+        }
+      ],
+      "navaids": [
+        {
+          "type": "vtol",
+          "name": "Pad 39A",
+          "frequency": 92.9,
+          "heading": 0
+        }
+      ],
+      "pad": {
+        "x": 0,
+        "z": 0,
+        "heading": 0
+      },
+      "objects": [
+        {
+          "type": "launch_pad",
+          "size": 50,
+          "x": 0,
+          "z": 0
+        },
+        {
+          "type": "launch_tower",
+          "height": 110,
+          "x": -26,
+          "z": 0,
+          "heading": 0
+        },
+        {
+          "type": "saturn_v",
+          "size": 0.55,
+          "x": -90,
+          "z": 130,
+          "y": 1.5
+        },
+        {
+          "type": "tank",
+          "radius": 4,
+          "height": 10,
+          "x": 120,
+          "z": 120,
+          "count": 3,
+          "step_x": 12
+        },
+        {
+          "type": "control_tower",
+          "height": 28,
+          "x": -150,
+          "z": -110,
+          "heading": 180
+        }
+      ]
+    }
+  ]
+}

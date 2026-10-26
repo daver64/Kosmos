@@ -2,6 +2,8 @@
 
 #include "terrain.h"
 
+#include <glm/gtc/quaternion.hpp>
+
 #include <cstdint>
 #include <fstream>
 #include <list>
@@ -98,10 +100,10 @@ namespace kosmos
         std::size_t capacity_;
     };
 
-    /** Where a body's surface sits in the world: the body-fixed frame is the world turned about +Y by this angle. */
+    /** Where a body's surface sits in the world: the body-fixed to world rotation. */
     struct SurfaceFrame
     {
-        double angle = 0.0;
+        glm::dquat orientation{1.0, 0.0, 0.0, 0.0};
         /** World direction -> body-fixed longitude and latitude in radians. */
         void to_lat_lon(const glm::dvec3 &direction, double &lat, double &lon) const;
     };

@@ -39,6 +39,8 @@ namespace kosmos
 
         /** `system` is a Galaxy index: 0 loads data/sol.json, anything else is generated. */
         bool init(const std::string &root, std::string &error, int system = 0);
+        /** Julian date (UTC) the home system starts on; 0 keeps the system file's epoch (J2000). */
+        double start_epoch_jd = 0.0;
         int system_index() const { return system_; }
         /** Replace the universe with another galaxy star's system and drop every ship. Visual state tied to the old bodies must be rebuilt by the caller. */
         bool change_system(int system, std::string &error);

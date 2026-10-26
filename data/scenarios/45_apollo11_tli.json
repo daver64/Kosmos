@@ -1,0 +1,19 @@
+{
+ "name": "Apollo 11: translunar injection",
+ "description": "Apollo-Soyuz stands in for the Apollo 11 stack leaving a 185 km parking orbit on a free-return-style transfer, at 16:22 GMT on 16 July 1969, with the Moon where it really was.",
+ "date": "1969-07-16 16:22:13",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Apollo-Soyuz",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 185,
+    "apoapsis_km": 378000,
+    "toward": "Moon",
+    "phase": 0,
+    "inclination": 30
+   }
+  }
+ ]
+}

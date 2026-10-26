@@ -174,10 +174,9 @@ namespace kosmos
 
     void SurfaceFrame::to_lat_lon(const glm::dvec3 &d, double &lat, double &lon) const
     {
-        const double c = std::cos(angle), s = std::sin(angle);
-        const double bx = d.x * c - d.z * s, bz = d.x * s + d.z * c;
-        lat = std::asin(std::clamp(d.y, -1.0, 1.0));
-        lon = std::atan2(-bz, bx);
+        const glm::dvec3 b = glm::inverse(orientation) * d;
+        lat = std::asin(std::clamp(b.y, -1.0, 1.0));
+        lon = std::atan2(-b.z, b.x);
     }
 
     OrbiterElevation::OrbiterElevation(const std::string &path, const SurfaceFrame &frame, double radius, double min_height, double max_height, double sea_floor)

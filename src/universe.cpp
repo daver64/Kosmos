@@ -3,7 +3,14 @@
 #include "json.hpp"
 #include "vsop87.h"
 
+#include <glm/gtc/quaternion.hpp>
+
+#include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <random>
@@ -100,6 +107,10 @@ namespace kosmos
         }
 
         bodies.clear();
+        const double file_epoch = json.value("epoch_jd", 2451545.0);
+        epoch_jd = epoch_override > 0.0 ? epoch_override : file_epoch;
+        const double elapsed_days = epoch_jd - file_epoch;
+        bool vsop_loaded = false;
         name = json.value("name", "System");
         home = json.value("home", "Earth");
         nlohmann::json list = json.value("bodies", nlohmann::json::array());
@@ -137,6 +148,30 @@ namespace kosmos
             body.mesh = entry.value("mesh", "");
             body.minor = entry.value("minor", false);
             body.tilt = entry.value("tilt", 0.0) * pi / 180.0;
+            if (const auto r = entry.find("epoch_rates"); r != entry.end())
+            {
+                body.has_rates = true;
+                body.raan_rate = r->value("raan", 0.0);
+                body.argp_rate = r->value("argp", 0.0);
+                body.mean_longitude_rate = r->value("mean_longitude", 0.0);
+            }
+            if (const auto r = entry.find("pole"); r != entry.end())
+            {
+                body.has_pole = true;
+                body.pole_ra = r->value("ra", 0.0);
+                body.pole_dec = r->value("dec", 90.0);
+                const sl::dvec3 pole = equatorial_to_world(body.pole_ra, body.pole_dec);
+                const sl::dvec3 axis = glm::cross(sl::dvec3(0.0, 1.0, 0.0), pole);
+                if (glm::length(axis) > 1.0e-12)
+                    body.axis_tilt = glm::angleAxis(std::acos(std::clamp(pole.y, -1.0, 1.0)), glm::normalize(axis));
+            }
+            if (const auto r = entry.find("meridian"); r != entry.end())
+            {
+                body.has_meridian = true;
+                body.meridian_w0 = r->value("w0", 0.0);
+                body.meridian_rate = r->value("rate", 0.0);
+                body.meridian_node_ra = r->value("node_ra", 0.0);
+            }
             if (const auto r = entry.find("rings"); r != entry.end())
             {
                 body.ring_inner = r->value("inner", 0.0);
@@ -185,6 +220,7 @@ namespace kosmos
                 body.orbit.arg_periapsis = deg(o, "argp");
                 body.orbit.mean_anomaly = deg(o, "m0");
                 const Body &parent = bodies[static_cast<std::size_t>(body.parent)];
+                bool fitted_to_epoch = false;
                 // Planets with a VSOP87 file start from their true position at the epoch instead of the mean elements.
                 const std::string code = parent.kind == BodyKind::star ? Vsop87::code_for(body.name) : std::string();
                 if (!code.empty() && file.find('/') != std::string::npos)
@@ -193,19 +229,37 @@ namespace kosmos
                     if (series.load(file.substr(0, file.rfind('/')) + "/vsop87/VSOP87A." + code))
                     {
                         sl::dvec3 p, v;
-                        series.state(json.value("epoch_jd", 2451545.0), p, v);
+                        series.state(epoch_jd, p, v);
                         sl::OrbitElements fitted;
                         if (sl::orbit_from_state(parent.gm, p, v, fitted))
+                        {
                             body.orbit = fitted;
+                            fitted_to_epoch = true;
+                            vsop_loaded = true;
+                        }
                     }
+                }
+                // Everything else carries its mean elements forward (or back) from the file's epoch to the start date.
+                if (!fitted_to_epoch && elapsed_days != 0.0)
+                {
+                    const double to_rad = pi / 180.0;
+                    if (body.has_rates)
+                    {
+                        body.orbit.raan += body.raan_rate * elapsed_days * to_rad;
+                        body.orbit.arg_periapsis += body.argp_rate * elapsed_days * to_rad;
+                        body.orbit.mean_anomaly += (body.mean_longitude_rate - body.raan_rate - body.argp_rate) * elapsed_days * to_rad;
+                    }
+                    else
+                        body.orbit.mean_anomaly += body.orbit.mean_motion(parent.gm) * elapsed_days * 86400.0;
+                    body.orbit.mean_anomaly = std::fmod(body.orbit.mean_anomaly, 2.0 * pi);
                 }
                 body.soi = body.orbit.semi_major_axis * std::pow(body.gm / parent.gm, 0.4);
             }
             if (entry.value("synchronous", false) && body.parent >= 0)
                 body.spin = body.orbit.mean_motion(bodies[static_cast<std::size_t>(body.parent)].gm);
-
-            if (!body.terrain.empty())
-                body.spin = 0.0; // terrain does not spin with its body yet
+            // A spinning body started on another date has turned by that many rotations since the file's epoch.
+            if (epoch_override > 0.0 && body.terrain.empty())
+                body.rotation_offset = std::fmod(body.spin * elapsed_days * 86400.0, 2.0 * pi);
 
             const int id = world.create_body(body.name);
             if (id != static_cast<int>(bodies.size()))
@@ -216,7 +270,8 @@ namespace kosmos
             sl::FlightBody *fb = world.body(id);
             fb->gm = body.gm;
             fb->radius = body.radius;
-            fb->spin_rate = body.terrain.empty() ? body.spin : 0.0;
+            fb->spin_rate = body.spin;
+            fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
             fb->atmosphere.surface_density = body.atmosphere_density;
             fb->atmosphere.scale_height = body.atmosphere_scale_height;
             if (body.parent < 0)
@@ -239,7 +294,140 @@ namespace kosmos
             error = file + ": no bodies";
             return false;
         }
+        if (epoch_override > 0.0)
+            orient_spinning_planets();
         return true;
+    }
+
+    // With a start date the prime meridian of each body that has one is put where it really was: W is measured from the
+    // node of the body's equator on the J2000 equator (right ascension node_ra), eastward about the pole.
+    void Universe::orient_spinning_planets()
+    {
+        const double days = epoch_jd - 2451545.0;
+        for (std::size_t i = 0; i < bodies.size(); ++i)
+        {
+            Body &b = bodies[i];
+            if (!b.has_meridian)
+                continue;
+            const sl::dvec3 pole = world.body(static_cast<int>(i))->spin_axis;
+            const sl::dvec3 node = equatorial_to_world(b.meridian_node_ra, 0.0);
+            const double w = std::fmod(b.meridian_w0 + b.meridian_rate * days, 360.0) * pi / 180.0;
+            const sl::dvec3 target = glm::angleAxis(w, pole) * node;
+            const sl::dvec3 lon0 = b.axis_tilt * sl::dvec3(1.0, 0.0, 0.0);
+            b.rotation_offset = std::fmod(std::atan2(glm::dot(pole, glm::cross(lon0, target)), glm::dot(lon0, target)), 2.0 * pi);
+        }
+    }
+
+    sl::dvec3 equatorial_to_world(double ra_degrees, double dec_degrees)
+    {
+        const double ra = ra_degrees * pi / 180.0, dec = dec_degrees * pi / 180.0;
+        const double obliquity = 23.4392911 * pi / 180.0;
+        const double x = std::cos(dec) * std::cos(ra), y = std::cos(dec) * std::sin(ra), z = std::sin(dec);
+        const double ex = x, ey = y * std::cos(obliquity) + z * std::sin(obliquity), ez = -y * std::sin(obliquity) + z * std::cos(obliquity);
+        return {ex, ez, -ey};
+    }
+
+    double julian_from_civil(int year, int month, int day, double hours)
+    {
+        if (month <= 2)
+        {
+            --year;
+            month += 12;
+        }
+        const int a = static_cast<int>(std::floor(year / 100.0));
+        const int b = 2 - a + static_cast<int>(std::floor(a / 4.0));
+        return std::floor(365.25 * (year + 4716)) + std::floor(30.6001 * (month + 1)) + day + b - 1524.5 + hours / 24.0;
+    }
+
+    void civil_from_julian(double jd, int &year, int &month, int &day, double &hours)
+    {
+        const double j = jd + 0.5;
+        const double z = std::floor(j);
+        const double f = j - z;
+        const double alpha = std::floor((z - 1867216.25) / 36524.25);
+        const double a = z + 1.0 + alpha - std::floor(alpha / 4.0);
+        const double b = a + 1524.0;
+        const double c = std::floor((b - 122.1) / 365.25);
+        const double d = std::floor(365.25 * c);
+        const double e = std::floor((b - d) / 30.6001);
+        day = static_cast<int>(b - d - std::floor(30.6001 * e));
+        month = static_cast<int>(e < 14.0 ? e - 1.0 : e - 13.0);
+        year = static_cast<int>(month > 2 ? c - 4716.0 : c - 4715.0);
+        hours = f * 24.0;
+    }
+
+    bool parse_epoch(const std::string &text, double &julian_date)
+    {
+        const char *begin = text.c_str();
+        while (*begin == ' ' || *begin == '\t')
+            ++begin;
+        if (!*begin)
+            return false;
+        char *end = nullptr;
+        const double number = std::strtod(begin, &end);
+        while (end && (*end == ' ' || *end == '\t'))
+            ++end;
+        if (end != begin && end && !*end)
+        {
+            julian_date = number + mjd_offset;
+            return true;
+        }
+        int year = 0, month = 0, day = 0, used = 0;
+        if (std::sscanf(begin, "%d-%d-%d%n", &year, &month, &day, &used) < 3 || month < 1 || month > 12 || day < 1 || day > 31)
+            return false;
+        const char *p = begin + used;
+        double hours = 0.0;
+        if (*p == ' ' || *p == 'T' || *p == 't')
+        {
+            while (*p == ' ' || *p == 'T' || *p == 't')
+                ++p;
+            int h = 0, m = 0, n = 0;
+            double sec = 0.0;
+            if (std::sscanf(p, "%d:%d%n", &h, &m, &n) == 2)
+            {
+                p += n;
+                if (*p == ':' && std::sscanf(p + 1, "%lf%n", &sec, &n) == 1)
+                    p += 1 + n;
+                if (h < 0 || h > 24 || m < 0 || m > 59 || sec < 0.0 || sec >= 61.0)
+                    return false;
+                hours = h + m / 60.0 + sec / 3600.0;
+            }
+        }
+        while (*p == ' ')
+            ++p;
+        double offset_hours = 0.0;
+        if (*p == '+' || *p == '-')
+        {
+            const double sign = *p == '-' ? -1.0 : 1.0;
+            int oh = 0, om = 0;
+            const int got = std::sscanf(p + 1, "%d:%d", &oh, &om);
+            if (got < 1)
+                return false;
+            offset_hours = sign * (oh + om / 60.0);
+            p += std::strlen(p);
+        }
+        else
+        {
+            std::string tail(p);
+            for (char &c : tail)
+                c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            if (!tail.empty() && tail != "Z" && tail != "UTC" && tail != "GMT")
+                return false;
+        }
+        julian_date = julian_from_civil(year, month, day, hours - offset_hours);
+        return true;
+    }
+
+    std::string format_utc(double jd)
+    {
+        const double rounded = std::round(jd * 86400.0) / 86400.0;
+        int y, mo, d;
+        double hours;
+        civil_from_julian(rounded + 1.0e-9, y, mo, d, hours);
+        const int seconds = static_cast<int>(hours * 3600.0);
+        char buffer[48];
+        std::snprintf(buffer, sizeof buffer, "%04d-%02d-%02d %02d:%02d:%02d GMT", y, mo, d, seconds / 3600, seconds / 60 % 60, seconds % 60);
+        return buffer;
     }
 
     int Universe::find(const std::string &body_name) const
@@ -260,6 +448,11 @@ namespace kosmos
         return best;
     }
 
+    sl::dquat Universe::orientation(int id) const
+    {
+        return bodies[static_cast<std::size_t>(id)].axis_tilt * glm::angleAxis(rotation_angle(id), sl::dvec3(0.0, 1.0, 0.0));
+    }
+
     double Universe::rotation_angle(int id) const
     {
         const Body &b = bodies[static_cast<std::size_t>(id)];
@@ -274,6 +467,7 @@ namespace kosmos
     void Universe::publish(sl::PropertyTree &tree)
     {
         tree.node("/universe/time")->tie_double([this] { return world.time(); });
+        tree.node("/universe/mjd")->tie_double([this] { return julian_date() - mjd_offset; });
         tree.node("/universe/name")->set_string(name);
         tree.node("/universe/bodies/count")->set_int(static_cast<int>(bodies.size()));
         for (std::size_t i = 0; i < bodies.size(); ++i)

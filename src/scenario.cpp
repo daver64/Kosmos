@@ -1,6 +1,7 @@
 #include "scenario.h"
 
 #include "json.hpp"
+#include "universe.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -22,6 +23,15 @@ namespace kosmos
             out.description = json.value("description", "");
             out.active = json.value("active", 0);
             out.target = json.value("target", "");
+            if (json.contains("mjd"))
+                out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
+            else if (json.contains("date"))
+            {
+                const nlohmann::json &d = json["date"];
+                out.date_text = d.is_string() ? d.get<std::string>() : std::to_string(d.get<double>());
+                if (!parse_epoch(out.date_text, out.epoch_jd))
+                    throw std::runtime_error("cannot read date \"" + out.date_text + "\" (use YYYY-MM-DD HH:MM:SS or an MJD)");
+            }
             for (const nlohmann::json &f : json.value("nav", nlohmann::json::array()))
                 out.nav.push_back(f.get<double>());
             for (const nlohmann::json &js : json.at("ships"))
@@ -94,6 +104,13 @@ namespace kosmos
             json["target"] = sc.target;
         if (!sc.nav.empty())
             json["nav"] = sc.nav;
+        if (sc.epoch_jd > 0.0)
+        {
+            if (!sc.date_text.empty())
+                json["date"] = sc.date_text;
+            else
+                json["mjd"] = sc.epoch_jd - mjd_offset;
+        }
         json["ships"] = nlohmann::json::array();
         for (const ScenarioShip &s : sc.ships)
         {

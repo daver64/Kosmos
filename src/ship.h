@@ -127,6 +127,10 @@ namespace kosmos
     {
         bool present = false;
         sl::dvec3 eye{0.0, 0.0, 0.0};
+        /** True when the ship file gave an eye; otherwise it defaults to the front centre of the hull. */
+        bool eye_set = false;
+        /** Degrees from straight ahead, and the field of view (0 keeps the default). */
+        double yaw = 0.0, pitch = 0.0, fov = 0.0;
         std::vector<Instrument> panel;
         /** Draw the dashboard with two MFDs (default modes orbit and surface) below the instrument row. */
         bool mfds = true;

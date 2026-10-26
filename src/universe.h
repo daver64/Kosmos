@@ -53,7 +53,33 @@ namespace kosmos
         double ring_outer = 0.0;
         float ring_colour[3] = {0.8f, 0.75f, 0.65f};
         sl::OrbitElements orbit;
+        /** Optional secular rates in degrees per day, and the mean longitude rate, used only to carry the J2000 elements to a start date. */
+        /** Pole direction (J2000 right ascension and declination, degrees) and prime-meridian angle W = w0 + rate * days since J2000. */
+        bool has_pole = false;
+        double pole_ra = 0.0, pole_dec = 90.0;
+        bool has_meridian = false;
+        double meridian_w0 = 0.0, meridian_rate = 0.0, meridian_node_ra = 0.0;
+        /** Rotation taking the body-fixed +Y axis to the pole, in world axes (identity when the pole is +Y). */
+        sl::dquat axis_tilt{1.0, 0.0, 0.0, 0.0};
+        bool has_rates = false;
+        double raan_rate = 0.0, argp_rate = 0.0, mean_longitude_rate = 0.0;
     };
+
+    /** Julian date of a proleptic Gregorian calendar date and UTC time of day. */
+    /** A J2000 equatorial direction (right ascension, declination in degrees) in world axes (ecliptic X, Z, -Y). */
+    sl::dvec3 equatorial_to_world(double ra_degrees, double dec_degrees);
+    double julian_from_civil(int year, int month, int day, double hours = 0.0);
+    /** Calendar date and time of day (UTC) for a Julian date. */
+    void civil_from_julian(double jd, int &year, int &month, int &day, double &hours);
+    /**
+     * Parse a start time: a bare number is an MJD (Orbiter style); otherwise "YYYY-MM-DD", optionally followed by
+     * "HH:MM[:SS[.s]]" after a space or T, and optionally "Z", "UTC", "GMT" or a numeric offset such as +01:00.
+     * Times are GMT. Returns false for anything else.
+     */
+    bool parse_epoch(const std::string &text, double &julian_date);
+    /** "1969-07-16 13:32:00 GMT". */
+    std::string format_utc(double julian_date);
+    constexpr double mjd_offset = 2400000.5;
 
     /**
      * The bodies of a star system on Kepler rails inside a FlightWorld. Ships are created in the same world, so they
@@ -65,6 +91,11 @@ namespace kosmos
         sl::FlightWorld world;
         std::vector<Body> bodies;
         std::string name;
+        /** Julian date (UTC) of simulation time zero. Set epoch_override before load() to start on another date; 0 keeps the file's epoch. */
+        double epoch_jd = 2451545.0;
+        double epoch_override = 0.0;
+        /** Julian date now. */
+        double julian_date() const { return epoch_jd + world.time() / 86400.0; }
 
         /** Load bodies from a JSON file such as data/sol.json. Parents must precede their children. */
         bool load(const std::string &file, std::string &error);
@@ -88,9 +119,16 @@ namespace kosmos
         double time() const { return world.time(); }
         /** Rotation angle of a body about +Y in radians at the current time. */
         double rotation_angle(int id) const;
+        /** The body's north pole in world axes. */
+        sl::dvec3 pole(int id) const { return world.body(id)->spin_axis; }
+        /** Body-fixed to world rotation at the current time: the pole tilt, then the spin about the body's own +Y. */
+        sl::dquat orientation(int id) const;
         /** Altitude of a point above a body's mean radius. */
         double altitude(int id, const sl::dvec3 &position) const;
         /** Publish /universe/time and /universe/bodies/body[i]/... into the property tree. */
         void publish(sl::PropertyTree &tree);
+
+    private:
+        void orient_spinning_planets();
     };
 } // namespace kosmos

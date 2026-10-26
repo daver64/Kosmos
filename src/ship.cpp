@@ -88,7 +88,11 @@ namespace kosmos
             {
                 const nlohmann::json &jc = json["cockpit"];
                 spec.cockpit.present = true;
+                spec.cockpit.eye_set = jc.contains("eye");
                 spec.cockpit.eye = vec3(jc.value("eye", nlohmann::json()));
+                spec.cockpit.yaw = jc.value("yaw", 0.0);
+                spec.cockpit.pitch = jc.value("pitch", 0.0);
+                spec.cockpit.fov = jc.value("fov", 0.0);
                 spec.cockpit.mfds = jc.value("mfds", true);
                 spec.cockpit.mfd_left = jc.value("mfd_left", spec.cockpit.mfd_left);
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
@@ -225,6 +229,20 @@ namespace kosmos
         {
             error = file + ": a ship needs at least one stage";
             return false;
+        }
+        // Every ship has a cockpit camera: by default at the front centre of the hull, looking along the nose.
+        if (!spec.cockpit.present)
+        {
+            spec.cockpit.present = true;
+            spec.cockpit.mfds = false;
+        }
+        if (!spec.cockpit.eye_set)
+        {
+            const StageSpec *front = &spec.stages.front();
+            for (const StageSpec &st : spec.stages)
+                if (st.z - st.length * 0.5 < front->z - front->length * 0.5)
+                    front = &st;
+            spec.cockpit.eye = sl::dvec3(0.0, front->radius * 0.3, front->z - front->length * 0.5);
         }
         // A light with no stage of its own belongs to the stage it sits on, and goes when that stage does.
         for (LightSpec &light : spec.lights)
@@ -371,7 +389,7 @@ namespace kosmos
         const sl::FlightBody &pb = *universe_.world.body(body_id);
         sl::FlightBody &b = body();
         const sl::dvec3 up = glm::normalize(direction);
-        const sl::dvec3 east = glm::normalize(glm::cross(sl::dvec3(0.0, 1.0, 0.0), up));
+        const sl::dvec3 east = glm::normalize(glm::cross(pb.spin_axis, up));
         const sl::dvec3 north = glm::cross(up, east);
         const double heading = heading_degrees * pi / 180.0;
         const sl::dvec3 roof = north * std::cos(heading) + east * std::sin(heading);
@@ -415,8 +433,8 @@ namespace kosmos
             }
         }
         b.position = pb.position + up * (planet.radius + ground_height + lowest - compression);
-        b.velocity = pb.velocity + glm::cross(sl::dvec3(0.0, planet.spin, 0.0), b.position - pb.position);
-        b.orientation = orientation_from(spec_.aircraft() ? roof : up, spec_.aircraft() ? up : roof);
+        b.velocity = pb.velocity + glm::cross(pb.spin_axis * planet.spin, b.position - pb.position);
+        b.orientation = orientation_from(spec_.aircraft() ? roof : up, spec_.aircraft() ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         update_telemetry();
@@ -511,14 +529,14 @@ namespace kosmos
         const Body &planet = universe_.bodies[static_cast<std::size_t>(soi)];
         const sl::FlightBody &pb = *universe_.world.body(soi);
         const sl::dvec3 r = body().position - pb.position;
-        return body().velocity - pb.velocity - glm::cross(sl::dvec3(0.0, planet.spin, 0.0), r);
+        return body().velocity - pb.velocity - glm::cross(pb.spin_axis * planet.spin, r);
     }
 
     void Ship::local_frame(sl::dvec3 &up, sl::dvec3 &east, sl::dvec3 &north) const
     {
         const int soi = universe_.soi_body(body().position);
         up = glm::normalize(body().position - universe_.world.body(soi)->position);
-        east = glm::cross(sl::dvec3(0.0, 1.0, 0.0), up);
+        east = glm::cross(universe_.world.body(soi)->spin_axis, up);
         if (glm::length(east) < 1e-9)
             east = sl::dvec3(1.0, 0.0, 0.0);
         east = glm::normalize(east);
@@ -794,11 +812,9 @@ namespace kosmos
         t.flight_path = t.surface_speed > 1.0 ? std::asin(std::clamp(t.vertical_speed / t.surface_speed, -1.0, 1.0)) * 180.0 / pi : 0.0;
 
         {
-            const double th = universe_.rotation_angle(t.soi);
-            const double bx = r.x * std::cos(th) - r.z * std::sin(th);
-            const double bz = r.x * std::sin(th) + r.z * std::cos(th);
-            t.latitude = std::asin(std::clamp(r.y / glm::length(r), -1.0, 1.0)) * 180.0 / pi;
-            t.longitude = std::atan2(-bz, bx) * 180.0 / pi;
+            const sl::dvec3 b = glm::inverse(universe_.orientation(t.soi)) * r;
+            t.latitude = std::asin(std::clamp(b.y / glm::length(b), -1.0, 1.0)) * 180.0 / pi;
+            t.longitude = std::atan2(-b.z, b.x) * 180.0 / pi;
             t.body_radius = planet.radius;
         }
 

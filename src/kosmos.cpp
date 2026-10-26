@@ -76,9 +76,12 @@ namespace
         double shot_at = 10.0;
         double shot_time = 0.0;
         double earth_turn = 0.0;
+        /** Julian date (UTC) to start on, from --date or --mjd; 0 uses the scenario's date or the default. */
+        double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
         bool hide_info = false;
+        std::string hud;
         bool no_relief = false;
         std::string blender;
         bool part_window = false;
@@ -161,8 +164,7 @@ namespace
     {
         const double la = lat_deg * pi / 180.0, lo = lon_deg * pi / 180.0;
         const double bx = std::cos(la) * std::cos(lo), by = std::sin(la), bz = -std::cos(la) * std::sin(lo);
-        const double th = universe.rotation_angle(body);
-        return {bx * std::cos(th) + bz * std::sin(th), by, -bx * std::sin(th) + bz * std::cos(th)};
+        return universe.orientation(body) * sl::dvec3(bx, by, bz);
     }
 
     // The launch pad is found at run time, so its radio beacons are registered where it ends up.
@@ -825,6 +827,8 @@ namespace
     std::string find_surface_image(const std::string &root, const kosmos::Body &body);
 
     // A body's streaming terrain. Elevation comes from Orbiter when available; colour uses the finer available imagery.
+    bool detail_disabled = false;
+
     struct BodyTerrain
     {
         int body = -1;
@@ -836,7 +840,7 @@ namespace
     std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home)
     {
         const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
-        const kosmos::SurfaceFrame frame{sim.universe.rotation_angle(id)};
+        const kosmos::SurfaceFrame frame{sim.universe.orientation(id)};
         const std::string orbiter = sim.root() + "/data/orbiter";
         sl::TerrainConfig config;
         config.shape = sl::TerrainShape::sphere;
@@ -962,6 +966,23 @@ namespace
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
         result->terrain = std::make_unique<sl::Terrain>(config, source);
+        if (!detail_disabled)
+        {
+            // A seamless dirt map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
+            static sl::Bitmap *detail = sl::load_bitmap((sim.root() + "/data/textures/detail_dirt.jpg").c_str());
+            if (detail)
+            {
+                sl::TerrainTextureOptions opts;
+                opts.colour_detail = true;
+                opts.macro_texture = detail;
+                opts.macro_tile_metres = 128.0;
+                opts.macro_strength = 0.9;
+                opts.fade_start = 400.0;
+                opts.fade_end = 4000.0;
+                opts.max_size = 2048;
+                std::fprintf(stderr, "[kosmos] %s detail texture: %s\n", b.name.c_str(), result->terrain->set_layer_textures(config.layers, opts) ? "on" : "unavailable");
+            }
+        }
         return result;
     }
 
@@ -2229,11 +2250,11 @@ bool snap_to_ghost(Sim &sim, Ship &ship, const kosmos::Ghost &ghost, const Terra
     const sl::dvec3 nose = ghost.shown * sl::dvec3(0.0, 0.0, -1.0);
     const sl::Terrain *terrain = terrains.find(soi);
     const double ground = terrain ? terrain->height_at_direction(up) : 0.0;
-    const sl::dvec3 surface_velocity = ghost.state.velocity - glm::cross(sl::dvec3(0.0, planet.spin, 0.0), p);
+    const sl::dvec3 surface_velocity = ghost.state.velocity - glm::cross(sim.universe.pole(soi) * planet.spin, p);
     if (r - planet.radius - ground < 30.0 && glm::length(surface_velocity) < 5.0)
     {
         const sl::dvec3 beside = glm::normalize(p + right * 60.0);
-        const sl::dvec3 east = glm::normalize(glm::cross(sl::dvec3(0.0, 1.0, 0.0), beside));
+        const sl::dvec3 east = glm::normalize(glm::cross(sim.universe.pole(soi), beside));
         const sl::dvec3 north = glm::cross(beside, east);
         const double heading = std::atan2(glm::dot(nose, east), glm::dot(nose, north)) * 180.0 / 3.14159265358979;
         ship.place_on_surface(soi, beside, heading, terrain ? terrain->height_at_direction(beside) : 0.0);
@@ -2437,6 +2458,8 @@ int main(int argc, char **argv)
             options.net_window = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
             options.no_tiles = true;
+        else if (!std::strcmp(argv[i], "--no-detail"))
+            detail_disabled = true;
         else if (!std::strcmp(argv[i], "--no-relief"))
             options.no_relief = true;
         else if (!std::strcmp(argv[i], "--blender") && i + 1 < argc)
@@ -2445,6 +2468,8 @@ int main(int argc, char **argv)
             options.part_window = true;
         else if (!std::strcmp(argv[i], "--hide-info"))
             options.hide_info = true;
+        else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
+            options.hud = argv[++i];
         else if (!std::strcmp(argv[i], "--camera-window"))
             options.camera_window = true;
         else if (!std::strcmp(argv[i], "--settings-window"))
@@ -2537,6 +2562,16 @@ int main(int argc, char **argv)
             options.orbit_half = true;
         else if (!std::strcmp(argv[i], "--orbit-alt") && i + 1 < argc)
             options.orbit_altitude = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--date") && i + 1 < argc)
+        {
+            if (!kosmos::parse_epoch(argv[++i], options.start_jd))
+            {
+                std::fprintf(stderr, "kosmos: cannot read --date \"%s\" (use \"YYYY-MM-DD HH:MM:SS\" in GMT, or an MJD)\n", argv[i]);
+                return 1;
+            }
+        }
+        else if (!std::strcmp(argv[i], "--mjd") && i + 1 < argc)
+            options.start_jd = std::atof(argv[++i]) + kosmos::mjd_offset;
         else if (!std::strcmp(argv[i], "--earth-turn") && i + 1 < argc)
             options.earth_turn = std::atof(argv[++i]) * 3.14159265358979 / 180.0;
         else if (!std::strcmp(argv[i], "--warp-to") && i + 1 < argc)
@@ -2631,6 +2666,24 @@ int main(int argc, char **argv)
     // With no scenario or start flags, load the "default" scenario (data/scenarios/default.json, overridable from ~/.config/kosmos/scenarios).
     if (options.scenario.empty() && options.selftest <= 0.0 && !options.orbit_start && options.orbit_body.empty() && options.ship_name == "Kestrel" && sim.find_scenario("default"))
         options.scenario = "default";
+    // The start date shapes the planets' positions and the home planet's orientation, which the terrain bakes in, so it is set before the terrain is built.
+    {
+        double start_jd = options.start_jd;
+        if (start_jd <= 0.0 && !options.scenario.empty())
+            if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+                start_jd = sc->epoch_jd;
+        if (start_jd > 0.0 && options.system == 0)
+        {
+            sim.start_epoch_jd = start_jd;
+            std::string epoch_error;
+            if (!sim.change_system(0, epoch_error))
+            {
+                std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
+                return 1;
+            }
+            sim.log("Start date " + kosmos::format_utc(start_jd));
+        }
+    }
     if (options.selftest > 0.0)
     {
         // The selftest has no terrain, so bases stand at sea level.
@@ -2640,6 +2693,7 @@ int main(int argc, char **argv)
             if (body >= 0)
             {
                 base.direction = kosmos::base_direction(sim.universe, body, base);
+                base.pole = sim.universe.pole(body);
                 base.height = 0.0;
                 kosmos::register_base_beacons(sim.nav, sim.universe, body, base);
             }
@@ -2857,10 +2911,13 @@ int main(int argc, char **argv)
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
         {
             kosmos::Body &b = sim.universe.bodies[i];
-            if (!b.terrain.empty() && static_cast<int>(i) != earth_id && b.parent >= 0)
+            if (!b.terrain.empty() && static_cast<int>(i) != earth_id && b.parent >= 0 && (!b.has_meridian || sim.universe.epoch_override <= 0.0))
             {
                 const sl::dvec3 to_parent = sim.universe.position(b.parent) - sim.universe.position(static_cast<int>(i));
-                b.rotation_offset = std::atan2(-to_parent.z, to_parent.x);
+                // Longitude 0 faces the parent: the Moon toward Earth, an undated Mars toward the Sun.
+                const sl::dvec3 pole = sim.universe.pole(static_cast<int>(i));
+                const sl::dvec3 lon0 = b.axis_tilt * sl::dvec3(1.0, 0.0, 0.0);
+                b.rotation_offset = std::atan2(glm::dot(pole, glm::cross(lon0, to_parent)), glm::dot(lon0, to_parent));
             }
         }
         sim.nav.truncate_beacons(base_beacon_mark);
@@ -2870,6 +2927,7 @@ int main(int argc, char **argv)
             if (body >= 0)
             {
                 base.direction = kosmos::base_direction(sim.universe, body, base);
+                base.pole = sim.universe.pole(body);
                 base.height = base.elevation;
                 kosmos::register_base_beacons(sim.nav, sim.universe, body, base);
             }
@@ -2890,6 +2948,10 @@ int main(int argc, char **argv)
             return false;
         }
         terrain = body_terrains[0]->terrain.get();
+        // Each terrain is built in the body's frame as it stands now; from here it turns with the planet.
+        for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+            if (sl::FlightBody *fb = sim.universe.world.body(bt->body))
+                fb->spin_phase = -fb->spin_rate * sim.universe.world.time();
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
         {
             sim.universe.world.body(bt->body)->terrain = bt->terrain.get();
@@ -2923,6 +2985,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    sl::Hud hud;
+    if (!options.hud.empty())
+    {
+        sl::HudMode start_mode = sl::HudMode::off;
+        if (sl::hud_parse_mode(options.hud, start_mode))
+            hud.set_mode(start_mode);
+        else
+            std::fprintf(stderr, "unknown --hud mode '%s' (off, orbit, surface, docking)\n", options.hud.c_str());
+    }
     EngineSound sound;
     bool sound_on = true, first_frame = true, show_orbit = true, show_info = !options.hide_info, running = true, shot_saved = false, map_mode = options.map;
     MapView map;
@@ -3023,6 +3094,19 @@ int main(int argc, char **argv)
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
         vis.clear_parts();
+        // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
+        if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9 && sim.system_index() == 0)
+        {
+            leave_system();
+            sim.start_epoch_jd = sc.epoch_jd;
+            std::string epoch_error;
+            if (!sim.change_system(0, epoch_error) || !enter_system())
+            {
+                std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
+                running = false;
+                return;
+            }
+        }
         if (Ship *flown = apply_scenario(sim, sc, terrain_set))
         {
             ship = flown;
@@ -3265,6 +3349,15 @@ int main(int argc, char **argv)
                     props.set_double("/controls/flaps", std::fmod(props.get_double("/controls/flaps") + 0.34, 1.02));
                 else if (key == sl::Event::Key::letter_i)
                     show_info = !show_info;
+                else if (key == sl::Event::Key::letter_h)
+                {
+                    if (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift))
+                        hud.next_colour();
+                    else
+                        hud.next_mode();
+                    if (!(cockpit_view || interior_cam >= 0))
+                        sim.log("HUD is shown in cockpit view (press C)");
+                }
                 else if (key == sl::Event::Key::letter_j)
                 {
                     // Jump to the closest other player.
@@ -3439,6 +3532,13 @@ int main(int argc, char **argv)
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
             sl::dvec3 seat = ship->spec().cockpit.eye;
             double yaw = look_yaw, pitch = look_pitch;
+            if (!in_interior)
+            {
+                yaw += ship->spec().cockpit.yaw * pi / 180.0;
+                pitch += ship->spec().cockpit.pitch * pi / 180.0;
+                if (ship->spec().cockpit.fov > 0.0)
+                    view_fov = ship->spec().cockpit.fov;
+            }
             if (in_interior)
             {
                 const kosmos::CameraSpec &cs = ship->spec().cameras[static_cast<std::size_t>(interior_cam)];
@@ -3483,6 +3583,18 @@ int main(int argc, char **argv)
         // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km, scaled by the body's size.
         const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
         const bool earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > 300.0e3 * earth_body->radius / 6.371e6;
+        for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+        {
+            const sl::FlightBody &fb = *universe.world.body(bt->body);
+            bt->terrain->set_rotation(fb.spin_phase + fb.spin_rate * universe.world.time(), fb.spin_axis);
+            kosmos::Body &tb = universe.bodies[static_cast<std::size_t>(bt->body)];
+            for (kosmos::Base &base : sim.bases)
+                if (base.body == tb.name)
+                {
+                    base.direction = kosmos::base_direction(universe, bt->body, base);
+                    base.pole = universe.pole(bt->body);
+                }
+        }
         if (near_earth)
         {
             if (first_frame)
@@ -3882,7 +3994,7 @@ int main(int argc, char **argv)
                 rock.normal_map = vis.body_normals[i];
                 rock.fog = false;
                 const glm::mat4 frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                const glm::mat4 model = frame * glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) *
+                const glm::mat4 model = frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) *
                                         glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
                 if (static_cast<int>(i) == earth_id && vis.earth_tiles)
                 {
@@ -3905,7 +4017,7 @@ int main(int argc, char **argv)
                 {
                     const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
                     return glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1)) *
-                           glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) *
+                           glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) *
                            glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
                 };
                 if (static_cast<int>(i) == earth_id && vis.lights_texture)
@@ -3943,7 +4055,7 @@ int main(int argc, char **argv)
                                     static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 150};
                     const float k = static_cast<float>(1.0 - depth_gap / distance);
                     const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                    sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::rotate(glm::mat4(1.0f), static_cast<float>(universe.rotation_angle(static_cast<int>(i))), glm::vec3(0, 1, 0)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
+                    sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
                 }
                 draw_atmosphere_glow(rel, b);
                 if (vis.rings[i])
@@ -4135,6 +4247,53 @@ int main(int argc, char **argv)
             }
         }
 
+        // Head-up display.
+        if (hud.mode() != sl::HudMode::off && (in_cockpit || in_interior) && !map_mode && !galaxy_mode)
+        {
+            sl::HudState hs;
+            const glm::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));
+            hs.camera.forward = fwd;
+            hs.camera.right = glm::normalize(glm::cross(fwd, sl::dvec3(up)));
+            hs.camera.up = glm::cross(hs.camera.right, fwd);
+            hs.camera.focal = screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5));
+            hs.camera.width = screen_w;
+            hs.camera.height = screen_h;
+            hs.nose = fb.direction_to_world(sl::dvec3(0.0, 0.0, -1.0));
+            hs.roof = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+            const sl::FlightBody &soi_fb = *universe.world.body(soi);
+            const sl::dvec3 from_soi = fb.position - soi_fb.position;
+            hs.orbit.valid = true;
+            hs.orbit.reference = soi_body.name;
+            hs.orbit.velocity = fb.velocity - soi_fb.velocity;
+            hs.orbit.position = from_soi;
+            hs.surface.valid = true;
+            hs.surface.reference = soi_body.name;
+            hs.surface.altitude = tm.altitude;
+            hs.surface.radar = tm.altitude < 1.0e4;
+            hs.surface.speed = tm.surface_speed;
+            hs.surface.airspeed = tm.dynamic_pressure > 0.5;
+            hs.surface.ground_velocity = ship->relative_velocity();
+            hs.surface.up = glm::normalize(from_soi);
+            hs.surface.north = universe.pole(soi);
+            if (props.get_bool("/dock/valid"))
+            {
+                const auto vec = [&props](const char *name) {
+                    const std::string base = std::string("/dock/hud/") + name + "-";
+                    return sl::dvec3(props.get_double(base + "x"), props.get_double(base + "y"), props.get_double(base + "z"));
+                };
+                hs.docking.valid = true;
+                hs.docking.target = props.get_string("/dock/target");
+                hs.docking.reference = hs.docking.target + " [" + props.get_string("/dock/own-port-name") + "]";
+                hs.docking.velocity = vec("velocity");
+                hs.docking.position = vec("position");
+                hs.docking.has_port = true;
+                hs.docking.port_position = hs.docking.position;
+                hs.docking.port_direction = vec("direction");
+                hs.docking.port_up = vec("up");
+            }
+            hud.draw(hs);
+        }
+
         // Labels for bodies too small on screen to recognise.
         const float focal = static_cast<float>(screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5)));
         const bool body_labels = props.get_bool("/sim/settings/labels");
@@ -4195,7 +4354,7 @@ int main(int argc, char **argv)
         // HUD.
         const std::string soi_name = soi_body.name;
         if (show_info)
-            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s", ship->name.c_str(), format_time(universe.time()).c_str());
+            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
         if (ship->crashed())
             sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, "*** VESSEL LOST - press R to reset ***");
         if (show_info)
@@ -4678,7 +4837,7 @@ int main(int argc, char **argv)
                         {
                             if (ImGui::Selectable("External", mine && chase_now))
                                 pick(si, false, false, -1, -1, 0);
-                            if (spec.cockpit.present && ImGui::Selectable("Cockpit (2D panel)", mine && cockpit_view && !cockpit3d && interior_cam < 0 && base_view < 0))
+                            if (spec.cockpit.present && ImGui::Selectable(spec.cockpit.mfds || !spec.cockpit.panel.empty() ? "Cockpit (2D panel)" : "Cockpit", mine && cockpit_view && !cockpit3d && interior_cam < 0 && base_view < 0))
                                 pick(si, true, false, -1, -1, 0);
                             if (spec.cockpit.present && spec.cockpit.mfds && ImGui::Selectable("Cockpit (3D, MFDs)", mine && cockpit_view && cockpit3d && interior_cam < 0 && base_view < 0))
                                 pick(si, true, true, -1, -1, 0);

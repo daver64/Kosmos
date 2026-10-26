@@ -1,0 +1,15 @@
+{
+ "name": "Apollo 11: launch day",
+ "description": "Kestrel on the pad at Kennedy Space Center at 13:32 GMT on 16 July 1969, the moment Apollo 11 lifted off. The Sun, Moon and planets stand where they did that morning.",
+ "date": "1969-07-16 13:32:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Kestrel",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

@@ -24,11 +24,11 @@ namespace kosmos
             sl::dvec3 up, east, north;
         };
 
-        Frame local_frame(const sl::dvec3 &direction)
+        Frame local_frame(const sl::dvec3 &direction, const sl::dvec3 &pole)
         {
             Frame f;
             f.up = glm::normalize(direction);
-            f.east = glm::normalize(glm::cross(sl::dvec3(0.0, 1.0, 0.0), f.up));
+            f.east = glm::normalize(glm::cross(pole, f.up));
             f.north = glm::cross(f.up, f.east);
             return f;
         }
@@ -355,7 +355,7 @@ namespace kosmos
 
     sl::dvec3 base_point(const Base &base, double radius, double x, double z)
     {
-        const Frame f = local_frame(base.direction);
+        const Frame f = local_frame(base.direction, base.pole);
         sl::dvec3 forward, right;
         base_axes(f, base.heading, forward, right);
         return glm::normalize(base.direction + (right * x + forward * z) / radius);
@@ -367,7 +367,7 @@ namespace kosmos
         const double radius = body >= 0 ? universe.bodies[static_cast<std::size_t>(body)].radius : 1.0;
         const sl::dvec3 centre = body >= 0 ? universe.position(body) : sl::dvec3(0.0);
         const sl::dvec3 dir = glm::normalize(world_point - centre);
-        const Frame f = local_frame(base.direction);
+        const Frame f = local_frame(base.direction, base.pole);
         sl::dvec3 forward, right;
         base_axes(f, base.heading, forward, right);
         const sl::dvec3 offset = (dir - base.direction) * radius;
@@ -669,7 +669,7 @@ namespace kosmos
         const int body = universe.find(base.body);
         const double radius = body >= 0 ? universe.bodies[static_cast<std::size_t>(body)].radius : 0.0;
         const sl::dvec3 centre = body >= 0 ? universe.position(body) : sl::dvec3(0.0);
-        const Frame f = local_frame(base.direction);
+        const Frame f = local_frame(base.direction, base.pole);
         sl::dvec3 base_forward, base_right;
         base_axes(f, base.heading, base_forward, base_right);
         up = f.up;
@@ -841,13 +841,13 @@ namespace kosmos
             if (glm::length(centre + base.direction * (radius + base.height) - eye) > range + 2.0 * base.flat_radius + base.blend)
                 continue;
             const double night = base_night(universe, base);
-            const Frame f = local_frame(base.direction);
+            const Frame f = local_frame(base.direction, base.pole);
             sl::dvec3 forward, right;
             base_axes(f, base.heading, forward, right);
             const auto world_point = [&](double x, double y, double z)
             {
                 const sl::dvec3 dir = glm::normalize(base.direction + (right * x + forward * z) / radius);
-                return centre + dir * (radius + base.height) + local_frame(dir).up * y;
+                return centre + dir * (radius + base.height) + local_frame(dir, base.pole).up * y;
             };
             for (const LightSpec &spec : base.lights)
                 for (int i = 0; i < spec.count; ++i)
@@ -927,7 +927,7 @@ namespace kosmos
             const sl::dvec3 base_world = centre + base.direction * (radius + base.height);
             if (glm::length(base_world - eye) > range + 2.0 * base.flat_radius + base.blend)
                 continue;
-            const Frame f = local_frame(base.direction);
+            const Frame f = local_frame(base.direction, base.pole);
             sl::dvec3 forward, right;
             base_axes(f, base.heading, forward, right);
             for (const Runway &rw : base.runways)
@@ -943,7 +943,7 @@ namespace kosmos
                 const sl::dvec3 position = centre + dir * (radius + base.height);
                 if (glm::length(position - eye) > range + 0.5 * rw.length)
                     continue;
-                const Frame pf = local_frame(dir);
+                const Frame pf = local_frame(dir, base.pole);
                 sl::dvec3 pforward, pright;
                 base_axes(pf, base.heading + rw.heading, pforward, pright);
                 glm::mat4 model(1.0f);
@@ -967,7 +967,7 @@ namespace kosmos
                     const sl::dvec3 position = centre + dir * (radius + base.height);
                     if (glm::length(position - eye) > range)
                         continue;
-                    const Frame pf = local_frame(dir);
+                    const Frame pf = local_frame(dir, base.pole);
                     sl::dvec3 pforward, pright;
                     base_axes(pf, base.heading + o.heading, pforward, pright);
                     // Right-handed basis (a mirrored one would flip the winding): +Z faces forward, so +X is to the left.

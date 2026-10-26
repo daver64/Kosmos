@@ -101,6 +101,8 @@ namespace kosmos
 
         // Filled in once the terrain exists.
         sl::dvec3 direction{0.0, 1.0, 0.0};
+        /** North pole of the body in world axes, which sets the base's east and north. */
+        sl::dvec3 pole{0.0, 1.0, 0.0};
         double height = 0.0;
     };
 

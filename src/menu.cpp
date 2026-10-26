@@ -756,6 +756,7 @@ namespace kosmos
                         if (body >= 0)
                         {
                             nb.direction = base_direction(sim.universe, body, nb);
+                            nb.pole = sim.universe.pole(body);
                             nb.height = nb.elevation;
                         }
                         sim.bases.push_back(std::move(nb));
@@ -801,6 +802,7 @@ namespace kosmos
                         const int body = sim.universe.find(b.body);
                         if (body >= 0)
                             b.direction = base_direction(sim.universe, body, b);
+                            b.pole = sim.universe.pole(body);
                     }
                     dbl("Level radius m", b.flat_radius, 1.0f, 0.0, 20000.0, "%.0f");
                     dbl("Blend m", b.blend, 1.0f, 0.0, 20000.0, "%.0f");

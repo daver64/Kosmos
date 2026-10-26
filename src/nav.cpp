@@ -114,18 +114,15 @@ namespace kosmos
     {
         const double la = latitude * pi / 180.0, lo = longitude * pi / 180.0;
         const double bx = std::cos(la) * std::cos(lo), by = std::sin(la), bz = -std::cos(la) * std::sin(lo);
-        const double th = universe.rotation_angle(body);
-        return {bx * std::cos(th) + bz * std::sin(th), by, -bx * std::sin(th) + bz * std::cos(th)};
+        return universe.orientation(body) * sl::dvec3(bx, by, bz);
     }
 
     void surface_lat_lon(const Universe &universe, int body, const sl::dvec3 &direction, double &latitude, double &longitude)
     {
         const sl::dvec3 r = glm::normalize(direction);
-        const double th = universe.rotation_angle(body);
-        const double bx = r.x * std::cos(th) - r.z * std::sin(th);
-        const double bz = r.x * std::sin(th) + r.z * std::cos(th);
-        latitude = std::asin(std::clamp(r.y, -1.0, 1.0)) * deg;
-        longitude = std::atan2(-bz, bx) * deg;
+        const sl::dvec3 b = glm::inverse(universe.orientation(body)) * r;
+        latitude = std::asin(std::clamp(b.y, -1.0, 1.0)) * deg;
+        longitude = std::atan2(-b.z, b.x) * deg;
     }
 
     void NavSystem::init(sl::PropertyTree &props)
@@ -322,11 +319,11 @@ namespace kosmos
             const sl::dvec3 dir = surface_direction(universe, body, t.latitude, t.longitude);
             Contact c;
             c.frame.up = dir;
-            c.frame.east = glm::normalize(glm::cross(sl::dvec3(0.0, 1.0, 0.0), dir));
+            c.frame.east = glm::normalize(glm::cross(universe.pole(body), dir));
             c.frame.north = glm::cross(dir, c.frame.east);
             const double spin = universe.bodies[static_cast<std::size_t>(body)].spin;
             c.frame.position = pb.position + dir * universe.bodies[static_cast<std::size_t>(body)].radius;
-            c.frame.velocity = pb.velocity + glm::cross(sl::dvec3(0.0, spin, 0.0), c.frame.position - pb.position);
+            c.frame.velocity = pb.velocity + glm::cross(universe.pole(body) * spin, c.frame.position - pb.position);
             const sl::dvec3 r = here - c.frame.position;
             c.distance = glm::length(r);
             if (c.distance > t.range || c.distance < 1.0e-3 || glm::dot(r / c.distance, c.frame.up) < 0.0)
@@ -475,6 +472,22 @@ namespace kosmos
         p.set_double("/dock/yaw", r.yaw);
         p.set_double("/dock/pitch", r.pitch);
         p.set_double("/dock/roll", r.roll);
+
+        // World-frame vectors for the head-up display: the target port relative to our port, its axis, and our velocity relative to it.
+        const Ship &other = *ships[static_cast<std::size_t>(c->ship)];
+        sl::dvec3 pos_a, dir_a, up_a, pos_b, dir_b, up_b;
+        me.port_world(own, pos_a, dir_a, up_a);
+        other.port_world(c->port, pos_b, dir_b, up_b);
+        const sl::dvec3 rel_v = me.point_velocity(pos_a) - other.point_velocity(pos_b);
+        const auto set_vec = [&p](const std::string &path, const sl::dvec3 &v) {
+            p.set_double(path + "x", v.x);
+            p.set_double(path + "y", v.y);
+            p.set_double(path + "z", v.z);
+        };
+        set_vec("/dock/hud/position-", pos_b - me.body().position);
+        set_vec("/dock/hud/velocity-", rel_v);
+        set_vec("/dock/hud/direction-", dir_b);
+        set_vec("/dock/hud/up-", up_b);
     }
 
     void NavSystem::update(Universe &universe, const std::vector<std::unique_ptr<Ship>> &ships, int active)
