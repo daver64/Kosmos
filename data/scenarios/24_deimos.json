@@ -1,0 +1,16 @@
+{
+ "name": "Deimos: orbit",
+ "description": "Wren over Deimos, the smaller Martian moon.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Wren",
+   "body": "Deimos",
+   "orbit": {
+    "altitude_km": 15,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

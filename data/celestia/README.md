@@ -16,4 +16,6 @@ Source data under `moons/` is organized for humans and tools; Kosmos does not sc
 python3 tools/ctx_import.py "data/celestia/moons/jupiter/Callisto.ctx" callisto --out data/textures-hires
 ```
 
+Saturn's Dione, Enceladus, Hyperion, Iapetus and Titan maps are installed: 4096-wide copies in `data/textures/` (Enceladus stitched with `ctx_import.py` at level 1, Titan, Iapetus and Hyperion converted from the source images), plus 8192-wide Titan and Enceladus in `data/textures-hires/`. Normal maps for Iapetus, Hyperion and Enceladus were regenerated with `tools/gen_moon_normals.py`.
+
 Each downloaded pack has its own licence. Review its licence before redistributing any source files or installed images.

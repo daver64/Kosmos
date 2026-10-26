@@ -1,0 +1,16 @@
+{
+ "name": "Hyperion: orbit",
+ "description": "Wren close to tumbling, sponge-like Hyperion.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Wren",
+   "body": "Hyperion",
+   "orbit": {
+    "altitude_km": 50,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

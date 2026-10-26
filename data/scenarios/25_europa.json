@@ -1,0 +1,16 @@
+{
+ "name": "Europa: orbit",
+ "description": "Argo over the cracked ice of Europa, with Jupiter beyond.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Europa",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

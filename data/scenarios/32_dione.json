@@ -1,0 +1,16 @@
+{
+ "name": "Dione: orbit",
+ "description": "Argo above the wispy, cratered face of Dione.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Dione",
+   "orbit": {
+    "altitude_km": 120,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

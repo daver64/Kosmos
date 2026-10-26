@@ -1,0 +1,16 @@
+{
+ "name": "Triton: orbit",
+ "description": "Argo above Triton, Neptune's retrograde moon.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Triton",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

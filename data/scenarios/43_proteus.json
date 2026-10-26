@@ -1,0 +1,16 @@
+{
+ "name": "Proteus: orbit",
+ "description": "Wren above dark, blocky Proteus.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Wren",
+   "body": "Proteus",
+   "orbit": {
+    "altitude_km": 60,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

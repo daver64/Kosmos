@@ -1,0 +1,16 @@
+{
+ "name": "Ganymede: orbit",
+ "description": "Argo above Ganymede, the largest moon in the Solar System.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Ganymede",
+   "orbit": {
+    "altitude_km": 300,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "name": "Phoebe: orbit",
+ "description": "Wren above dark Phoebe, a captured outer moon of Saturn.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Wren",
+   "body": "Phoebe",
+   "orbit": {
+    "altitude_km": 40,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

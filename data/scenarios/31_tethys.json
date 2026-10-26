@@ -1,0 +1,16 @@
+{
+ "name": "Tethys: orbit",
+ "description": "Argo above Tethys, with Saturn's rings in the sky.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Tethys",
+   "orbit": {
+    "altitude_km": 120,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

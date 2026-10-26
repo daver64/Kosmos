@@ -1,0 +1,16 @@
+{
+ "name": "Callisto: orbit",
+ "description": "Argo above the ancient cratered surface of Callisto.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Callisto",
+   "orbit": {
+    "altitude_km": 250,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}
