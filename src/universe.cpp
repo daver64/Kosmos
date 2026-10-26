@@ -484,6 +484,10 @@ namespace kosmos
             tree.node(base + "x")->tie_double([this, id] { return world.body(id)->position.x; });
             tree.node(base + "y")->tie_double([this, id] { return world.body(id)->position.y; });
             tree.node(base + "z")->tie_double([this, id] { return world.body(id)->position.z; });
+            tree.node(base + "vx")->tie_double([this, id] { return world.body(id)->velocity.x; });
+            tree.node(base + "vy")->tie_double([this, id] { return world.body(id)->velocity.y; });
+            tree.node(base + "vz")->tie_double([this, id] { return world.body(id)->velocity.z; });
+            tree.node(base + "parent")->set_string(bodies[i].parent >= 0 ? bodies[static_cast<std::size_t>(bodies[i].parent)].name : std::string());
         }
     }
 } // namespace kosmos

@@ -8,6 +8,7 @@
 #include "netplay.h"
 #include "planet_data.h"
 #include "blender_edit.h"
+#include "usercam.h"
 
 #include <algorithm>
 #include <chrono>
@@ -79,6 +80,8 @@ namespace
         bool property_window = false;
         bool lua_window = false;
         bool menu_visible = false, scenario_editor = false, base_editor = false;
+        bool camera_editor = false;
+        int user_camera = -1; // index into the Camera editor list to start in
         std::string view_base; // "base:index" to start looking through a base camera
         std::string shot;
         double shot_at = 10.0;
@@ -88,7 +91,7 @@ namespace
         double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
-        bool hide_info = false, no_clouds = false;
+        bool hide_info = false, show_info = false, no_clouds = false;
         std::string hud;
         bool no_relief = false;
         std::string blender;
@@ -106,6 +109,7 @@ namespace
         std::string ship_name = "Kestrel";
         std::string scenario;
         std::string target;
+        std::vector<std::string> sets; // --set path=value, applied once the scenario is loaded
         bool list_scenarios = false;
         double map_scale = 0.0;
         std::string map_focus;
@@ -861,9 +865,107 @@ namespace
         sl::dvec3 eye_rel{0.0};
     };
 
+    // Shown while the world loads: a dim, hazy Martian sky with what is happening printed large in orange, latest line biggest.
+    struct LoadingScreen
+    {
+        sl::Font *big = nullptr, *small = nullptr, *title = nullptr;
+        std::vector<std::string> lines;
+        bool active = false;
+
+        void begin()
+        {
+            big = sl::open_sans_font(44);
+            small = sl::open_sans_font(26);
+            title = sl::open_sans_font(76);
+            active = big && small && title;
+            sl::set_text_panel_style({false});
+            note("Starting up");
+        }
+
+        void end()
+        {
+            if (!active)
+                return;
+            active = false;
+            sl::set_text_panel_style({true});
+            for (sl::Font *f : {big, small, title})
+                if (f)
+                    sl::close_font(f);
+            big = small = title = nullptr;
+        }
+
+        void note(const std::string &text)
+        {
+            if (!active)
+                return;
+            std::fprintf(stderr, "[kosmos] %s\n", text.c_str());
+            lines.push_back(text);
+            if (lines.size() > 6)
+                lines.erase(lines.begin());
+            sl::Event discard;
+            while (sl::poll_event(&discard))
+            {
+            }
+            draw();
+            sl::show_video_bitmap();
+            sl::end_frame();
+        }
+
+        void draw() const
+        {
+            const int w = sl::screen_width(), h = sl::screen_height();
+            // Dusty sky, palest at the horizon, over dim rust ground.
+            const int horizon = static_cast<int>(h * 0.68f);
+            const int bands = 72;
+            for (int i = 0; i < bands; ++i)
+            {
+                const float t = static_cast<float>(i) / (bands - 1);
+                const float y0 = horizon * t, y1 = horizon * (t + 1.0f / (bands - 1)) + 1.0f;
+                const float k = t * t;
+                sl::rectfill(sl::screen, 0, y0, static_cast<float>(w), y1,
+                             {static_cast<std::uint8_t>(8 + 30 * k), static_cast<std::uint8_t>(6 + 19 * k), static_cast<std::uint8_t>(6 + 14 * k), 255});
+            }
+            for (int i = 0; i < 24; ++i)
+            {
+                const float t = static_cast<float>(i) / 23.0f;
+                sl::rectfill(sl::screen, 0, horizon + (h - horizon) * t, static_cast<float>(w), horizon + (h - horizon) * (t + 1.0f / 23.0f) + 1.0f,
+                             {static_cast<std::uint8_t>(26 - 18 * t), static_cast<std::uint8_t>(16 - 11 * t), static_cast<std::uint8_t>(12 - 8 * t), 255});
+            }
+            // Haze: broad soft glows, a pale low sun and a band of dust on the horizon.
+            sl::set_blend_mode(sl::BlendMode::additive);
+            for (int i = 0; i < 28; ++i)
+            {
+                const float r = w * (0.34f - 0.011f * i);
+                sl::circlefill(sl::screen, w * 0.78f, horizon * 0.82f, r, {2, 1, 1, 255});
+            }
+            for (int i = 0; i < 16; ++i)
+                sl::rectfill(sl::screen, 0, horizon - h * 0.015f * (16 - i), static_cast<float>(w), horizon + h * 0.012f, {1, 1, 0, 255});
+            sl::set_blend_mode(sl::BlendMode::normal);
+
+            const int left = static_cast<int>(w * 0.09f);
+            sl::textout(title, left, static_cast<int>(h * 0.12f), {255, 214, 110, 255}, "KOSMOS " KOSMOS_VERSION);
+            const int big_h = sl::text_height(big), small_h = sl::text_height(small);
+            int y = static_cast<int>(h * 0.12f) + sl::text_height(title) + static_cast<int>(h * 0.06f);
+            for (std::size_t i = 0; i < lines.size(); ++i)
+            {
+                const bool latest = i + 1 == lines.size();
+                if (latest)
+                    sl::textout(big, left, y, {255, 204, 66, 255}, lines[i] + " ...");
+                else
+                {
+                    const float age = static_cast<float>(lines.size() - 1 - i);
+                    const std::uint8_t a = static_cast<std::uint8_t>(std::max(0.0f, 190.0f - age * 32.0f));
+                    sl::textout(small, left, y, {static_cast<std::uint8_t>(235 * a / 255 + 20), static_cast<std::uint8_t>(180 * a / 255 + 14), static_cast<std::uint8_t>(60 * a / 255 + 6), 255}, lines[i]);
+                }
+                y += static_cast<int>((latest ? big_h : small_h) * 1.2f);
+            }
+        }
+    } loading;
+
     std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home)
     {
         const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
+        loading.note("Building the terrain of " + b.name);
         const kosmos::SurfaceFrame frame{sim.universe.orientation(id)};
         const std::string orbiter = sim.root() + "/data/orbiter";
         sl::TerrainConfig config;
@@ -1783,7 +1885,7 @@ namespace
         return directory;
     }
 
-    std::string find_image_in_folder(const std::string &directory)
+    std::string find_image_in_folder(const std::string &directory, const std::string &prefer = {})
     {
         namespace fs = std::filesystem;
         std::error_code ec;
@@ -1798,11 +1900,20 @@ namespace
             std::string filename = entry.path().filename().string();
             for (char &c : filename)
                 c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            // Skip bump maps, cloud and ring layers, and "_b" variants; they are not the colour map.
             if ((extension == ".dds" || extension == ".png" || extension == ".jpg" || extension == ".jpeg") &&
-                filename.find("bump") == std::string::npos)
+                filename.find("bump") == std::string::npos && filename.find("cloud") == std::string::npos &&
+                filename.find("ring") == std::string::npos && filename.find("_b.") == std::string::npos)
                 images.push_back(entry.path());
         }
         std::sort(images.begin(), images.end());
+        // A folder may hold several bodies (Pluto and Charon); favour the file named for this one.
+        std::stable_partition(images.begin(), images.end(), [&](const fs::path &path) {
+            std::string name = path.filename().string();
+            for (char &c : name)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return !prefer.empty() && name.find(prefer) != std::string::npos;
+        });
         return images.empty() ? std::string{} : images.front().string();
     }
 
@@ -1816,7 +1927,7 @@ namespace
         const std::string override = find_texture_in_directory(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
         if (!override.empty())
             return override;
-        const std::string celestia = find_image_in_folder(root + "/data/celestia/hires/" + lower);
+        const std::string celestia = find_image_in_folder(root + "/data/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;
         return find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
@@ -2053,7 +2164,7 @@ namespace
                 if (kind == nuclear)
                 {
                     // A nuclear engine has no flame: a hot, neon-lit panel across the nozzle with a soft glow around it.
-                    diamonds.push_back({glm::vec3(t.position) + dir * 0.1f, dir, static_cast<float>(plume) * 0.16f, level, static_cast<std::uint8_t>(nuclear)});
+                    diamonds.push_back({glm::vec3(t.position + ship.com_offset()) + dir * 0.1f, dir, static_cast<float>(plume) * 0.16f, level, static_cast<std::uint8_t>(nuclear)});
                     continue;
                 }
                 const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * level * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
@@ -2066,7 +2177,7 @@ namespace
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
                     Particle p;
-                    p.position = glm::vec3(t.position) + radial * (0.25f * width * random01());
+                    p.position = glm::vec3(t.position + ship.com_offset()) + radial * (0.25f * width * random01());
                     p.velocity = dir * speed + radial * (spread * speed);
                     p.age = random01() * dt;
                     p.life = life;
@@ -2082,7 +2193,7 @@ namespace
                     for (int k = 0; k < 5; ++k)
                     {
                         const float fall = 1.0f - 0.16f * static_cast<float>(k);
-                        diamonds.push_back({glm::vec3(t.position) + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall * crisp, static_cast<std::uint8_t>(kind)});
+                        diamonds.push_back({glm::vec3(t.position + ship.com_offset()) + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall * crisp, static_cast<std::uint8_t>(kind)});
                     }
                 }
             }
@@ -2631,12 +2742,18 @@ int main(int argc, char **argv)
             options.part_window = true;
         else if (!std::strcmp(argv[i], "--hide-info"))
             options.hide_info = true;
+        else if (!std::strcmp(argv[i], "--show-info"))
+            options.show_info = true;
         else if (!std::strcmp(argv[i], "--systems-window"))
             options.systems_window = true;
         else if (!std::strcmp(argv[i], "--life-support") && i + 1 < argc)
             options.life_support = argv[++i];
         else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
             options.hud = argv[++i];
+        else if (!std::strcmp(argv[i], "--camera-editor"))
+            options.camera_editor = true;
+        else if (!std::strcmp(argv[i], "--user-camera") && i + 1 < argc)
+            options.user_camera = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--camera-window"))
             options.camera_window = true;
         else if (!std::strcmp(argv[i], "--settings-window"))
@@ -2686,6 +2803,8 @@ int main(int argc, char **argv)
             options.scenario = argv[++i];
         else if (!std::strcmp(argv[i], "--target") && i + 1 < argc)
             options.target = argv[++i];
+        else if (!std::strcmp(argv[i], "--set") && i + 1 < argc)
+            options.sets.push_back(argv[++i]);
         else if (!std::strcmp(argv[i], "--list-scenarios"))
             options.list_scenarios = true;
         else if (!std::strcmp(argv[i], "--mfd") && i + 1 < argc)
@@ -2897,6 +3016,7 @@ int main(int argc, char **argv)
         screen_w = sl::screen_width();
         screen_h = sl::screen_height();
     }
+    loading.begin();
     sl::Surface3D *surface = sl::create_surface_3d(screen_w, screen_h, 1);
     int surface_w = screen_w, surface_h = screen_h;
     if (!surface)
@@ -2906,6 +3026,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    loading.note("Generating the sky and star textures");
     Visuals vis;
     vis.sphere = sl::create_sphere_mesh(1.0f, 192, 96, {255, 255, 255, 255});
     vis.glow = sl::create_sphere_mesh(1.0f, 14, 8, {255, 255, 255, 255});
@@ -2928,6 +3049,7 @@ int main(int argc, char **argv)
         sl::shutdown();
         return -1;
     }
+    loading.note("Loading Earth's clouds and night lights");
     // Orbiter's Earth cloud and night-light layers, when imported with tools/orbiter_import.py.
     if (sl::Bitmap *clouds = load_optional_texture(find_texture_file(sim.root(), "earth_clouds", {".dds"}), options.max_texture))
     {
@@ -2942,6 +3064,7 @@ int main(int argc, char **argv)
     TerrainSet terrain_set;
     sl::Mesh *cloud_shell = nullptr;
     kosmos::BaseRenderer base_renderer;
+    base_renderer.root = sim.root();
     const std::size_t base_beacon_mark = sim.nav.beacon_count();
 
     // Everything drawn or collided with that belongs to one star system; a quantum jump drops it and builds the next.
@@ -2983,6 +3106,7 @@ int main(int argc, char **argv)
     };
     auto enter_system = [&]() -> bool
     {
+        loading.note("Loading planet images");
         sl::Bitmap *shared_rock = nullptr;
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
         {
@@ -3013,6 +3137,7 @@ int main(int argc, char **argv)
             vis.body_meshes.push_back(shape);
             if (!b.minor)
             {
+                loading.note("Loading the surface of " + b.name);
                 const std::string image = find_surface_image(sim.root(), b);
                 if (!image.empty())
                     if (sl::Bitmap *surface = load_surface_texture(image, options.max_texture))
@@ -3055,6 +3180,7 @@ int main(int argc, char **argv)
             const int home = sim.universe.home_id();
             if (home >= 0 && sim.universe.bodies[static_cast<std::size_t>(home)].name == "Earth")
             {
+                loading.note("Opening the Earth imagery tiles");
                 const std::string hires = sim.root() + "/data/celestia/hires/";
                 sl::PlanetTilesOptions tiles;
                 // Skirts show as bright lines along tile edges from orbit.
@@ -3108,6 +3234,7 @@ int main(int argc, char **argv)
                 b.rotation_offset = std::atan2(glm::dot(pole, glm::cross(lon0, to_parent)), glm::dot(lon0, to_parent));
             }
         }
+        loading.note("Placing bases and beacons");
         sim.nav.truncate_beacons(base_beacon_mark);
         for (kosmos::Base &base : sim.bases)
         {
@@ -3156,6 +3283,7 @@ int main(int argc, char **argv)
             vis.body_cloud_textures[i] = fx::make_cloud_texture(1024, 512, b.cloud_cover, 101 + static_cast<std::uint32_t>(i));
             vis.body_cloud_meshes[i] = sl::create_sphere_mesh(static_cast<float>(b.radius + b.cloud_height), 128, 64, {255, 255, 255, 255});
         }
+        loading.note("Building the cloud layers");
         cloud_shell = sl::create_sphere_mesh(static_cast<float>(earth_body->radius + cloud_height), 256, 128, {255, 255, 255, 255});
         return true;
     };
@@ -3165,6 +3293,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    loading.note("Assembling the ship");
     Ship *ship = start_scenario(sim, options, terrain_set);
     if (!ship)
     {
@@ -3183,7 +3312,7 @@ int main(int argc, char **argv)
             std::fprintf(stderr, "unknown --hud mode '%s' (off, orbit, surface, docking)\n", options.hud.c_str());
     }
     EngineSound sound;
-    bool sound_on = true, first_frame = true, show_orbit = true, show_info = !options.hide_info, running = true, shot_saved = false, map_mode = options.map;
+    bool sound_on = true, first_frame = true, show_orbit = true, show_info = options.show_info && !options.hide_info, running = true, shot_saved = false, map_mode = options.map;
     MapView map;
     GalaxyView gview;
     bool galaxy_mode = options.galaxy_view;
@@ -3195,6 +3324,21 @@ int main(int argc, char **argv)
     bool cockpit_view = options.cockpit;
     if (!options.target.empty())
         sim.props.set_string("/sim/target", options.target);
+    for (const std::string &assignment : options.sets)
+    {
+        const std::size_t eq = assignment.find('=');
+        if (eq == std::string::npos)
+            continue;
+        const std::string path = assignment.substr(0, eq), value = assignment.substr(eq + 1);
+        char *end = nullptr;
+        const double number = std::strtod(value.c_str(), &end);
+        if (value == "true" || value == "false")
+            sim.props.set_bool(path, value == "true");
+        else if (end && *end == 0 && !value.empty())
+            sim.props.set_double(path, number);
+        else
+            sim.props.set_string(path, value);
+    }
     int mfd_display = options.mfd_display;
     // In the 2D cockpit the MFDs are the dashboard by default; F5 steps dashboard, heads-up, off.
     int cockpit_mfd = 0;
@@ -3204,6 +3348,12 @@ int main(int argc, char **argv)
     bool cockpit3d = options.cockpit3d;
     // Camera selection (F2): a ship's interior camera or a base camera, besides the chase and cockpit views.
     int interior_cam = -1, base_view = -1, base_view_cam = 0;
+    // Cameras from the Camera editor (an orbiting external view to begin with); user_cam is the one looked through, or -1.
+    const std::string user_cam_file = kosmos::user_camera_path(kosmos::Sim::user_dir());
+    std::vector<kosmos::UserCamera> user_cams = kosmos::load_user_cameras(user_cam_file);
+    int user_cam = options.user_camera >= 0 && options.user_camera < static_cast<int>(user_cams.size()) ? options.user_camera : -1;
+    bool camera_editor_window = options.camera_editor;
+    int camera_editor_pick = 0;
     bool systems_window = options.systems_window, camera_window = options.camera_window, settings_window = options.settings_window, property_window = options.property_window, lua_window = options.lua_window;
     bool net_window = options.net_window;
     // Part editor: meshes are edited in Blender while the simulation waits (the pause property is restored afterwards).
@@ -3286,7 +3436,7 @@ int main(int argc, char **argv)
     menu_bar.keep_visible = options.menu_visible || !options.hide_info;
     menu_bar.scenario_editor_open = options.scenario_editor;
     menu_bar.base_editor_open = options.base_editor;
-    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Settings", "F3", &settings_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
     kosmos::MenuActions menu_actions;
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
@@ -3311,7 +3461,7 @@ int main(int argc, char **argv)
             ship = flown;
             cam_distance = ship->spec().camera_distance;
             cockpit_view = cockpit3d = false;
-            interior_cam = base_view = -1;
+            interior_cam = base_view = user_cam = -1;
             look_yaw = look_pitch = 0.0f;
         }
     };
@@ -3341,6 +3491,7 @@ int main(int argc, char **argv)
     menu_actions.screenshot = [&]() { screenshot_requested = true; };
     ExhaustFx exhaust_fx;
     sl::Event event_discard;
+    loading.note("Settling the terrain");
     double clock = 0.0;
     std::uint32_t last_time = sl::time_ms();
     // The engine's own limiter only sleeps when vsync is off, so turn it off and let simlib pace the frames.
@@ -3548,14 +3699,23 @@ int main(int argc, char **argv)
                 else if (key == sl::Event::Key::letter_c)
                 {
                     free_yaw = free_pitch = 0.0f;
-                    // C cycles chase view, 2D cockpit and (for ships with MFDs) the 3D cockpit.
+                    // C cycles chase view, 2D cockpit, (for ships with MFDs) the 3D cockpit, then each camera from the Camera editor.
                     interior_cam = base_view = -1;
-                    if (!cockpit_view)
+                    if (user_cam >= 0)
+                    {
+                        if (++user_cam >= static_cast<int>(user_cams.size()))
+                            user_cam = -1;
+                    }
+                    else if (!cockpit_view)
                         cockpit_view = true, cockpit3d = false;
                     else if (!cockpit3d && ship->spec().cockpit.mfds)
                         cockpit3d = true;
                     else
+                    {
                         cockpit_view = cockpit3d = false;
+                        if (!user_cams.empty())
+                            user_cam = 0;
+                    }
                     look_yaw = look_pitch = 0.0f;
                 }
                 else if (key == sl::Event::Key::letter_v && sim.ship_count() > 1)
@@ -3747,9 +3907,12 @@ int main(int argc, char **argv)
             interior_cam = -1;
         if (base_view >= static_cast<int>(sim.bases.size()) || (base_view >= 0 && base_view_cam >= static_cast<int>(sim.bases[static_cast<std::size_t>(base_view)].cameras.size())))
             base_view = -1;
-        const bool in_base_cam = base_view >= 0 && !map_mode && !galaxy_mode;
-        const bool in_interior = interior_cam >= 0 && !map_mode && !in_base_cam;
-        const bool in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam;
+        if (user_cam >= static_cast<int>(user_cams.size()))
+            user_cam = -1;
+        const bool in_user = user_cam >= 0 && !map_mode && !galaxy_mode;
+        const bool in_base_cam = base_view >= 0 && !map_mode && !galaxy_mode && !in_user;
+        const bool in_interior = interior_cam >= 0 && !map_mode && !in_base_cam && !in_user;
+        const bool in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user;
         const bool in_cockpit3d = in_cockpit && cockpit3d && ship->spec().cockpit.mfds;
         const int mx = sl::mouse_x(), my = sl::mouse_y();
         const int dx = mx - last_mouse_x, dy = my - last_mouse_y;
@@ -3771,6 +3934,34 @@ int main(int argc, char **argv)
         }
         else if (in_base_cam)
         {
+        }
+        else if (in_user)
+        {
+            kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
+            if (uc.orbit)
+            {
+                uc.yaw += uc.spin * frame;
+                if (dragging)
+                {
+                    uc.yaw -= dx * 0.4;
+                    uc.pitch = std::clamp(uc.pitch + dy * 0.4, -89.0, 89.0);
+                }
+                if (zoom_in * zoom_out != 1.0)
+                {
+                    double d = uc.distance;
+                    if (d <= 0.0)
+                    {
+                        const int idx = uc.attach == kosmos::UserCamera::body ? universe.find(uc.attach_name) : -1;
+                        d = idx >= 0 ? universe.bodies[static_cast<std::size_t>(idx)].radius * 3.0 : ship->spec().camera_distance;
+                    }
+                    uc.distance = std::clamp(d * zoom_in * zoom_out, 2.0, 3.0e11);
+                }
+            }
+            else if (dragging)
+            {
+                look_yaw -= static_cast<float>(dx) * 0.008f;
+                look_pitch = std::clamp(look_pitch - static_cast<float>(dy) * 0.008f, -1.4f, 1.4f);
+            }
         }
         else if (in_cockpit || in_interior)
         {
@@ -3828,6 +4019,8 @@ int main(int argc, char **argv)
             ship_rel = glm::vec3(turned * glm::length(sl::dvec3(ship_rel)));
         }
         double view_fov = options.cam_fov;
+        // The radius of a body an orbiting camera is on, so the near plane frames it rather than the flown ship.
+        double user_extent = -1.0;
         if (in_cockpit || in_interior)
         {
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
@@ -3848,11 +4041,72 @@ int main(int argc, char **argv)
                 pitch += cs.pitch * pi / 180.0;
                 view_fov = cs.fov;
             }
-            eye_world = fb.position + fb.direction_to_world(seat);
+            eye_world = ship->origin() + fb.direction_to_world(seat);
             const double cl = std::cos(pitch);
             const sl::dvec3 look(-std::sin(yaw) * cl, std::sin(pitch), -std::cos(yaw) * cl);
             ship_rel = glm::vec3(fb.direction_to_world(look) * 1000.0);
             up = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+        }
+        else if (in_user)
+        {
+            const kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
+            // Where an attachment is, and the axes its camera offsets are in (a ship's own; for a body, east, up and south).
+            struct Anchor
+            {
+                sl::dvec3 position;
+                sl::dvec3 x, y, z;
+                double radius = 0.0;
+                bool ship = false;
+            };
+            auto ship_anchor = [](Ship &sh)
+            {
+                sl::FlightBody &b = sh.body();
+                return Anchor{sh.origin(), b.direction_to_world(sl::dvec3(1, 0, 0)), b.direction_to_world(sl::dvec3(0, 1, 0)), b.direction_to_world(sl::dvec3(0, 0, 1)), 0.0, true};
+            };
+            auto anchor = [&](int kind, const std::string &name)
+            {
+                if (kind == kosmos::UserCamera::other_ship)
+                    for (int si = 0; si < sim.ship_count(); ++si)
+                        if (sim.ship(si)->name == name)
+                            return ship_anchor(*sim.ship(si));
+                if (kind == kosmos::UserCamera::body)
+                {
+                    const int bi = universe.find(name);
+                    if (bi >= 0)
+                        return Anchor{universe.position(bi), east, up, -north, universe.bodies[static_cast<std::size_t>(bi)].radius, false};
+                }
+                return ship_anchor(*ship);
+            };
+            const Anchor host = anchor(uc.attach, uc.attach_name);
+            view_fov = uc.fov;
+            if (uc.orbit)
+            {
+                const double distance = uc.distance > 0.0 ? uc.distance : host.ship ? ship->spec().camera_distance : host.radius * 3.0;
+                const double yaw = uc.yaw * pi / 180.0, pitch = uc.pitch * pi / 180.0;
+                const sl::dvec3 dir = (east * std::sin(yaw) + north * std::cos(yaw)) * std::cos(pitch) + up * std::sin(pitch);
+                eye_world = host.position + dir * distance;
+                ship_rel = glm::vec3(-dir * distance);
+                if (!host.ship)
+                    user_extent = host.radius;
+            }
+            else
+            {
+                eye_world = host.position + host.x * uc.x + host.y * uc.y + host.z * uc.z;
+                if (uc.look_at != kosmos::UserCamera::look_ahead)
+                {
+                    const int kind = uc.look_at == kosmos::UserCamera::look_flown_ship ? 0 : uc.look_at == kosmos::UserCamera::look_ship ? 1 : 2;
+                    const sl::dvec3 to = anchor(kind, uc.look_name).position - eye_world;
+                    ship_rel = glm::vec3(glm::length(to) > 1e-3 ? to : -host.z);
+                    up = host.y;
+                }
+                else
+                {
+                    const double yaw = uc.look_yaw * pi / 180.0 + look_yaw, pitch = uc.look_pitch * pi / 180.0 + look_pitch;
+                    const double cl = std::cos(pitch);
+                    ship_rel = glm::vec3((host.x * -std::sin(yaw) * cl + host.y * std::sin(pitch) + host.z * -std::cos(yaw) * cl) * 1000.0);
+                    up = host.y;
+                }
+            }
         }
         else if (in_base_cam)
         {
@@ -3923,6 +4177,7 @@ int main(int argc, char **argv)
             }
         }
         first_frame = false;
+        loading.end();
 
         const sl::dvec3 sun_dir_world = glm::normalize(-eye_world);
         const glm::vec3 to_sun = glm::vec3(sun_dir_world);
@@ -3937,11 +4192,13 @@ int main(int argc, char **argv)
             extent = std::max(extent, std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
         const double eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
         const double nearest_ground = std::max(1.0, 0.9 * (eye_soi_altitude - 10.0e3));
-        const double ship_near = in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : in_base_cam ? 1.0 : std::max(1.0, std::min(cam_distance - extent, nearest_ground));
+        const double view_distance = in_user && user_cams[static_cast<std::size_t>(user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : cam_distance;
+        const bool in_user_mounted = in_user && !user_cams[static_cast<std::size_t>(user_cam)].orbit;
+        const double ship_near = in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (user_extent >= 0.0 ? user_extent : extent), nearest_ground));
         // As Orbiter does: out in space the planets are drawn first with a near plane set by the nearest body, then the depth buffer
         // is cleared and the ships go over them with their own near plane, so neither range has to share one depth buffer.
         static bool depth_layers_work = true;
-        const bool layered = depth_layers_work && !in_cockpit3d && !in_cockpit && !in_interior && !in_base_cam && eye_soi_altitude > 20.0e3;
+        const bool layered = depth_layers_work && !in_cockpit3d && !in_cockpit && !in_interior && !in_base_cam && !in_user_mounted && eye_soi_altitude > 20.0e3;
         double near_plane = ship_near;
         if (layered)
         {
@@ -3951,7 +4208,7 @@ int main(int argc, char **argv)
             near_plane = std::max(ship_near, 0.8 * nearest_surface);
         }
         camera.near_plane = static_cast<float>(near_plane);
-        camera.far_plane = static_cast<float>(layered || cam_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));
+        camera.far_plane = static_cast<float>(layered || view_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));
         sl::Camera ship_camera = camera;
         ship_camera.near_plane = static_cast<float>(ship_near);
         ship_camera.far_plane = 1.0e8f;
@@ -4051,7 +4308,7 @@ int main(int argc, char **argv)
                             continue;
                         for (int i = 0; i < spec.count; ++i)
                         {
-                            const sl::dvec3 at = lb.position + turn * sl::dvec3(spec.x + spec.step_x * i, spec.y + spec.step_y * i, spec.z + spec.step_z * i);
+                            const sl::dvec3 at = lit_ship.origin() + turn * sl::dvec3(spec.x + spec.step_x * i, spec.y + spec.step_y * i, spec.z + spec.step_z * i);
                             const double distance = glm::length(at - eye_world);
                             const float on = kosmos::light_pattern(spec, clock + i * 0.31);
                             if (distance > 40000.0 || on <= 0.001f)
@@ -4357,7 +4614,9 @@ int main(int argc, char **argv)
                     lights.texture = vis.lights_texture;
                     lights.fog = false;
                     lights.blend = sl::MaterialBlend::additive;
-                    sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f)), lights);
+                    // Drawn on the same single-image sphere as the surface, so it takes the same mirroring.
+                    lights.cull = sl::CullMode::front;
+                    sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
                     sl::set_light_3d(light);
                 }
                 if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
@@ -4451,7 +4710,7 @@ int main(int argc, char **argv)
             {
                 Ship &other = *sim.ship(s);
                 const sl::FlightBody &ob = other.body();
-                const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(ob.position - eye_world)) *
+                const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                         glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
                 if (!((in_cockpit || in_interior) && &other == ship))
                     draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position());
@@ -4552,7 +4811,7 @@ int main(int argc, char **argv)
 
             // Engine and reaction-control exhaust.
             {
-                const glm::mat4 hull = glm::translate(glm::mat4(1.0f), glm::vec3(fb.position - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(fb.orientation)));
+                const glm::mat4 hull = glm::translate(glm::mat4(1.0f), glm::vec3(ship->origin() - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(fb.orientation)));
                 const double vacuum = home ? fx::smoothstep(8.0e3, 70.0e3, tm.altitude) : 1.0;
                 exhaust_fx.update(*ship, vacuum, static_cast<float>(frame), !ship->on_rails() && sim.current_warp() < 4.5);
                 exhaust_fx.draw(vis.glow, hull);
@@ -4569,7 +4828,7 @@ int main(int argc, char **argv)
         // Orbit line about the sphere-of-influence body, hidden where the body covers it.
         sl::OrbitElements elements;
         const bool have_orbit = universe.world.orbit_of(ship->body_id(), soi, elements);
-        if (have_orbit && show_orbit && !options.hide_info && !map_mode && cam_distance > 2.0e3 && !ship->on_rails())
+        if (have_orbit && show_orbit && !options.hide_info && !map_mode && view_distance > 2.0e3 && !ship->on_rails())
         {
             const std::vector<sl::dvec3> path = sl::orbit_path(soi_body.gm, elements, 360, std::min(soi_body.soi, 1.0e13));
             const float body_r = static_cast<float>(soi_body.radius);
@@ -4818,7 +5077,7 @@ int main(int argc, char **argv)
                 const glm::vec3 dir = glm::normalize(fwd + right * nx + cup * ny);
                 const glm::mat3 basis = cockpit_screen_basis();
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
-                const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(fb.position - eye_world));
+                const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
                 if (!cp.instruments.empty())
                 {
@@ -5310,6 +5569,172 @@ int main(int argc, char **argv)
                 }
                 ImGui::End();
             }
+            if (camera_editor_window)
+            {
+                ImGui::SetNextWindowPos(ImVec2(330.0f, 120.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowSize(ImVec2(380.0f, 520.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowBgAlpha(0.9f);
+                if (ImGui::Begin("Camera editor", &camera_editor_window))
+                {
+                    bool changed = false;
+                    const int count = static_cast<int>(user_cams.size());
+                    camera_editor_pick = std::clamp(camera_editor_pick, 0, std::max(0, count - 1));
+                    if (ImGui::Button("Add orbit"))
+                    {
+                        kosmos::UserCamera c;
+                        c.name = "Orbit " + std::to_string(count + 1);
+                        user_cams.push_back(c);
+                        camera_editor_pick = count;
+                        changed = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Add mounted"))
+                    {
+                        kosmos::UserCamera c;
+                        c.name = "Mounted " + std::to_string(count + 1);
+                        c.orbit = false;
+                        c.y = 2.0;
+                        user_cams.push_back(c);
+                        camera_editor_pick = count;
+                        changed = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Copy") && count > 0)
+                    {
+                        kosmos::UserCamera c = user_cams[static_cast<std::size_t>(camera_editor_pick)];
+                        c.name += " copy";
+                        user_cams.push_back(c);
+                        camera_editor_pick = count;
+                        changed = true;
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Delete") && count > 0)
+                    {
+                        user_cams.erase(user_cams.begin() + camera_editor_pick);
+                        if (user_cam == camera_editor_pick)
+                            user_cam = -1;
+                        else if (user_cam > camera_editor_pick)
+                            --user_cam;
+                        changed = true;
+                    }
+                    if (ImGui::BeginListBox("##cams", ImVec2(-FLT_MIN, 100.0f)))
+                    {
+                        for (int ui = 0; ui < static_cast<int>(user_cams.size()); ++ui)
+                        {
+                            ImGui::PushID(ui);
+                            if (ImGui::Selectable((user_cams[static_cast<std::size_t>(ui)].name + (user_cam == ui ? "  (viewing)" : "")).c_str(), camera_editor_pick == ui))
+                                camera_editor_pick = ui;
+                            ImGui::PopID();
+                        }
+                        ImGui::EndListBox();
+                    }
+                    if (!user_cams.empty())
+                    {
+                        const int ui = camera_editor_pick;
+                        kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(ui)];
+                        if (ImGui::Button(user_cam == ui ? "Back to the ship view" : "Look through"))
+                        {
+                            user_cam = user_cam == ui ? -1 : ui;
+                            cockpit_view = cockpit3d = false;
+                            interior_cam = base_view = -1;
+                            map_mode = galaxy_mode = false;
+                            look_yaw = look_pitch = 0.0f;
+                        }
+                        ImGui::Separator();
+                        char name[64];
+                        std::snprintf(name, sizeof(name), "%s", uc.name.c_str());
+                        if (ImGui::InputText("Name", name, sizeof(name)))
+                            uc.name = name, changed = true;
+                        int type = uc.orbit ? 0 : 1;
+                        if (ImGui::RadioButton("Orbits it, always looking at it", type == 0))
+                            uc.orbit = true, changed = true;
+                        if (ImGui::RadioButton("Mounted on it", type == 1))
+                            uc.orbit = false, changed = true;
+
+                        // A combo of the ships, or of the bodies, by name.
+                        auto pick_name = [&](const char *label, int kind, std::string &value)
+                        {
+                            const bool bodies = kind == kosmos::UserCamera::body;
+                            if (ImGui::BeginCombo(label, value.empty() ? "(choose)" : value.c_str()))
+                            {
+                                if (bodies)
+                                    for (const kosmos::Body &b : universe.bodies)
+                                    {
+                                        if (b.minor)
+                                            continue;
+                                        if (ImGui::Selectable(b.name.c_str(), b.name == value))
+                                            value = b.name, changed = true;
+                                    }
+                                else
+                                    for (int si = 0; si < sim.ship_count(); ++si)
+                                        if (ImGui::Selectable(sim.ship(si)->name.c_str(), sim.ship(si)->name == value))
+                                            value = sim.ship(si)->name, changed = true;
+                                ImGui::EndCombo();
+                            }
+                        };
+                        ImGui::Separator();
+                        ImGui::TextUnformatted("Attached to");
+                        if (ImGui::RadioButton("The ship I fly", uc.attach == kosmos::UserCamera::flown_ship))
+                            uc.attach = kosmos::UserCamera::flown_ship, changed = true;
+                        ImGui::SameLine();
+                        if (ImGui::RadioButton("A ship", uc.attach == kosmos::UserCamera::other_ship))
+                            uc.attach = kosmos::UserCamera::other_ship, changed = true;
+                        ImGui::SameLine();
+                        if (ImGui::RadioButton("A body", uc.attach == kosmos::UserCamera::body))
+                            uc.attach = kosmos::UserCamera::body, changed = true;
+                        if (uc.attach != kosmos::UserCamera::flown_ship)
+                            pick_name("##attach", uc.attach, uc.attach_name);
+                        ImGui::Separator();
+                        if (uc.orbit)
+                        {
+                            double d = uc.distance;
+                            if (ImGui::InputDouble("Distance (m, 0 frames it)", &d, 0.0, 0.0, "%.0f"))
+                                uc.distance = std::max(0.0, d), changed = true;
+                            float f = static_cast<float>(uc.yaw);
+                            if (ImGui::SliderFloat("Around", &f, -180.0f, 180.0f, "%.0f deg"))
+                                uc.yaw = f, changed = true;
+                            f = static_cast<float>(uc.pitch);
+                            if (ImGui::SliderFloat("Above", &f, -89.0f, 89.0f, "%.0f deg"))
+                                uc.pitch = f, changed = true;
+                            f = static_cast<float>(uc.spin);
+                            if (ImGui::SliderFloat("Spin", &f, -30.0f, 30.0f, "%.1f deg/s"))
+                                uc.spin = f, changed = true;
+                            ImGui::TextDisabled("Right-drag orbits, [ and ] zoom.");
+                        }
+                        else
+                        {
+                            float v[3] = {static_cast<float>(uc.x), static_cast<float>(uc.y), static_cast<float>(uc.z)};
+                            if (ImGui::InputFloat3("Right, up, back (m)", v))
+                                uc.x = v[0], uc.y = v[1], uc.z = v[2], changed = true;
+                            ImGui::TextUnformatted("Looks");
+                            const char *looks[] = {"The way the object faces", "At the ship I fly", "At a ship", "At a body"};
+                            int look = uc.look_at;
+                            if (ImGui::Combo("##look", &look, looks, 4))
+                                uc.look_at = look, changed = true;
+                            if (uc.look_at == kosmos::UserCamera::look_ahead)
+                            {
+                                float f = static_cast<float>(uc.look_yaw);
+                                if (ImGui::SliderFloat("Turned", &f, -180.0f, 180.0f, "%.0f deg"))
+                                    uc.look_yaw = f, changed = true;
+                                f = static_cast<float>(uc.look_pitch);
+                                if (ImGui::SliderFloat("Raised", &f, -89.0f, 89.0f, "%.0f deg"))
+                                    uc.look_pitch = f, changed = true;
+                            }
+                            else if (uc.look_at != kosmos::UserCamera::look_flown_ship)
+                                pick_name("##lookname", uc.look_at == kosmos::UserCamera::look_body ? kosmos::UserCamera::body : kosmos::UserCamera::other_ship, uc.look_name);
+                            ImGui::TextDisabled("On a ship: x right, y up, z back. On a body: east, up, south. Right-drag peeks around.");
+                        }
+                        float fov = static_cast<float>(uc.fov);
+                        if (ImGui::SliderFloat("Field of view", &fov, 10.0f, 110.0f, "%.0f deg"))
+                            uc.fov = fov, changed = true;
+                    }
+                    ImGui::Separator();
+                    ImGui::TextDisabled("C steps through these after the ship's own views.");
+                    if (changed)
+                        kosmos::save_user_cameras(user_cam_file, user_cams);
+                }
+                ImGui::End();
+            }
             if (camera_window)
             {
                 ImGui::SetNextWindowPos(ImVec2(12.0f, 120.0f), ImGuiCond_FirstUseEver);
@@ -5335,12 +5760,13 @@ int main(int argc, char **argv)
                         cockpit_view = cockpit;
                         cockpit3d = three_d;
                         interior_cam = interior;
+                        user_cam = -1;
                         base_view = base_index;
                         base_view_cam = base_camera;
                         look_yaw = look_pitch = 0.0f;
                         map_mode = galaxy_mode = false;
                     };
-                    const bool chase_now = !cockpit_view && interior_cam < 0 && base_view < 0;
+                    const bool chase_now = !cockpit_view && interior_cam < 0 && base_view < 0 && user_cam < 0;
                     for (int si = 0; si < sim.ship_count(); ++si)
                     {
                         const Ship &other = *sim.ship(si);
@@ -5362,6 +5788,20 @@ int main(int argc, char **argv)
                         }
                         ImGui::PopID();
                     }
+                    if (!user_cams.empty() && ImGui::TreeNodeEx("My cameras", ImGuiTreeNodeFlags_DefaultOpen))
+                    {
+                        for (std::size_t ui = 0; ui < user_cams.size(); ++ui)
+                        {
+                            ImGui::PushID(2000 + static_cast<int>(ui));
+                            if (ImGui::Selectable(user_cams[ui].name.c_str(), user_cam == static_cast<int>(ui)))
+                            {
+                                pick(-1, false, false, -1, -1, 0);
+                                user_cam = static_cast<int>(ui);
+                            }
+                            ImGui::PopID();
+                        }
+                        ImGui::TreePop();
+                    }
                     for (std::size_t bi = 0; bi < sim.bases.size(); ++bi)
                     {
                         const kosmos::Base &bs = sim.bases[bi];
@@ -5378,7 +5818,9 @@ int main(int argc, char **argv)
                         ImGui::PopID();
                     }
                     ImGui::Separator();
-                    ImGui::TextDisabled("C cycles the flown ship's views. Right-drag looks around.");
+                    ImGui::TextDisabled("C cycles the flown ship's views and your cameras. Right-drag looks around.");
+                    if (ImGui::Button("Camera editor..."))
+                        camera_editor_window = true;
                 }
                 ImGui::End();
             }
@@ -5386,8 +5828,6 @@ int main(int argc, char **argv)
         if (sl::gui_available())
             menu_bar.draw(sim, menu_windows, menu_actions);
         sl::gui_render();
-        if (show_info)
-            sl::draw_renderer_label();
 
         if (!options.shot.empty() && !shot_saved && clock >= options.shot_at)
         {

@@ -307,6 +307,12 @@ namespace kosmos
         ShipSpec &editable_spec() { return spec_; }
         std::string name;
         int body_id() const { return body_; }
+        /**
+         * The body's position is its centre of mass, which leaves the ship-frame origin once the lower stages have gone. This is
+         * the world position of the ship-frame origin, where the model is drawn from, and `com_offset` is the mass centre in that frame.
+         */
+        sl::dvec3 origin() const { return body().position - body().direction_to_world(com_); }
+        const sl::dvec3 &com_offset() const { return com_; }
         int active_stage() const { return active_stage_; }
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
@@ -378,11 +384,14 @@ namespace kosmos
         void apply_attitude(const Controls &controls, double dt);
         void apply_flight_controls(const Controls &controls);
         void drop_stage(int index);
+        /** Moves the body's centre of mass to that of the stages left, keeping every point of the ship where it was. */
+        void recentre();
 
         Universe &universe_;
         ShipSpec spec_;
         int body_ = -1;
         int active_stage_ = 0;
+        sl::dvec3 com_{0.0};
         bool crashed_ = false;
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;

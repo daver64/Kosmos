@@ -42,6 +42,11 @@
       "script": "transfer.lua"
     },
     {
+      "id": "orbitcomp",
+      "domain": "space",
+      "script": "orbitcomp.lua"
+    },
+    {
       "id": "comnav",
       "script": "comnav.lua"
     },

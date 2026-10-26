@@ -35,7 +35,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | `,` / `.` | Time warp down / up |
 | Tab | Orrery map (F: focus, `[` `]` zoom, right-drag rotate) |
 | **G** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
-| C | Cockpit view (2D, 3D) |
+| C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
 | **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp. Saved to `~/.config/kosmos/settings.json` on exit |
 | **F4** | **Property browser**: browse, filter, read and write the property tree (like FlightGear). Typing in its boxes does not fly the ship |
@@ -46,7 +46,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | L | Landing gear up / down (retractable gear) |
 | V | Switch ship |
 | O | Orbit line |
-| I | Show or hide all on-screen text (title, telemetry, nearest base, key help) |
+| I | Show or hide all on-screen text (title, telemetry, nearest base, key help); hidden when Kosmos starts |
 | M | Sound on/off (rocket, RCS and ground wind) |
 | R | Reset |
 
@@ -59,6 +59,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | `--galaxy-map` | Start in the galaxy map |
 | `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit |
 | `--max-texture N` | Largest body texture accepted (default 16384; halved until the GPU accepts it) |
+| `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot |
 | `--host [PORT]` | Host a multiplayer game (default UDP port 7777) |
@@ -66,7 +67,9 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | `--name NAME` | Your name in multiplayer and the lobby |
 | `--lobby` | Open the Multiplayer window at start |
 | `--irc HOST`, `--channel #NAME`, `--advertise ADDR:PORT` | Lobby IRC server (default `salyut.ddns.net`, `#kosmos`) and the address you announce |
-| `--hide-info` | Start with all on-screen text and the orbit line hidden (toggle with `I`) |
+| `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
+| `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `I`) |
+| `--hide-info` | Hide the on-screen text and the orbit line and let the menu bar slide away (for screenshots); overrides `--show-info` |
 | `--life-support off\|warn\|fatal` | What failing life support does to a crew: nothing, alarms only (default), or the crew dies and the flight ends. A scenario's `life_support` key overrides it |
 | `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Shift+H` changes colour; shown in cockpit views only) |
 | `--version` | Print the Kosmos version and exit |
@@ -145,11 +148,25 @@ Modes are Lua addons. An addon.json lists them:
 
 A script returns a table: `name`, `buttons` (12 labels, left column then right), `init(self)`, `update(self, dt)`, `draw(self, g, w, h)` and `button(self, i)` (1-based). Each MFD gets its own `self` table. `g` draws in a 400x400 box: `g:colour(r,g,b)`, `line`, `rect`, `fillrect`, `circle`, `disc`, `tri`, `arc(cx,cy,r,deg0,deg1)` `g:text(x,y,s,align)` with align 0 left, 1 centre, 2 right, and `g:image(file,cx,cy,w,h,angle,sx,sy,sw,sh)` for a PNG from the mode's folder (rotated, optionally a source region). `addons/instruments` has an Attitude Indicator and an Altimeter built from bitmaps (`tools/make_instrument_bitmaps.py` draws the placeholders; replace them with real artwork of the same size). Scripts read the property tree (`props.get`), for example `/ships/ship[0]/latitude`. See `addons/stockmfd` for Orbit, Surface and Map. 
 
-**Cockpits.** Press **C** to cycle chase view, 2D cockpit and 3D cockpit (`--cockpit`, `--cockpit3d`). A ship with a `cockpit` block in ship.json gets a dashboard with two MFDs under its instrument row; set `"mfds": false` to turn that off and `"mfd_left"`/`"mfd_right"` to name the default modes. In the 3D cockpit the MFDs are render-to-texture screens on a console in the ship frame, and the buttons are clicked by ray picking. For a full instrument panel give the cockpit a `layout` and a list of `instruments` (MFD modes placed on a flat board in panel units, framed MFDs or bare gauges); that board is both the 2D panel and the 3D cockpit panel, and the Skylark's six-pack plus engine MFD is the example. Mode scripts get a fifth `bare` argument in `draw`. The `instruments` addon has the six-pack modes (`adi`, `altimeter`, `asi`, `vsi`, `dg`, `turn`) and `engine`. Not done yet: Orbiter's other nine stock modes, and per-ship interior models.
+**Cockpits.** Press **C** to cycle chase view, 2D cockpit, 3D cockpit and then your own cameras (`--cockpit`, `--cockpit3d`). A ship with a `cockpit` block in ship.json gets a dashboard with two MFDs under its instrument row; set `"mfds": false` to turn that off and `"mfd_left"`/`"mfd_right"` to name the default modes. In the 3D cockpit the MFDs are render-to-texture screens on a console in the ship frame, and the buttons are clicked by ray picking. For a full instrument panel give the cockpit a `layout` and a list of `instruments` (MFD modes placed on a flat board in panel units, framed MFDs or bare gauges); that board is both the 2D panel and the 3D cockpit panel, and the Skylark's six-pack plus engine MFD is the example. Mode scripts get a fifth `bare` argument in `draw`. The `instruments` addon has the six-pack modes (`adi`, `altimeter`, `asi`, `vsi`, `dg`, `turn`) and `engine`. Not done yet: Orbiter's other nine stock modes, and per-ship interior models.
+
+### OrbitComp
+
+**OrbitComp** is an orbital computer MFD in the spirit of Orbiter's TransX: an orbit plot with the target and closest approach, manoeuvre nodes (T+, Pe, Ap, AN, DN) with the post-burn orbit and burn time, and Hohmann and ejection plans that can be loaded into a node. It reads `/universe/bodies/body[i]/*` and publishes `/orbitcomp/*`; `--set PATH=VALUE` sets any property at start.
+
+**MFD filtering.** A cockpit's `mfd_filter` (`auto`, `atmosphere`, `space`, `none`) chooses which MFDs are offered: with `auto`, aircraft that cannot leave the atmosphere do not get the orbital ones and spacecraft lose most of the atmospheric instruments. Addon MFD modes can set `"domain"` (`space` or `atmosphere`); `none` offers everything, for spaceplanes.
 
 ### Target-based MFDs
 
 Align Planes, Sync Orbit and Transfer work against a target ship or body. Set it with the TGT+/TGT- buttons, `--target NAME`, or `/sim/target`. Telemetry appears under `/target/...`.
+
+### Cameras
+
+**C** cycles chase, 2D cockpit, 3D cockpit and then your own cameras, which include a built-in orbiting **External** camera that always looks at the ship. **View > Camera editor** (or the button in F2) makes more: *orbit* cameras circle a ship, planet or moon (right-drag swings, `[` `]` zoom, optional spin), and *mounted* cameras sit at an offset on a ship or body and face a direction or look at another ship or body. They are saved in `~/.config/kosmos/cameras.json`. `--user-camera N` starts through the Nth one and `--camera-editor` opens the editor.
+
+### Window and full screen
+
+The window can be resized and the view follows. `--fullscreen` (or **Alt+Enter**, a scenario's `"fullscreen"` setting, or the View menu) uses the full screen at the desktop resolution. While loading, a loading screen reports what is being prepared.
 
 ## Scenarios
 

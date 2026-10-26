@@ -82,8 +82,9 @@ target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAI
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-Linux.tar.gz        Windows: build/package/kosmos-beta-Windows.zip
-# Optional terrain/source tile packs are never shipped; the hi-res textures (data/textures-hires) are.
+# Hi-res textures (data/textures-hires, data/celestia/hires) and the 54 GB Orbiter import are left out; scripts/pack-hires.sh
+# builds the separate hi-res pack.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
     ASSETS data addons assets
     EXTRA_FILES README.md
-    EXCLUDE "/data/orbiter(/|$)" "/data/nasa(/|$)" "/data/celestia/hires(/|$)" "/data/celestia/moons(/|$)")
+    EXCLUDE "/data/orbiter(/|$)" "/data/textures-hires(/|$)" "/data/celestia/hires(/|$)")

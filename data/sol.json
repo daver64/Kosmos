@@ -85,6 +85,8 @@
      "colour": [70, 110, 210], "atmosphere": {"density": 0.2, "scale_height": 20000.0, "colour": [90, 130, 230]}, "orbit": {"a_au": 30.1104, "e": 0.00899, "i": 1.770, "raan": 131.784, "argp": 276.336, "m0": 256.225}},
     {"name": "Pluto", "kind": "planet", "parent": "Sun", "gm": 8.696e11, "radius": 1.1883e6, "spin": -1.1387e-5,
      "colour": [200, 180, 160], "orbit": {"a_au": 39.482, "e": 0.2488, "i": 17.16, "raan": 110.299, "argp": 113.834, "m0": 14.53}},
+    {"name": "Charon", "kind": "moon", "parent": "Pluto", "gm": 1.0588e11, "radius": 606000, "synchronous": true, "colour": [140, 135, 130],
+     "orbit": {"a_km": 19591, "e": 0.0, "i": 178, "raan": 0, "argp": 0, "m0": 0}},
     {"name": "Triton", "kind": "moon", "parent": "Neptune", "gm": 1.4285e+12, "radius": 1.3534e+06, "synchronous": true, "colour": [186, 181, 185],
      "orbit": {"a_km": 354759, "e": 2e-05, "i": 156.9, "raan": 177, "argp": 0, "m0": 70}},
     {"name": "Proteus", "kind": "moon", "parent": "Neptune", "gm": 2.6e+09, "radius": 210000, "synchronous": true, "colour": [162, 162, 162],

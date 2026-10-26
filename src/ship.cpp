@@ -412,7 +412,7 @@ namespace kosmos
         {
             const StageSpec &st = spec_.stages[s];
             mass += st.dry_mass;
-            transverse += st.dry_mass * (st.z * st.z + st.length * st.length / 12.0 + st.radius * st.radius / 4.0);
+            transverse += st.dry_mass * ((st.z - com_.z) * (st.z - com_.z) + st.length * st.length / 12.0 + st.radius * st.radius / 4.0);
             roll += st.dry_mass * st.radius * st.radius / 2.0;
         }
         mass = std::max(mass, 1.0);
@@ -435,7 +435,7 @@ namespace kosmos
     {
         const PortSpec &port = spec_.ports[static_cast<std::size_t>(index)];
         const sl::FlightBody &b = body();
-        position = b.to_world(port.position);
+        position = b.to_world(port.position - com_);
         const sl::dmat3 r = b.rotation();
         direction = r * port.direction;
         up = r * port.up;
@@ -766,6 +766,7 @@ namespace kosmos
             return false;
         drop_stage(active_stage_);
         ++active_stage_;
+        recentre();
         refresh_mass_properties();
         return true;
     }
@@ -785,8 +786,9 @@ namespace kosmos
             d.dry_mass = std::max(st.dry_mass + leftover, 1.0);
             const double transverse = d.dry_mass * (st.length * st.length / 12.0 + st.radius * st.radius / 4.0);
             d.dry_inertia = {transverse, transverse, d.dry_mass * st.radius * st.radius / 2.0};
-            d.position = b.position + b.direction_to_world({0.0, 0.0, st.z});
-            d.velocity = b.velocity + tail * st.separation_speed;
+            const sl::dvec3 arm = b.direction_to_world({0.0, 0.0, st.z - com_.z});
+            d.position = b.position + arm;
+            d.velocity = b.velocity + glm::cross(b.rotation() * b.angular_velocity, arm) + tail * st.separation_speed;
             d.orientation = b.orientation;
             d.angular_velocity = b.angular_velocity;
             d.drag_area = 3.14159 * st.radius * st.radius;
@@ -808,6 +810,33 @@ namespace kosmos
             systems_->drop_stage(index);
         // Gear belongs to stages in order, and stages leave in order, so the leading contacts are this stage's.
         b.gear.erase(b.gear.begin(), b.gear.begin() + static_cast<std::ptrdiff_t>(std::min(st.gear.size(), b.gear.size())));
+    }
+
+    void Ship::recentre()
+    {
+        sl::FlightBody &b = body();
+        double mass = 0.0, moment = 0.0;
+        for (std::size_t s = static_cast<std::size_t>(active_stage_); s < spec_.stages.size(); ++s)
+        {
+            const double m = spec_.stages[s].dry_mass + (s < b.tanks.size() ? b.tanks[s].mass : 0.0);
+            mass += m;
+            moment += m * spec_.stages[s].z;
+        }
+        if (mass <= 0.0)
+            return;
+        const sl::dvec3 delta = sl::dvec3(0.0, 0.0, moment / mass) - com_;
+        if (glm::length(delta) < 1.0e-6)
+            return;
+        const sl::dvec3 arm = b.direction_to_world(delta);
+        b.velocity += glm::cross(b.rotation() * b.angular_velocity, arm);
+        b.position += arm;
+        for (sl::Thruster &t : b.thrusters)
+            t.position -= delta;
+        for (sl::GearContact &g : b.gear)
+            g.position -= delta;
+        for (sl::LiftingSurface &sf : b.surfaces)
+            sf.position -= delta;
+        com_ += delta;
     }
 
     void Ship::go_dynamic()

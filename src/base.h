@@ -11,6 +11,7 @@
 
 #include <filesystem>
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -214,8 +215,14 @@ namespace kosmos
          */
         void draw(const Universe &universe, const std::vector<Base> &bases, const sl::dvec3 &eye, double range, const sl::Material &material);
         void release();
+        /** Game root, used to find the shared tarmac texture. */
+        std::string root;
 
     private:
+        sl::Bitmap *tarmac();
+        sl::Bitmap *tarmac_ = nullptr;
+        bool tarmac_tried_ = false;
+        std::set<sl::Mesh *> paved_;
         sl::Mesh *mesh_for(const BaseObject &object);
         sl::Model *model_for(const Base &base, const BaseObject &object);
         void reload_changed_models();

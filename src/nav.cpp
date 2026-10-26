@@ -488,7 +488,7 @@ namespace kosmos
             p.set_double(path + "y", v.y);
             p.set_double(path + "z", v.z);
         };
-        set_vec("/dock/hud/position-", pos_b - me.body().position);
+        set_vec("/dock/hud/position-", pos_b - me.origin());
         set_vec("/dock/hud/velocity-", rel_v);
         set_vec("/dock/hud/direction-", dir_b);
         set_vec("/dock/hud/up-", up_b);

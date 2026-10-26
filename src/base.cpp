@@ -225,6 +225,17 @@ namespace kosmos
             return m;
         }
 
+        // Planar UVs so a tiling tarmac texture covers flat tops and walls alike.
+        void paved_uvs(sl::MeshData &m, float tile)
+        {
+            for (sl::Vertex3D &v : m.vertices)
+            {
+                const bool flat = std::fabs(v.normal[1]) > 0.5f;
+                v.uv[0] = (flat ? v.position[0] : v.position[0] + v.position[2]) / tile;
+                v.uv[1] = (flat ? v.position[2] : v.position[1]) / tile;
+            }
+        }
+
         double smooth(double t)
         {
             t = std::clamp(t, 0.0, 1.0);
@@ -778,6 +789,7 @@ namespace kosmos
             if (entry.second)
                 sl::destroy_mesh(entry.second);
         meshes_.clear();
+        paved_.clear();
         for (auto &entry : models_)
             if (entry.second.model)
                 sl::destroy_model(entry.second.model);
@@ -922,9 +934,47 @@ namespace kosmos
         sl::Mesh *mesh = nullptr;
         const sl::MeshData data = build(object);
         if (!data.indices.empty())
-            mesh = sl::create_mesh(data.vertices, data.indices);
+        {
+            const bool paved = object.type == "road" || object.type == "landing_pad" || object.type == "launch_pad";
+            if (paved && tarmac())
+            {
+                sl::MeshData uvd = data;
+                paved_uvs(uvd, 4.0f);
+                mesh = sl::create_mesh(uvd.vertices, uvd.indices);
+                paved_.insert(mesh);
+            }
+            else
+                mesh = sl::create_mesh(data.vertices, data.indices);
+        }
         meshes_[key] = mesh;
         return mesh;
+    }
+
+    sl::Bitmap *BaseRenderer::tarmac()
+    {
+        if (tarmac_tried_)
+            return tarmac_;
+        tarmac_tried_ = true;
+        tarmac_ = sl::load_bitmap((root + "/data/open-game-art/textures/tarmac/ground_asphalt_synth_05.png").c_str());
+        if (!tarmac_ || tarmac_->pixels.empty())
+        {
+            tarmac_ = nullptr;
+            return nullptr;
+        }
+        // Normalise to a bright, even tone so the vertex colours still set the shade and the grain only modulates it.
+        double sum = 0.0;
+        for (std::size_t i = 0; i + 3 < tarmac_->pixels.size(); i += 4)
+            sum += (tarmac_->pixels[i] + tarmac_->pixels[i + 1] + tarmac_->pixels[i + 2]) / 3.0;
+        const double mean = sum / (static_cast<double>(tarmac_->pixels.size()) / 4.0);
+        const double gain = 225.0 / std::max(mean, 1.0);
+        for (std::size_t i = 0; i < tarmac_->pixels.size(); ++i)
+            if (i % 4 != 3)
+                tarmac_->pixels[i] = static_cast<std::uint8_t>(std::min(255.0, tarmac_->pixels[i] * gain));
+        tarmac_->smooth = true;
+        tarmac_->mipmaps = true;
+        tarmac_->anisotropy = 8.0f;
+        tarmac_->ram_dirty = true;
+        return tarmac_;
     }
 
     void BaseRenderer::draw(const Universe &universe, const std::vector<Base> &bases, const sl::dvec3 &eye, double range, const sl::Material &material)
@@ -935,6 +985,8 @@ namespace kosmos
             last_poll_ = wall;
             reload_changed_models();
         }
+        sl::Material paved_material = material;
+        paved_material.texture = tarmac();
         for (const Base &base : bases)
         {
             const int body = universe.find(base.body);
@@ -955,7 +1007,15 @@ namespace kosmos
                 if (!mesh)
                 {
                     const sl::MeshData data = make_runway(static_cast<float>(rw.length), static_cast<float>(rw.width));
-                    mesh = sl::create_mesh(data.vertices, data.indices);
+                    if (tarmac())
+                    {
+                        sl::MeshData uvd = data;
+                        paved_uvs(uvd, 4.0f);
+                        mesh = sl::create_mesh(uvd.vertices, uvd.indices);
+                        paved_.insert(mesh);
+                    }
+                    else
+                        mesh = sl::create_mesh(data.vertices, data.indices);
                 }
                 const sl::dvec3 dir = base_point(base, radius, rw.x, rw.z);
                 const sl::dvec3 position = centre + dir * (radius + base.height);
@@ -969,7 +1029,7 @@ namespace kosmos
                 model[1] = glm::vec4(glm::vec3(pf.up), 0.0f);
                 model[2] = glm::vec4(glm::vec3(pforward), 0.0f);
                 model[3] = glm::vec4(glm::vec3(position + pf.up * 0.25 - eye), 1.0f);
-                sl::draw_mesh(mesh, model, material);
+                sl::draw_mesh(mesh, model, paved_.count(mesh) ? paved_material : material);
             }
             for (const BaseObject &o : base.objects)
             {
@@ -998,7 +1058,7 @@ namespace kosmos
                     if (model)
                         sl::draw_model(model, placed);
                     else
-                        sl::draw_mesh(mesh, placed, material);
+                        sl::draw_mesh(mesh, placed, paved_.count(mesh) ? paved_material : material);
                 }
             }
         }
