@@ -1,0 +1,210 @@
+{
+ "name": "CVEL Atlas III",
+ "class": "launcher",
+ "torque_accel": 0.2,
+ "max_rate": 0.3,
+ "rcs_thrust": 0,
+ "drag_area": 12,
+ "camera_distance": 60,
+ "camera_target": [
+  0,
+  0,
+  -12
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 4,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ],
+ "lights": [
+  {
+   "position": [
+    0,
+    0,
+    -33.5
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 3,
+   "range": 50,
+   "pattern": "strobe",
+   "period": 1.6,
+   "glow": 0.4
+  }
+ ],
+ "stages": [
+  {
+   "name": "Atlas first stage",
+   "dry_mass": 13725,
+   "propellant": 182130,
+   "z": 2.5,
+   "length": 31,
+   "radius": 1.65,
+   "separation_speed": 2.0,
+   "engines": [
+    {
+     "position": [
+      0.7,
+      0,
+      17.8
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 2075000,
+     "isp": 337,
+     "isp_sl": 311,
+     "plume": 60,
+     "plume_width": 1.8,
+     "plume_glow": 1.8,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -0.7,
+      0,
+      17.8
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 2075000,
+     "isp": 337,
+     "isp_sl": 311,
+     "plume": 60,
+     "plume_width": 1.8,
+     "plume_glow": 1.8,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "kerosene"
+    }
+   ],
+   "gear": [
+    [
+     2.2,
+     0,
+     17
+    ],
+    [
+     -2.2,
+     0,
+     17
+    ],
+    [
+     0,
+     2.2,
+     17
+    ],
+    [
+     0,
+     -2.2,
+     17
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/atlasiii_stg1.obj",
+     "offset": [
+      0,
+      0,
+      2.5
+     ]
+    },
+    {
+     "model": "models/atlasiii_interstg1.obj",
+     "offset": [
+      0,
+      0,
+      -14.1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Centaur and fairing",
+   "dry_mass": 1905,
+   "propellant": 16880,
+   "z": -19,
+   "length": 10,
+   "radius": 1.5,
+   "separation_speed": 1.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -13.95
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 99200,
+     "isp": 451,
+     "plume": 12,
+     "plume_width": 1.0,
+     "plume_glow": 1.0,
+     "plume_density": 1,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/atlasiii_centaur.obj",
+     "offset": [
+      0,
+      0,
+      -18.75
+     ]
+    },
+    {
+     "model": "models/atlasiii_fairing1.obj",
+     "offset": [
+      0.9,
+      0,
+      -28
+     ]
+    },
+    {
+     "model": "models/atlasiii_fairing2.obj",
+     "offset": [
+      -0.9,
+      0,
+      -28
+     ]
+    }
+   ]
+  }
+ ]
+}

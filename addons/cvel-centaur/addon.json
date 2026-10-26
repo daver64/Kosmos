@@ -1,0 +1,8 @@
+{
+  "id": "cvel-centaur",
+  "name": "CVEL Centaur G",
+  "version": "0.1",
+  "ships": [
+    "ship.json"
+  ]
+}

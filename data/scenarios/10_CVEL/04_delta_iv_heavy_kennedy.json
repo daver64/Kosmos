@@ -1,0 +1,14 @@
+{
+ "name": "CVEL: Delta IV Heavy, Kennedy",
+ "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Delta IV Heavy",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

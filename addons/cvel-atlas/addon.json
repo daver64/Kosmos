@@ -1,0 +1,8 @@
+{
+  "id": "cvel-atlas",
+  "name": "CVEL Atlas III",
+  "version": "0.1",
+  "ships": [
+    "ship.json"
+  ]
+}

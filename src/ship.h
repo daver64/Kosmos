@@ -27,9 +27,17 @@ namespace kosmos
         /** Direction the engine pushes the ship, in the ship frame (nose is -Z). */
         sl::dvec3 direction{0.0, 0.0, -1.0};
         double thrust = 0.0;
+        /** Vacuum Isp in seconds. With `isp_sl` set, thrust is the vacuum thrust and falls with air pressure. */
         double isp = 300.0;
+        /** Sea-level Isp in seconds; 0 keeps the Isp the same at every pressure. */
+        double isp_sl = 0.0;
         /** Visual plume length in metres. */
         double plume = 10.0;
+        /** Scales the plume's width and brightness; 1 is the default for its fuel. */
+        double plume_width = 1.0;
+        double plume_glow = 1.0;
+        /** Scales how many particles the plume spawns; raise it for a big engine that looks sparse. */
+        double plume_density = 1.0;
         /** Thrust fades with air density (propellers, jets); such an engine does not work in a vacuum. */
         bool air_breathing = false;
         EngineType type = EngineType::rocket;
@@ -210,6 +218,11 @@ namespace kosmos
         double drag_area = 10.0;
         /** Camera distance that frames the ship. */
         double camera_distance = 60.0;
+        /** Point in the ship frame the external camera orbits and looks at; unset means the centre of mass. */
+        bool has_camera_target = false;
+        /** A rocket-class ship that rests level on its gear (roof up, nose along the heading) instead of standing on its tail. */
+        bool horizontal = false;
+        sl::dvec3 camera_target{0.0};
         /** Landing gear that folds away: it takes `gear_time` seconds to move and only carries load while fully down. */
         bool retractable_gear = false;
         double gear_time = 6.0;

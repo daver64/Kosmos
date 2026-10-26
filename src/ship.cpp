@@ -206,6 +206,12 @@ namespace kosmos
                 spec.wheels.push_back(w);
             }
             spec.camera_distance = json.value("camera_distance", spec.camera_distance);
+            if (json.contains("camera_target"))
+            {
+                spec.has_camera_target = true;
+                spec.camera_target = vec3(json["camera_target"], spec.camera_target);
+            }
+            spec.horizontal = json.value("horizontal", false);
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
@@ -225,7 +231,11 @@ namespace kosmos
                     e.direction = glm::normalize(vec3(je.value("direction", nlohmann::json()), e.direction));
                     e.thrust = je.value("thrust", 0.0);
                     e.isp = je.value("isp", e.isp);
+                    e.isp_sl = je.value("isp_sl", e.isp_sl);
                     e.plume = je.value("plume", e.plume);
+                    e.plume_width = je.value("plume_width", e.plume_width);
+                    e.plume_glow = je.value("plume_glow", e.plume_glow);
+                    e.plume_density = std::max(0.1, je.value("plume_density", e.plume_density));
                     e.air_breathing = je.value("air_breathing", false);
                     // Older specs only had air_breathing; that still means a jet.
                     e.type = engine_type_from_name(je.value("type", ""), e.air_breathing ? EngineType::jet : EngineType::rocket);
@@ -363,6 +373,7 @@ namespace kosmos
                 t.direction = e.direction;
                 t.max_thrust = e.type == EngineType::hyperjump ? 0.0 : e.thrust;
                 t.isp = e.isp;
+                t.isp_sea_level = e.isp_sl;
                 t.tank = static_cast<int>(s);
                 t.air_breathing = e.air_breathing;
                 b.thrusters.push_back(t);
@@ -459,8 +470,9 @@ namespace kosmos
         const double heading = heading_degrees * pi / 180.0;
         const sl::dvec3 roof = north * std::cos(heading) + east * std::sin(heading);
 
+        const bool level = spec_.aircraft() || spec_.horizontal;
         double lowest = 0.0;
-        if (spec_.aircraft())
+        if (level)
         {
             for (const sl::GearContact &g : b.gear)
                 lowest = std::max(lowest, -g.position.y);
@@ -487,7 +499,7 @@ namespace kosmos
                 spread += (g.position.x * g.position.x + g.position.y * g.position.y) / gear_count;
             }
             gear_k_ = mass * surface_gravity / ((spec_.aircraft() ? 0.12 : 0.3) * gear_count);
-            if (spread > 1e-6 && !spec_.aircraft())
+            if (spread > 1e-6 && !level)
                 gear_k_ = std::max(gear_k_, 6.0 * mass * surface_gravity * height / (gear_count * spread));
             compression = mass * surface_gravity / (gear_count * gear_k_);
             const double per_gear_mass = mass / gear_count;
@@ -499,7 +511,7 @@ namespace kosmos
         }
         b.position = pb.position + up * (planet.radius + ground_height + lowest - compression);
         b.velocity = pb.velocity + glm::cross(pb.spin_axis * planet.spin, b.position - pb.position);
-        b.orientation = orientation_from(spec_.aircraft() ? roof : up, spec_.aircraft() ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
+        b.orientation = orientation_from(level ? roof : up, level ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         update_telemetry();

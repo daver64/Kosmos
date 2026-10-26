@@ -1,0 +1,17 @@
+{
+ "name": "CVEL: Deltaglider, Chippenham",
+ "description": "CVEL Deltaglider parked on the Chippenham runway.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Deltaglider",
+   "body": "Earth",
+   "surface": {
+    "base": "chippenham",
+    "runway": 0,
+    "along": 20
+   }
+  }
+ ],
+ "date": "2024-06-21 11:00:00"
+}

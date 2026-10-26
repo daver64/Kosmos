@@ -1,0 +1,252 @@
+{
+ "name": "CVEL Delta IV Heavy",
+ "class": "launcher",
+ "torque_accel": 0.15,
+ "max_rate": 0.25,
+ "rcs_thrust": 0,
+ "drag_area": 60,
+ "camera_distance": 100,
+ "camera_target": [
+  0,
+  0,
+  -24
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 4,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ],
+ "lights": [
+  {
+   "position": [
+    0,
+    0,
+    -47
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 3,
+   "range": 50,
+   "pattern": "strobe",
+   "period": 1.6,
+   "glow": 0.4
+  }
+ ],
+ "stages": [
+  {
+   "name": "Common booster cores",
+   "dry_mass": 53520,
+   "propellant": 399280,
+   "z": 0,
+   "length": 52,
+   "radius": 3.5,
+   "separation_speed": 3.0,
+   "engines": [
+    {
+     "position": [
+      -5.4,
+      0,
+      26.3
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 3370000,
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 100,
+     "plume_width": 2.4,
+     "plume_glow": 2.2,
+     "plume_density": 3,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      5.4,
+      0,
+      26.3
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 3370000,
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 100,
+     "plume_width": 2.4,
+     "plume_glow": 2.2,
+     "plume_density": 3,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "gear": [
+    [
+     -8,
+     0,
+     26
+    ],
+    [
+     8,
+     0,
+     26
+    ],
+    [
+     0,
+     4,
+     26
+    ],
+    [
+     0,
+     -4,
+     26
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/deltaivbooster_1.obj",
+     "offset": [
+      -4.54,
+      0,
+      0
+     ]
+    },
+    {
+     "model": "models/deltaivbooster_2.obj",
+     "offset": [
+      4.54,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Core booster",
+   "dry_mass": 26760,
+   "propellant": 199640,
+   "z": 0,
+   "length": 52,
+   "radius": 2.9,
+   "separation_speed": 2.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      26.3
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 3370000,
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 100,
+     "plume_width": 2.4,
+     "plume_glow": 2.2,
+     "plume_density": 3,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/deltaivstg1.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Second stage and fairing",
+   "dry_mass": 4640,
+   "propellant": 27220,
+   "z": -24.2,
+   "length": 13,
+   "radius": 2.6,
+   "separation_speed": 1.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -6.4
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 110088,
+     "isp": 463.8,
+     "plume": 14,
+     "plume_width": 1.2,
+     "plume_glow": 1.2,
+     "plume_density": 1,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/deltaivstg2.obj",
+     "offset": [
+      0,
+      0,
+      -24.2
+     ]
+    },
+    {
+     "model": "models/deltaivplf_1.obj",
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
+    },
+    {
+     "model": "models/deltaivplf_2.obj",
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
+    }
+   ]
+  }
+ ]
+}

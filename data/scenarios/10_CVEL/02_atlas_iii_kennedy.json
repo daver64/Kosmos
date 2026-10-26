@@ -1,0 +1,14 @@
+{
+ "name": "CVEL: Atlas III, Kennedy",
+ "description": "CVEL Atlas III with Centaur upper stage on the pad at Kennedy Space Center.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Atlas III",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

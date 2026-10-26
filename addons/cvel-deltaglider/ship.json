@@ -1,0 +1,247 @@
+{
+ "name": "CVEL Deltaglider",
+ "class": "aircraft",
+ "torque_accel": 0.5,
+ "max_rate": 0.6,
+ "rcs_thrust": 2500,
+ "drag_area": 25,
+ "camera_distance": 32,
+ "retractable_gear": true,
+ "gear_time": 6,
+ "inertia": [
+  60000,
+  80000,
+  40000
+ ],
+ "damping": [
+  0.8,
+  1.0,
+  0.8
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 8,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  }
+ ],
+ "surfaces": [
+  {
+   "control": "",
+   "position": [
+    0,
+    0,
+    0.5
+   ],
+   "area": 70,
+   "cl0": 0.1,
+   "cl_alpha": 3.5,
+   "cd0": 0.02,
+   "induced_drag": 0.08,
+   "stall_deg": 18
+  },
+  {
+   "control": "flaps",
+   "position": [
+    0,
+    0,
+    1
+   ],
+   "area": 12,
+   "cl0": 0.1,
+   "cl_alpha": 3,
+   "cd0": 0.02,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": 10
+  },
+  {
+   "control": "aileron",
+   "position": [
+    5,
+    0,
+    2
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": 12
+  },
+  {
+   "control": "aileron",
+   "position": [
+    -5,
+    0,
+    2
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "elevator",
+   "position": [
+    0,
+    0,
+    5
+   ],
+   "area": 8,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "rudder",
+   "position": [
+    0,
+    1.5,
+    5
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": 15,
+   "forward": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    1,
+    0,
+    0
+   ]
+  }
+ ],
+ "wheels": [
+  {
+   "position": [
+    0,
+    -2.5,
+    -6.5
+   ],
+   "steer_deg": 40,
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    3,
+    -2.5,
+    1.5
+   ],
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    -3,
+    -2.5,
+    1.5
+   ],
+   "rolling_resistance": 0.03
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0.3,
+    -4
+   ],
+   "size": [
+    2.2,
+    1.8,
+    3
+   ],
+   "crew": 2
+  }
+ ],
+ "stages": [
+  {
+   "name": "Deltaglider",
+   "dry_mass": 11000,
+   "propellant": 11400,
+   "z": -1,
+   "length": 19,
+   "radius": 1.5,
+   "engines": [
+    {
+     "position": [
+      1.5,
+      0,
+      8.0
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 60000,
+     "isp": 4077,
+     "plume": 14,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -1.5,
+      0,
+      8.0
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 60000,
+     "isp": 4077,
+     "plume": 14,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/deltaglider.obj"
+    }
+   ]
+  }
+ ]
+}

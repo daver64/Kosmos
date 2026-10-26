@@ -38,7 +38,13 @@ class Mesh:
 
 
 def nums(line):
-    return [float(t) for t in line.split(";")[0].split()]
+    out = []
+    for t in line.split(";")[0].split():
+        try:
+            out.append(float(t))
+        except ValueError:
+            out.append(0.0)  # Windows "-1.#IND" / "1.#QNAN"
+    return out
 
 
 def parse_msh(path):
@@ -237,7 +243,8 @@ def find_meshes(path):
         for name in os.listdir(root) if os.path.isdir(root) else []:
             if name.lower() == "meshes":
                 mdir = os.path.join(root, name)
-                files = sorted(os.path.join(mdir, f) for f in os.listdir(mdir) if f.lower().endswith(".msh"))
+                files = sorted(os.path.join(d, f) for d, _, fs in os.walk(mdir)
+                               for f in fs if f.lower().endswith(".msh"))
                 tex = [os.path.join(root, t) for t in os.listdir(root) if t.lower() == "textures"]
                 return files, tex
     raise SystemExit(f"no Meshes folder under {path}")

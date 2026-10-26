@@ -2094,7 +2094,7 @@ namespace
         struct Particle
         {
             glm::vec3 position, velocity;
-            float age, life, size, body = 0.55f;
+            float age, life, size, body = 0.55f, bright = 1.0f;
             std::uint8_t kind = kerosene;
         };
         std::vector<Particle> particles;
@@ -2123,15 +2123,21 @@ namespace
             }
             particles.erase(std::remove_if(particles.begin(), particles.end(), [](const Particle &p) { return p.age >= p.life; }), particles.end());
             diamonds.clear();
-            if (!spawn || particles.size() > 1400)
+            if (!spawn)
                 return;
             const sl::FlightBody &fb = ship.body();
 
             // Thrusters are numbered in the order of the stages' engines.
             std::vector<const kosmos::EngineSpec *> engines;
+            double densest = 1.0;
             for (const kosmos::StageSpec &st : ship.spec().stages)
                 for (const kosmos::EngineSpec &e : st.engines)
+                {
                     engines.push_back(&e);
+                    densest = std::max(densest, e.plume_density);
+                }
+            if (particles.size() > static_cast<std::size_t>(1400.0 * densest))
+                return;
             auto plume_of = [&](std::size_t i, const sl::Thruster &t) -> int
             {
                 if (t.level <= 0.01 || t.max_thrust <= 0.0 || t.tank < 0 || fb.tanks[static_cast<std::size_t>(t.tank)].mass <= 0.0)
@@ -2151,12 +2157,14 @@ namespace
                     continue;
                 const Style &st = style(kind);
                 const double plume = i < engines.size() ? engines[i]->plume : 10.0;
+                const float wide = i < engines.size() ? static_cast<float>(engines[i]->plume_width) : 1.0f;
+                const float bright = i < engines.size() ? static_cast<float>(engines[i]->plume_glow) : 1.0f;
                 // An afterburner only lights above 80% throttle and ramps up from there.
                 const float level = kind == afterburner ? static_cast<float>((t.level - 0.8) / 0.2) : static_cast<float>(t.level);
                 // A hydrogen engine in thin air or vacuum runs a short, tight, clean plume with shock diamonds, like a scramjet's.
                 const float crisp = kind == hydrogen ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
                 const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(vacuum)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
-                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * (kind == hydrogen ? 1.0f - 0.45f * crisp : 1.0f);
+                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * crisp : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
@@ -2167,7 +2175,8 @@ namespace
                     diamonds.push_back({glm::vec3(t.position + ship.com_offset()) + dir * 0.1f, dir, static_cast<float>(plume) * 0.16f, level, static_cast<std::uint8_t>(nuclear)});
                     continue;
                 }
-                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * level * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
+                const float density = i < engines.size() ? static_cast<float>(engines[i]->plume_density) : 1.0f;
+                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * density * level * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
                 float &carry = carry_main;
                 carry += rate * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
@@ -2184,6 +2193,7 @@ namespace
                     p.size = width * 0.35f * (0.75f + 0.5f * random01());
                     p.kind = static_cast<std::uint8_t>(kind);
                     p.body = 0.55f - 0.48f * crisp;
+                    p.bright = bright;
                     particles.push_back(p);
                 }
                 if (crisp > 0.05f)
@@ -2264,10 +2274,10 @@ namespace
                 const float size = p.size * (0.6f + 1.2f * age);
                 const glm::mat4 base = hull * glm::translate(glm::mat4(1.0f), p.position);
                 glow.tint = st.glow;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * fade * 255.0f, 0.0f, 255.0f));
+                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * p.bright * fade * 255.0f, 0.0f, 255.0f));
                 sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size * 2.6f)), glow);
                 glow.tint = age < 0.35f ? st.core : st.tail;
-                const float body = p.body;
+                const float body = p.body * p.bright;
                 glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(body * fade * 255.0f, 0.0f, 255.0f));
                 sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size)), glow);
             }
@@ -4007,8 +4017,10 @@ int main(int argc, char **argv)
             offset_dir = glm::normalize(universe.position(0) - fb.position);
         if (options.cam_antisun)
             offset_dir = glm::normalize(glm::normalize(fb.position - universe.position(0)) + east * std::sin(yaw_d) * 0.9 + up * std::sin(pitch_d) * 0.9);
-        sl::dvec3 eye_world = fb.position + offset_dir * cam_distance;
-        glm::vec3 ship_rel = glm::vec3(fb.position - eye_world);
+        // A tall ship can name the point the external camera frames, such as the capsule at the top of a Saturn V.
+        const sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->spec().camera_target) : fb.position;
+        sl::dvec3 eye_world = focus + offset_dir * cam_distance;
+        glm::vec3 ship_rel = glm::vec3(focus - eye_world);
         if (options.cam_antisun)
             ship_rel = glm::vec3(glm::normalize(universe.position(0) - eye_world) * 1000.0);
         if (!in_cockpit && !in_interior && !in_base_cam && !map_mode && !galaxy_mode && (free_yaw != 0.0f || free_pitch != 0.0f))
@@ -4078,13 +4090,25 @@ int main(int argc, char **argv)
                 return ship_anchor(*ship);
             };
             const Anchor host = anchor(uc.attach, uc.attach_name);
+            // The point of a ship a camera frames: its `camera_target` when it names one, else its origin.
+            auto focus_of = [&](const int kind, const std::string &name, const Anchor &a)
+            {
+                Ship *sh = ship;
+                if (kind == kosmos::UserCamera::other_ship)
+                    for (int si = 0; si < sim.ship_count(); ++si)
+                        if (sim.ship(si)->name == name)
+                            sh = sim.ship(si);
+                if (!a.ship || !sh || !sh->spec().has_camera_target)
+                    return a.position;
+                return a.position + sh->body().direction_to_world(sh->spec().camera_target);
+            };
             view_fov = uc.fov;
             if (uc.orbit)
             {
                 const double distance = uc.distance > 0.0 ? uc.distance : host.ship ? ship->spec().camera_distance : host.radius * 3.0;
                 const double yaw = uc.yaw * pi / 180.0, pitch = uc.pitch * pi / 180.0;
                 const sl::dvec3 dir = (east * std::sin(yaw) + north * std::cos(yaw)) * std::cos(pitch) + up * std::sin(pitch);
-                eye_world = host.position + dir * distance;
+                eye_world = focus_of(uc.attach, uc.attach_name, host) + dir * distance;
                 ship_rel = glm::vec3(-dir * distance);
                 if (!host.ship)
                     user_extent = host.radius;

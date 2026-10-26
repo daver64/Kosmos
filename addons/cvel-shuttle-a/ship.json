@@ -1,0 +1,115 @@
+{
+ "name": "CVEL Shuttle-A",
+ "class": "transfer",
+ "torque_accel": 0.15,
+ "max_rate": 0.3,
+ "rcs_thrust": 10000,
+ "drag_area": 40,
+ "camera_distance": 60,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 8,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    1,
+    -14
+   ],
+   "size": [
+    3,
+    3,
+    4
+   ],
+   "crew": 2
+  }
+ ],
+ "stages": [
+  {
+   "name": "Shuttle-A",
+   "dry_mass": 22000,
+   "propellant": 26000,
+   "z": -1.5,
+   "length": 35,
+   "radius": 7,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      15
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 293520,
+     "isp": 4077,
+     "plume": 40,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "gear": [
+    [
+     4.5,
+     -2.9,
+     -12
+    ],
+    [
+     -4.5,
+     -2.9,
+     -12
+    ],
+    [
+     4.5,
+     -2.9,
+     6
+    ],
+    [
+     -4.5,
+     -2.9,
+     6
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/shuttlea.obj"
+    }
+   ]
+  }
+ ],
+ "camera_target": [
+  0,
+  0,
+  -2
+ ],
+ "horizontal": true
+}

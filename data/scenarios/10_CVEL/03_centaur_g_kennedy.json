@@ -1,0 +1,14 @@
+{
+ "name": "CVEL: Centaur G, Kennedy",
+ "description": "CVEL Centaur G upper stage with probe, standing on the pad at Kennedy Space Center.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Centaur G",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "cvel-delta-iv",
+  "name": "CVEL Delta IV Heavy",
+  "version": "0.1",
+  "ships": [
+    "ship.json"
+  ]
+}

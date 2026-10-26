@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Dragonfly, 1500 km orbit",
+ "description": "CVEL Dragonfly in a circular 1500 km orbit.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Dragonfly",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 1500,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

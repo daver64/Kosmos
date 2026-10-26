@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Transtage, 1500 km orbit",
+ "description": "CVEL Transtage in a circular 1500 km orbit.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Transtage",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 1500,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

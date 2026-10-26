@@ -1,0 +1,334 @@
+{
+ "name": "CVEL Vulcan",
+ "class": "aircraft",
+ "torque_accel": 0.0,
+ "drag_area": 40,
+ "camera_distance": 55,
+ "camera_target": [
+  0,
+  0,
+  0
+ ],
+ "retractable_gear": true,
+ "gear_time": 8,
+ "inertia": [
+  3500000,
+  5700000,
+  2500000
+ ],
+ "damping": [
+  0.8,
+  1.0,
+  0.8
+ ],
+ "surfaces": [
+  {
+   "control": "",
+   "position": [
+    0,
+    0,
+    4
+   ],
+   "area": 300,
+   "cl0": 0.1,
+   "cl_alpha": 3.6,
+   "cd0": 0.012,
+   "induced_drag": 0.12,
+   "stall_deg": 18
+  },
+  {
+   "control": "flaps",
+   "position": [
+    0,
+    0,
+    5
+   ],
+   "area": 60,
+   "cl0": 0.1,
+   "cl_alpha": 3.0,
+   "cd0": 0.012,
+   "induced_drag": 0.12,
+   "stall_deg": 18,
+   "gain_deg": 10
+  },
+  {
+   "control": "aileron",
+   "position": [
+    10,
+    0,
+    10
+   ],
+   "area": 14,
+   "cl0": 0,
+   "cl_alpha": 3.0,
+   "cd0": 0.01,
+   "induced_drag": 0.1,
+   "stall_deg": 18,
+   "gain_deg": 12
+  },
+  {
+   "control": "aileron",
+   "position": [
+    -10,
+    0,
+    10
+   ],
+   "area": 14,
+   "cl0": 0,
+   "cl_alpha": 3.0,
+   "cd0": 0.01,
+   "induced_drag": 0.1,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "elevator",
+   "position": [
+    0,
+    0,
+    11
+   ],
+   "area": 20,
+   "cl0": 0,
+   "cl_alpha": 3.0,
+   "cd0": 0.01,
+   "induced_drag": 0.1,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "rudder",
+   "position": [
+    0,
+    3,
+    12
+   ],
+   "area": 12,
+   "cl0": 0,
+   "cl_alpha": 3.0,
+   "cd0": 0.01,
+   "induced_drag": 0.1,
+   "stall_deg": 18,
+   "gain_deg": 15,
+   "forward": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    1,
+    0,
+    0
+   ]
+  }
+ ],
+ "wheels": [
+  {
+   "position": [
+    0,
+    -2.35,
+    -6
+   ],
+   "steer_deg": 40,
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    3,
+    -2.2,
+    6
+   ],
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    -3,
+    -2.2,
+    6
+   ],
+   "rolling_resistance": 0.03
+  }
+ ],
+ "cameras": [
+  {
+   "name": "Cockpit",
+   "position": [
+    0,
+    0.4,
+    -14
+   ],
+   "fov": 70
+  },
+  {
+   "name": "Tail",
+   "position": [
+    0,
+    4.5,
+    13
+   ],
+   "yaw": 180,
+   "pitch": 5,
+   "fov": 55
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0.3,
+    -12
+   ],
+   "size": [
+    2.5,
+    2,
+    4
+   ],
+   "crew": 2
+  }
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  }
+ ],
+ "lights": [
+  {
+   "position": [
+    18,
+    0,
+    8
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 1.4,
+   "range": 40,
+   "glow": 0.3
+  },
+  {
+   "position": [
+    -18,
+    0,
+    8
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 1.4,
+   "range": 40,
+   "glow": 0.3
+  },
+  {
+   "position": [
+    0,
+    5,
+    14
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 3,
+   "range": 50,
+   "pattern": "strobe",
+   "period": 1.4,
+   "glow": 0.4
+  }
+ ],
+ "stages": [
+  {
+   "name": "Airframe",
+   "dry_mass": 37144,
+   "propellant": 32840,
+   "z": 0,
+   "length": 35,
+   "radius": 3.0,
+   "engines": [
+    {
+     "position": [
+      -3.445,
+      0,
+      14
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 88964,
+     "isp": 9585,
+     "plume": 6,
+     "type": "jet"
+    },
+    {
+     "position": [
+      -2.105,
+      0.145,
+      14
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 88964,
+     "isp": 9585,
+     "plume": 6,
+     "type": "jet"
+    },
+    {
+     "position": [
+      2.105,
+      0.145,
+      14
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 88964,
+     "isp": 9585,
+     "plume": 6,
+     "type": "jet"
+    },
+    {
+     "position": [
+      3.445,
+      0,
+      14
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 88964,
+     "isp": 9585,
+     "plume": 6,
+     "type": "jet"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/avro-vulcan.obj"
+    }
+   ]
+  }
+ ]
+}

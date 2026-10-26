@@ -1,0 +1,15 @@
+{
+ "name": "CVEL: Shuttle-A, Helsinki",
+ "description": "CVEL Shuttle-A on the Helsinki pad.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Shuttle-A",
+   "body": "Earth",
+   "surface": {
+    "base": "helsinki"
+   }
+  }
+ ],
+ "date": "2024-06-21 10:00:00"
+}

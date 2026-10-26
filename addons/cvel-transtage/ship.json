@@ -1,0 +1,128 @@
+{
+ "name": "CVEL Transtage",
+ "class": "tug",
+ "torque_accel": 0.4,
+ "max_rate": 0.4,
+ "rcs_thrust": 300,
+ "drag_area": 6,
+ "camera_distance": 14,
+ "camera_target": [
+  0,
+  0,
+  0.5
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 4,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ],
+ "lights": [
+  {
+   "position": [
+    0,
+    0,
+    -1.9
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 3,
+   "range": 50,
+   "pattern": "strobe",
+   "period": 1.6,
+   "glow": 0.4
+  }
+ ],
+ "stages": [
+  {
+   "name": "Transtage",
+   "dry_mass": 1950,
+   "propellant": 10297,
+   "z": 0.5,
+   "length": 4.7,
+   "radius": 1.6,
+   "engines": [
+    {
+     "position": [
+      0,
+      0.72,
+      2.8
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 36700,
+     "isp": 316,
+     "plume": 8,
+     "plume_width": 0.8,
+     "plume_glow": 1.0,
+     "plume_density": 1,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    },
+    {
+     "position": [
+      0,
+      -0.72,
+      2.8
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 36700,
+     "isp": 316,
+     "plume": 8,
+     "plume_width": 0.8,
+     "plume_glow": 1.0,
+     "plume_density": 1,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/transtage.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "model": "models/probe.obj",
+     "offset": [
+      0,
+      0,
+      -2.5
+     ]
+    }
+   ]
+  }
+ ]
+}

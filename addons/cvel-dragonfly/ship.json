@@ -1,0 +1,109 @@
+{
+ "name": "CVEL Dragonfly",
+ "class": "lander",
+ "torque_accel": 0.4,
+ "max_rate": 0.5,
+ "rcs_thrust": 1000,
+ "drag_area": 10,
+ "camera_distance": 26,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 8,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "size": [
+    2,
+    2,
+    2
+   ],
+   "crew": 2
+  }
+ ],
+ "stages": [
+  {
+   "name": "Dragonfly",
+   "dry_mass": 7000,
+   "propellant": 4000,
+   "z": 4,
+   "length": 15,
+   "radius": 3.7,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      11.5
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 30000,
+     "isp": 407,
+     "plume": 12,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    }
+   ],
+   "gear": [
+    [
+     3.5,
+     0,
+     11
+    ],
+    [
+     -3.5,
+     0,
+     11
+    ],
+    [
+     0,
+     3.5,
+     11
+    ],
+    [
+     0,
+     -3.5,
+     11
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/dragonfly.obj"
+    }
+   ]
+  }
+ ]
+}
