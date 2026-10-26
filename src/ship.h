@@ -297,6 +297,8 @@ namespace kosmos
         bool on_rails() const;
         /** True when the ship may be put on rails: coasting above any atmosphere and not landed. */
         bool can_rails(const Controls &controls) const;
+        /** Why the ship cannot go on rails, or an empty string when it can. */
+        std::string rails_blocker(const Controls &controls) const;
 
         bool stage_once();
         /** Direction of travel relative to the sphere-of-influence body (including its spin) in world axes. */

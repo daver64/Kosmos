@@ -3556,6 +3556,23 @@ int main(int argc, char **argv)
         // The camera orbits the ship in its local horizon frame, so the horizon stays level as the rocket pitches over.
         sl::dvec3 up, east, north;
         ship->local_frame(up, east, north);
+        {
+            // True east reverses over a pole, which would swing the camera to the far side. Carry the previous east along the surface
+            // instead, and ease back to the compass east only where it is well defined.
+            static sl::dvec3 carried_east(0.0);
+            static int carried_soi = -1;
+            if (carried_soi != tm.soi || glm::length(carried_east) < 0.5)
+                carried_east = east;
+            carried_soi = tm.soi;
+            sl::dvec3 e = carried_east - up * glm::dot(carried_east, up);
+            e = glm::length(e) > 1e-6 ? glm::normalize(e) : east;
+            const double polar = std::fabs(tm.latitude);
+            const double w = std::clamp((70.0 - polar) / 20.0, 0.0, 1.0) * std::min(1.0, 3.0 * frame);
+            const sl::dvec3 blended = e * (1.0 - w) + east * w;
+            carried_east = glm::length(blended) > 1e-6 ? glm::normalize(blended) : e;
+            east = carried_east;
+            north = glm::cross(up, east);
+        }
         const double yaw_d = cam_yaw, pitch_d = cam_pitch;
         sl::dvec3 offset_dir = (east * std::sin(yaw_d) + north * std::cos(yaw_d)) * std::cos(pitch_d) + up * std::sin(pitch_d);
         if (options.cam_sunward)

@@ -387,11 +387,22 @@ namespace kosmos
         if (warp_factor(index) > max_physics_warp)
         {
             bool all_ok = !ships_.empty();
+            std::string why;
             for (std::size_t i = 0; i < ships_.size(); ++i)
-                if (!ships_[i]->on_rails() && !ships_[i]->can_rails(static_cast<int>(i) == active_ ? controls : idle))
-                    all_ok = false;
+                if (!ships_[i]->on_rails())
+                {
+                    const std::string b = ships_[i]->rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
+                    if (!b.empty())
+                    {
+                        all_ok = false;
+                        if (why.empty())
+                            why = (static_cast<int>(i) == active_ ? std::string() : ships_[i]->spec().name + ": ") + b;
+                    }
+                }
             if (!all_ok)
             {
+                if (!why.empty())
+                    log("Time warp held at " + std::to_string(static_cast<int>(max_physics_warp)) + "x: " + why);
                 while (index > 0 && warp_factor(index) > max_physics_warp)
                     --index;
                 props.set_int("/sim/warp-index", index);

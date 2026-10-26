@@ -769,17 +769,23 @@ namespace kosmos
         return universe_.world.set_rails(body_, universe_.soi_body(b.position));
     }
 
-    bool Ship::can_rails(const Controls &c) const
+    bool Ship::can_rails(const Controls &c) const { return rails_blocker(c).empty(); }
+
+    std::string Ship::rails_blocker(const Controls &c) const
     {
-        if (crashed_ || telemetry_.landed || c.throttle > 0.0)
-            return false;
+        if (crashed_)
+            return "crashed";
+        if (telemetry_.landed)
+            return "landed";
+        if (c.throttle > 0.0)
+            return "throttle is up";
         const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
         const double top = atmosphere_top(planet);
         if (telemetry_.altitude < top + 1000.0)
-            return false;
-        if (telemetry_.bound)
-            return telemetry_.periapsis > top;
-        return telemetry_.vertical_speed > 0.0 || telemetry_.periapsis > top;
+            return "inside the atmosphere";
+        if (telemetry_.bound ? telemetry_.periapsis <= top : (telemetry_.vertical_speed <= 0.0 && telemetry_.periapsis <= top))
+            return "orbit dips into the atmosphere";
+        return {};
     }
 
     void Ship::update_telemetry()
