@@ -3757,6 +3757,8 @@ int main(int argc, char **argv)
     int last_mouse_x = 0, last_mouse_y = 0;
     kosmos::MenuBar menu_bar;
     bool screenshot_requested = false;
+    // The menu item is clicked while its menu is open, so the shot waits a moment for the menu to close.
+    decltype(sl::time_ms()) screenshot_due_ms = 0;
     // Pinned open unless the menu is switched off from its View menu; --hide-info (screenshots) leaves it to slide away.
     menu_bar.keep_visible = options.menu_visible || !options.hide_info;
     menu_bar.scenario_editor_open = options.scenario_editor;
@@ -3829,7 +3831,7 @@ int main(int argc, char **argv)
         look_yaw = look_pitch = 0.0f;
     };
     menu_actions.quit = [&]() { running = false; };
-    menu_actions.screenshot = [&]() { screenshot_requested = true; };
+    menu_actions.screenshot = [&]() { screenshot_requested = true; screenshot_due_ms = sl::time_ms() + 300; };
     // Video capture: raw frames from the screen are piped to ffmpeg, which stamps them by wall clock and encodes 30 fps H.264.
     FILE *record_pipe = nullptr, *record_pcm = nullptr;
     std::string record_file, record_video, record_pcm_file;
@@ -6453,7 +6455,7 @@ int main(int argc, char **argv)
             shot_saved = true;
             running = false;
         }
-        if (screenshot_requested)
+        if (screenshot_requested && sl::time_ms() >= screenshot_due_ms)
         {
             screenshot_requested = false;
             const std::string file = "kosmos-" + std::to_string(sl::time_ms()) + ".png";

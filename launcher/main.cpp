@@ -1,0 +1,1004 @@
+// Kosmos Launcher: a small wxWidgets front end that lists scenarios, addons and hi-res packs, sets launch options,
+// checks for new builds and starts Kosmos as a separate process. It shares no code with Kosmos or simlib, so a crash in
+// either leaves the launcher running.
+#include "data.h"
+
+#include <wx/wx.h>
+#include <wx/checklst.h>
+#include <wx/dir.h>
+#include <wx/gauge.h>
+#include <wx/listbook.h>
+#include <wx/process.h>
+#include <wx/stdpaths.h>
+#include <wx/treectrl.h>
+#include <wx/webrequest.h>
+
+#include <wx/clipbrd.h>
+#include <wx/filename.h>
+
+#include <algorithm>
+#include <cstdio>
+#include <fstream>
+#include <functional>
+#include <map>
+#include <memory>
+
+namespace
+{
+    using namespace launcher;
+
+    wxString W(const std::string &s) { return wxString::FromUTF8(s); }
+    std::string U(const wxString &s) { return std::string(s.ToUTF8()); }
+    wxString Wp(const fs::path &p) { return wxString::FromUTF8(p.u8string().c_str()); }
+    fs::path P(const wxString &s) { return fs::u8path(U(s)); }
+
+    wxString human_size(long long bytes)
+    {
+        if (bytes <= 0)
+            return "unknown size";
+        if (bytes > (1LL << 30))
+            return wxString::Format("%.1f GB", bytes / double(1LL << 30));
+        return wxString::Format("%.0f MB", bytes / double(1LL << 20));
+    }
+
+    wxBitmap load_thumbnail(const fs::path &file, int width, int height)
+    {
+        wxImage image;
+        if (!file.empty() && wxFileExists(Wp(file)) && image.LoadFile(Wp(file)) && image.IsOk())
+        {
+            const double scale = std::min(width / double(image.GetWidth()), height / double(image.GetHeight()));
+            image.Rescale(std::max(1, int(image.GetWidth() * scale)), std::max(1, int(image.GetHeight() * scale)), wxIMAGE_QUALITY_HIGH);
+            return wxBitmap(image);
+        }
+        wxBitmap blank(width, height);
+        wxMemoryDC dc(blank);
+        dc.SetBackground(wxBrush(wxColour(24, 28, 40)));
+        dc.Clear();
+        dc.SetTextForeground(wxColour(120, 130, 150));
+        dc.DrawLabel("No preview", wxRect(0, 0, width, height), wxALIGN_CENTER);
+        dc.SelectObject(wxNullBitmap);
+        return blank;
+    }
+
+    struct IdData : wxTreeItemData
+    {
+        std::string id;
+        explicit IdData(std::string i) : id(std::move(i)) {}
+    };
+
+    const char *platform_archive()
+    {
+#ifdef _WIN32
+        return "kosmos-beta-Windows.zip";
+#else
+        return "kosmos-beta-Linux.tar.gz";
+#endif
+    }
+
+    // One HTTP request at a time: either a small text fetch or a resumable file download with progress.
+    class Http : public wxEvtHandler
+    {
+    public:
+        std::function<void(bool ok, const std::string &body_or_error)> on_text;
+        std::function<void(long long got, long long total)> on_progress;
+        std::function<void(bool ok, const std::string &error)> on_file;
+
+        void Fetch(const std::string &url, std::function<void(bool, const std::string &)> done)
+        {
+            on_text = std::move(done);
+            text_.clear();
+            file_.reset();
+            Start(url, false);
+        }
+
+        void Download(const std::string &url, const fs::path &part, std::function<void(long long, long long)> progress, std::function<void(bool, const std::string &)> done)
+        {
+            on_progress = std::move(progress);
+            on_file = std::move(done);
+            std::error_code ec;
+            part_ = part;
+            resume_from_ = fs::exists(part, ec) ? static_cast<long long>(fs::file_size(part, ec)) : 0;
+            file_ = std::make_unique<std::ofstream>(part, std::ios::binary | std::ios::app);
+            Start(url, true);
+        }
+
+        void Cancel()
+        {
+            if (request_.IsOk())
+                request_.Cancel();
+        }
+
+    private:
+        void Start(const std::string &url, bool to_file)
+        {
+            to_file_ = to_file;
+            request_ = wxWebSession::GetDefault().CreateRequest(this, W(url));
+            if (!request_.IsOk())
+            {
+                Finish(false, "Cannot create a web request");
+                return;
+            }
+            if (to_file && resume_from_ > 0)
+                request_.SetHeader("Range", wxString::Format("bytes=%lld-", resume_from_));
+            request_.SetStorage(wxWebRequest::Storage_None);
+            Bind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
+            Bind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
+            request_.Start();
+        }
+
+        void OnData(wxWebRequestEvent &e)
+        {
+            const char *bytes = static_cast<const char *>(e.GetDataBuffer());
+            if (to_file_)
+            {
+                // A 200 reply to a Range request means the server ignored it; restart the file.
+                if (!started_ && resume_from_ > 0 && request_.GetResponse().GetStatus() == 200)
+                {
+                    file_->close();
+                    file_ = std::make_unique<std::ofstream>(part_path(), std::ios::binary | std::ios::trunc);
+                    resume_from_ = 0;
+                }
+                started_ = true;
+                file_->write(bytes, static_cast<std::streamsize>(e.GetDataSize()));
+                received_ += static_cast<long long>(e.GetDataSize());
+                if (on_progress)
+                {
+                    const long long expected = request_.GetBytesExpectedToReceive();
+                    on_progress(resume_from_ + received_, expected > 0 ? resume_from_ + expected : 0);
+                }
+            }
+            else
+                text_.append(bytes, e.GetDataSize());
+        }
+
+        void OnState(wxWebRequestEvent &e)
+        {
+            switch (e.GetState())
+            {
+            case wxWebRequest::State_Completed:
+                Finish(true, "");
+                break;
+            case wxWebRequest::State_Failed:
+                Finish(false, U(e.GetErrorDescription()));
+                break;
+            case wxWebRequest::State_Cancelled:
+                Finish(false, "Cancelled");
+                break;
+            default:
+                break;
+            }
+        }
+
+        void Finish(bool ok, const std::string &error)
+        {
+            Unbind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
+            Unbind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
+            const bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
+            std::string why = error;
+            if (ok && !http_ok)
+                why = "Server replied " + std::to_string(request_.GetResponse().GetStatus());
+            started_ = false;
+            received_ = 0;
+            if (to_file_)
+            {
+                if (file_)
+                    file_->close();
+                file_.reset();
+                if (on_file)
+                    on_file(http_ok, why);
+            }
+            else if (on_text)
+                on_text(http_ok, http_ok ? text_ : why);
+        }
+
+        fs::path part_path() const { return part_; }
+
+        wxWebRequest request_;
+        std::string text_;
+        std::unique_ptr<std::ofstream> file_;
+        fs::path part_;
+        long long resume_from_ = 0, received_ = 0;
+        bool to_file_ = false, started_ = false;
+
+    public:
+        void SetPart(const fs::path &p) { part_ = p; }
+    };
+
+    // Starts Kosmos, keeps its output for the Logs page and reports how it ended.
+    class Run : public wxProcess
+    {
+    public:
+        std::function<void(int code)> on_end;
+        wxString output;
+        long pid = 0;
+
+        explicit Run(wxEvtHandler *owner) : wxProcess(owner) { Redirect(); }
+
+        void Drain()
+        {
+            for (wxInputStream *in : {GetInputStream(), GetErrorStream()})
+                while (in && in->CanRead())
+                {
+                    char buf[4096];
+                    in->Read(buf, sizeof buf);
+                    const size_t n = in->LastRead();
+                    if (!n)
+                        break;
+                    output += wxString::FromUTF8(buf, n);
+                }
+        }
+
+        void OnTerminate(int, int status) override
+        {
+            Drain();
+            if (on_end)
+                on_end(status);
+        }
+    };
+
+    class Frame : public wxFrame
+    {
+    public:
+        Frame(const fs::path &root) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
+        {
+            profile_ = load_profile();
+            book_ = new wxListbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLB_LEFT);
+            BuildPlay();
+            BuildAddons();
+            BuildPacks();
+            BuildOptions();
+            BuildUpdates();
+            BuildLogs();
+            CreateStatusBar();
+            timer_.SetOwner(this);
+            Bind(wxEVT_TIMER, [this](wxTimerEvent &) { if (run_) run_->Drain(); });
+            Bind(wxEVT_CLOSE_WINDOW, &Frame::OnClose, this);
+            Rescan();
+            RefreshPreview();
+            if (find_kosmos(root_).empty())
+                SetStatusText("Kosmos was not found next to the launcher.");
+            // The server's pack list carries the real sizes and checksums; the built-in list is the offline fallback.
+            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
+                              {
+                                  if (!ok)
+                                      return;
+                                  packs_remote_ = parse_packs(body, root_);
+                                  RefreshPacks();
+                              });
+        }
+
+    public:
+        // Headless smoke test for --check: read the server's version and pack list, print them and close.
+        void SelfCheck()
+        {
+            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+                        {
+                            std::printf("server version: %s (installed: %s)\n", ok ? body.c_str() : ("ERROR " + body).c_str(), installed_version(root_).c_str());
+                            std::printf("scenarios: %zu, addons: %zu\n", scenarios_.size(), addons_.size());
+                            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok2, const std::string &text)
+                                              {
+                                                  const auto list = ok2 ? parse_packs(text, root_) : std::vector<PackInfo>();
+                                                  for (const PackInfo &p : list)
+                                                      std::printf("pack %s: %lld bytes, sha256 %s, installed=%d\n", p.id.c_str(), p.size, p.sha256.c_str(), int(p.installed));
+                                                  if (!ok2)
+                                                      std::printf("packs ERROR %s\n", text.c_str());
+                                                  Close();
+                                              });
+                        });
+        }
+
+    private:
+        // ---- Play ----------------------------------------------------------------------------------------------
+        void BuildPlay()
+        {
+            auto *page = new wxPanel(book_);
+            auto *row = new wxBoxSizer(wxHORIZONTAL);
+            tree_ = new wxTreeCtrl(page, wxID_ANY, wxDefaultPosition, wxSize(300, -1), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_SINGLE);
+            auto *right = new wxBoxSizer(wxVERTICAL);
+            thumb_ = new wxStaticBitmap(page, wxID_ANY, load_thumbnail({}, 480, 270));
+            title_ = new wxStaticText(page, wxID_ANY, "");
+            title_->SetFont(title_->GetFont().Bold().Scaled(1.4f));
+            detail_ = new wxStaticText(page, wxID_ANY, "");
+            blurb_ = new wxStaticText(page, wxID_ANY, "");
+            launch_ = new wxButton(page, wxID_ANY, "Launch");
+            launch_->SetFont(launch_->GetFont().Bold().Scaled(1.3f));
+            resume_ = new wxButton(page, wxID_ANY, "Resume last scenario");
+            right->Add(thumb_, 0, wxALL, 8);
+            right->Add(title_, 0, wxLEFT | wxRIGHT, 8);
+            right->Add(detail_, 0, wxALL, 8);
+            right->Add(blurb_, 1, wxLEFT | wxRIGHT | wxEXPAND, 8);
+            auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+            buttons->Add(launch_, 0, wxALL, 8);
+            buttons->Add(resume_, 0, wxALL, 8);
+            right->Add(buttons, 0);
+            row->Add(tree_, 0, wxEXPAND | wxALL, 8);
+            row->Add(right, 1, wxEXPAND);
+            page->SetSizer(row);
+            book_->AddPage(page, "Play");
+            tree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &) { ShowScenario(); });
+            tree_->Bind(wxEVT_TREE_ITEM_ACTIVATED, [this](wxTreeEvent &) { LaunchSelected(); });
+            launch_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { LaunchSelected(); });
+            resume_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { Launch(profile_.last_scenario); });
+            blurb_->Bind(wxEVT_SIZE, [this](wxSizeEvent &e) { blurb_->Wrap(std::max(200, e.GetSize().x)); e.Skip(); });
+        }
+
+        const ScenarioInfo *SelectedScenario() const
+        {
+            const wxTreeItemId item = tree_->GetSelection();
+            if (!item.IsOk())
+                return nullptr;
+            auto *data = dynamic_cast<IdData *>(tree_->GetItemData(item));
+            if (!data)
+                return nullptr;
+            for (const ScenarioInfo &s : scenarios_)
+                if (s.id == data->id)
+                    return &s;
+            return nullptr;
+        }
+
+        void ShowScenario()
+        {
+            const ScenarioInfo *s = SelectedScenario();
+            launch_->Enable(s != nullptr && !run_);
+            if (!s)
+                return;
+            thumb_->SetBitmap(load_thumbnail(s->thumbnail, 480, 270));
+            title_->SetLabel(W(s->name));
+            wxString ships;
+            for (const std::string &n : s->ships)
+                ships += (ships.empty() ? "" : ", ") + W(n);
+            detail_->SetLabel(wxString::Format("Ship: %s    Location: %s", ships, W(s->body.empty() ? "n/a" : s->body)));
+            blurb_->SetLabel(W(s->description));
+            blurb_->Wrap(std::max(200, blurb_->GetSize().x));
+            Layout();
+        }
+
+        void FillTree()
+        {
+            tree_->DeleteAllItems();
+            const wxTreeItemId root = tree_->AddRoot("");
+            std::map<std::string, wxTreeItemId> groups;
+            wxTreeItemId select;
+            for (const ScenarioInfo &s : scenarios_)
+            {
+                const std::string group = s.category.empty() ? "Standard" : s.category;
+                if (!groups.count(group))
+                    groups[group] = tree_->AppendItem(root, W(group));
+                const wxTreeItemId item = tree_->AppendItem(groups[group], W(s.name), -1, -1, new IdData(s.id));
+                if (s.id == profile_.last_scenario)
+                    select = item;
+            }
+            if (select.IsOk())
+            {
+                tree_->EnsureVisible(select);
+                tree_->SelectItem(select);
+            }
+            else if (!groups.empty())
+                tree_->Expand(groups.begin()->second);
+            resume_->Enable(!profile_.last_scenario.empty());
+        }
+
+        // ---- Addons --------------------------------------------------------------------------------------------
+        void BuildAddons()
+        {
+            auto *page = new wxPanel(book_);
+            auto *row = new wxBoxSizer(wxHORIZONTAL);
+            addon_list_ = new wxCheckListBox(page, wxID_ANY, wxDefaultPosition, wxSize(300, -1));
+            auto *right = new wxBoxSizer(wxVERTICAL);
+            addon_thumb_ = new wxStaticBitmap(page, wxID_ANY, load_thumbnail({}, 480, 270));
+            addon_title_ = new wxStaticText(page, wxID_ANY, "");
+            addon_title_->SetFont(addon_title_->GetFont().Bold().Scaled(1.4f));
+            addon_text_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
+            auto *open = new wxButton(page, wxID_ANY, "Open addons folder");
+            auto *install = new wxButton(page, wxID_ANY, "Install addon from zip...");
+            auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+            buttons->Add(open, 0, wxALL, 8);
+            buttons->Add(install, 0, wxALL, 8);
+            right->Add(addon_thumb_, 0, wxALL, 8);
+            right->Add(addon_title_, 0, wxLEFT | wxRIGHT, 8);
+            right->Add(addon_text_, 1, wxALL | wxEXPAND, 8);
+            right->Add(buttons, 0);
+            row->Add(addon_list_, 0, wxEXPAND | wxALL, 8);
+            row->Add(right, 1, wxEXPAND);
+            page->SetSizer(row);
+            book_->AddPage(page, "Addons");
+            addon_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { ShowAddon(); });
+            addon_list_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &e)
+                              {
+                                  const int i = e.GetInt();
+                                  addons_[i].enabled = addon_list_->IsChecked(i);
+                                  save_disabled_addons(addons_);
+                                  scenarios_ = scan_scenarios(root_, addons_);
+                                  FillTree();
+                                  SetStatusText("Addon changes apply the next time Kosmos starts.");
+                              });
+            open->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { wxLaunchDefaultApplication(Wp(root_ / "addons")); });
+            install->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallAddon(); });
+        }
+
+        void ShowAddon()
+        {
+            const int i = addon_list_->GetSelection();
+            if (i == wxNOT_FOUND)
+                return;
+            const AddonInfo &a = addons_[i];
+            addon_thumb_->SetBitmap(load_thumbnail(a.thumbnail, 480, 270));
+            addon_title_->SetLabel(W(a.name + "  v" + a.version));
+            wxString ships;
+            for (const std::string &n : a.ships)
+                ships += "  " + W(n) + "\n";
+            wxString text;
+            if (!a.author.empty())
+                text += "By " + W(a.author) + "\n\n";
+            text += W(a.long_description.empty() ? a.description : a.long_description);
+            if (text.empty())
+                text = "No description.";
+            if (!ships.empty())
+                text += "\n\nShips:\n" + ships;
+            addon_text_->SetValue(text);
+            Layout();
+        }
+
+        void InstallAddon()
+        {
+            wxFileDialog dlg(this, "Choose an addon zip", "", "", "Zip files (*.zip)|*.zip", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+            if (dlg.ShowModal() != wxID_OK)
+                return;
+            const fs::path temp = fs::temp_directory_path() / "kosmos-addon-install";
+            std::error_code ec;
+            fs::remove_all(temp, ec);
+            fs::create_directories(temp, ec);
+            if (!Extract(P(dlg.GetPath()), temp))
+            {
+                wxMessageBox("Could not unpack the zip.", "Install addon", wxICON_ERROR);
+                return;
+            }
+            fs::path found;
+            for (fs::recursive_directory_iterator it(temp, ec), end; it != end; it.increment(ec))
+                if (it->path().filename() == "addon.json")
+                {
+                    found = it->path().parent_path();
+                    break;
+                }
+            if (found.empty())
+            {
+                wxMessageBox("The zip has no addon.json, so it is not a Kosmos addon.", "Install addon", wxICON_ERROR);
+                return;
+            }
+            const fs::path dest = root_ / "addons" / found.filename();
+            if (fs::exists(dest, ec) && wxMessageBox("An addon named " + Wp(found.filename()) + " is already installed. Replace it?", "Install addon", wxYES_NO) != wxYES)
+                return;
+            fs::remove_all(dest, ec);
+            fs::copy(found, dest, fs::copy_options::recursive, ec);
+            fs::remove_all(temp, ec);
+            if (ec)
+                wxMessageBox("Could not copy the addon: " + wxString(ec.message()), "Install addon", wxICON_ERROR);
+            else
+                SetStatusText("Installed " + Wp(found.filename()));
+            Rescan();
+        }
+
+        // ---- Packs ---------------------------------------------------------------------------------------------
+        void BuildPacks()
+        {
+            auto *page = new wxPanel(book_);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            col->Add(new wxStaticText(page, wxID_ANY, "Optional downloads. They install into the Kosmos folder and are checked against the published SHA-256 checksum."), 0, wxALL, 8);
+            pack_list_ = new wxListBox(page, wxID_ANY);
+            pack_text_ = new wxStaticText(page, wxID_ANY, "");
+            pack_gauge_ = new wxGauge(page, wxID_ANY, 1000);
+            pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
+            pack_remove_ = new wxButton(page, wxID_ANY, "Remove");
+            auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+            buttons->Add(pack_install_, 0, wxALL, 8);
+            buttons->Add(pack_remove_, 0, wxALL, 8);
+            col->Add(pack_list_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
+            col->Add(pack_text_, 0, wxALL, 8);
+            col->Add(pack_gauge_, 0, wxEXPAND | wxLEFT | wxRIGHT, 8);
+            col->Add(buttons, 0);
+            page->SetSizer(col);
+            book_->AddPage(page, "Scenery packs");
+            pack_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { ShowPack(); });
+            pack_install_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallPack(); });
+            pack_remove_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
+                               {
+                                   const int i = pack_list_->GetSelection();
+                                   if (i == wxNOT_FOUND || packs_[i].marker.empty())
+                                       return;
+                                   if (wxMessageBox("Delete " + W(packs_[i].marker) + "?", "Remove pack", wxYES_NO) != wxYES)
+                                       return;
+                                   std::error_code ec;
+                                   fs::remove_all(root_ / packs_[i].marker, ec);
+                                   RefreshPacks();
+                               });
+        }
+
+        void RefreshPacks()
+        {
+            const int keep = pack_list_->GetSelection();
+            packs_ = packs_remote_.empty() ? builtin_packs(root_) : packs_remote_;
+            std::error_code ec;
+            for (PackInfo &p : packs_)
+                p.installed = !p.marker.empty() && fs::exists(root_ / p.marker, ec);
+            pack_list_->Clear();
+            for (const PackInfo &p : packs_)
+                pack_list_->Append(W(p.name) + (p.installed ? "   [installed]" : ""));
+            if (!packs_.empty())
+                pack_list_->SetSelection(keep == wxNOT_FOUND ? 0 : std::min<int>(keep, int(packs_.size()) - 1));
+            ShowPack();
+        }
+
+        void ShowPack()
+        {
+            const int i = pack_list_->GetSelection();
+            const bool ok = i != wxNOT_FOUND;
+            pack_install_->Enable(ok && !busy_);
+            pack_remove_->Enable(ok && packs_[i].installed && !busy_);
+            if (ok)
+            {
+                pack_text_->SetLabel(W(packs_[i].description) + "\n" + (packs_[i].installed ? "Installed." : "Not installed.") + "  Download size: " + human_size(packs_[i].size));
+                pack_text_->Wrap(600);
+            }
+            Layout();
+        }
+
+        void InstallPack()
+        {
+            const int i = pack_list_->GetSelection();
+            if (i == wxNOT_FOUND || busy_)
+                return;
+            const PackInfo pack = packs_[i];
+            DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this](bool ok, const std::string &msg)
+                            {
+                                SetStatusText(ok ? "Pack installed." : W("Pack failed: " + msg));
+                                RefreshPacks();
+                            });
+        }
+
+        // Downloads FILE from the server into a temporary folder, verifies it, then unpacks it into DEST.
+        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done)
+        {
+            busy_ = true;
+            ShowPack();
+            const std::string base = profile_.server + "/";
+            auto finish = [this, done](bool ok, const std::string &msg)
+            {
+                busy_ = false;
+                done(ok, msg);
+            };
+            auto start = [this, file, dest, gauge, finish](std::string sum)
+            {
+                std::error_code ec;
+                const fs::path dir = user_dir() / "downloads";
+                fs::create_directories(dir, ec);
+                const fs::path part = dir / (file + ".part");
+                http_.SetPart(part);
+                http_.Download(profile_.server + "/" + file, part,
+                               [this, gauge](long long got, long long total)
+                               {
+                                   gauge->SetValue(total > 0 ? int(got * 1000 / total) : 0);
+                                   SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                               },
+                               [this, part, dir, file, dest, sum, gauge, finish](bool ok, const std::string &error)
+                               {
+                                   gauge->SetValue(0);
+                                   if (!ok)
+                                   {
+                                       finish(false, error + " (run it again to resume)");
+                                       return;
+                                   }
+                                   SetStatusText("Checking the download...");
+                                   wxYield();
+                                   if (!sum.empty() && sha256_file(part) != sum)
+                                   {
+                                       std::error_code e;
+                                       fs::remove(part, e);
+                                       finish(false, "The checksum does not match; the file was discarded");
+                                       return;
+                                   }
+                                   const fs::path archive = dir / file;
+                                   std::error_code e;
+                                   fs::rename(part, archive, e);
+                                   SetStatusText("Unpacking...");
+                                   wxYield();
+                                   fs::create_directories(dest, e);
+                                   const bool unpacked = Extract(archive, dest);
+                                   fs::remove(archive, e);
+                                   finish(unpacked, unpacked ? "" : "Could not unpack the archive");
+                               });
+            };
+            if (!expected.empty())
+            {
+                start(expected);
+                return;
+            }
+            http_.Fetch(base + "SHA256SUMS.txt", [this, file, start, finish](bool ok, const std::string &body)
+                        {
+                            if (!ok)
+                            {
+                                finish(false, "Could not read the checksum list: " + body);
+                                return;
+                            }
+                            const std::string sum = find_checksum(body, file);
+                            if (sum.empty())
+                                finish(false, "No checksum is published for " + file);
+                            else
+                                start(sum);
+                        });
+        }
+
+        // Unpacks a .zip or .tar.gz with tar (bsdtar ships with Windows 10 and later).
+        bool Extract(const fs::path &archive, const fs::path &dest)
+        {
+            wxArrayString out;
+            const wxString cmd = "tar -xf \"" + Wp(archive) + "\" -C \"" + Wp(dest) + "\"";
+            return wxExecute(cmd, out, out, wxEXEC_SYNC | wxEXEC_NODISABLE | wxEXEC_HIDE_CONSOLE) == 0;
+        }
+
+        // ---- Options -------------------------------------------------------------------------------------------
+        void BuildOptions()
+        {
+            auto *page = new wxPanel(book_);
+            auto *grid = new wxFlexGridSizer(2, 8, 8);
+            grid->AddGrowableCol(1);
+            backend_ = new wxChoice(page, wxID_ANY);
+            for (const char *b : {"Automatic", "OpenGL", "Vulkan", "Direct3D 12 (Windows)"})
+                backend_->Append(b);
+            fullscreen_ = new wxCheckBox(page, wxID_ANY, "Start full screen");
+            max_texture_ = new wxChoice(page, wxID_ANY);
+            for (const char *t : {"Default", "2048", "4096", "8192", "16384"})
+                max_texture_->Append(t);
+            world_texture_ = new wxChoice(page, wxID_ANY);
+            for (const char *t : {"Automatic", "2048", "4096", "8192", "16384"})
+                world_texture_->Append(t);
+            extra_ = new wxTextCtrl(page, wxID_ANY);
+            server_ = new wxTextCtrl(page, wxID_ANY);
+            command_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
+            auto row = [&](const wxString &label, wxWindow *w)
+            {
+                grid->Add(new wxStaticText(page, wxID_ANY, label), 0, wxALIGN_CENTER_VERTICAL);
+                grid->Add(w, 1, wxEXPAND);
+            };
+            row("Graphics backend", backend_);
+            row("", fullscreen_);
+            row("Largest texture", max_texture_);
+            row("Invented-world texture", world_texture_);
+            row("Extra options", extra_);
+            row("Update server", server_);
+            row("Command line", command_);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            col->Add(grid, 0, wxEXPAND | wxALL, 12);
+            col->Add(new wxStaticText(page, wxID_ANY, "Texture sizes need more graphics memory when larger. If Kosmos glitches or crashes on your GPU, try another backend."), 0, wxALL, 12);
+            page->SetSizer(col);
+            book_->AddPage(page, "Options");
+            auto sync = [this](wxCommandEvent &) { ReadOptions(); };
+            backend_->Bind(wxEVT_CHOICE, sync);
+            max_texture_->Bind(wxEVT_CHOICE, sync);
+            world_texture_->Bind(wxEVT_CHOICE, sync);
+            fullscreen_->Bind(wxEVT_CHECKBOX, sync);
+            extra_->Bind(wxEVT_TEXT, sync);
+            server_->Bind(wxEVT_TEXT, sync);
+        }
+
+        static int texture_index(int v)
+        {
+            return v == 2048 ? 1 : v == 4096 ? 2 : v == 8192 ? 3 : v == 16384 ? 4 : 0;
+        }
+        static int texture_value(int i) { return i == 1 ? 2048 : i == 2 ? 4096 : i == 3 ? 8192 : i == 4 ? 16384 : 0; }
+
+        void ShowOptions()
+        {
+            loading_ = true;
+            backend_->SetSelection(profile_.backend == "gl" ? 1 : profile_.backend == "vulkan" ? 2 : profile_.backend == "d3d12" ? 3 : 0);
+            fullscreen_->SetValue(profile_.fullscreen);
+            max_texture_->SetSelection(texture_index(profile_.max_texture));
+            world_texture_->SetSelection(texture_index(profile_.world_texture));
+            extra_->SetValue(W(profile_.extra_args));
+            server_->SetValue(W(profile_.server));
+            loading_ = false;
+            RefreshPreview();
+        }
+
+        void ReadOptions()
+        {
+            if (loading_)
+                return;
+            static const char *names[] = {"auto", "gl", "vulkan", "d3d12"};
+            profile_.backend = names[std::max(0, backend_->GetSelection())];
+            profile_.fullscreen = fullscreen_->GetValue();
+            profile_.max_texture = texture_value(max_texture_->GetSelection());
+            profile_.world_texture = texture_value(world_texture_->GetSelection());
+            profile_.extra_args = U(extra_->GetValue());
+            profile_.server = U(server_->GetValue());
+            save_profile(profile_);
+            RefreshPreview();
+        }
+
+        void RefreshPreview()
+        {
+            if (!command_)
+                return;
+            const ScenarioInfo *s = SelectedScenario();
+            wxString text = "kosmos";
+            for (const std::string &a : build_arguments(profile_, s ? s->id : std::string()))
+                text += " " + (a.find(' ') != std::string::npos ? "\"" + W(a) + "\"" : W(a));
+            command_->SetValue(text);
+        }
+
+        // ---- Updates -------------------------------------------------------------------------------------------
+        void BuildUpdates()
+        {
+            auto *page = new wxPanel(book_);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            update_label_ = new wxStaticText(page, wxID_ANY, "");
+            update_label_->SetFont(update_label_->GetFont().Bold().Scaled(1.2f));
+            notes_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
+            update_gauge_ = new wxGauge(page, wxID_ANY, 1000);
+            auto *check = new wxButton(page, wxID_ANY, "Check for updates");
+            update_button_ = new wxButton(page, wxID_ANY, "Download the new version");
+            update_button_->Disable();
+            auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+            buttons->Add(check, 0, wxALL, 8);
+            buttons->Add(update_button_, 0, wxALL, 8);
+            col->Add(update_label_, 0, wxALL, 12);
+            col->Add(notes_, 1, wxEXPAND | wxLEFT | wxRIGHT, 12);
+            col->Add(update_gauge_, 0, wxEXPAND | wxALL, 12);
+            col->Add(buttons, 0);
+            page->SetSizer(col);
+            book_->AddPage(page, "Updates");
+            check->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { CheckUpdates(); });
+            update_button_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallUpdate(); });
+            const std::string have = installed_version(root_);
+            update_label_->SetLabel(have.empty() ? "Installed version unknown" : W("Installed version " + have));
+        }
+
+        void CheckUpdates()
+        {
+            update_label_->SetLabel("Checking...");
+            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+                        {
+                            if (!ok)
+                            {
+                                update_label_->SetLabel(W("Could not reach the server: " + body));
+                                return;
+                            }
+                            latest_ = body.substr(0, body.find_first_of(" \t\r\n"));
+                            const std::string have = installed_version(root_);
+                            const bool newer = have.empty() || version_newer(latest_, have);
+                            update_label_->SetLabel(W(newer ? "Version " + latest_ + " is available (you have " + (have.empty() ? "an unknown version" : have) + ")" : "You are up to date (" + have + ")"));
+                            update_button_->Enable(newer && !busy_);
+                            http_.Fetch(profile_.server + "/notes/" + latest_ + ".md", [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
+                        });
+        }
+
+        void InstallUpdate()
+        {
+            if (latest_.empty() || busy_)
+                return;
+            // Unpack beside the current install so the running copy is never overwritten.
+            const fs::path dest = root_.parent_path() / ("kosmos-" + latest_);
+            update_button_->Disable();
+            DownloadArchive(platform_archive(), "", dest, update_gauge_, [this, dest](bool ok, const std::string &msg)
+                            {
+                                if (ok)
+                                {
+                                    update_label_->SetLabel(W("Version " + latest_ + " unpacked to " + dest.string()));
+                                    wxMessageBox("Version " + W(latest_) + " is in\n" + Wp(dest) + "\n\nYour current install was not changed. Start the new launcher from that folder.", "Update ready");
+                                }
+                                else
+                                {
+                                    SetStatusText(W("Update failed: " + msg));
+                                    update_button_->Enable();
+                                }
+                            });
+        }
+
+        // ---- Logs ----------------------------------------------------------------------------------------------
+        void BuildLogs()
+        {
+            auto *page = new wxPanel(book_);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            log_choice_ = new wxChoice(page, wxID_ANY);
+            log_text_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL);
+            log_text_->SetFont(wxFont(wxFontInfo(10).Family(wxFONTFAMILY_TELETYPE)));
+            auto *copy = new wxButton(page, wxID_ANY, "Copy to clipboard");
+            retry_ = new wxButton(page, wxID_ANY, "Retry with another backend");
+            retry_->Hide();
+            auto *buttons = new wxBoxSizer(wxHORIZONTAL);
+            buttons->Add(copy, 0, wxALL, 8);
+            buttons->Add(retry_, 0, wxALL, 8);
+            col->Add(log_choice_, 0, wxEXPAND | wxALL, 8);
+            col->Add(log_text_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
+            col->Add(buttons, 0);
+            page->SetSizer(col);
+            book_->AddPage(page, "Logs");
+            log_choice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent &) { ShowLog(); });
+            copy->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
+                       {
+                           if (wxTheClipboard->Open())
+                           {
+                               wxTheClipboard->SetData(new wxTextDataObject(log_text_->GetValue()));
+                               wxTheClipboard->Close();
+                           }
+                       });
+            retry_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
+                         {
+                             profile_.backend = profile_.backend == "vulkan" ? "gl" : profile_.backend == "gl" ? "vulkan" : "gl";
+                             save_profile(profile_);
+                             ShowOptions();
+                             Launch(last_run_scenario_);
+                         });
+            RefreshLogList();
+        }
+
+        fs::path log_dir() const { return user_dir() / "logs"; }
+
+        void RefreshLogList()
+        {
+            log_files_.clear();
+            std::error_code ec;
+            for (const fs::directory_entry &e : fs::directory_iterator(log_dir(), ec))
+                if (e.path().extension() == ".log")
+                    log_files_.push_back(e.path());
+            std::sort(log_files_.rbegin(), log_files_.rend());
+            if (log_files_.size() > 20)
+            {
+                for (size_t i = 20; i < log_files_.size(); ++i)
+                    fs::remove(log_files_[i], ec);
+                log_files_.resize(20);
+            }
+            log_choice_->Clear();
+            for (const fs::path &f : log_files_)
+                log_choice_->Append(Wp(f.stem()));
+            if (!log_files_.empty())
+            {
+                log_choice_->SetSelection(0);
+                ShowLog();
+            }
+        }
+
+        void ShowLog()
+        {
+            const int i = log_choice_->GetSelection();
+            if (i != wxNOT_FOUND)
+                log_text_->SetValue(W(read_text(log_files_[i])));
+        }
+
+        // ---- Running Kosmos ------------------------------------------------------------------------------------
+        void LaunchSelected()
+        {
+            if (const ScenarioInfo *s = SelectedScenario())
+                Launch(s->id);
+        }
+
+        void Launch(const std::string &scenario)
+        {
+            if (run_)
+                return;
+            const fs::path exe = find_kosmos(root_);
+            if (exe.empty())
+            {
+                wxMessageBox("Kosmos was not found. Put the launcher in the Kosmos folder.", "Launch", wxICON_ERROR);
+                return;
+            }
+            std::string args;
+            for (const std::string &a : build_arguments(profile_, scenario))
+                args += " \"" + a + "\"";
+            profile_.last_scenario = scenario;
+            last_run_scenario_ = scenario;
+            save_profile(profile_);
+            resume_->Enable();
+            wxExecuteEnv env;
+            env.cwd = Wp(exe.parent_path());
+            run_ = new Run(this);
+            run_->on_end = [this](int code) { Ended(code); };
+            started_ = wxDateTime::Now();
+            const long pid = wxExecute("\"" + Wp(exe) + "\"" + W(args), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, run_, &env);
+            if (!pid)
+            {
+                delete run_;
+                run_ = nullptr;
+                wxMessageBox("Could not start Kosmos.", "Launch", wxICON_ERROR);
+                return;
+            }
+            timer_.Start(150);
+            launch_->Disable();
+            SetStatusText("Kosmos is running.");
+        }
+
+        void Ended(int code)
+        {
+            timer_.Stop();
+            std::error_code ec;
+            fs::create_directories(log_dir(), ec);
+            const wxString name = started_.Format("%Y%m%d-%H%M%S") + "-" + W(last_run_scenario_.empty() ? "default" : last_run_scenario_);
+            std::ofstream out(log_dir() / (U(name) + ".log"));
+            out << "Exit code " << code << "\n"
+                << "Command: kosmos";
+            for (const std::string &a : build_arguments(profile_, last_run_scenario_))
+                out << " " << a;
+            out << "\n\n" << U(run_->output);
+            out.close();
+            // A normal quit returns 0; anything else, or a very short run, is worth showing.
+            const bool failed = code != 0 || (wxDateTime::Now() - started_).GetSeconds() < 3;
+            run_->Detach();
+            run_ = nullptr;
+            launch_->Enable();
+            ShowScenario();
+            RefreshLogList();
+            retry_->Show(failed);
+            log_text_->GetParent()->Layout();
+            SetStatusText(failed ? "Kosmos ended unexpectedly; see the Logs page." : "Kosmos closed.");
+            if (failed)
+                book_->SetSelection(5);
+        }
+
+        void OnClose(wxCloseEvent &e)
+        {
+            if (run_)
+                run_->Detach(); // Kosmos keeps running; the launcher just stops watching it
+            e.Skip();
+        }
+
+        void Rescan()
+        {
+            addons_ = scan_addons(root_);
+            scenarios_ = scan_scenarios(root_, addons_);
+            addon_list_->Clear();
+            for (const AddonInfo &a : addons_)
+                addon_list_->Append(W(a.name));
+            for (size_t i = 0; i < addons_.size(); ++i)
+                addon_list_->Check(i, addons_[i].enabled);
+            if (!addons_.empty())
+            {
+                addon_list_->SetSelection(0);
+                ShowAddon();
+            }
+            FillTree();
+            RefreshPacks();
+            ShowOptions();
+        }
+
+        fs::path root_;
+        Profile profile_;
+        std::vector<ScenarioInfo> scenarios_;
+        std::vector<AddonInfo> addons_;
+        std::vector<PackInfo> packs_, packs_remote_;
+        std::vector<fs::path> log_files_;
+        std::string latest_, last_run_scenario_;
+        bool busy_ = false, loading_ = false;
+        Http http_, packs_http_;
+        Run *run_ = nullptr;
+        wxDateTime started_;
+        wxTimer timer_;
+
+        wxListbook *book_ = nullptr;
+        wxTreeCtrl *tree_ = nullptr;
+        wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
+        wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
+        wxButton *launch_ = nullptr, *resume_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr;
+        wxCheckListBox *addon_list_ = nullptr;
+        wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
+        wxListBox *pack_list_ = nullptr;
+        wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
+        wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
+        wxCheckBox *fullscreen_ = nullptr;
+    };
+
+    class App : public wxApp
+    {
+    public:
+        bool OnInit() override
+        {
+            wxInitAllImageHandlers();
+            const fs::path here = P(wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath());
+            auto *frame = new Frame(find_root(here));
+            frame->Show();
+            if (argc > 1 && wxString(argv[1]) == "--check")
+                frame->SelfCheck();
+            return true;
+        }
+    };
+}
+
+wxIMPLEMENT_APP(App);

@@ -44,6 +44,7 @@ for f in "$@"; do
     old=$(grep -s "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" | cut -d' ' -f1 || true)
     [ "$new" = "$old" ] || changed=1
 done
+"$SRC/scripts/make-packs-json.sh"
 if [ $changed -eq 0 ]; then
     echo "$APP: checksums unchanged, still at the published build (next build will be $VER)"
     exit 0

@@ -156,6 +156,25 @@ namespace kosmos
             if (entry.is_directory() && fs::exists(entry.path() / "addon.json"))
                 folders.push_back(entry.path());
         std::sort(folders.begin(), folders.end());
+        // The launcher writes <user dir>/addons.json as {"disabled": ["addon-id", ...]}.
+        std::vector<std::string> disabled_addons;
+        {
+            const std::string user = user_dir();
+            std::ifstream list(user.empty() ? fs::path() : fs::path(user) / "addons.json");
+            if (list)
+            {
+                try
+                {
+                    nlohmann::json j;
+                    list >> j;
+                    disabled_addons = j.value("disabled", std::vector<std::string>());
+                }
+                catch (const std::exception &e)
+                {
+                    log(std::string("addons.json: ") + e.what());
+                }
+            }
+        }
         for (const fs::path &folder : folders)
         {
             std::ifstream in(folder / "addon.json");
@@ -172,6 +191,11 @@ namespace kosmos
             Addon addon;
             addon.directory = folder.string();
             addon.id = json.value("id", folder.filename().string());
+            if (std::find(disabled_addons.begin(), disabled_addons.end(), addon.id) != disabled_addons.end())
+            {
+                log("addon " + addon.id + " is disabled");
+                continue;
+            }
             addon.name = json.value("name", addon.id);
             addon.version = json.value("version", "0");
             for (const nlohmann::json &file : json.value("ships", nlohmann::json::array()))

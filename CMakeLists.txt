@@ -72,6 +72,8 @@ target_compile_definitions(kosmos PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HAND
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" KOSMOS_VERSION LIMIT_COUNT 1)
 target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
+# Shipped in the package so the launcher can tell which build is installed.
+file(WRITE "${CMAKE_BINARY_DIR}/VERSION.txt" "${KOSMOS_VERSION}\n")
 
 # Ship systems (power, consumables, pressure vessels) tests: cmake --build build --target systems_test && build/systems_test
 add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/part_kit.cpp src/universe.cpp
@@ -80,6 +82,55 @@ target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
+# ---- launcher -----------------------------------------------------------------------------------------------------
+# A separate wxWidgets program (no simlib) that picks a scenario and options and starts kosmos; see launcher/main.cpp.
+# Needs wxWidgets (Linux: libwxgtk3.2-dev; Windows: vcpkg wxwidgets). Without it the launcher is simply skipped.
+option(KOSMOS_BUILD_LAUNCHER "Build the kosmos-launcher front end" ON)
+set(KOSMOS_JSON_INCLUDE "")
+set(KOSMOS_PACKAGE_EXTRA_TARGETS "")
+if(TARGET simlib)
+    get_target_property(KOSMOS_JSON_INCLUDE simlib INTERFACE_INCLUDE_DIRECTORIES)
+else()
+    get_target_property(KOSMOS_JSON_INCLUDE simlib::simlib INTERFACE_INCLUDE_DIRECTORIES)
+endif()
+add_library(launcher_data STATIC EXCLUDE_FROM_ALL launcher/data.cpp)
+target_include_directories(launcher_data PUBLIC launcher PRIVATE ${KOSMOS_JSON_INCLUDE})
+add_executable(launcher_test EXCLUDE_FROM_ALL launcher/launcher_test.cpp)
+target_link_libraries(launcher_test PRIVATE launcher_data)
+target_compile_definitions(launcher_test PRIVATE KOSMOS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+if(KOSMOS_BUILD_LAUNCHER)
+    # wxWidgets 3.3 (vcpkg) ships a CMake config with wx::core targets; the system wxGTK 3.2 is found by FindwxWidgets.
+    # The vcpkg find_package wrapper for wxWidgets expects MSVC library names, so a mingw build includes the config directly.
+    if(WIN32 AND VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+        find_path(KOSMOS_WX_CONFIG_DIR wxWidgetsConfig.cmake PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/wxwidgets" NO_DEFAULT_PATH)
+        if(KOSMOS_WX_CONFIG_DIR)
+            include("${KOSMOS_WX_CONFIG_DIR}/wxWidgetsConfig.cmake")
+        endif()
+    else()
+        find_package(wxWidgets CONFIG QUIET COMPONENTS core base net)
+    endif()
+    if(TARGET wx::core)
+        set(KOSMOS_WX_LIBS wx::core wx::base wx::net)
+    elseif(NOT WIN32)
+        find_package(wxWidgets QUIET COMPONENTS core base net)
+        if(wxWidgets_FOUND)
+            include(${wxWidgets_USE_FILE})
+            set(KOSMOS_WX_LIBS ${wxWidgets_LIBRARIES})
+        endif()
+    endif()
+    if(KOSMOS_WX_LIBS)
+        add_executable(kosmos-launcher WIN32 launcher/main.cpp launcher/data.cpp)
+        target_include_directories(kosmos-launcher PRIVATE launcher ${KOSMOS_JSON_INCLUDE})
+        target_link_libraries(kosmos-launcher PRIVATE ${KOSMOS_WX_LIBS})
+        if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            target_link_options(kosmos-launcher PRIVATE -s)
+        endif()
+        set(KOSMOS_PACKAGE_EXTRA_TARGETS kosmos-launcher)
+    else()
+        message(STATUS "wxWidgets not found: kosmos-launcher will not be built")
+    endif()
+endif()
+
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-Linux.tar.gz        Windows: build/package/kosmos-beta-Windows.zip
@@ -87,5 +138,6 @@ target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAI
 # builds the separate hi-res pack.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
     ASSETS data addons assets
-    EXTRA_FILES README.md
+    EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
+    EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE "/data/orbiter(/|$)" "/data/textures-hires(/|$)" "/data/celestia/hires(/|$)")

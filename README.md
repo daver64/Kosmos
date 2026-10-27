@@ -12,6 +12,10 @@ Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) 
 
 Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source checkout instead.
 
+## Launcher
+
+`kosmos-launcher` (wxWidgets; on Linux install `libwxgtk3.2`) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them. `scripts/make-packs-json.sh` writes the pack list the launcher downloads from.
+
 ## Distributions
 
     scripts/build-linux.sh                          # build/package/kosmos-beta-Linux.tar.gz
