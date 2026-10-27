@@ -45,7 +45,7 @@
       "objects": [
         { "type": "road", "y": 0.2, "length": 280, "width": 14, "x": 420, "z": -35, "heading": 90 },
         { "type": "launch_pad", "size": 44, "x": 100, "z": 120 },
-        { "type": "launch_tower", "height": 70, "x": 72, "z": 120, "heading": 0 },
+        { "type": "launch_tower", "height": 70, "x": 78, "z": 120, "heading": 180 },
         { "type": "skyscraper", "width": 16, "number": 14, "x": -120, "z": -80 },
         { "type": "office", "width": 24, "depth": 14, "number": 5, "x": -90, "z": 50, "heading": 90 },
         { "type": "office", "width": 24, "depth": 14, "number": 4, "x": -90, "z": 90, "heading": 90 },

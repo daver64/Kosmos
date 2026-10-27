@@ -45,7 +45,7 @@
       "objects": [
         { "type": "road", "y": 0.2, "length": 280, "width": 14, "x": 420, "z": -35, "heading": 90 },
         { "type": "launch_pad", "size": 60, "x": -110, "z": 150 },
-        { "type": "launch_tower", "height": 100, "x": -144, "z": 150, "heading": 0 },
+        { "type": "launch_tower", "height": 100, "x": -132, "z": 150, "heading": 180 },
         { "type": "tank", "radius": 5, "height": 11, "count": 3, "x": -190, "z": 60, "step_z": 14 },
         { "type": "control_tower", "height": 26, "x": 60, "z": -80, "heading": 180 },
         { "type": "hangar", "width": 40, "depth": 48, "height": 16, "x": 140, "z": 30, "heading": 270 },

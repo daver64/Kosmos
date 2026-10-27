@@ -163,6 +163,76 @@ namespace kosmos
             return s;
         }
 
+        // Detail textures for rocks, loaded once and normalised to an even tone so the vertex colours still set the shade.
+        std::string &texture_root()
+        {
+            static std::string root;
+            return root;
+        }
+
+        sl::Bitmap *rock_texture(int index)
+        {
+            static const char *const names[] = {"Rock1", "Rock3", "Rock4", "Rock5", "Rock6", "Rock7", "Rock9", "SpeckledStone", "PebbledWall", "SmallRocks"};
+            constexpr int count = static_cast<int>(sizeof names / sizeof *names);
+            static sl::Bitmap *loaded[count] = {};
+            static bool tried[count] = {};
+            const int i = ((index % count) + count) % count;
+            if (tried[i])
+                return loaded[i];
+            tried[i] = true;
+            sl::Bitmap *bitmap = sl::load_bitmap((texture_root() + "/data/open-game-art/textures/random/" + names[i] + ".png").c_str());
+            if (!bitmap || bitmap->pixels.empty())
+                return nullptr;
+            double sum = 0.0;
+            for (std::size_t k = 0; k + 3 < bitmap->pixels.size(); k += 4)
+                sum += (bitmap->pixels[k] + bitmap->pixels[k + 1] + bitmap->pixels[k + 2]) / 3.0;
+            const double gain = 215.0 / std::max(sum / (static_cast<double>(bitmap->pixels.size()) / 4.0), 1.0);
+            for (std::size_t k = 0; k < bitmap->pixels.size(); ++k)
+                if (k % 4 != 3)
+                    bitmap->pixels[k] = static_cast<std::uint8_t>(std::clamp(215.0 + (bitmap->pixels[k] * gain - 215.0) * 1.8, 40.0, 255.0));
+            bitmap->smooth = true;
+            bitmap->mipmaps = true;
+            bitmap->anisotropy = 8.0f;
+            bitmap->ram_dirty = true;
+            loaded[i] = bitmap;
+            return bitmap;
+        }
+
+        // Gives a rock mesh UVs projected along whichever axis its surface faces, `tile` metres to a repeat, and one of the rock textures.
+        void texture_rock(sl::ClutterSpecies &s, int index, float tile)
+        {
+            sl::Bitmap *texture = rock_texture(index);
+            if (!texture)
+                return;
+            for (sl::Vertex3D &v : s.mesh.vertices)
+            {
+                const float ax = std::fabs(v.normal[0]), ay = std::fabs(v.normal[1]), az = std::fabs(v.normal[2]);
+                if (ay >= ax && ay >= az)
+                {
+                    v.uv[0] = v.position[0] / tile;
+                    v.uv[1] = v.position[2] / tile;
+                }
+                else if (ax >= az)
+                {
+                    v.uv[0] = v.position[2] / tile;
+                    v.uv[1] = v.position[1] / tile;
+                }
+                else
+                {
+                    v.uv[0] = v.position[0] / tile;
+                    v.uv[1] = v.position[1] / tile;
+                }
+            }
+            s.material.texture = texture;
+        }
+
+        sl::ClutterSpecies rock_species(sl::MeshData mesh, double size, int index, double density, float max_slope, float near_distance, float far_distance, std::uint32_t seed)
+        {
+            sl::ClutterSpecies s = species(std::move(mesh), density, max_slope, near_distance, far_distance, seed);
+            texture_rock(s, index, std::max(0.5f, static_cast<float>(size) * 0.7f));
+            return s;
+        }
+
         using Rule = std::function<double(const Ground &, const sl::TerrainSample &)>;
 
         void add(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, sl::ClutterSpecies s, Rule rule, float min_height = 1.5f)
@@ -235,7 +305,7 @@ namespace kosmos
                             53u + 7u * static_cast<std::uint32_t>(i)),
                     houses);
             add(layer, ground, species(sl::make_office_data(14.0f, 10.0f, 5, {170, 172, 176, 255}, 3u), 0.000006 * d, 6.0f, 400.0f, 2600.0f, 71u), blocks);
-            add(layer, ground, species(sl::make_rock_data(1.0f, rgb(body.colour, 0.55f), 3u), 0.0007 * d, 55.0f, 120.0f, 700.0f, 83u), stones);
+            add(layer, ground, rock_species(sl::make_rock_data(1.0f, rgb(body.colour, 0.55f), 3u), 1.0, 5, 0.0007 * d, 55.0f, 120.0f, 700.0f, 83u), stones);
         }
 
         void add_rocky(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, double density, const Body &body, bool outposts)
@@ -249,11 +319,11 @@ namespace kosmos
             const Rule boulders = [](const Ground &g, const sl::TerrainSample &s) {
                 return smooth(-0.1, 0.5, g.field(s.position, 1800.0, 9u)) * (0.4 + 0.6 * smooth(10.0, 35.0, s.slope_degrees));
             };
-            add(layer, ground, species(sl::make_rock_data(0.5f, stone, 1u), 0.0035 * d, 50.0f, 150.0f, 900.0f, 11u), field, -1.0e30f);
-            add(layer, ground, species(sl::make_rock_data(0.8f, dark, 2u), 0.0020 * d, 50.0f, 150.0f, 900.0f, 17u), field, -1.0e30f);
-            add(layer, ground, species(sl::make_rock_cluster_data(1.6f, stone, 3u), 0.0006 * d, 50.0f, 200.0f, 1400.0f, 23u), field, -1.0e30f);
-            add(layer, ground, species(sl::make_rock_data(3.5f, dark, 4u), 0.00025 * d, 55.0f, 300.0f, 2400.0f, 29u), boulders, -1.0e30f);
-            add(layer, ground, species(sl::make_rock_data(7.0f, stone, 5u), 0.00006 * d, 55.0f, 500.0f, 3600.0f, 37u), boulders, -1.0e30f);
+            add(layer, ground, rock_species(sl::make_rock_data(0.5f, stone, 1u), 0.5, 0, 0.0035 * d, 50.0f, 150.0f, 900.0f, 11u), field, -1.0e30f);
+            add(layer, ground, rock_species(sl::make_rock_data(0.8f, dark, 2u), 0.8, 1, 0.0020 * d, 50.0f, 150.0f, 900.0f, 17u), field, -1.0e30f);
+            add(layer, ground, rock_species(sl::make_rock_cluster_data(1.6f, stone, 3u), 1.6, 2, 0.0006 * d, 50.0f, 200.0f, 1400.0f, 23u), field, -1.0e30f);
+            add(layer, ground, rock_species(sl::make_rock_data(3.5f, dark, 4u), 3.5, 3, 0.00025 * d, 55.0f, 300.0f, 2400.0f, 29u), boulders, -1.0e30f);
+            add(layer, ground, rock_species(sl::make_rock_data(7.0f, stone, 5u), 7.0, 4, 0.00006 * d, 55.0f, 500.0f, 3600.0f, 37u), boulders, -1.0e30f);
             if (!outposts)
                 return;
 
@@ -515,7 +585,7 @@ namespace kosmos
                 add(layer, ground, species(make_alien_fronds(1.4f + 0.6f * v, vary_palette(pal, v + 3), 9u + v), 0.0016 * d, 40.0f, 90.0f, 900.0f, 233u + v), scrub);
                 add(layer, ground, species(make_alien_bulbs(1.0f + 0.5f * v, vary_palette(pal, v + 5), 13u + v), 0.0009 * d, 40.0f, 90.0f, 900.0f, 241u + v), scrub);
             }
-            add(layer, ground, species(sl::make_rock_data(0.9f, {118, 108, 98, 255}, 3u), 0.0007 * d, 55.0f, 120.0f, 700.0f, 251u), stones);
+            add(layer, ground, rock_species(sl::make_rock_data(0.9f, {118, 108, 98, 255}, 3u), 0.9, 6, 0.0007 * d, 55.0f, 120.0f, 700.0f, 251u), stones);
         }
     } // namespace
 
@@ -544,6 +614,7 @@ namespace kosmos
 
     std::unique_ptr<sl::ClutterLayer> make_clutter(const sl::Terrain &terrain, const ClutterWorld &world)
     {
+        texture_root() = world.root;
         if (!world.body)
             return nullptr;
         const Kind kind = kind_of(*world.body);

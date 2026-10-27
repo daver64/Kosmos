@@ -52,9 +52,9 @@
         {
           "type": "launch_tower",
           "height": 110,
-          "x": -26,
+          "x": -22,
           "z": 0,
-          "heading": 0
+          "heading": 180
         },
         {
           "type": "saturn_v",

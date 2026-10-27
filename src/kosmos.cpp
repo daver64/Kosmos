@@ -5366,6 +5366,7 @@ int main(int argc, char **argv)
                     world.zones = bt.clutter_zones;
                     world.land = bt.landclass;
                     world.density = clutter_density;
+                    world.root = sim.root();
                     bt.clutter = kosmos::make_clutter(*bt.terrain, world);
                     bt.clutter_density = clutter_density;
                 }

@@ -205,7 +205,7 @@ namespace kosmos
             const float hl = 0.5f * length, hw = 0.5f * width;
             quad(-hw, -hl, hw, hl, 0.0f, {58, 59, 64, 255});
             for (const float side : {-1.0f, 1.0f})
-                quad(side * (hw - 1.2f) - 0.15f, -hl + 2.0f, side * (hw - 1.2f) + 0.15f, hl - 2.0f, 0.02f, {225, 225, 222, 255});
+                quad(side * (hw - 1.2f) - 0.15f, -hl + 2.0f, side * (hw - 1.2f) + 0.15f, hl - 2.0f, 0.06f, {225, 225, 222, 255});
             const sl::Colour white{235, 235, 232, 255};
             for (const float end : {-1.0f, 1.0f})
             {
@@ -213,15 +213,51 @@ namespace kosmos
                 for (int i = 0; i < 8; ++i)
                 {
                     const float x = (static_cast<float>(i) - 3.5f) * (width * 0.9f / 8.0f);
-                    quad(x - 0.7f, std::min(z0, z1), x + 0.7f, std::max(z0, z1), 0.02f, white);
+                    quad(x - 0.7f, std::min(z0, z1), x + 0.7f, std::max(z0, z1), 0.06f, white);
                 }
             }
             const int dashes = std::max(1, static_cast<int>((length - 160.0f) / 50.0f));
             for (int i = 0; i < dashes; ++i)
             {
                 const float z = -hl + 80.0f + (static_cast<float>(i) + 0.5f) * (length - 160.0f) / static_cast<float>(dashes);
-                quad(-0.5f, z - 15.0f, 0.5f, z + 15.0f, 0.02f, white);
+                quad(-0.5f, z - 15.0f, 0.5f, z + 15.0f, 0.06f, white);
             }
+            return m;
+        }
+
+        // One PAPI light unit: a small box with a lens facing along +Z, white so the draw tint colours it.
+        sl::MeshData make_papi_unit()
+        {
+            sl::MeshData m;
+            const float hx = 0.6f, hz = 0.4f, h = 0.7f;
+            const auto face = [&](const float (&p)[4][3], float nx, float ny, float nz)
+            {
+                const std::uint32_t first = static_cast<std::uint32_t>(m.vertices.size());
+                for (int i = 0; i < 4; ++i)
+                {
+                    sl::Vertex3D v;
+                    v.position[0] = p[i][0];
+                    v.position[1] = p[i][1];
+                    v.position[2] = p[i][2];
+                    v.normal[0] = nx;
+                    v.normal[1] = ny;
+                    v.normal[2] = nz;
+                    v.colour[0] = v.colour[1] = v.colour[2] = 1.0f;
+                    m.vertices.push_back(v);
+                }
+                for (const std::uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
+                    m.indices.push_back(first + i);
+            };
+            const float front[4][3] = {{-hx, 0, hz}, {hx, 0, hz}, {hx, h, hz}, {-hx, h, hz}};
+            const float back[4][3] = {{hx, 0, -hz}, {-hx, 0, -hz}, {-hx, h, -hz}, {hx, h, -hz}};
+            const float top[4][3] = {{-hx, h, hz}, {hx, h, hz}, {hx, h, -hz}, {-hx, h, -hz}};
+            const float left[4][3] = {{hx, 0, hz}, {hx, 0, -hz}, {hx, h, -hz}, {hx, h, hz}};
+            const float right[4][3] = {{-hx, 0, -hz}, {-hx, 0, hz}, {-hx, h, hz}, {-hx, h, -hz}};
+            face(front, 0, 0, 1);
+            face(back, 0, 0, -1);
+            face(top, 0, 1, 0);
+            face(left, 1, 0, 0);
+            face(right, -1, 0, 0);
             return m;
         }
 
@@ -626,7 +662,7 @@ namespace kosmos
             if (o.type == "landing_pad")
             {
                 reach = std::max(o.radius > 0.0 ? o.radius : 15.0, 4.0);
-                deck = 0.24 + o.y - 0.04;
+                deck = 0.42 + o.y - 0.04;
                 return true;
             }
             return false;
@@ -1073,6 +1109,49 @@ namespace kosmos
                 model[2] = glm::vec4(glm::vec3(pforward), 0.0f);
                 model[3] = glm::vec4(glm::vec3(position + pf.up * 0.25 - eye), 1.0f);
                 sl::draw_mesh(mesh, model, paved_.count(mesh) ? paved_material : material);
+                if (base.body == "Earth")
+                {
+                    // PAPI beside each landing threshold: four units that turn from white to red as the approach drops below the 3 degree slope.
+                    sl::Mesh *&unit = meshes_["papi"];
+                    if (!unit)
+                    {
+                        const sl::MeshData data = make_papi_unit();
+                        unit = sl::create_mesh(data.vertices, data.indices);
+                    }
+                    sl::Material lamp = material;
+                    lamp.lit = false;
+                    const double hl = 0.5 * rw.length, hw = 0.5 * rw.width;
+                    for (const double d : {1.0, -1.0})
+                    {
+                        const double along_runway = -d * hl + d * 300.0;
+                        const sl::dvec3 approach = pforward * d;
+                        for (int k = 0; k < 4; ++k)
+                        {
+                            const double lateral = -d * (hw + 15.0 + 9.0 * (3 - k));
+                            const sl::dvec3 at = position + pf.up * 0.25 + pforward * along_runway + pright * lateral;
+                            const sl::dvec3 rel = eye - at;
+                            const double distance = glm::length(rel), behind = -glm::dot(rel, approach);
+                            if (distance > 12000.0)
+                                continue;
+                            bool white = false;
+                            // Seen from behind or the side the lamps are dark.
+                            bool lit_lamp = behind > 5.0 && behind > 0.5 * std::fabs(glm::dot(rel, pright * d));
+                            if (lit_lamp)
+                            {
+                                const double elevation = std::atan2(glm::dot(rel, pf.up), behind) * 180.0 / pi;
+                                white = elevation > 2.5 + 0.333 * k;
+                            }
+                            lamp.tint = !lit_lamp ? sl::Colour{60, 60, 60, 255} : white ? sl::Colour{255, 255, 245, 255} : sl::Colour{255, 30, 20, 255};
+                            const float s = static_cast<float>(std::clamp(distance / 500.0, 1.0, 8.0));
+                            glm::mat4 lamp_model(1.0f);
+                            lamp_model[0] = glm::vec4(glm::vec3(-pright) * s, 0.0f);
+                            lamp_model[1] = glm::vec4(glm::vec3(pf.up) * s, 0.0f);
+                            lamp_model[2] = glm::vec4(glm::vec3(pforward) * s, 0.0f);
+                            lamp_model[3] = glm::vec4(glm::vec3(at - eye), 1.0f);
+                            sl::draw_mesh(unit, lamp_model, lamp);
+                        }
+                    }
+                }
             }
             for (const BaseObject &o : base.objects)
             {
