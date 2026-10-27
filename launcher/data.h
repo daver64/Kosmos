@@ -52,10 +52,14 @@ namespace launcher
     std::string installed_version(const fs::path &root);
 
     // The graphics keys of Kosmos's settings.json (gfx-style 0-2, gfx-clouds 0/1, gfx-light-radius, gfx-max-fps,
-    // gfx-terrain-detail 0-3, gfx-earth-relief 0/1). Missing keys come back at their defaults; saving keeps every other key in the file.
+    // gfx-terrain-detail 0-3, gfx-earth-relief 0/1, weather 0/1, weather-source procedural/live, weather-rain 0/1). Missing keys come back at their defaults; saving keeps every other key in the file.
     struct GraphicsSettings
     {
         int style = 0, clouds = 1, light_radius = 8000, max_fps = 60, terrain_detail = 1, earth_relief = 0;
+        // Weather: on or off, live NOAA reports for Earth instead of procedural ones, and whether rain is drawn.
+        int weather = 1, weather_live = 0, weather_rain = 1;
+        // A preset id (auto, clear, scattered, overcast, rain, fog, storm or custom) and the METAR line used by custom.
+        std::string weather_preset = "auto", weather_metar;
     };
     GraphicsSettings load_graphics(const fs::path &settings_file);
     bool save_graphics(const fs::path &settings_file, const GraphicsSettings &g);

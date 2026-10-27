@@ -79,9 +79,13 @@ int main()
         g.clouds = 0;
         g.max_fps = 30;
         g.earth_relief = 1;
+        g.weather = 0;
+        g.weather_live = 1;
+        g.weather_preset = "custom";
+        g.weather_metar = "KOSM 011200Z 27015KT 9999 FEW040 15/10 Q1015";
         CHECK(save_graphics(tmp, g));
         const GraphicsSettings back = load_graphics(tmp);
-        CHECK(back.style == 1 && back.clouds == 0 && back.max_fps == 30 && back.earth_relief == 1);
+        CHECK(back.style == 1 && back.clouds == 0 && back.max_fps == 30 && back.earth_relief == 1 && back.weather == 0 && back.weather_live == 1 && back.weather_rain == 1 && back.weather_preset == "custom" && back.weather_metar.rfind("KOSM", 0) == 0);
         std::ifstream in(tmp);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         CHECK(text.find("\"volume\": 33") != std::string::npos);

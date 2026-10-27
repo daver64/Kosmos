@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace kosmos
 {
@@ -17,11 +18,21 @@ namespace kosmos
      * /sim/settings/weather-source is "live" and the simulation clock is near the real one. Each frame the flown ship's
      * conditions are published under /environment and the planet's wind is set for the flight model.
      *
-     * Settings: /sim/settings/weather (bool), /sim/settings/weather-source ("procedural" or "live").
+     * Settings: /sim/settings/weather (bool), /sim/settings/weather-source ("procedural" or "live"), /sim/settings/weather-preset
+     * ("auto", a preset id or "custom") and /sim/settings/weather-metar (the line "custom" uses). A scenario's /sim/weather-force wins over all of them.
      */
+    /** A ready-made set of conditions the player can pick instead of the simulated weather. */
+    struct WeatherPreset
+    {
+        const char *id, *label, *metar;
+    };
+
     class Weather
     {
     public:
+        /** Clear, scattered cloud, overcast, rain, fog and storm; /sim/settings/weather-preset also takes "auto" (simulated weather) and "custom" (the METAR in /sim/settings/weather-metar). */
+        static const std::vector<WeatherPreset> &presets();
+
         void init(const std::string &root, const std::string &user_dir, sl::PropertyTree &props);
 
         /** Call once a frame with the flown ship's body, position over it (degrees), altitude (m) and the simulated seconds elapsed. */
@@ -51,5 +62,8 @@ namespace kosmos
         double wet_ = 0.0, clock_ = 0.0;
         int last_body_ = -1, wind_body_ = -1;
         double unix_now_ = 0.0;
+        std::string forced_text_;
+        bool forced_valid_ = false;
+        Conditions forced_;
     };
 }

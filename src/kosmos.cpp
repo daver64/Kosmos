@@ -3,6 +3,7 @@
 #include "flight.h"
 #include "example_fx.h"
 #include "sim.h"
+#include "lightning.h"
 #include "lua_console.h"
 #include "joystick.h"
 #include "menu.h"
@@ -232,6 +233,7 @@ namespace
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
         sim.clear_ships();
+        sim.props.set_string("/sim/weather-force", sc.weather);
         if (!sc.life_support.empty())
             sim.life_support = kosmos::parse_life_support(sc.life_support, sim.life_support);
         const int home = sim.universe.home_id();
@@ -432,6 +434,8 @@ namespace
         return sim.active_ship();
     }
 
+    void apply_sets(sl::PropertyTree &props, const std::vector<std::string> &sets);
+
     int run_selftest(Sim &sim, const Options &options)
     {
         Ship *ship = start_scenario(sim, options, TerrainSet());
@@ -440,6 +444,7 @@ namespace
             std::fprintf(stderr, "No Kestrel addon found under %s\n", sim.root().c_str());
             return 1;
         }
+        apply_sets(sim.props, options.sets);
         const double dt = std::getenv("KOSMOS_SELFTEST_DT") ? std::atof(std::getenv("KOSMOS_SELFTEST_DT")) : 0.05;
         double next_report = 0.0;
         for (double t = 0.0; t < options.selftest; t += dt)
@@ -749,6 +754,137 @@ namespace
                     indices.push_back(k);
             }
         return sl::create_mesh(vertices, indices);
+    }
+
+    // The cloud deck over the flown ship: rings and segments of a spherical layer centred under the eye, fine near it. Cover comes
+    // from world-fixed noise (so clouds stay put as you fly and drift with the wind). `centre` is the planet centre relative to the eye.
+    constexpr int deck_rings = 56, deck_segments = 96;
+    sl::Mesh *make_cloud_deck_mesh()
+    {
+        std::vector<sl::Vertex3D> vertices((deck_rings + 1) * (deck_segments + 1));
+        std::vector<std::uint32_t> indices;
+        for (int i = 0; i < deck_rings; ++i)
+            for (int j = 0; j < deck_segments; ++j)
+            {
+                const std::uint32_t a = i * (deck_segments + 1) + j, b = a + deck_segments + 1;
+                for (const std::uint32_t k : {a, b, a + 1, a + 1, b, b + 1})
+                    indices.push_back(k);
+            }
+        return sl::create_mesh(vertices, indices);
+    }
+
+    void update_cloud_deck(sl::Mesh *mesh, const sl::dvec3 &centre, const sl::dvec3 &up, const glm::dquat &orientation, double radius, double layer_altitude,
+                           double eye_altitude, double cover, double drift_east, double sun_up, bool raining)
+    {
+        const double layer_radius = radius + layer_altitude;
+        const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), up));
+        const sl::dvec3 e2 = glm::cross(up, e1);
+        const glm::dquat inverse = glm::inverse(orientation);
+        const double reach = 60.0e3; // metres along the layer
+        const double lo = 0.62 - 0.5 * cover, hi = lo + 0.12;
+        const double daylight = fx::smoothstep(-0.12, 0.3, sun_up);
+        const double below = eye_altitude < layer_altitude ? 1.0 : 0.0;
+        const double brightness = (0.12 + 0.88 * daylight) * (raining ? 0.62 : 0.92) * (below > 0.0 ? 0.82 : 1.0);
+        // The sheet fades away as the eye passes through it, and thins out toward the top of the atmosphere.
+        const double through = fx::smoothstep(0.0, 120.0, std::fabs(eye_altitude - layer_altitude));
+        const double high = 1.0 - fx::smoothstep(60.0e3, 100.0e3, eye_altitude);
+        const double shift = drift_east / layer_radius;
+        std::vector<sl::Vertex3D> vertices;
+        vertices.reserve((deck_rings + 1) * (deck_segments + 1));
+        for (int i = 0; i <= deck_rings; ++i)
+        {
+            const double t = static_cast<double>(i) / deck_rings;
+            const double theta = reach * t * t / layer_radius;
+            const double edge = 1.0 - fx::smoothstep(0.55, 1.0, t);
+            for (int j = 0; j <= deck_segments; ++j)
+            {
+                const double phi = 2.0 * pi * j / deck_segments;
+                const sl::dvec3 dir = up * std::cos(theta) + (e1 * std::cos(phi) + e2 * std::sin(phi)) * std::sin(theta);
+                const sl::dvec3 pos = centre + dir * layer_radius;
+                sl::dvec3 b = inverse * dir;
+                // Drifting with the wind is a turn about the spin axis.
+                const double c = std::cos(shift), s = std::sin(shift);
+                b = {b.x * c - b.z * s, b.y, b.x * s + b.z * c};
+                const double density = fx::smoothstep(lo, hi, fx::detail::sphere_fbm(b, 2200.0, 5, 9001));
+                sl::Vertex3D v;
+                for (int k = 0; k < 3; ++k)
+                {
+                    v.position[k] = static_cast<float>(pos[k]);
+                    v.normal[k] = static_cast<float>(up[k]);
+                    v.colour[k] = static_cast<float>(brightness);
+                }
+                v.colour[3] = static_cast<float>(density * edge * through * high * 0.92);
+                vertices.push_back(v);
+            }
+        }
+        sl::update_mesh_vertices(mesh, vertices);
+    }
+
+    // Rain: a box of streaks around the eye. Each drop moves with the velocity of the air-borne water relative to the eye (fall plus wind
+    // minus the ship's own motion), so it streaks past at the right angle and speed, with depth: near drops are big and fast.
+    constexpr int rain_capacity = 4000;
+    sl::Mesh *make_rain_mesh()
+    {
+        std::vector<sl::Vertex3D> vertices(rain_capacity * 4);
+        std::vector<std::uint32_t> indices;
+        for (int i = 0; i < rain_capacity; ++i)
+            for (const std::uint32_t k : {0u, 1u, 2u, 2u, 1u, 3u})
+                indices.push_back(static_cast<std::uint32_t>(i * 4) + k);
+        return sl::create_mesh(vertices, indices);
+    }
+
+    void update_rain_mesh(sl::Mesh *mesh, const sl::dvec3 &up, const sl::dvec3 &relative_velocity, sl::dvec3 &offset, double dt, double intensity, double daylight)
+    {
+        const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), up));
+        const sl::dvec3 e2 = glm::cross(up, e1);
+        // Express the motion in the (e1, e2, up) frame so the drop field keeps a fixed orientation about the local vertical.
+        const sl::dvec3 v(glm::dot(relative_velocity, e1), glm::dot(relative_velocity, e2), glm::dot(relative_velocity, up));
+        constexpr double half = 15.0;
+        offset += v * dt;
+        for (int k = 0; k < 3; ++k)
+            offset[k] = std::fmod(offset[k], 2.0 * half);
+        const int count = static_cast<int>(rain_capacity * std::clamp(intensity, 0.0, 1.0));
+        const auto hash = [](int i, double salt) { const double x = std::sin(i * 12.9898 + salt * 78.233) * 43758.5453; return x - std::floor(x); };
+        const double speed = glm::length(relative_velocity);
+        const double streak = std::clamp(speed * 0.03, 0.25, 5.0);
+        const sl::dvec3 trail = speed > 1.0e-3 ? -relative_velocity / speed * streak : sl::dvec3(0.0, 0.0, 0.0);
+        const float shade = static_cast<float>(0.35 + 0.55 * daylight);
+        std::vector<sl::Vertex3D> vertices(rain_capacity * 4);
+        for (int i = 0; i < rain_capacity; ++i)
+        {
+            sl::Vertex3D *quad = &vertices[static_cast<std::size_t>(i) * 4];
+            if (i >= count)
+                continue;
+            sl::dvec3 q;
+            for (int k = 0; k < 3; ++k)
+            {
+                double c = hash(i, k + 1.0) * 2.0 * half + offset[k];
+                c = std::fmod(c + 4.0 * half, 2.0 * half) - half;
+                q[k] = c;
+            }
+            const sl::dvec3 head = e1 * q.x + e2 * q.y + up * q.z;
+            const double distance = glm::length(head);
+            if (distance < 0.6)
+                continue;
+            const sl::dvec3 tail = head + trail * (0.6 + 0.8 * hash(i, 5.0));
+            const sl::dvec3 side = glm::normalize(glm::cross(tail - head, head)) * std::max(0.006, distance * 0.0016);
+            const float fade = static_cast<float>(std::clamp(1.0 - distance / (half * 1.2), 0.0, 1.0) * std::clamp((distance - 0.6) / 2.0, 0.0, 1.0));
+            const sl::dvec3 corners[4] = {head - side, head + side, tail - side, tail + side};
+            for (int c = 0; c < 4; ++c)
+            {
+                for (int k = 0; k < 3; ++k)
+                {
+                    quad[c].position[k] = static_cast<float>(corners[c][k]);
+                    quad[c].normal[k] = static_cast<float>(up[k]);
+                }
+                quad[c].colour[0] = 0.78f * shade;
+                quad[c].colour[1] = 0.84f * shade;
+                quad[c].colour[2] = 0.95f * shade;
+                // The tail end fades out so a streak reads as motion rather than a rod.
+                quad[c].colour[3] = fade * (c < 2 ? 0.8f : 0.1f);
+            }
+        }
+        sl::update_mesh_vertices(mesh, vertices);
     }
 
     // Fills the limb mesh. rel is the planet centre relative to the eye. Each ring is a ray grazing the planet at a given
@@ -1224,6 +1360,26 @@ namespace
         return dir.empty() ? std::string() : (dir / "kosmos" / "settings.json").string();
     }
 
+    // --set path=value: numbers and true/false get their own types, anything else is a string.
+    void apply_sets(sl::PropertyTree &props, const std::vector<std::string> &sets)
+    {
+        for (const std::string &assignment : sets)
+        {
+            const std::size_t eq = assignment.find('=');
+            if (eq == std::string::npos)
+                continue;
+            const std::string path = assignment.substr(0, eq), value = assignment.substr(eq + 1);
+            char *end = nullptr;
+            const double number = std::strtod(value.c_str(), &end);
+            if (value == "true" || value == "false")
+                props.set_bool(path, value == "true");
+            else if (end && *end == 0 && !value.empty())
+                props.set_double(path, number);
+            else
+                props.set_string(path, value);
+        }
+    }
+
     // Settings live in the property tree under /sim/settings so scripts and the F4 browser see them too.
     void settings_defaults(sl::PropertyTree &props)
     {
@@ -1239,7 +1395,10 @@ namespace
         props.set_int("/sim/settings/gfx-style", 0);
         props.set_bool("/sim/settings/gfx-clouds", true);
         props.set_bool("/sim/settings/weather", true);
+        props.set_bool("/sim/settings/weather-rain", true);
         props.set_string("/sim/settings/weather-source", "procedural");
+        props.set_string("/sim/settings/weather-preset", "auto");
+        props.set_string("/sim/settings/weather-metar", "");
         props.set_int("/sim/settings/gfx-light-radius", 8000);
         props.set_int("/sim/settings/gfx-max-fps", 60);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
@@ -1274,6 +1433,12 @@ namespace
             props.set_bool("/sim/settings/gfx-earth-relief", j["gfx-earth-relief"].get<bool>());
         if (j.contains("weather") && j["weather"].is_boolean())
             props.set_bool("/sim/settings/weather", j["weather"].get<bool>());
+        if (j.contains("weather-rain") && j["weather-rain"].is_boolean())
+            props.set_bool("/sim/settings/weather-rain", j["weather-rain"].get<bool>());
+        if (j.contains("weather-preset") && j["weather-preset"].is_string())
+            props.set_string("/sim/settings/weather-preset", j["weather-preset"].get<std::string>());
+        if (j.contains("weather-metar") && j["weather-metar"].is_string())
+            props.set_string("/sim/settings/weather-metar", j["weather-metar"].get<std::string>());
         if (j.contains("weather-source") && j["weather-source"].is_string())
             props.set_string("/sim/settings/weather-source", j["weather-source"].get<std::string>() == "live" ? "live" : "procedural");
         if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
@@ -1297,6 +1462,9 @@ namespace
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
         j["weather"] = props.get_bool("/sim/settings/weather", true);
+        j["weather-preset"] = props.get_string("/sim/settings/weather-preset", "auto");
+        j["weather-metar"] = props.get_string("/sim/settings/weather-metar", "");
+        j["weather-rain"] = props.get_bool("/sim/settings/weather-rain", true);
         j["weather-source"] = props.get_string("/sim/settings/weather-source", "procedural");
         j["gfx-earth-relief"] = props.get_bool("/sim/settings/gfx-earth-relief");
         std::error_code ec;
@@ -2495,6 +2663,10 @@ namespace
     struct Visuals
     {
         std::vector<sl::Mesh *> limb_pool;
+        sl::Mesh *bolt_mesh = nullptr; // the lightning bolt, rebuilt each frame it shows
+        sl::Mesh *rain_mesh = nullptr; // falling rain: camera-facing streaks in the space around the eye
+        sl::dvec3 rain_offset{0.0};
+        sl::Mesh *local_cloud = nullptr; // the weather cloud deck below 100 km, rebuilt every frame
         sl::Mesh *sphere = nullptr, *glow = nullptr, *quad = nullptr, *cloud_shell = nullptr, *starfield = nullptr,  *tail = nullptr, *screen_quad = nullptr, *cockpit_box = nullptr;
         std::vector<sl::Mesh *> rings;
         std::vector<sl::Mesh *> body_cloud_meshes;
@@ -3704,6 +3876,7 @@ int main(int argc, char **argv)
             std::fprintf(stderr, "unknown --hud mode '%s' (off, orbit, surface, docking)\n", options.hud.c_str());
     }
     EngineSound sound;
+    kosmos::Lightning lightning;
     bool sound_on = true, first_frame = true, show_orbit = true, show_info = options.show_info && !options.hide_info, running = true, shot_saved = false, map_mode = options.map;
     MapView map;
     GalaxyView gview;
@@ -3720,21 +3893,7 @@ int main(int argc, char **argv)
     bool cockpit_view = options.cockpit;
     if (!options.target.empty())
         sim.props.set_string("/sim/target", options.target);
-    for (const std::string &assignment : options.sets)
-    {
-        const std::size_t eq = assignment.find('=');
-        if (eq == std::string::npos)
-            continue;
-        const std::string path = assignment.substr(0, eq), value = assignment.substr(eq + 1);
-        char *end = nullptr;
-        const double number = std::strtod(value.c_str(), &end);
-        if (value == "true" || value == "false")
-            sim.props.set_bool(path, value == "true");
-        else if (end && *end == 0 && !value.empty())
-            sim.props.set_double(path, number);
-        else
-            sim.props.set_string(path, value);
-    }
+    apply_sets(sim.props, options.sets);
     int mfd_display = options.mfd_display;
     // In the 2D cockpit the MFDs are the dashboard by default; F5 steps dashboard, heads-up, off.
     int cockpit_mfd = 0;
@@ -3999,6 +4158,7 @@ int main(int argc, char **argv)
     sl::Event event_discard;
     loading.note("Settling the terrain");
     double clock = 0.0;
+    double lightning_flash = 0.0;
     std::uint32_t last_time = sl::time_ms();
     // The engine's own limiter only sleeps when vsync is off, so turn it off and let simlib pace the frames.
     sl::set_vsync(false);
@@ -4483,6 +4643,11 @@ int main(int argc, char **argv)
                 part_status = "Reloaded the edited mesh";
         }
         sim.step(frame);
+        {
+            const bool storms = sim.props.get_bool("/sim/settings/weather", true) && sim.props.get_bool("/sim/settings/weather-rain", true);
+            const double thunder = storms && sim.current_warp() <= 4.0 ? sim.props.get_double("/environment/thunder") : 0.0;
+            lightning.update(frame, thunder, sim.props.get_bool("/sim/settings/sound") ? 0.9 : 0.0);
+        }
         lua_console.tick(frame);
         ship = sim.active_ship();
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
@@ -5490,6 +5655,101 @@ int main(int argc, char **argv)
                 draw_parts(vis, *gspec, std::min<int>(g.state.stage, last), last, gmodel);
             }
 
+            // Weather clouds: a layer at the reported cloud base over the flown ship, below 100 km only.
+            if (props.get_bool("/sim/settings/weather", true) && props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0 && !map_mode)
+            {
+                const kosmos::Telemetry &wt = ship->telemetry();
+                const double cover = props.get_double("/environment/cloud-cover");
+                if (wt.soi >= 0 && wt.soi < static_cast<int>(universe.bodies.size()) && cover > 0.04 && wt.altitude < 100.0e3 && universe.bodies[static_cast<std::size_t>(wt.soi)].atmosphere_density > 0.0)
+                {
+                    const kosmos::Body &wb = universe.bodies[static_cast<std::size_t>(wt.soi)];
+                    const sl::dvec3 centre_world = universe.position(wt.soi);
+                    const sl::dvec3 from_centre = eye_world - centre_world;
+                    const double eye_distance = glm::length(from_centre);
+                    const sl::dvec3 local_up = from_centre / eye_distance;
+                    const double eye_alt = eye_distance - wb.radius;
+                    const double ground = eye_alt - wt.altitude;
+                    const double layer = ground + std::max(150.0, props.get_double("/environment/cloud-base", 1500.0));
+                    if (!vis.local_cloud)
+                        vis.local_cloud = make_cloud_deck_mesh();
+                    update_cloud_deck(vis.local_cloud, centre_world - eye_world, local_up, universe.orientation(wt.soi), wb.radius, layer, eye_alt, cover,
+                                      props.get_double("/environment/wind-east") * universe.time(), glm::dot(local_up, sl::dvec3(to_sun)), props.get_double("/environment/rain") > 0.1);
+                    sl::Material deck;
+                    deck.lit = false;
+                    deck.fog = false;
+                    deck.cull = sl::CullMode::none;
+                    deck.blend = sl::MaterialBlend::alpha;
+                    sl::draw_mesh(vis.local_cloud, glm::mat4(1.0f), deck);
+                }
+            }
+
+            // Falling rain in the air around the camera, below the cloud base.
+            if (props.get_bool("/sim/settings/weather", true) && props.get_bool("/sim/settings/weather-rain", true) && gfx_style == 0 && !map_mode)
+            {
+                const kosmos::Telemetry &rt = ship->telemetry();
+                const double rain = props.get_double("/environment/rain");
+                if (rain > 0.02 && rt.soi >= 0 && rt.soi < static_cast<int>(universe.bodies.size()) && rt.altitude < std::max(props.get_double("/environment/cloud-base", 3000.0), 1500.0))
+                {
+                    const sl::dvec3 from_centre = eye_world - universe.position(rt.soi);
+                    const sl::dvec3 local_up = glm::normalize(from_centre);
+                    const sl::dvec3 air_v = universe.world.air_velocity_at(ship->body().position);
+                    const sl::dvec3 fall = -local_up * 9.0;
+                    const sl::dvec3 relative = air_v - ship->body().velocity + fall;
+                    if (!vis.rain_mesh)
+                        vis.rain_mesh = make_rain_mesh();
+                    update_rain_mesh(vis.rain_mesh, local_up, relative, vis.rain_offset, frame, std::min(1.0, rain * 1.1), fx::smoothstep(-0.12, 0.3, glm::dot(local_up, sl::dvec3(to_sun))));
+                    sl::Material drops;
+                    drops.lit = false;
+                    drops.fog = false;
+                    drops.cull = sl::CullMode::none;
+                    drops.blend = sl::MaterialBlend::alpha;
+                    sl::draw_mesh(vis.rain_mesh, glm::mat4(1.0f), drops);
+                }
+            }
+
+            // Lightning: the flash is drawn over the finished scene, the bolt here from the cloud base to the ground.
+            lightning_flash = lightning.flash();
+            {
+                const kosmos::Telemetry &lt = ship->telemetry();
+                const double cloud_agl = props.get_double("/environment/cloud-base", 1500.0);
+                if (lt.soi >= 0 && lt.soi < static_cast<int>(universe.bodies.size()) && lt.altitude < cloud_agl && lt.altitude < 20.0e3)
+                {
+                    const sl::dvec3 up = glm::normalize(eye_world - universe.position(lt.soi));
+                    const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), up));
+                    const sl::dvec3 e2 = glm::cross(up, e1);
+                    std::vector<sl::Vertex3D> local(static_cast<std::size_t>(kosmos::Lightning::bolt_quads) * 4);
+                    const int used = lightning.bolt_vertices(-lt.altitude, cloud_agl - lt.altitude, local.data(), kosmos::Lightning::bolt_quads);
+                    if (used > 0)
+                    {
+                        if (!vis.bolt_mesh)
+                        {
+                            std::vector<sl::Vertex3D> blank(local.size());
+                            std::vector<std::uint32_t> indices;
+                            for (int i = 0; i < kosmos::Lightning::bolt_quads; ++i)
+                                for (const std::uint32_t k : {0u, 1u, 2u, 2u, 1u, 3u})
+                                    indices.push_back(static_cast<std::uint32_t>(i * 4) + k);
+                            vis.bolt_mesh = sl::create_mesh(blank, indices);
+                        }
+                        for (std::size_t i = 0; i < local.size(); ++i)
+                        {
+                            const glm::dvec3 p = e1 * static_cast<double>(local[i].position[0]) + e2 * static_cast<double>(local[i].position[1]) + up * static_cast<double>(local[i].position[2]);
+                            for (int k = 0; k < 3; ++k)
+                            {
+                                local[i].position[k] = static_cast<float>(p[k]);
+                                local[i].normal[k] = static_cast<float>(up[k]);
+                            }
+                        }
+                        sl::update_mesh_vertices(vis.bolt_mesh, local);
+                        sl::Material bolt;
+                        bolt.lit = false;
+                        bolt.fog = false;
+                        bolt.cull = sl::CullMode::none;
+                        bolt.blend = sl::MaterialBlend::additive;
+                        sl::draw_mesh(vis.bolt_mesh, glm::mat4(1.0f), bolt);
+                    }
+                }
+            }
+
             // The bulbs themselves: a small bright core with a soft halo, drawn facing the camera.
             if (!lamps.empty())
             {
@@ -5929,22 +6189,12 @@ int main(int argc, char **argv)
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
         }
+        if (lightning_flash > 0.02 && !map_mode && !galaxy_mode)
         {
-            const double rain = props.get_double("/environment/rain");
-            const double alt_m = props.get_double("/environment/cloud-base", 3000.0);
-            if (rain > 0.02 && !map_mode && !galaxy_mode && !dashboard && ship->telemetry().altitude < std::max(alt_m, 1500.0))
-            {
-                const int drops = static_cast<int>(40 + 360 * std::min(1.0, rain));
-                const float slant = static_cast<float>(std::min(40.0, props.get_double("/environment/wind-speed") * 2.0));
-                const float fall = std::min(1.0f, static_cast<float>(ship->telemetry().altitude / 200.0 + 0.3));
-                for (int i = 0; i < drops; ++i)
-                {
-                    const float u = std::fmod(static_cast<float>(i) * 0.61803f + 0.13f, 1.0f);
-                    const float v = std::fmod(static_cast<float>(i) * 0.38197f * 7.0f + static_cast<float>(clock) * (1.6f + 0.7f * std::fmod(static_cast<float>(i) * 0.37f, 1.0f)), 1.0f);
-                    const int x = static_cast<int>(u * screen_w), y = static_cast<int>(v * screen_h);
-                    sl::line(sl::screen, x, y, x - static_cast<int>(slant * 0.5f), y + static_cast<int>(12 + 14 * fall), {150, 165, 185});
-                }
-            }
+            sl::set_blend_mode(sl::BlendMode::additive);
+            sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
+                         {static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 70.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 75.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 95.0), 255});
+            sl::set_blend_mode(sl::BlendMode::normal);
         }
         if (!options.hide_info && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
             sl::gprintf_center(screen_h - 40, {170, 205, 235}, "Wind %03.0f/%.0f m/s  rain %.0f%%  cloud %.0f%%  vis %.1f km   %s%s",
@@ -6158,6 +6408,42 @@ int main(int argc, char **argv)
                             ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
                         flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
                         flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
+                        flag("Rain", "/sim/settings/weather-rain", "Draw falling rain");
+                        {
+                            const auto &presets = kosmos::Weather::presets();
+                            const std::string cur = props.get_string("/sim/settings/weather-preset", "auto");
+                            std::string label = cur == "auto" ? "Automatic" : cur == "custom" ? "Custom METAR" : cur;
+                            for (const auto &p : presets)
+                                if (cur == p.id)
+                                    label = p.label;
+                            ImGui::SetNextItemWidth(160.0f);
+                            if (ImGui::BeginCombo("Weather preset", label.c_str()))
+                            {
+                                if (ImGui::Selectable("Automatic", cur == "auto"))
+                                    props.set_string("/sim/settings/weather-preset", "auto");
+                                for (const auto &p : presets)
+                                    if (ImGui::Selectable(p.label, cur == p.id))
+                                        props.set_string("/sim/settings/weather-preset", p.id);
+                                if (ImGui::Selectable("Custom METAR", cur == "custom"))
+                                    props.set_string("/sim/settings/weather-preset", "custom");
+                                ImGui::EndCombo();
+                            }
+                            if (cur == "custom")
+                            {
+                                static char metar[256] = "";
+                                static bool loaded = false;
+                                if (!loaded)
+                                {
+                                    std::snprintf(metar, sizeof metar, "%s", props.get_string("/sim/settings/weather-metar", "").c_str());
+                                    loaded = true;
+                                }
+                                ImGui::SetNextItemWidth(360.0f);
+                                if (ImGui::InputText("METAR", metar, sizeof metar))
+                                    props.set_string("/sim/settings/weather-metar", metar);
+                                if (!props.get_bool("/environment/metar-valid", true))
+                                    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "Not a valid METAR (needs station and time, e.g. KOSM 011200Z 27015G25KT 3SM TS BKN010)");
+                            }
+                        }
                         {
                             const bool live_now = props.get_string("/sim/settings/weather-source", "procedural") == "live";
                             if (ImGui::RadioButton("Procedural weather", !live_now))
@@ -6804,9 +7090,16 @@ int main(int argc, char **argv)
     }
     settings_save(sim.props);
     sl::gui_shutdown();
+    lightning.release();
     sound.stop();
     vis.clear_parts();
     leave_system();
+    if (vis.local_cloud)
+        sl::destroy_mesh(vis.local_cloud);
+    if (vis.rain_mesh)
+        sl::destroy_mesh(vis.rain_mesh);
+    if (vis.bolt_mesh)
+        sl::destroy_mesh(vis.bolt_mesh);
     for (sl::Mesh *m : vis.limb_pool)
         sl::destroy_mesh(m);
     for (sl::Mesh *m : {vis.sphere, vis.glow, vis.quad, vis.starfield, vis.tail})

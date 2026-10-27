@@ -27,6 +27,7 @@ namespace kosmos
             out.system = json.value("system", "");
             out.life_support = json.value("life_support", "");
             out.fullscreen = json.value("fullscreen", false);
+            out.weather = json.value("weather", "");
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -128,6 +129,8 @@ namespace kosmos
             json["life_support"] = sc.life_support;
         if (sc.fullscreen)
             json["fullscreen"] = true;
+        if (!sc.weather.empty())
+            json["weather"] = sc.weather;
         if (!sc.nav.empty())
             json["nav"] = sc.nav;
         if (sc.epoch_jd > 0.0)

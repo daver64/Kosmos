@@ -666,6 +666,14 @@ namespace
                 gfx_style_->Append(s);
             gfx_clouds_ = new wxCheckBox(page, wxID_ANY, "Clouds");
             gfx_relief_ = new wxCheckBox(page, wxID_ANY, "Earth relief and sea glint from orbit (slower)");
+            weather_ = new wxCheckBox(page, wxID_ANY, "Weather (wind, rain, cloud and visibility)");
+            weather_live_ = new wxCheckBox(page, wxID_ANY, "Real weather for Earth (NOAA METARs, downloaded at most hourly)");
+            weather_rain_ = new wxCheckBox(page, wxID_ANY, "Draw rain");
+            weather_preset_ = new wxChoice(page, wxID_ANY);
+            for (const char *s : {"Automatic (simulated or real)", "Clear skies", "Scattered cloud", "Overcast", "Rain", "Fog", "Thunderstorm", "Custom METAR"})
+                weather_preset_->Append(s);
+            weather_metar_ = new wxTextCtrl(page, wxID_ANY);
+            weather_metar_->SetHint("e.g. KOSM 011200Z 27015G25KT 3SM TS BKN010CB 15/12 Q1005");
             gfx_terrain_ = new wxChoice(page, wxID_ANY);
             for (const char *s : {"Ultra", "High", "Medium", "Low"})
                 gfx_terrain_->Append(s);
@@ -679,12 +687,17 @@ namespace
             row("Render style", gfx_style_);
             row("", gfx_clouds_);
             row("", gfx_relief_);
+            row("Weather", weather_);
+            row("", weather_live_);
+            row("", weather_rain_);
+            row("Weather preset", weather_preset_);
+            row("Custom METAR", weather_metar_);
             row("Terrain detail", gfx_terrain_);
             row("Base light radius (m)", gfx_radius_);
             row("Maximum frame rate", gfx_fps_);
             auto *col = new wxBoxSizer(wxVERTICAL);
             col->Add(grid, 0, wxEXPAND | wxALL, 12);
-            col->Add(new wxStaticText(page, wxID_ANY, "For slow or software graphics (such as VNC) choose Flat shaded or Wireframe, switch clouds off and lower the terrain detail and light radius. These are saved in Kosmos's settings and can also be changed in game (F3)."), 0, wxALL, 12);
+            col->Add(new wxStaticText(page, wxID_ANY, "For slow or software graphics (such as VNC) choose Flat shaded or Wireframe, switch clouds and weather off and lower the terrain detail and light radius. These are saved in Kosmos's settings and can also be changed in game (F3)."), 0, wxALL, 12);
             page->SetSizer(col);
             book_->AddPage(page, "Graphics");
             ShowGraphics();
@@ -693,6 +706,11 @@ namespace
             gfx_terrain_->Bind(wxEVT_CHOICE, sync);
             gfx_clouds_->Bind(wxEVT_CHECKBOX, sync);
             gfx_relief_->Bind(wxEVT_CHECKBOX, sync);
+            weather_->Bind(wxEVT_CHECKBOX, [this, sync](wxCommandEvent &e) { UpdateWeatherEnabled(); sync(e); });
+            weather_live_->Bind(wxEVT_CHECKBOX, sync);
+            weather_rain_->Bind(wxEVT_CHECKBOX, sync);
+            weather_preset_->Bind(wxEVT_CHOICE, [this, sync](wxCommandEvent &e) { UpdateWeatherEnabled(); sync(e); });
+            weather_metar_->Bind(wxEVT_TEXT, sync);
             gfx_radius_->Bind(wxEVT_SLIDER, sync);
             gfx_fps_->Bind(wxEVT_SLIDER, sync);
         }
@@ -704,10 +722,35 @@ namespace
             gfx_style_->SetSelection(g.style);
             gfx_clouds_->SetValue(g.clouds != 0);
             gfx_relief_->SetValue(g.earth_relief != 0);
+            weather_->SetValue(g.weather != 0);
+            weather_live_->SetValue(g.weather_live != 0);
+            weather_rain_->SetValue(g.weather_rain != 0);
+            int preset = 0;
+            for (std::size_t i = 0; i < weather_preset_ids().size(); ++i)
+                if (g.weather_preset == weather_preset_ids()[i])
+                    preset = static_cast<int>(i);
+            weather_preset_->SetSelection(preset);
+            weather_metar_->ChangeValue(g.weather_metar);
+            UpdateWeatherEnabled();
             gfx_terrain_->SetSelection(g.terrain_detail);
             gfx_radius_->SetValue(g.light_radius);
             gfx_fps_->SetValue(g.max_fps);
             loading_ = false;
+        }
+
+        void UpdateWeatherEnabled()
+        {
+            const bool on = weather_->GetValue();
+            weather_live_->Enable(on);
+            weather_rain_->Enable(on);
+            weather_preset_->Enable(on);
+            weather_metar_->Enable(on && weather_preset_->GetSelection() == static_cast<int>(weather_preset_ids().size()) - 1);
+        }
+
+        static const std::vector<std::string> &weather_preset_ids()
+        {
+            static const std::vector<std::string> ids = {"auto", "clear", "scattered", "overcast", "rain", "fog", "storm", "custom"};
+            return ids;
         }
 
         void WriteGraphics()
@@ -718,6 +761,11 @@ namespace
             g.style = std::max(0, gfx_style_->GetSelection());
             g.clouds = gfx_clouds_->GetValue() ? 1 : 0;
             g.earth_relief = gfx_relief_->GetValue() ? 1 : 0;
+            g.weather = weather_->GetValue() ? 1 : 0;
+            g.weather_live = weather_live_->GetValue() ? 1 : 0;
+            g.weather_rain = weather_rain_->GetValue() ? 1 : 0;
+            g.weather_preset = weather_preset_ids()[static_cast<std::size_t>(std::max(0, weather_preset_->GetSelection()))];
+            g.weather_metar = weather_metar_->GetValue().ToStdString();
             g.terrain_detail = std::max(0, gfx_terrain_->GetSelection());
             g.light_radius = gfx_radius_->GetValue();
             g.max_fps = gfx_fps_->GetValue();
@@ -1072,7 +1120,9 @@ namespace
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
-        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr, *gfx_relief_ = nullptr;
+        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr, *gfx_relief_ = nullptr, *weather_ = nullptr, *weather_live_ = nullptr, *weather_rain_ = nullptr;
+        wxChoice *weather_preset_ = nullptr;
+        wxTextCtrl *weather_metar_ = nullptr;
         wxChoice *gfx_style_ = nullptr, *gfx_terrain_ = nullptr;
         wxSlider *gfx_radius_ = nullptr, *gfx_fps_ = nullptr;
     };

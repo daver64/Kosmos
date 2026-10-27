@@ -230,7 +230,10 @@ namespace kosmos
             if (group.find("GR") != std::string::npos || group.find("GS") != std::string::npos)
                 c.rain = std::max(c.rain, 1.0);
             if (group.find("TS") != std::string::npos)
+            {
                 c.rain = std::max(c.rain, 0.8);
+                c.thunder = 1.0;
+            }
             if (group.find("FG") != std::string::npos)
                 visibility = std::min(visibility, 800.0);
             if (group.find("BR") != std::string::npos || group.find("HZ") != std::string::npos || group.find("FU") != std::string::npos)
@@ -270,6 +273,7 @@ namespace kosmos
         c.wind_north = mix(a.wind_north, b.wind_north);
         c.gust = mix(a.gust, b.gust);
         c.rain = mix(a.rain, b.rain);
+        c.thunder = mix(a.thunder, b.thunder);
         c.cloud_cover = mix(a.cloud_cover, b.cloud_cover);
         c.cloud_base = mix(a.cloud_base, b.cloud_base);
         c.cloud_top = mix(a.cloud_top, b.cloud_top);

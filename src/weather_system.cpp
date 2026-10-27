@@ -25,11 +25,25 @@ namespace kosmos
         }
     }
 
+    const std::vector<WeatherPreset> &Weather::presets()
+    {
+        static const std::vector<WeatherPreset> list = {
+            {"clear", "Clear skies", "KOSM 011200Z 18004KT CAVOK 20/08 Q1018"},
+            {"scattered", "Scattered cloud", "KOSM 011200Z 27008KT 9999 FEW040 SCT250 17/08 Q1015"},
+            {"overcast", "Overcast", "KOSM 011200Z 24010KT 8000 OVC012 11/09 Q1008"},
+            {"rain", "Rain", "KOSM 011200Z 21014G24KT 4000 RA BKN012 OVC020 10/08 Q1002"},
+            {"fog", "Fog", "KOSM 011200Z 00000KT 0300 FG VV002 06/06 Q1021"},
+            {"storm", "Thunderstorm", "KOSM 011200Z 24022G42KT 1500 +TSRA BKN008CB OVC015 12/11 Q0990"},
+        };
+        return list;
+    }
+
     void Weather::init(const std::string &root, const std::string &user_dir, sl::PropertyTree &props)
     {
         root_ = root;
         if (!props.exists("/sim/settings/weather"))
             props.set_bool("/sim/settings/weather", true);
+        props.set_bool("/environment/metar-valid", true);
         if (!props.exists("/sim/settings/weather-source"))
             props.set_string("/sim/settings/weather-source", "procedural");
         if (!user_dir.empty())
@@ -97,7 +111,7 @@ namespace kosmos
         const auto clear_wind = [&] {
             if (wind_body_ >= 0)
                 if (sl::FlightBody *fb = universe.world.body(wind_body_))
-                    fb->wind = sl::dvec3(0.0);
+                    fb->wind_field = nullptr;
             wind_body_ = -1;
         };
         WeatherField *field = props.get_bool("/sim/settings/weather", true) ? ensure(universe, body) : nullptr;
@@ -149,36 +163,71 @@ namespace kosmos
             }
         }
 
-        const Conditions c = field->sample(latitude, longitude);
-        // Wind grows with height above the ground, doubling by three kilometres, and gusts come and go.
-        const double lift = 1.0 + std::clamp(altitude, 0.0, 3000.0) / 3000.0;
-        clock_ += dt;
-        const double t = unix_now_;
-        const double gust = std::max(0.0, std::sin(t * 0.61) + 0.7 * std::sin(t * 1.73 + 1.3) + 0.4 * std::sin(t * 4.1 + 0.4)) / 2.1;
-        double east = c.wind_east, north = c.wind_north;
-        const double speed = std::hypot(east, north);
-        if (speed > 0.01)
+        std::string forced = props.get_string("/sim/weather-force", "");
+        if (forced.empty())
         {
-            const double extra = c.gust * gust;
-            east += east / speed * extra;
-            north += north / speed * extra;
+            const std::string preset = props.get_string("/sim/settings/weather-preset", "auto");
+            if (preset == "custom")
+                forced = props.get_string("/sim/settings/weather-metar", "");
+            else
+                for (const WeatherPreset &p : presets())
+                    if (preset == p.id)
+                        forced = p.metar;
         }
-        east *= lift;
-        north *= lift;
+        if (forced != forced_text_)
+        {
+            forced_text_ = forced;
+            Metar m;
+            forced_valid_ = !forced.empty() && decode_metar(forced, m);
+            props.set_bool("/environment/metar-valid", forced.empty() || forced_valid_);
+            if (forced_valid_)
+                forced_ = conditions_from(m);
+        }
+        const Conditions c = forced_valid_ ? forced_ : field->sample(latitude, longitude);
+        const double t = unix_now_;
+        clock_ += dt;
+        // Wind at a place and height: grows with height above the ground, doubling by three kilometres, with gusts that come and go.
+        const auto wind_at = [field, t, forced_valid = forced_valid_, forced = forced_](double lat, double lon, double alt, double &east, double &north) {
+            const Conditions w = forced_valid ? forced : field->sample(lat, lon);
+            const double lift = 1.0 + std::clamp(alt, 0.0, 3000.0) / 3000.0;
+            const double gust = std::max(0.0, std::sin(t * 0.61) + 0.7 * std::sin(t * 1.73 + 1.3) + 0.4 * std::sin(t * 4.1 + 0.4)) / 2.1;
+            east = w.wind_east;
+            north = w.wind_north;
+            const double speed = std::hypot(east, north);
+            if (speed > 0.01)
+            {
+                east += east / speed * w.gust * gust;
+                north += north / speed * w.gust * gust;
+            }
+            east *= lift;
+            north *= lift;
+        };
+        double east = 0.0, north = 0.0;
+        wind_at(latitude, longitude, altitude, east, north);
         current_ = c;
         current_.wind_east = east;
         current_.wind_north = north;
 
-        // To the world frame: body frame has +Y up the spin axis, east is -sin(lon), 0, -cos(lon).
-        const double la = latitude * deg, lo = longitude * deg;
-        const sl::dvec3 e(-std::sin(lo), 0.0, -std::cos(lo));
-        const sl::dvec3 n(-std::sin(la) * std::cos(lo), std::cos(la), std::sin(la) * std::sin(lo));
-        const sl::dvec3 world_wind = universe.orientation(body) * (e * east + n * north);
+        // Every ship on the planet feels the wind at its own position. Body frame has +Y up the spin axis; east is (-sin lon, 0, -cos lon).
         if (wind_body_ != body)
             clear_wind();
         if (sl::FlightBody *fb = universe.world.body(body))
         {
-            fb->wind = world_wind;
+            const auto orientation = universe.orientation(body);
+            const auto inverse = glm::inverse(orientation);
+            const double radius = fb->radius;
+            fb->wind_field = [wind_at, orientation, inverse, radius](const sl::dvec3 &offset) {
+                const double r = glm::length(offset);
+                if (r < 1.0)
+                    return sl::dvec3(0.0);
+                const sl::dvec3 b = inverse * (offset / r);
+                const double la = std::asin(std::clamp(b.y, -1.0, 1.0)), lo = std::atan2(-b.z, b.x);
+                double e = 0.0, n = 0.0;
+                wind_at(la / deg, lo / deg, r - radius, e, n);
+                const sl::dvec3 east_axis(-std::sin(lo), 0.0, -std::cos(lo));
+                const sl::dvec3 north_axis(-std::sin(la) * std::cos(lo), std::cos(la), std::sin(la) * std::sin(lo));
+                return orientation * (east_axis * e + north_axis * n);
+            };
             wind_body_ = body;
         }
 
@@ -197,6 +246,7 @@ namespace kosmos
         const double now_speed = std::hypot(east, north);
         props.set_double("/environment/wind-speed", now_speed);
         props.set_double("/environment/wind-from", now_speed > 0.01 ? std::fmod(std::atan2(-east, -north) / deg + 360.0, 360.0) : 0.0);
+        props.set_double("/environment/thunder", current_.thunder);
         props.set_double("/environment/rain", c.rain);
         props.set_double("/environment/wetness", wet_);
         props.set_double("/environment/cloud-cover", c.cloud_cover);
@@ -206,7 +256,16 @@ namespace kosmos
         props.set_double("/environment/temperature", c.temperature);
         props.set_double("/environment/pressure", c.pressure);
         double distance = 0.0;
-        if (const WeatherStation *s = field->nearest(latitude, longitude, &distance))
+        if (forced_valid_)
+        {
+            Metar m;
+            decode_metar(forced_text_, m);
+            props.set_string("/environment/station", m.station);
+            props.set_string("/environment/metar", forced_text_);
+            props.set_double("/environment/station-distance", 0.0);
+            props.set_bool("/environment/live", false);
+        }
+        else if (const WeatherStation *s = field->nearest(latitude, longitude, &distance))
         {
             props.set_string("/environment/station", s->id);
             props.set_string("/environment/metar", s->line);

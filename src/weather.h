@@ -43,6 +43,7 @@ namespace kosmos
     {
         double wind_east = 0.0, wind_north = 0.0; // m/s, the direction the air moves toward
         double gust = 0.0;                        // extra m/s the wind can briefly add
+        double thunder = 0.0;                     // 0 none, 1 a thunderstorm overhead (lightning)
         double rain = 0.0;                        // 0 dry, about 0.3 light, 0.6 moderate, 1 heavy or worse
         double cloud_cover = 0.0;                 // 0 clear to 1 overcast
         double cloud_base = 3000.0;               // metres above the ground

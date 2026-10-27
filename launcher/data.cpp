@@ -523,6 +523,14 @@ namespace launcher
         g.max_fps = clamped(j, "gfx-max-fps", g.max_fps, 10, 240);
         g.terrain_detail = clamped(j, "gfx-terrain-detail", g.terrain_detail, 0, 3);
         g.earth_relief = clamped(j, "gfx-earth-relief", g.earth_relief, 0, 1);
+        g.weather = clamped(j, "weather", g.weather, 0, 1);
+        g.weather_rain = clamped(j, "weather-rain", g.weather_rain, 0, 1);
+        if (j.is_object() && j.contains("weather-source") && j["weather-source"].is_string())
+            g.weather_live = j["weather-source"].get<std::string>() == "live" ? 1 : 0;
+        if (j.is_object() && j.contains("weather-preset") && j["weather-preset"].is_string())
+            g.weather_preset = j["weather-preset"].get<std::string>();
+        if (j.is_object() && j.contains("weather-metar") && j["weather-metar"].is_string())
+            g.weather_metar = j["weather-metar"].get<std::string>();
         return g;
     }
 
@@ -537,6 +545,11 @@ namespace launcher
         j["gfx-max-fps"] = g.max_fps;
         j["gfx-terrain-detail"] = g.terrain_detail;
         j["gfx-earth-relief"] = g.earth_relief != 0;
+        j["weather"] = g.weather != 0;
+        j["weather-rain"] = g.weather_rain != 0;
+        j["weather-source"] = g.weather_live ? "live" : "procedural";
+        j["weather-preset"] = g.weather_preset;
+        j["weather-metar"] = g.weather_metar;
         std::error_code ec;
         fs::create_directories(settings_file.parent_path(), ec);
         std::ofstream out(settings_file);

@@ -75,6 +75,7 @@ add_executable(kosmos
     src/netplay.cpp
     src/weather.cpp
     src/weather_live.cpp
+    src/lightning.cpp
     src/weather_system.cpp
     src/TextEditor.cpp)
 target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS})

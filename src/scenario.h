@@ -51,6 +51,8 @@ namespace kosmos
         std::string system;
         /** "off", "warn" or "fatal": what failing life support does to the crew. Empty keeps the setting. */
         std::string life_support;
+        /** A METAR line that sets the weather everywhere (e.g. "XXXX 011200Z 27025G40KT 2000 +RA BKN008 08/07 Q0995"); empty uses the normal weather. */
+        std::string weather;
         /** Start in desktop fullscreen. */
         bool fullscreen = false;
         std::vector<double> nav;
