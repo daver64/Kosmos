@@ -79,6 +79,8 @@ add_executable(kosmos
     src/landclass.cpp
     src/terrain_clutter.cpp
     src/weather_system.cpp
+    src/eva.cpp
+    src/eva_solids.cpp
     src/TextEditor.cpp)
 target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS})
 # Live weather downloads: WinHTTP on Windows (always present), libcurl where it is installed, otherwise live weather is off.

@@ -25,6 +25,8 @@ namespace kosmos
         std::function<void()> screenshot;
         std::function<void()> toggle_recording;
         std::function<bool()> recording;
+        std::function<void()> toggle_eva;     // leave the ship on foot, or board the nearest one
+        std::function<bool()> on_foot;
         std::function<void(int)> show_panel; // switch to the flown ship's 2D panel with this index
     };
 

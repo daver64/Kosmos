@@ -13,6 +13,8 @@
 #include "planet_bake.h"
 #include "blender_edit.h"
 #include "usercam.h"
+#include "eva.h"
+#include "eva_solids.h"
 
 #include <algorithm>
 #include <chrono>
@@ -101,7 +103,7 @@ namespace
         double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
-        bool hide_info = false, show_info = false, no_clouds = false, no_clutter = false, perf = false;
+        bool hide_info = false, show_info = false, no_clouds = false, no_clutter = false, perf = false, eva = false, eva_walk = false;
         std::string hud;
         bool no_relief = false;
         std::string blender;
@@ -3201,6 +3203,10 @@ int main(int argc, char **argv)
             options.no_clouds = true;
         else if (!std::strcmp(argv[i], "--no-clutter"))
             options.no_clutter = true;
+        else if (!std::strcmp(argv[i], "--eva-walk"))
+            options.eva = options.eva_walk = true;
+        else if (!std::strcmp(argv[i], "--eva"))
+            options.eva = true;
         else if (!std::strcmp(argv[i], "--perf"))
             options.perf = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
@@ -3980,6 +3986,8 @@ int main(int argc, char **argv)
     int quantum_selected = -1;
     gview.refresh(sim.galaxy, sim.system_index());
     bool cockpit_view = options.cockpit;
+    kosmos::Astronaut eva;
+    bool mouse_captured = false;
     if (!options.target.empty())
         sim.props.set_string("/sim/target", options.target);
     apply_sets(sim.props, options.sets);
@@ -4062,6 +4070,7 @@ int main(int argc, char **argv)
     const Ship *mfd_ship = nullptr;
     std::string mfd_ship_id;
     float look_yaw = 0.0f, look_pitch = 0.0f;
+    double eva_look_yaw = 0.0, eva_look_pitch = 0.0;
     sl::dvec3 eye_shift{0.0}; // the pilot's head moved from the seat with the arrow keys and Page Up/Down, in the ship's frame
     const Ship *eye_ship = nullptr;
     if (options.map_scale > 0.0)
@@ -4140,8 +4149,95 @@ int main(int argc, char **argv)
     {
         vis.clear_parts();
         ship = start_scenario(sim, options, terrain_set);
+        eva.active = false;
         cam_distance = ship->spec().camera_distance;
     };
+    auto terrain_of = [&](int body) -> const sl::Terrain *
+    {
+        for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+            if (bt->body == body)
+                return bt->terrain.get();
+        return nullptr;
+    };
+    // The ship nearest the astronaut's eye, by index, and how far away its origin is.
+    auto nearest_ship = [&](double &distance) -> int
+    {
+        int best = -1;
+        distance = 1.0e30;
+        const sl::dvec3 eye = eva.eye_world(sim.universe);
+        for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            const double d = glm::length(sim.ship(i)->origin() - eye);
+            if (d < distance)
+                distance = d, best = i;
+        }
+        return best;
+    };
+    auto board_ship = [&](bool force)
+    {
+        double distance = 0.0;
+        const int best = nearest_ship(distance);
+        if (best < 0 || (!force && distance > 30.0))
+        {
+            sim.log("Too far from a ship to board: go within 30 m");
+            return;
+        }
+        eva.active = false;
+        sim.activate(best);
+        ship = sim.active_ship();
+        cam_distance = ship->spec().camera_distance;
+        look_yaw = look_pitch = 0.0f;
+        sim.log("Back aboard " + ship->name);
+    };
+    auto toggle_eva = [&]()
+    {
+        if (eva.active)
+        {
+            board_ship(false);
+            return;
+        }
+        Ship *flown = sim.active_ship();
+        if (!flown)
+            return;
+        const kosmos::Telemetry &t = flown->telemetry();
+        if (t.soi < 0 || t.soi >= static_cast<int>(sim.universe.bodies.size()))
+            return;
+        const sl::FlightBody &fb = flown->body();
+        if (!t.landed && sim.universe.world.air_density_at(fb.position) > 0.01)
+        {
+            sim.log("Land before leaving the ship");
+            return;
+        }
+        const sl::dvec3 origin = flown->origin();
+        const sl::dvec3 centre = sim.universe.position(t.soi);
+        const sl::dvec3 up = glm::normalize(origin - centre);
+        const double reach = std::clamp(flown->spec().camera_distance * 0.25, 4.0, 25.0);
+        sl::dvec3 side = fb.direction_to_world(sl::dvec3(-1.0, 0.0, 0.0));
+        sl::dvec3 spot;
+        if (t.landed)
+        {
+            side -= up * glm::dot(side, up);
+            side = glm::length(side) > 1e-6 ? glm::normalize(side) : glm::normalize(glm::cross(sim.universe.pole(t.soi), up));
+            spot = origin + side * reach;
+        }
+        else
+        {
+            side = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+            spot = origin + side * (reach * 0.5);
+        }
+        eva.suit = kosmos::Suit();
+        eva.leave(sim.universe, t.soi, spot, fb.velocity + side * (t.landed ? 0.0 : 0.3), origin - spot, terrain_of(t.soi), t.landed);
+        eva.home_ship = sim.props.get_int("/sim/active-ship");
+        sim.props.set_bool("/autopilot/enabled", false);
+        sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_double("/controls/hover", 0.0);
+        cockpit_view = cockpit3d = false;
+        interior_cam = base_view = user_cam = -1;
+        eva_look_yaw = eva_look_pitch = 0.0;
+        sim.log("On foot: Enter near the ship to board");
+    };
+    menu_actions.toggle_eva = toggle_eva;
+    menu_actions.on_foot = [&]() { return eva.active; };
     menu_actions.show_panel = [&](int index)
     {
         const auto panels = sim.active_ship()->spec().cockpit.panels_2d();
@@ -4330,6 +4426,7 @@ int main(int argc, char **argv)
             if (jump_to_star_orbit && !flown_name.empty())
                 options.ship_name = flown_name;
             ship = start_scenario(sim, options, terrain_set);
+            eva.active = false;
             if (!ship)
                 break;
             cam_distance = ship->spec().camera_distance;
@@ -4364,6 +4461,12 @@ int main(int argc, char **argv)
                 menu_actions.start_scenario(chosen);
             }
             options.test_scenario.clear();
+        }
+        if (options.eva && clock > 1.0)
+        {
+            options.eva = false;
+            if (!eva.active)
+                toggle_eva();
         }
         if (options.test_jump >= 0 && clock > 1.0)
         {
@@ -4412,7 +4515,23 @@ int main(int argc, char **argv)
                 {
                     vis.clear_parts();
                     ship = start_scenario(sim, options, terrain_set);
+                    eva.active = false;
                     cam_distance = ship->spec().camera_distance;
+                }
+                else if (eva.active && (key == sl::Event::Key::letter_z || key == sl::Event::Key::letter_x || key == sl::Event::Key::space || key == sl::Event::Key::letter_p ||
+                                        key == sl::Event::Key::letter_t || key == sl::Event::Key::letter_g || key == sl::Event::Key::letter_l || key == sl::Event::Key::letter_u ||
+                                        key == sl::Event::Key::keypad_0 || key == sl::Event::Key::keypad_period || key == sl::Event::Key::letter_c || key == sl::Event::Key::letter_v ||
+                                        key == sl::Event::Key::letter_h || key == sl::Event::Key::letter_j))
+                {
+                    // On foot these ship keys do nothing; Space jumps and is read as a held key.
+                }
+                else if (eva.active && !map_mode && key == sl::Event::Key::letter_f)
+                {
+                    if (eva.suit.jetpack)
+                    {
+                        eva.pack = !eva.pack;
+                        sim.log(eva.pack ? "Manoeuvring pack on" : "Manoeuvring pack off");
+                    }
                 }
                 else if (key == sl::Event::Key::letter_z)
                 {
@@ -4489,6 +4608,8 @@ int main(int argc, char **argv)
                     galaxy_mode = !galaxy_mode;
                 else if ((key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter) && (sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)))
                     sl::toggle_fullscreen();
+                else if (!galaxy_mode && !map_mode && (key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter))
+                    toggle_eva();
                 else if (galaxy_mode && key == sl::Event::Key::arrow_right)
                     gview.step_selection(1);
                 else if (galaxy_mode && key == sl::Event::Key::arrow_left)
@@ -4616,29 +4737,33 @@ int main(int argc, char **argv)
         // Keyboard controls write the property tree; scripts and the cockpit use the same paths.
         const double throttle_rate = 0.5 * frame;
         const double throttle = props.get_double("/controls/throttle");
-        if (!typing && sl::key_down(sl::Key::left_shift))
+        const bool on_foot = eva.active;
+        const bool eva_moving = on_foot && !typing &&
+                                (options.eva_walk || sl::key_down(sl::Key::letter_w) || sl::key_down(sl::Key::letter_a) || sl::key_down(sl::Key::letter_s) || sl::key_down(sl::Key::letter_d) ||
+                                 sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control));
+        if (!typing && !on_foot && sl::key_down(sl::Key::left_shift))
             props.set_double("/controls/throttle", std::min(1.0, throttle + throttle_rate));
-        if (!typing && sl::key_down(sl::Key::left_control))
+        if (!typing && !on_foot && sl::key_down(sl::Key::left_control))
         {
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", std::max(0.0, throttle - throttle_rate));
         }
         const double hover = props.get_double("/controls/hover");
-        if (!typing && sl::key_down(sl::Key::keypad_plus))
+        if (!typing && !on_foot && sl::key_down(sl::Key::keypad_plus))
             props.set_double("/controls/hover", std::min(1.0, hover + throttle_rate));
-        if (!typing && sl::key_down(sl::Key::keypad_minus))
+        if (!typing && !on_foot && sl::key_down(sl::Key::keypad_minus))
             props.set_double("/controls/hover", std::max(0.0, hover - throttle_rate));
         for (; options.shot_stages > 0; --options.shot_stages)
             ship->stage_once();
         if (options.shot_throttle >= 0.0)
             props.set_double("/controls/throttle", options.shot_throttle);
-        auto axis = [typing](sl::Key plus, sl::Key minus) { return typing ? 0.0 : (sl::key_down(plus) ? 1.0 : 0.0) - (sl::key_down(minus) ? 1.0 : 0.0); };
+        auto axis = [typing, on_foot](sl::Key plus, sl::Key minus) { return typing || on_foot ? 0.0 : (sl::key_down(plus) ? 1.0 : 0.0) - (sl::key_down(minus) ? 1.0 : 0.0); };
         props.set_double("/controls/pitch", axis(sl::Key::letter_s, sl::Key::letter_w));
         props.set_double("/controls/yaw", axis(sl::Key::letter_a, sl::Key::letter_d));
         props.set_double("/controls/roll", axis(sl::Key::letter_q, sl::Key::letter_e));
-        props.set_double("/controls/brake", !typing && sl::key_down(sl::Key::letter_b) ? 1.0 : 0.0);
+        props.set_double("/controls/brake", !typing && !on_foot && sl::key_down(sl::Key::letter_b) ? 1.0 : 0.0);
         // In the cockpit the arrow keys move the head instead of firing RCS translation.
-        const bool head_keys = !typing && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
+        const bool head_keys = !typing && !on_foot && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
         if (eye_ship != ship || !cockpit_view)
         {
             eye_ship = ship;
@@ -4656,7 +4781,7 @@ int main(int argc, char **argv)
         props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis(sl::Key::arrow_up, sl::Key::arrow_down));
         if (joystick.learning())
             joystick.poll_learn();
-        else if (!typing)
+        else if (!typing && !on_foot)
         {
             const kosmos::JoyResult joy = joystick.update(ship->spec().aircraft());
             for (const auto &[action, value] : joy.axes)
@@ -4718,6 +4843,9 @@ int main(int argc, char **argv)
         netplay.lobby_update(net_ui.advertise, net_ui.title);
         if (netplay.shared())
             props.set_int("/sim/warp-index", 0);
+        // Standing still on the ground you can warp time; moving or floating holds it at 1x.
+        else if (eva.active && (eva_moving || !eva.grounded || eva.speed > 0.3) && props.get_int("/sim/warp-index") > 0)
+            props.set_int("/sim/warp-index", 0);
 
         if (edit_paused && !blender_edit.active())
         {
@@ -4741,6 +4869,72 @@ int main(int argc, char **argv)
         }
         lua_console.tick(frame);
         ship = sim.active_ship();
+        if (eva.active)
+        {
+            kosmos::EvaInput in;
+            double yaw = eva_look_yaw, pitch = eva_look_pitch;
+            eva_look_yaw = eva_look_pitch = 0.0;
+            if (!typing)
+            {
+                auto held = [](sl::Key k) { return sl::key_down(k) ? 1.0 : 0.0; };
+                in.forward = held(sl::Key::letter_w) - held(sl::Key::letter_s);
+                in.right = held(sl::Key::letter_d) - held(sl::Key::letter_a);
+                const bool ctrl = sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control);
+                in.jump = ctrl;
+                in.crouch = sl::key_down(sl::Key::space);
+                in.up = (ctrl ? 1.0 : 0.0) - held(sl::Key::space);
+                in.run = sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift);
+                yaw += (held(sl::Key::arrow_left) - held(sl::Key::arrow_right)) * 1.8 * frame;
+                pitch += (held(sl::Key::arrow_up) - held(sl::Key::arrow_down)) * 1.2 * frame;
+                in.roll = (held(sl::Key::letter_q) - held(sl::Key::letter_e)) * 1.2 * frame;
+            }
+            if (options.eva_walk)
+            {
+                in.forward = 1.0;
+                in.run = true;
+                in.jump = std::fmod(clock, 3.0) < 0.15;
+                static double next_report = 0.0;
+                if (clock > next_report)
+                {
+                    next_report = clock + 1.0;
+                    std::fprintf(stderr, "[eva] t=%.1f height=%.2f speed=%.2f grounded=%d upright=%d\n", clock, eva.height, eva.speed, eva.grounded, eva.upright);
+                }
+            }
+            in.yaw = yaw;
+            in.pitch = pitch;
+            const kosmos::Astronaut::Solids solids = [&](const sl::dvec3 &from, const sl::dvec3 &to, double height)
+            {
+                kosmos::SolidScene scene;
+                scene.universe = &sim.universe;
+                scene.body = eva.body;
+                scene.bases = &sim.bases;
+                for (int i = 0; i < sim.ship_count(); ++i)
+                    scene.ships.push_back(sim.ship(i));
+                for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+                    if (bt->body == eva.body)
+                        scene.clutter = bt->clutter.get();
+                return kosmos::push_out_of_solids(scene, from, to, height);
+            };
+            eva.step(sim.universe, terrain_of(eva.body), in, frame, solids);
+            const double warp_now = sim.current_warp();
+            if (warp_now > 1.0)
+                eva.carry(sim.universe, terrain_of(eva.body), frame * (warp_now - 1.0));
+            double ship_distance = 0.0;
+            const int near_ship = nearest_ship(ship_distance);
+            bool at_base = false;
+            const kosmos::Body &eva_body = sim.universe.bodies[static_cast<std::size_t>(eva.body)];
+            for (const kosmos::Base &b : sim.bases)
+                if (b.body == eva_body.name && eva.grounded)
+                    at_base = at_base || std::acos(std::clamp(glm::dot(kosmos::base_direction(sim.universe, eva.body, b), eva.local_up()), -1.0, 1.0)) * eva_body.radius < 150.0;
+            if (near_ship >= 0 && ship_distance < 30.0 || at_base)
+                eva.recharge(frame * std::max(1.0, warp_now));
+            if (eva.suit.failed)
+            {
+                sim.log("Suit failure: the crew pulled you back aboard");
+                board_ship(true);
+                ship = sim.active_ship();
+            }
+        }
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.
@@ -4796,16 +4990,28 @@ int main(int argc, char **argv)
             base_view = -1;
         if (user_cam >= static_cast<int>(user_cams.size()))
             user_cam = -1;
-        const bool in_user = user_cam >= 0 && !map_mode && !galaxy_mode;
-        const bool in_base_cam = base_view >= 0 && !map_mode && !galaxy_mode && !in_user;
-        const bool in_interior = interior_cam >= 0 && !map_mode && !in_base_cam && !in_user;
-        const bool in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user;
+        const bool in_eva = eva.active && !map_mode && !galaxy_mode;
+        const bool in_user = user_cam >= 0 && !map_mode && !galaxy_mode && !in_eva;
+        const bool in_base_cam = base_view >= 0 && !map_mode && !galaxy_mode && !in_user && !in_eva;
+        const bool in_interior = interior_cam >= 0 && !map_mode && !in_base_cam && !in_user && !in_eva;
+        const bool in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user && !in_eva;
         const bool in_cockpit3d = in_cockpit && cockpit3d && ship->spec().cockpit.mfds;
         const int mx = sl::mouse_x(), my = sl::mouse_y();
         const int dx = mx - last_mouse_x, dy = my - last_mouse_y;
         const bool dragging = sl::mouse_button_down(sl::MouseButton::right) && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse);
         last_mouse_x = mx;
         last_mouse_y = my;
+        {
+            // On foot the mouse steers the view like a first-person game; Alt, or any open window, gives the pointer back.
+            const bool windows_open = camera_window || settings_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
+            const bool free_pointer = windows_open || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
+            const bool capture = in_eva && options.shot.empty() && !free_pointer;
+            if (capture != mouse_captured)
+            {
+                sl::set_relative_mouse_mode(capture);
+                mouse_captured = capture;
+            }
+        }
         const double zoom_in = sl::key_down(sl::Key::left_bracket) ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
         const double zoom_out = sl::key_down(sl::Key::right_bracket) ? 1.0 + 2.0 * frame : 1.0;
         if (galaxy_mode)
@@ -4821,6 +5027,21 @@ int main(int argc, char **argv)
         }
         else if (in_base_cam)
         {
+        }
+        else if (in_eva)
+        {
+            if (mouse_captured)
+            {
+                int rx = 0, ry = 0;
+                sl::mouse_relative_state(&rx, &ry);
+                eva_look_yaw -= rx * 0.003;
+                eva_look_pitch -= ry * 0.003;
+            }
+            else if (dragging)
+            {
+                eva_look_yaw -= dx * 0.004;
+                eva_look_pitch -= dy * 0.004;
+            }
         }
         else if (in_user)
         {
@@ -4937,6 +5158,13 @@ int main(int argc, char **argv)
             ship_rel = glm::vec3(fb.direction_to_world(look) * 1000.0);
             up = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
         }
+        else if (in_eva)
+        {
+            eye_world = eva.eye_world(universe);
+            ship_rel = glm::vec3(eva.forward() * 1000.0);
+            up = eva.view_up();
+            view_fov = std::max(options.cam_fov, 75.0);
+        }
         else if (in_user)
         {
             const kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
@@ -5024,7 +5252,7 @@ int main(int argc, char **argv)
         const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)];
         const sl::dvec3 soi_pos = universe.position(soi);
         // The chase camera may not dip below the ground.
-        if (!in_cockpit && !in_cockpit3d && !in_interior && !in_base_cam)
+        if (!in_cockpit && !in_cockpit3d && !in_interior && !in_base_cam && !in_eva)
         {
             const sl::Terrain *soi_terrain = nullptr;
             for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
@@ -6040,6 +6268,14 @@ int main(int argc, char **argv)
                 hs.docking.port_up = vec("up");
             }
             hud.draw(hs);
+        }
+
+        if (in_eva)
+        {
+            double ship_distance = 0.0;
+            const int near_ship = nearest_ship(ship_distance);
+            const double ship_speed = near_ship >= 0 ? glm::length(sim.ship(near_ship)->body().velocity - universe.world.body(eva.body)->velocity - eva.velocity) : 0.0;
+            kosmos::draw_suit_hud(eva, universe, screen_w, screen_h, near_ship >= 0 ? ship_distance : -1.0, ship_speed, near_ship >= 0 ? sim.ship(near_ship)->name.c_str() : nullptr);
         }
 
         // Labels for bodies too small on screen to recognise.
