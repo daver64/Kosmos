@@ -1120,7 +1120,7 @@ namespace kosmos
                                    "  Right-drag       look around\n"
                                    "  [ ]              zoom\n"
                                    "  O                orbit line\n"
-                                   "  Tab / G          map / galaxy map\n"
+                                   "  Tab / N          map / galaxy map\n"
                                    "Time\n"
                                    "  , .              slower / faster time warp\n"
                                    "Windows\n"
@@ -1325,6 +1325,29 @@ namespace kosmos
                                     actions.show_panel(static_cast<int>(pi));
                             ImGui::EndMenu();
                         }
+                    }
+                    if (ImGui::BeginMenu("MFD modes", sim.mfd.unit_count() > 0))
+                    {
+                        const char *slots[2] = {"Left MFD", "Right MFD"};
+                        const auto &modes = sim.mfd.modes();
+                        // A panel layout can list its instruments in any order, so name the units by where they sit on screen.
+                        const Ship *flown = sim.active_ship();
+                        const auto &placed = flown ? flown->spec().cockpit.instruments : std::vector<Cockpit::PanelInstrument>();
+                        const bool swapped = placed.size() >= 2 && placed[0].x > placed[1].x;
+                        for (int slot = 0; slot < 2 && slot < sim.mfd.unit_count(); ++slot)
+                        {
+                            const int side = swapped ? 1 - slot : slot;
+                            const int current = sim.mfd.unit(side).mode;
+                            const std::string title = std::string(slots[slot]) + ": " + (current >= 0 && current < static_cast<int>(modes.size()) ? modes[static_cast<std::size_t>(current)].name : std::string("none"));
+                            if (ImGui::BeginMenu(title.c_str()))
+                            {
+                                for (int m = 0; m < static_cast<int>(modes.size()); ++m)
+                                    if (sim.mfd.allowed(m) && ImGui::MenuItem(modes[static_cast<std::size_t>(m)].name.c_str(), nullptr, m == current))
+                                        sim.mfd.set_mode(side, m);
+                                ImGui::EndMenu();
+                            }
+                        }
+                        ImGui::EndMenu();
                     }
                     ImGui::Separator();
                     ImGui::MenuItem("Scenario editor", nullptr, &scenario_editor_open);

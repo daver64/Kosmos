@@ -348,7 +348,7 @@ namespace kosmos
         struct Tile
         {
             sl::Bitmap *bitmap = nullptr;
-            ~Tile() { sl::destroy_bitmap(bitmap); }
+            ~Tile() { delete bitmap; } // CPU-only pixels; may be freed on a terrain worker thread, where GL calls are unsafe
         };
 
         struct TileSet
@@ -555,7 +555,7 @@ namespace kosmos
                 tile->bitmap = sl::load_bitmap(path);
             if (tile->bitmap && (tile->bitmap->compressed || tile->bitmap->pixels.empty()))
             {
-                sl::destroy_bitmap(tile->bitmap);
+                delete tile->bitmap;
                 tile->bitmap = nullptr;
             }
             constexpr int max_image_size = 4096;
@@ -575,7 +575,7 @@ namespace kosmos
                             const std::size_t destination = (static_cast<std::size_t>(y) * width + x) * 4;
                             std::copy_n(tile->bitmap->pixels.data() + source, 4, smaller->pixels.data() + destination);
                         }
-                    sl::destroy_bitmap(tile->bitmap);
+                    delete tile->bitmap;
                     tile->bitmap = smaller;
                 }
             }

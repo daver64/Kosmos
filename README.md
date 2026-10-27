@@ -34,7 +34,9 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | P | Autopilot (ship's Lua script) |
 | `,` / `.` | Time warp down / up |
 | Tab | Orrery map (F: focus, `[` `]` zoom, right-drag rotate) |
-| **G** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
+| **G** | Toggle landing gear (also **L**) |
+| **N** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
+| Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
 | **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp. Saved to `~/.config/kosmos/settings.json` on exit |

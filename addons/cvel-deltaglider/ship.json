@@ -4,7 +4,7 @@
  "torque_accel": 6.0,
  "max_rate": 0.6,
  "rcs_thrust": 10000,
- "drag_area": 25,
+ "drag_area": 4,
  "camera_distance": 32,
  "retractable_gear": true,
  "gear_time": 6,
@@ -207,7 +207,7 @@
       0,
       -1
      ],
-     "thrust": 120000,
+     "thrust": 200000,
      "isp": 4077,
      "plume": 14,
      "plume_width": 1.2,
@@ -228,7 +228,7 @@
       0,
       -1
      ],
-     "thrust": 120000,
+     "thrust": 200000,
      "isp": 4077,
      "plume": 14,
      "plume_width": 1.2,
@@ -249,7 +249,7 @@
       1,
       0
      ],
-     "thrust": 270000,
+     "thrust": 390000,
      "isp": 4077,
      "plume": 6,
      "plume_width": 1.5,
@@ -262,7 +262,8 @@
    ],
    "parts": [
     {
-     "model": "models/deltaglider.obj"
+     "model": "models/deltaglider.obj",
+     "animations": "gear.json"
     }
    ]
   }
@@ -274,6 +275,7 @@
    -6.8
   ],
   "mfds": true,
+  "mfd_filter": "none",
   "mfd_left": "orbit",
   "mfd_right": "surface",
   "layout": {

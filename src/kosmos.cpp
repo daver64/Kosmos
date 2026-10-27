@@ -34,7 +34,7 @@
 
 // Kosmos: a space flight simulator. The first milestone flies a two-stage launcher from the pad to Earth orbit.
 //
-//   B: wheel brakes   F: cycle flaps (aircraft)   L: landing gear up/down (retractable gear)
+//   B: wheel brakes   F: cycle flaps (aircraft)   G or L: landing gear up/down (retractable gear)   N: galaxy map
 //   Keypad +/-/0/.: hover engines (ships with a hover group)
 //   Z/X: full / cut throttle   Shift/Ctrl: raise / lower throttle   Space: stage
 //   W/S: pitch   A/D: yaw   Q/E: roll   Arrows: RCS translate   T: cycle attitude hold   P: ascent autopilot
@@ -1580,7 +1580,7 @@ namespace
                 sl::gprintf(16, 142, {160, 170, 180}, "[Left/Right] Choose   [ [ ] ] Zoom");
             }
             sl::gprintf(16, screen_h - 40, {200, 210, 220}, "GALAXY   %d stars   %s per pixel", galaxy.size(), format_distance(ly_per_pixel * 9.4607e15).c_str());
-            sl::gprintf_center(screen_h - 22, {200, 210, 220}, "[G] Back to flight  [Left/Right] Choose star  [ [ ] ] Zoom  [Enter] Jump");
+            sl::gprintf_center(screen_h - 22, {200, 210, 220}, "[N] Back to flight  [Left/Right] Choose star  [ [ ] ] Zoom  [Enter] Jump");
         }
     };
 
@@ -3464,6 +3464,8 @@ int main(int argc, char **argv)
     const Ship *mfd_ship = nullptr;
     std::string mfd_ship_id;
     float look_yaw = 0.0f, look_pitch = 0.0f;
+    sl::dvec3 eye_shift{0.0}; // the pilot's head moved from the seat with the arrow keys and Page Up/Down, in the ship's frame
+    const Ship *eye_ship = nullptr;
     if (options.map_scale > 0.0)
         map.metres_per_pixel = options.map_scale;
     if (!options.map_focus.empty())
@@ -3804,7 +3806,7 @@ int main(int argc, char **argv)
                 }
                 else if (key == sl::Event::Key::f8 || key == sl::Event::Key::f9)
                     sim.mfd.press(key == sl::Event::Key::f8 ? 0 : 1, 12);
-                else if (key == sl::Event::Key::letter_l && ship->spec().retractable_gear)
+                else if ((key == sl::Event::Key::letter_g || key == sl::Event::Key::letter_l) && ship->spec().retractable_gear)
                 {
                     const bool down = props.get_double("/controls/gear") > 0.5;
                     props.set_double("/controls/gear", down ? 0.0 : 1.0);
@@ -3816,7 +3818,7 @@ int main(int argc, char **argv)
                     props.set_bool("/sim/settings/orbit-line", !props.get_bool("/sim/settings/orbit-line"));
                 else if (key == sl::Event::Key::tab)
                     map_mode = !map_mode;
-                else if (key == sl::Event::Key::letter_g)
+                else if (key == sl::Event::Key::letter_n)
                     galaxy_mode = !galaxy_mode;
                 else if ((key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter) && (sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)))
                     sl::toggle_fullscreen();
@@ -3968,8 +3970,23 @@ int main(int argc, char **argv)
         props.set_double("/controls/yaw", axis(sl::Key::letter_a, sl::Key::letter_d));
         props.set_double("/controls/roll", axis(sl::Key::letter_q, sl::Key::letter_e));
         props.set_double("/controls/brake", !typing && sl::key_down(sl::Key::letter_b) ? 1.0 : 0.0);
-        props.set_double("/controls/rcs-x", axis(sl::Key::arrow_right, sl::Key::arrow_left));
-        props.set_double("/controls/rcs-y", axis(sl::Key::arrow_up, sl::Key::arrow_down));
+        // In the cockpit the arrow keys move the head instead of firing RCS translation.
+        const bool head_keys = !typing && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
+        if (eye_ship != ship || !cockpit_view)
+        {
+            eye_ship = ship;
+            eye_shift = sl::dvec3(0.0);
+        }
+        if (head_keys)
+        {
+            const double step = 0.6 * frame;
+            eye_shift.z -= axis(sl::Key::arrow_up, sl::Key::arrow_down) * step;
+            eye_shift.x += axis(sl::Key::arrow_right, sl::Key::arrow_left) * step;
+            eye_shift.y += axis(sl::Key::page_up, sl::Key::page_down) * step;
+            eye_shift = glm::clamp(eye_shift, sl::dvec3(-0.8), sl::dvec3(0.8));
+        }
+        props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis(sl::Key::arrow_right, sl::Key::arrow_left));
+        props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis(sl::Key::arrow_up, sl::Key::arrow_down));
         if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") != 0.0)
             props.set_bool("/autopilot/enabled", false);
 
@@ -4166,7 +4183,7 @@ int main(int argc, char **argv)
         if (in_cockpit || in_interior)
         {
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
-            sl::dvec3 seat = ship->spec().cockpit.eye;
+            sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : eye_shift);
             double yaw = look_yaw, pitch = look_pitch;
             if (!in_interior)
             {
