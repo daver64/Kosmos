@@ -19,9 +19,12 @@ namespace kosmos
 
         double unix_from_julian(double jd) { return (jd - unix_of_julian_zero) * 86400.0; }
 
+        // Weather needs air: at least half of Earth's sea-level density (1.225 kg/m3), so Mars and the airless worlds have none.
+        constexpr double min_weather_density = 0.6125;
+
         bool rocky_with_air(const Universe &universe, int body)
         {
-            return body >= 0 && body < static_cast<int>(universe.bodies.size()) && universe.bodies[static_cast<std::size_t>(body)].atmosphere_density > 0.0;
+            return body >= 0 && body < static_cast<int>(universe.bodies.size()) && universe.bodies[static_cast<std::size_t>(body)].atmosphere_density >= min_weather_density;
         }
     }
 
