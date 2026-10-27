@@ -61,6 +61,17 @@ namespace kosmos
         props.set_bool("/controls/stage", false);
         props.set_bool("/autopilot/enabled", false);
         props.set_string("/autopilot/status", "");
+        // Aircraft autopilot: which modes are armed and their targets (metres, m/s, degrees); targets are captured when it engages.
+        for (const char *mode : {"hdg-hold", "alt-hold"})
+            props.set_bool(std::string("/autopilot/ac/") + mode, true);
+        for (const char *mode : {"vs-hold", "spd-hold", "nav", "appr"})
+            props.set_bool(std::string("/autopilot/ac/") + mode, false);
+        for (const char *target : {"heading", "altitude", "vs", "speed"})
+            props.set_double(std::string("/autopilot/ac/") + target, 0.0);
+        props.set_int("/autopilot/ac/receiver", 0);
+        // Spacecraft ascent autopilot: target orbit altitude in km and launch heading.
+        props.set_double("/autopilot/sc/target-altitude", 200.0);
+        props.set_double("/autopilot/sc/heading", 90.0);
         props.set_int("/sim/warp-index", 0);
         props.set_bool("/sim/paused", false);
         props.set_int("/sim/active-ship", 0);
@@ -355,12 +366,15 @@ namespace kosmos
         props.set_int("/sim/active-ship", index);
         script_loaded_ = false;
         const ShipSpec &spec = ships_[static_cast<std::size_t>(index)]->spec();
-        if (spec.script.empty())
+        const std::filesystem::path script = !spec.script.empty() ? std::filesystem::path(spec.directory) / spec.script
+                                             : spec.aircraft()   ? std::filesystem::path(root()) / "data/autopilot/aircraft.lua"
+                                                                 : std::filesystem::path();
+        if (script.empty())
             return;
-        std::ifstream in(std::filesystem::path(spec.directory) / spec.script);
+        std::ifstream in(script);
         if (!in)
         {
-            log("missing script " + spec.script);
+            log("missing script " + script.string());
             return;
         }
         const std::string source((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());

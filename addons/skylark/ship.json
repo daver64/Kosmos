@@ -1,12 +1,12 @@
 {
  "name": "Skylark",
  "lights": [
-  { "position": [-4.3, 0, 0.3], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [4.3, 0, 0.3], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [0, 1.9, 7], "colour": [255, 255, 255], "intensity": 1.2, "range": 24, "glow": 0.3 },
-  { "position": [-4.35, 0, 0.3], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
-  { "position": [4.35, 0, 0.3], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 },
-  { "position": [0, -0.3, -5.2], "direction": [0, -0.12, -1], "colour": [255, 248, 235], "intensity": 3.5, "range": 220, "inner": 8, "outer": 24, "glow": 0.1 }
+  { "position": [-5.1, 0, 1.9], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [5.1, 0, 1.9], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
+  { "position": [0, 2.6, 7.2], "colour": [255, 255, 255], "intensity": 1.2, "range": 24, "glow": 0.3 },
+  { "position": [-5.15, 0, 1.9], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
+  { "position": [5.15, 0, 1.9], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 },
+  { "position": [0, -0.5, -3.0], "direction": [0, -0.12, -1], "colour": [255, 248, 235], "intensity": 3.5, "range": 220, "inner": 8, "outer": 24, "glow": 0.1 }
  ],
  "class": "aircraft",
  "torque_accel": 0.0,
@@ -17,7 +17,7 @@
  "inertia": [14000, 20000, 12000],
  "damping": [0.8, 1.0, 0.8],
  "cockpit": {
-  "eye": [0, 0.9, -4.2],
+  "eye": [0, 0.35, -3.4],
   "mfds": true,
   "mfd_left": "engine",
   "mfd_right": "surface",
@@ -56,7 +56,7 @@
  },
  "cameras": [
   { "name": "Passenger cabin", "position": [0, 0.3, 0.5], "fov": 70 },
-  { "name": "Tail", "position": [0, 2.6, 7.2], "yaw": 180, "pitch": 5, "fov": 55 }
+  { "name": "Tail", "position": [0, 2.8, 8.6], "yaw": 180, "pitch": 5, "fov": 55 }
  ],
  "surfaces": [
   { "control": "", "position": [0, 0, 0.15], "area": 10, "cl0": 0.3, "cl_alpha": 5.0, "cd0": 0.025, "induced_drag": 0.05, "stall_deg": 15 },
@@ -67,9 +67,9 @@
   { "control": "rudder", "position": [0, 1.2, 6.5], "forward": [0, 0, -1], "up": [1, 0, 0], "area": 2.5, "cl0": 0, "cl_alpha": 3.5, "cd0": 0.015, "induced_drag": 0.06, "stall_deg": 16, "gain_deg": 15 }
  ],
  "wheels": [
-  { "position": [0, -2.1, -3.5], "steer_deg": 40, "rolling_resistance": 0.03 },
-  { "position": [1.8, -2.1, 1.0], "rolling_resistance": 0.03 },
-  { "position": [-1.8, -2.1, 1.0], "rolling_resistance": 0.03 }
+  { "position": [0, -2.14, -2.85], "steer_deg": 40, "rolling_resistance": 0.03 },
+  { "position": [1.95, -2.2, 0.5], "rolling_resistance": 0.03 },
+  { "position": [-1.95, -2.2, 0.5], "rolling_resistance": 0.03 }
  ],
  "stages": [
   {
@@ -84,7 +84,7 @@
     { "position": [-2.3, 0, 0], "direction": [0, 0, -1], "thrust": 7000, "isp": 3000, "plume": 4, "type": "jet" }
    ],
    "parts": [
-    { "prop": "aeroplane", "span": 12, "offset": [0, -2.1, 0.3], "colour": [232, 234, 238], "accent": [40, 90, 170] }
+    { "model": "models/skylark_textured.glb", "scale": 20.2, "rotate": [0, -90, 0], "offset": [0.05, -0.8, 1.54] }
    ]
   }
  ],

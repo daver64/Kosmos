@@ -4,7 +4,8 @@
 -- Enable with the [P] key (or props.set('/autopilot/enabled', true)). Any manual throttle cut disables it.
 
 local ship = "/ships/ship[0]"
-local TARGET_ALTITUDE = 200000.0 -- metres, circular orbit
+local TARGET_ALTITUDE = 200000.0 -- metres, circular orbit; the Autopilot window changes it
+local HEADING = 90.0
 local MU_EARTH = 3.986004418e14
 local R_EARTH = 6.371e6
 
@@ -37,6 +38,8 @@ function update(dt)
     set_phase("liftoff", "Liftoff")
   end
   phase_time = phase_time + dt
+  TARGET_ALTITUDE = (props.get("/autopilot/sc/target-altitude") or 200.0) * 1000.0
+  HEADING = props.get("/autopilot/sc/heading") or 90.0
 
   local altitude = get("altitude")
   local speed = get("speed")
@@ -48,14 +51,14 @@ function update(dt)
     props.set("/controls/throttle", 1.0)
     props.set("/controls/sas", "attitude")
     props.set("/controls/target-pitch", 90.0)
-    props.set("/controls/target-heading", 90.0)
+    props.set("/controls/target-heading", HEADING)
     if vertical > 70.0 then
       set_phase("kick", "Pitch kick")
     end
 
   elseif phase == "kick" then
     props.set("/controls/target-pitch", 84.0)
-    props.set("/controls/target-heading", 90.0)
+    props.set("/controls/target-heading", HEADING)
     local horizontal = math.sqrt(math.max(speed * speed - vertical * vertical, 0.0))
     local flight_path = math.deg(math.atan(vertical, horizontal))
     if flight_path < 86.5 or phase_time > 12.0 then
@@ -64,7 +67,7 @@ function update(dt)
 
   elseif phase == "gravity-turn" then
     props.set("/controls/sas", "attitude")
-    props.set("/controls/target-heading", 90.0)
+    props.set("/controls/target-heading", HEADING)
     -- Programmed turn: pitch falls with the square root of altitude, reaching the horizon by about 110 km.
     props.set("/controls/target-pitch", math.max(3.0, 84.0 - 81.0 * math.sqrt(math.max(altitude, 0.0) / 110000.0)))
     if get("stage-fuel") < 50.0 and get("stage") == 0 then
@@ -85,7 +88,7 @@ function update(dt)
   elseif phase == "ascent" then
     props.set("/controls/throttle", 1.0)
     props.set("/controls/sas", "attitude")
-    props.set("/controls/target-heading", 90.0)
+    props.set("/controls/target-heading", HEADING)
     -- Steer to hold a vertical speed that falls to zero as the apoapsis rises to the target altitude.
     local wanted = math.max(math.min((TARGET_ALTITUDE - altitude) * 0.012, 150.0), -20.0)
     local pitch = math.max(math.min(0.25 * (wanted - vertical), 40.0), -10.0)

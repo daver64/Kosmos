@@ -28,6 +28,10 @@ namespace kosmos
             out.life_support = json.value("life_support", "");
             out.fullscreen = json.value("fullscreen", false);
             out.weather = json.value("weather", "");
+            out.throttle = json.value("throttle", 0.0);
+            out.autopilot = json.value("autopilot", false);
+            out.mfd_left = json.value("mfd_left", "");
+            out.mfd_right = json.value("mfd_right", "");
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -133,6 +137,14 @@ namespace kosmos
             json["weather"] = sc.weather;
         if (!sc.nav.empty())
             json["nav"] = sc.nav;
+        if (sc.throttle > 0.0)
+            json["throttle"] = sc.throttle;
+        if (sc.autopilot)
+            json["autopilot"] = true;
+        if (!sc.mfd_left.empty())
+            json["mfd_left"] = sc.mfd_left;
+        if (!sc.mfd_right.empty())
+            json["mfd_right"] = sc.mfd_right;
         if (sc.epoch_jd > 0.0)
         {
             if (!sc.date_text.empty())

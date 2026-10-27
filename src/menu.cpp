@@ -1113,7 +1113,7 @@ namespace kosmos
                                    "  W A S D Q E      rotate (pitch, yaw, roll)\n"
                                    "  Arrows           RCS translation\n"
                                    "  T                cycle attitude hold\n"
-                                   "  P                autopilot\n"
+                                   "  P                autopilot (Autopilot menu for modes)\n"
                                    "  U                undock\n"
                                    "  R                restart scenario\n"
                                    "View\n"
@@ -1145,7 +1145,7 @@ namespace kosmos
             return true;
         }
         bool any = false;
-        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open})
+        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open, &aircraft_autopilot_open, &spacecraft_autopilot_open})
             if (*flag)
             {
                 *flag = false;
@@ -1160,11 +1160,227 @@ namespace kosmos
         return any;
     }
 
+    namespace
+    {
+        constexpr double metres_to_feet = 3.28084, ms_to_knots = 1.94384, ms_to_fpm = 196.8504;
+
+        // A mode checkbox; turning it on first copies the aircraft's current value into the target.
+        bool mode_checkbox(sl::PropertyTree &p, const char *label, const char *mode, const char *target, double current)
+        {
+            const std::string path = std::string("/autopilot/ac/") + mode;
+            bool on = p.get_bool(path);
+            if (!ImGui::Checkbox(label, &on))
+                return false;
+            if (on && target)
+                p.set_double(std::string("/autopilot/ac/") + target, current);
+            p.set_bool(path, on);
+            return true;
+        }
+
+        // A target field shown in `scale` units (the property stores SI), with a button that takes the current value.
+        void target_field(sl::PropertyTree &p, const char *id, const char *target, double scale, double current, const char *format, double wrap)
+        {
+            const std::string path = std::string("/autopilot/ac/") + target;
+            float shown = static_cast<float>(p.get_double(path) * scale);
+            ImGui::SetNextItemWidth(110.0f);
+            if (ImGui::InputFloat((std::string("##") + id).c_str(), &shown, 0.0f, 0.0f, format))
+            {
+                double v = shown / scale;
+                if (wrap > 0.0)
+                    v = std::fmod(std::fmod(v, wrap) + wrap, wrap);
+                p.set_double(path, v);
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton((std::string("Current##") + id).c_str()))
+                p.set_double(path, current);
+        }
+    } // namespace
+
+    void draw_aircraft_autopilot(Sim &sim, bool &open)
+    {
+        ImGui::SetNextWindowPos(ImVec2(120.0f, 120.0f), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("Aircraft autopilot", &open, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::End();
+            return;
+        }
+        sl::PropertyTree &p = sim.props;
+        Ship *ship = sim.active_ship();
+        if (!ship)
+        {
+            ImGui::TextUnformatted("No vessel.");
+            ImGui::End();
+            return;
+        }
+        const Telemetry &tm = ship->telemetry();
+        if (!ship->spec().aircraft())
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is not an aircraft; these modes need wings.", ship->name.c_str());
+
+        bool engaged = p.get_bool("/autopilot/enabled");
+        if (ImGui::Checkbox("Autopilot engaged  [P]", &engaged))
+        {
+            p.set_bool("/autopilot/enabled", engaged);
+            if (!engaged)
+                p.set_string("/autopilot/status", "");
+        }
+        const std::string status = p.get_string("/autopilot/status");
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", engaged && !status.empty() ? status.c_str() : "off");
+        ImGui::Text("Now: heading %03.0f   altitude %.0f ft   speed %.0f kt   climb %+.0f ft/min", tm.heading, tm.altitude * metres_to_feet, tm.surface_speed * ms_to_knots, tm.vertical_speed * ms_to_fpm);
+        ImGui::Separator();
+
+        ImGui::TextUnformatted("Lateral");
+        mode_checkbox(p, "Heading hold##hdg", "hdg-hold", "heading", tm.heading);
+        ImGui::SameLine(190.0f);
+        target_field(p, "hdg", "heading", 1.0, tm.heading, "%.0f deg", 360.0);
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Vertical");
+        if (mode_checkbox(p, "Altitude hold##alt", "alt-hold", "altitude", tm.altitude) && p.get_bool("/autopilot/ac/alt-hold"))
+            p.set_bool("/autopilot/ac/vs-hold", false);
+        ImGui::SameLine(190.0f);
+        target_field(p, "alt", "altitude", metres_to_feet, tm.altitude, "%.0f ft", 0.0);
+        if (mode_checkbox(p, "Vertical speed hold##vs", "vs-hold", "vs", tm.vertical_speed) && p.get_bool("/autopilot/ac/vs-hold"))
+            p.set_bool("/autopilot/ac/alt-hold", false);
+        ImGui::SameLine(190.0f);
+        target_field(p, "vs", "vs", ms_to_fpm, tm.vertical_speed, "%.0f ft/min", 0.0);
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Autothrottle");
+        mode_checkbox(p, "Speed hold##spd", "spd-hold", "speed", tm.surface_speed);
+        ImGui::SameLine(190.0f);
+        target_field(p, "spd", "speed", ms_to_knots, tm.surface_speed, "%.0f kt", 0.0);
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Radio navigation");
+        int receiver = p.get_int("/autopilot/ac/receiver");
+        ImGui::SetNextItemWidth(110.0f);
+        if (ImGui::Combo("Receiver", &receiver, "NAV1\0NAV2\0"))
+            p.set_int("/autopilot/ac/receiver", receiver);
+        const std::string nav = "/nav/nav[" + std::to_string(receiver) + "]/";
+        const bool ils = p.get_bool(nav + "ils/valid");
+        ImGui::SameLine();
+        if (ils)
+            ImGui::Text("%.2f  %s  ILS  loc %+.1f  gs %+.1f", p.get_double(nav + "frequency"), p.get_string(nav + "ident").c_str(), p.get_double(nav + "ils/localizer"), p.get_double(nav + "ils/glideslope"));
+        else
+            ImGui::TextDisabled("%.2f  no ILS signal", p.get_double(nav + "frequency"));
+        bool loc = p.get_bool("/autopilot/ac/nav"), appr = p.get_bool("/autopilot/ac/appr");
+        if (ImGui::Checkbox("NAV: fly the localizer", &loc))
+        {
+            p.set_bool("/autopilot/ac/nav", loc);
+            if (loc)
+                p.set_bool("/autopilot/ac/appr", false);
+        }
+        if (ImGui::Checkbox("APPR: localizer and glideslope", &appr))
+        {
+            p.set_bool("/autopilot/ac/appr", appr);
+            if (appr)
+                p.set_bool("/autopilot/ac/nav", false);
+        }
+        ImGui::TextDisabled("Pitch, yaw or roll input hands control back to you.");
+        ImGui::End();
+    }
+
+    void draw_spacecraft_autopilot(Sim &sim, bool &open)
+    {
+        ImGui::SetNextWindowPos(ImVec2(160.0f, 140.0f), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("Spacecraft autopilot", &open, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::End();
+            return;
+        }
+        sl::PropertyTree &p = sim.props;
+        Ship *ship = sim.active_ship();
+        if (!ship)
+        {
+            ImGui::TextUnformatted("No vessel.");
+            ImGui::End();
+            return;
+        }
+        if (ship->spec().aircraft())
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is an aircraft; see Autopilot > Aircraft.", ship->name.c_str());
+
+        const bool scripted = !ship->spec().script.empty();
+        bool engaged = p.get_bool("/autopilot/enabled");
+        ImGui::TextUnformatted("Programmed flight");
+        if (scripted)
+        {
+            if (ImGui::Checkbox("Ascent autopilot engaged  [P]", &engaged))
+            {
+                p.set_bool("/autopilot/enabled", engaged);
+                if (!engaged)
+                    p.set_string("/autopilot/status", "");
+            }
+            const std::string status = p.get_string("/autopilot/status");
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", engaged && !status.empty() ? status.c_str() : "off");
+            float altitude = static_cast<float>(p.get_double("/autopilot/sc/target-altitude")), heading = static_cast<float>(p.get_double("/autopilot/sc/heading"));
+            ImGui::SetNextItemWidth(140.0f);
+            if (ImGui::InputFloat("Target orbit (km)", &altitude, 10.0f, 100.0f, "%.0f"))
+                p.set_double("/autopilot/sc/target-altitude", std::clamp(static_cast<double>(altitude), 80.0, 2000.0));
+            ImGui::SetNextItemWidth(140.0f);
+            if (ImGui::SliderFloat("Launch heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+                p.set_double("/autopilot/sc/heading", heading);
+            ImGui::TextDisabled("Liftoff, gravity turn, staging, coast and circularise.");
+        }
+        else
+            ImGui::TextDisabled("%s has no programmed autopilot.", ship->name.c_str());
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Attitude hold");
+        if (engaged && scripted)
+            ImGui::BeginDisabled();
+        static const char *const modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
+        const std::string sas = p.get_string("/controls/sas", "stability");
+        int current = 0;
+        for (int i = 0; i < 9; ++i)
+            if (sas == modes[i])
+                current = i;
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::BeginCombo("Mode", modes[current]))
+        {
+            for (int i = 0; i < 9; ++i)
+                if (ImGui::Selectable(modes[i], i == current))
+                    p.set_string("/controls/sas", modes[i]);
+            ImGui::EndCombo();
+        }
+        if (sas == "attitude")
+        {
+            float pitch = static_cast<float>(p.get_double("/controls/target-pitch")), heading = static_cast<float>(p.get_double("/controls/target-heading"));
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::SliderFloat("Pitch", &pitch, -90.0f, 90.0f, "%.0f deg"))
+                p.set_double("/controls/target-pitch", pitch);
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::SliderFloat("Heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+                p.set_double("/controls/target-heading", heading);
+        }
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Throttle");
+        float throttle = static_cast<float>(p.get_double("/controls/throttle") * 100.0);
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::SliderFloat("##throttle", &throttle, 0.0f, 100.0f, "%.0f%%"))
+            p.set_double("/controls/throttle", throttle / 100.0);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Cut"))
+            p.set_double("/controls/throttle", 0.0);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Full"))
+            p.set_double("/controls/throttle", 1.0);
+        if (engaged && scripted)
+            ImGui::EndDisabled();
+        ImGui::End();
+    }
+
     void MenuBar::draw_windows(Sim &sim, const MenuActions &actions)
     {
         scenario_editor.draw(scenario_editor_open, sim, dialog, actions);
         base_editor.draw(base_editor_open, sim, dialog);
         dialog.draw();
+        if (aircraft_autopilot_open)
+            draw_aircraft_autopilot(sim, aircraft_autopilot_open);
+        if (spacecraft_autopilot_open)
+            draw_spacecraft_autopilot(sim, spacecraft_autopilot_open);
         if (help_open)
         {
             ImGui::SetNextWindowPos(ImVec2(80.0f, 100.0f), ImGuiCond_FirstUseEver);
@@ -1375,6 +1591,12 @@ namespace kosmos
                     ImGui::MenuItem("Keep menu bar visible", nullptr, &keep_visible);
                     if (ImGui::MenuItem("Full screen", "Alt+Enter", sl::is_fullscreen()))
                         sl::toggle_fullscreen();
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Autopilot"))
+                {
+                    ImGui::MenuItem("Aircraft...", nullptr, &aircraft_autopilot_open);
+                    ImGui::MenuItem("Spacecraft...", nullptr, &spacecraft_autopilot_open);
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Tools"))

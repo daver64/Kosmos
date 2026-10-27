@@ -31,6 +31,10 @@ namespace kosmos
     /** The scenario as it stands in the sim: each ship's place, captured from its live state. Orbits are saved as circular at the current altitude. */
     Scenario capture_scenario(Sim &sim, const std::string &name);
 
+    /** The Autopilot menu's windows: aircraft modes (heading, altitude, speed, ILS) and spacecraft (ascent, attitude hold, throttle). */
+    void draw_aircraft_autopilot(Sim &sim, bool &open);
+    void draw_spacecraft_autopilot(Sim &sim, bool &open);
+
     /** A small file browser window: pick an existing .json file or type a name to save. */
     class FileDialog
     {
@@ -113,6 +117,7 @@ namespace kosmos
         void open_base_editor() { base_editor_open = true; }
         /** Windows opened by the menus themselves; the program lists them in the View menu too. */
         bool scenario_editor_open = false, base_editor_open = false, help_open = false, about_open = false;
+        bool aircraft_autopilot_open = false, spacecraft_autopilot_open = false;
         bool keep_visible = true;
         bool visible() const { return slide_ > 0.01f; }
 

@@ -55,6 +55,10 @@ namespace kosmos
         std::string weather;
         /** Start in desktop fullscreen. */
         bool fullscreen = false;
+        /** Starting throttle (0 to 1), whether the autopilot starts engaged, and MFD mode ids for the left and right units (empty keeps the ship's defaults). */
+        double throttle = 0.0;
+        bool autopilot = false;
+        std::string mfd_left, mfd_right;
         std::vector<double> nav;
         /** Start date as a Julian date (UTC); 0 starts on the system's default date. date_text keeps the text it was written as, if any. */
         double epoch_jd = 0.0;

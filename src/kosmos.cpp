@@ -84,6 +84,7 @@ namespace
         bool no_tiles = false;
         bool camera_window = false;
         bool settings_window = false;
+        bool aircraft_autopilot = false, spacecraft_autopilot = false;
         bool property_window = false;
         bool lua_window = false;
         bool menu_visible = false, scenario_editor = false, base_editor = false;
@@ -325,10 +326,14 @@ namespace
         sim.props.set_string("/sim/target", sc.target);
         for (int i = 0; i < kosmos::NavSystem::receivers; ++i)
             sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
-        sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_double("/controls/throttle", sc.throttle);
+        const std::size_t flown_entry = static_cast<std::size_t>(std::min<int>(sc.active, static_cast<int>(sc.ships.size()) - 1));
+        sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude > 0.0 ? 0.0 : 1.0);
         sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");
-        sim.props.set_bool("/autopilot/enabled", false);
+        sim.props.set_bool("/autopilot/enabled", sc.autopilot);
+        sim.props.set_string("/sim/scenario-mfd-left", sc.mfd_left);
+        sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
         sim.props.set_int("/sim/warp-index", 0);
         return sim.active_ship();
     }
@@ -3144,6 +3149,10 @@ int main(int argc, char **argv)
             options.user_camera = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--camera-window"))
             options.camera_window = true;
+        else if (!std::strcmp(argv[i], "--aircraft-autopilot-window"))
+            options.aircraft_autopilot = true;
+        else if (!std::strcmp(argv[i], "--spacecraft-autopilot-window"))
+            options.spacecraft_autopilot = true;
         else if (!std::strcmp(argv[i], "--settings-window"))
             options.settings_window = true;
         else if (!std::strcmp(argv[i], "--lua-window"))
@@ -3999,6 +4008,8 @@ int main(int argc, char **argv)
     // Pinned open unless the menu is switched off from its View menu; --hide-info (screenshots) leaves it to slide away.
     menu_bar.keep_visible = options.menu_visible || !options.hide_info;
     menu_bar.scenario_editor_open = options.scenario_editor;
+    menu_bar.aircraft_autopilot_open = options.aircraft_autopilot;
+    menu_bar.spacecraft_autopilot_open = options.spacecraft_autopilot;
     menu_bar.base_editor_open = options.base_editor;
     std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
     kosmos::MenuActions menu_actions;
@@ -4615,7 +4626,7 @@ int main(int argc, char **argv)
                     props.set_double("/controls/hover", action == "hover-on" ? 1.0 : 0.0);
             }
         }
-        if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") != 0.0)
+        if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") + props.get_double("/controls/roll") != 0.0)
             props.set_bool("/autopilot/enabled", false);
 
         // The shot option can skip ahead in time on rails so a screenshot of an orbit needs no waiting.
@@ -4673,6 +4684,13 @@ int main(int argc, char **argv)
                     sim.mfd.set_mode(0, std::max(0, sim.mfd.mode_by_id(usable(options.mfd_left.empty() ? cockpit_spec.mfd_left : options.mfd_left))));
                 if (cockpit_spec.instruments.empty() || !options.mfd_right.empty())
                     sim.mfd.set_mode(1, std::max(0, sim.mfd.mode_by_id(usable(options.mfd_right.empty() ? cockpit_spec.mfd_right : options.mfd_right))));
+                for (int side = 0; side < 2 && side < sim.mfd.unit_count(); ++side)
+                {
+                    const std::string key = side == 0 ? "/sim/scenario-mfd-left" : "/sim/scenario-mfd-right";
+                    const std::string wanted = props.get_string(key);
+                    if (!wanted.empty() && sim.mfd.allowed(wanted))
+                        sim.mfd.set_mode(side, std::max(0, sim.mfd.mode_by_id(wanted)));
+                }
             }
         }
         const kosmos::Telemetry &tm = ship->telemetry();
