@@ -162,6 +162,9 @@ namespace kosmos
     /** Where a landed ship stands on a base: direction and compass heading in degrees. */
     void base_pad(const Base &base, double radius, sl::dvec3 &direction, double &heading);
 
+    /** Metres the pad's concrete stands above the levelled ground at the base's pad spot (0 if it has no paved pad there). */
+    double base_pad_deck(const Base &base);
+
     /** A level capsule: ground at `height` within `flat` metres of the segment a-b (unit directions), easing out over `blend`. */
     struct FlattenSite
     {

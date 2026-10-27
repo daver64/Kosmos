@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Soyuz TMA, 400 km orbit",
+ "description": "CVEL Soyuz TMA in a circular 400 km orbit, inclined 51.6 degrees like the International Space Station. Its docking port is on the nose.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Soyuz TMA",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  }
+ ]
+}

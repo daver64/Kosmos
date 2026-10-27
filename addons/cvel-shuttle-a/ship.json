@@ -47,6 +47,14 @@
    "crew": 2
   }
  ],
+ "ports": [
+  { "name": "Starboard forward", "position": [1.76, 0, -6.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
+  { "name": "Starboard middle", "position": [1.76, 0, 1.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
+  { "name": "Starboard aft", "position": [1.76, 0, 6.6], "direction": [0, 0, 1], "up": [0, 1, 0] },
+  { "name": "Port forward", "position": [-1.76, 0, -6.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
+  { "name": "Port middle", "position": [-1.76, 0, 1.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
+  { "name": "Port aft", "position": [-1.76, 0, 6.6], "direction": [0, 0, 1], "up": [0, 1, 0] }
+ ],
  "stages": [
   {
    "name": "Shuttle-A",

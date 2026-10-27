@@ -1,0 +1,100 @@
+{
+ "name": "CVEL: Shuttle-A with cargo, 400 km orbit",
+ "description": "CVEL Shuttle-A in a 400 km orbit carrying four cargo pods and two fuel pods (one each side, aft). Press U to release the pods, move away, and bring one back to a bay to dock again.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Shuttle-A",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Cargo Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Cargo Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 1,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Cargo Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 3,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Cargo Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 4,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Fuel Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 2,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Fuel Pod",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 5,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 51.6,
+    "phase": 180
+   }
+  }
+ ]
+}

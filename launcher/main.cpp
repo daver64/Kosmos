@@ -2,12 +2,14 @@
 // checks for new builds and starts Kosmos as a separate process. It shares no code with Kosmos or simlib, so a crash in
 // either leaves the launcher running.
 #include "data.h"
+#include "icon_data.h"
 
 #include <wx/wx.h>
 #include <wx/checklst.h>
 #include <wx/dir.h>
 #include <wx/gauge.h>
 #include <wx/listbook.h>
+#include <wx/mstream.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
 #include <wx/treectrl.h>
@@ -241,6 +243,16 @@ namespace
     public:
         Frame(const fs::path &root) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
         {
+            {
+                wxMemoryInputStream stream(launcher_icon_png, sizeof launcher_icon_png);
+                wxImage image(stream, wxBITMAP_TYPE_PNG);
+                if (image.IsOk())
+                {
+                    wxIcon icon;
+                    icon.CopyFromBitmap(wxBitmap(image));
+                    SetIcon(icon);
+                }
+            }
             const std::string installed = installed_version(root_);
             SetTitle(installed.empty() ? "Kosmos Launcher" : "Kosmos Launcher - Kosmos " + installed + " installed");
             profile_ = load_profile();
@@ -653,6 +665,7 @@ namespace
             for (const char *s : {"Normal", "Flat shaded (fast)", "Wireframe (fastest)"})
                 gfx_style_->Append(s);
             gfx_clouds_ = new wxCheckBox(page, wxID_ANY, "Clouds");
+            gfx_relief_ = new wxCheckBox(page, wxID_ANY, "Earth relief and sea glint from orbit (slower)");
             gfx_terrain_ = new wxChoice(page, wxID_ANY);
             for (const char *s : {"Ultra", "High", "Medium", "Low"})
                 gfx_terrain_->Append(s);
@@ -665,6 +678,7 @@ namespace
             };
             row("Render style", gfx_style_);
             row("", gfx_clouds_);
+            row("", gfx_relief_);
             row("Terrain detail", gfx_terrain_);
             row("Base light radius (m)", gfx_radius_);
             row("Maximum frame rate", gfx_fps_);
@@ -678,6 +692,7 @@ namespace
             gfx_style_->Bind(wxEVT_CHOICE, sync);
             gfx_terrain_->Bind(wxEVT_CHOICE, sync);
             gfx_clouds_->Bind(wxEVT_CHECKBOX, sync);
+            gfx_relief_->Bind(wxEVT_CHECKBOX, sync);
             gfx_radius_->Bind(wxEVT_SLIDER, sync);
             gfx_fps_->Bind(wxEVT_SLIDER, sync);
         }
@@ -688,6 +703,7 @@ namespace
             loading_ = true;
             gfx_style_->SetSelection(g.style);
             gfx_clouds_->SetValue(g.clouds != 0);
+            gfx_relief_->SetValue(g.earth_relief != 0);
             gfx_terrain_->SetSelection(g.terrain_detail);
             gfx_radius_->SetValue(g.light_radius);
             gfx_fps_->SetValue(g.max_fps);
@@ -701,6 +717,7 @@ namespace
             GraphicsSettings g;
             g.style = std::max(0, gfx_style_->GetSelection());
             g.clouds = gfx_clouds_->GetValue() ? 1 : 0;
+            g.earth_relief = gfx_relief_->GetValue() ? 1 : 0;
             g.terrain_detail = std::max(0, gfx_terrain_->GetSelection());
             g.light_radius = gfx_radius_->GetValue();
             g.max_fps = gfx_fps_->GetValue();
@@ -1055,7 +1072,7 @@ namespace
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
-        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr;
+        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr, *gfx_relief_ = nullptr;
         wxChoice *gfx_style_ = nullptr, *gfx_terrain_ = nullptr;
         wxSlider *gfx_radius_ = nullptr, *gfx_fps_ = nullptr;
     };

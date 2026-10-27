@@ -1317,6 +1317,23 @@ namespace kosmos
                         if (w.open)
                             ImGui::MenuItem(w.label.c_str(), w.key.empty() ? nullptr : w.key.c_str(), w.open);
                     ImGui::Separator();
+                    if (ImGui::BeginMenu("Fuel transfer", sim.props.get_bool("/dock/docked")))
+                    {
+                        const std::string mode = sim.props.get_string("/dock/transfer", "auto");
+                        ImGui::Text("Partners hold %.0f of %.0f kg", sim.props.get_double("/dock/partner-fuel"), sim.props.get_double("/dock/partner-capacity"));
+                        ImGui::Separator();
+                        const std::pair<const char *, const char *> modes[] = {{"auto", "Automatic (tank pods top up this ship)"}, {"off", "Off"}, {"give", "Pump to docked ships"}, {"take", "Pump from docked ships"}};
+                        for (const auto &m : modes)
+                            if (ImGui::MenuItem(m.second, nullptr, mode == m.first))
+                                sim.props.set_string("/dock/transfer", m.first);
+                        ImGui::EndMenu();
+                    }
+                    {
+                        bool clock = sim.props.get_bool("/sim/settings/clock");
+                        if (ImGui::MenuItem("Warp and time display", nullptr, &clock))
+                            sim.props.set_bool("/sim/settings/clock", clock);
+                    }
+                    ImGui::Separator();
                     {
                         const Ship *flown = sim.active_ship();
                         const auto panels = flown ? flown->spec().cockpit.panels_2d() : std::vector<Cockpit::Panel2D>();

@@ -1,0 +1,82 @@
+{
+ "name": "CVEL Shuttle-A Cargo Pod",
+ "class": "payload",
+ "drag_area": 12,
+ "camera_distance": 14,
+ "ports": [
+  {
+   "name": "Shuttle end",
+   "position": [
+    -0.319,
+    0,
+    -2.5
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Far end",
+   "position": [
+    -0.319,
+    0,
+    2.5
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "stages": [
+  {
+   "name": "Cargo pod",
+   "dry_mass": 20000,
+   "propellant": 0,
+   "z": 0,
+   "length": 5,
+   "radius": 2.8,
+   "engines": [],
+   "gear": [
+    [
+     -2,
+     -2,
+     -2.5
+    ],
+    [
+     2,
+     -2,
+     -2.5
+    ],
+    [
+     -2,
+     -2,
+     2.5
+    ],
+    [
+     2,
+     -2,
+     2.5
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/cargopod.obj"
+    }
+   ]
+  }
+ ]
+}

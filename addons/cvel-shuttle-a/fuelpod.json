@@ -1,0 +1,83 @@
+{
+ "name": "CVEL Shuttle-A Fuel Pod",
+ "class": "payload",
+ "fuel_pod": true,
+ "drag_area": 12,
+ "camera_distance": 14,
+ "ports": [
+  {
+   "name": "Shuttle end",
+   "position": [
+    -0.319,
+    0,
+    -2.5
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Far end",
+   "position": [
+    -0.319,
+    0,
+    2.5
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "stages": [
+  {
+   "name": "Fuel pod",
+   "dry_mass": 3000,
+   "propellant": 20000,
+   "z": 0,
+   "length": 5,
+   "radius": 2.8,
+   "engines": [],
+   "gear": [
+    [
+     -2,
+     -2,
+     -2.5
+    ],
+    [
+     2,
+     -2,
+     -2.5
+    ],
+    [
+     -2,
+     -2,
+     2.5
+    ],
+    [
+     2,
+     -2,
+     2.5
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/fuelpod.obj"
+    }
+   ]
+  }
+ ]
+}

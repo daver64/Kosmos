@@ -78,9 +78,10 @@ int main()
         g.style = 1;
         g.clouds = 0;
         g.max_fps = 30;
+        g.earth_relief = 1;
         CHECK(save_graphics(tmp, g));
         const GraphicsSettings back = load_graphics(tmp);
-        CHECK(back.style == 1 && back.clouds == 0 && back.max_fps == 30);
+        CHECK(back.style == 1 && back.clouds == 0 && back.max_fps == 30 && back.earth_relief == 1);
         std::ifstream in(tmp);
         std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         CHECK(text.find("\"volume\": 33") != std::string::npos);

@@ -44,12 +44,7 @@ namespace kosmos
     JoyProfile joy_default_profile(bool aircraft)
     {
         JoyProfile p;
-        const auto axis = [&](const char *action, int index, bool invert) {
-            AxisBinding b;
-            b.axis = index;
-            b.invert = invert;
-            p.axes[action] = b;
-        };
+        // Axes start unbound: axis numbering differs between sticks and a wrong guess would deflect the controls on its own.
         const auto button = [&](const char *action, int index) {
             ButtonBinding b;
             b.button = index;
@@ -57,10 +52,6 @@ namespace kosmos
         };
         if (aircraft)
         {
-            axis("roll", 0, true);
-            axis("pitch", 1, false);
-            axis("yaw", 2, true);
-            axis("throttle", 3, true);
             button("brake", 0);
             button("gear", 1);
             button("flaps", 2);
@@ -70,10 +61,6 @@ namespace kosmos
         }
         else
         {
-            axis("yaw", 0, true);
-            axis("pitch", 1, false);
-            axis("roll", 2, true);
-            axis("throttle", 3, true);
             button("stage", 0);
             button("sas", 1);
             button("autopilot", 2);

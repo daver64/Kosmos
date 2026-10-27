@@ -9,6 +9,7 @@
 #include "ship.h"
 #include "universe.h"
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -102,5 +103,6 @@ namespace kosmos
         double current_warp_ = 1.0;
         bool script_loaded_ = false;
         std::vector<std::string> messages_;
+        std::vector<std::chrono::steady_clock::time_point> message_times_;
     };
 } // namespace kosmos

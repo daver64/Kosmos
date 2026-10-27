@@ -24,6 +24,8 @@ namespace kosmos
         std::string base; // a base id: stand on that base's pad instead
         int runway = -1;  // with a base: start on this runway (index) instead of the pad
         bool reverse = false;
+        /** Starts docked: the index of an earlier ship in the scenario, its port, and this ship's port. The ship still needs a position. */
+        int dock_to = -1, dock_port = 0, own_port = 0;
         double along = 40.0;     // metres past the runway threshold (negative: before it)
         double altitude = 0.0;   // metres above the ground; above zero starts airborne
         double speed = 0.0;      // airspeed in m/s when airborne

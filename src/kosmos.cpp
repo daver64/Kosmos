@@ -235,8 +235,10 @@ namespace
         if (!sc.life_support.empty())
             sim.life_support = kosmos::parse_life_support(sc.life_support, sim.life_support);
         const int home = sim.universe.home_id();
-        for (const kosmos::ScenarioShip &entry : sc.ships)
+        std::vector<int> spawned(sc.ships.size(), -1);
+        for (std::size_t entry_index = 0; entry_index < sc.ships.size(); ++entry_index)
         {
+            const kosmos::ScenarioShip &entry = sc.ships[entry_index];
             const kosmos::ShipSpec *spec = sim.find_ship_spec(entry.ship);
             const int body = sim.universe.find(entry.body);
             if (!spec || body < 0)
@@ -246,6 +248,7 @@ namespace
             }
             const sl::Terrain *terrain = terrains.find(body);
             Ship *ship = sim.spawn(*spec);
+            spawned[entry_index] = sim.ship_count() - 1;
             if (!entry.label.empty())
                 ship->name = entry.label;
             if (kosmos::Systems *systems = ship->systems())
@@ -283,6 +286,8 @@ namespace
                     else
                         kosmos::base_pad(*base, radius, dir, heading);
                     height = base->height;
+                    if (entry.runway < 0 || entry.runway >= static_cast<int>(base->runways.size()))
+                        height += kosmos::base_pad_deck(*base);
                     if (entry.altitude > 0.0)
                         ship->place_airborne(body, dir, heading, height, entry.altitude, entry.speed);
                     else
@@ -302,6 +307,15 @@ namespace
                 }
                 ship->place_on_surface(body, dir, entry.heading, height);
             }
+        }
+        for (std::size_t i = 0; i < sc.ships.size(); ++i)
+        {
+            const kosmos::ScenarioShip &entry = sc.ships[i];
+            if (entry.dock_to < 0 || entry.dock_to >= static_cast<int>(i) || spawned[i] < 0 || spawned[static_cast<std::size_t>(entry.dock_to)] < 0)
+                continue;
+            const int leader = spawned[static_cast<std::size_t>(entry.dock_to)];
+            if (entry.dock_port < static_cast<int>(sim.ship(leader)->spec().ports.size()) && entry.own_port < static_cast<int>(sim.ship(spawned[i])->spec().ports.size()))
+                sim.nav.link(leader, entry.dock_port, spawned[i], entry.own_port);
         }
         if (sim.ship_count() == 0)
             return nullptr;
@@ -400,7 +414,7 @@ namespace
             if (home_base)
             {
                 kosmos::base_pad(*home_base, sim.universe.bodies[static_cast<std::size_t>(earth)].radius, pad, heading);
-                height = home_base->height;
+                height = home_base->height + kosmos::base_pad_deck(*home_base);
             }
             else if (const sl::Terrain *terrain = terrains.find(earth))
             {
@@ -439,6 +453,8 @@ namespace
                 sim.props.set_double("/controls/throttle", options.selftest_throttle);
                 sim.props.set_double("/controls/pitch", now.surface_speed > 40.0 && now.pitch < 8.0 ? 0.4 : (now.pitch > 12.0 ? -0.2 : 0.0));
             }
+            if (!ship->spec().aircraft() && options.selftest_throttle >= 0.0)
+                sim.props.set_double("/controls/throttle", options.selftest_throttle);
             if (options.selftest_gear_up && ship->telemetry().altitude > 30.0)
                 sim.props.set_double("/controls/gear", 0.0);
             sim.step(dt);
@@ -853,6 +869,7 @@ namespace
         layers[0].colour = {18, 62, 135, 255};
         layers[0].max_height = 1.0;
         layers[0].height_blend = 2.0;
+        layers[0].specular = 0.8;
         layers[1].colour = {58, 112, 52, 255};
         layers[1].min_height = 1.0;
         layers[1].max_height = 2600.0;
@@ -1208,6 +1225,7 @@ namespace
         props.set_bool("/sim/settings/labels", false);
         props.set_bool("/sim/settings/ship-labels", false);
         props.set_bool("/sim/settings/help-text", true);
+        props.set_bool("/sim/settings/clock", true);
         props.set_bool("/sim/settings/orbit-line", true);
         props.set_bool("/sim/settings/sound", true);
         props.set_int("/sim/settings/volume", 20);
@@ -1218,6 +1236,7 @@ namespace
         props.set_int("/sim/settings/gfx-light-radius", 8000);
         props.set_int("/sim/settings/gfx-max-fps", 60);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
+        props.set_bool("/sim/settings/gfx-earth-relief", false);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -1229,7 +1248,7 @@ namespace
         nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
         if (!j.is_object())
             return;
-        for (const char *key : {"labels", "ship-labels", "help-text", "orbit-line", "sound"})
+        for (const char *key : {"labels", "ship-labels", "help-text", "orbit-line", "sound", "clock"})
             if (j.contains(key) && j[key].is_boolean())
                 props.set_bool(std::string("/sim/settings/") + key, j[key].get<bool>());
         if (j.contains("volume") && j["volume"].is_number())
@@ -1244,6 +1263,8 @@ namespace
         load_int("gfx-light-radius", 500, 20000);
         load_int("gfx-max-fps", 10, 240);
         load_int("gfx-terrain-detail", 0, 3);
+        if (j.contains("gfx-earth-relief") && j["gfx-earth-relief"].is_boolean())
+            props.set_bool("/sim/settings/gfx-earth-relief", j["gfx-earth-relief"].get<bool>());
         if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
             props.set_bool("/sim/settings/gfx-clouds", j["gfx-clouds"].get<bool>());
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
@@ -1256,7 +1277,7 @@ namespace
         if (path.empty())
             return;
         nlohmann::json j;
-        for (const char *key : {"labels", "ship-labels", "help-text", "orbit-line", "sound"})
+        for (const char *key : {"labels", "ship-labels", "help-text", "orbit-line", "sound", "clock"})
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
@@ -1264,6 +1285,7 @@ namespace
         for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-max-fps", "gfx-terrain-detail"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
+        j["gfx-earth-relief"] = props.get_bool("/sim/settings/gfx-earth-relief");
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);
@@ -3786,6 +3808,9 @@ int main(int argc, char **argv)
     if (!options.map_focus.empty())
         map.focus = sim.universe.find(options.map_focus);
     int sas_index = 0;
+    // With the Earth relief option the terrain mesh (with sea glint) takes over at 300 km instead.
+    // Altitude below which the terrain mesh replaces the tiled Earth sphere. Lower keeps the 64k imagery and sea glint longer, but the sphere has no relief, so peaks pop up at the swap.
+    double earth_sphere_switch_m = 20.0e3;
     sl::gamepad_init();
     kosmos::Joystick joystick;
     joystick.load();
@@ -4757,9 +4782,10 @@ int main(int argc, char **argv)
         view.viewport_height = screen_h;
         view.far_distance = eye_earth_distance + earth_body->radius * 1.3;
         const bool near_earth = eye_earth_distance < earth_body->radius + 2.0e7;
-        // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km, scaled by the body's size.
+        // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km (lower when the tiled imagery is present, which stays sharp down to there), scaled by the body's size.
         const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
-        const bool earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > 300.0e3 * earth_body->radius / 6.371e6;
+        earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ? 300.0e3 : 20.0e3;
+        const bool earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > (vis.earth_tiles ? earth_sphere_switch_m : 300.0e3) * earth_body->radius / 6.371e6;
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
         {
             const sl::FlightBody &fb = *universe.world.body(bt->body);
@@ -5136,6 +5162,12 @@ int main(int argc, char **argv)
                 if (!earth_as_sphere)
                 {
                     sl::Material ground;
+                    if (props.get_bool("/sim/settings/gfx-earth-relief"))
+                    {
+                        ground.pbr = true;
+                        ground.metallic = 0.0f;
+                        ground.roughness = 0.4f;
+                    }
                     terrain->draw(eye_from_earth, ground);
                 }
             }
@@ -5237,6 +5269,9 @@ int main(int argc, char **argv)
                     const glm::mat4 tile_model = model;
                     const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
                     const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                    // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
+                    const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
+                    vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, 300.0e3, glint_altitude)));
                     vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
                     vis.earth_tiles->draw(tile_model, rock);
                 }
@@ -5686,6 +5721,7 @@ int main(int argc, char **argv)
                 sl::gprintf(16, 106, {120, 220, 255}, "Autopilot: %s", status.c_str());
             int nearest = -1;
             double nearest_distance = 0.0;
+            int hud_end_y = 88;
             for (std::size_t i = 0; i < sim.bases.size(); ++i)
             {
                 const kosmos::Base &bs = sim.bases[i];
@@ -5699,6 +5735,9 @@ int main(int argc, char **argv)
                     nearest_distance = d;
                 }
             }
+            hud_end_y = props.get_bool("/autopilot/enabled") || !status.empty() ? 106 : 88;
+            if (nearest >= 0)
+                hud_end_y = props.get_bool("/autopilot/enabled") || !status.empty() ? 124 : 106;
             if (nearest >= 0)
                 sl::gprintf(16, props.get_bool("/autopilot/enabled") || !status.empty() ? 124 : 106, {190, 190, 255}, "Nearest base: %s (%s)   %s",
                             sim.bases[static_cast<std::size_t>(nearest)].name.c_str(), sim.bases[static_cast<std::size_t>(nearest)].body.c_str(), format_distance(nearest_distance).c_str());
@@ -5718,7 +5757,13 @@ int main(int argc, char **argv)
                         near_d = d;
                     }
                 }
+                hud_end_y = line_y;
                 sl::gprintf(16, line_y, {255, 200, 90}, "%s%s%s", netplay.status().c_str(), near_text.empty() ? "" : "   Nearest player: ", near_text.empty() ? "" : (near_text + " " + format_distance(near_d)).c_str());
+            }
+            if (!map_mode && props.get_bool("/sim/settings/help-text"))
+            {
+                sl::gprintf(16, hud_end_y + 24, {200, 210, 220}, "%s", "[Z/X] Throttle  [Shift/Ctrl] +/-  [Space] Stage  [WASDQE] Rotate  [Arrows] RCS  [T] Hold  [P] Autopilot");
+                sl::gprintf(16, hud_end_y + 42, {200, 210, 220}, "%s", "[,/.] Warp  [R-drag] Look  [ [ ] ] Zoom  [O] Orbit  [Tab] Map  [C] Cockpit/3D  [V] Ship  [F2] Cameras  [F3] Settings  [F4] Properties  [F11] Lua  [F12] Multiplayer  [J] Jump to player  [F5-F9] MFD  [F10] Scenario  [R] Reset");
             }
         }
         const std::vector<std::string> &messages = sim.messages();
@@ -5865,11 +5910,9 @@ int main(int argc, char **argv)
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
         }
-        if (show_info && !map_mode && props.get_bool("/sim/settings/help-text"))
-        {
-            sl::gprintf_center(screen_h - 40, {200, 210, 220}, "[Z/X] Throttle  [Shift/Ctrl] +/-  [Space] Stage  [WASDQE] Rotate  [Arrows] RCS  [T] Hold  [P] Autopilot");
-            sl::gprintf_center(screen_h - 22, {200, 210, 220}, "[,/.] Warp  [R-drag] Look  [ [ ] ] Zoom  [O] Orbit  [Tab] Map  [C] Cockpit/3D  [V] Ship  [F2] Cameras  [F3] Settings  [F4] Properties  [F11] Lua  [F12] Multiplayer  [J] Jump to player  [F5-F9] MFD  [F10] Scenario  [R] Reset");
-        }
+        if (!options.hide_info && props.get_bool("/sim/settings/clock"))
+            sl::gprintf_center(screen_h - 22, {235, 235, 200}, "Warp x%g%s   %s   T+%s", sim.current_warp(), ship->on_rails() ? " (rails)" : "",
+                               kosmos::format_utc(universe.julian_date()).c_str(), format_time(universe.time()).c_str());
         if (galaxy_mode)
             gview.draw(sim.galaxy, sim.system_index());
         if (sl::gui_available())
@@ -6061,7 +6104,8 @@ int main(int argc, char **argv)
                     flag("Body labels", "/sim/settings/labels", "Name tags on planets and moons too small to recognise");
                     flag("Ship labels", "/sim/settings/ship-labels", "Name and distance tags on other ships");
                     flag("Orbit line", "/sim/settings/orbit-line", "Draw the flown ship's orbit (O)");
-                    flag("Key help text", "/sim/settings/help-text", "The key reminder lines at the bottom of the screen");
+                    flag("Key help text", "/sim/settings/help-text", "The key reminder lines under the info text");
+                    flag("Warp and time", "/sim/settings/clock", "Warp factor, date and elapsed time along the bottom of the screen");
                     ImGui::SeparatorText("Graphics");
                     {
                         static const char *styles[] = {"Normal", "Flat shaded", "Wireframe"};
@@ -6087,6 +6131,11 @@ int main(int argc, char **argv)
                             props.set_int("/sim/settings/gfx-terrain-detail", detail);
                         if (ImGui::IsItemHovered())
                             ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+                        bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
+                        if (ImGui::Checkbox("Earth relief from orbit", &relief))
+                            props.set_bool("/sim/settings/gfx-earth-relief", relief);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
                     }
                     ImGui::SeparatorText("Sound");
                     flag("Sound on", "/sim/settings/sound", "Engine sound (M)");

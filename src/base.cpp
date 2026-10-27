@@ -614,6 +614,38 @@ namespace kosmos
 
     namespace
     {
+        // The pads are drawn with a fixed thickness; ships rest on top of it, so the ground is raised to just under its surface.
+        bool pad_extent(const BaseObject &o, double &reach, double &deck)
+        {
+            if (o.type == "launch_pad")
+            {
+                reach = 0.5 * (o.size > 0.0 ? o.size : 60.0);
+                deck = 1.5 + o.y - 0.04;
+                return true;
+            }
+            if (o.type == "landing_pad")
+            {
+                reach = std::max(o.radius > 0.0 ? o.radius : 15.0, 4.0);
+                deck = 0.24 + o.y - 0.04;
+                return true;
+            }
+            return false;
+        }
+    }
+
+    double base_pad_deck(const Base &base)
+    {
+        for (const BaseObject &o : base.objects)
+        {
+            double reach, deck;
+            if (pad_extent(o, reach, deck) && std::hypot(o.x - base.pad_x, o.z - base.pad_z) <= reach)
+                return deck;
+        }
+        return 0.0;
+    }
+
+    namespace
+    {
         void lat_lon_of(const Universe &universe, int body, const Base &base, double x, double z, double &latitude, double &longitude)
         {
             const double radius = universe.bodies[static_cast<std::size_t>(body)].radius;
@@ -735,6 +767,17 @@ namespace kosmos
             runway_ends(rw, false, x0, z0, x1, z1);
             const double margin = 0.5 * rw.width + 30.0;
             sites.push_back({base_point(base, radius, x0, z0), base_point(base, radius, x1, z1), base.height, margin, 150.0});
+        }
+        for (const BaseObject &o : base.objects)
+        {
+            double reach, deck;
+            if (!pad_extent(o, reach, deck))
+                continue;
+            for (int i = 0; i < std::max(o.count, 1); ++i)
+            {
+                const sl::dvec3 p = base_point(base, radius, o.x + o.step_x * i, o.z + o.step_z * i);
+                sites.push_back({p, p, base.height + deck, reach, 1.5});
+            }
         }
         return sites;
     }

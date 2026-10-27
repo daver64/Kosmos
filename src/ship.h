@@ -227,6 +227,8 @@ namespace kosmos
         sl::dvec3 camera_target{0.0};
         /** Landing gear that folds away: it takes `gear_time` seconds to move and only carries load while fully down. */
         bool retractable_gear = false;
+        /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
+        bool fuel_pod = false;
         double gear_time = 6.0;
         std::vector<StageSpec> stages;
         /** Aerodynamic surfaces and wheels, for aircraft and anything else that flies in an atmosphere. */

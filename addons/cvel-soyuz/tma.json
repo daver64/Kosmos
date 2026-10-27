@@ -1,0 +1,47 @@
+{
+ "name": "CVEL Soyuz TMA",
+ "class": "capsule",
+ "torque_accel": 0.5,
+ "max_rate": 0.5,
+ "rcs_thrust": 280,
+ "drag_area": 4,
+ "camera_distance": 18,
+ "camera_target": [0, 0, -1],
+ "cockpit": { "eye": [0, -1.5, -1.5], "yaw": 0, "pitch": 0 },
+ "systems": [
+  { "type": "battery", "name": "Batteries", "capacity_wh": 3000, "max_w": 1500 },
+  { "type": "solar", "name": "Solar panels", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0] },
+  { "type": "load", "name": "Avionics", "watts": 250, "priority": 0 },
+  { "type": "load", "name": "Cabin lighting", "watts": 60, "priority": 2 },
+  { "type": "tank", "gas": "oxygen", "capacity_kg": 20 },
+  { "type": "tank", "gas": "nitrogen", "capacity_kg": 10 },
+  { "type": "tank", "gas": "water", "capacity_kg": 30 },
+  { "type": "regulator", "name": "Cabin regulator", "vessel": "Cabin" },
+  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 40 }
+ ],
+ "vessels": [
+  { "name": "Cabin", "stage": "Soyuz TMA", "position": [0, 0, -1.5], "size": [2.2, 2.2, 2.0], "crew": 3 }
+ ],
+ "ports": [
+  { "name": "Docking", "position": [0, 0, -4.615], "direction": [0, 0, -1], "up": [0, 1, 0] }
+ ],
+ "lights": [
+  { "position": [0, 1.4, 2.4], "colour": [255, 255, 255], "intensity": 3, "range": 40, "pattern": "strobe", "period": 1.6, "glow": 0.4 }
+ ],
+ "stages": [
+  {
+   "name": "Soyuz TMA",
+   "dry_mass": 6320,
+   "propellant": 900,
+   "z": 0,
+   "length": 8,
+   "radius": 1.4,
+   "engines": [
+    { "position": [0, 0, 2.64], "direction": [0, 0, -1], "thrust": 3924, "isp": 305, "plume": 3, "plume_width": 0.5, "plume_glow": 0.8, "plume_density": 1, "type": "rocket", "fuel": "hypergolic" }
+   ],
+   "parts": [
+    { "model": "models/soyuz.obj", "offset": [0, 0, 0] }
+   ]
+  }
+ ]
+}

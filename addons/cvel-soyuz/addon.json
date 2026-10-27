@@ -1,0 +1,11 @@
+{
+  "id": "cvel-soyuz",
+  "name": "CVEL Soyuz-FG and TMA",
+  "version": "0.1",
+  "author": "D Henderson (CVE-lite); launcher meshes by Urwumpe (LGPL); TMA meshes by Jason Benson (public domain)",
+  "description": "The Soyuz-FG launch vehicle carrying the Soyuz TMA, and the TMA on its own, imported from the Orbiter CVE-lite add-ons.",
+  "ships": [
+    "fg.json",
+    "tma.json"
+  ]
+}

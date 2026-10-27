@@ -1,14 +1,19 @@
 #!/bin/sh
 # Builds the Linux and Windows packages and publishes them to the web site.
-# Usage: release.sh [--no-publish] [--linux-only | --windows-only]
+# Usage: release.sh [-j N] [--no-publish] [--linux-only | --windows-only]
+# -j N (or JOBS=N) sets the most compile jobs run at once; the default is 4.
 # Publishing (scripts/publish-web.sh) only acts when an archive's checksum differs from the published one,
 # then it stamps the new version on the pages and moves VERSION on to the next build.
 # Overrides (env): the ones of build-linux.sh, build-windows.sh and publish-web.sh (OUT is not passed on).
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 linux=1 windows=1 publish=1
-for a in "$@"; do
+JOBS=${JOBS:-4}
+while [ $# -gt 0 ]; do
+    a=$1; shift
     case $a in
+        -j|--jobs) JOBS=$1; shift ;;
+        -j*) JOBS=${a#-j} ;;
         --no-publish) publish=0 ;;
         --linux-only) windows=0 ;;
         --windows-only) linux=0 ;;
@@ -16,6 +21,7 @@ for a in "$@"; do
     esac
 done
 
+export JOBS
 archives=
 if [ $linux -eq 1 ]; then
     env -u OUT "$SRC/scripts/build-linux.sh"

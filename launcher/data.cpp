@@ -522,6 +522,7 @@ namespace launcher
         g.light_radius = clamped(j, "gfx-light-radius", g.light_radius, 500, 20000);
         g.max_fps = clamped(j, "gfx-max-fps", g.max_fps, 10, 240);
         g.terrain_detail = clamped(j, "gfx-terrain-detail", g.terrain_detail, 0, 3);
+        g.earth_relief = clamped(j, "gfx-earth-relief", g.earth_relief, 0, 1);
         return g;
     }
 
@@ -535,6 +536,7 @@ namespace launcher
         j["gfx-light-radius"] = g.light_radius;
         j["gfx-max-fps"] = g.max_fps;
         j["gfx-terrain-detail"] = g.terrain_detail;
+        j["gfx-earth-relief"] = g.earth_relief != 0;
         std::error_code ec;
         fs::create_directories(settings_file.parent_path(), ec);
         std::ofstream out(settings_file);

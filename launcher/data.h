@@ -52,10 +52,10 @@ namespace launcher
     std::string installed_version(const fs::path &root);
 
     // The graphics keys of Kosmos's settings.json (gfx-style 0-2, gfx-clouds 0/1, gfx-light-radius, gfx-max-fps,
-    // gfx-terrain-detail 0-3). Missing keys come back at their defaults; saving keeps every other key in the file.
+    // gfx-terrain-detail 0-3, gfx-earth-relief 0/1). Missing keys come back at their defaults; saving keeps every other key in the file.
     struct GraphicsSettings
     {
-        int style = 0, clouds = 1, light_radius = 8000, max_fps = 60, terrain_detail = 1;
+        int style = 0, clouds = 1, light_radius = 8000, max_fps = 60, terrain_detail = 1, earth_relief = 0;
     };
     GraphicsSettings load_graphics(const fs::path &settings_file);
     bool save_graphics(const fs::path &settings_file, const GraphicsSettings &g);

@@ -140,6 +140,7 @@ namespace kosmos
         props.set_int("/dock/receiver", 0);
         props.set_int("/dock/own-port", 0);
         props.set_bool("/dock/undock", false);
+        props.set_string("/dock/transfer", "auto");
         props.set_bool("/dock/valid", false);
         props.set_bool("/dock/docked", false);
     }
@@ -210,6 +211,62 @@ namespace kosmos
             follower.go_rails();
     }
 
+    void NavSystem::transfer_propellant(const std::vector<std::unique_ptr<Ship>> &ships, int active, double dt)
+    {
+        constexpr double rate = 100.0; // kg/s through each docking port
+        const std::string mode = props_->get_string("/dock/transfer", "auto");
+        auto tank_of = [&](int ship) -> sl::PropellantTank * {
+            Ship &s = *ships[static_cast<std::size_t>(ship)];
+            auto &tanks = s.body().tanks;
+            const std::size_t stage = static_cast<std::size_t>(s.active_stage());
+            return stage < tanks.size() ? &tanks[stage] : nullptr;
+        };
+        double partner_fuel = 0.0, partner_capacity = 0.0;
+        for (const Link &l : links_)
+        {
+            if (l.a != active && l.b != active)
+                continue;
+            if (sl::PropellantTank *t = tank_of(l.a == active ? l.b : l.a))
+            {
+                partner_fuel += t->mass;
+                partner_capacity += t->capacity;
+            }
+        }
+        props_->set_double("/dock/partner-fuel", partner_fuel);
+        props_->set_double("/dock/partner-capacity", partner_capacity);
+        if (mode == "off")
+            return;
+        for (const Link &l : links_)
+        {
+            int from = -1, to = -1;
+            if (mode == "auto")
+            {
+                const bool a_pod = ships[static_cast<std::size_t>(l.a)]->spec().fuel_pod, b_pod = ships[static_cast<std::size_t>(l.b)]->spec().fuel_pod;
+                if (a_pod == b_pod)
+                    continue;
+                from = a_pod ? l.a : l.b;
+                to = a_pod ? l.b : l.a;
+            }
+            else if (l.a == active || l.b == active)
+            {
+                const int other = l.a == active ? l.b : l.a;
+                from = mode == "give" ? active : other;
+                to = mode == "give" ? other : active;
+            }
+            if (from < 0)
+                continue;
+            sl::PropellantTank *src = tank_of(from), *dst = tank_of(to);
+            if (!src || !dst)
+                continue;
+            const double moved = std::min({rate * dt, src->mass, dst->capacity - dst->mass});
+            if (moved > 0.0)
+            {
+                src->mass -= moved;
+                dst->mass += moved;
+            }
+        }
+    }
+
     void NavSystem::couple(Universe &, const std::vector<std::unique_ptr<Ship>> &ships, int active, double dt)
     {
         time_ += dt;
@@ -274,6 +331,8 @@ namespace kosmos
             for (std::size_t i = 1; i < group.size(); ++i)
                 ships[static_cast<std::size_t>(group[i])]->set_attached_mass(0.0);
         }
+        if (active >= 0 && active < count)
+            transfer_propellant(ships, active, dt);
     }
 
     bool NavSystem::undock(const std::vector<std::unique_ptr<Ship>> &ships, int ship, int port)

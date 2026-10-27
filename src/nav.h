@@ -61,11 +61,15 @@ namespace kosmos
 
         /** After the world has stepped: make new dock captures and move docked ships rigidly with their leader. */
         void couple(Universe &universe, const std::vector<std::unique_ptr<Ship>> &ships, int active, double dt);
+        /** Moves propellant between docked ships by /dock/transfer: "auto" (tank pods top up what they are docked to), "off", "give" (flown ship to its partners) or "take". */
+        void transfer_propellant(const std::vector<std::unique_ptr<Ship>> &ships, int active, double dt);
         /** After telemetry is refreshed: tune the receivers and publish /nav and /dock. */
         void update(Universe &universe, const std::vector<std::unique_ptr<Ship>> &ships, int active);
         /** Release every dock of a ship (or just one port) and push the pair gently apart. */
         bool undock(const std::vector<std::unique_ptr<Ship>> &ships, int ship, int port = -1);
         bool docked(int ship) const;
+        /** Joins two ships through the given ports without needing a capture (scenarios that start docked). */
+        void link(int a, int port_a, int b, int port_b) { links_.push_back({a, port_a, b, port_b}); }
 
     private:
         struct Link

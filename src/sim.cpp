@@ -28,8 +28,12 @@ namespace kosmos
     void Sim::log(const std::string &text)
     {
         messages_.push_back(text);
+        message_times_.push_back(std::chrono::steady_clock::now());
         if (messages_.size() > 6)
+        {
             messages_.erase(messages_.begin());
+            message_times_.erase(message_times_.begin());
+        }
         std::fprintf(stderr, "[kosmos] %s\n", text.c_str());
         if (log_sink)
             log_sink(text);
@@ -395,6 +399,13 @@ namespace kosmos
 
     void Sim::step(double frame)
     {
+        // HUD messages are notices: they go after a few seconds.
+        const auto now = std::chrono::steady_clock::now();
+        while (!messages_.empty() && now - message_times_.front() > std::chrono::milliseconds(3500))
+        {
+            messages_.erase(messages_.begin());
+            message_times_.erase(message_times_.begin());
+        }
         if (props.get_bool("/sim/paused"))
             return;
         if (script_loaded_)

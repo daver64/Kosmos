@@ -213,6 +213,7 @@ namespace kosmos
             }
             spec.horizontal = json.value("horizontal", false);
             spec.retractable_gear = json.value("retractable_gear", false);
+            spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
             {
@@ -440,8 +441,20 @@ namespace kosmos
     {
         if (std::fabs(kilograms - attached_mass_) < 1.0e-6)
             return;
+        const double before = body().mass();
         attached_mass_ = kilograms;
         refresh_mass_properties();
+        // The gear springs were sized for the ship alone; stiffen them for what it now carries so it does not sink.
+        const double factor = before > 1.0 ? body().mass() / before : 1.0;
+        if (gear_k_ > 0.0 && std::fabs(factor - 1.0) > 1.0e-9)
+        {
+            gear_k_ *= factor;
+            for (std::size_t i = 0; i < body().gear.size(); ++i)
+            {
+                body().gear[i].stiffness *= factor;
+                body().gear[i].damping *= factor;
+            }
+        }
     }
 
     void Ship::port_world(int index, sl::dvec3 &position, sl::dvec3 &direction, sl::dvec3 &up) const

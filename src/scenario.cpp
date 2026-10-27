@@ -70,6 +70,13 @@ namespace kosmos
                 }
                 else
                     throw std::runtime_error("ship needs \"orbit\" or \"surface\"");
+                if (js.contains("dock"))
+                {
+                    const nlohmann::json &o = js["dock"];
+                    s.dock_to = o.value("to", -1);
+                    s.dock_port = o.value("port", 0);
+                    s.own_port = o.value("own_port", 0);
+                }
                 if (js.contains("systems"))
                 {
                     const nlohmann::json &o = js["systems"];
@@ -138,6 +145,8 @@ namespace kosmos
             if (!s.label.empty())
                 js["name"] = s.label;
             js["body"] = s.body;
+            if (s.dock_to >= 0)
+                js["dock"] = {{"to", s.dock_to}, {"port", s.dock_port}, {"own_port", s.own_port}};
             if (!s.landed)
             {
                 js["orbit"] = {{"altitude_km", s.altitude_km}, {"inclination", s.inclination}, {"phase", s.phase}};
