@@ -45,6 +45,8 @@ namespace kosmos
         int active = 0;
         /** Initial /sim/target (a ship or body name) and NAV1/NAV2 frequencies; empty or 0 leaves them unset. */
         std::string target;
+        /** The star system the scenario takes place in, by name; empty means Sol. Starting the scenario jumps there if need be. */
+        std::string system;
         /** "off", "warn" or "fatal": what failing life support does to the crew. Empty keeps the setting. */
         std::string life_support;
         /** Start in desktop fullscreen. */

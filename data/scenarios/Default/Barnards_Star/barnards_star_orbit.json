@@ -1,0 +1,17 @@
+{
+ "name": "Barnard's Star d: orbit",
+ "description": "Argo in a 400 km orbit of the best world of the Barnard's Star system. Quantum jump here from Sol.",
+ "system": "Barnard's Star",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Barnard's Star d",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

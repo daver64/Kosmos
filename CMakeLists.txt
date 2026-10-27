@@ -56,6 +56,7 @@ add_executable(kosmos
     src/mfd.cpp
     src/nav.cpp
     src/planet_data.cpp
+    src/planet_gen.cpp src/planet_bake.cpp
     src/vsop87.cpp
     src/scenario.cpp
     src/sim.cpp
@@ -74,7 +75,7 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 
 # Ship systems (power, consumables, pressure vessels) tests: cmake --build build --target systems_test && build/systems_test
 add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/part_kit.cpp src/universe.cpp
-    src/vsop87.cpp src/planet_data.cpp)
+    src/vsop87.cpp src/planet_data.cpp src/planet_gen.cpp src/planet_bake.cpp)
 target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

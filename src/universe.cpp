@@ -144,6 +144,19 @@ namespace kosmos
             body.radius = entry.value("radius", 1000.0);
             body.spin = entry.value("spin", 0.0);
             body.terrain = entry.value("terrain", "");
+            if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
+            {
+                body.style.type = archetype_from_name(st->value("type", ""));
+                body.style.seed = st->value("seed", 1);
+                body.style.ocean = st->value("ocean", 0.6f);
+                body.style.ice = st->value("ice", 0.15f);
+                body.style.relief = st->value("relief", 1.0f);
+                body.style.bands = st->value("bands", 9);
+                body.style.contrast = st->value("contrast", 0.5f);
+                if (const auto tint = st->find("tint"); tint != st->end() && tint->is_array() && tint->size() >= 3)
+                    for (int i = 0; i < 3; ++i)
+                        body.style.tint[i] = (*tint)[static_cast<std::size_t>(i)].get<float>();
+            }
             body.detail = entry.value("detail", "");
             body.detail_tile = entry.value("detail_tile", 128.0);
             body.detail_strength = entry.value("detail_strength", 0.9);

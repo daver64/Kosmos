@@ -4,6 +4,8 @@
 #include "proptree.h"
 
 #include <string>
+
+#include "planet_gen.h"
 #include <vector>
 
 namespace kosmos
@@ -40,6 +42,8 @@ namespace kosmos
         float colour[3] = {0.6f, 0.6f, 0.6f};
         /** Name of a procedural terrain recipe for the body, empty for a plain sphere. */
         std::string terrain;
+        /** An invented world's generated look (terrain, colours and far-view texture); none for a plain or authored body. */
+        PlanetStyle style;
         /** Optional seamless brightness map laid over the ground imagery near the surface (in data/textures/), its repeat size in metres and strength. */
         std::string detail;
         double detail_tile = 128.0;

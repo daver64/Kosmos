@@ -88,13 +88,48 @@ Versions are `major.build`. The major number is 0 while Kosmos is in beta, and t
 
 `galaxy.cpp` generates a deterministic catalogue of 24,409 stars: Sol, thirteen real stars at approximate positions (Alpha Centauri, Proxima, Barnard's, Wolf 359, Sirius, Lalande 21185, Procyon, Epsilon Eridani, Tau Ceti, TRAPPIST-1, Vega, Betelgeuse and Rigel), 400 invented nearby stars and a two-armed spiral disc.
 Each star gets a procedural planetary system (planets, moons, belts, comets) with one home planet that has Earth-like terrain and atmosphere.
-Press **G**, pick a star and press **Enter** to jump; a short hyperspace effect plays while the new system loads (the window stays open), and you arrive in a 200 km orbit around its home planet.
+Press **N**, pick a star and press **Enter** to jump; a short hyperspace effect plays while the new system loads (the window stays open), and you arrive in a 200 km orbit around its home planet.
 
 Hand-authored systems live in `data/systems/<name>.json` (same format as `sol.json`; the file name is the star's name in lower case with dashes). Sirius (with its white dwarf companion), Proxima, TRAPPIST-1, Betelgeuse and Rigel ship this way; every other star uses the generator.
 
+Scenarios belong to a star system: a `"system": "Sirius"` entry in the scenario file (empty means Sol) makes starting it jump there first, and the scenario editor records the current system when it saves. `data/scenarios/Default/<Star>/` holds one Argo orbit scenario for each real star within quantum range of Sol (Alpha Centauri, Proxima, Barnard's Star, Wolf 359, Sirius, Lalande 21185, Procyon, Epsilon Eridani, Tau Ceti, TRAPPIST-1, Vega).
+
 ### Quantum jump drive
 
-A ship with an engine of `"type": "hyperjump"` (the Argo has one; `"range_ly"` sets its reach, 50 by default) can use **View > Quantum navigation**: pick a star within range and press *Engage quantum jump*. The ship arrives in orbit of the best world in the system (an Earth-like planet if there is one, else a Mars- or Venus-like rocky planet, else any rocky planet, else a moon of a gas giant, else the giant itself; `--orbit-body auto` does the same from the command line), and the window reopens at the new system. Ships without the drive see a "no quantum jump drive" notice. `--quantum` opens the window at startup.
+A ship with an engine of `"type": "hyperjump"` (the Argo has one; `"range_ly"` sets its reach, 50 by default) can use **View > Quantum navigation**: pick a star within range, optionally choose a specific planet or moon in the *Arrive at* box, and press *Engage quantum jump*. With no world chosen the ship arrives in orbit of the best world in the system (an Earth-like planet if there is one, else a Mars- or Venus-like rocky planet, else any rocky planet, else a moon of a gas giant, else the giant itself; `--orbit-body auto` does the same from the command line), and the window reopens at the new system. Ships without the drive see a "no quantum jump drive" notice. `--quantum` opens the window at startup.
+
+### Invented worlds
+
+Every generated planet and moon gets a procedural look from `planet_gen.cpp`: Mercury-like (craters), Venus-like (volcanic plains under haze), Earth-like (continents, oceans, ice, biomes), Mars-like (rust, canyons, volcanoes, caps) or gas giant (banded, with storms; ice giants are the same type with soft bands). `galaxy.cpp` picks the type and its parameters (ocean fraction, ice, relief, tint, bands) from the world's size, temperature and atmosphere; the seed makes it the same for everyone. Rocky worlds also get streaming terrain from the same generator, so what you see from orbit is what you land on. The home planet keeps its Earth-like terrain. Earth-, Venus- and Mars-like worlds also get a procedural cloud layer (thin and pinkish on Mars-like, thick and cream on Venus-like), and `--list-worlds mercury|venus|earth|mars|gas` lists the ones within quantum range.
+Nothing is shipped for these worlds. The first time a system is entered, each far-view image is generated (2048x1024, 1024x512 for small bodies; a second or two each) and kept in `~/.cache/kosmos/planets` (`$XDG_CACHE_HOME/kosmos/planets`, or `%LOCALAPPDATA%\kosmos\cache\planets` on Windows). Delete the folder at any time; it is rebuilt on demand.
+
+**Far-view detail.** The default far-view image is 2048x1024 (1024x512 for small bodies). Settings (F3) > "World texture", the `/sim/settings/world-texture` property or `--world-texture WIDTH` picks Automatic, 2048, 4096, 8192 or 16384 wide instead, and the change is applied at once (a few seconds for the larger sizes; each size is made once and kept). Measured on a Mars-like world, 4096 took about 2 s and a 34 MB PNG, 8192 about 6 s and 134 MB; 16384 is about four times that again (roughly 540 MB, and as much video memory). The cache keeps every width you have tried, so delete the folder to reclaim the space. Close to the ground the terrain colours come straight from the generator (or from baked tiles, below), so this only changes the view from afar.
+
+`--gen-planet TYPE SEED out.png [WIDTH]` writes a preview image of a type (`mercury venus earth mars gas`) and exits.
+
+#### High-resolution bake (optional)
+
+For a closer-looking far view, or maps you can open in other tools, pre-generate a tile set for one world:
+
+    kosmos --system 294 --bake-planet "Noranth 294 e" --bake-width 16384
+    kosmos --system 294 --bake-planet "Noranth 294 e" --bake-width 65536 --bake-estimate   # only print the size
+    kosmos --system 294 --bake-planet "Noranth 294 e" --bake-width 65536 --bake-lazy       # no upfront work, see below
+
+`--system` takes the star number from `--stars`; naming a body that has no generated ground lists the ones that do. The tiles are in Celestia's virtual-texture layout (`levelN/tx_COLUMN_ROW.png`, 512 pixel tiles, a `tiles.ctx` descriptor) under `<cache>/tiles/`, and Kosmos uses them automatically on the terrain wherever they are as fine as the terrain cell. Closer than the finest tile the generator carries on, so the ground never goes blurry. An interrupted bake resumes where it stopped.
+
+**This takes disk space.** Sizes grow four-fold with each doubling of width (the pyramid of lower levels is included; PNG sizes are an upper estimate, smooth oceans compress better than rock):
+
+| `--bake-width` | Map size | Tiles | Disk (about) | Time on 16 threads (about) |
+|---|---|---|---|---|
+| 4096 | 4k x 2k | 42 | 16 MB | seconds |
+| 8192 | 8k x 4k | 170 | 65 MB | seconds |
+| 16384 | 16k x 8k | 682 | 260 MB | under a minute |
+| 32768 | 32k x 16k | 2,730 | 1 GB | a few minutes |
+| 65536 | 64k x 32k | 10,922 | 4 GB | 10 minutes or more |
+
+**Lazy baking** (`--bake-lazy`) writes nothing up front. Instead the terrain makes each tile the first time you fly over it and keeps it, so only the parts of the world you visit use disk, and a second visit reads a tile instead of recomputing the noise. `--bake-width` sets the finest level it will make (tiles that fine are made only where the terrain needs that detail; finer than that the generator answers directly). A lazy world can be completed later with a normal `--bake-planet` run, which skips tiles that already exist.
+
+Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake the handful of worlds you care about, not every planet you pass. `--bake-estimate` prints the figure for your width without writing anything.
 
 ## Textures
 

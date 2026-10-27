@@ -1,0 +1,17 @@
+{
+ "name": "Tau Ceti e: orbit",
+ "description": "Argo in a 400 km orbit of the best world of the Tau Ceti system. Quantum jump here from Sol.",
+ "system": "Tau Ceti",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Tau Ceti e",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

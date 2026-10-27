@@ -24,6 +24,7 @@ namespace kosmos
             out.description = json.value("description", "");
             out.active = json.value("active", 0);
             out.target = json.value("target", "");
+            out.system = json.value("system", "");
             out.life_support = json.value("life_support", "");
             out.fullscreen = json.value("fullscreen", false);
             if (json.contains("mjd"))
@@ -112,6 +113,8 @@ namespace kosmos
         if (!sc.description.empty())
             json["description"] = sc.description;
         json["active"] = sc.active;
+        if (!sc.system.empty() && sc.system != "Sol")
+            json["system"] = sc.system;
         if (!sc.target.empty())
             json["target"] = sc.target;
         if (!sc.life_support.empty())

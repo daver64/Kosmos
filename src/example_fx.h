@@ -306,11 +306,12 @@ namespace fx
     }
 
     /** Seamless equirectangular cloud cover: white with noise-driven alpha. The caller destroys the bitmap. */
-    inline sl::Bitmap *make_cloud_texture(int w = 1024, int h = 512, double cover_amount = 0.5, std::uint32_t seed = 0)
+    inline sl::Bitmap *make_cloud_texture(int w = 1024, int h = 512, double cover_amount = 0.5, std::uint32_t seed = 0, double base_frequency = 3.0)
     {
         // Less cover raises the threshold at which the noise turns to cloud; Earth's default is 0.5.
-        const double lo = 0.36 + (0.5 - cover_amount) * 0.5, hi = lo + 0.26 + (0.5 - cover_amount) * 0.9;
-        const double opacity = 215.0 * std::min(1.0, 0.45 + cover_amount);
+        const double lo = 0.36 + (0.5 - cover_amount) * 0.5, hi = lo + 0.14 + (0.5 - cover_amount) * 0.5;
+        const double opacity = 240.0 * std::min(1.0, 0.45 + cover_amount);
+        const int octaves = w >= 2048 ? 8 : 6; // a bigger image has room for finer detail
         sl::Bitmap *bitmap = sl::create_bitmap(w, h);
         if (!bitmap)
             return nullptr;
@@ -322,7 +323,7 @@ namespace fx
                 const double longitude = ((x + 0.5) / w) * 2.0 * 3.14159265358979;
                 const sl::dvec3 direction{std::cos(latitude) * std::cos(longitude), std::sin(latitude),
                                           std::cos(latitude) * std::sin(longitude)};
-                const double cover = smoothstep(lo, hi, detail::sphere_fbm(direction, 3.0, 6, seed));
+                const double cover = smoothstep(lo, hi, detail::sphere_fbm(direction, base_frequency, octaves, seed));
                 sl::putpixel(bitmap, x, y, {255, 255, 255, static_cast<std::uint8_t>(cover * opacity)});
             }
         }

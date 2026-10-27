@@ -1,0 +1,17 @@
+{
+ "name": "Alpha Centauri e: orbit",
+ "description": "Argo in a 400 km orbit of the best world of the Alpha Centauri system. Quantum jump here from Sol.",
+ "system": "Alpha Centauri",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Alpha Centauri e",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

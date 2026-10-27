@@ -1,0 +1,17 @@
+{
+ "name": "TRAPPIST-1 e: orbit",
+ "description": "Argo in a 400 km orbit of the best world of the TRAPPIST-1 system. Quantum jump here from Sol.",
+ "system": "TRAPPIST-1",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "TRAPPIST-1 e",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}

@@ -7,6 +7,7 @@
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
+#include "planet_bake.h"
 #include "blender_edit.h"
 #include "usercam.h"
 
@@ -66,6 +67,7 @@ namespace
         bool systems_window = false;
         double selftest = 0.0;
         int max_texture = 16384;
+        int world_texture = -1; // --world-texture W: far-view image width for invented worlds (0 = automatic); -1 uses the saved setting
         double selftest_warp = 0.0;
         bool selftest_gear_up = false;
         double selftest_throttle = -1.0;
@@ -114,6 +116,10 @@ namespace
         std::string target;
         std::vector<std::string> sets; // --set path=value, applied once the scenario is loaded
         bool list_scenarios = false;
+        std::string bake_body; // --bake-planet
+        int bake_width = 16384;
+        bool bake_estimate = false;
+        bool bake_lazy = false;
         double map_scale = 0.0;
         std::string map_focus;
         std::string orbit_body;
@@ -133,10 +139,13 @@ namespace
         int system = 0;
         std::string system_name;
         bool list_stars = false;
+        std::string list_worlds; // --list-worlds TYPE
         bool check_data = false;
         std::string export_base, export_file;
         bool galaxy_view = false;
         bool quantum_window = false;
+        std::string test_jump_body; // --test-jump-body NAME: with --test-jump, arrive at that body
+        std::string test_scenario; // --test-scenario ID: switch to that scenario a couple of seconds into the run (for testing)
         int test_jump = -1; // --test-jump N: quantum-jump to star N a second into the run (for testing)
     };
 
@@ -1017,9 +1026,10 @@ namespace
         const std::string celestia_tiles = find_tile_source(sim.root() + "/data/celestia/hires/" + lower_name);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
+        const bool generated_ground = b.style.has_ground() && !home;
         if (!celestia_tiles.empty())
             surface_paths.push_back(celestia_tiles);
-        else if (!surface_image.empty())
+        else if (!surface_image.empty() && !generated_ground)
             surface_paths.push_back(surface_image);
         for (const std::string &path : surface_paths)
         {
@@ -1067,6 +1077,42 @@ namespace
         if (source)
         {
             std::fprintf(stderr, "[kosmos] %s terrain from Orbiter data\n", b.name.c_str());
+        }
+        else if (generated_ground)
+        {
+            // An invented world: the same generator that painted its far-view image shapes and colours the ground.
+            const auto surface = std::make_shared<kosmos::PlanetSurface>(b.style, b.radius);
+            source = surface->make_source();
+            // A baked tile set (see --bake-planet) is used wherever it is at least as fine as the terrain cell; finer than that the generator takes over.
+            std::vector<std::shared_ptr<kosmos::CelestiaImagery>> baked;
+            const std::filesystem::path tiles = kosmos::baked_tiles_dir(b.style, b.radius);
+            std::error_code tiles_ec;
+            if (std::filesystem::exists(tiles / "tiles.ctx", tiles_ec))
+            {
+                auto imagery = std::make_shared<kosmos::CelestiaImagery>(tiles.string(), frame, b.radius);
+                if (imagery->ok())
+                {
+                    baked.push_back(std::move(imagery));
+                    std::fprintf(stderr, "[kosmos] %s baked tiles: %s\n", b.name.c_str(), tiles.string().c_str());
+                }
+            }
+            std::shared_ptr<kosmos::LazyTiles> lazy;
+            if (const int lazy_width = kosmos::read_lazy_width(tiles))
+            {
+                lazy = std::make_shared<kosmos::LazyTiles>(surface, tiles, b.radius, lazy_width);
+                std::fprintf(stderr, "[kosmos] %s lazy tiles up to %d wide: %s\n", b.name.c_str(), kosmos::estimate_bake(lazy_width).width, tiles.string().c_str());
+            }
+            config.colour_function = [surface, baked, lazy](const sl::TerrainSample &sample, float rgb[3])
+            {
+                if (lazy && lazy->colour(sample.position, sample.cell_size, rgb))
+                    return true;
+                double resolution = 0.0;
+                if (!baked.empty() && baked.front()->colour(sample.position, sample.cell_size, rgb, resolution) && resolution <= std::max(sample.cell_size, 1.0))
+                    return true;
+                surface->colour(sample.position, sample.height, sample.slope_degrees, rgb);
+                return true;
+            };
+            std::fprintf(stderr, "[kosmos] %s generated %s terrain\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
         }
         else if (home)
         {
@@ -1164,6 +1210,7 @@ namespace
         props.set_bool("/sim/settings/sound", true);
         props.set_int("/sim/settings/volume", 20);
         props.set_string("/sim/settings/blender", "blender");
+        props.set_int("/sim/settings/world-texture", 0);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -1180,6 +1227,8 @@ namespace
                 props.set_bool(std::string("/sim/settings/") + key, j[key].get<bool>());
         if (j.contains("volume") && j["volume"].is_number())
             props.set_int("/sim/settings/volume", std::clamp(j["volume"].get<int>(), 0, 100));
+        if (j.contains("world-texture") && j["world-texture"].is_number_integer())
+            props.set_int("/sim/settings/world-texture", std::clamp(j["world-texture"].get<int>(), 0, 16384));
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
             props.set_string("/sim/settings/blender", j["blender"].get<std::string>());
     }
@@ -1194,6 +1243,7 @@ namespace
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
+        j["world-texture"] = props.get_int("/sim/settings/world-texture");
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);
@@ -1922,6 +1972,32 @@ namespace
         return images.empty() ? std::string{} : images.front().string();
     }
 
+    // The far-view image of an invented world, made the first time it is needed and then kept. Empty if it cannot be written.
+    int generated_texture_width = 0; // 0 = automatic: 2048 for big worlds, 1024 for small ones
+
+    std::string generated_surface_image(const kosmos::Body &b)
+    {
+        const bool large = b.radius > 2.0e6;
+        const int width = generated_texture_width > 0 ? generated_texture_width : large ? 2048 : 1024, height = width / 2;
+        const std::filesystem::path path = kosmos::generated_cache_dir() / (b.style.key() + "-g1-" + std::to_string(width) + ".png");
+        std::error_code ec;
+        if (std::filesystem::exists(path, ec))
+            return path.string();
+        loading.note("Generating the surface of " + b.name);
+        const kosmos::PlanetSurface surface(b.style, b.radius);
+        sl::Bitmap *bitmap = surface.make_texture(width, height);
+        if (!bitmap)
+            return {};
+        // Written under a temporary name first so a crash never leaves a half-written image in the cache.
+        const std::string partial = path.string() + ".part.png";
+        const bool saved = sl::save_bitmap(bitmap, partial);
+        sl::destroy_bitmap(bitmap);
+        if (!saved)
+            return {};
+        std::filesystem::rename(partial, path, ec);
+        return ec ? std::string{} : path.string();
+    }
+
     std::string find_surface_image(const std::string &root, const kosmos::Body &b)
     {
         if (!b.texture.empty())
@@ -1935,7 +2011,10 @@ namespace
         const std::string celestia = find_image_in_folder(root + "/data/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;
-        return find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        const std::string shipped = find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        if (shipped.empty() && b.style.valid() && !b.minor)
+            return generated_surface_image(b);
+        return shipped;
     }
 
     // A 3D cockpit's two MFD screens sit on a console in the ship frame (-Z is forward): a position, and a tilt back from the pilot.
@@ -2734,6 +2813,31 @@ int main(int argc, char **argv)
             std::printf("Kosmos %s\n", KOSMOS_VERSION);
             return 0;
         }
+        else if (!std::strcmp(argv[i], "--gen-planet") && i + 3 < argc)
+        {
+            // Developer preview: --gen-planet TYPE SEED OUT.png [WIDTH] writes an invented world's far-view image and exits.
+            kosmos::PlanetStyle style;
+            style.type = kosmos::archetype_from_name(argv[i + 1]);
+            style.seed = std::atoi(argv[i + 2]);
+            const std::string out = argv[i + 3];
+            const int width = i + 4 < argc && std::atoi(argv[i + 4]) > 0 ? std::atoi(argv[i + 4]) : 1024;
+            static const float tints[][3] = {{0.6f, 0.6f, 0.6f}, {0.6f, 0.6f, 0.6f}, {0.88f, 0.75f, 0.47f}, {0.24f, 0.43f, 0.67f}, {0.75f, 0.4f, 0.25f}, {0.85f, 0.7f, 0.5f}};
+            std::copy(tints[static_cast<int>(style.type)], tints[static_cast<int>(style.type)] + 3, style.tint);
+            if (!style.valid())
+            {
+                std::fprintf(stderr, "types: mercury venus earth mars gas\n");
+                return 1;
+            }
+            const kosmos::PlanetSurface surface(style, 6.0e6);
+            sl::Bitmap *bitmap = surface.make_texture(width, width / 2);
+            if (!bitmap || !sl::save_bitmap(bitmap, out))
+            {
+                std::fprintf(stderr, "could not write %s\n", out.c_str());
+                return 1;
+            }
+            std::printf("wrote %s\n", out.c_str());
+            return 0;
+        }
         else if (!std::strcmp(argv[i], "--root") && i + 1 < argc)
             options.root = argv[++i];
         else if (!std::strcmp(argv[i], "--selftest") && i + 1 < argc)
@@ -2742,10 +2846,18 @@ int main(int argc, char **argv)
             options.system_name = argv[++i];
         else if (!std::strcmp(argv[i], "--stars"))
             options.list_stars = true;
+        else if (!std::strcmp(argv[i], "--list-worlds") && i + 1 < argc)
+            options.list_worlds = argv[++i];
         else if (!std::strcmp(argv[i], "--galaxy-map"))
             options.galaxy_view = true;
         else if (!std::strcmp(argv[i], "--quantum"))
             options.quantum_window = true;
+        else if (!std::strcmp(argv[i], "--test-jump-body") && i + 1 < argc)
+            options.test_jump_body = argv[++i];
+        else if (!std::strcmp(argv[i], "--world-texture") && i + 1 < argc)
+            options.world_texture = std::max(0, std::atoi(argv[++i]));
+        else if (!std::strcmp(argv[i], "--test-scenario") && i + 1 < argc)
+            options.test_scenario = argv[++i];
         else if (!std::strcmp(argv[i], "--test-jump") && i + 1 < argc)
             options.test_jump = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--max-texture") && i + 1 < argc)
@@ -2849,6 +2961,14 @@ int main(int argc, char **argv)
             options.target = argv[++i];
         else if (!std::strcmp(argv[i], "--set") && i + 1 < argc)
             options.sets.push_back(argv[++i]);
+        else if (!std::strcmp(argv[i], "--bake-planet") && i + 1 < argc)
+            options.bake_body = argv[++i];
+        else if (!std::strcmp(argv[i], "--bake-width") && i + 1 < argc)
+            options.bake_width = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--bake-lazy"))
+            options.bake_lazy = true;
+        else if (!std::strcmp(argv[i], "--bake-estimate"))
+            options.bake_estimate = true;
         else if (!std::strcmp(argv[i], "--list-scenarios"))
             options.list_scenarios = true;
         else if (!std::strcmp(argv[i], "--mfd") && i + 1 < argc)
@@ -2935,6 +3055,56 @@ int main(int argc, char **argv)
         return 1;
     }
     sim.life_support = kosmos::parse_life_support(options.life_support, sim.life_support);
+    // A scenario set in another star system starts there, unless --system says otherwise.
+    if (options.system_name.empty() && !options.scenario.empty())
+        if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+            if (!sc->system.empty())
+            {
+                const int star = sim.galaxy.find(sc->system);
+                std::string system_error;
+                if (star < 0)
+                    std::fprintf(stderr, "kosmos: scenario %s is set in unknown star system '%s'\n", sc->id.c_str(), sc->system.c_str());
+                else if (star != sim.system_index() && sim.change_system(star, system_error))
+                    options.system = star;
+                else if (star != sim.system_index())
+                    std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc->system.c_str(), system_error.c_str());
+            }
+    if (!options.list_worlds.empty())
+    {
+        // --list-worlds mercury|venus|earth|mars|gas [--system N]: worlds of that kind within quantum range, nearest first.
+        std::string want = options.list_worlds;
+        std::transform(want.begin(), want.end(), want.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (want == "jupiter" || want == "giant" || want == "neptune")
+            want = "gas";
+        if (want != "mercury" && want != "venus" && want != "earth" && want != "mars" && want != "gas")
+        {
+            std::fprintf(stderr, "kosmos: world types are mercury venus earth mars gas (jupiter)\n");
+            return 1;
+        }
+        const int here = sim.system_index();
+        std::vector<int> ids = sim.galaxy.nearest(here, sim.galaxy.size());
+        int found = 0;
+        for (const int id : ids)
+        {
+            const double d = sim.galaxy.distance_ly(here, id);
+            if (d > 50.0)
+                break;
+            const nlohmann::json system = nlohmann::json::parse(sim.galaxy.system_json(id), nullptr, false);
+            if (!system.is_object() || !system.contains("bodies"))
+                continue;
+            for (const nlohmann::json &b : system["bodies"])
+            {
+                const std::string kind = b.value("kind", "");
+                if ((kind != "planet" && kind != "moon") || !b.contains("style") || b["style"].value("type", "") != want)
+                    continue;
+                std::printf("%5.1f ly  %-18s %-26s %s  %.2f R_earth\n", d, sim.galaxy.star(id).name.c_str(), b.value("name", "").c_str(),
+                            kind == "moon" ? "moon  " : "planet", b.value("radius", 0.0) / 6.371e6);
+                ++found;
+            }
+        }
+        std::printf("%d %s worlds within 50 ly\n", found, want.c_str());
+        return 0;
+    }
     if (options.list_stars)
     {
         std::printf("%d stars; system %d %s (class %c)\n", sim.galaxy.size(), sim.system_index(), sim.galaxy.star(sim.system_index()).name.c_str(),
@@ -2943,6 +3113,52 @@ int main(int argc, char **argv)
             std::printf("%6d  %-22s class %c  %6.1f ly  %d planets\n", id, sim.galaxy.star(id).name.c_str(), sim.galaxy.star(id).spectral_class,
                         sim.galaxy.distance_ly(sim.system_index(), id), sim.galaxy.planet_count(id));
         return 0;
+    }
+    if (!options.bake_body.empty())
+    {
+        // Pre-generates the high-resolution tile set of an invented world: --system N --bake-planet "Name" [--bake-width 16384] [--bake-estimate | --bake-lazy]
+        const int id = sim.universe.find(options.bake_body);
+        if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.has_ground())
+        {
+            std::fprintf(stderr, "kosmos: no generated rocky body '%s' in this system. Candidates:\n", options.bake_body.c_str());
+            for (const kosmos::Body &b : sim.universe.bodies)
+                if (b.style.has_ground())
+                    std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+            return 1;
+        }
+        const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
+        const kosmos::BakeEstimate estimate = kosmos::estimate_bake(options.bake_width);
+        const std::filesystem::path dir = kosmos::baked_tiles_dir(b.style, b.radius);
+        std::printf("%s (%s): %d x %d pixels, %lld tiles, about %s on disk\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), estimate.width,
+                    estimate.height, static_cast<long long>(estimate.tiles), kosmos::format_bytes(estimate.disk_bytes).c_str(), dir.string().c_str());
+        if (options.bake_estimate)
+            return 0;
+        if (options.bake_lazy)
+        {
+            if (!kosmos::write_lazy_marker(dir, options.bake_width))
+            {
+                std::fprintf(stderr, "kosmos: cannot write into %s\n", dir.string().c_str());
+                return 1;
+            }
+            std::printf("lazy: tiles up to that size are now made as you fly over them and kept there\n");
+            return 0;
+        }
+        const kosmos::PlanetSurface surface(b.style, b.radius);
+        std::string bake_error;
+        int last = -1;
+        const bool ok = kosmos::bake_tiles(surface, dir, options.bake_width, [&](double fraction)
+        {
+            const int percent = static_cast<int>(fraction * 100.0);
+            if (percent != last)
+            {
+                last = percent;
+                std::printf("\r%3d%%", percent);
+                std::fflush(stdout);
+            }
+            return true;
+        }, bake_error);
+        std::printf("\n%s\n", ok ? "done" : bake_error.c_str());
+        return ok ? 0 : 1;
     }
     if (options.list_scenarios)
     {
@@ -3107,6 +3323,8 @@ int main(int argc, char **argv)
     sl::Terrain *terrain = nullptr;
     TerrainSet terrain_set;
     sl::Mesh *cloud_shell = nullptr;
+    sl::Bitmap *home_cloud_texture = nullptr; // generated weather for an invented home world; Earth uses the imported image
+    double home_cloud_height = cloud_height;
     kosmos::BaseRenderer base_renderer;
     base_renderer.root = sim.root();
     const std::size_t base_beacon_mark = sim.nav.beacon_count();
@@ -3120,6 +3338,10 @@ int main(int argc, char **argv)
         if (cloud_shell)
             sl::destroy_mesh(cloud_shell);
         cloud_shell = nullptr;
+        if (home_cloud_texture)
+            sl::destroy_bitmap(home_cloud_texture);
+        home_cloud_texture = nullptr;
+        home_cloud_height = cloud_height;
         for (sl::Mesh *m : vis.body_cloud_meshes)
             if (m)
                 sl::destroy_mesh(m);
@@ -3147,6 +3369,78 @@ int main(int argc, char **argv)
         vis.earth_tiles.reset();
         vis.rings.clear();
         vis.surface_textured.clear();
+    };
+    // Dates and bodies that depend on where the planets stand: re-run when the start date changes without a rebuild of the system.
+    auto place_worlds = [&]()
+    {
+        earth_body = &sim.universe.bodies[static_cast<std::size_t>(earth_id)];
+        sim.universe.bodies[static_cast<std::size_t>(earth_id)].rotation_offset += options.earth_turn;
+        // A tidally locked body with terrain does not spin, so its far side is fixed: face Earth at time zero.
+        for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
+        {
+            kosmos::Body &b = sim.universe.bodies[i];
+            if (!b.terrain.empty() && static_cast<int>(i) != earth_id && b.parent >= 0 && (!b.has_meridian || sim.universe.epoch_override <= 0.0))
+            {
+                const sl::dvec3 to_parent = sim.universe.position(b.parent) - sim.universe.position(static_cast<int>(i));
+                // Longitude 0 faces the parent: the Moon toward Earth, an undated Mars toward the Sun.
+                const sl::dvec3 pole = sim.universe.pole(static_cast<int>(i));
+                const sl::dvec3 lon0 = b.axis_tilt * sl::dvec3(1.0, 0.0, 0.0);
+                b.rotation_offset = std::atan2(glm::dot(pole, glm::cross(lon0, to_parent)), glm::dot(lon0, to_parent));
+            }
+        }
+        loading.note("Placing bases and beacons");
+        sim.nav.truncate_beacons(base_beacon_mark);
+        for (kosmos::Base &base : sim.bases)
+        {
+            const int body = sim.universe.find(base.body);
+            if (body >= 0)
+            {
+                base.direction = kosmos::base_direction(sim.universe, body, base);
+                base.pole = sim.universe.pole(body);
+                base.height = base.elevation;
+                kosmos::register_base_beacons(sim.nav, sim.universe, body, base);
+            }
+        }
+    };
+    // A scenario on another date in the same system keeps the terrain, textures and cloud layers; only the planets' positions
+    // and the turn of each terrain body (baked into the terrain when it was built) are brought to the new date.
+    auto change_date = [&](double epoch_jd, std::string &error) -> bool
+    {
+        std::vector<double> built(body_terrains.size(), 0.0);
+        for (std::size_t k = 0; k < body_terrains.size(); ++k)
+        {
+            const sl::FlightBody *fb = sim.universe.world.body(body_terrains[k]->body);
+            built[k] = sim.universe.rotation_angle(body_terrains[k]->body) - (fb->spin_phase + fb->spin_rate * sim.universe.world.time());
+        }
+        sim.start_epoch_jd = epoch_jd;
+        if (!sim.change_system(sim.system_index(), error))
+            return false;
+        place_worlds();
+        for (std::size_t k = 0; k < body_terrains.size(); ++k)
+        {
+            sl::FlightBody *fb = sim.universe.world.body(body_terrains[k]->body);
+            fb->spin_phase = sim.universe.bodies[static_cast<std::size_t>(body_terrains[k]->body)].rotation_offset - built[k];
+            fb->terrain = body_terrains[k]->terrain.get();
+        }
+        return true;
+    };
+    // Remakes the far-view image of every invented world at the width now chosen in the settings, without leaving the system.
+    auto reload_world_textures = [&]()
+    {
+        for (std::size_t i = 0; i < sim.universe.bodies.size() && i < vis.body_textures.size(); ++i)
+        {
+            const kosmos::Body &b = sim.universe.bodies[i];
+            if (b.minor || !b.style.valid() || !b.texture.empty())
+                continue;
+            const std::string image = generated_surface_image(b);
+            if (image.empty())
+                continue;
+            if (sl::Bitmap *surface = load_surface_texture(image, options.max_texture))
+            {
+                sl::destroy_bitmap(vis.body_textures[i]);
+                vis.body_textures[i] = surface;
+            }
+        }
     };
     auto enter_system = [&]() -> bool
     {
@@ -3263,41 +3557,14 @@ int main(int argc, char **argv)
             std::fprintf(stderr, "kosmos: system has no home planet with terrain\n");
             return false;
         }
-        earth_body = &sim.universe.bodies[static_cast<std::size_t>(earth_id)];
-        sim.universe.bodies[static_cast<std::size_t>(earth_id)].rotation_offset += options.earth_turn;
-        // A tidally locked body with terrain does not spin, so its far side is fixed: face Earth at time zero.
-        for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
-        {
-            kosmos::Body &b = sim.universe.bodies[i];
-            if (!b.terrain.empty() && static_cast<int>(i) != earth_id && b.parent >= 0 && (!b.has_meridian || sim.universe.epoch_override <= 0.0))
-            {
-                const sl::dvec3 to_parent = sim.universe.position(b.parent) - sim.universe.position(static_cast<int>(i));
-                // Longitude 0 faces the parent: the Moon toward Earth, an undated Mars toward the Sun.
-                const sl::dvec3 pole = sim.universe.pole(static_cast<int>(i));
-                const sl::dvec3 lon0 = b.axis_tilt * sl::dvec3(1.0, 0.0, 0.0);
-                b.rotation_offset = std::atan2(glm::dot(pole, glm::cross(lon0, to_parent)), glm::dot(lon0, to_parent));
-            }
-        }
-        loading.note("Placing bases and beacons");
-        sim.nav.truncate_beacons(base_beacon_mark);
-        for (kosmos::Base &base : sim.bases)
-        {
-            const int body = sim.universe.find(base.body);
-            if (body >= 0)
-            {
-                base.direction = kosmos::base_direction(sim.universe, body, base);
-                base.pole = sim.universe.pole(body);
-                base.height = base.elevation;
-                kosmos::register_base_beacons(sim.nav, sim.universe, body, base);
-            }
-        }
+        place_worlds();
         body_terrains.clear();
         terrain_set.items.clear();
         try
         {
             body_terrains.push_back(make_body_terrain(sim, earth_id, true));
             for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
-                if (static_cast<int>(i) != earth_id && !sim.universe.bodies[i].terrain.empty())
+                if (static_cast<int>(i) != earth_id && (!sim.universe.bodies[i].terrain.empty() || sim.universe.bodies[i].style.has_ground()))
                     if (std::unique_ptr<BodyTerrain> extra = make_body_terrain(sim, static_cast<int>(i), false))
                         body_terrains.push_back(std::move(extra));
         }
@@ -3324,13 +3591,23 @@ int main(int argc, char **argv)
             const kosmos::Body &b = sim.universe.bodies[i];
             if (b.cloud_cover <= 0.0 || static_cast<int>(i) == earth_id)
                 continue;
-            vis.body_cloud_textures[i] = fx::make_cloud_texture(1024, 512, b.cloud_cover, 101 + static_cast<std::uint32_t>(i));
+            vis.body_cloud_textures[i] = fx::make_cloud_texture(2048, 1024, b.cloud_cover, 101 + static_cast<std::uint32_t>(i), 7.0);
             vis.body_cloud_meshes[i] = sl::create_sphere_mesh(static_cast<float>(b.radius + b.cloud_height), 128, 64, {255, 255, 255, 255});
         }
         loading.note("Building the cloud layers");
-        cloud_shell = sl::create_sphere_mesh(static_cast<float>(earth_body->radius + cloud_height), 256, 128, {255, 255, 255, 255});
+        if (earth_body->name != "Earth" && earth_body->cloud_cover > 0.0)
+        {
+            home_cloud_texture = fx::make_cloud_texture(2048, 1024, earth_body->cloud_cover, 101 + static_cast<std::uint32_t>(earth_id), 7.0);
+            home_cloud_height = earth_body->cloud_height;
+        }
+        cloud_shell = sl::create_sphere_mesh(static_cast<float>(earth_body->radius + home_cloud_height), 256, 128, {255, 255, 255, 255});
         return true;
     };
+    settings_defaults(sim.props);
+    settings_load(sim.props);
+    if (options.world_texture >= 0)
+        sim.props.set_int("/sim/settings/world-texture", options.world_texture);
+    generated_texture_width = sim.props.get_int("/sim/settings/world-texture");
     if (!enter_system())
     {
         sl::shutdown();
@@ -3362,6 +3639,10 @@ int main(int argc, char **argv)
     bool galaxy_mode = options.galaxy_view;
     int jump_to = -1;
     bool jump_to_star_orbit = false;
+    std::string jump_to_body;      // a body of the target system to arrive at; empty picks the best world
+    std::string quantum_body;      // the planet or moon chosen in the quantum window for quantum_selected
+    int quantum_bodies_for = -1;
+    std::vector<std::pair<std::string, std::string>> quantum_bodies; // name, description
     bool quantum_window = options.quantum_window;
     int quantum_selected = -1;
     gview.refresh(sim.galaxy, sim.system_index());
@@ -3439,8 +3720,6 @@ int main(int argc, char **argv)
         const std::string settings_file = settings_path();
         lua_console.init(sim, sim.root() + "/data/scripts", settings_file.empty() ? std::string() : (std::filesystem::path(settings_file).parent_path() / "scripts").string());
     }
-    settings_defaults(sim.props);
-    settings_load(sim.props);
     kosmos::set_stock_model_folder(sim.root() + "/data");
     if (!kosmos::Sim::user_dir().empty())
         kosmos::set_base_model_folder((std::filesystem::path(kosmos::Sim::user_dir()) / "bases").string());
@@ -3487,13 +3766,29 @@ int main(int argc, char **argv)
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
         vis.clear_parts();
+        // A scenario belongs to one star system (Sol unless it names another): go there first.
+        {
+            const int star = sc.system.empty() ? 0 : sim.galaxy.find(sc.system);
+            if (star >= 0 && star != sim.system_index())
+            {
+                leave_system();
+                std::string system_error;
+                if (!sim.change_system(star, system_error) || !enter_system())
+                {
+                    std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc.system.c_str(), system_error.c_str());
+                    running = false;
+                    return;
+                }
+                map.focus = -1;
+                quantum_selected = -1;
+                gview.refresh(sim.galaxy, sim.system_index());
+            }
+        }
         // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
         if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9 && sim.system_index() == 0)
         {
-            leave_system();
-            sim.start_epoch_jd = sc.epoch_jd;
             std::string epoch_error;
-            if (!sim.change_system(0, epoch_error) || !enter_system())
+            if (!change_date(sc.epoch_jd, epoch_error))
             {
                 std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
                 running = false;
@@ -3637,6 +3932,8 @@ int main(int argc, char **argv)
             const int target_system = jump_to;
             jump_to = -1;
             const std::string target_name = sim.galaxy.star(target_system).name;
+            // change_system deletes every ship, so the flown ship's name is taken now.
+            const std::string flown_name = ship ? ship->spec().name : std::string();
             auto warp_frame = [&](float t)
             {
                 while (sl::poll_event(&event_discard))
@@ -3679,9 +3976,19 @@ int main(int argc, char **argv)
             options.scenario.clear();
             options.orbit_altitude = 0.0;
             options.orbit_body = jump_to_star_orbit ? "auto" : "";
+            if (jump_to_star_orbit && !jump_to_body.empty())
+            {
+                const int chosen = sim.universe.find(jump_to_body);
+                if (chosen >= 0)
+                {
+                    options.orbit_body = jump_to_body;
+                    options.orbit_altitude = std::min(200.0, sim.universe.bodies[static_cast<std::size_t>(chosen)].radius * 0.5 / 1000.0);
+                }
+            }
+            jump_to_body.clear();
             options.orbit_start = !jump_to_star_orbit;
-            if (jump_to_star_orbit && ship)
-                options.ship_name = ship->spec().name;
+            if (jump_to_star_orbit && !flown_name.empty())
+                options.ship_name = flown_name;
             ship = start_scenario(sim, options, terrain_set);
             if (!ship)
                 break;
@@ -3691,6 +3998,7 @@ int main(int argc, char **argv)
             look_yaw = look_pitch = 0.0f;
             map.focus = -1;
             quantum_selected = -1;
+            quantum_body.clear();
             galaxy_mode = false;
             exhaust_fx = ExhaustFx();
             gview.refresh(sim.galaxy, sim.system_index());
@@ -3699,10 +4007,29 @@ int main(int argc, char **argv)
                 warp_frame(static_cast<float>(t) / 2500.0f);
             last_time = sl::time_ms();
         }
+        // The setting is a property, so the settings window, the F4 browser and scripts all change it the same way.
+        if (sim.props.get_int("/sim/settings/world-texture") != generated_texture_width)
+        {
+            generated_texture_width = sim.props.get_int("/sim/settings/world-texture");
+            reload_world_textures();
+            last_time = sl::time_ms();
+        }
+        if (!options.test_scenario.empty() && clock > 2.0)
+        {
+            if (const kosmos::Scenario *next = sim.find_scenario(options.test_scenario))
+            {
+                const kosmos::Scenario chosen = *next;
+                options.scenario = chosen.id;
+                std::fprintf(stderr, "[test] switching to %s\n", chosen.id.c_str());
+                menu_actions.start_scenario(chosen);
+            }
+            options.test_scenario.clear();
+        }
         if (options.test_jump >= 0 && clock > 1.0)
         {
             jump_to = options.test_jump;
             jump_to_star_orbit = true;
+            jump_to_body = options.test_jump_body;
             options.test_jump = -1;
         }
         const std::uint32_t now = sl::time_ms();
@@ -3784,9 +4111,8 @@ int main(int argc, char **argv)
                         if (!options.scenario.empty() && sim.find_scenario(options.scenario) == &all[i])
                             next = (i + 1) % all.size();
                     options.scenario = all[next].id;
-                    vis.clear_parts();
-                    ship = start_scenario(sim, options, terrain_set);
-                    cam_distance = ship->spec().camera_distance;
+                    const kosmos::Scenario chosen = all[next];
+                    menu_actions.start_scenario(chosen);
                 }
                 else if (key == sl::Event::Key::f5)
                 {
@@ -4747,6 +5073,10 @@ int main(int argc, char **argv)
             };
 
             // Other bodies are spheres while inside the far plane; farther ones become markers on the overlay.
+            // Planets and their clouds have no fill light of their own: the night side stays dark (the ambient term is for ships).
+            sl::Light3D body_light = light;
+            body_light.ambient = std::min(light.ambient, 0.04f);
+            sl::set_light_3d(body_light);
             for (std::size_t i = 0; i < universe.bodies.size(); ++i)
             {
                 const kosmos::Body &b = universe.bodies[i];
@@ -4756,7 +5086,34 @@ int main(int argc, char **argv)
                 for (std::size_t k = 1; k < body_terrains.size(); ++k)
                     terrain_drawn = terrain_drawn || (body_terrains[k]->body == static_cast<int>(i) && body_terrains[k]->active);
                 if (terrain_drawn)
+                {
+                    // The terrain stands in for the surface sphere, but the weather above it still has to be drawn.
+                    if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i] && !options.no_clouds)
+                    {
+                        const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
+                        const double distance = glm::length(rel);
+                        if (distance - b.radius > b.cloud_height * 1.5)
+                        {
+                            sl::Material weather;
+                            weather.texture = vis.body_cloud_textures[i];
+                            weather.blend = sl::MaterialBlend::alpha;
+                            weather.fog = false;
+                            weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
+                                            static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 255};
+                            // Terrain is coarse from afar, so the shell is lifted with the depth resolution, as Earth's is.
+                            const double altitude_now = distance - b.radius;
+                            const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
+                            double shell_height = std::clamp(2.0 * resolution, b.cloud_height, 600.0e3);
+                            if (layered)
+                                shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
+                            shell_height = std::max(shell_height, b.cloud_height);
+                            const float k = static_cast<float>((b.radius + shell_height) / (b.radius + b.cloud_height));
+                            const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
+                            sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
+                        }
+                    }
                     continue;
+                }
                 const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
                 const double distance = glm::length(rel);
                 if (distance - b.radius > camera.far_plane * 0.95)
@@ -4811,7 +5168,7 @@ int main(int argc, char **argv)
                     // Drawn on the same single-image sphere as the surface, so it takes the same mirroring.
                     lights.cull = sl::CullMode::front;
                     sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
-                    sl::set_light_3d(light);
+                    sl::set_light_3d(body_light);
                 }
                 if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
                 {
@@ -4831,7 +5188,7 @@ int main(int argc, char **argv)
                     weather.blend = sl::MaterialBlend::alpha;
                     weather.fog = false;
                     weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
-                                    static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 150};
+                                    static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 200};
                     const float k = static_cast<float>(1.0 - depth_gap / distance);
                     const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
                     sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
@@ -4878,21 +5235,24 @@ int main(int argc, char **argv)
             {
                 // From space the terrain hides the sky's clouds, so the weather is a translucent shell lifted as depth coarsens.
                 sl::Material cloud;
-                cloud.texture = vis.cloud_texture;
+                cloud.texture = home_cloud_texture ? home_cloud_texture : vis.cloud_texture;
+                if (home_cloud_texture)
+                    cloud.tint = {static_cast<std::uint8_t>(earth_body->cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(earth_body->cloud_colour[1] * 255.0f), static_cast<std::uint8_t>(earth_body->cloud_colour[2] * 255.0f), 255};
                 cloud.blend = sl::MaterialBlend::alpha;
                 cloud.fog = false;
                 const double altitude_now = eye_earth_distance - earth_body->radius;
                 const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
-                double shell_height = earth_as_sphere ? cloud_height : std::clamp(2.0 * resolution, cloud_height, 600.0e3);
+                double shell_height = earth_as_sphere ? home_cloud_height : std::clamp(2.0 * resolution, home_cloud_height, 600.0e3);
                 // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it beyond that plane.
                 if (layered)
                     shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
-                const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + cloud_height));
+                const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
                 sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
             }
 
             if (earth_id >= 0 && near_earth)
                 draw_atmosphere_glow(universe.position(earth_id) - eye_world, universe.bodies[static_cast<std::size_t>(earth_id)]);
+            sl::set_light_3d(light);
 
             if (layered)
             {
@@ -5523,6 +5883,23 @@ int main(int argc, char **argv)
                     int volume = props.get_int("/sim/settings/volume");
                     if (ImGui::SliderInt("Volume", &volume, 0, 100, "%d%%"))
                         props.set_int("/sim/settings/volume", volume);
+                    ImGui::SeparatorText("Generated worlds");
+                    {
+                        static const int widths[] = {0, 2048, 4096, 8192, 16384};
+                        static const char *names[] = {"Automatic", "2048 (small)", "4096", "8192 (large)", "16384 (huge)"};
+                        int current = 0;
+                        const int saved = props.get_int("/sim/settings/world-texture");
+                        for (int w = 0; w < 5; ++w)
+                            if (widths[w] == saved)
+                                current = w;
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::Combo("World texture", &current, names, 5))
+                        {
+                            props.set_int("/sim/settings/world-texture", widths[current]);
+                        }
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Detail of the far-view image of invented worlds, applied as soon as it is made.\nEach size is made once and kept on disk: 4096 is about 35 MB, 8192 about 135 MB, 16384 about 540 MB per world,\nand needs that much video memory to show.");
+                    }
                     ImGui::SeparatorText("Simulation");
                     int warp = props.get_int("/sim/warp-index");
                     if (ImGui::SliderInt("Time warp", &warp, 0, Sim::warp_levels - 1))
@@ -5718,7 +6095,7 @@ int main(int argc, char **argv)
                         ImGui::Text("Drive range: %.0f light years", range_ly);
                         ImGui::Separator();
                         const std::vector<int> near = sim.galaxy.nearest(sim.system_index(), 64);
-                        if (ImGui::BeginChild("targets", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 2.0f)))
+                        if (ImGui::BeginChild("targets", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 3.0f)))
                         {
                             if (ImGui::BeginTable("stars", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
                             {
@@ -5736,7 +6113,10 @@ int main(int argc, char **argv)
                                     ImGui::TableNextRow();
                                     ImGui::TableNextColumn();
                                     if (ImGui::Selectable((st.name + "##" + std::to_string(id)).c_str(), quantum_selected == id, ImGuiSelectableFlags_SpanAllColumns))
+                                    {
                                         quantum_selected = id;
+                                        quantum_body.clear();
+                                    }
                                     ImGui::TableNextColumn();
                                     ImGui::Text("%c", st.spectral_class);
                                     ImGui::TableNextColumn();
@@ -5756,17 +6136,52 @@ int main(int argc, char **argv)
                         }
                         else
                             ImGui::TextDisabled("Select a target star.");
+                        if (quantum_selected >= 0 && quantum_bodies_for != quantum_selected)
+                        {
+                            // The planets and moons of the chosen system, read from its description without building it.
+                            quantum_bodies.clear();
+                            quantum_bodies_for = quantum_selected;
+                            std::string text = quantum_selected == 0 ? std::string{} : sim.galaxy.system_json(quantum_selected);
+                            if (quantum_selected == 0)
+                            {
+                                std::ifstream in(sim.root() + "/data/sol.json");
+                                text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+                            }
+                            const nlohmann::json system = nlohmann::json::parse(text, nullptr, false);
+                            if (system.is_object() && system.contains("bodies"))
+                                for (const nlohmann::json &b : system["bodies"])
+                                {
+                                    const std::string kind = b.value("kind", "");
+                                    if (kind == "planet" || kind == "moon")
+                                        quantum_bodies.emplace_back(b.value("name", ""), (kind == "moon" ? "moon of " : "planet of ") + b.value("parent", ""));
+                                }
+                        }
+                        if (quantum_selected >= 0)
+                        {
+                            const std::string label = quantum_body.empty() ? "Best world (habitable first)" : quantum_body;
+                            ImGui::SetNextItemWidth(-1.0f);
+                            if (ImGui::BeginCombo("Arrive at", label.c_str()))
+                            {
+                                if (ImGui::Selectable("Best world (habitable first)", quantum_body.empty()))
+                                    quantum_body.clear();
+                                for (const auto &entry : quantum_bodies)
+                                    if (ImGui::Selectable((entry.first + "  (" + entry.second + ")").c_str(), quantum_body == entry.first))
+                                        quantum_body = entry.first;
+                                ImGui::EndCombo();
+                            }
+                        }
                         if (!ok)
                             ImGui::BeginDisabled();
                         if (ImGui::Button("Engage quantum jump"))
                         {
                             jump_to = quantum_selected;
                             jump_to_star_orbit = true;
+                            jump_to_body = quantum_body;
                         }
                         if (!ok)
                             ImGui::EndDisabled();
                         ImGui::SameLine();
-                        ImGui::TextDisabled("Arrives in orbit of the best world there.");
+                        ImGui::TextDisabled("Arrives in orbit of the chosen world.");
                     }
                 }
                 ImGui::End();

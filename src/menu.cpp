@@ -166,6 +166,8 @@ namespace kosmos
         Scenario sc;
         sc.name = name;
         sc.id = slug(name);
+        if (sim.system_index() != 0)
+            sc.system = sim.galaxy.star(sim.system_index()).name;
         sc.active = std::max(0, sim.props.get_int("/sim/active-ship"));
         sc.target = sim.props.get_string("/sim/target");
         for (int i = 0; i < NavSystem::receivers; ++i)
