@@ -2,7 +2,7 @@
  "name": "CVEL Vulcan",
  "class": "aircraft",
  "torque_accel": 0.0,
- "drag_area": 40,
+ "drag_area": 3,
  "camera_distance": 55,
  "camera_target": [
   0,
@@ -21,16 +21,163 @@
   1.0,
   0.8
  ],
+ "cockpit": {
+  "eye": [
+   0,
+   0.5,
+   -17.2
+  ],
+  "mfds": true,
+  "mfd_left": "engine",
+  "mfd_right": "surface",
+  "layout": {
+   "name": "Flight instruments",
+   "width": 1500,
+   "height": 500,
+   "size": 0.85,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "panels": [
+   {
+    "name": "Navigation",
+    "width": 1100,
+    "height": 500,
+    "instruments": [
+     {
+      "mode": "hsi",
+      "x": 60,
+      "y": 60,
+      "size": 290,
+      "frame": true
+     },
+     {
+      "mode": "surface",
+      "x": 420,
+      "y": 60,
+      "size": 290,
+      "frame": true
+     },
+     {
+      "mode": "dg",
+      "x": 790,
+      "y": 30,
+      "size": 260
+     }
+    ]
+   }
+  ],
+  "instruments": [
+   {
+    "mode": "engine",
+    "x": 760,
+    "y": 60,
+    "size": 290,
+    "frame": true
+   },
+   {
+    "mode": "surface",
+    "x": 1110,
+    "y": 60,
+    "size": 290,
+    "frame": true
+   },
+   {
+    "mode": "asi",
+    "x": 30,
+    "y": 30,
+    "size": 210
+   },
+   {
+    "mode": "adi",
+    "x": 250,
+    "y": 30,
+    "size": 210
+   },
+   {
+    "mode": "altimeter",
+    "x": 470,
+    "y": 30,
+    "size": 210
+   },
+   {
+    "mode": "turn",
+    "x": 30,
+    "y": 260,
+    "size": 210
+   },
+   {
+    "mode": "dg",
+    "x": 250,
+    "y": 260,
+    "size": 210
+   },
+   {
+    "mode": "vsi",
+    "x": 470,
+    "y": 260,
+    "size": 210
+   }
+  ],
+  "panel": [
+   {
+    "label": "IAS",
+    "property": "{ship}/speed",
+    "format": "%.0f m/s"
+   },
+   {
+    "label": "ALT",
+    "property": "{ship}/altitude",
+    "format": "%.0f m"
+   },
+   {
+    "label": "VS",
+    "property": "{ship}/vertical-speed",
+    "format": "%.1f m/s"
+   },
+   {
+    "label": "HDG",
+    "property": "{ship}/heading",
+    "format": "%.0f"
+   },
+   {
+    "label": "AOA",
+    "property": "{ship}/alpha",
+    "format": "%.1f deg"
+   },
+   {
+    "label": "FUEL",
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f kg"
+   },
+   {
+    "label": "THR",
+    "property": "/controls/throttle",
+    "scale": 100,
+    "format": "%.0f %%"
+   },
+   {
+    "label": "FLAP",
+    "property": "/controls/flaps",
+    "scale": 100,
+    "format": "%.0f %%"
+   }
+  ]
+ },
  "surfaces": [
   {
    "control": "",
    "position": [
     0,
     0,
-    4
+    0.8
    ],
    "area": 300,
-   "cl0": 0.1,
+   "cl0": 0.25,
    "cl_alpha": 2.6,
    "cd0": 0.012,
    "induced_drag": 0.2,
@@ -41,10 +188,10 @@
    "position": [
     0,
     0,
-    5
+    1.8
    ],
    "area": 60,
-   "cl0": 0.1,
+   "cl0": 0.25,
    "cl_alpha": 2.6,
    "cd0": 0.012,
    "induced_drag": 0.2,
@@ -56,7 +203,7 @@
    "position": [
     10,
     0,
-    10
+    6.8
    ],
    "area": 14,
    "cl0": 0,
@@ -71,7 +218,7 @@
    "position": [
     -10,
     0,
-    10
+    6.8
    ],
    "area": 14,
    "cl0": 0,
@@ -86,22 +233,22 @@
    "position": [
     0,
     0,
-    11
+    7.8
    ],
-   "area": 20,
+   "area": 60,
    "cl0": 0,
    "cl_alpha": 3.0,
    "cd0": 0.01,
    "induced_drag": 0.1,
    "stall_deg": 18,
-   "gain_deg": -12
+   "gain_deg": -20
   },
   {
    "control": "rudder",
    "position": [
     0,
     3,
-    12
+    8.8
    ],
    "area": 12,
    "cl0": 0,
@@ -126,25 +273,25 @@
   {
    "position": [
     0,
-    -2.35,
-    -6
+    -4.4,
+    -8.7
    ],
    "steer_deg": 40,
    "rolling_resistance": 0.03
   },
   {
    "position": [
-    3,
-    -2.2,
-    6
+    4.5,
+    -4.34,
+    1.4
    ],
    "rolling_resistance": 0.03
   },
   {
    "position": [
-    -3,
-    -2.2,
-    6
+    -4.5,
+    -4.34,
+    1.4
    ],
    "rolling_resistance": 0.03
   }
@@ -155,7 +302,7 @@
    "position": [
     0,
     0.4,
-    -14
+    -17.2
    ],
    "fov": 70
   },
@@ -164,7 +311,7 @@
    "position": [
     0,
     4.5,
-    13
+    9.8
    ],
    "yaw": 180,
    "pitch": 5,
@@ -177,7 +324,7 @@
    "position": [
     0,
     0.3,
-    -12
+    -15.2
    ],
    "size": [
     2.5,
@@ -206,7 +353,7 @@
    "position": [
     18,
     0,
-    8
+    4.8
    ],
    "colour": [
     255,
@@ -221,7 +368,7 @@
    "position": [
     -18,
     0,
-    8
+    4.8
    ],
    "colour": [
     40,
@@ -236,7 +383,7 @@
    "position": [
     0,
     5,
-    14
+    10.8
    ],
    "colour": [
     255,
@@ -263,7 +410,7 @@
      "position": [
       -3.445,
       0,
-      14
+      10.8
      ],
      "direction": [
       0,
@@ -279,7 +426,7 @@
      "position": [
       -2.105,
       0.145,
-      14
+      10.8
      ],
      "direction": [
       0,
@@ -295,7 +442,7 @@
      "position": [
       2.105,
       0.145,
-      14
+      10.8
      ],
      "direction": [
       0,
@@ -311,7 +458,7 @@
      "position": [
       3.445,
       0,
-      14
+      10.8
      ],
      "direction": [
       0,
@@ -326,7 +473,12 @@
    ],
    "parts": [
     {
-     "model": "models/avro-vulcan.obj"
+     "model": "models/avro-vulcan.obj",
+     "offset": [
+      0,
+      0,
+      -3.2
+     ]
     }
    ]
   }

@@ -4,6 +4,7 @@
 #include "example_fx.h"
 #include "sim.h"
 #include "lua_console.h"
+#include "joystick.h"
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
@@ -2126,13 +2127,15 @@ namespace
     {
         std::vector<sl::Vertex3D> v(4);
         const float xs[4] = {-0.5f, 0.5f, 0.5f, -0.5f}, ys[4] = {0.5f, 0.5f, -0.5f, -0.5f};
+        // OpenGL render targets are stored bottom-up; Vulkan and Direct3D ones top-down.
+        const bool bottom_up = sl::graphics_backend() == sl::GraphicsBackend::opengl;
         for (int i = 0; i < 4; ++i)
         {
             v[i].position[0] = xs[i];
             v[i].position[1] = ys[i];
             v[i].normal[2] = 1.0f;
             v[i].uv[0] = xs[i] + 0.5f;
-            v[i].uv[1] = ys[i] + 0.5f;
+            v[i].uv[1] = bottom_up ? ys[i] + 0.5f : 0.5f - ys[i];
         }
         return sl::create_mesh(v, {0, 2, 1, 0, 3, 2});
     }
@@ -3783,6 +3786,10 @@ int main(int argc, char **argv)
     if (!options.map_focus.empty())
         map.focus = sim.universe.find(options.map_focus);
     int sas_index = 0;
+    sl::gamepad_init();
+    kosmos::Joystick joystick;
+    joystick.load();
+    bool joystick_window = false;
     float cam_yaw = static_cast<float>(options.cam_yaw), cam_pitch = static_cast<float>(options.cam_pitch);
     double cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
     // Right-drag in the chase view turns the camera on the spot; the ship moves across the screen instead of the camera swinging round it.
@@ -3796,7 +3803,7 @@ int main(int argc, char **argv)
     menu_bar.keep_visible = options.menu_visible || !options.hide_info;
     menu_bar.scenario_editor_open = options.scenario_editor;
     menu_bar.base_editor_open = options.base_editor;
-    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+    std::vector<kosmos::MenuWindow> menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
     kosmos::MenuActions menu_actions;
     menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
     {
@@ -4087,6 +4094,7 @@ int main(int argc, char **argv)
         while (sl::poll_event(&event))
         {
             sl::gui_handle_event(event);
+            sl::gamepad_handle_event(event);
             if (event.type() == sl::Event::Type::quit)
                 running = false;
             else if (event.type() == sl::Event::Type::key_down && sl::gui_available() && ImGui::GetIO().WantTextInput)
@@ -4357,6 +4365,58 @@ int main(int argc, char **argv)
         }
         props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis(sl::Key::arrow_right, sl::Key::arrow_left));
         props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis(sl::Key::arrow_up, sl::Key::arrow_down));
+        if (joystick.learning())
+            joystick.poll_learn();
+        else if (!typing)
+        {
+            const kosmos::JoyResult joy = joystick.update(ship->spec().aircraft());
+            for (const auto &[action, value] : joy.axes)
+            {
+                const std::string path = "/controls/" + action;
+                props.set_double(path, std::clamp(props.get_double(path) + static_cast<double>(value), -1.0, 1.0));
+            }
+            for (const auto &[action, value] : joy.levels)
+            {
+                if (action == "throttle")
+                    props.set_bool("/autopilot/enabled", false);
+                props.set_double("/controls/" + action, value);
+            }
+            if (joy.brake)
+                props.set_double("/controls/brake", 1.0);
+            for (const std::string &action : joy.pressed)
+            {
+                if (action == "gear" && ship->spec().retractable_gear)
+                {
+                    const bool down = props.get_double("/controls/gear") > 0.5;
+                    props.set_double("/controls/gear", down ? 0.0 : 1.0);
+                    sound.play(down ? "gear_up" : "gear_down", 200);
+                }
+                else if (action == "flaps")
+                    props.set_double("/controls/flaps", std::fmod(props.get_double("/controls/flaps") + 0.34, 1.02));
+                else if (action == "stage")
+                    props.set_bool("/controls/stage", true);
+                else if (action == "autopilot")
+                {
+                    const bool enable = !props.get_bool("/autopilot/enabled");
+                    props.set_bool("/autopilot/enabled", enable);
+                    if (!enable)
+                        props.set_string("/autopilot/status", "");
+                }
+                else if (action == "sas")
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    sas_index = (sas_index + 1) % sas_mode_count;
+                    props.set_string("/controls/sas", sas_modes[sas_index]);
+                }
+                else if (action == "throttle-zero" || action == "throttle-full")
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    props.set_double("/controls/throttle", action == "throttle-full" ? 1.0 : 0.0);
+                }
+                else if (action == "hover-on" || action == "hover-off")
+                    props.set_double("/controls/hover", action == "hover-on" ? 1.0 : 0.0);
+            }
+        }
         if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") != 0.0)
             props.set_bool("/autopilot/enabled", false);
 
@@ -5903,6 +5963,86 @@ int main(int argc, char **argv)
                 }
                 ImGui::End();
             }
+            if (joystick_window)
+            {
+                ImGui::SetNextWindowPos(ImVec2(360.0f, 40.0f), ImGuiCond_FirstUseEver);
+                ImGui::SetNextWindowBgAlpha(0.92f);
+                if (ImGui::Begin("Joystick", &joystick_window, ImGuiWindowFlags_AlwaysAutoResize))
+                {
+                    ImGui::Checkbox("Joystick enabled", &joystick.enabled);
+                    const int devices = joystick.device_count();
+                    if (devices == 0)
+                        ImGui::TextDisabled("No joystick connected");
+                    for (int d = 0; d < devices; ++d)
+                    {
+                        if (ImGui::TreeNode(("device" + std::to_string(d)).c_str(), "%s", joystick.device_name(d).c_str()))
+                        {
+                            for (int a = 0; a < joystick.axis_count(d); ++a)
+                                ImGui::ProgressBar(joystick.axis_value(d, a) * 0.5f + 0.5f, ImVec2(160.0f, 0.0f), ("axis " + std::to_string(a)).c_str());
+                            std::string pressed;
+                            for (int b = 0; b < joystick.button_count(d); ++b)
+                                if (joystick.button_value(d, b))
+                                    pressed += " " + std::to_string(b);
+                            ImGui::Text("Buttons down:%s", pressed.c_str());
+                            ImGui::TreePop();
+                        }
+                    }
+                    for (const bool air : {true, false})
+                    {
+                        ImGui::PushID(air ? 1 : 2);
+                        const bool current = ship->spec().aircraft() == air;
+                        ImGui::SeparatorText(air ? (current ? "Aircraft profile (in use)" : "Aircraft profile") : (current ? "Spacecraft profile (in use)" : "Spacecraft profile"));
+                        kosmos::JoyProfile &p = joystick.profile(air);
+                        for (const std::string &action : kosmos::joy_axis_actions(air))
+                        {
+                            ImGui::PushID(action.c_str());
+                            kosmos::AxisBinding &b = p.axes[action];
+                            ImGui::Text("%-9s", action.c_str());
+                            ImGui::SameLine(90.0f);
+                            const bool waiting = joystick.learning() && joystick.learn_action() == action;
+                            if (ImGui::Button(waiting ? "Move axis..." : b.axis < 0 ? "Bind" : ("Axis " + std::to_string(b.axis)).c_str(), ImVec2(90.0f, 0.0f)))
+                                waiting ? joystick.cancel_learn() : joystick.begin_learn(air, action, true);
+                            ImGui::SameLine();
+                            ImGui::Checkbox("Invert", &b.invert);
+                            if (action != "throttle" && action != "hover")
+                            {
+                                ImGui::SameLine();
+                                ImGui::SetNextItemWidth(80.0f);
+                                ImGui::SliderFloat("Dead", &b.deadzone, 0.0f, 0.5f, "%.2f");
+                                ImGui::SameLine();
+                                ImGui::SetNextItemWidth(80.0f);
+                                ImGui::SliderFloat("Curve", &b.expo, 0.0f, 1.0f, "%.2f");
+                            }
+                            ImGui::PopID();
+                        }
+                        for (const std::string &action : kosmos::joy_button_actions(air))
+                        {
+                            ImGui::PushID(action.c_str());
+                            kosmos::ButtonBinding &b = p.buttons[action];
+                            ImGui::Text("%-13s", action.c_str());
+                            ImGui::SameLine(120.0f);
+                            const bool waiting = joystick.learning() && joystick.learn_action() == action;
+                            if (ImGui::Button(waiting ? "Press..." : b.button < 0 ? "Bind" : ("Button " + std::to_string(b.button)).c_str(), ImVec2(90.0f, 0.0f)))
+                                waiting ? joystick.cancel_learn() : joystick.begin_learn(air, action, false);
+                            ImGui::SameLine();
+                            if (ImGui::SmallButton("Clear"))
+                                b.button = -1;
+                            ImGui::PopID();
+                        }
+                        ImGui::PopID();
+                    }
+                    if (ImGui::Button("Save"))
+                        joystick.save();
+                    ImGui::SameLine();
+                    if (ImGui::Button("Reset to defaults"))
+                    {
+                        joystick.aircraft = kosmos::joy_default_profile(true);
+                        joystick.spacecraft = kosmos::joy_default_profile(false);
+                    }
+                    ImGui::TextDisabled("Saved to joystick.json beside settings.json");
+                }
+                ImGui::End();
+            }
             if (settings_window)
             {
                 ImGui::SetNextWindowPos(ImVec2(330.0f, 12.0f), ImGuiCond_FirstUseEver);
@@ -6575,6 +6715,7 @@ int main(int argc, char **argv)
     sl::destroy_bitmap(vis.puff_texture);
     sl::destroy_bitmap(vis.cloud_texture);
     sl::destroy_surface_3d(surface);
+    sl::gamepad_shutdown();
     sl::shutdown();
     return 0;
 }

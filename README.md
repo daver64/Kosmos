@@ -33,6 +33,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | Z / X, Shift / Ctrl | Throttle |
 | W A S D Q E | Rotate |
 | Arrow keys | RCS translation |
+| Joystick | View > Joystick: bind axes and buttons separately for aircraft and spacecraft (saved in `joystick.json`) |
 | Space | Stage |
 | T | Cycle SAS hold mode |
 | P | Autopilot (ship's Lua script) |

@@ -62,6 +62,7 @@ add_executable(kosmos
     src/sim.cpp
     src/lua_console.cpp
     src/menu.cpp
+    src/joystick.cpp
     src/netplay.cpp
     src/TextEditor.cpp)
 target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS})
@@ -81,6 +82,11 @@ add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.
 target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(joystick_test EXCLUDE_FROM_ALL tests/joystick_test.cpp src/joystick.cpp)
+target_link_libraries(joystick_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(joystick_test PRIVATE src)
+target_compile_definitions(joystick_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 # ---- launcher -----------------------------------------------------------------------------------------------------
 # A separate wxWidgets program (no simlib) that picks a scenario and options and starts kosmos; see launcher/main.cpp.

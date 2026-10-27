@@ -1127,7 +1127,7 @@ namespace kosmos
                                    "  , .              slower / faster time warp\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
-                                   "  F5-F9 MFDs   F10 next scenario\n"
+                                   "  F5-F9 MFDs   F10 next scenario   View > Joystick: bind sticks\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";
     }
