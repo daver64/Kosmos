@@ -98,6 +98,7 @@ namespace kosmos
                 spec.cockpit.mfd_left = jc.value("mfd_left", spec.cockpit.mfd_left);
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 spec.cockpit.mfd_filter = jc.value("mfd_filter", spec.cockpit.mfd_filter);
+                spec.cockpit.hud_modes = jc.value("hud_modes", spec.cockpit.hud_modes);
                 for (const nlohmann::json &ji : jc.value("panel", nlohmann::json::array()))
                     spec.cockpit.panel.push_back({ji.value("label", ""), ji.value("property", ""), ji.value("scale", 1.0), ji.value("format", "%.1f")});
                 if (jc.contains("layout"))

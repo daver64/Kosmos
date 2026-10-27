@@ -78,11 +78,13 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | `--name NAME` | Your name in multiplayer and the lobby |
 | `--lobby` | Open the Multiplayer window at start |
 | `--irc HOST`, `--channel #NAME`, `--advertise ADDR:PORT` | Lobby IRC server (default `salyut.ddns.net`, `#kosmos`) and the address you announce |
+| `--no-clutter` | Leave out trees, buildings, rocks and outposts on the ground |
+| `--perf` | Print frame rate and ground-scatter CPU time every few seconds |
 | `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
 | `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `I`). The bottom warp and time line is separate (View menu) |
 | `--hide-info` | Hide the on-screen text and the orbit line and let the menu bar slide away (for screenshots); overrides `--show-info` |
 | `--life-support off\|warn\|fatal` | What failing life support does to a crew: nothing, alarms only (default), or the crew dies and the flight ends. A scenario's `life_support` key overrides it |
-| `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Shift+H` changes colour; shown in cockpit views only) |
+| `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Shift+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
 | `--version` | Print the Kosmos version and exit |
 
 ## Versions

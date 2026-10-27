@@ -9,6 +9,7 @@
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
+#include "terrain_clutter.h"
 #include "planet_bake.h"
 #include "blender_edit.h"
 #include "usercam.h"
@@ -100,7 +101,7 @@ namespace
         double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
-        bool hide_info = false, show_info = false, no_clouds = false;
+        bool hide_info = false, show_info = false, no_clouds = false, no_clutter = false, perf = false;
         std::string hud;
         bool no_relief = false;
         std::string blender;
@@ -1036,12 +1037,34 @@ namespace
     // A body's streaming terrain. Elevation comes from Orbiter when available; colour uses the finer available imagery.
     bool detail_disabled = false;
 
+    /** CPU time spent in the clutter layers, printed every few seconds by --perf. */
+    struct ClutterPerf
+    {
+        double update_ms = 0.0, draw_ms = 0.0, window_s = 0.0;
+        int frames = 0;
+        std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
+    } clutter_perf;
+
+    template <class F> double time_ms(F &&f)
+    {
+        const auto t0 = std::chrono::steady_clock::now();
+        f();
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    }
+
     struct BodyTerrain
     {
         int body = -1;
         std::unique_ptr<sl::Terrain> terrain;
         bool active = false;
         sl::dvec3 eye_rel{0.0};
+        // Trees, houses, rocks and outposts scattered over the ground; declared after the terrain so it is freed first.
+        kosmos::SurfaceFrame frame;
+        std::vector<kosmos::ClutterZone> clutter_zones;
+        std::shared_ptr<const kosmos::Landclass> landclass;
+        std::unique_ptr<sl::ClutterLayer> clutter;
+        double clutter_density = 0.0;
+        bool clutter_live = false;
     };
 
     // Shown while the world loads: a dim, hazy Martian sky with what is happening printed large in orange, latest line biggest.
@@ -1308,6 +1331,25 @@ namespace
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
         result->terrain = std::make_unique<sl::Terrain>(config, source);
+        result->frame = frame;
+        result->clutter_zones = kosmos::clutter_zones(sim.bases, sim.universe, id, b.radius);
+        if (b.name == "Earth")
+        {
+            const std::string land_dir = sim.root() + "/data/landclass/sol/earth";
+            std::error_code land_ec;
+            if (std::filesystem::exists(land_dir, land_ec))
+            {
+                auto land = std::make_shared<kosmos::Landclass>();
+                std::string land_error;
+                if (land->open(land_dir, land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
+                {
+                    std::fprintf(stderr, "[kosmos] Earth land cover: %d x %d cells\n", land->width(), land->height());
+                    result->landclass = std::move(land);
+                }
+                else
+                    std::fprintf(stderr, "[kosmos] Earth land cover unavailable: %s\n", land_error.c_str());
+            }
+        }
         if (!detail_disabled)
         {
             // A seamless map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
@@ -1408,6 +1450,8 @@ namespace
         props.set_int("/sim/settings/gfx-max-fps", 60);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
         props.set_bool("/sim/settings/gfx-earth-relief", false);
+        props.set_bool("/sim/settings/gfx-clutter", true);
+        props.set_int("/sim/settings/gfx-clutter-density", 100);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -1434,6 +1478,9 @@ namespace
         load_int("gfx-light-radius", 500, 20000);
         load_int("gfx-max-fps", 10, 240);
         load_int("gfx-terrain-detail", 0, 3);
+        load_int("gfx-clutter-density", 10, 200);
+        if (j.contains("gfx-clutter") && j["gfx-clutter"].is_boolean())
+            props.set_bool("/sim/settings/gfx-clutter", j["gfx-clutter"].get<bool>());
         if (j.contains("gfx-earth-relief") && j["gfx-earth-relief"].is_boolean())
             props.set_bool("/sim/settings/gfx-earth-relief", j["gfx-earth-relief"].get<bool>());
         if (j.contains("weather") && j["weather"].is_boolean())
@@ -1472,6 +1519,8 @@ namespace
         j["weather-rain"] = props.get_bool("/sim/settings/weather-rain", true);
         j["weather-source"] = props.get_string("/sim/settings/weather-source", "procedural");
         j["gfx-earth-relief"] = props.get_bool("/sim/settings/gfx-earth-relief");
+        j["gfx-clutter"] = props.get_bool("/sim/settings/gfx-clutter", true);
+        j["gfx-clutter-density"] = props.get_int("/sim/settings/gfx-clutter-density", 100);
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);
@@ -2772,6 +2821,33 @@ namespace
             sl::sample_model_clip(model, clip, static_cast<float>(gear) * sl::model_clip_duration(model, clip), false);
     }
 
+    bool hud_allowed(sl::HudMode mode, const std::vector<std::string> &modes)
+    {
+        for (const std::string &name : modes)
+        {
+            sl::HudMode m = sl::HudMode::off;
+            if (sl::hud_parse_mode(name, m) && m == mode)
+                return true;
+        }
+        return false;
+    }
+
+    /** The mode after `current` in the ship's list, going off after the last. */
+    sl::HudMode next_hud_mode(sl::HudMode current, const std::vector<std::string> &modes)
+    {
+        bool take_next = current == sl::HudMode::off;
+        for (const std::string &name : modes)
+        {
+            sl::HudMode m = sl::HudMode::off;
+            if (!sl::hud_parse_mode(name, m) || m == sl::HudMode::off)
+                continue;
+            if (take_next)
+                return m;
+            take_next = m == current;
+        }
+        return sl::HudMode::off;
+    }
+
     void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0)
     {
         for (int s = first_stage; s <= last_stage; ++s)
@@ -3123,6 +3199,10 @@ int main(int argc, char **argv)
         }
         else if (!std::strcmp(argv[i], "--no-clouds"))
             options.no_clouds = true;
+        else if (!std::strcmp(argv[i], "--no-clutter"))
+            options.no_clutter = true;
+        else if (!std::strcmp(argv[i], "--perf"))
+            options.perf = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
             options.no_tiles = true;
         else if (!std::strcmp(argv[i], "--no-detail"))
@@ -4470,7 +4550,7 @@ int main(int argc, char **argv)
                     if (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift))
                         hud.next_colour();
                     else
-                        hud.next_mode();
+                        hud.set_mode(next_hud_mode(hud.mode(), ship->spec().hud_modes()));
                     if (!(cockpit_view || interior_cam >= 0))
                         sim.log("HUD is shown in cockpit view (press C)");
                 }
@@ -5020,7 +5100,70 @@ int main(int argc, char **argv)
                     bt.terrain->update(body_view);
             }
         }
+        {
+            // Trees, houses, rocks and outposts exist only near the ground; build them lazily, outside begin_surface_3d().
+            const bool clutter_on = props.get_bool("/sim/settings/gfx-clutter", true) && !options.no_clutter;
+            const double clutter_density = std::clamp(props.get_int("/sim/settings/gfx-clutter-density", 100), 10, 200) / 100.0;
+            for (std::size_t k = 0; k < body_terrains.size(); ++k)
+            {
+                BodyTerrain &bt = *body_terrains[k];
+                const kosmos::Body &b = universe.bodies[static_cast<std::size_t>(bt.body)];
+                const bool drawn = k == 0 ? near_earth && !earth_as_sphere : bt.active;
+                const sl::dvec3 &eye_rel = k == 0 ? eye_from_earth : bt.eye_rel;
+                bt.clutter_live = clutter_on && drawn && glm::length(eye_rel) - b.radius < 6000.0 && kosmos::has_clutter(b);
+                if (bt.clutter_live)
+                {
+                    // Scatter only where it can matter: within 50 km of a base, or of a ship flying below 5 km.
+                    const glm::dquat unturn = glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis()));
+                    const sl::dvec3 eye_dir = glm::normalize(unturn * eye_rel);
+                    constexpr double clutter_range = 50.0e3;
+                    bool near = kosmos::distance_to_zones(bt.clutter_zones, eye_dir, b.radius) < clutter_range;
+                    const kosmos::Telemetry &tel = ship->telemetry();
+                    if (!near && tel.soi == bt.body && tel.altitude < 5000.0)
+                    {
+                        const sl::dvec3 ship_dir = glm::normalize(unturn * (ship->origin() - universe.position(bt.body)));
+                        near = std::acos(std::clamp(glm::dot(eye_dir, ship_dir), -1.0, 1.0)) * b.radius < clutter_range;
+                    }
+                    bt.clutter_live = near;
+                }
+                if (!bt.clutter_live)
+                    continue;
+                if (bt.clutter && bt.clutter_density != clutter_density)
+                    bt.clutter.reset();
+                if (!bt.clutter)
+                {
+                    kosmos::ClutterWorld world;
+                    world.body = &b;
+                    world.frame = bt.frame;
+                    world.zones = bt.clutter_zones;
+                    world.land = bt.landclass;
+                    world.density = clutter_density;
+                    bt.clutter = kosmos::make_clutter(*bt.terrain, world);
+                    bt.clutter_density = clutter_density;
+                }
+                if (!bt.clutter)
+                {
+                    bt.clutter_live = false;
+                    continue;
+                }
+                sl::TerrainView clutter_view = view;
+                clutter_view.position = eye_rel;
+                clutter_perf.update_ms += time_ms([&] { bt.clutter->update(clutter_view); });
+            }
+        }
         first_frame = false;
+        if (options.perf)
+        {
+            ++clutter_perf.frames;
+            const auto now = std::chrono::steady_clock::now();
+            const double span = std::chrono::duration<double>(now - clutter_perf.last).count();
+            if (span >= 3.0)
+            {
+                std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
+                             1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
+                clutter_perf = ClutterPerf();
+            }
+        }
         loading.end();
 
         const sl::dvec3 sun_dir_world = glm::normalize(-eye_world);
@@ -5371,6 +5514,8 @@ int main(int argc, char **argv)
                         ground.roughness = 0.4f;
                     }
                     terrain->draw(eye_from_earth, ground);
+                    if (body_terrains[0]->clutter_live)
+                        clutter_perf.draw_ms += time_ms([&] { body_terrains[0]->clutter->draw(eye_from_earth); });
                 }
             }
 
@@ -5379,6 +5524,8 @@ int main(int argc, char **argv)
                 {
                     sl::Material ground;
                     body_terrains[k]->terrain->draw(body_terrains[k]->eye_rel, ground);
+                    if (body_terrains[k]->clutter_live)
+                        clutter_perf.draw_ms += time_ms([&] { body_terrains[k]->clutter->draw(body_terrains[k]->eye_rel); });
                 }
             {
                 sl::Material props;
@@ -5849,7 +5996,7 @@ int main(int argc, char **argv)
         }
 
         // Head-up display.
-        if (hud.mode() != sl::HudMode::off && (in_cockpit || in_interior) && !map_mode && !galaxy_mode)
+        if (hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes()) && (in_cockpit || in_interior) && !map_mode && !galaxy_mode)
         {
             sl::HudState hs;
             const glm::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));
@@ -6489,6 +6636,18 @@ int main(int argc, char **argv)
                             props.set_int("/sim/settings/gfx-terrain-detail", detail);
                         if (ImGui::IsItemHovered())
                             ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+                        bool clutter_enabled = props.get_bool("/sim/settings/gfx-clutter", true);
+                        if (ImGui::Checkbox("Trees, buildings and rocks", &clutter_enabled))
+                            props.set_bool("/sim/settings/gfx-clutter", clutter_enabled);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Scatter over the ground near you: trees, shrubs and houses on Earth (from its land cover), boulders on rocky worlds, and outposts on airless ones.");
+                        if (clutter_enabled)
+                        {
+                            int clutter_density = props.get_int("/sim/settings/gfx-clutter-density", 100);
+                            ImGui::SetNextItemWidth(160.0f);
+                            if (ImGui::SliderInt("Scatter density (%)", &clutter_density, 10, 200))
+                                props.set_int("/sim/settings/gfx-clutter-density", clutter_density);
+                        }
                         bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
                         if (ImGui::Checkbox("Earth relief from orbit", &relief))
                             props.set_bool("/sim/settings/gfx-earth-relief", relief);

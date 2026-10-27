@@ -2,6 +2,7 @@
 /data/orbiter/
 /data/nasa/
 /data/open-game-art/
+/data/landclass/
 __pycache__/
 *.swp
 *.png

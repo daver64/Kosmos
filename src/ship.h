@@ -150,6 +150,8 @@ namespace kosmos
         std::string mfd_left = "orbit", mfd_right = "surface";
         /** Which MFD modes the ship offers: "auto" (aircraft get no orbital modes, everything else no airspeed-style flight gauges), "atmosphere", "space", or "none" to offer all. */
         std::string mfd_filter = "auto";
+        /** HUD modes the H key cycles ("orbit", "surface", "docking"); empty means the class default (see ShipSpec::hud_modes). */
+        std::vector<std::string> hud_modes;
 
         /** One instrument on the cockpit panel: an MFD mode drawn in a square at (x, y) in panel units, with its buttons if `frame`. */
         struct PanelInstrument
@@ -251,6 +253,15 @@ namespace kosmos
                     if (e.hover)
                         return true;
             return false;
+        }
+        /** HUD modes this ship offers: its cockpit.hud_modes, else surface only for aircraft and all three for other ships. */
+        std::vector<std::string> hud_modes() const
+        {
+            if (!cockpit.hud_modes.empty())
+                return cockpit.hud_modes;
+            if (aircraft())
+                return {"surface"};
+            return {"orbit", "surface", "docking"};
         }
         /** The MfdSystem domain this ship flies in, from cockpit.mfd_filter. */
         std::string mfd_domain() const
