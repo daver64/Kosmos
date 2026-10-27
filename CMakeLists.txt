@@ -73,8 +73,23 @@ add_executable(kosmos
     src/menu.cpp
     src/joystick.cpp
     src/netplay.cpp
+    src/weather.cpp
+    src/weather_live.cpp
+    src/weather_system.cpp
     src/TextEditor.cpp)
 target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS})
+# Live weather downloads: WinHTTP on Windows (always present), libcurl where it is installed, otherwise live weather is off.
+find_package(Threads REQUIRED)
+target_link_libraries(kosmos PRIVATE Threads::Threads)
+if(WIN32)
+    target_link_libraries(kosmos PRIVATE winhttp)
+else()
+    find_package(CURL QUIET)
+    if(CURL_FOUND)
+        target_link_libraries(kosmos PRIVATE CURL::libcurl)
+        target_compile_definitions(kosmos PRIVATE KOSMOS_HAVE_CURL=1)
+    endif()
+endif()
 target_include_directories(kosmos PRIVATE src)
 # A development build finds its data in the source tree; a packaged build looks beside the executable first.
 target_compile_definitions(kosmos PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
@@ -91,6 +106,11 @@ add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.
 target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
+target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(weather_test PRIVATE src)
+target_compile_definitions(weather_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 add_executable(joystick_test EXCLUDE_FROM_ALL tests/joystick_test.cpp src/joystick.cpp)
 target_link_libraries(joystick_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

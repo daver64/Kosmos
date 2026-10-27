@@ -378,6 +378,8 @@ namespace kosmos
         sl::dvec3 point_velocity(const sl::dvec3 &world_point) const;
         /** Mass of ships docked to this one that it carries along; included in its mass and inertia. */
         void set_attached_mass(double kilograms);
+        /** Scales every gear contact's sideways and brake friction (1 is the ship's own grip), for wet or icy ground. */
+        void set_surface_grip(double factor);
 
         void apply_controls(const Controls &controls, double dt);
         /** Refresh telemetry and handle impacts and debris after the world has stepped. */
@@ -423,6 +425,7 @@ namespace kosmos
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;
         double attached_mass_ = 0.0;
+        std::vector<std::pair<double, double>> base_grip_;
         Telemetry telemetry_;
         std::vector<Debris> debris_;
         sl::PropertyTree *tree_ = nullptr;

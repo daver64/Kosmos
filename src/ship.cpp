@@ -418,6 +418,22 @@ namespace kosmos
         refresh_mass_properties();
     }
 
+    void Ship::set_surface_grip(double factor)
+    {
+        std::vector<sl::GearContact> &gear = body().gear;
+        if (base_grip_.size() != gear.size())
+        {
+            base_grip_.clear();
+            for (const sl::GearContact &g : gear)
+                base_grip_.emplace_back(g.lateral_friction, g.brake_friction);
+        }
+        for (std::size_t i = 0; i < gear.size(); ++i)
+        {
+            gear[i].lateral_friction = base_grip_[i].first * factor;
+            gear[i].brake_friction = base_grip_[i].second * factor;
+        }
+    }
+
     void Ship::refresh_mass_properties()
     {
         sl::FlightBody &b = body();

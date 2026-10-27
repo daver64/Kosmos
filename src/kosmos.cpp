@@ -473,6 +473,11 @@ namespace
                             sim.universe.time(), sim.props.get_string("/autopilot/status").c_str(), tm.altitude / km, tm.surface_speed,
                             tm.vertical_speed, tm.apoapsis / km, tm.periapsis / km, tm.pitch, ship->active_stage(), tm.stage_fuel,
                             tm.mass, sim.current_warp(), ship->crashed() ? " CRASHED" : "");
+                if (sim.props.get_string("/environment/station") != "")
+                    std::printf("   wx: %s wind %.1f from %.0f rain %.2f cloud %.2f vis %.0f wet %.2f | %s\n", sim.props.get_string("/environment/station").c_str(),
+                                sim.props.get_double("/environment/wind-speed"), sim.props.get_double("/environment/wind-from"), sim.props.get_double("/environment/rain"),
+                                sim.props.get_double("/environment/cloud-cover"), sim.props.get_double("/environment/visibility"),
+                                sim.props.get_double("/environment/wetness"), sim.props.get_string("/environment/metar").c_str());
                 if (sim.props.get_bool("/dock/valid"))
                     std::printf("   dock: range %.2f closing %.2f docked %d\n", sim.props.get_double("/dock/range"),
                                 sim.props.get_double("/dock/closing-speed"), sim.props.get_bool("/dock/docked") ? 1 : 0);
@@ -1233,6 +1238,8 @@ namespace
         props.set_int("/sim/settings/world-texture", 0);
         props.set_int("/sim/settings/gfx-style", 0);
         props.set_bool("/sim/settings/gfx-clouds", true);
+        props.set_bool("/sim/settings/weather", true);
+        props.set_string("/sim/settings/weather-source", "procedural");
         props.set_int("/sim/settings/gfx-light-radius", 8000);
         props.set_int("/sim/settings/gfx-max-fps", 60);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
@@ -1265,6 +1272,10 @@ namespace
         load_int("gfx-terrain-detail", 0, 3);
         if (j.contains("gfx-earth-relief") && j["gfx-earth-relief"].is_boolean())
             props.set_bool("/sim/settings/gfx-earth-relief", j["gfx-earth-relief"].get<bool>());
+        if (j.contains("weather") && j["weather"].is_boolean())
+            props.set_bool("/sim/settings/weather", j["weather"].get<bool>());
+        if (j.contains("weather-source") && j["weather-source"].is_string())
+            props.set_string("/sim/settings/weather-source", j["weather-source"].get<std::string>() == "live" ? "live" : "procedural");
         if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
             props.set_bool("/sim/settings/gfx-clouds", j["gfx-clouds"].get<bool>());
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
@@ -1285,6 +1296,8 @@ namespace
         for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-max-fps", "gfx-terrain-detail"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
+        j["weather"] = props.get_bool("/sim/settings/weather", true);
+        j["weather-source"] = props.get_string("/sim/settings/weather-source", "procedural");
         j["gfx-earth-relief"] = props.get_bool("/sim/settings/gfx-earth-relief");
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
@@ -4875,6 +4888,12 @@ int main(int argc, char **argv)
         environment.ground_albedo = {0.1f, 0.25f, 0.12f};
         environment.fog_enabled = near_earth;
         environment.fog_density = near_earth ? 1.4e-4f : 0.0f;
+        if (near_earth && props.get_bool("/sim/settings/weather", true))
+        {
+            const double vis = props.get_double("/environment/visibility", 1.0e5);
+            if (vis > 50.0 && vis < 20000.0)
+                environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / vis));
+        }
 
         if (in_cockpit3d)
         {
@@ -5910,6 +5929,28 @@ int main(int argc, char **argv)
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
         }
+        {
+            const double rain = props.get_double("/environment/rain");
+            const double alt_m = props.get_double("/environment/cloud-base", 3000.0);
+            if (rain > 0.02 && !map_mode && !galaxy_mode && !dashboard && ship->telemetry().altitude < std::max(alt_m, 1500.0))
+            {
+                const int drops = static_cast<int>(40 + 360 * std::min(1.0, rain));
+                const float slant = static_cast<float>(std::min(40.0, props.get_double("/environment/wind-speed") * 2.0));
+                const float fall = std::min(1.0f, static_cast<float>(ship->telemetry().altitude / 200.0 + 0.3));
+                for (int i = 0; i < drops; ++i)
+                {
+                    const float u = std::fmod(static_cast<float>(i) * 0.61803f + 0.13f, 1.0f);
+                    const float v = std::fmod(static_cast<float>(i) * 0.38197f * 7.0f + static_cast<float>(clock) * (1.6f + 0.7f * std::fmod(static_cast<float>(i) * 0.37f, 1.0f)), 1.0f);
+                    const int x = static_cast<int>(u * screen_w), y = static_cast<int>(v * screen_h);
+                    sl::line(sl::screen, x, y, x - static_cast<int>(slant * 0.5f), y + static_cast<int>(12 + 14 * fall), {150, 165, 185});
+                }
+            }
+        }
+        if (!options.hide_info && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
+            sl::gprintf_center(screen_h - 40, {170, 205, 235}, "Wind %03.0f/%.0f m/s  rain %.0f%%  cloud %.0f%%  vis %.1f km   %s%s",
+                               props.get_double("/environment/wind-from"), props.get_double("/environment/wind-speed"), props.get_double("/environment/rain") * 100.0,
+                               props.get_double("/environment/cloud-cover") * 100.0, props.get_double("/environment/visibility") / 1000.0,
+                               props.get_string("/environment/station").c_str(), props.get_bool("/environment/live") ? " (live)" : "");
         if (!options.hide_info && props.get_bool("/sim/settings/clock"))
             sl::gprintf_center(screen_h - 22, {235, 235, 200}, "Warp x%g%s   %s   T+%s", sim.current_warp(), ship->on_rails() ? " (rails)" : "",
                                kosmos::format_utc(universe.julian_date()).c_str(), format_time(universe.time()).c_str());
@@ -6116,6 +6157,19 @@ int main(int argc, char **argv)
                         if (ImGui::IsItemHovered())
                             ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
                         flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
+                        flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
+                        {
+                            const bool live_now = props.get_string("/sim/settings/weather-source", "procedural") == "live";
+                            if (ImGui::RadioButton("Procedural weather", !live_now))
+                                props.set_string("/sim/settings/weather-source", "procedural");
+                            ImGui::SameLine();
+                            if (ImGui::RadioButton("Live (Earth, NOAA)", live_now))
+                                props.set_string("/sim/settings/weather-source", "live");
+                            if (ImGui::IsItemHovered())
+                                ImGui::SetTooltip("Real METARs from aviationweather.gov, fetched at most hourly. Used only while the simulated date is within three hours of the real one.");
+                            if (live_now)
+                                ImGui::TextDisabled("%s", sim.weather.live_status().c_str());
+                        }
                         int fps = props.get_int("/sim/settings/gfx-max-fps");
                         ImGui::SetNextItemWidth(160.0f);
                         if (ImGui::SliderInt("Max frame rate", &fps, 10, 240))

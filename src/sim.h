@@ -5,6 +5,7 @@
 #include "lua_runtime.h"
 #include "mfd.h"
 #include "nav.h"
+#include "weather_system.h"
 #include "scenario.h"
 #include "ship.h"
 #include "universe.h"
@@ -84,6 +85,7 @@ namespace kosmos
         sl::LuaRuntime lua;
         MfdSystem mfd;
         NavSystem nav;
+        Weather weather;
         /** Built-up surface sites from data/bases/ and addons; their heights are filled in when the terrain is made. */
         std::vector<Base> bases;
 

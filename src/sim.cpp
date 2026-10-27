@@ -73,6 +73,7 @@ namespace kosmos
         sl::bind_property_tree(lua, props);
         mfd.init(lua, props);
         nav.init(props);
+        weather.init(root_, user_dir(), props);
         scan_addons();
         return true;
     }
@@ -461,6 +462,15 @@ namespace kosmos
             ship.apply_controls(static_cast<int>(i) == active_ ? controls : held, frame * warp);
         }
 
+        if (active_ >= 0 && active_ < static_cast<int>(ships_.size()))
+        {
+            const Telemetry &tm = ships_[static_cast<std::size_t>(active_)]->telemetry();
+            weather.step(universe, props, tm.soi, tm.latitude, tm.longitude, tm.altitude, frame * warp);
+        }
+        const double grip = weather.grip();
+        for (const std::unique_ptr<Ship> &ship : ships_)
+            if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
+                ship->set_surface_grip(grip);
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 
