@@ -84,6 +84,8 @@ namespace kosmos
             spec.source_file = file;
             spec.name = json.value("name", "Ship");
             spec.kind = json.value("class", "ship");
+            spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station");
+            spec.crash_speed = json.value("crash_speed", 5.0);
             spec.script = json.value("script", "");
             if (json.contains("cockpit"))
             {
@@ -546,6 +548,7 @@ namespace kosmos
         b.orientation = orientation_from(level ? roof : up, level ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        pinned_ = resting_ = false;
         update_telemetry();
     }
 
@@ -567,6 +570,7 @@ namespace kosmos
         b.orientation = orientation;
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        pinned_ = resting_ = false;
         update_telemetry();
     }
 
@@ -587,6 +591,7 @@ namespace kosmos
         b.orientation = orientation_from(prograde, up);
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        pinned_ = resting_ = false;
         update_telemetry();
     }
 
@@ -629,6 +634,7 @@ namespace kosmos
         b.orientation = orientation_from(prograde, up);
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        pinned_ = resting_ = false;
         update_telemetry();
     }
 
@@ -1059,6 +1065,48 @@ namespace kosmos
             t.total_fuel += tank.mass;
     }
 
+    namespace
+    {
+        // The turn of a planet's ground about its pole since time zero, the same one the physics world applies to the terrain.
+        sl::dquat ground_spin(const Universe &universe, int id)
+        {
+            const sl::FlightBody *planet = universe.world.body(id);
+            return glm::angleAxis(planet->spin_phase + planet->spin_rate * universe.time(), glm::normalize(planet->spin_axis));
+        }
+    }
+
+    void Ship::pin_to_ground()
+    {
+        sl::FlightBody &b = body();
+        const int soi = telemetry_.soi;
+        if (soi < 0)
+            return;
+        const sl::dquat inverse = glm::inverse(ground_spin(universe_, soi));
+        pin_body_ = soi;
+        pin_position_ = inverse * (b.position - universe_.position(soi));
+        pin_attitude_ = inverse * b.orientation;
+        pinned_ = true;
+        b.mode = sl::FlightBodyMode::kinematic;
+        b.angular_velocity = sl::dvec3(0.0);
+        for (sl::Thruster &t : b.thrusters)
+            t.level = 0.0;
+        hold_pinned();
+    }
+
+    void Ship::hold_pinned()
+    {
+        if (!pinned_ || pin_body_ < 0)
+            return;
+        sl::FlightBody &b = body();
+        const sl::dquat spin = ground_spin(universe_, pin_body_);
+        const sl::FlightBody *planet = universe_.world.body(pin_body_);
+        b.position = planet->position + spin * pin_position_;
+        b.orientation = glm::normalize(spin * pin_attitude_);
+        // Carried along with the ground: planet velocity plus its spin about the pole.
+        b.velocity = planet->velocity + glm::cross(planet->spin_axis * planet->spin_rate, b.position - planet->position);
+        b.angular_velocity = sl::dvec3(0.0);
+    }
+
     void Ship::after_step(double dt)
     {
         update_telemetry();
@@ -1104,15 +1152,47 @@ namespace kosmos
             {
                 std::fprintf(stderr, "[kosmos] %s: crew lost\n", name.c_str());
                 crashed_ = true;
-                b.mode = sl::FlightBodyMode::kinematic;
-                b.velocity = universe_.world.body(telemetry_.soi)->velocity;
-                b.angular_velocity = sl::dvec3(0.0);
-                for (sl::Thruster &t : b.thrusters)
-                    t.level = 0.0;
+                if (telemetry_.altitude < 50.0)
+                    pin_to_ground();
+                else
+                {
+                    b.mode = sl::FlightBodyMode::kinematic;
+                    b.velocity = universe_.world.body(telemetry_.soi)->velocity;
+                    b.angular_velocity = sl::dvec3(0.0);
+                    for (sl::Thruster &t : b.thrusters)
+                        t.level = 0.0;
+                }
             }
         }
 
-        if (!crashed_ && b.mode == sl::FlightBodyMode::dynamic && !telemetry_.landed)
+        // Ships built for orbit have no landing gear: a gentle touchdown leaves them resting on the surface, a hard one wrecks them.
+        double burning = 0.0;
+        for (const sl::Thruster &t : b.thrusters)
+            burning = std::max(burning, t.level);
+        const bool touching = spec_.orbital_only && !crashed_ && burning < 0.05 && b.mode == sl::FlightBodyMode::dynamic && (telemetry_.landed || telemetry_.altitude <= 0.3);
+        const bool hard_landing = touching && approach_speed_ > spec_.crash_speed;
+        if (hard_landing)
+            std::fprintf(stderr, "[kosmos] %s: hit the ground at %.1f m/s\n", name.c_str(), approach_speed_);
+        else if (touching)
+        {
+            const double lift = -telemetry_.altitude;
+            if (lift > 0.0)
+                b.position += glm::normalize(b.position - universe_.position(telemetry_.soi)) * lift;
+            pin_to_ground();
+            resting_ = true;
+        }
+        else if (resting_ && !crashed_)
+        {
+            if (burning > 0.05)
+            {
+                pinned_ = false;
+                b.mode = sl::FlightBodyMode::dynamic;
+                resting_ = false;
+            }
+        }
+        if (!touching || hard_landing)
+            approach_speed_ = telemetry_.surface_speed;
+        if (hard_landing || (!crashed_ && b.mode == sl::FlightBodyMode::dynamic && !telemetry_.landed))
         {
             double tail = 0.0;
             for (std::size_t s = static_cast<std::size_t>(active_stage_); s < spec_.stages.size(); ++s)
@@ -1127,20 +1207,18 @@ namespace kosmos
                     tail = std::max(tail, -g.position.y);
                 gear_z = tail;
             }
-            if (telemetry_.altitude + std::max(tail, gear_z) < 0.4 * std::max(tail, gear_z))
+            if (hard_landing || telemetry_.altitude + std::max(tail, gear_z) < 0.4 * std::max(tail, gear_z))
             {
                 crashed_ = true;
                 // The wreck rests on the surface rather than sunk into it.
                 const double origin_alt = universe_.world.altitude_of(b.position);
                 if (origin_alt < 1.5)
                     b.position += glm::normalize(b.position - universe_.position(telemetry_.soi)) * (1.5 - origin_alt);
-                b.mode = sl::FlightBodyMode::kinematic;
-                b.velocity = universe_.world.body(telemetry_.soi)->velocity;
-                b.angular_velocity = sl::dvec3(0.0);
-                for (sl::Thruster &t : b.thrusters)
-                    t.level = 0.0;
+                pin_to_ground();
             }
         }
+        else if (pinned_)
+            hold_pinned();
         else if (crashed_ && b.mode == sl::FlightBodyMode::kinematic)
             b.velocity = universe_.world.body(telemetry_.soi)->velocity;
 

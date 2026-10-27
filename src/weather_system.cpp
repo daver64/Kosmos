@@ -186,7 +186,17 @@ namespace kosmos
             if (forced_valid_)
                 forced_ = conditions_from(m);
         }
-        const Conditions c = forced_valid_ ? forced_ : field->sample(latitude, longitude);
+        Conditions c = forced_valid_ ? forced_ : field->sample(latitude, longitude);
+        // Weather lives in the air: above the atmosphere (about ten scale heights) there is no rain, cloud or storm to report.
+        const Body &weather_body = universe.bodies[static_cast<std::size_t>(body)];
+        const bool in_air = altitude < std::max(weather_body.atmosphere_scale_height * 12.0, 30.0e3);
+        if (!in_air)
+        {
+            c.rain = c.thunder = c.cloud_cover = 0.0;
+            c.gust = 0.0;
+            c.wind_east = c.wind_north = 0.0;
+            c.visibility = 1.0e5;
+        }
         const double t = unix_now_;
         clock_ += dt;
         // Wind at a place and height: grows with height above the ground, doubling by three kilometres, with gusts that come and go.
@@ -206,7 +216,8 @@ namespace kosmos
             north *= lift;
         };
         double east = 0.0, north = 0.0;
-        wind_at(latitude, longitude, altitude, east, north);
+        if (in_air)
+            wind_at(latitude, longitude, altitude, east, north);
         current_ = c;
         current_.wind_east = east;
         current_.wind_north = north;
@@ -267,6 +278,11 @@ namespace kosmos
             props.set_string("/environment/metar", forced_text_);
             props.set_double("/environment/station-distance", 0.0);
             props.set_bool("/environment/live", false);
+        }
+        else if (!in_air)
+        {
+            props.set_string("/environment/station", "");
+            props.set_string("/environment/metar", "");
         }
         else if (const WeatherStation *s = field->nearest(latitude, longitude, &distance))
         {

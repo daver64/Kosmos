@@ -245,6 +245,9 @@ namespace kosmos
         sl::dvec3 inertia{0.0};
         /** Rate damping gains for pitch, yaw and roll while the stability hold is on (fly-by-wire). */
         sl::dvec3 damping{0.6, 0.6, 0.6};
+        /** Built for orbit, not for the ground: touching down faster than `crash_speed` m/s destroys it. Tugs, transfer stages and stations are by default. */
+        bool orbital_only = false;
+        double crash_speed = 5.0;
         bool aircraft() const { return kind == "aircraft"; }
         bool has_hover() const
         {
@@ -433,6 +436,15 @@ namespace kosmos
         int active_stage_ = 0;
         sl::dvec3 com_{0.0};
         bool crashed_ = false;
+        // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
+        bool pinned_ = false;
+        int pin_body_ = -1;
+        sl::dvec3 pin_position_{0.0};
+        sl::dquat pin_attitude_{1.0, 0.0, 0.0, 0.0};
+        void pin_to_ground();
+        void hold_pinned();
+        bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface
+        double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;
         double attached_mass_ = 0.0;

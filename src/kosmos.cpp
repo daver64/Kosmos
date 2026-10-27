@@ -696,6 +696,47 @@ namespace
         return sl::create_mesh(vertices, indices);
     }
 
+    // A few nebulae from the 4x4 atlas as sprites on the unit sky sphere, picked by the star system so each one keeps its own.
+    sl::Mesh *make_nebulae(int system)
+    {
+        std::mt19937 rng(0x9e3779b9u ^ (static_cast<std::uint32_t>(system) * 2654435761u));
+        auto uniform = [&](double lo, double hi) { return std::uniform_real_distribution<double>(lo, hi)(rng); };
+        std::vector<sl::Vertex3D> vertices;
+        std::vector<std::uint32_t> indices;
+        const int count = 3 + static_cast<int>(rng() % 4);
+        for (int n = 0; n < count; ++n)
+        {
+            const double z = uniform(-1.0, 1.0), a = uniform(0.0, 2.0 * pi), r = std::sqrt(1.0 - z * z);
+            const sl::dvec3 dir(r * std::cos(a), z, r * std::sin(a));
+            const sl::dvec3 helper = std::fabs(dir.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+            sl::dvec3 u = glm::normalize(glm::cross(dir, helper)), v = glm::cross(dir, u);
+            const double roll = uniform(0.0, 2.0 * pi), cr = std::cos(roll), sr = std::sin(roll);
+            const sl::dvec3 ru = u * cr + v * sr, rv = v * cr - u * sr;
+            const double radius = uniform(0.1, 0.32);
+            const int tile = static_cast<int>(rng() % 16), col = tile % 4, row = tile / 4;
+            const float alpha = static_cast<float>(uniform(0.35, 0.7));
+            const float corner[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
+            const std::uint32_t base = static_cast<std::uint32_t>(vertices.size());
+            for (const auto &c : corner)
+            {
+                sl::Vertex3D vertex;
+                const sl::dvec3 p = glm::normalize(dir + ru * (c[0] * radius) + rv * (c[1] * radius));
+                for (int k = 0; k < 3; ++k)
+                {
+                    vertex.position[k] = static_cast<float>(p[k]);
+                    vertex.colour[k] = 1.0f;
+                }
+                vertex.colour[3] = alpha;
+                vertex.uv[0] = (col + 0.5f + 0.5f * c[0]) / 4.0f;
+                vertex.uv[1] = (row + 0.5f - 0.5f * c[1]) / 4.0f;
+                vertices.push_back(vertex);
+            }
+            for (const std::uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u})
+                indices.push_back(base + k);
+        }
+        return sl::create_mesh(vertices, indices);
+    }
+
     // The Milky Way band, dust lanes and a few faint nebulae as an equirectangular map for an inside-out sphere. Drawn additively, so
     // every channel is capped low: it should be a dim backdrop that never competes with the stars or the Sun.
     sl::Bitmap *make_sky_texture(int width = 1024)
@@ -2728,7 +2769,9 @@ namespace
         std::vector<sl::Mesh *> body_cloud_meshes;
         std::vector<sl::Bitmap *> body_cloud_textures;
         sl::Bitmap *glow_texture = nullptr, *puff_texture = nullptr, *cloud_texture = nullptr, *lights_texture = nullptr;
-        sl::Bitmap *star_surface = nullptr, *star_filaments = nullptr, *star_corona = nullptr, *star_corona_far = nullptr, *star_rays = nullptr, *star_limb = nullptr, *sky = nullptr;
+        sl::Bitmap *star_surface = nullptr, *star_filaments = nullptr, *star_corona = nullptr, *star_corona_far = nullptr, *star_rays = nullptr, *star_limb = nullptr, *sky = nullptr, *nebula_atlas = nullptr;
+        sl::Mesh *nebulae = nullptr; // nebulae of the current system, rebuilt when it changes
+        int nebulae_system = -1;
         std::vector<sl::Bitmap *> body_textures;
         // Optional per-body shape replacing the sphere; entries may be null.
         std::vector<sl::Model *> body_meshes;
@@ -3628,6 +3671,12 @@ int main(int argc, char **argv)
     vis.star_rays = make_star_rays();
     vis.star_limb = make_star_limb();
     vis.sky = make_sky_texture();
+    vis.nebula_atlas = sl::load_bitmap((sim.root() + "/data/open-game-art/textures/nebula/proc_sheet_nebula.jpg").c_str());
+    if (vis.nebula_atlas)
+    {
+        vis.nebula_atlas->smooth = true;
+        vis.nebula_atlas->mipmaps = true;
+    }
     vis.puff_texture = make_puff_texture();
     vis.cloud_texture = fx::make_cloud_texture();
     vis.starfield = make_starfield();
@@ -5677,6 +5726,23 @@ int main(int argc, char **argv)
                     sky.tint.alpha = stars.tint.alpha;
                     // Close enough that depth keeps its resolution against the far plane, and turned so the pinched pole triangles face an axis the camera rarely looks along.
                     sl::draw_mesh(vis.sphere, glm::rotate(glm::mat4(1.0f), 1.5708f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), sky);
+                    // Nebulae only away from Sol, and behind the stars.
+                    if (sim.system_index() != 0 && vis.nebula_atlas)
+                    {
+                        if (vis.nebulae_system != sim.system_index())
+                        {
+                            if (vis.nebulae)
+                                sl::destroy_mesh(vis.nebulae);
+                            vis.nebulae = make_nebulae(sim.system_index());
+                            vis.nebulae_system = sim.system_index();
+                        }
+                        if (vis.nebulae)
+                        {
+                            sl::Material neb = sky;
+                            neb.texture = vis.nebula_atlas;
+                            sl::draw_mesh(vis.nebulae, glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), neb);
+                        }
+                    }
                     sl::draw_mesh(vis.starfield, glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), stars);
                 }
             }
@@ -7524,6 +7590,9 @@ int main(int argc, char **argv)
         sl::destroy_bitmap(b);
     sl::destroy_bitmap(vis.puff_texture);
     sl::destroy_bitmap(vis.cloud_texture);
+    sl::destroy_bitmap(vis.nebula_atlas);
+    if (vis.nebulae)
+        sl::destroy_mesh(vis.nebulae);
     sl::destroy_surface_3d(surface);
     sl::gamepad_shutdown();
     sl::shutdown();

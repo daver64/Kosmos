@@ -2,5 +2,8 @@
   "id": "argo",
   "name": "Argo lunar transfer vehicle",
   "version": "0.1",
-  "ships": ["ship.json"]
+  "ships": [
+    "ship.json"
+  ],
+  "author": "Argo model by R Dawn (cgmesh, free model)"
 }
