@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
+#include <string>
 
 static int failures = 0;
 #define CHECK(x)                                                         \
@@ -44,7 +46,7 @@ int main()
     CHECK(build_arguments(Profile(), "").empty());
 
     {
-        const fs::path f = fs::temp_directory_path() / "launcher_sha_test.bin";
+        const fs::path f = launcher::fs::temp_directory_path() / "launcher_sha_test.bin";
         std::ofstream(f, std::ios::binary) << "abc";
         CHECK(sha256_file(f) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         { std::ofstream o(f, std::ios::binary); o << std::string(1000, 'a'); }
@@ -64,6 +66,26 @@ int main()
 
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);
+
+    {
+        const launcher::fs::path tmp = launcher::fs::temp_directory_path() / "kosmos_gfx_test" / "settings.json";
+        launcher::fs::remove_all(tmp.parent_path());
+        CHECK(load_graphics(tmp).max_fps == 60);
+        launcher::fs::create_directories(tmp.parent_path());
+        std::ofstream(tmp) << R"({"volume":33,"gfx-style":9})";
+        CHECK(load_graphics(tmp).style == 2);
+        GraphicsSettings g;
+        g.style = 1;
+        g.clouds = 0;
+        g.max_fps = 30;
+        CHECK(save_graphics(tmp, g));
+        const GraphicsSettings back = load_graphics(tmp);
+        CHECK(back.style == 1 && back.clouds == 0 && back.max_fps == 30);
+        std::ifstream in(tmp);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text.find("\"volume\": 33") != std::string::npos);
+        launcher::fs::remove_all(tmp.parent_path());
+    }
 
     std::printf(failures ? "%d failure(s)\n" : "launcher_test: all passed\n", failures);
     return failures ? 1 : 0;

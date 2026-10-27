@@ -68,6 +68,7 @@ namespace
         double selftest = 0.0;
         int max_texture = 16384;
         int world_texture = -1; // --world-texture W: far-view image width for invented worlds (0 = automatic); -1 uses the saved setting
+        int render_style = -1; // --render-style normal|flat|wireframe; -1 uses the saved setting
         double selftest_warp = 0.0;
         bool selftest_gear_up = false;
         double selftest_throttle = -1.0;
@@ -424,7 +425,7 @@ namespace
             std::fprintf(stderr, "No Kestrel addon found under %s\n", sim.root().c_str());
             return 1;
         }
-        const double dt = 0.05;
+        const double dt = std::getenv("KOSMOS_SELFTEST_DT") ? std::atof(std::getenv("KOSMOS_SELFTEST_DT")) : 0.05;
         double next_report = 0.0;
         for (double t = 0.0; t < options.selftest; t += dt)
         {
@@ -986,7 +987,7 @@ namespace
         config.shape = sl::TerrainShape::sphere;
         config.radius = b.radius;
         config.finest_cell_size = 4.0;
-        config.max_screen_error = 1.0;
+        config.max_screen_error = std::array<double, 4>{0.5, 1.0, 2.0, 4.0}[static_cast<std::size_t>(std::clamp(sim.props.get_int("/sim/settings/gfx-terrain-detail"), 0, 3))];
         config.error_scale = 0.1;
         if (home)
             config.layers = planet_layers();
@@ -1211,6 +1212,11 @@ namespace
         props.set_int("/sim/settings/volume", 20);
         props.set_string("/sim/settings/blender", "blender");
         props.set_int("/sim/settings/world-texture", 0);
+        props.set_int("/sim/settings/gfx-style", 0);
+        props.set_bool("/sim/settings/gfx-clouds", true);
+        props.set_int("/sim/settings/gfx-light-radius", 8000);
+        props.set_int("/sim/settings/gfx-max-fps", 60);
+        props.set_int("/sim/settings/gfx-terrain-detail", 1);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -1229,6 +1235,16 @@ namespace
             props.set_int("/sim/settings/volume", std::clamp(j["volume"].get<int>(), 0, 100));
         if (j.contains("world-texture") && j["world-texture"].is_number_integer())
             props.set_int("/sim/settings/world-texture", std::clamp(j["world-texture"].get<int>(), 0, 16384));
+        const auto load_int = [&](const char *key, int lo, int hi) {
+            if (j.contains(key) && j[key].is_number_integer())
+                props.set_int(std::string("/sim/settings/") + key, std::clamp(j[key].get<int>(), lo, hi));
+        };
+        load_int("gfx-style", 0, 2);
+        load_int("gfx-light-radius", 500, 20000);
+        load_int("gfx-max-fps", 10, 240);
+        load_int("gfx-terrain-detail", 0, 3);
+        if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
+            props.set_bool("/sim/settings/gfx-clouds", j["gfx-clouds"].get<bool>());
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
             props.set_string("/sim/settings/blender", j["blender"].get<std::string>());
     }
@@ -1244,6 +1260,9 @@ namespace
         j["volume"] = props.get_int("/sim/settings/volume");
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
         j["world-texture"] = props.get_int("/sim/settings/world-texture");
+        for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-max-fps", "gfx-terrain-detail"})
+            j[key] = props.get_int(std::string("/sim/settings/") + key);
+        j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);
@@ -2882,6 +2901,11 @@ int main(int argc, char **argv)
             options.net_window = true;
         else if (!std::strcmp(argv[i], "--fullscreen"))
             options.fullscreen = true;
+        else if (!std::strcmp(argv[i], "--render-style") && i + 1 < argc)
+        {
+            const std::string v = argv[++i];
+            options.render_style = v == "flat" ? 1 : v == "wireframe" ? 2 : 0;
+        }
         else if (!std::strcmp(argv[i], "--no-clouds"))
             options.no_clouds = true;
         else if (!std::strcmp(argv[i], "--no-tiles"))
@@ -3412,10 +3436,16 @@ int main(int argc, char **argv)
             const sl::FlightBody *fb = sim.universe.world.body(body_terrains[k]->body);
             built[k] = sim.universe.rotation_angle(body_terrains[k]->body) - (fb->spin_phase + fb->spin_rate * sim.universe.world.time());
         }
+        // The terrain was levelled under each base at the height sampled when it was built; place_worlds would reset it to the configured elevation.
+        std::vector<double> base_heights;
+        for (const kosmos::Base &base : sim.bases)
+            base_heights.push_back(base.height);
         sim.start_epoch_jd = epoch_jd;
         if (!sim.change_system(sim.system_index(), error))
             return false;
         place_worlds();
+        for (std::size_t k = 0; k < sim.bases.size() && k < base_heights.size(); ++k)
+            sim.bases[k].height = base_heights[k];
         for (std::size_t k = 0; k < body_terrains.size(); ++k)
         {
             sl::FlightBody *fb = sim.universe.world.body(body_terrains[k]->body);
@@ -3523,6 +3553,9 @@ int main(int argc, char **argv)
                 sl::PlanetTilesOptions tiles;
                 // Skirts show as bright lines along tile edges from orbit.
                 tiles.skirt = 0.0f;
+                // Full-strength, tight glint blows out into a white disc from orbit.
+                tiles.specular_strength = 0.45f;
+                tiles.specular_min_roughness = 0.3f;
                 tiles.colour = find_tile_source(hires + "earth");
                 tiles.specular = find_tile_source(hires + "earth_specular");
                 if (!options.no_relief)
@@ -3924,10 +3957,19 @@ int main(int argc, char **argv)
     std::uint32_t last_time = sl::time_ms();
     // The engine's own limiter only sleeps when vsync is off, so turn it off and let simlib pace the frames.
     sl::set_vsync(false);
-    sl::set_fps(60);
+    int applied_fps = 0;
 
     while (running)
     {
+        // The command-line style wins for this run without being saved.
+        const int gfx_style = options.render_style >= 0 ? options.render_style : sim.props.get_int("/sim/settings/gfx-style");
+        const bool gfx_clouds = sim.props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0;
+        sl::set_render_style_3d(static_cast<sl::RenderStyle3D>(gfx_style));
+        if (const int fps = sim.props.get_int("/sim/settings/gfx-max-fps"); fps != applied_fps)
+        {
+            sl::set_fps(fps);
+            applied_fps = fps;
+        }
         if (jump_to >= 0)
         {
             // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
@@ -4718,7 +4760,7 @@ int main(int argc, char **argv)
         // As Orbiter does: out in space the planets are drawn first with a near plane set by the nearest body, then the depth buffer
         // is cleared and the ships go over them with their own near plane, so neither range has to share one depth buffer.
         static bool depth_layers_work = true;
-        const bool layered = depth_layers_work && !in_cockpit3d && !in_cockpit && !in_interior && !in_base_cam && !in_user_mounted && eye_soi_altitude > 20.0e3;
+        const bool layered = depth_layers_work && !in_interior && !in_base_cam && !in_user_mounted && eye_soi_altitude > 20.0e3;
         double near_plane = ship_near;
         if (layered)
         {
@@ -4776,7 +4818,7 @@ int main(int argc, char **argv)
         {
             sl::clear_surface_3d({0, 0, 0, 255});
             sl::set_environment_3d(environment);
-            if (near_earth)
+            if (near_earth && gfx_style == 0)
                 sl::draw_sky_3d();
             sl::Light3D light;
             light.direction = environment.sun_direction;
@@ -4815,7 +4857,7 @@ int main(int argc, char **argv)
                 std::vector<sl::dvec3> ship_positions;
                 for (int s = 0; s < sim.ship_count(); ++s)
                     ship_positions.push_back(sim.ship(s)->body().position);
-                kosmos::collect_base_lights(universe, sim.bases, eye_world, 8000.0, clock, ship_positions, lamps);
+                kosmos::collect_base_lights(universe, sim.bases, eye_world, static_cast<double>(sim.props.get_int("/sim/settings/gfx-light-radius")), clock, ship_positions, lamps);
                 for (int s = 0; s < sim.ship_count(); ++s)
                 {
                     const Ship &lit_ship = *sim.ship(s);
@@ -5090,7 +5132,7 @@ int main(int argc, char **argv)
                 if (terrain_drawn)
                 {
                     // The terrain stands in for the surface sphere, but the weather above it still has to be drawn.
-                    if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i] && !options.no_clouds)
+                    if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i] && !options.no_clouds && gfx_clouds)
                     {
                         const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
                         const double distance = glm::length(rel);
@@ -5233,7 +5275,7 @@ int main(int argc, char **argv)
                 }
             }
 
-            if (near_earth && !options.no_clouds)
+            if (near_earth && !options.no_clouds && gfx_clouds)
             {
                 // From space the terrain hides the sky's clouds, so the weather is a translucent shell lifted as depth coarsens.
                 sl::Material cloud;
@@ -5880,6 +5922,32 @@ int main(int argc, char **argv)
                     flag("Ship labels", "/sim/settings/ship-labels", "Name and distance tags on other ships");
                     flag("Orbit line", "/sim/settings/orbit-line", "Draw the flown ship's orbit (O)");
                     flag("Key help text", "/sim/settings/help-text", "The key reminder lines at the bottom of the screen");
+                    ImGui::SeparatorText("Graphics");
+                    {
+                        static const char *styles[] = {"Normal", "Flat shaded", "Wireframe"};
+                        int style = props.get_int("/sim/settings/gfx-style");
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::Combo("Render style", &style, styles, 3))
+                            props.set_int("/sim/settings/gfx-style", style);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
+                        flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
+                        int fps = props.get_int("/sim/settings/gfx-max-fps");
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::SliderInt("Max frame rate", &fps, 10, 240))
+                            props.set_int("/sim/settings/gfx-max-fps", fps);
+                        int radius = props.get_int("/sim/settings/gfx-light-radius");
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::SliderInt("Base light radius (m)", &radius, 500, 20000))
+                            props.set_int("/sim/settings/gfx-light-radius", radius);
+                        static const char *details[] = {"Ultra", "High", "Medium", "Low"};
+                        int detail = props.get_int("/sim/settings/gfx-terrain-detail");
+                        ImGui::SetNextItemWidth(160.0f);
+                        if (ImGui::Combo("Terrain detail", &detail, details, 4))
+                            props.set_int("/sim/settings/gfx-terrain-detail", detail);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+                    }
                     ImGui::SeparatorText("Sound");
                     flag("Sound on", "/sim/settings/sound", "Engine sound (M)");
                     int volume = props.get_int("/sim/settings/volume");
@@ -6482,6 +6550,15 @@ int main(int argc, char **argv)
     stop_recording();
     netplay.leave();
     netplay.lobby_disconnect();
+    // The launcher's "Resume" starts this scenario: the ships where they were left, with the one you were flying active.
+    if (!kosmos::Sim::user_dir().empty() && sim.ship_count() > 0 && options.selftest <= 0.0 && options.shot.empty())
+    {
+        kosmos::Scenario last = kosmos::capture_scenario(sim, "Last session");
+        last.epoch_jd = sim.universe.julian_date();
+        std::string error;
+        if (!kosmos::save_scenario((std::filesystem::path(kosmos::Sim::user_dir()) / "scenarios" / "last_session.json").string(), last, error))
+            std::fprintf(stderr, "kosmos: %s\n", error.c_str());
+    }
     settings_save(sim.props);
     sl::gui_shutdown();
     sound.stop();

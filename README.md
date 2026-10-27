@@ -61,6 +61,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | Option | Meaning |
 |---|---|
 | `--system <index\|name>` | Start in a galaxy star system (0 / "Sol" is the hand-authored one) |
+| `--render-style normal\|flat\|wireframe` | Shading style (flat and wireframe are much cheaper on slow or software graphics) |
 | `--stars` | Print the 20 nearest stars and exit |
 | `--galaxy-map` | Start in the galaxy map |
 | `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit |

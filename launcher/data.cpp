@@ -495,3 +495,52 @@ namespace launcher
         return hex;
     }
 }
+
+namespace launcher
+{
+    namespace
+    {
+        int clamped(const nlohmann::json &j, const char *key, int fallback, int lo, int hi)
+        {
+            if (j.is_object() && j.contains(key))
+            {
+                if (j[key].is_number_integer())
+                    return std::clamp(j[key].get<int>(), lo, hi);
+                if (j[key].is_boolean())
+                    return j[key].get<bool>() ? 1 : 0;
+            }
+            return fallback;
+        }
+    } // namespace
+
+    GraphicsSettings load_graphics(const fs::path &settings_file)
+    {
+        const nlohmann::json j = read_json(settings_file);
+        GraphicsSettings g;
+        g.style = clamped(j, "gfx-style", g.style, 0, 2);
+        g.clouds = clamped(j, "gfx-clouds", g.clouds, 0, 1);
+        g.light_radius = clamped(j, "gfx-light-radius", g.light_radius, 500, 20000);
+        g.max_fps = clamped(j, "gfx-max-fps", g.max_fps, 10, 240);
+        g.terrain_detail = clamped(j, "gfx-terrain-detail", g.terrain_detail, 0, 3);
+        return g;
+    }
+
+    bool save_graphics(const fs::path &settings_file, const GraphicsSettings &g)
+    {
+        nlohmann::json j = read_json(settings_file);
+        if (!j.is_object())
+            j = nlohmann::json::object();
+        j["gfx-style"] = g.style;
+        j["gfx-clouds"] = g.clouds != 0;
+        j["gfx-light-radius"] = g.light_radius;
+        j["gfx-max-fps"] = g.max_fps;
+        j["gfx-terrain-detail"] = g.terrain_detail;
+        std::error_code ec;
+        fs::create_directories(settings_file.parent_path(), ec);
+        std::ofstream out(settings_file);
+        if (!out)
+            return false;
+        out << j.dump(1) << "\n";
+        return true;
+    }
+} // namespace launcher

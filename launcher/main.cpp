@@ -241,11 +241,14 @@ namespace
     public:
         Frame(const fs::path &root) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
         {
+            const std::string installed = installed_version(root_);
+            SetTitle(installed.empty() ? "Kosmos Launcher" : "Kosmos Launcher - Kosmos " + installed + " installed");
             profile_ = load_profile();
             book_ = new wxListbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLB_LEFT);
             BuildPlay();
             BuildAddons();
             BuildPacks();
+            BuildGraphics();
             BuildOptions();
             BuildUpdates();
             BuildLogs();
@@ -318,7 +321,10 @@ namespace
             tree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &) { ShowScenario(); });
             tree_->Bind(wxEVT_TREE_ITEM_ACTIVATED, [this](wxTreeEvent &) { LaunchSelected(); });
             launch_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { LaunchSelected(); });
-            resume_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { Launch(profile_.last_scenario); });
+            resume_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+                std::error_code ec;
+                Launch(fs::exists(user_dir() / "scenarios" / "last_session.json", ec) ? "last_session" : profile_.last_scenario);
+            });
             blurb_->Bind(wxEVT_SIZE, [this](wxSizeEvent &e) { blurb_->Wrap(std::max(200, e.GetSize().x)); e.Skip(); });
         }
 
@@ -635,6 +641,72 @@ namespace
             return wxExecute(cmd, out, out, wxEXEC_SYNC | wxEXEC_NODISABLE | wxEXEC_HIDE_CONSOLE) == 0;
         }
 
+        // ---- Graphics (kosmos settings.json) --------------------------------------------------------------------
+        fs::path SettingsFile() const { return user_dir() / "settings.json"; }
+
+        void BuildGraphics()
+        {
+            auto *page = new wxPanel(book_);
+            auto *grid = new wxFlexGridSizer(2, 8, 8);
+            grid->AddGrowableCol(1);
+            gfx_style_ = new wxChoice(page, wxID_ANY);
+            for (const char *s : {"Normal", "Flat shaded (fast)", "Wireframe (fastest)"})
+                gfx_style_->Append(s);
+            gfx_clouds_ = new wxCheckBox(page, wxID_ANY, "Clouds");
+            gfx_terrain_ = new wxChoice(page, wxID_ANY);
+            for (const char *s : {"Ultra", "High", "Medium", "Low"})
+                gfx_terrain_->Append(s);
+            gfx_radius_ = new wxSlider(page, wxID_ANY, 8000, 500, 20000, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL | wxSL_LABELS);
+            gfx_fps_ = new wxSlider(page, wxID_ANY, 60, 10, 240, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL | wxSL_LABELS);
+            auto row = [&](const wxString &label, wxWindow *w)
+            {
+                grid->Add(new wxStaticText(page, wxID_ANY, label), 0, wxALIGN_CENTER_VERTICAL);
+                grid->Add(w, 1, wxEXPAND);
+            };
+            row("Render style", gfx_style_);
+            row("", gfx_clouds_);
+            row("Terrain detail", gfx_terrain_);
+            row("Base light radius (m)", gfx_radius_);
+            row("Maximum frame rate", gfx_fps_);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            col->Add(grid, 0, wxEXPAND | wxALL, 12);
+            col->Add(new wxStaticText(page, wxID_ANY, "For slow or software graphics (such as VNC) choose Flat shaded or Wireframe, switch clouds off and lower the terrain detail and light radius. These are saved in Kosmos's settings and can also be changed in game (F3)."), 0, wxALL, 12);
+            page->SetSizer(col);
+            book_->AddPage(page, "Graphics");
+            ShowGraphics();
+            auto sync = [this](wxCommandEvent &) { WriteGraphics(); };
+            gfx_style_->Bind(wxEVT_CHOICE, sync);
+            gfx_terrain_->Bind(wxEVT_CHOICE, sync);
+            gfx_clouds_->Bind(wxEVT_CHECKBOX, sync);
+            gfx_radius_->Bind(wxEVT_SLIDER, sync);
+            gfx_fps_->Bind(wxEVT_SLIDER, sync);
+        }
+
+        void ShowGraphics()
+        {
+            const GraphicsSettings g = load_graphics(SettingsFile());
+            loading_ = true;
+            gfx_style_->SetSelection(g.style);
+            gfx_clouds_->SetValue(g.clouds != 0);
+            gfx_terrain_->SetSelection(g.terrain_detail);
+            gfx_radius_->SetValue(g.light_radius);
+            gfx_fps_->SetValue(g.max_fps);
+            loading_ = false;
+        }
+
+        void WriteGraphics()
+        {
+            if (loading_)
+                return;
+            GraphicsSettings g;
+            g.style = std::max(0, gfx_style_->GetSelection());
+            g.clouds = gfx_clouds_->GetValue() ? 1 : 0;
+            g.terrain_detail = std::max(0, gfx_terrain_->GetSelection());
+            g.light_radius = gfx_radius_->GetValue();
+            g.max_fps = gfx_fps_->GetValue();
+            save_graphics(SettingsFile(), g);
+        }
+
         // ---- Options -------------------------------------------------------------------------------------------
         void BuildOptions()
         {
@@ -884,7 +956,8 @@ namespace
             std::string args;
             for (const std::string &a : build_arguments(profile_, scenario))
                 args += " \"" + a + "\"";
-            profile_.last_scenario = scenario;
+            if (scenario != "last_session")
+                profile_.last_scenario = scenario;
             last_run_scenario_ = scenario;
             save_profile(profile_);
             resume_->Enable();
@@ -982,7 +1055,9 @@ namespace
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
-        wxCheckBox *fullscreen_ = nullptr;
+        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr;
+        wxChoice *gfx_style_ = nullptr, *gfx_terrain_ = nullptr;
+        wxSlider *gfx_radius_ = nullptr, *gfx_fps_ = nullptr;
     };
 
     class App : public wxApp

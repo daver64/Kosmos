@@ -51,6 +51,15 @@ namespace launcher
     fs::path user_dir(); // ~/.config/kosmos or %APPDATA%\kosmos
     std::string installed_version(const fs::path &root);
 
+    // The graphics keys of Kosmos's settings.json (gfx-style 0-2, gfx-clouds 0/1, gfx-light-radius, gfx-max-fps,
+    // gfx-terrain-detail 0-3). Missing keys come back at their defaults; saving keeps every other key in the file.
+    struct GraphicsSettings
+    {
+        int style = 0, clouds = 1, light_radius = 8000, max_fps = 60, terrain_detail = 1;
+    };
+    GraphicsSettings load_graphics(const fs::path &settings_file);
+    bool save_graphics(const fs::path &settings_file, const GraphicsSettings &g);
+
     std::vector<AddonInfo> scan_addons(const fs::path &root);
     std::vector<ScenarioInfo> scan_scenarios(const fs::path &root, const std::vector<AddonInfo> &addons);
     // The built-in pack list; a packs.json from the server (see parse_packs) replaces it.
