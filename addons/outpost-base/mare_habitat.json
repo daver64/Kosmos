@@ -1,6 +1,7 @@
 {
  "name": "Mare Frigoris habitat",
  "class": "building",
+ "locker": ["plasma_rifle", "frag_charge"],
  "door": [
   6.2,
   0,
