@@ -2,6 +2,7 @@
 
 #include "scenario_start.h"
 
+#include <functional>
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -688,15 +689,43 @@ namespace kosmos::app
                 pt.ok = false;
             return pt;
         };
+        // Ships hide things behind them as a bounding sphere sized from their stages: approximate, but cheap.
+        struct Occluder
+        {
+            sl::dvec3 rel;
+            double radius;
+        };
+        std::vector<Occluder> occluders;
+        for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            const kosmos::Ship *ship = sim.ship(i);
+            if (!ship)
+                continue;
+            double r = 2.0;
+            for (const auto &stage : ship->spec().stages)
+                r = std::max({r, std::fabs(stage.z) + stage.length * 0.5, stage.radius});
+            const sl::dvec3 rel = ship->body().position - eye_world;
+            if (glm::length(rel) < 20.0e3)
+                occluders.push_back({rel, std::min(r, 200.0)});
+        }
         auto hidden = [&](const sl::dvec3 &rel) {
             const double length = glm::length(rel);
             if (length < 1.0)
                 return false;
             const sl::dvec3 dir = rel / length;
             const double along = glm::dot(body_rel, dir);
-            return along > 0.0 && along < length && glm::length(body_rel - dir * along) < radius * 0.999;
+            if (along > 0.0 && along < length && glm::length(body_rel - dir * along) < radius * 0.999)
+                return true;
+            for (const Occluder &o : occluders)
+            {
+                const double t = glm::dot(o.rel, dir);
+                if (t > 0.0 && t < length - o.radius && glm::length(o.rel - dir * t) < o.radius && glm::length(rel - o.rel) > o.radius)
+                    return true;
+            }
+            return false;
         };
-        auto segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
+        std::function<void(const sl::dvec3 &, const sl::dvec3 &, const link::Primitive3 &)> segment;
+        auto draw_segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
             if (p.depth && (hidden(a) || hidden(b)))
                 return;
             glm::vec4 ca = view_proj * glm::vec4(glm::vec3(a), 1.0f), cb = view_proj * glm::vec4(glm::vec3(b), 1.0f);
@@ -713,6 +742,11 @@ namespace kosmos::app
             if (std::fabs(x1) > 1.0e5f || std::fabs(y1) > 1.0e5f || std::fabs(x2) > 1.0e5f || std::fabs(y2) > 1.0e5f)
                 return;
             sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
+        };
+        segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
+            const int pieces = p.depth && !occluders.empty() ? 16 : 1;
+            for (int i = 0; i < pieces; ++i)
+                draw_segment(a + (b - a) * (static_cast<double>(i) / pieces), a + (b - a) * (static_cast<double>(i + 1) / pieces), p);
         };
         auto ring = [&](const sl::dvec3 &centre, const sl::dvec3 &normal, double r, const link::Primitive3 &p) {
             const sl::dvec3 helper = std::fabs(normal.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
