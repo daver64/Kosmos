@@ -61,6 +61,18 @@ namespace kosmos
         /** Release the next item of a hardpoint (or of the first loaded one when `index` is negative). Returns whether anything fell. */
         bool release(ArsenalContext &context, Ship &ship, int index = -1);
 
+        // ---- For ship weapons
+        struct RayHit
+        {
+            bool hit = false, on_ship = false;
+            sl::dvec3 point{0.0};
+            Ship *target = nullptr;
+        };
+        /** The first thing a ray from `from` to `to` (body-relative, world axes) meets on `body`: the ground, or a ship other than `ignore`. */
+        RayHit cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const;
+        /** Start a smoke, plasma or explosion effect at a body-relative point. */
+        void spawn_effect(const Universe &universe, sl::Effect3DKind kind, int body, const sl::dvec3 &position, double scale, const sl::dvec3 &direction = sl::dvec3(0.0));
+
         // ---- The world
         /** Advance rounds, blast waves and effects by `dt` seconds of simulated time (`real_dt` for the visuals). */
         void update(ArsenalContext &context, double dt, double real_dt);

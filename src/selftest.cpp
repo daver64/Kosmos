@@ -1,6 +1,7 @@
 #include "selftest.h"
 
 #include "ordnance.h"
+#include "ship_weapons.h"
 
 #include <cmath>
 #include <cstdio>
@@ -125,10 +126,78 @@ namespace kosmos
             std::printf("arsenal selftest: %d failure(s)\n", failures);
             return failures ? 1 : 0;
         }
+
+        /** A headless check of ship weapons: a beam and flak from one ship at another, shields, damage and the light cap. Returns 0 when all of it holds. */
+        int run_weapons_test(Sim &sim, Ship *ship)
+        {
+            int failures = 0;
+            const auto check = [&](bool ok, const char *what) {
+                std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+                failures += ok ? 0 : 1;
+            };
+            Arsenal arsenal;
+            Astronaut nobody;
+            ArsenalContext ctx;
+            ctx.sim = &sim;
+            ctx.eva = &nobody;
+            ctx.terrain = [](int) -> const sl::Terrain * { return nullptr; };
+            ShipWeapons weapons;
+            const double dt = 0.05;
+            const auto run = [&](double seconds) {
+                for (double t = 0.0; t < seconds; t += dt)
+                {
+                    sim.step(dt);
+                    weapons.update(ctx, arsenal, dt, dt);
+                }
+            };
+            check(!ship->spec().weapons.empty(), "the flown ship has weapon mounts");
+            check(sim.weapon_specs.find("neon-beam") && sim.weapon_specs.find("sparkle-flak"), "weapon definitions load from the addon");
+            Ship *target = sim.spawn(ship->spec());
+            const sl::dvec3 forward = glm::normalize(ship->body().direction_to_world(sl::dvec3(0, 0, -1)));
+            target->body().position = ship->body().position + forward * 400.0;
+            target->body().velocity = ship->body().velocity;
+            target->body().angular_velocity = sl::dvec3(0.0);
+            ship->body().angular_velocity = sl::dvec3(0.0);
+            const double capacity = target->spec().shield.capacity;
+            check(capacity > 0.0 && target->shield_level() >= capacity - 1.0e-9, "target starts with a full shield");
+
+            sim.props.set_double("/controls/weapons/primary/fire", 1.0);
+            run(2.0);
+            check(weapons.live_beams() > 0, "beam is drawn while firing");
+            check(weapons.hits() > 0, "beam hits the target");
+            check(target->shield_level() < capacity, "shield drains first");
+            check(target->health() > 0.999, "hull is untouched while the shield holds");
+            check(weapons.shield_hits() > 0, "shield flashes are counted");
+            check(weapons.live_sparks() > 0, "hits throw sparks");
+            std::vector<PlacedLight> lights;
+            weapons.collect_lights(sim.universe, ship->origin(), 4, lights);
+            check(!lights.empty() && lights.size() <= 4, "weapon lights are made and capped at four");
+            lights.clear();
+            weapons.collect_lights(sim.universe, ship->origin(), 1, lights);
+            check(lights.size() <= 1, "a lower cap is respected");
+
+            target->absorb(10.0);
+            check(target->shield_level() <= 0.0, "shield can be emptied");
+            run(1.5);
+            check(target->health() < 1.0, "hull takes damage once the shield is down");
+
+            sim.props.set_double("/controls/weapons/primary/fire", 0.0);
+            sim.props.set_double("/controls/weapons/secondary/fire", 1.0);
+            run(0.6);
+            check(weapons.shots_fired() > 0 && weapons.live_bolts() > 0, "flak salvo is in flight");
+            sim.props.set_double("/controls/weapons/secondary/fire", 0.0);
+            run(1.5);
+            check(weapons.live_sparks() > 0 || weapons.live_bolts() == 0, "flak bursts into sparks");
+            run(10.0);
+            check(weapons.live_bolts() == 0 && weapons.live_beams() == 0, "everything ends when the trigger is released");
+            return failures ? 1 : 0;
+        }
     } // namespace
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (options.weapons)
+            return run_weapons_test(sim, ship);
         if (options.arsenal)
             return run_arsenal_test(sim, ship);
         const double dt = std::getenv("KOSMOS_SELFTEST_DT") ? std::atof(std::getenv("KOSMOS_SELFTEST_DT")) : 0.05;

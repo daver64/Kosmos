@@ -21,6 +21,10 @@ echo "== arsenal selftest (landed Vulcan: kit, pistol, plasma, charges, blast da
 ./kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal | tee arsenal_test.log
 ! grep -q '^FAIL' arsenal_test.log
 rm -f arsenal_test.log
+echo "== weapons selftest (Deltaglider in orbit: beam, shield, flak, light cap)"
+./kosmos --ship "CVEL Deltaglider" --orbit --selftest 1 --selftest-weapons | tee weapons_test.log
+! grep -q '^FAIL' weapons_test.log
+rm -f weapons_test.log
 
 echo "== bombing selftest (regular and atom bomb detonate)"
 for atom in "" "--selftest-drop-atom"; do

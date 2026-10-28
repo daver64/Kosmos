@@ -271,6 +271,10 @@ namespace kosmos::app
                     ImGui::SetNextItemWidth(160.0f);
                     if (ImGui::SliderInt("Base light radius (m)", &radius, 500, 20000))
                         props.set_int("/sim/settings/gfx-light-radius", radius);
+                    int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
+                    ImGui::SetNextItemWidth(160.0f);
+                    if (ImGui::SliderInt("Weapon lights", &weapon_lights, 0, 8))
+                        props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
                     static const char *details[] = {"Ultra", "High", "Medium", "Low"};
                     int detail = props.get_int("/sim/settings/gfx-terrain-detail");
                     ImGui::SetNextItemWidth(160.0f);

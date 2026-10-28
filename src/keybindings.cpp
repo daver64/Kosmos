@@ -156,6 +156,8 @@ namespace kosmos
         add("hud_mode", "Next HUD mode", ship, any, false, {K::letter_h});
         add("hud_colour", "Next HUD colour", ship, any, false, {K::letter_h, true});
 
+        add("fire_primary", "Fire primary weapons", hold, fly, true, {K::keypad_1});
+        add("fire_secondary", "Fire secondary weapons", hold, fly, true, {K::keypad_7});
         add("throttle_up", "Throttle up", hold, fly, true, {K::left_shift});
         add("throttle_down", "Throttle down", hold, fly, true, {K::left_control});
         add("hover_up", "Hover thrust up", hold, fly, true, {K::keypad_plus});

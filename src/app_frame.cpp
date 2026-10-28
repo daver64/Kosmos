@@ -80,6 +80,7 @@ namespace kosmos::app
             ship = start_scenario(sim, options, terrain_set);
             eva.active = false;
             arsenal.reset();
+            ship_weapons.reset();
             if (!ship)
                 return false;
             cam_distance = ship->spec().camera_distance;
@@ -230,6 +231,7 @@ namespace kosmos::app
             sl::destroy_mesh(m);
         for (sl::Mesh *m : {vis.sphere, vis.glow, vis.quad, vis.starfield, vis.tail})
             sl::destroy_mesh(m);
+        ship_weapons.release_graphics();
         sl::destroy_bitmap(vis.lights_texture);
         sl::destroy_bitmap(vis.glow_texture);
         for (sl::Bitmap *b : {vis.star_surface, vis.star_filaments, vis.star_corona, vis.star_corona_far, vis.star_rays, vis.star_limb, vis.sky})

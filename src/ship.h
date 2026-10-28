@@ -282,6 +282,23 @@ namespace kosmos
             int count = 1;
         };
         std::vector<Hardpoint> hardpoints;
+        /**
+         * A gun on the ship (the "weapons" list): `weapon` is a weapon id from an addon's weapons folder, `position` and `direction` are in the ship
+         * frame, and `group` is the fire control that triggers it (`/controls/weapons/<group>/fire` for the flown ship).
+         */
+        struct WeaponMount
+        {
+            std::string name, weapon, group = "primary";
+            sl::dvec3 position{0.0}, direction{0.0, 0.0, -1.0};
+        };
+        std::vector<WeaponMount> weapons;
+        /** Energy shield: absorbs weapon hits (in fractions of the ship's health) before the hull is touched, then recharges after `delay` seconds. */
+        struct Shield
+        {
+            double capacity = 0.0, recharge = 0.05, delay = 4.0;
+            int colour[3] = {120, 190, 255};
+        };
+        Shield shield;
         /** Equipment ids a person leaving this ship or building takes along (the "locker" list). */
         std::vector<std::string> locker;
         /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
@@ -446,6 +463,12 @@ namespace kosmos
         double health() const { return health_; }
         /** Take damage (0 to 1 of the whole ship); at 0 the ship is destroyed as if it had crashed. */
         void damage(double amount);
+        /** The shield's charge, 0 up to the spec's capacity. */
+        double shield_level() const { return shield_; }
+        /** A weapon hit of `amount`: the shield takes what it can and the rest is returned for the hull. */
+        double absorb(double amount);
+        /** Recharge the shield after its quiet period. */
+        void shield_tick(double dt);
         /** Mass of released-in-flight equipment still aboard (bombs on racks); included in the ship's mass. */
         void set_payload_mass(double kilograms);
         const Telemetry &telemetry() const { return telemetry_; }
@@ -526,6 +549,7 @@ namespace kosmos
         sl::dvec3 com_{0.0};
         bool crashed_ = false;
         double health_ = 1.0;
+        double shield_ = 0.0, shield_quiet_ = 0.0;
         double payload_mass_ = 0.0;
         // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
         bool pinned_ = false;

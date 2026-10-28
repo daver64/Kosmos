@@ -1,0 +1,16 @@
+{
+ "weapons": [
+  {
+   "id": "neon-beam", "name": "Neon beam", "fire": "beam",
+   "ship_damage": 0.05, "range": 8000, "max_time": 6, "cooldown": 4,
+   "impact": "plasma", "impact_scale": 1.5,
+   "look": {"colour": [255, 120, 20], "core": [255, 245, 220], "width": 0.25, "glow": 5, "sparkle": 0.6, "light": 6, "light_range": 300}
+  },
+  {
+   "id": "sparkle-flak", "name": "Sparkle flak", "fire": "flak",
+   "rate": 3, "ship_damage": 0.02, "range": 3000, "speed": 600, "count": 8, "cone": 0.06, "lifetime": 2.5,
+   "impact": "explosion", "impact_scale": 1.0,
+   "look": {"colour": [80, 255, 140], "core": [230, 255, 240], "width": 0.4, "glow": 5, "length": 12, "sparkle": 1.0, "light": 3, "light_range": 150}
+  }
+ ]
+}

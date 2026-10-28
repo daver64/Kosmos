@@ -2,6 +2,7 @@
 
 #include "base.h"
 #include "equipment.h"
+#include "weapon_specs.h"
 #include "galaxy.h"
 #include "lua_runtime.h"
 #include "mfd.h"
@@ -105,6 +106,7 @@ namespace kosmos
         MfdSystem mfd;
         /** Instruments, weapons and ordnance from every addon's equipment/ folder. */
         EquipmentLibrary equipment;
+        WeaponLibrary weapon_specs;
         NavSystem nav;
         Weather weather;
         /** Built-up surface sites from data/bases/ and addons; their heights are filled in when the terrain is made. */

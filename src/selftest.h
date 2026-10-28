@@ -17,6 +17,8 @@ namespace kosmos
         bool drop_atom = false;
         /** Run the arsenal checks (kit, weapons, charges, blast damage, bomb rack) instead of a flight. */
         bool arsenal = false;
+        /** Run the ship weapon checks (beam, shields, flak, light cap) instead of a flight. */
+        bool weapons = false;
         /** Hold this throttle (negative leaves the controls alone). */
         double throttle = -1.0;
     };

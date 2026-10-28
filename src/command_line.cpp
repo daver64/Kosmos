@@ -184,6 +184,8 @@ namespace kosmos::app
                 options.selftest_gear_up = true;
             else if (!std::strcmp(argv[i], "--selftest-drop") && i + 1 < argc)
                 options.selftest_drop = std::atof(argv[++i]);
+            else if (!std::strcmp(argv[i], "--selftest-weapons"))
+                options.selftest_weapons = true;
             else if (!std::strcmp(argv[i], "--selftest-arsenal"))
                 options.selftest_arsenal = true;
             else if (!std::strcmp(argv[i], "--selftest-drop-atom"))

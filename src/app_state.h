@@ -23,6 +23,7 @@
 #include "eva.h"
 #include "eva_solids.h"
 #include "ordnance.h"
+#include "ship_weapons.h"
 #include "settings.h"
 #include "ship_visuals.h"
 #include "exhaust_fx.h"
@@ -126,6 +127,7 @@ namespace kosmos::app
         bool cockpit_view{};
         kosmos::Astronaut eva;
         kosmos::Arsenal arsenal;
+        kosmos::ShipWeapons ship_weapons;
         bool mouse_captured{};
         bool pointer_free{};
         int mfd_display{};

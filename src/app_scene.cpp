@@ -98,6 +98,7 @@ namespace kosmos::app
                     }
                 }
             }
+            ship_weapons.collect_lights(universe, eye_world, sim.props.get_int("/sim/settings/gfx-weapon-lights"), lamps);
             std::vector<const kosmos::PlacedLight *> order;
             for (const kosmos::PlacedLight &p : lamps)
                 order.push_back(&p);
@@ -777,6 +778,7 @@ namespace kosmos::app
             exhaust_fx.draw(vis.glow, hull);
         }
         arsenal.draw_world(universe, eye_world, vis.glow);
+        ship_weapons.draw(universe, eye_world, vis.quad, vis.glow_texture);
         if (in_eva && arsenal.held(sim) && sl::clear_depth_3d())
         {
             sl::Camera held_camera = ship_camera;

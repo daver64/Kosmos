@@ -6,6 +6,12 @@
  "max_rate": 0.6,
  "rcs_thrust": 10000,
  "drag_area": 1.5,
+ "weapons": [
+  {"name": "Nose beam", "weapon": "neon-beam", "group": "primary", "position": [0, -0.3, -9.5], "direction": [0, 0, -1]},
+  {"name": "Sparkle port", "weapon": "sparkle-flak", "group": "secondary", "position": [-1.2, -0.3, -9.0], "direction": [0, 0, -1]},
+  {"name": "Sparkle starboard", "weapon": "sparkle-flak", "group": "secondary", "position": [1.2, -0.3, -9.0], "direction": [0, 0, -1]}
+ ],
+ "shield": {"capacity": 0.5, "recharge": 0.05, "delay": 4, "colour": [90, 170, 255]},
  "camera_distance": 32,
  "retractable_gear": true,
  "gear_time": 6,

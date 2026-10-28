@@ -176,6 +176,7 @@ namespace kosmos::app
             ship = start_scenario(sim, options, terrain_set);
             eva.active = false;
             arsenal.reset();
+            ship_weapons.reset();
             cam_distance = ship->spec().camera_distance;
         };
     return keep_going;

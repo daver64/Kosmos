@@ -139,6 +139,19 @@ namespace kosmos::app
         }
         arsenal.set_sound(sound_on);
         arsenal.update(arsenal_ctx, frame * std::min(sim.current_warp(), 4.0), frame);
+        if (!typing)
+        {
+            // Only touch the properties on a key change, so scripts and link programs can set them too.
+            static bool primary_was = false, secondary_was = false;
+            const bool primary = keys.down("fire_primary"), secondary = keys.down("fire_secondary");
+            if (primary != primary_was)
+                props.set_double("/controls/weapons/primary/fire", primary ? 1.0 : 0.0);
+            if (secondary != secondary_was)
+                props.set_double("/controls/weapons/secondary/fire", secondary ? 1.0 : 0.0);
+            primary_was = primary;
+            secondary_was = secondary;
+        }
+        ship_weapons.update(arsenal_ctx, arsenal, frame * std::min(sim.current_warp(), 4.0), frame);
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.

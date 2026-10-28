@@ -246,6 +246,7 @@ namespace kosmos::app
             test.drop = options.selftest_drop;
             test.drop_atom = options.selftest_drop_atom;
             test.arsenal = options.selftest_arsenal;
+            test.weapons = options.selftest_weapons;
             test.throttle = options.selftest_throttle;
             return kosmos::run_selftest(sim, flown, test);
         }

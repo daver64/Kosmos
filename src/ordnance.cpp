@@ -581,6 +581,22 @@ namespace kosmos
         return hit;
     }
 
+    Arsenal::RayHit Arsenal::cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const
+    {
+        const Hit hit = trace(context, body, from, to, ignore);
+        RayHit out;
+        out.hit = hit.kind != Hit::none;
+        out.on_ship = hit.kind == Hit::ship;
+        out.point = hit.point;
+        out.target = hit.target;
+        return out;
+    }
+
+    void Arsenal::spawn_effect(const Universe &universe, sl::Effect3DKind kind, int body, const sl::dvec3 &position, double scale, const sl::dvec3 &direction)
+    {
+        add_effect(universe, kind, body, position, scale, direction);
+    }
+
     void Arsenal::damage_person(ArsenalContext &context, double amount)
     {
         Suit &suit = context.eva->suit;

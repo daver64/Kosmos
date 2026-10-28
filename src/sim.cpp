@@ -275,6 +275,7 @@ namespace kosmos
             for (const Addon &addon : addons_)
                 directories.push_back(addon.directory);
             equipment.load(directories, problems);
+            weapon_specs.load(directories, problems);
             for (const std::string &p : problems)
                 log("equipment: " + p);
         }

@@ -285,6 +285,34 @@ namespace kosmos
                     if (!h.equipment.empty())
                         spec.hardpoints.push_back(h);
                 }
+            if (json.contains("weapons"))
+                for (const auto &jw : json["weapons"])
+                {
+                    ShipSpec::WeaponMount w;
+                    w.weapon = jw.value("weapon", "");
+                    w.name = jw.value("name", w.weapon);
+                    w.group = jw.value("group", w.group);
+                    if (jw.contains("position"))
+                        w.position = vec3(jw["position"]);
+                    if (jw.contains("direction"))
+                    {
+                        const sl::dvec3 d = vec3(jw["direction"]);
+                        if (glm::length(d) > 1.0e-6)
+                            w.direction = glm::normalize(d);
+                    }
+                    if (!w.weapon.empty())
+                        spec.weapons.push_back(w);
+                }
+            if (json.contains("shield"))
+            {
+                const auto &js = json["shield"];
+                spec.shield.capacity = std::max(0.0, js.value("capacity", 0.0));
+                spec.shield.recharge = std::max(0.0, js.value("recharge", spec.shield.recharge));
+                spec.shield.delay = std::max(0.0, js.value("delay", spec.shield.delay));
+                if (js.contains("colour") && js["colour"].size() >= 3)
+                    for (int i = 0; i < 3; ++i)
+                        spec.shield.colour[i] = std::clamp(js["colour"][static_cast<std::size_t>(i)].get<int>(), 0, 255);
+            }
             if (json.contains("locker"))
                 spec.locker = json["locker"].get<std::vector<std::string>>();
             spec.fuel_pod = json.value("fuel_pod", false);
@@ -410,6 +438,7 @@ namespace kosmos
     Ship::Ship(Universe &universe, ShipSpec spec) : name(spec.name), universe_(universe), spec_(std::move(spec))
     {
         build_body();
+        shield_ = spec_.shield.capacity;
         if (!spec_.systems.empty())
             systems_ = std::make_unique<Systems>(spec_.systems, life_support_);
     }
@@ -537,6 +566,25 @@ namespace kosmos
         refresh_mass_properties();
     }
 
+    double Ship::absorb(double amount)
+    {
+        if (spec_.shield.capacity <= 0.0 || amount <= 0.0)
+            return amount;
+        shield_quiet_ = 0.0;
+        const double taken = std::min(shield_, amount);
+        shield_ -= taken;
+        return amount - taken;
+    }
+
+    void Ship::shield_tick(double dt)
+    {
+        if (spec_.shield.capacity <= 0.0)
+            return;
+        shield_quiet_ += dt;
+        if (shield_quiet_ >= spec_.shield.delay)
+            shield_ = std::min(spec_.shield.capacity, shield_ + spec_.shield.recharge * dt);
+    }
+
     void Ship::damage(double amount)
     {
         if (crashed_ || amount <= 0.0)
@@ -648,6 +696,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -671,6 +720,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -693,6 +743,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -737,6 +788,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -1401,6 +1453,7 @@ namespace kosmos
         const auto num = [&](const char *path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
         tree.node(base + "/name")->tie_string([this] { return name; });
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
+        tree.node(base + "/shield")->tie_double([this] { return spec_.shield.capacity > 0.0 ? shield_ / spec_.shield.capacity : 0.0; });
         for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
             tree.node(base + "/anim/" + spec_.animation_controls[i].property)->tie_double([this, i] { return animation_position(i); });
         tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });
