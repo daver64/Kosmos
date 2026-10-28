@@ -37,7 +37,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 ## Native addons
 
-Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`).
+Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`). `addons/kosmosmap` is the launcher for KosmosMap, a GTK 3 moving map of the body the ship is at (Linux); its source is the SDK's model program, `sdk/kosmosmap`.
 
 ## Controls
 

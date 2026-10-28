@@ -33,6 +33,7 @@ A connection goes: connect, send *hello* (addon id, name, version, the capabilit
 | `CMakeLists.txt` | Builds the `kosmos::link` library; use it with `add_subdirectory`. |
 | `examples/` | `hello_props.c`, `speed_mfd.cpp`, `weather_mfd.cpp` (a weather page), and a pure-Python client with `speed_hold.py` and `nearest_runway.py`. |
 | `template/` | An addon folder to copy: `addon.json`, a CMake project and `src/main.cpp`. |
+| `kosmosmap/` | KosmosMap, a complete program: a GTK 3 moving map in C++ (about 2000 lines, Linux) that reads ships, facilities and properties and shades Kosmos's terrain data. Built with the SDK when GTK 3 and zlib are installed; see its `README.md`. |
 | `tools/kosmos_link_sim.py` | A mock Kosmos for developing without the game. |
 | `docs/PROTOCOL.md` | The wire protocol, for other languages. |
 

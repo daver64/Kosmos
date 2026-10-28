@@ -222,6 +222,27 @@ if(KOSMOS_BUILD_LAUNCHER)
     endif()
 endif()
 
+# KosmosMap is a plain GTK 3 program in addons/kosmosmap, built on Linux when GTK 3 and zlib are present.
+if(UNIX AND NOT APPLE)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(KOSMOSMAP_GTK QUIET gtk+-3.0 gdk-pixbuf-2.0)
+        find_package(ZLIB QUIET)
+        if(KOSMOSMAP_GTK_FOUND AND ZLIB_FOUND)
+            set(KOSMOSMAP_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosmap/bin" CACHE PATH "" FORCE)
+            add_subdirectory(sdk/kosmosmap)
+            list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosmap)
+        else()
+            message(STATUS "GTK 3 or zlib not found: KosmosMap will not be built")
+        endif()
+    endif()
+endif()
+set(KOSMOS_PACKAGE_EXCLUDE "/data/orbiter(/|$)" "/data/textures-hires(/|$)" "/data/celestia/hires(/|$)"
+    "/data/landclass/.*\\.tif$" "/data/landclass/.*\\.kavlc$")
+if(WIN32)
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin(/|$)")
+endif()
+
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-Linux.tar.gz        Windows: build/package/kosmos-beta-Windows.zip
@@ -232,5 +253,4 @@ simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
     ASSETS data addons assets
     EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
-    EXCLUDE "/data/orbiter(/|$)" "/data/textures-hires(/|$)" "/data/celestia/hires(/|$)"
-            "/data/landclass/.*\\.tif$" "/data/landclass/.*\\.kavlc$")
+    EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})

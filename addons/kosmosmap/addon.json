@@ -1,0 +1,15 @@
+{
+  "id": "kosmosmap",
+  "name": "KosmosMap",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/kosmosmap"
+    },
+    "capabilities": [
+      "read"
+    ],
+    "autostart": false,
+    "restart": false
+  }
+}

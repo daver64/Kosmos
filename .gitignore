@@ -19,3 +19,4 @@ data/textures-hires/
 *.gltf.bak
 *.obj.bak
 /kosmos-hires.tar.*
+/addons/kosmosmap/bin/
