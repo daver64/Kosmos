@@ -34,6 +34,7 @@ toc = "".join('  <a href="#%s">%s</a>\n' % (i, t) for i, t in headings)
 page = open(web + "/modding.html").read()
 head = page[:page.index('<div class="doc">')]
 head = head.replace('class="active" href="modding.html"', 'href="modding.html"')
+head = head.replace('href="sdk.html">SDK manual', 'class="active" href="sdk.html">SDK manual')
 head = head.replace("Modders Manual — KOSMOS", "Kosmos SDK Manual — KOSMOS")
 foot = page[page.index("<footer>"):]
 out = head + '''<div class="doc">

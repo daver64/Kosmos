@@ -1,6 +1,6 @@
 # Native addon modules: roadmap
 
-**Status:** exploratory. Not scheduled and not implemented. This document records the design so it can be reviewed before any work starts.
+**Status:** superseded. In-process native modules were not built. Native addons shipped in 0.23 as KosmosLink, a separate program connected over a loopback socket, documented in the SDK manual (`sdk/docs/MANUAL.md`). This document is kept as the record of the original in-process design.
 
 ## Problem
 Addons are currently data (JSON, OBJ/GLB) plus sandboxed Lua. Orbiter-style addons can also ship compiled code: custom vessel behaviour, MFD and HUD drawing, and per-frame logic. The aim is to explore a **strictly C ABI**, so modules can be written in C, C++, Rust, Zig and so on, and Kosmos never exposes its C++ types.

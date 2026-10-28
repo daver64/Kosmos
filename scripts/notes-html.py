@@ -19,6 +19,7 @@ page = """<!DOCTYPE html>
     <a href="gallery.html">Gallery</a>
     <a href="manual.html">Flight manual</a>
     <a href="modding.html">Modders manual</a>
+    <a href="sdk.html">SDK manual</a>
     <a href="developers.html">Developers manual</a>
     <a href="download.html">Download</a>
   </nav>
