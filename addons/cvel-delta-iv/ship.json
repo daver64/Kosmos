@@ -1,6 +1,7 @@
 {
  "name": "CVEL Delta IV Heavy",
  "class": "launcher",
+ "pad_turn": 90,
  "torque_accel": 0.15,
  "max_rate": 0.25,
  "rcs_thrust": 0,
@@ -34,25 +35,6 @@
    "name": "Avionics",
    "watts": 200,
    "priority": 0
-  }
- ],
- "lights": [
-  {
-   "position": [
-    0,
-    0,
-    -47
-   ],
-   "colour": [
-    255,
-    255,
-    255
-   ],
-   "intensity": 3,
-   "range": 50,
-   "pattern": "strobe",
-   "period": 1.6,
-   "glow": 0.4
   }
  ],
  "stages": [

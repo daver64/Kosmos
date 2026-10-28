@@ -349,6 +349,380 @@
     "y": 90,
     "size": 112
    }
+  ],
+  "controls": [
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 0,
+    "x": 182,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 6,
+    "x": 208,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 1,
+    "x": 182,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 7,
+    "x": 208,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 2,
+    "x": 182,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 8,
+    "x": 208,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 3,
+    "x": 182,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 9,
+    "x": 208,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 4,
+    "x": 182,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 10,
+    "x": 208,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 5,
+    "x": 182,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 11,
+    "x": 208,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 12,
+    "x": 237,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 13,
+    "x": 450,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 14,
+    "x": 481,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 0,
+    "x": 590,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 6,
+    "x": 616,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 1,
+    "x": 590,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 7,
+    "x": 616,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 2,
+    "x": 590,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 8,
+    "x": 616,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 3,
+    "x": 590,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 9,
+    "x": 616,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 4,
+    "x": 590,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 10,
+    "x": 616,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 5,
+    "x": 590,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 11,
+    "x": 616,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 12,
+    "x": 645,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 13,
+    "x": 859,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 14,
+    "x": 890,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "hud",
+    "value": "off",
+    "x": 15.0,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "orbit",
+    "x": 43.5,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "surface",
+    "x": 72.0,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "docking",
+    "x": 100.5,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "stability",
+    "x": 37,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "prograde",
+    "x": 77,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "normal",
+    "x": 116,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "level-horizon",
+    "x": 37,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "retrograde",
+    "x": 77,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "antinormal",
+    "x": 116,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "slider",
+    "property": "/controls/throttle",
+    "x": 1000,
+    "y": 277,
+    "w": 50,
+    "h": 122
+   },
+   {
+    "type": "slider",
+    "property": "/controls/hover",
+    "x": 1078,
+    "y": 277,
+    "w": 30,
+    "h": 122
+   }
   ]
  }
 }

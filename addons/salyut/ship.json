@@ -85,13 +85,6 @@
   }
  ],
  "name": "Salyut",
- "lights": [
-  { "position": [-2.2, 0, -5.5], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [2.2, 0, -5.5], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.3 },
-  { "position": [0, 2.2, 5.5], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.45 },
-  { "position": [0, -2.2, -5.5], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.5, "glow": 0.45 },
-  { "position": [0, 1.0, -6.9], "direction": [0, 0, -1], "colour": [255, 248, 235], "intensity": 7, "range": 160, "inner": 14, "outer": 35, "glow": 0.4 }
- ],
  "class": "station",
  "torque_accel": 0.05,
  "max_rate": 0.3,
@@ -121,7 +114,8 @@
      "thrust": 2045,
      "isp": 282,
      "plume": 1.5,
-     "type": "rocket", "fuel": "hypergolic"
+     "type": "rocket",
+     "fuel": "hypergolic"
     },
     {
      "position": [
@@ -137,7 +131,8 @@
      "thrust": 2045,
      "isp": 282,
      "plume": 1.5,
-     "type": "rocket", "fuel": "hypergolic"
+     "type": "rocket",
+     "fuel": "hypergolic"
     }
    ],
    "parts": [

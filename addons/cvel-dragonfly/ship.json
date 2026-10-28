@@ -1,6 +1,6 @@
 {
  "name": "CVEL Dragonfly",
- "class": "lander",
+ "class": "tug",
  "torque_accel": 0.4,
  "max_rate": 0.5,
  "rcs_thrust": 1000,

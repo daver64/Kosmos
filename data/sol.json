@@ -6,7 +6,7 @@
     {"name": "Sun", "kind": "star", "gm": 1.32712440018e20, "radius": 6.957e8, "colour": [255, 214, 140]},
 
     {"name": "Mercury", "kind": "planet", "parent": "Sun", "gm": 2.2032e13, "radius": 2.4397e6, "spin": 1.2400e-6,
-     "colour": [150, 140, 130], "orbit": {"a_au": 0.387098, "e": 0.205630, "i": 7.005, "raan": 48.331, "argp": 29.124, "m0": 174.796}},
+     "colour": [150, 140, 130], "style": {"type": "mercury", "seed": 4012, "tint": [0.59, 0.55, 0.51], "relief": 1.0}, "orbit": {"a_au": 0.387098, "e": 0.205630, "i": 7.005, "raan": 48.331, "argp": 29.124, "m0": 174.796}},
     {"name": "Venus", "kind": "planet", "parent": "Sun", "gm": 3.24859e14, "radius": 6.0518e6, "spin": -2.9924e-7,
      "colour": [225, 190, 120], "atmosphere": {"density": 65.0, "scale_height": 15900.0, "colour": [235, 200, 130]},
      "orbit": {"a_au": 0.723332, "e": 0.006772, "i": 3.395, "raan": 76.680, "argp": 54.884, "m0": 50.115}},

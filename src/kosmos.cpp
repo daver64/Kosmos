@@ -290,7 +290,7 @@ namespace
                     if (entry.runway >= 0 && entry.runway < static_cast<int>(base->runways.size()))
                         kosmos::base_runway_start(*base, base->runways[static_cast<std::size_t>(entry.runway)], entry.reverse, radius, dir, heading, entry.along);
                     else
-                        kosmos::base_pad(*base, radius, dir, heading);
+                        kosmos::base_pad(*base, radius, dir, heading), heading += ship->spec().pad_turn;
                     height = base->height;
                     if (entry.runway < 0 || entry.runway >= static_cast<int>(base->runways.size()))
                         height += kosmos::base_pad_deck(*base);
@@ -424,6 +424,7 @@ namespace
             if (home_base)
             {
                 kosmos::base_pad(*home_base, sim.universe.bodies[static_cast<std::size_t>(earth)].radius, pad, heading);
+                heading += ship->spec().pad_turn;
                 height = home_base->height + kosmos::base_pad_deck(*home_base);
             }
             else if (const sl::Terrain *terrain = terrains.find(earth))
@@ -712,9 +713,9 @@ namespace
             sl::dvec3 u = glm::normalize(glm::cross(dir, helper)), v = glm::cross(dir, u);
             const double roll = uniform(0.0, 2.0 * pi), cr = std::cos(roll), sr = std::sin(roll);
             const sl::dvec3 ru = u * cr + v * sr, rv = v * cr - u * sr;
-            const double radius = uniform(0.1, 0.32);
+            const double radius = uniform(0.35, 0.8);
             const int tile = static_cast<int>(rng() % 16), col = tile % 4, row = tile / 4;
-            const float alpha = static_cast<float>(uniform(0.35, 0.7));
+            const float alpha = static_cast<float>(uniform(0.1, 0.22));
             const float corner[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
             const std::uint32_t base = static_cast<std::uint32_t>(vertices.size());
             for (const auto &c : corner)
@@ -2382,6 +2383,95 @@ namespace
         return layout;
     }
 
+    bool control_is_numeric(const std::string &v)
+    {
+        return !v.empty() && (std::isdigit(static_cast<unsigned char>(v[0])) || v[0] == '-' || v[0] == '.');
+    }
+
+    bool control_lit(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c)
+    {
+        if (c.property.empty())
+            return false;
+        if (c.type == "toggle")
+            return sim.props.get_double(c.property) > 0.5;
+        if (c.value == "level-horizon")
+            return sim.props.get_string("/controls/sas") == "attitude" && std::fabs(sim.props.get_double("/controls/target-pitch")) < 0.5;
+        if (control_is_numeric(c.value))
+            return std::fabs(sim.props.get_double(c.property) - std::atof(c.value.c_str())) < 0.01;
+        return sim.props.get_string(c.property) == c.value;
+    }
+
+    // Lamps, slider handles and the like are drawn over the panel bitmap, which carries the artwork.
+    void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
+    {
+        const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
+        if (c.type == "slider")
+        {
+            const float v = static_cast<float>(std::clamp(sim.props.get_double(c.property), 0.0, 1.0));
+            const float ty = y + h * (1.0f - v);
+            sl::rectfill(sl::screen, x, ty, x + w, y + h, {90, 255, 120, 60});
+            sl::rectfill(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {255, 190, 60, 235});
+            sl::rect(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {40, 30, 10, 255}, 1.0f);
+        }
+        else if (c.type == "button" || c.type == "toggle")
+        {
+            if (control_lit(sim, c))
+            {
+                sl::rectfill(sl::screen, x, y, x + w, y + h, {90, 255, 120, 55});
+                sl::rect(sl::screen, x, y, x + w, y + h, {120, 255, 140, 255}, 2.0f);
+            }
+        }
+    }
+
+    // Returns the slider under (px, py) so the caller can keep dragging it, or -1.
+    int panel_slider_at(const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
+    {
+        for (std::size_t i = 0; i < cp.controls.size(); ++i)
+        {
+            const auto &c = cp.controls[i];
+            if (c.type == "slider" && px >= ox + c.x * scale && px <= ox + (c.x + c.w) * scale && py >= oy + c.y * scale && py <= oy + (c.y + c.h) * scale)
+                return static_cast<int>(i);
+        }
+        return -1;
+    }
+
+    void panel_slider_set(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float oy, float scale, float py)
+    {
+        const double v = std::clamp(1.0 - static_cast<double>((py - oy - c.y * scale) / (c.h * scale)), 0.0, 1.0);
+        if (c.property == "/controls/throttle")
+            sim.props.set_bool("/autopilot/enabled", false);
+        sim.props.set_double(c.property, v);
+    }
+
+    void panel_control_press(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c)
+    {
+        if (c.type == "mfd")
+        {
+            if (c.unit < sim.mfd.unit_count())
+                sim.mfd.press(c.unit, c.button);
+        }
+        else if (c.type == "hud")
+            sim.props.set_string("/sim/hud-request", c.value);
+        else if (c.type == "toggle")
+            sim.props.set_double(c.property, sim.props.get_double(c.property) > 0.5 ? 0.0 : 1.0);
+        else if (c.type == "button")
+        {
+            if (c.property == "/controls/sas")
+                sim.props.set_bool("/autopilot/enabled", false);
+            if (c.value == "level-horizon")
+            {
+                const kosmos::Ship *ship = sim.active_ship();
+                sim.props.set_double("/controls/target-pitch", 0.0);
+                sim.props.set_double("/controls/target-heading", ship ? ship->telemetry().heading : 0.0);
+                sim.props.set_string("/controls/sas", "attitude");
+            }
+            else if (control_is_numeric(c.value))
+                sim.props.set_double(c.property, std::atof(c.value.c_str()));
+            else
+                sim.props.set_string(c.property, c.value);
+        }
+    }
+
     void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale)
     {
         const float w = cp.panel_width * scale, h = cp.panel_height * scale;
@@ -2396,11 +2486,28 @@ namespace
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
             if (sim.mfd.allowed(cp.instruments[i].mode))
                 sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
+        for (const kosmos::Cockpit::PanelControl &c : cp.controls)
+            draw_panel_control(sim, c, ox, oy, scale);
     }
 
     // Press the button under (px, py), given in the same pixels the panel was drawn in. Returns true if one was hit.
+    int panel_slider = -1;
+
     bool panel_click(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
     {
+        for (const auto &c : cp.controls)
+        {
+            if (c.type == "slider" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
+                continue;
+            panel_control_press(sim, c);
+            return true;
+        }
+        panel_slider = panel_slider_at(cp, ox, oy, scale, px, py);
+        if (panel_slider >= 0)
+        {
+            panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider)], oy, scale, py);
+            return true;
+        }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
         {
             if (!sim.mfd.allowed(cp.instruments[i].mode))
@@ -4826,6 +4933,13 @@ int main(int argc, char **argv)
             eye_shift.y += axis(sl::Key::page_up, sl::Key::page_down) * step;
             eye_shift = glm::clamp(eye_shift, sl::dvec3(-0.8), sl::dvec3(0.8));
         }
+        if (const std::string request = props.get_string("/sim/hud-request"); !request.empty())
+        {
+            sl::HudMode requested = sl::HudMode::off;
+            if (request == "off" || sl::hud_parse_mode(request, requested))
+                hud.set_mode(requested);
+            props.set_string("/sim/hud-request", "");
+        }
         props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis(sl::Key::arrow_right, sl::Key::arrow_left));
         props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis(sl::Key::arrow_up, sl::Key::arrow_down));
         if (joystick.learning())
@@ -6584,16 +6698,21 @@ int main(int argc, char **argv)
             const auto panels = cp.panels_2d();
             const auto &shown = panels[static_cast<std::size_t>(std::clamp(panel_index, 0, static_cast<int>(panels.size()) - 1))];
             cp.instruments = shown.instruments;
+            cp.controls = shown.controls;
             cp.panel_width = shown.width;
             cp.panel_height = shown.height;
             cp.panel_image = shown.image;
-            const float scale = std::min(screen_w * 0.8f / cp.panel_width, screen_h * 0.4f / cp.panel_height);
+            const float scale = std::min(screen_w / cp.panel_width, screen_h * 0.55f / cp.panel_height);
             const float ox = (screen_w - cp.panel_width * scale) * 0.5f, oy = screen_h - cp.panel_height * scale;
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
             if (down && !mfd_mouse_prev)
                 panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
+            else if (down && panel_slider >= 0 && panel_slider < static_cast<int>(cp.controls.size()))
+                panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider)], oy, scale, static_cast<float>(sl::mouse_y()));
+            if (!down)
+                panel_slider = -1;
             mfd_mouse_prev = down;
             draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
         }

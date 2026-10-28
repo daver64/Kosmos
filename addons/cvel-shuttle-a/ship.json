@@ -48,12 +48,114 @@
   }
  ],
  "ports": [
-  { "name": "Starboard forward", "position": [1.76, 0, -6.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
-  { "name": "Starboard middle", "position": [1.76, 0, 1.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
-  { "name": "Starboard aft", "position": [1.76, 0, 6.6], "direction": [0, 0, 1], "up": [0, 1, 0] },
-  { "name": "Port forward", "position": [-1.76, 0, -6.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
-  { "name": "Port middle", "position": [-1.76, 0, 1.28], "direction": [0, 0, 1], "up": [0, 1, 0] },
-  { "name": "Port aft", "position": [-1.76, 0, 6.6], "direction": [0, 0, 1], "up": [0, 1, 0] }
+  {
+   "name": "Starboard forward",
+   "position": [
+    1.76,
+    0,
+    -6.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Starboard middle",
+   "position": [
+    1.76,
+    0,
+    1.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Starboard aft",
+   "position": [
+    1.76,
+    0,
+    6.6
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port forward",
+   "position": [
+    -1.76,
+    0,
+    -6.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port middle",
+   "position": [
+    -1.76,
+    0,
+    1.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port aft",
+   "position": [
+    -1.76,
+    0,
+    6.6
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
  ],
  "stages": [
   {
@@ -221,6 +323,16 @@
       "y": 22,
       "size": 262
      }
+    ],
+    "controls": [
+     {
+      "type": "toggle",
+      "property": "/controls/gear",
+      "x": 528,
+      "y": 126,
+      "w": 30,
+      "h": 38
+     }
     ]
    }
   ],
@@ -260,6 +372,348 @@
     "label": "ALT",
     "property": "{ship}/altitude",
     "format": "%.0f m"
+   }
+  ],
+  "controls": [
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 0,
+    "x": 22,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 6,
+    "x": 333,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 1,
+    "x": 22,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 7,
+    "x": 333,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 2,
+    "x": 22,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 8,
+    "x": 333,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 3,
+    "x": 22,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 9,
+    "x": 333,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 4,
+    "x": 22,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 10,
+    "x": 333,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 5,
+    "x": 22,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 11,
+    "x": 333,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 12,
+    "x": 128,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 13,
+    "x": 177,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 14,
+    "x": 227,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 0,
+    "x": 785,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 6,
+    "x": 1095,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 1,
+    "x": 785,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 7,
+    "x": 1095,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 2,
+    "x": 785,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 8,
+    "x": 1095,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 3,
+    "x": 785,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 9,
+    "x": 1095,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 4,
+    "x": 785,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 10,
+    "x": 1095,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 5,
+    "x": 785,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 11,
+    "x": 1095,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 12,
+    "x": 889,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 13,
+    "x": 939,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 14,
+    "x": 990,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "antinormal",
+    "x": 113,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "normal",
+    "x": 158,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "retrograde",
+    "x": 201,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "prograde",
+    "x": 244,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "level-horizon",
+    "x": 289,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "stability",
+    "x": 334,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "slider",
+    "property": "/controls/throttle",
+    "x": 400,
+    "y": 52,
+    "w": 84,
+    "h": 183
+   },
+   {
+    "type": "slider",
+    "property": "/controls/hover",
+    "x": 490,
+    "y": 52,
+    "w": 80,
+    "h": 183
    }
   ]
  },

@@ -36,25 +36,6 @@
    "priority": 0
   }
  ],
- "lights": [
-  {
-   "position": [
-    0,
-    0,
-    -1.5
-   ],
-   "colour": [
-    255,
-    255,
-    255
-   ],
-   "intensity": 3,
-   "range": 50,
-   "pattern": "strobe",
-   "period": 1.6,
-   "glow": 0.4
-  }
- ],
  "stages": [
   {
    "name": "Centaur G",

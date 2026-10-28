@@ -84,7 +84,8 @@ namespace kosmos
             spec.source_file = file;
             spec.name = json.value("name", "Ship");
             spec.kind = json.value("class", "ship");
-            spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station");
+            spec.pad_turn = json.value("pad_turn", 0.0);
+            spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station" || spec.kind == "probe");
             spec.crash_speed = json.value("crash_speed", 5.0);
             spec.script = json.value("script", "");
             if (json.contains("cockpit"))
@@ -115,6 +116,27 @@ namespace kosmos
                     spec.cockpit.panel_size = jl.value("size", spec.cockpit.panel_size);
                     spec.cockpit.panel_tilt = jl.value("tilt", spec.cockpit.panel_tilt);
                 }
+                const auto read_controls = [](const nlohmann::json &list)
+                {
+                    std::vector<Cockpit::PanelControl> out;
+                    for (const nlohmann::json &jk : list)
+                    {
+                        Cockpit::PanelControl pc;
+                        pc.type = jk.value("type", "button");
+                        pc.property = jk.value("property", "");
+                        if (jk.contains("value"))
+                            pc.value = jk["value"].is_string() ? jk["value"].get<std::string>() : jk["value"].dump();
+                        pc.x = jk.value("x", 0.0f);
+                        pc.y = jk.value("y", 0.0f);
+                        pc.w = jk.value("w", 20.0f);
+                        pc.h = jk.value("h", 20.0f);
+                        pc.unit = jk.value("unit", 0);
+                        pc.button = jk.value("button", 0);
+                        out.push_back(pc);
+                    }
+                    return out;
+                };
+                spec.cockpit.controls = read_controls(jc.value("controls", nlohmann::json::array()));
                 for (const nlohmann::json &ji : jc.value("instruments", nlohmann::json::array()))
                 {
                     Cockpit::PanelInstrument pi;
@@ -144,7 +166,8 @@ namespace kosmos
                         if (!pi.mode.empty())
                             extra.instruments.push_back(pi);
                     }
-                    if (!extra.instruments.empty())
+                    extra.controls = read_controls(jp.value("controls", nlohmann::json::array()));
+                    if (!extra.instruments.empty() || !extra.controls.empty() || !extra.image.empty())
                         spec.cockpit.extra_panels.push_back(extra);
                 }
             }

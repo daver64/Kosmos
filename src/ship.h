@@ -167,6 +167,18 @@ namespace kosmos
          * The first two instruments are the ones the F6 to F9 keys drive.
          */
         std::vector<PanelInstrument> instruments;
+        /**
+         * A live control over the panel bitmap, in panel units. `type` is "button" (sets `property` to `value`, lit while equal),
+         * "toggle" (flips `property` between 0 and 1), "slider" (drags `property` from 0 to 1, bottom to top), "mfd" (presses
+         * button `button` of MFD unit `unit`) or "hud" (selects HUD mode `value`).
+         */
+        struct PanelControl
+        {
+            std::string type, property, value;
+            float x = 0, y = 0, w = 20, h = 20;
+            int unit = 0, button = 0;
+        };
+        std::vector<PanelControl> controls;
         float panel_width = 1400.0f, panel_height = 500.0f;
         std::string panel_image;
         /** A name for the panel above in the 2D Panels menu. */
@@ -178,6 +190,7 @@ namespace kosmos
             float width = 1400.0f, height = 500.0f;
             std::string image;
             std::vector<PanelInstrument> instruments;
+            std::vector<PanelControl> controls;
         };
         std::vector<Panel2D> extra_panels;
         /** Every 2D panel the ship has: the main instrument panel first, then the extra ones. */
@@ -185,7 +198,7 @@ namespace kosmos
         {
             std::vector<Panel2D> all;
             if (!instruments.empty())
-                all.push_back({panel_name, panel_width, panel_height, panel_image, instruments});
+                all.push_back({panel_name, panel_width, panel_height, panel_image, instruments, controls});
             all.insert(all.end(), extra_panels.begin(), extra_panels.end());
             return all;
         }
@@ -247,6 +260,7 @@ namespace kosmos
         sl::dvec3 damping{0.6, 0.6, 0.6};
         /** Built for orbit, not for the ground: touching down faster than `crash_speed` m/s destroys it. Tugs, transfer stages and stations are by default. */
         bool orbital_only = false;
+        double pad_turn = 0.0; // degrees added to the pad heading when standing on a launch pad, to keep strap-ons clear of the tower
         double crash_speed = 5.0;
         bool aircraft() const { return kind == "aircraft"; }
         bool has_hover() const
