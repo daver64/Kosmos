@@ -47,6 +47,9 @@
 
 namespace kosmos::app
 {
+    // Returned by the start-up steps when the run carries on; any other value is the process exit code.
+    constexpr int keep_going = std::numeric_limits<int>::min();
+
     constexpr double km = 1000.0;
 
     constexpr double pi = 3.14159265358979323846;
@@ -60,6 +63,17 @@ extern int screen_h;
     const char *const sas_modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "off"};
 
     constexpr int sas_mode_count = sizeof(sas_modes) / sizeof(sas_modes[0]);
+
+    // The part being edited in Blender (the part editor window).
+    struct PartEdit
+    {
+        kosmos::PartSpec *part = nullptr;
+        kosmos::PartSpec original;
+        bool converted = false;
+        std::filesystem::path file;
+        int stage = 0, index = 0;
+        std::string model;
+    };
 
     struct Options
     {

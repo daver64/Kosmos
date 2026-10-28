@@ -77,7 +77,7 @@ Exposing simlib verbatim is not possible, because it is C++ with templates and g
 2. **Property and vessel API** plus pre_step/post_step events: needs a stable `Controls`/`Telemetry` ABI (fixed-width, size-prefixed).
 3. **Vessel modules**: instance lifecycle across scenario reload, ship deletion, staging, docking and netplay-spawned ships.
 4. **2D canvas, MFD and HUD hooks**: reuse the MFD command list.
-5. **3D draw hooks**: the biggest unknown. Hook points in the render loop (`src/kosmos.cpp`, around the planet and ship draw) must give module meshes depth, lighting and haze like built-ins. The handle-and-queue approach avoids exposing GL state.
+5. **3D draw hooks**: the biggest unknown. Hook points in the render loop (`src/app_draw_world.cpp`, around the planet and ship draw) must give module meshes depth, lighting and haze like built-ins. The handle-and-queue approach avoids exposing GL state.
 6. **Docs, examples, packaging, Windows**.
 
 Key risks: ABI stability (mitigated by `size`-prefixed structs and a minor-version policy); a module crash taking down the game (cannot be fully avoided); floating-origin issues for forces applied in world space (the API must state which frame, body-relative doubles); and the rendering wrapper growing into a full simlib mirror.

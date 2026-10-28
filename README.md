@@ -12,6 +12,10 @@ Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) 
 
 Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source checkout instead.
 
+### Source layout
+
+`src/kosmos.cpp` is only `main`. The application is the `App` struct in `src/app_state.h` (its members are the state that used to be `main`'s locals); `App::run` calls the start-up steps in `app_start.cpp`, `app_world_setup.cpp` and `app_ui_setup.cpp`, then one frame at a time from `app_frame.cpp`, whose phases live in `app_input.cpp` (events, keys), `app_camera.cpp` (time, camera), `app_draw_world.cpp` (the 3D scene), `app_draw_hud.cpp` (overlays, sound, HUD) and `app_gui.cpp` (menus and windows). The pieces that need no shared state are modules of their own: `scenario_start`, `body_terrain`, `surface_textures`, `cockpit_panels`, `ship_visuals`, `exhaust_fx`, `map_views`, `settings`, `procedural`, `engine_sound`, `selftest` and `command_line`.
+
 ### Tests
 
 `sh scripts/run-tests.sh` builds and runs everything: the unit tests (`systems_test`, `weather_test`, `joystick_test`, `equipment_test`, which also checks that every locker and hardpoint in the addons names real equipment) and two headless selftests. `kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal` checks the pack, pistol, plasma rifle, thrown charges, blast damage and the bomb rack. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.

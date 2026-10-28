@@ -64,6 +64,16 @@ add_executable(kosmos
     src/blast_sound.cpp
     src/settings.cpp
     src/app.cpp
+    src/app_start.cpp
+    src/app_world_setup.cpp
+    src/app_ui_setup.cpp
+    src/app_frame.cpp
+    src/app_input.cpp
+    src/app_camera.cpp
+    src/app_draw_world.cpp
+    src/app_draw_hud.cpp
+    src/app_gui.cpp
+    src/command_line.cpp
     src/multiplayer_ui.cpp
     src/cockpit_panels.cpp
     src/ship_visuals.cpp

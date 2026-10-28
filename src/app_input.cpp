@@ -1,0 +1,419 @@
+#include "app_state.h"
+
+namespace kosmos::app
+{
+    // Window and input events.
+    void App::poll_events()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
+        while (sl::poll_event(&event))
+        {
+            sl::gui_handle_event(event);
+            sl::gamepad_handle_event(event);
+            if (event.type() == sl::Event::Type::quit)
+                running = false;
+            else if (event.type() == sl::Event::Type::key_down && sl::gui_available() && ImGui::GetIO().WantTextInput)
+                continue;
+            else if (event.type() == sl::Event::Type::key_down)
+            {
+                const auto key = event.key();
+                if (key == sl::Event::Key::f2)
+                    camera_window = !camera_window;
+                else if (key == sl::Event::Key::f3)
+                    settings_window = !settings_window;
+                else if (key == sl::Event::Key::f4)
+                    property_window = !property_window;
+                else if (key == sl::Event::Key::f1)
+                    systems_window = !systems_window;
+                else if (key == sl::Event::Key::backquote)
+                    pointer_free = !pointer_free;
+                else if (key == sl::Event::Key::f11)
+                    lua_window = !lua_window;
+                else if (key == sl::Event::Key::f12)
+                    net_window = !net_window;
+                else if (key == sl::Event::Key::escape)
+                {
+                    if (!menu_bar.dismiss(menu_windows))
+                        running = false;
+                }
+                else if (key == sl::Event::Key::letter_r)
+                {
+                    vis.clear_parts();
+                    ship = start_scenario(sim, options, terrain_set);
+                    eva.active = false;
+                    arsenal.reset();
+                    cam_distance = ship->spec().camera_distance;
+                }
+                else if (eva.active && !map_mode && key >= sl::Event::Key::digit_1 && key <= sl::Event::Key::digit_9)
+                    arsenal.select(static_cast<int>(key) - static_cast<int>(sl::Event::Key::digit_1));
+                else if (!eva.active && !map_mode && key == sl::Event::Key::letter_k)
+                {
+                    Ship *flown = sim.active_ship();
+                    int index = -1;
+                    // Shift releases from the last loaded hardpoint (the special store) instead of the first.
+                    if (flown && (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift)))
+                        for (int i = static_cast<int>(flown->spec().hardpoints.size()) - 1; i >= 0 && index < 0; --i)
+                            if (arsenal.rack_count(*flown, static_cast<std::size_t>(i)) > 0)
+                                index = i;
+                    if (flown && !arsenal.release(arsenal_ctx, *flown, index))
+                        sim.log("Nothing to release");
+                }
+                else if (eva.active && (key == sl::Event::Key::letter_z || key == sl::Event::Key::letter_x || key == sl::Event::Key::space || key == sl::Event::Key::letter_p ||
+                                        key == sl::Event::Key::letter_t || key == sl::Event::Key::letter_g || key == sl::Event::Key::letter_l || key == sl::Event::Key::letter_u ||
+                                        key == sl::Event::Key::keypad_0 || key == sl::Event::Key::keypad_period || key == sl::Event::Key::letter_c || key == sl::Event::Key::letter_v ||
+                                        key == sl::Event::Key::letter_h || key == sl::Event::Key::letter_j))
+                {
+                    // On foot these ship keys do nothing; Space jumps (Ctrl crouches) and is read as a held key.
+                }
+                else if (eva.active && !map_mode && key == sl::Event::Key::letter_f)
+                {
+                    if (eva.suit.jetpack)
+                    {
+                        eva.pack = !eva.pack;
+                        sim.log(eva.pack ? "Manoeuvring pack on" : "Manoeuvring pack off");
+                    }
+                }
+                else if (key == sl::Event::Key::letter_z)
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    props.set_double("/controls/throttle", 1.0);
+                }
+                else if (key == sl::Event::Key::letter_x)
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    props.set_double("/controls/throttle", 0.0);
+                }
+                else if (key == sl::Event::Key::keypad_0)
+                    props.set_double("/controls/hover", 1.0);
+                else if (key == sl::Event::Key::keypad_period)
+                    props.set_double("/controls/hover", 0.0);
+                else if (key == sl::Event::Key::space)
+                    props.set_bool("/controls/stage", true);
+                else if (key == sl::Event::Key::letter_p)
+                {
+                    const bool enable = !props.get_bool("/autopilot/enabled");
+                    props.set_bool("/autopilot/enabled", enable);
+                    if (!enable)
+                        props.set_string("/autopilot/status", "");
+                }
+                else if (key == sl::Event::Key::letter_t)
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    sas_index = (sas_index + 1) % sas_mode_count;
+                    props.set_string("/controls/sas", sas_modes[sas_index]);
+                }
+                else if (key == sl::Event::Key::f10 && !sim.scenarios().empty())
+                {
+                    // Load the next scenario.
+                    const std::vector<kosmos::Scenario> &all = sim.scenarios();
+                    std::size_t next = 0;
+                    for (std::size_t i = 0; i < all.size(); ++i)
+                        if (!options.scenario.empty() && sim.find_scenario(options.scenario) == &all[i])
+                            next = (i + 1) % all.size();
+                    options.scenario = all[next].id;
+                    const kosmos::Scenario chosen = all[next];
+                    menu_actions.start_scenario(chosen);
+                }
+                else if (key == sl::Event::Key::f5)
+                {
+                    const bool on_dashboard = cockpit_view && !cockpit3d && ship->spec().cockpit.present && ship->spec().cockpit.mfds &&
+                                              !map_mode && interior_cam < 0 && base_view < 0;
+                    if (on_dashboard)
+                        cockpit_mfd = (cockpit_mfd + 1) % 3;
+                    else
+                        mfd_display = (mfd_display + 1) % 3;
+                }
+                else if (key == sl::Event::Key::f6 || key == sl::Event::Key::f7)
+                {
+                    const int side = key == sl::Event::Key::f6 ? 0 : 1;
+                    const int count = static_cast<int>(sim.mfd.modes().size());
+                    if (count > 0)
+                        sim.mfd.set_mode(side, (sim.mfd.unit(side).mode + 1) % count);
+                }
+                else if (key == sl::Event::Key::f8 || key == sl::Event::Key::f9)
+                    sim.mfd.press(key == sl::Event::Key::f8 ? 0 : 1, 12);
+                else if ((key == sl::Event::Key::letter_g || key == sl::Event::Key::letter_l) && ship->spec().retractable_gear)
+                {
+                    const bool down = props.get_double("/controls/gear") > 0.5;
+                    props.set_double("/controls/gear", down ? 0.0 : 1.0);
+                    sound.play(down ? "gear_up" : "gear_down", 200);
+                }
+                else if (key == sl::Event::Key::letter_u)
+                    props.set_bool("/dock/undock", true);
+                else if (key == sl::Event::Key::letter_o)
+                    props.set_bool("/sim/settings/orbit-line", !props.get_bool("/sim/settings/orbit-line"));
+                else if (key == sl::Event::Key::tab)
+                    map_mode = !map_mode;
+                else if (key == sl::Event::Key::letter_n)
+                    galaxy_mode = !galaxy_mode;
+                else if ((key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter) && (sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)))
+                    sl::toggle_fullscreen();
+                else if (!galaxy_mode && !map_mode && (key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter))
+                    toggle_eva();
+                else if (galaxy_mode && key == sl::Event::Key::arrow_right)
+                    gview.step_selection(1);
+                else if (galaxy_mode && key == sl::Event::Key::arrow_left)
+                    gview.step_selection(-1);
+                else if (galaxy_mode && (key == sl::Event::Key::return_key || key == sl::Event::Key::keypad_enter) && gview.selected >= 0 && gview.selected != sim.system_index())
+                {
+                    jump_to = gview.selected;
+                    jump_to_star_orbit = false;
+                }
+                else if (key == sl::Event::Key::letter_c)
+                {
+                    free_yaw = free_pitch = 0.0f;
+                    // C cycles chase view, 2D cockpit, (for ships with MFDs) the 3D cockpit, then each camera from the Camera editor.
+                    interior_cam = base_view = -1;
+                    if (user_cam >= 0)
+                    {
+                        if (++user_cam >= static_cast<int>(user_cams.size()))
+                            user_cam = -1;
+                    }
+                    else if (!cockpit_view)
+                        cockpit_view = true, cockpit3d = false;
+                    else if (!cockpit3d && ship->spec().cockpit.mfds)
+                        cockpit3d = true;
+                    else
+                    {
+                        cockpit_view = cockpit3d = false;
+                        if (!user_cams.empty())
+                            user_cam = 0;
+                    }
+                    look_yaw = look_pitch = 0.0f;
+                }
+                else if (key == sl::Event::Key::letter_v && sim.ship_count() > 1)
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    props.set_string("/autopilot/status", "");
+                    int next = props.get_int("/sim/active-ship");
+                    for (int tries = 0; tries < sim.ship_count(); ++tries)
+                    {
+                        next = (next + 1) % sim.ship_count();
+                        if (!sim.ship(next)->spec().building())
+                            break;
+                    }
+                    sim.activate(next);
+                    ship = sim.active_ship();
+                    props.set_double("/controls/throttle", 0.0);
+                    props.set_double("/controls/hover", 0.0);
+                    props.set_string("/controls/sas", "stability");
+                    sas_index = 0;
+                    cam_distance = ship->spec().camera_distance;
+                    look_yaw = look_pitch = 0.0f;
+                    interior_cam = -1;
+                }
+                else if (key == sl::Event::Key::letter_f && map_mode)
+                {
+                    do
+                        map.focus = map.focus + 1 >= static_cast<int>(universe.bodies.size()) ? -1 : map.focus + 1;
+                    while (map.focus >= 0 && universe.bodies[static_cast<std::size_t>(map.focus)].minor);
+                    map.metres_per_pixel = map.focus < 0 ? std::min(map.metres_per_pixel, 1.0e5) : std::max(universe.bodies[static_cast<std::size_t>(map.focus)].radius * 0.02, 1.0);
+                }
+                else if (key == sl::Event::Key::letter_f && !map_mode)
+                    props.set_double("/controls/flaps", std::fmod(props.get_double("/controls/flaps") + 0.34, 1.02));
+                else if (key == sl::Event::Key::letter_i)
+                    show_info = !show_info;
+                else if (key == sl::Event::Key::letter_h)
+                {
+                    if (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift))
+                        hud.next_colour();
+                    else
+                        hud.set_mode(next_hud_mode(hud.mode(), ship->spec().hud_modes()));
+                    if (!(cockpit_view || interior_cam >= 0))
+                        sim.log("HUD is shown in cockpit view (press C)");
+                }
+                else if (key == sl::Event::Key::letter_j)
+                {
+                    // Jump to the closest other player.
+                    const kosmos::Ghost *best = nullptr;
+                    double best_d = 0.0;
+                    for (const kosmos::Ghost &g : netplay.ghosts())
+                    {
+                        if (!g.have_state || g.age > 3.0 || g.state.soi < 0 || g.state.soi >= static_cast<int>(universe.bodies.size()))
+                            continue;
+                        const double d = glm::length(universe.position(g.state.soi) + g.shown_position() - ship->body().position);
+                        if (!best || d < best_d)
+                        {
+                            best = &g;
+                            best_d = d;
+                        }
+                    }
+                    if (best && snap_to_ghost(sim, *ship, *best, terrain_set))
+                        sim.log("Moved next to " + best->nick);
+                }
+                else if (key == sl::Event::Key::letter_m)
+                    props.set_bool("/sim/settings/sound", !props.get_bool("/sim/settings/sound"));
+                else if (key == sl::Event::Key::period)
+                    props.set_int("/sim/warp-index", std::min(props.get_int("/sim/warp-index") + 1, Sim::warp_levels - 1));
+                else if (key == sl::Event::Key::comma)
+                    props.set_int("/sim/warp-index", std::max(props.get_int("/sim/warp-index") - 1, 0));
+            }
+            sl::display_handle_event(event);
+        }
+    }
+
+    // Follows the window size and the toggles that keep their own flags.
+    void App::follow_window()
+    {
+        // Follow the window: resizing or going fullscreen resizes the 3D surface to match.
+        if (sl::screen_width() > 0 && sl::screen_height() > 0 && (sl::screen_width() != screen_w || sl::screen_height() != screen_h))
+        {
+            screen_w = sl::screen_width();
+            screen_h = sl::screen_height();
+        }
+        if (screen_w != surface_w || screen_h != surface_h)
+        {
+            if (sl::Surface3D *resized = sl::create_surface_3d(screen_w, screen_h, 1))
+            {
+                sl::destroy_surface_3d(surface);
+                surface = resized;
+                surface_w = screen_w;
+                surface_h = screen_h;
+            }
+        }
+
+        // M and O keep their own flags; the settings (and the F4 browser) share them through the tree.
+        sound_on = sim.props.get_bool("/sim/settings/sound");
+        show_orbit = sim.props.get_bool("/sim/settings/orbit-line");
+        {
+            const int volume = std::clamp(sim.props.get_int("/sim/settings/volume"), 0, 100);
+            if (volume != applied_volume)
+            {
+                applied_volume = volume;
+                sl::audio_fx_set_volume(volume * 255 / 100);
+            }
+        }
+        typing = sl::gui_available() && ImGui::GetIO().WantTextInput;
+    }
+
+    // Keyboard and joystick controls.
+    void App::keyboard()
+    {
+    sl::PropertyTree &props = *props_ref;
+        // Keyboard controls write the property tree; scripts and the cockpit use the same paths.
+        const double throttle_rate = 0.5 * frame;
+        const double throttle = props.get_double("/controls/throttle");
+        const bool on_foot = eva.active;
+        eva_moving = on_foot && !typing &&
+                                (options.eva_walk || sl::key_down(sl::Key::letter_w) || sl::key_down(sl::Key::letter_a) || sl::key_down(sl::Key::letter_s) || sl::key_down(sl::Key::letter_d) ||
+                                 sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control) || sl::key_down(sl::Key::space));
+        if (!typing && !on_foot && sl::key_down(sl::Key::left_shift))
+            props.set_double("/controls/throttle", std::min(1.0, throttle + throttle_rate));
+        if (!typing && !on_foot && sl::key_down(sl::Key::left_control))
+        {
+            props.set_bool("/autopilot/enabled", false);
+            props.set_double("/controls/throttle", std::max(0.0, throttle - throttle_rate));
+        }
+        const double hover = props.get_double("/controls/hover");
+        if (!typing && !on_foot && sl::key_down(sl::Key::keypad_plus))
+            props.set_double("/controls/hover", std::min(1.0, hover + throttle_rate));
+        if (!typing && !on_foot && sl::key_down(sl::Key::keypad_minus))
+            props.set_double("/controls/hover", std::max(0.0, hover - throttle_rate));
+        if (!typing && !on_foot && ship->spec().has_pods())
+        {
+            // Engine pods: keypad 9 and 3 set their thrust, 8 and 2 swing them (forward and back), 4, 5 and 6 jump to retro, hover and forward.
+            auto bump = [&](const char *path, double d) { props.set_double(path, std::clamp(props.get_double(path) + d, 0.0, 1.0)); };
+            const double pod_step = throttle_rate * (sl::key_down(sl::Key::keypad_9) ? 1.0 : sl::key_down(sl::Key::keypad_3) ? -1.0 : 0.0);
+            const double tilt_step = frame * 0.4 * (sl::key_down(sl::Key::keypad_8) ? 1.0 : sl::key_down(sl::Key::keypad_2) ? -1.0 : 0.0);
+            for (const char *side : {"left", "right"})
+            {
+                bump((std::string("/controls/pod-") + side).c_str(), pod_step);
+                bump((std::string("/controls/pod-tilt-") + side).c_str(), tilt_step);
+            }
+            const int preset = sl::key_down(sl::Key::keypad_4) ? 0 : sl::key_down(sl::Key::keypad_5) ? 1 : sl::key_down(sl::Key::keypad_6) ? 2 : -1;
+            if (preset >= 0)
+            {
+                props.set_double("/controls/pod-tilt-left", preset * 0.5);
+                props.set_double("/controls/pod-tilt-right", preset * 0.5);
+            }
+        }
+        for (; options.shot_stages > 0; --options.shot_stages)
+            ship->stage_once();
+        if (options.shot_throttle >= 0.0)
+            props.set_double("/controls/throttle", options.shot_throttle);
+        auto axis = [this, on_foot](sl::Key plus, sl::Key minus) { return typing || on_foot ? 0.0 : (sl::key_down(plus) ? 1.0 : 0.0) - (sl::key_down(minus) ? 1.0 : 0.0); };
+        props.set_double("/controls/pitch", axis(sl::Key::letter_s, sl::Key::letter_w));
+        props.set_double("/controls/yaw", axis(sl::Key::letter_a, sl::Key::letter_d));
+        props.set_double("/controls/roll", axis(sl::Key::letter_q, sl::Key::letter_e));
+        props.set_double("/controls/brake", !typing && !on_foot && sl::key_down(sl::Key::letter_b) ? 1.0 : 0.0);
+        // In the cockpit the arrow keys move the head instead of firing RCS translation.
+        const bool head_keys = !typing && !on_foot && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
+        if (eye_ship != ship || !cockpit_view)
+        {
+            eye_ship = ship;
+            eye_shift = sl::dvec3(0.0);
+        }
+        if (head_keys)
+        {
+            const double step = 0.6 * frame;
+            eye_shift.z -= axis(sl::Key::arrow_up, sl::Key::arrow_down) * step;
+            eye_shift.x += axis(sl::Key::arrow_right, sl::Key::arrow_left) * step;
+            eye_shift.y += axis(sl::Key::page_up, sl::Key::page_down) * step;
+            eye_shift = glm::clamp(eye_shift, sl::dvec3(-0.8), sl::dvec3(0.8));
+        }
+        if (const std::string request = props.get_string("/sim/hud-request"); !request.empty())
+        {
+            sl::HudMode requested = sl::HudMode::off;
+            if (request == "off" || sl::hud_parse_mode(request, requested))
+                hud.set_mode(requested);
+            props.set_string("/sim/hud-request", "");
+        }
+        props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis(sl::Key::arrow_right, sl::Key::arrow_left));
+        props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis(sl::Key::arrow_up, sl::Key::arrow_down));
+        if (joystick.learning())
+            joystick.poll_learn();
+        else if (!typing && !on_foot)
+        {
+            const kosmos::JoyResult joy = joystick.update(ship->spec().aircraft());
+            for (const auto &[action, value] : joy.axes)
+            {
+                const std::string path = "/controls/" + action;
+                props.set_double(path, std::clamp(props.get_double(path) + static_cast<double>(value), -1.0, 1.0));
+            }
+            for (const auto &[action, value] : joy.levels)
+            {
+                if (action == "throttle")
+                    props.set_bool("/autopilot/enabled", false);
+                props.set_double("/controls/" + action, value);
+            }
+            if (joy.brake)
+                props.set_double("/controls/brake", 1.0);
+            for (const std::string &action : joy.pressed)
+            {
+                if (action == "gear" && ship->spec().retractable_gear)
+                {
+                    const bool down = props.get_double("/controls/gear") > 0.5;
+                    props.set_double("/controls/gear", down ? 0.0 : 1.0);
+                    sound.play(down ? "gear_up" : "gear_down", 200);
+                }
+                else if (action == "flaps")
+                    props.set_double("/controls/flaps", std::fmod(props.get_double("/controls/flaps") + 0.34, 1.02));
+                else if (action == "stage")
+                    props.set_bool("/controls/stage", true);
+                else if (action == "autopilot")
+                {
+                    const bool enable = !props.get_bool("/autopilot/enabled");
+                    props.set_bool("/autopilot/enabled", enable);
+                    if (!enable)
+                        props.set_string("/autopilot/status", "");
+                }
+                else if (action == "sas")
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    sas_index = (sas_index + 1) % sas_mode_count;
+                    props.set_string("/controls/sas", sas_modes[sas_index]);
+                }
+                else if (action == "throttle-zero" || action == "throttle-full")
+                {
+                    props.set_bool("/autopilot/enabled", false);
+                    props.set_double("/controls/throttle", action == "throttle-full" ? 1.0 : 0.0);
+                }
+                else if (action == "hover-on" || action == "hover-off")
+                    props.set_double("/controls/hover", action == "hover-on" ? 1.0 : 0.0);
+            }
+        }
+        if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") + props.get_double("/controls/roll") != 0.0)
+            props.set_bool("/autopilot/enabled", false);
+    }
+} // namespace kosmos::app
