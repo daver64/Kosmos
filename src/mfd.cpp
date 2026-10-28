@@ -151,6 +151,19 @@ namespace kosmos
         return true;
     }
 
+    void MfdSystem::register_native(const std::string &addon, const std::string &id, const std::string &name, const std::string &directory, std::function<void(MfdCanvas &)> draw)
+    {
+        MfdMode mode;
+        mode.table = lua_->state().create_table();
+        mode.table["name"] = name;
+        mode.table["draw"] = [draw = std::move(draw)](sol::table, MfdCanvas &g) { draw(g); };
+        mode.id = id;
+        mode.name = name;
+        mode.addon = addon;
+        mode.directory = directory;
+        modes_.push_back(std::move(mode));
+    }
+
     int MfdSystem::mode_by_id(const std::string &id) const
     {
         for (std::size_t i = 0; i < modes_.size(); ++i)

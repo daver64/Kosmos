@@ -64,6 +64,9 @@ add_executable(kosmos
     src/blast_sound.cpp
     src/settings.cpp
     src/keybindings.cpp
+    src/link/link_server.cpp
+    src/link/native_addons.cpp
+    src/app_link.cpp
     src/app.cpp
     src/app_start.cpp
     src/app_world_setup.cpp
@@ -160,6 +163,12 @@ add_executable(keybindings_test EXCLUDE_FROM_ALL tests/keybindings_test.cpp src/
 target_link_libraries(keybindings_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(keybindings_test PRIVATE src)
 target_compile_definitions(keybindings_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
+# KosmosLink server against the SDK's C client: cmake --build build --target link_test && build/link_test
+add_executable(link_test EXCLUDE_FROM_ALL tests/link_test.cpp src/link/link_server.cpp src/link/native_addons.cpp sdk/src/kosmos_link.c)
+target_link_libraries(link_test PRIVATE ${KOSMOS_SIMLIB_LIBS} Threads::Threads)
+target_include_directories(link_test PRIVATE src src/link sdk/include)
+target_compile_definitions(link_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 # ---- launcher -----------------------------------------------------------------------------------------------------
 # A separate wxWidgets program (no simlib) that picks a scenario and options and starts kosmos; see launcher/main.cpp.

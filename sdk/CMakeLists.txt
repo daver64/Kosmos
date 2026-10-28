@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.16)
+project(KosmosSDK C CXX)
+
+# The KosmosLink client library: add this folder with add_subdirectory and link kosmos::link.
+add_library(kosmos_link STATIC src/kosmos_link.c)
+add_library(kosmos::link ALIAS kosmos_link)
+target_include_directories(kosmos_link PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+if(WIN32)
+    target_link_libraries(kosmos_link PUBLIC ws2_32)
+endif()
+
+if(PROJECT_IS_TOP_LEVEL)
+    add_executable(hello_props examples/hello_props.c)
+    target_link_libraries(hello_props PRIVATE kosmos::link)
+    add_executable(speed_mfd examples/speed_mfd.cpp)
+    target_compile_features(speed_mfd PRIVATE cxx_std_17)
+    target_link_libraries(speed_mfd PRIVATE kosmos::link)
+endif()

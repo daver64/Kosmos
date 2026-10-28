@@ -12,7 +12,7 @@ released under the MIT licence (see `sounds/LICENSE-XRSound.txt`). https://www.a
 | `thump.wav` | Stage separation |
 | `warning_beep.wav` | Systems alarm |
 | `gear_up.wav`, `gear_down.wav` | Landing gear |
-| `nuke.mp3` | Atom bomb blast (supplied by the project owner; source and licence to be recorded) |
+| `nuke.mp3` | Atom bomb blast (a free sample supplied by the project owner; it came without licence information) |
 
 Other files in the folder are available to add-ons and Lua scripts. If a file is missing, Kosmos falls back to its
 synthesised engine sounds or stays silent for that event.

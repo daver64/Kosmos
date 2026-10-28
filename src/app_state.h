@@ -12,6 +12,7 @@
 #include "lua_console.h"
 #include "joystick.h"
 #include "keybindings.h"
+#include "link/native_addons.h"
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
@@ -176,6 +177,13 @@ namespace kosmos::app
         kosmos::Joystick joystick;
         kosmos::KeyBindings keys;
         bool keys_window{};
+        bool link_window{};
+        kosmos::link::NativeAddons native_addons;
+        std::unique_ptr<kosmos::link::LinkHost> link_host;
+        std::unique_ptr<kosmos::link::LinkServer> link_server;
+        std::chrono::steady_clock::time_point link_tick{};
+        const Ship *link_ship{};
+        bool link_failed{};
         std::string keys_status;
         bool joystick_window{};
         float cam_yaw{};
@@ -305,6 +313,10 @@ namespace kosmos::app
     void draw_systems_window();
     void draw_joystick_window();
     void draw_keys_window();
+    void setup_link();
+    void update_link();
+    void draw_link_window();
+    void shutdown_link();
     void refresh_menu_keys();
     void draw_settings_window();
     void draw_part_window();

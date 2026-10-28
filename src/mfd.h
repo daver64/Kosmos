@@ -6,6 +6,7 @@
 
 #include <sol/sol.hpp>
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -76,6 +77,8 @@ namespace kosmos
         void init(sl::LuaRuntime &lua, sl::PropertyTree &props);
         /** Load a mode script from an addon folder; returns false and sets error on failure. */
         bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any");
+        /** Adds a page drawn by C++ code (a native addon's) instead of a Lua script. Image names are relative to @p directory. */
+        void register_native(const std::string &addon, const std::string &id, const std::string &name, const std::string &directory, std::function<void(MfdCanvas &)> draw);
         const std::vector<MfdMode> &modes() const { return modes_; }
         int mode_by_id(const std::string &id) const;
         /** The flown ship's regime: "atmosphere" hides the "space" modes, "space" hides the "atmosphere" ones, anything else hides none. */

@@ -41,6 +41,8 @@ namespace kosmos
         // ---- A person's equipment
         /** Fill the pack with the standard kit and the locker of the ship or building `home` (null for the kit alone); the first item is held. */
         void equip_person(const Sim &sim, const Ship *home);
+        /** Adds @p count of equipment @p id to the pack; false when there is no such equipment. */
+        bool give(const Sim &sim, const std::string &id, int count);
         const std::vector<Stack> &pack() const { return pack_; }
         int selected() const { return selected_; }
         /** Hold the item in pack slot `slot`, or nothing when out of range or already held. */

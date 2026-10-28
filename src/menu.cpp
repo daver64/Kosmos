@@ -1141,6 +1141,7 @@ namespace kosmos
 "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
                                    "  F5-F9 MFDs   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";
     }

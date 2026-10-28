@@ -191,7 +191,8 @@ namespace kosmos::app
         in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user && !in_eva;
         in_cockpit3d = in_cockpit && cockpit3d && ship->spec().cockpit.mfds;
         const int mx = sl::mouse_x(), my = sl::mouse_y();
-        const int dx = mx - last_mouse_x, dy = my - last_mouse_y;
+        const int flip_x = sim.props.get_bool("/sim/settings/mouse-invert-x") ? -1 : 1, flip_y = sim.props.get_bool("/sim/settings/mouse-invert-y") ? -1 : 1;
+        const int dx = (mx - last_mouse_x) * flip_x, dy = (my - last_mouse_y) * flip_y;
         const bool dragging = sl::mouse_button_down(sl::MouseButton::right) && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse);
         last_mouse_x = mx;
         last_mouse_y = my;
@@ -228,8 +229,8 @@ namespace kosmos::app
             {
                 int rx = 0, ry = 0;
                 sl::mouse_relative_state(&rx, &ry);
-                eva_look_yaw -= rx * 0.003;
-                eva_look_pitch -= ry * 0.003;
+                eva_look_yaw -= rx * flip_x * 0.003;
+                eva_look_pitch -= ry * flip_y * 0.003;
             }
             else if (dragging)
             {

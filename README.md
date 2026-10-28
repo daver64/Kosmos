@@ -18,7 +18,7 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 ### Tests
 
-`sh scripts/run-tests.sh` builds and runs everything: the unit tests (`systems_test`, `weather_test`, `joystick_test`, `equipment_test`, `keybindings_test`, which also checks that every locker and hardpoint in the addons names real equipment) and two headless selftests. `kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal` checks the pack, pistol, plasma rifle, thrown charges, blast damage and the bomb rack. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.
+`sh scripts/run-tests.sh` builds and runs everything: the unit tests (`systems_test`, `weather_test`, `joystick_test`, `equipment_test`, `keybindings_test`, `link_test`, which also checks that every locker and hardpoint in the addons names real equipment) and two headless selftests. `kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal` checks the pack, pistol, plasma rifle, thrown charges, blast damage and the bomb rack. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.
 
 ## Launcher
 
@@ -34,6 +34,10 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
 
 `data/orbiter/` (your own Orbiter high-resolution tiles) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
+
+## Native addons
+
+Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`).
 
 ## Controls
 

@@ -151,6 +151,12 @@ namespace kosmos::app
                 options.settings_window = true;
             else if (!std::strcmp(argv[i], "--keys-window"))
                 options.keys_window = true;
+            else if (!std::strcmp(argv[i], "--link-window"))
+                options.link_window = true;
+            else if (!std::strcmp(argv[i], "--link"))
+                options.link_listen = true;
+            else if (!std::strcmp(argv[i], "--link-port") && i + 1 < argc)
+                options.link_port = std::clamp(std::atoi(argv[++i]), 0, 65535);
             else if (!std::strcmp(argv[i], "--lua-window"))
                 options.lua_window = true;
             else if (!std::strcmp(argv[i], "--export-base") && i + 2 < argc)

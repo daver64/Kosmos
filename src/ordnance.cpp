@@ -151,6 +151,20 @@ namespace kosmos
 
     // ---- A person's equipment
 
+    bool Arsenal::give(const Sim &sim, const std::string &id, int count)
+    {
+        if (!sim.equipment.find(id))
+            return false;
+        for (Stack &s : pack_)
+            if (s.id == id)
+            {
+                s.count += count;
+                return true;
+            }
+        pack_.push_back({id, count});
+        return true;
+    }
+
     void Arsenal::equip_person(const Sim &sim, const Ship *home)
     {
         pack_.clear();

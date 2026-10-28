@@ -53,6 +53,9 @@ namespace kosmos
         props.set_int("/sim/settings/world-texture", 0);
         props.set_int("/sim/settings/gfx-style", 0);
         props.set_bool("/sim/settings/gfx-clouds", true);
+        props.set_bool("/sim/settings/link-listen", false);
+        props.set_bool("/sim/settings/mouse-invert-x", false);
+        props.set_bool("/sim/settings/mouse-invert-y", false);
         props.set_bool("/sim/settings/weather", true);
         props.set_bool("/sim/settings/weather-rain", true);
         props.set_string("/sim/settings/weather-source", "procedural");
@@ -107,6 +110,11 @@ namespace kosmos
             props.set_string("/sim/settings/weather-source", j["weather-source"].get<std::string>() == "live" ? "live" : "procedural");
         if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
             props.set_bool("/sim/settings/gfx-clouds", j["gfx-clouds"].get<bool>());
+        for (const char *name : {"mouse-invert-x", "mouse-invert-y"})
+            if (j.contains(name) && j[name].is_boolean())
+                props.set_bool(std::string("/sim/settings/") + name, j[name].get<bool>());
+        if (j.contains("link-listen") && j["link-listen"].is_boolean())
+            props.set_bool("/sim/settings/link-listen", j["link-listen"].get<bool>());
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
             props.set_string("/sim/settings/blender", j["blender"].get<std::string>());
     }
@@ -125,6 +133,9 @@ namespace kosmos
         for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-max-fps", "gfx-terrain-detail"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
+        j["mouse-invert-x"] = props.get_bool("/sim/settings/mouse-invert-x");
+        j["mouse-invert-y"] = props.get_bool("/sim/settings/mouse-invert-y");
+        j["link-listen"] = props.get_bool("/sim/settings/link-listen");
         j["weather"] = props.get_bool("/sim/settings/weather", true);
         j["weather-preset"] = props.get_string("/sim/settings/weather-preset", "auto");
         j["weather-metar"] = props.get_string("/sim/settings/weather-metar", "");

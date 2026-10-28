@@ -1,0 +1,18 @@
+{
+  "id": "my-native-addon",
+  "name": "My native addon",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/my-native-addon",
+      "windows": "bin/my-native-addon.exe"
+    },
+    "capabilities": [
+      "read",
+      "draw",
+      "keys"
+    ],
+    "autostart": true,
+    "restart": true
+  }
+}

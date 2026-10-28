@@ -202,6 +202,7 @@ namespace kosmos::app
     {
 
         stop_recording();
+        shutdown_link();
         netplay.leave();
         netplay.lobby_disconnect();
         // The launcher's "Resume" starts this scenario: the ships where they were left, with the one you were flying active.
@@ -279,6 +280,7 @@ namespace kosmos::app
         poll_events();
         follow_window();
         keyboard();
+        update_link();
         advance_time();
         place_camera();
         prepare_scene();

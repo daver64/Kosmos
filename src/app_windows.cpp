@@ -195,6 +195,9 @@ namespace kosmos::app
                     if (ImGui::IsItemHovered())
                         ImGui::SetTooltip("%s", tip);
                 };
+                ImGui::SeparatorText("Mouse look");
+                flag("Flip left-right", "/sim/settings/mouse-invert-x", "Reverse the horizontal mouse look in every view");
+                flag("Flip up-down", "/sim/settings/mouse-invert-y", "Reverse the vertical mouse look in every view");
                 ImGui::SeparatorText("Display");
                 flag("Body labels", "/sim/settings/labels", "Name tags on planets and moons too small to recognise");
                 flag("Ship labels", "/sim/settings/ship-labels", "Name and distance tags on other ships");

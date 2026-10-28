@@ -102,6 +102,10 @@ extern int screen_h;
         bool camera_window = false;
         bool settings_window = false;
         bool keys_window = false;
+        bool link_window = false;
+        /** KosmosLink: --link listens for outside programs from the start, --link-port moves it off the default 9420. */
+        bool link_listen = false;
+        int link_port = 9420;
         bool aircraft_autopilot = false, spacecraft_autopilot = false;
         bool property_window = false;
         bool lua_window = false;
