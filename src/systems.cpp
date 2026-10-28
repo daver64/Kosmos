@@ -112,7 +112,9 @@ namespace kosmos
             c.half_life_years = jc.value("half_life_years", c.half_life_years);
             c.age_years = jc.value("age_years", 0.0);
             c.kg_per_day = jc.value("kg_per_day", 0.0);
-            c.enabled = jc.value("enabled", c.type != "electrolyser");
+            c.wear_hours = jc.value("wear_hours", 0.0);
+            c.wear = jc.value("wear", 0.0);
+            c.enabled = jc.value("enabled", c.type != "electrolyser" && c.type != "isru");
             c.priority = jc.value("priority", (c.type == "regulator" || c.type == "scrubber") ? 0 : 1);
             c.facing = vec3(jc.value("facing", nlohmann::json()), c.facing);
             if (c.type == "battery")
@@ -385,10 +387,19 @@ namespace kosmos
             fixed += c.output_w;
         }
 
+        // Wear accrues while a component runs; a worn-out one drops off the bus until repaired.
+        for (SystemComponent &c : components_)
+        {
+            if (c.wear_hours > 0.0 && c.powered && c.enabled && c.wear < 1.0)
+                c.wear = std::min(1.0, c.wear + dt / (c.wear_hours * 3600.0));
+            if (c.wear >= 1.0)
+                c.powered = false;
+        }
+
         // Loads, in priority order.
         std::vector<SystemComponent *> loads;
         for (SystemComponent &c : components_)
-            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser"))
+            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser" || c.type == "isru" || c.type == "comms") && c.wear < 1.0)
                 loads.push_back(&c);
         std::stable_sort(loads.begin(), loads.end(), [](const SystemComponent *a, const SystemComponent *b) { return a->priority < b->priority; });
 
@@ -478,6 +489,11 @@ namespace kosmos
                 }
         }
 
+        // Regolith processing: water into the tank.
+        for (SystemComponent *c : loads)
+            if (c->type == "isru" && c->powered)
+                give("water", c->kg_per_day / 86400.0 * dt);
+
         // Electrolyser output.
         for (SystemComponent *c : loads)
             if (c->type == "electrolyser" && c->powered)
@@ -519,7 +535,7 @@ namespace kosmos
 
             for (SystemComponent &c : components_)
             {
-                if (!c.alive || !c.enabled || !c.powered)
+                if (!c.alive || !c.enabled || !c.powered || c.wear >= 1.0)
                     continue;
                 const bool mine = c.vessel.empty() ? vi == 0 : c.vessel == v.spec.name;
                 if (!mine)
@@ -637,6 +653,22 @@ namespace kosmos
         num("battery/percent", [this] {
             const double cap = battery_capacity_wh();
             return cap > 0.0 ? 100.0 * battery_wh() / cap : 0.0;
+        });
+        for (std::size_t i = 0; i < components_.size(); ++i)
+        {
+            const std::string cb = "component[" + std::to_string(i) + "]/";
+            tree.node(base + "/" + cb + "name")->tie_string([this, i] { return components_[i].name; });
+            tree.node(base + "/" + cb + "enabled")->tie_double([this, i] { return components_[i].enabled ? 1.0 : 0.0; }, [this, i](double v) { components_[i].enabled = v > 0.5; });
+            tree.node(base + "/" + cb + "powered")->tie_double([this, i] { return components_[i].enabled && components_[i].powered && components_[i].wear < 1.0 ? 1.0 : 0.0; });
+            tree.node(base + "/" + cb + "wear")->tie_double([this, i] { return components_[i].wear; });
+            tree.node(base + "/" + cb + "output-w")->tie_double([this, i] { return components_[i].output_w; });
+            tree.node(base + "/" + cb + "failed")->tie_double([this, i] { return components_[i].wear >= 1.0 ? 1.0 : 0.0; });
+        }
+        // Writing 1 here overhauls every component.
+        tree.node(base + "/repair")->tie_double([] { return 0.0; }, [this](double v) {
+            if (v > 0.5)
+                for (SystemComponent &c : components_)
+                    c.wear = 0.0;
         });
         num("vessel-count", [this] { return static_cast<double>(vessels_.size()); });
         for (const char *gas : {"oxygen", "nitrogen", "water", "hydrogen", "deuterium"})

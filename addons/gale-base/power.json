@@ -1,0 +1,268 @@
+{
+ "name": "Gale power plant",
+ "class": "building",
+ "door": [
+  4.7,
+  0,
+  2.5
+ ],
+ "door_radius": 4,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Battery bank",
+   "capacity_wh": 200000,
+   "max_w": 30000
+  },
+  {
+   "type": "solar",
+   "name": "Solar array",
+   "area_m2": 180,
+   "efficiency": 0.25,
+   "facing": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Workshop",
+   "watts": 600,
+   "priority": 1
+  },
+  {
+   "type": "load",
+   "name": "Water pumps",
+   "watts": 1200,
+   "priority": 1,
+   "wear_hours": 6
+  },
+  {
+   "type": "load",
+   "name": "Compressor",
+   "watts": 1500,
+   "priority": 1,
+   "wear_hours": 9
+  }
+ ],
+ "vessels": [],
+ "cockpit": {
+  "present": true,
+  "eye": [
+   0,
+   0,
+   0.8
+  ],
+  "layout": {
+   "name": "Gale power plant",
+   "width": 1000,
+   "height": 300
+  },
+  "controls": [
+   {
+    "type": "label",
+    "label": "POWER AND MAINTENANCE",
+    "x": 20,
+    "y": 10,
+    "w": 300,
+    "h": 20
+   },
+   {
+    "type": "gauge",
+    "label": "BATTERY %",
+    "property": "{ship}/systems/battery/percent",
+    "max": 100.0,
+    "scale": 1.0,
+    "alarm": true,
+    "x": 20,
+    "y": 50,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "SUPPLY W",
+    "property": "{ship}/systems/bus/supply-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 78,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "DEMAND W",
+    "property": "{ship}/systems/bus/demand-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 106,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "PUMP WEAR",
+    "property": "{ship}/systems/component[3]/wear",
+    "max": 1.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 150,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "COMPRESSOR WEAR",
+    "property": "{ship}/systems/component[4]/wear",
+    "max": 1.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 178,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "lamp",
+    "label": "PUMP FAILED",
+    "property": "{ship}/systems/component[3]/failed",
+    "alarm": true,
+    "x": 20,
+    "y": 214,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "lamp",
+    "label": "COMPRESSOR FAILED",
+    "property": "{ship}/systems/component[4]/failed",
+    "alarm": true,
+    "x": 20,
+    "y": 240,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Water pumps",
+    "property": "{ship}/systems/component[3]/enabled",
+    "x": 420,
+    "y": 50,
+    "w": 150,
+    "h": 30
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[3]/powered",
+    "x": 576,
+    "y": 56,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Compressor",
+    "property": "{ship}/systems/component[4]/enabled",
+    "x": 420,
+    "y": 90,
+    "w": 150,
+    "h": 30
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[4]/powered",
+    "x": 576,
+    "y": 96,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Workshop",
+    "property": "{ship}/systems/component[2]/enabled",
+    "x": 420,
+    "y": 130,
+    "w": 150,
+    "h": 30
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[2]/powered",
+    "x": 576,
+    "y": 136,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "button",
+    "label": "REPAIR ALL",
+    "property": "{ship}/systems/repair",
+    "value": "1",
+    "x": 420,
+    "y": 190,
+    "w": 200,
+    "h": 40
+   }
+  ]
+ },
+ "stages": [
+  {
+   "name": "Gale power plant",
+   "dry_mass": 20000,
+   "propellant": 0,
+   "z": 0,
+   "length": 5.0,
+   "radius": 3.5,
+   "parts": [
+    {
+     "profile": [
+      [
+       -2.5,
+       0.0
+      ],
+      [
+       -2.5,
+       3.5
+      ],
+      [
+       2.5,
+       3.5
+      ]
+     ],
+     "colour": [
+      200,
+      205,
+      210
+     ]
+    },
+    {
+     "profile": [
+      [
+       -3.2,
+       0.0
+      ],
+      [
+       -3.2,
+       3.5
+      ],
+      [
+       -2.5,
+       3.5
+      ]
+     ],
+     "colour": [
+      70,
+      90,
+      140
+     ]
+    }
+   ]
+  }
+ ]
+}

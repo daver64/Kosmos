@@ -1,0 +1,238 @@
+{
+ "name": "Gale ISRU plant",
+ "class": "building",
+ "door": [
+  5.2,
+  0,
+  3.5
+ ],
+ "door_radius": 4,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 60000,
+   "max_w": 12000
+  },
+  {
+   "type": "solar",
+   "name": "Solar array",
+   "area_m2": 150,
+   "efficiency": 0.25,
+   "facing": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "type": "isru",
+   "name": "Regolith dryer",
+   "watts": 2500,
+   "kg_per_day": 60,
+   "priority": 1,
+   "wear_hours": 15
+  },
+  {
+   "type": "electrolyser",
+   "name": "Electrolyser",
+   "watts": 1500,
+   "priority": 1
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 500,
+   "kg": 40
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 200,
+   "kg": 20
+  },
+  {
+   "type": "tank",
+   "gas": "hydrogen",
+   "capacity_kg": 25,
+   "kg": 0
+  }
+ ],
+ "vessels": [],
+ "cockpit": {
+  "present": true,
+  "eye": [
+   0,
+   0,
+   1.8
+  ],
+  "layout": {
+   "name": "Gale ISRU plant",
+   "width": 1000,
+   "height": 300
+  },
+  "controls": [
+   {
+    "type": "label",
+    "label": "IN SITU RESOURCE EXTRACTION",
+    "x": 20,
+    "y": 10,
+    "w": 300,
+    "h": 20
+   },
+   {
+    "type": "gauge",
+    "label": "BATTERY %",
+    "property": "{ship}/systems/battery/percent",
+    "max": 100.0,
+    "scale": 1.0,
+    "alarm": true,
+    "x": 20,
+    "y": 50,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "SUPPLY W",
+    "property": "{ship}/systems/bus/supply-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 78,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "DEMAND W",
+    "property": "{ship}/systems/bus/demand-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 106,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "WATER kg",
+    "property": "{ship}/systems/tank/water-kg",
+    "max": 500.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 150,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "OXYGEN kg",
+    "property": "{ship}/systems/tank/oxygen-kg",
+    "max": 200.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 178,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "gauge",
+    "label": "HYDROGEN kg",
+    "property": "{ship}/systems/tank/hydrogen-kg",
+    "max": 25.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 206,
+    "w": 260,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Regolith dryer",
+    "property": "{ship}/systems/component[2]/enabled",
+    "x": 420,
+    "y": 50,
+    "w": 150,
+    "h": 30
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[2]/powered",
+    "x": 576,
+    "y": 56,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Electrolyser",
+    "property": "{ship}/systems/component[3]/enabled",
+    "x": 420,
+    "y": 90,
+    "w": 150,
+    "h": 30
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[3]/powered",
+    "x": 576,
+    "y": 96,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "button",
+    "label": "REPAIR ALL",
+    "property": "{ship}/systems/repair",
+    "value": "1",
+    "x": 420,
+    "y": 190,
+    "w": 200,
+    "h": 40
+   }
+  ]
+ },
+ "stages": [
+  {
+   "name": "Gale ISRU plant",
+   "dry_mass": 20000,
+   "propellant": 0,
+   "z": 0,
+   "length": 7.0,
+   "radius": 4.0,
+   "parts": [
+    {
+     "profile": [
+      [
+       -3.5,
+       0.0
+      ],
+      [
+       -3.5,
+       0.5
+      ],
+      [
+       -1.5,
+       4.0
+      ],
+      [
+       3.5,
+       4.0
+      ]
+     ],
+     "colour": [
+      195,
+      175,
+      160
+     ]
+    }
+   ]
+  }
+ ]
+}

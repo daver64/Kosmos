@@ -87,6 +87,13 @@ namespace kosmos
             spec.pad_turn = json.value("pad_turn", 0.0);
             spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station" || spec.kind == "probe");
             spec.crash_speed = json.value("crash_speed", 5.0);
+            if (spec.building())
+            {
+                spec.orbital_only = false;
+                spec.door = vec3(json.value("door", nlohmann::json()), spec.door);
+                spec.door_radius = json.value("door_radius", 4.0);
+                spec.grid = json.value("grid", "");
+            }
             spec.script = json.value("script", "");
             if (json.contains("cockpit"))
             {
@@ -124,6 +131,11 @@ namespace kosmos
                         Cockpit::PanelControl pc;
                         pc.type = jk.value("type", "button");
                         pc.property = jk.value("property", "");
+                        pc.label = jk.value("label", "");
+                        pc.format = jk.value("format", pc.format);
+                        pc.scale = jk.value("scale", 1.0f);
+                        pc.max = jk.value("max", 1.0f);
+                        pc.alarm = jk.value("alarm", false);
                         if (jk.contains("value"))
                             pc.value = jk["value"].is_string() ? jk["value"].get<std::string>() : jk["value"].dump();
                         pc.x = jk.value("x", 0.0f);
@@ -1186,6 +1198,16 @@ namespace kosmos
                         t.level = 0.0;
                 }
             }
+        }
+
+        // A building is part of the ground: held there from the first step, with no flight.
+        if (spec_.building())
+        {
+            if (!pinned_)
+                pin_to_ground();
+            else
+                hold_pinned();
+            return;
         }
 
         // Ships built for orbit have no landing gear: a gentle touchdown leaves them resting on the surface, a hard one wrecks them.

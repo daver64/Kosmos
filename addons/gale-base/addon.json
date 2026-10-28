@@ -1,0 +1,11 @@
+{
+ "id": "gale-base",
+ "name": "Gale Crater base buildings",
+ "version": "0.1",
+ "buildings": [
+  "habitat.json",
+  "power.json",
+  "comms.json",
+  "isru.json"
+ ]
+}

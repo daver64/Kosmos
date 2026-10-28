@@ -32,6 +32,7 @@ namespace kosmos
             out.autopilot = json.value("autopilot", false);
             out.mfd_left = json.value("mfd_left", "");
             out.mfd_right = json.value("mfd_right", "");
+            out.enter_building = json.value("enter_building", "");
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -145,6 +146,8 @@ namespace kosmos
             json["mfd_left"] = sc.mfd_left;
         if (!sc.mfd_right.empty())
             json["mfd_right"] = sc.mfd_right;
+        if (!sc.enter_building.empty())
+            json["enter_building"] = sc.enter_building;
         if (sc.epoch_jd > 0.0)
         {
             if (!sc.date_text.empty())

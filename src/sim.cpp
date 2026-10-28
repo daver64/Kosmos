@@ -226,6 +226,19 @@ namespace kosmos
                 else
                     log("addon " + addon.id + ": " + error);
             }
+            for (const nlohmann::json &file : json.value("buildings", nlohmann::json::array()))
+            {
+                ShipSpec spec;
+                std::string error;
+                if (load_ship_spec((folder / file.get<std::string>()).string(), spec, error))
+                {
+                    spec.directory = folder.string();
+                    spec.kind = "building";
+                    addon.buildings.push_back(std::move(spec));
+                }
+                else
+                    log("addon " + addon.id + ": " + error);
+            }
             for (const nlohmann::json &entry : json.value("mfds", nlohmann::json::array()))
             {
                 std::string error;
@@ -326,6 +339,15 @@ namespace kosmos
     {
         for (const Addon &addon : addons_)
             for (const ShipSpec &spec : addon.ships)
+                if (spec.name == name)
+                    return &spec;
+        return nullptr;
+    }
+
+    const ShipSpec *Sim::find_building_spec(const std::string &name) const
+    {
+        for (const Addon &addon : addons_)
+            for (const ShipSpec &spec : addon.buildings)
                 if (spec.name == name)
                     return &spec;
         return nullptr;

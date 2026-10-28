@@ -170,11 +170,16 @@ namespace kosmos
         /**
          * A live control over the panel bitmap, in panel units. `type` is "button" (sets `property` to `value`, lit while equal),
          * "toggle" (flips `property` between 0 and 1), "slider" (drags `property` from 0 to 1, bottom to top), "mfd" (presses
-         * button `button` of MFD unit `unit`) or "hud" (selects HUD mode `value`).
+         * button `button` of MFD unit `unit`) or "hud" (selects HUD mode `value`). Panels without artwork can also use
+         * "label" (fixed text), "readout" (`label` and the property printed with `format`, times `scale`), "gauge" (a bar
+         * filling as the property goes from 0 to `max`) and "lamp" (lit while the property is above 0.5, or equals `value`;
+         * `alarm` lights it red). Any control draws its `label` when it has one.
          */
         struct PanelControl
         {
-            std::string type, property, value;
+            std::string type, property, value, label, format = "%.1f";
+            float scale = 1.0f, max = 1.0f;
+            bool alarm = false;
             float x = 0, y = 0, w = 20, h = 20;
             int unit = 0, button = 0;
         };
@@ -197,7 +202,7 @@ namespace kosmos
         std::vector<Panel2D> panels_2d() const
         {
             std::vector<Panel2D> all;
-            if (!instruments.empty())
+            if (!instruments.empty() || !controls.empty())
                 all.push_back({panel_name, panel_width, panel_height, panel_image, instruments, controls});
             all.insert(all.end(), extra_panels.begin(), extra_panels.end());
             return all;
@@ -262,6 +267,13 @@ namespace kosmos
         bool orbital_only = false;
         double pad_turn = 0.0; // degrees added to the pad heading when standing on a launch pad, to keep strap-ons clear of the tower
         double crash_speed = 5.0;
+        /** A fixed building (class "building"): no engines or flight, held to the ground, entered on foot at `door`. */
+        bool building() const { return kind == "building"; }
+        /** Where the door is, in the ship frame, and how close (metres) a person must stand to go in. */
+        sl::dvec3 door{0.0, 0.0, 0.0};
+        double door_radius = 4.0;
+        /** Buildings with the same grid name at a base share one power bus. */
+        std::string grid;
         bool aircraft() const { return kind == "aircraft"; }
         bool has_hover() const
         {

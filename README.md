@@ -43,7 +43,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | **G** | Toggle landing gear (also **L**) |
 | **N** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
 | Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
-| **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Ctrl jumps, Space crouches, the mouse looks (hold Alt to free the pointer), arrows also look, F manoeuvring pack, Q/E roll when floating |
+| **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (hold Alt to free the pointer), arrows also look, F manoeuvring pack, Q/E roll when floating |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
 | **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp. Saved to `~/.config/kosmos/settings.json` on exit |
@@ -256,6 +256,8 @@ Planets whose VSOP87A file is in `data/vsop87/` (VSOP87A.mer ... .nep) start at 
 Other bodies use the elements in the json.
 
 ## Bases
+
+**Active buildings.** A base object of type `building` places an addon building: a fixed ship (`"class": "building"` in a ship file listed under `"buildings"` in `addon.json`) with its own power, tanks, pressure vessels and 2D panel. Walk to its `door` on foot and press Enter to go inside, Enter again to leave. Gale Crater on Mars has a habitat, a power plant, a comms mast and an ISRU plant. Panel controls without artwork can be `label`, `readout`, `gauge` or `lamp`; components can be `isru` or `comms` and can have `wear_hours`. `--enter-building TEXT` starts inside one.
 
 **Ship systems.** Ships can carry power sources (solar, RTG, fission, fusion, fuel cell), batteries, gas and water tanks and pressure vessels (cabins). A cabin is a box simulated on a 12x12x12 gas grid; vacuum is a sink, so a breach vents it. Press **F1** for the Ship systems window or select the Systems MFD; failure effects follow `--life-support` or a scenario's `life_support`. With no electricity left, MFDs and ship lights go dark. Declare equipment in a ship's `"systems"` list and `"vessels"` list, or tag mesh parts `vessel_NAME`, `crew_*` and `vent_*` (OBJ `usemtl` groups or GLB node names; they are not drawn). From Lua, writing an area in cm2 to `/ships/ship[N]/systems/vessel[i]/breach-cm2` opens a leak. Try `23_cabin_leak` and `24_oxygen_tank_failure`; `tests/systems_test.cpp` is the unit test (`cmake --build build --target systems_test`).
 

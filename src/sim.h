@@ -23,6 +23,8 @@ namespace kosmos
     {
         std::string id, name, version, directory;
         std::vector<ShipSpec> ships;
+        /** Fixed buildings the addon offers to bases (the "buildings" list of addon.json); not flyable. */
+        std::vector<ShipSpec> buildings;
     };
 
     /**
@@ -56,6 +58,8 @@ namespace kosmos
         int ship_count() const { return static_cast<int>(ships_.size()); }
         Ship *ship(int index) { return ships_[static_cast<std::size_t>(index)].get(); }
         const ShipSpec *find_ship_spec(const std::string &name) const;
+        /** A building by its name; searches every addon. */
+        const ShipSpec *find_building_spec(const std::string &name) const;
 
         /** Advance by one frame of real time, applying the time warp. */
         void step(double frame_seconds);

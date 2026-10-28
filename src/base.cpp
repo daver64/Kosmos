@@ -55,6 +55,7 @@ namespace kosmos
             BaseObject o;
             o.type = j.at("type").get<std::string>();
             o.model = j.value("model", "");
+            o.building = j.value("building", "");
             o.x = j.value("x", 0.0);
             o.z = j.value("z", 0.0);
             o.y = j.value("y", 0.0);
@@ -538,7 +539,7 @@ namespace kosmos
     {
         static const std::vector<std::string> types = {"house", "office", "skyscraper", "hangar", "wall", "fence", "water_tower", "radar", "domed_radar", "pressure_dome", "habitat_tube", "lunar_rover", "landing_pad", "control_tower", "street_lamp",
                                                        "road", "barrel", "crate", "container", "tank", "conifer", "rock", "tree", "bush", "rock_cluster", "car", "spaceship", "aeroplane",
-                                                       "model", "launch_tower", "launch_pad", "saturn_v", "rocket_stage", "station_module", "solar_array", "solar_windmill", "antenna_dish",
+                                                       "model", "launch_tower", "launch_pad", "building", "saturn_v", "rocket_stage", "station_module", "solar_array", "solar_windmill", "antenna_dish",
                                                        "satellite", "skylab"};
         return types;
     }
@@ -599,6 +600,8 @@ namespace kosmos
                 json jo = {{"type", o.type}, {"x", o.x}, {"z", o.z}};
                 if (!o.model.empty())
                     jo["model"] = o.model;
+                if (!o.building.empty())
+                    jo["building"] = o.building;
                 const auto put = [&](const char *key, double v, double def) { if (v != def) jo[key] = v; };
                 put("y", o.y, 0.0);
                 put("heading", o.heading, 0.0);

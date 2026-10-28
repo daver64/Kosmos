@@ -308,10 +308,42 @@ namespace kosmos
             add(layer, ground, rock_species(sl::make_rock_data(1.0f, rgb(body.colour, 0.55f), 3u), 1.0, 5, 0.0007 * d, 55.0f, 120.0f, 700.0f, 83u), stones);
         }
 
-        void add_rocky(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, double density, const Body &body, bool outposts)
+        // The mean colour of the terrain around `direction`, so rocks match the ground they lie on; the body's colour if the terrain has no colour source.
+        void ground_colour(const sl::Terrain &terrain, const Body &body, const sl::dvec3 &direction, float out[3])
+        {
+            std::copy(body.colour, body.colour + 3, out);
+            const auto &colour_at = terrain.config().colour_function;
+            if (!colour_at)
+                return;
+            sl::dvec3 east = glm::cross(sl::dvec3(0.0, 1.0, 0.0), direction);
+            east = glm::length(east) > 1e-6 ? glm::normalize(east) : sl::dvec3(1.0, 0.0, 0.0);
+            const sl::dvec3 north = glm::cross(direction, east);
+            const double step = 150.0 / body.radius;
+            double sum[3] = {0.0, 0.0, 0.0};
+            int count = 0;
+            for (int i = -3; i <= 3; ++i)
+                for (int j = -3; j <= 3; ++j)
+                {
+                    sl::TerrainSample sample;
+                    sample.position = glm::normalize(direction + east * (i * step) + north * (j * step));
+                    sample.normal = sample.position;
+                    sample.cell_size = 150.0;
+                    float rgb[3];
+                    if (!colour_at(sample, rgb))
+                        continue;
+                    for (int k = 0; k < 3; ++k)
+                        sum[k] += rgb[k];
+                    ++count;
+                }
+            if (count > 0)
+                for (int k = 0; k < 3; ++k)
+                    out[k] = static_cast<float>(sum[k] / count);
+        }
+
+        void add_rocky(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, double density, const float colour[3], bool outposts)
         {
             const double d = density;
-            const sl::Colour stone = rgb(body.colour, 0.85f), dark = rgb(body.colour, 0.6f);
+            const sl::Colour stone = rgb(colour, 1.0f), dark = rgb(colour, 0.78f);
             // Rock fields thicken and thin over a few hundred metres.
             const Rule field = [](const Ground &g, const sl::TerrainSample &s) {
                 return 0.3 + 0.7 * smooth(-0.4, 0.4, g.field(s.position, 500.0, 5u)) + 0.5 * smooth(15.0, 40.0, s.slope_degrees);
@@ -639,7 +671,11 @@ namespace kosmos
         else if (kind == Kind::alien)
             add_alien(*layer, ground, world.density, *world.body);
         else
-            add_rocky(*layer, ground, world.density, *world.body, kind == Kind::rocky);
+            {
+            float colour[3];
+            ground_colour(terrain, *world.body, world.near_direction, colour);
+            add_rocky(*layer, ground, world.density, colour, kind == Kind::rocky);
+        }
         return layer;
     }
 } // namespace kosmos

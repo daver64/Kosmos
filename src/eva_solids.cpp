@@ -145,7 +145,28 @@ namespace kosmos
                     const double along = std::clamp(local.z, std::min(z0, z1), std::max(z0, z1));
                     const sl::dvec3 axis_point = b.orientation * sl::dvec3(0.0, 0.0, along) + origin;
                     const sl::dvec3 out = sample - axis_point;
-                    const double d = glm::length(out), reach = st.radius + margin + person_radius;
+                    double hull = st.radius, skin = margin;
+                    bool profiled = false;
+                    for (const PartSpec &part : st.parts)
+                        profiled = profiled || part.profile.size() > 1;
+                    if (spec.building() && profiled)
+                    {
+                        // Follow the lathe profile so a dome is as wide as it looks at this height.
+                        hull = -1.0;
+                        for (const PartSpec &part : st.parts)
+                            for (std::size_t i = 1; i < part.profile.size(); ++i)
+                            {
+                                const double za = st.z + part.profile[i - 1].first, zb = st.z + part.profile[i].first;
+                                if (za == zb || local.z < std::min(za, zb) || local.z > std::max(za, zb))
+                                    continue;
+                                const double t = (local.z - za) / (zb - za);
+                                hull = std::max(hull, part.profile[i - 1].second + t * (part.profile[i].second - part.profile[i - 1].second));
+                            }
+                        if (hull < 0.0)
+                            continue;
+                        skin = 0.1;
+                    }
+                    const double d = glm::length(out), reach = hull + skin + person_radius;
                     if (d >= reach)
                         continue;
                     const sl::dvec3 flat = horizontal(out, up);

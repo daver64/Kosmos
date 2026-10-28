@@ -28,6 +28,8 @@ namespace kosmos
         /** Land cover for Earth; null for every other world. */
         std::shared_ptr<const Landclass> land;
         double density = 1.0;
+        /** A body-fixed direction near the player; rocks take the colour of the terrain there. */
+        sl::dvec3 near_direction{0.0, 1.0, 0.0};
         /** Game root, where the rock textures are found. */
         std::string root;
     };

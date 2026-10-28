@@ -41,11 +41,14 @@ namespace kosmos
         double watts = 0.0, max_w = 0.0, capacity = 0.0, amount = 0.0;
         double area = 0.0, efficiency = 0.28, half_life_years = 87.7, age_years = 0.0;
         double kg_per_day = 0.0;
+        /** Hours of running before a "wear" component fails; 0 means it never wears out. Repairs reset `wear`. */
+        double wear_hours = 0.0;
         int priority = 1;
         sl::dvec3 facing{0.0, 1.0, 0.0};
         // Runtime
         bool enabled = true;
         bool alive = true;
+        double wear = 0.0;
         double output_w = 0.0;
         bool powered = true;
     };

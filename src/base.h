@@ -30,6 +30,8 @@ namespace kosmos
          * is the props library's: +Z forward, +Y up and +X to the left, so it sits at the object's place unturned.
          */
         std::string model;
+        /** type "building": the name of an addon building (see Addon::buildings), which is spawned as a fixed, enterable ship at this place. */
+        std::string building;
         double x = 0.0, z = 0.0, y = 0.0; // y lifts the prop, e.g. onto a pad
         double heading = 0.0; // degrees, clockwise from the base heading
         double scale = 1.0;

@@ -1125,9 +1125,9 @@ namespace kosmos
                                    "  Tab / N          map / galaxy map\n"
                                    "Time\n"
                                    "  , .              slower / faster time warp\n"
-                                   "On foot (Enter to leave the ship, or board one within 30 m)\n"
+                                   "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door)\n"
                                    "  W A S D          walk / strafe       Shift   boost\n"
-                                   "  Ctrl jump  Space crouch              Mouse or arrows   look (Alt frees the mouse)\n"
+                                   "  Space jump  Ctrl crouch              Mouse or arrows   look (Alt frees the mouse)\n"
                                    "  F                manoeuvring pack on / off (airless worlds, orbit)\n"
                                    "  Q / E            roll (when floating free)\n"
                                    "Windows\n"
@@ -1534,7 +1534,7 @@ namespace kosmos
                 }
                 if (ImGui::BeginMenu("View"))
                 {
-                    if (actions.toggle_eva && ImGui::MenuItem(actions.on_foot && actions.on_foot() ? "Board ship" : "Leave ship (EVA / walk)", "Enter"))
+                    if (actions.toggle_eva && ImGui::MenuItem(actions.on_foot && actions.on_foot() ? "Board ship / enter building" : actions.in_building && actions.in_building() ? "Leave building" : "Leave ship (EVA / walk)", "Enter"))
                         actions.toggle_eva();
                     ImGui::Separator();
                     for (MenuWindow &w : windows)

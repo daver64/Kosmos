@@ -27,6 +27,7 @@ namespace kosmos
         std::function<bool()> recording;
         std::function<void()> toggle_eva;     // leave the ship on foot, or board the nearest one
         std::function<bool()> on_foot;
+        std::function<bool()> in_building;
         std::function<void(int)> show_panel; // switch to the flown ship's 2D panel with this index
     };
 

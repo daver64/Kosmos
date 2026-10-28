@@ -94,6 +94,7 @@ namespace
         bool camera_editor = false;
         int user_camera = -1; // index into the Camera editor list to start in
         std::string view_base; // "base:index" to start looking through a base camera
+        std::string enter_building; // --enter-building TEXT: start inside the first building whose name contains TEXT
         std::string shot;
         double shot_at = 10.0;
         double record_seconds = 0.0; // --record SECONDS: record a video from the start, then quit
@@ -233,6 +234,36 @@ namespace
         }
     };
 
+    // Every "building" object of every base becomes a fixed, enterable ship standing at its place.
+    void spawn_buildings(Sim &sim)
+    {
+        for (const kosmos::Base &base : sim.bases)
+        {
+            const int body = sim.universe.find(base.body);
+            if (body < 0)
+                continue;
+            const double radius = sim.universe.bodies[static_cast<std::size_t>(body)].radius;
+            for (const kosmos::BaseObject &o : base.objects)
+            {
+                if (o.type != "building")
+                    continue;
+                const kosmos::ShipSpec *spec = sim.find_building_spec(o.building);
+                if (!spec)
+                {
+                    std::fprintf(stderr, "kosmos: base %s: unknown building \"%s\"\n", base.id.c_str(), o.building.c_str());
+                    continue;
+                }
+                for (int i = 0; i < o.count; ++i)
+                {
+                    Ship *building = sim.spawn(*spec);
+                    if (o.count > 1)
+                        building->name += " " + std::to_string(i + 1);
+                    building->place_on_surface(body, kosmos::base_point(base, radius, o.x + o.step_x * i, o.z + o.step_z * i), base.heading + o.heading, base.height + o.y);
+                }
+            }
+        }
+    }
+
     // Returns the ship to fly, or nullptr (with a message on stderr) if the scenario cannot be built.
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
@@ -326,6 +357,7 @@ namespace
         if (sim.ship_count() == 0)
             return nullptr;
         sim.activate(std::min(sc.active, sim.ship_count() - 1));
+        spawn_buildings(sim);
         sim.props.set_string("/sim/target", sc.target);
         for (int i = 0; i < kosmos::NavSystem::receivers; ++i)
             sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
@@ -336,6 +368,7 @@ namespace
         sim.props.set_string("/controls/sas", "stability");
         sim.props.set_bool("/autopilot/enabled", sc.autopilot);
         sim.props.set_string("/sim/scenario-mfd-left", sc.mfd_left);
+        sim.props.set_string("/sim/enter-building", sc.enter_building);
         sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
         sim.props.set_int("/sim/warp-index", 0);
         return sim.active_ship();
@@ -357,6 +390,8 @@ namespace
         const sl::dquat spin = glm::angleAxis(angle, axis);
         for (int i = 0; i < sim.ship_count(); ++i)
         {
+            if (sim.ship(i)->spec().building())
+                continue;
             sl::FlightBody &b = sim.ship(i)->body();
             b.position = planet.position + spin * (b.position - planet.position);
             b.velocity = planet.velocity + spin * (b.velocity - planet.velocity);
@@ -2420,6 +2455,34 @@ namespace
                 sl::rectfill(sl::screen, x, y, x + w, y + h, {90, 255, 120, 55});
                 sl::rect(sl::screen, x, y, x + w, y + h, {120, 255, 140, 255}, 2.0f);
             }
+            else if (!c.label.empty())
+                sl::rect(sl::screen, x, y, x + w, y + h, {90, 100, 115, 255}, 1.0f);
+        }
+        else if (c.type == "gauge")
+        {
+            const float v = c.max > 0.0f ? static_cast<float>(std::clamp(sim.props.get_double(c.property) * c.scale / c.max, 0.0, 1.0)) : 0.0f;
+            sl::rectfill(sl::screen, x, y, x + w, y + h, {12, 16, 20, 255});
+            sl::rectfill(sl::screen, x, y, x + w * v, y + h, c.alarm && v < 0.25f ? sl::Colour{230, 80, 60, 255} : sl::Colour{70, 200, 110, 255});
+            sl::rect(sl::screen, x, y, x + w, y + h, {90, 100, 115, 255}, 1.0f);
+        }
+        else if (c.type == "lamp")
+        {
+            const bool on = c.value.empty() ? sim.props.get_double(c.property) > 0.5 : control_lit(sim, c);
+            const sl::Colour col = on ? (c.alarm ? sl::Colour{255, 70, 50, 255} : sl::Colour{110, 255, 140, 255}) : sl::Colour{40, 44, 50, 255};
+            sl::rectfill(sl::screen, x, y, x + w, y + h, col);
+            sl::rect(sl::screen, x, y, x + w, y + h, {90, 100, 115, 255}, 1.0f);
+        }
+        if (c.type == "readout")
+        {
+            char value[64];
+            std::snprintf(value, sizeof value, c.format.c_str(), sim.props.get_double(c.property) * c.scale);
+            sl::gprintf(static_cast<int>(x), static_cast<int>(y), {110, 200, 150}, "%s", c.label.c_str());
+            sl::gprintf(static_cast<int>(x), static_cast<int>(y + 18), {200, 255, 220}, "%s", value);
+        }
+        else if (!c.label.empty())
+        {
+            const bool beside = c.type == "gauge" || c.type == "lamp";
+            sl::gprintf(static_cast<int>(beside ? x + w + 6 : x + 4), static_cast<int>(beside ? y : y + h * 0.5f - 7), {210, 220, 235}, "%s", c.label.c_str());
         }
     }
 
@@ -2497,7 +2560,7 @@ namespace
     {
         for (const auto &c : cp.controls)
         {
-            if (c.type == "slider" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
+            if (c.type == "slider" || c.type == "label" || c.type == "readout" || c.type == "gauge" || c.type == "lamp" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
                 continue;
             panel_control_press(sim, c);
             return true;
@@ -3408,6 +3471,8 @@ int main(int argc, char **argv)
             options.base_editor = true;
         else if (!std::strcmp(argv[i], "--property-window"))
             options.property_window = true;
+        else if (!std::strcmp(argv[i], "--enter-building") && i + 1 < argc)
+            options.enter_building = argv[++i];
         else if (!std::strcmp(argv[i], "--base-cam") && i + 1 < argc)
             options.view_base = argv[++i];
         else if (!std::strcmp(argv[i], "--selftest-throttle") && i + 1 < argc)
@@ -4323,11 +4388,24 @@ int main(int argc, char **argv)
         const sl::dvec3 eye = eva.eye_world(sim.universe);
         for (int i = 0; i < sim.ship_count(); ++i)
         {
+            if (sim.ship(i)->spec().building())
+                continue;
             const double d = glm::length(sim.ship(i)->origin() - eye);
             if (d < distance)
                 distance = d, best = i;
         }
         return best;
+    };
+    // The door of a building is a point in its frame; this is where it is in the world.
+    auto door_world = [&](const Ship &building) { return building.origin() + building.body().direction_to_world(building.spec().door); };
+    // A building whose door the astronaut stands at, or -1.
+    auto building_at_door = [&]() -> int
+    {
+        const sl::dvec3 eye = eva.eye_world(sim.universe);
+        for (int i = 0; i < sim.ship_count(); ++i)
+            if (sim.ship(i)->spec().building() && glm::length(door_world(*sim.ship(i)) - eye) <= sim.ship(i)->spec().door_radius)
+                return i;
+        return -1;
     };
     auto board_ship = [&](bool force)
     {
@@ -4349,12 +4427,44 @@ int main(int argc, char **argv)
     {
         if (eva.active)
         {
+            const int door = building_at_door();
+            if (door >= 0)
+            {
+                eva.active = false;
+                sim.activate(door);
+                ship = sim.active_ship();
+                cockpit_view = ship->spec().cockpit.present;
+                cockpit3d = false;
+                look_yaw = look_pitch = 0.0f;
+                sim.log("Inside " + ship->name);
+                return;
+            }
             board_ship(false);
             return;
         }
         Ship *flown = sim.active_ship();
         if (!flown)
             return;
+        if (flown->spec().building())
+        {
+            const kosmos::Telemetry &bt = flown->telemetry();
+            if (bt.soi < 0)
+                return;
+            const sl::dvec3 spot = door_world(*flown);
+            eva.suit = kosmos::Suit();
+            eva.leave(sim.universe, bt.soi, spot, flown->body().velocity, flown->origin() - spot, terrain_of(bt.soi), true);
+            eva.home_ship = sim.props.get_int("/sim/active-ship");
+            sim.props.set_bool("/autopilot/enabled", false);
+            cockpit_view = cockpit3d = false;
+            interior_cam = base_view = user_cam = -1;
+            eva_look_yaw = eva_look_pitch = 0.0;
+            {
+                const sl::dvec3 eye = eva.eye_world(sim.universe);
+                std::fprintf(stderr, "DBG door dist %.2f at_door %d\n", glm::length(door_world(*flown) - eye), building_at_door());
+            }
+            sim.log("Outside " + flown->name + ": Enter at the door to go back in");
+            return;
+        }
         const kosmos::Telemetry &t = flown->telemetry();
         if (t.soi < 0 || t.soi >= static_cast<int>(sim.universe.bodies.size()))
             return;
@@ -4394,6 +4504,7 @@ int main(int argc, char **argv)
     };
     menu_actions.toggle_eva = toggle_eva;
     menu_actions.on_foot = [&]() { return eva.active; };
+    menu_actions.in_building = [&]() { return !eva.active && sim.active_ship() && sim.active_ship()->spec().building(); };
     menu_actions.show_panel = [&](int index)
     {
         const auto panels = sim.active_ship()->spec().cockpit.panels_2d();
@@ -4618,6 +4729,22 @@ int main(int argc, char **argv)
             }
             options.test_scenario.clear();
         }
+        if (options.enter_building.empty() && clock > 1.0)
+            options.enter_building = sim.props.get_string("/sim/enter-building");
+        if (!options.enter_building.empty() && clock > 1.0)
+        {
+            sim.props.set_string("/sim/enter-building", "");
+            for (int i = 0; i < sim.ship_count(); ++i)
+                if (sim.ship(i)->spec().building() && sim.ship(i)->name.find(options.enter_building) != std::string::npos)
+                {
+                    sim.activate(i);
+                    ship = sim.active_ship();
+                    cockpit_view = true;
+                    cockpit3d = false;
+                    break;
+                }
+            options.enter_building.clear();
+        }
         if (options.eva && clock > 1.0)
         {
             options.eva = false;
@@ -4679,7 +4806,7 @@ int main(int argc, char **argv)
                                         key == sl::Event::Key::keypad_0 || key == sl::Event::Key::keypad_period || key == sl::Event::Key::letter_c || key == sl::Event::Key::letter_v ||
                                         key == sl::Event::Key::letter_h || key == sl::Event::Key::letter_j))
                 {
-                    // On foot these ship keys do nothing; Space jumps and is read as a held key.
+                    // On foot these ship keys do nothing; Space jumps (Ctrl crouches) and is read as a held key.
                 }
                 else if (eva.active && !map_mode && key == sl::Event::Key::letter_f)
                 {
@@ -4801,7 +4928,14 @@ int main(int argc, char **argv)
                 {
                     props.set_bool("/autopilot/enabled", false);
                     props.set_string("/autopilot/status", "");
-                    sim.activate((props.get_int("/sim/active-ship") + 1) % sim.ship_count());
+                    int next = props.get_int("/sim/active-ship");
+                    for (int tries = 0; tries < sim.ship_count(); ++tries)
+                    {
+                        next = (next + 1) % sim.ship_count();
+                        if (!sim.ship(next)->spec().building())
+                            break;
+                    }
+                    sim.activate(next);
                     ship = sim.active_ship();
                     props.set_double("/controls/throttle", 0.0);
                     props.set_double("/controls/hover", 0.0);
@@ -4896,7 +5030,7 @@ int main(int argc, char **argv)
         const bool on_foot = eva.active;
         const bool eva_moving = on_foot && !typing &&
                                 (options.eva_walk || sl::key_down(sl::Key::letter_w) || sl::key_down(sl::Key::letter_a) || sl::key_down(sl::Key::letter_s) || sl::key_down(sl::Key::letter_d) ||
-                                 sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control));
+                                 sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control) || sl::key_down(sl::Key::space));
         if (!typing && !on_foot && sl::key_down(sl::Key::left_shift))
             props.set_double("/controls/throttle", std::min(1.0, throttle + throttle_rate));
         if (!typing && !on_foot && sl::key_down(sl::Key::left_control))
@@ -5043,9 +5177,10 @@ int main(int argc, char **argv)
                 in.forward = held(sl::Key::letter_w) - held(sl::Key::letter_s);
                 in.right = held(sl::Key::letter_d) - held(sl::Key::letter_a);
                 const bool ctrl = sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control);
-                in.jump = ctrl;
-                in.crouch = sl::key_down(sl::Key::space);
-                in.up = (ctrl ? 1.0 : 0.0) - held(sl::Key::space);
+                const bool space = sl::key_down(sl::Key::space);
+                in.jump = space;
+                in.crouch = ctrl;
+                in.up = (space ? 1.0 : 0.0) - (ctrl ? 1.0 : 0.0);
                 in.run = sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift);
                 yaw += (held(sl::Key::arrow_left) - held(sl::Key::arrow_right)) * 1.8 * frame;
                 pitch += (held(sl::Key::arrow_up) - held(sl::Key::arrow_down)) * 1.2 * frame;
@@ -5317,16 +5452,23 @@ int main(int argc, char **argv)
             }
             eye_world = ship->origin() + fb.direction_to_world(seat);
             const double cl = std::cos(pitch);
-            const sl::dvec3 look(-std::sin(yaw) * cl, std::sin(pitch), -std::cos(yaw) * cl);
+            sl::dvec3 look(-std::sin(yaw) * cl, std::sin(pitch), -std::cos(yaw) * cl);
+            sl::dvec3 view_up(0.0, 1.0, 0.0);
+            if (ship->spec().building() && !ship->spec().horizontal && !in_interior)
+            {
+                // An upright building's roof is -Z; looking along +X (out of the door) is yaw 0.
+                look = sl::dvec3(std::cos(yaw) * cl, -std::sin(yaw) * cl, -std::sin(pitch));
+                view_up = sl::dvec3(0.0, 0.0, -1.0);
+            }
             ship_rel = glm::vec3(fb.direction_to_world(look) * 1000.0);
-            up = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+            up = fb.direction_to_world(view_up);
         }
         else if (in_eva)
         {
             eye_world = eva.eye_world(universe);
             ship_rel = glm::vec3(eva.forward() * 1000.0);
             up = eva.view_up();
-            view_fov = std::max(options.cam_fov, 75.0);
+            view_fov = std::max(options.cam_fov, 60.0);
         }
         else if (in_user)
         {
@@ -5529,6 +5671,7 @@ int main(int argc, char **argv)
                     world.zones = bt.clutter_zones;
                     world.land = bt.landclass;
                     world.density = clutter_density;
+                    world.near_direction = glm::normalize(glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis())) * eye_rel);
                     world.root = sim.root();
                     bt.clutter = kosmos::make_clutter(*bt.terrain, world);
                     bt.clutter_density = clutter_density;
@@ -5686,6 +5829,15 @@ int main(int argc, char **argv)
                     const Ship &lit_ship = *sim.ship(s);
                     const sl::FlightBody &lb = lit_ship.body();
                     const glm::dmat3 turn = glm::mat3_cast(lb.orientation);
+                    // A ship on the ground turns its lamps off while the Sun is up.
+                    bool daylight_on_ground = false;
+                    if (lit_ship.telemetry().landed && lit_ship.telemetry().soi > 0)
+                    {
+                        const sl::dvec3 up_here = glm::normalize(lit_ship.origin() - universe.position(lit_ship.telemetry().soi));
+                        daylight_on_ground = glm::dot(up_here, glm::normalize(universe.position(0) - lit_ship.origin())) > 0.05;
+                    }
+                    if (daylight_on_ground)
+                        continue;
                     for (const kosmos::LightSpec &spec : lit_ship.spec().lights)
                     {
                         if (spec.stage >= 0 && lit_ship.active_stage() > spec.stage)
@@ -6631,7 +6783,7 @@ int main(int argc, char **argv)
         for (std::size_t i = 0; i < messages.size(); ++i)
             sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
         const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
-        const bool panel2d = dashboard && !ship->spec().cockpit.instruments.empty();
+        const bool panel2d = dashboard && !ship->spec().cockpit.panels_2d().empty();
         const bool cockpit_mfd_overlay = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd != 0;
         if (in_cockpit3d)
         {
@@ -6699,6 +6851,10 @@ int main(int argc, char **argv)
             const auto &shown = panels[static_cast<std::size_t>(std::clamp(panel_index, 0, static_cast<int>(panels.size()) - 1))];
             cp.instruments = shown.instruments;
             cp.controls = shown.controls;
+            const std::string panel_root = "/ships/ship[" + std::to_string(props.get_int("/sim/active-ship")) + "]";
+            for (kosmos::Cockpit::PanelControl &pc : cp.controls)
+                if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
+                    pc.property.replace(token, 6, panel_root);
             cp.panel_width = shown.width;
             cp.panel_height = shown.height;
             cp.panel_image = shown.image;

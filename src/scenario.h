@@ -59,6 +59,8 @@ namespace kosmos
         double throttle = 0.0;
         bool autopilot = false;
         std::string mfd_left, mfd_right;
+        /** Start inside the building of this name (a base's building), looking at its panel. */
+        std::string enter_building;
         std::vector<double> nav;
         /** Start date as a Julian date (UTC); 0 starts on the system's default date. date_text keeps the text it was written as, if any. */
         double epoch_jd = 0.0;
