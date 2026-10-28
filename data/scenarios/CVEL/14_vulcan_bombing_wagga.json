@@ -1,0 +1,19 @@
+{
+ "name": "CVEL: Vulcan bombing run, Wagga Wagga",
+ "description": "CVEL Vulcan at 12,500 m over Wagga Wagga with 21 bombs and one atom bomb. K drops the bombs, Shift+K the atom bomb.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Vulcan",
+   "body": "Earth",
+   "surface": {
+    "base": "wagga",
+    "runway": 0,
+    "along": 3000,
+    "altitude": 2500,
+    "speed": 220
+   }
+  }
+ ],
+ "date": "2024-06-21 02:00:00"
+}

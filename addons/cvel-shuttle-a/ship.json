@@ -1,6 +1,7 @@
 {
  "name": "CVEL Shuttle-A",
  "class": "transfer",
+ "locker": ["plasma_rifle", "frag_charge"],
  "torque_accel": 0.15,
  "max_rate": 0.35,
  "rcs_thrust": 18000,

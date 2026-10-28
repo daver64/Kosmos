@@ -266,6 +266,20 @@ namespace kosmos
                     if (!a.property.empty())
                         spec.animation_controls.push_back(a);
                 }
+            if (json.contains("hardpoints"))
+                for (const auto &jh : json["hardpoints"])
+                {
+                    ShipSpec::Hardpoint h;
+                    h.equipment = jh.value("equipment", "");
+                    h.name = jh.value("name", h.equipment);
+                    h.count = std::max(0, jh.value("count", 1));
+                    if (jh.contains("position"))
+                        h.position = vec3(jh["position"]);
+                    if (!h.equipment.empty())
+                        spec.hardpoints.push_back(h);
+                }
+            if (json.contains("locker"))
+                spec.locker = json["locker"].get<std::vector<std::string>>();
             spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
@@ -501,11 +515,37 @@ namespace kosmos
             roll += st.dry_mass * st.radius * st.radius / 2.0;
         }
         mass = std::max(mass, 1.0);
-        const double scale = (mass + attached_mass_) / mass;
-        b.dry_mass = mass + attached_mass_;
+        const double scale = (mass + attached_mass_ + payload_mass_) / mass;
+        b.dry_mass = mass + attached_mass_ + payload_mass_;
         b.dry_inertia = {std::max(transverse, 1.0) * scale, std::max(transverse, 1.0) * scale, std::max(roll, 1.0) * scale};
         if (spec_.inertia.x > 0.0 && spec_.inertia.y > 0.0 && spec_.inertia.z > 0.0)
             b.dry_inertia = spec_.inertia * scale;
+    }
+
+    void Ship::set_payload_mass(double kilograms)
+    {
+        if (std::fabs(kilograms - payload_mass_) < 1.0e-6)
+            return;
+        payload_mass_ = kilograms;
+        refresh_mass_properties();
+    }
+
+    void Ship::damage(double amount)
+    {
+        if (crashed_ || amount <= 0.0)
+            return;
+        health_ = std::max(0.0, health_ - amount);
+        if (health_ > 0.0)
+            return;
+        sl::FlightBody &b = body();
+        for (sl::Thruster &t : b.thrusters)
+            t.level = 0.0;
+        // Something in the air is left to fall and crash by the usual rules; the ground and buildings are wrecked on the spot.
+        if (spec_.building() || telemetry_.altitude < 50.0 || b.mode != sl::FlightBodyMode::dynamic)
+        {
+            crashed_ = true;
+            pin_to_ground();
+        }
     }
 
     void Ship::set_attached_mass(double kilograms)
@@ -600,6 +640,7 @@ namespace kosmos
         b.orientation = orientation_from(level ? roof : up, level ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        health_ = 1.0;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -622,6 +663,7 @@ namespace kosmos
         b.orientation = orientation;
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        health_ = 1.0;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -643,6 +685,7 @@ namespace kosmos
         b.orientation = orientation_from(prograde, up);
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        health_ = 1.0;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -686,6 +729,7 @@ namespace kosmos
         b.orientation = orientation_from(prograde, up);
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
+        health_ = 1.0;
         pinned_ = resting_ = false;
         update_telemetry();
     }
@@ -813,7 +857,7 @@ namespace kosmos
     {
         Controls c = input;
         rcs_torque_ = rcs_push_ = sl::dvec3(0.0);
-        if (crashed_)
+        if (crashed_ || health_ <= 0.0)
             return;
         if (spec_.rcs_modes)
         {

@@ -15,6 +15,7 @@
 #include "usercam.h"
 #include "eva.h"
 #include "eva_solids.h"
+#include "ordnance.h"
 
 #include <algorithm>
 #include <chrono>
@@ -76,6 +77,8 @@ namespace
         int render_style = -1; // --render-style normal|flat|wireframe; -1 uses the saved setting
         double selftest_warp = 0.0;
         bool selftest_gear_up = false;
+        double selftest_drop = -1.0;
+        bool selftest_drop_atom = false;
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;
@@ -491,8 +494,27 @@ namespace
         apply_sets(sim.props, options.sets);
         const double dt = std::getenv("KOSMOS_SELFTEST_DT") ? std::atof(std::getenv("KOSMOS_SELFTEST_DT")) : 0.05;
         double next_report = 0.0;
+        kosmos::Arsenal arsenal;
+        kosmos::Astronaut nobody;
+        kosmos::ArsenalContext arsenal_ctx;
+        arsenal_ctx.sim = &sim;
+        arsenal_ctx.eva = &nobody;
+        arsenal_ctx.terrain = [](int) -> const sl::Terrain * { return nullptr; };
+        bool dropped = false;
         for (double t = 0.0; t < options.selftest; t += dt)
         {
+            if (options.selftest_drop >= 0.0)
+            {
+                if (!dropped && t >= options.selftest_drop)
+                {
+                    dropped = true;
+                    const int index = options.selftest_drop_atom ? static_cast<int>(ship->spec().hardpoints.size()) - 1 : -1;
+                    std::printf("release: %d (mass %.0f)\n", arsenal.release(arsenal_ctx, *ship, index) ? 1 : 0, ship->telemetry().mass);
+                }
+                arsenal.update(arsenal_ctx, dt, dt);
+                if (dropped && std::fmod(t, 2.0) < dt)
+                    std::printf("   arsenal: rounds %zu effects %zu detonations %d health %.2f mass %.0f\n", arsenal.rounds_in_flight(), arsenal.live_effects(), arsenal.detonations(), ship->health(), ship->telemetry().mass);
+            }
             if (options.selftest_warp > 0.0 && sim.props.get_string("/autopilot/status") == "Coasting to apoapsis")
                 sim.props.set_int("/sim/warp-index", static_cast<int>(options.selftest_warp));
             if (ship->spec().aircraft() && options.selftest_throttle >= 0.0)
@@ -3517,6 +3539,10 @@ int main(int argc, char **argv)
             options.selftest_throttle = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--selftest-gear-up"))
             options.selftest_gear_up = true;
+        else if (!std::strcmp(argv[i], "--selftest-drop") && i + 1 < argc)
+            options.selftest_drop = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--selftest-drop-atom"))
+            options.selftest_drop_atom = true;
         else if (!std::strcmp(argv[i], "--selftest-warp") && i + 1 < argc)
             options.selftest_warp = std::atof(argv[++i]);
         else if (!std::strcmp(argv[i], "--panel") && i + 1 < argc)
@@ -4246,6 +4272,7 @@ int main(int argc, char **argv)
     gview.refresh(sim.galaxy, sim.system_index());
     bool cockpit_view = options.cockpit;
     kosmos::Astronaut eva;
+    kosmos::Arsenal arsenal;
     bool mouse_captured = false;
     bool pointer_free = false; // ` toggles between mouselook and a free pointer for the menus when on foot
     if (!options.target.empty())
@@ -4414,6 +4441,7 @@ int main(int argc, char **argv)
         vis.clear_parts();
         ship = start_scenario(sim, options, terrain_set);
         eva.active = false;
+        arsenal.reset();
         cam_distance = ship->spec().camera_distance;
     };
     auto terrain_of = [&](int body) -> const sl::Terrain *
@@ -4450,6 +4478,10 @@ int main(int argc, char **argv)
                 return i;
         return -1;
     };
+    kosmos::ArsenalContext arsenal_ctx;
+    arsenal_ctx.sim = &sim;
+    arsenal_ctx.eva = &eva;
+    arsenal_ctx.terrain = terrain_of;
     auto board_ship = [&](bool force)
     {
         double distance = 0.0;
@@ -4497,6 +4529,7 @@ int main(int argc, char **argv)
             eva.suit = kosmos::Suit();
             eva.leave(sim.universe, bt.soi, spot, flown->body().velocity, flown->origin() - spot, terrain_of(bt.soi), true);
             eva.home_ship = sim.props.get_int("/sim/active-ship");
+            arsenal.equip_person(sim, flown);
             sim.props.set_bool("/autopilot/enabled", false);
             cockpit_view = cockpit3d = false;
             interior_cam = base_view = user_cam = -1;
@@ -4533,6 +4566,7 @@ int main(int argc, char **argv)
         eva.suit = kosmos::Suit();
         eva.leave(sim.universe, t.soi, spot, fb.velocity + side * (t.landed ? 0.0 : 0.3), origin - spot, terrain_of(t.soi), t.landed);
         eva.home_ship = sim.props.get_int("/sim/active-ship");
+        arsenal.equip_person(sim, flown);
         sim.props.set_bool("/autopilot/enabled", false);
         sim.props.set_double("/controls/throttle", 0.0);
         sim.props.set_double("/controls/hover", 0.0);
@@ -4733,6 +4767,7 @@ int main(int argc, char **argv)
                 options.ship_name = flown_name;
             ship = start_scenario(sim, options, terrain_set);
             eva.active = false;
+            arsenal.reset();
             if (!ship)
                 break;
             cam_distance = ship->spec().camera_distance;
@@ -4840,7 +4875,22 @@ int main(int argc, char **argv)
                     vis.clear_parts();
                     ship = start_scenario(sim, options, terrain_set);
                     eva.active = false;
+                    arsenal.reset();
                     cam_distance = ship->spec().camera_distance;
+                }
+                else if (eva.active && !map_mode && key >= sl::Event::Key::digit_1 && key <= sl::Event::Key::digit_9)
+                    arsenal.select(static_cast<int>(key) - static_cast<int>(sl::Event::Key::digit_1));
+                else if (!eva.active && !map_mode && key == sl::Event::Key::letter_k)
+                {
+                    Ship *flown = sim.active_ship();
+                    int index = -1;
+                    // Shift releases from the last loaded hardpoint (the special store) instead of the first.
+                    if (flown && (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift)))
+                        for (int i = static_cast<int>(flown->spec().hardpoints.size()) - 1; i >= 0 && index < 0; --i)
+                            if (arsenal.rack_count(*flown, static_cast<std::size_t>(i)) > 0)
+                                index = i;
+                    if (flown && !arsenal.release(arsenal_ctx, *flown, index))
+                        sim.log("Nothing to release");
                 }
                 else if (eva.active && (key == sl::Event::Key::letter_z || key == sl::Event::Key::letter_x || key == sl::Event::Key::space || key == sl::Event::Key::letter_p ||
                                         key == sl::Event::Key::letter_t || key == sl::Event::Key::letter_g || key == sl::Event::Key::letter_l || key == sl::Event::Key::letter_u ||
@@ -5285,6 +5335,19 @@ int main(int argc, char **argv)
                     at_base = at_base || std::acos(std::clamp(glm::dot(kosmos::base_direction(sim.universe, eva.body, b), eva.local_up()), -1.0, 1.0)) * eva_body.radius < 150.0;
             if (near_ship >= 0 && ship_distance < 30.0 || at_base)
                 eva.recharge(frame * std::max(1.0, warp_now));
+            {
+                static bool trigger_was_down = false;
+                const bool trigger = !typing && mouse_captured && sl::mouse_button_down(sl::MouseButton::left);
+                arsenal.use_held(arsenal_ctx, trigger && !trigger_was_down, trigger);
+                trigger_was_down = trigger;
+            }
+            if (eva.suit.health <= 0.0)
+            {
+                sim.log("You were killed: revived aboard your ship");
+                board_ship(true);
+                eva.suit.health = 1.0;
+                ship = sim.active_ship();
+            }
             if (eva.suit.failed)
             {
                 sim.log("Suit failure: the crew pulled you back aboard");
@@ -5292,6 +5355,13 @@ int main(int argc, char **argv)
                 ship = sim.active_ship();
             }
         }
+        if (options.selftest_drop >= 0.0 && clock >= options.selftest_drop && ship)
+        {
+            options.selftest_drop = -1.0;
+            arsenal.release(arsenal_ctx, *ship, options.selftest_drop_atom ? static_cast<int>(ship->spec().hardpoints.size()) - 1 : -1);
+        }
+        arsenal.set_sound(sound_on);
+        arsenal.update(arsenal_ctx, frame * std::min(sim.current_warp(), 4.0), frame);
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.
@@ -6582,6 +6652,16 @@ int main(int argc, char **argv)
                 exhaust_fx.update(*ship, vacuum, static_cast<float>(frame), !ship->on_rails() && sim.current_warp() < 4.5, com_altitude < 150.0 && !ship->on_rails(), static_cast<float>(com_altitude), local_up);
                 exhaust_fx.draw(vis.glow, hull);
             }
+            arsenal.draw_world(universe, eye_world, vis.glow);
+            if (in_eva && arsenal.held(sim) && sl::clear_depth_3d())
+            {
+                sl::Camera held_camera = ship_camera;
+                held_camera.near_plane = 0.03f;
+                held_camera.far_plane = 50.0f;
+                sl::set_camera_3d(held_camera);
+                const glm::vec3 fwd = glm::vec3(eva.forward()), upv = glm::vec3(eva.view_up());
+                arsenal.draw_held(sim, glm::mat4(glm::mat3(glm::cross(fwd, upv), upv, -fwd)));
+            }
             sl::end_surface_3d();
         }
         sl::clear_to_colour(sl::screen, {0, 0, 0});
@@ -6690,6 +6770,7 @@ int main(int argc, char **argv)
             }
             kosmos::draw_suit_hud(eva, universe, screen_w, screen_h, near_ship >= 0 ? ship_distance : -1.0, ship_speed, near_ship >= 0 ? sim.ship(near_ship)->name.c_str() : nullptr);
         }
+        arsenal.draw_hud(sim, eva, screen_w, screen_h, eye_world);
 
         // Labels for bodies too small on screen to recognise.
         const float focal = static_cast<float>(screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5)));

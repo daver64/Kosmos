@@ -120,6 +120,8 @@ namespace kosmos
         suit.oxygen = std::min(1.0, suit.oxygen + dt / 20.0);
         suit.battery = std::min(1.0, suit.battery + dt / 30.0);
         suit.propellant = std::min(1.0, suit.propellant + dt / 30.0);
+        if (suit.health > 0.0)
+            suit.health = std::min(1.0, suit.health + dt / 60.0);
         if (suit.oxygen > 0.0)
             suit.pressure = std::min(1.0, suit.pressure + dt / 5.0);
     }

@@ -59,6 +59,8 @@ add_executable(kosmos
     src/base.cpp
     src/galaxy.cpp
     src/ship.cpp
+    src/equipment.cpp
+    src/ordnance.cpp
     src/systems.cpp
     src/part_kit.cpp
     src/blender_edit.cpp

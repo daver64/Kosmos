@@ -1,6 +1,7 @@
 {
  "name": "CVEL Deltaglider",
  "class": "aircraft",
+ "locker": ["plasma_rifle", "frag_charge"],
  "torque_accel": 6.0,
  "max_rate": 0.6,
  "rcs_thrust": 10000,

@@ -268,6 +268,19 @@ namespace kosmos
             double initial = 0.0;
         };
         std::vector<AnimationControl> animation_controls;
+        /**
+         * A place on the ship that carries releasable equipment (the "hardpoints" list), such as a bomb rack: `position` in the ship frame,
+         * `equipment` an equipment id and `count` how many are loaded. Released items fall away from the ship.
+         */
+        struct Hardpoint
+        {
+            std::string name, equipment;
+            sl::dvec3 position{0.0};
+            int count = 1;
+        };
+        std::vector<Hardpoint> hardpoints;
+        /** Equipment ids a person leaving this ship or building takes along (the "locker" list). */
+        std::vector<std::string> locker;
         /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
         bool fuel_pod = false;
         double gear_time = 6.0;
@@ -424,6 +437,12 @@ namespace kosmos
         double pod_angle(bool right) const { return pod_angle_[right ? 1 : 0] / 3.14159265358979; }
         int stage_count() const { return static_cast<int>(spec_.stages.size()); }
         bool crashed() const { return crashed_; }
+        /** 1 undamaged down to 0 destroyed. */
+        double health() const { return health_; }
+        /** Take damage (0 to 1 of the whole ship); at 0 the ship is destroyed as if it had crashed. */
+        void damage(double amount);
+        /** Mass of released-in-flight equipment still aboard (bombs on racks); included in the ship's mass. */
+        void set_payload_mass(double kilograms);
         const Telemetry &telemetry() const { return telemetry_; }
         /** What the reaction-control jets did on the last update, in the ship frame: torque command (pitch, yaw, roll) and translation push, each -1..1. */
         const sl::dvec3 &rcs_torque() const { return rcs_torque_; }
@@ -501,6 +520,8 @@ namespace kosmos
         int active_stage_ = 0;
         sl::dvec3 com_{0.0};
         bool crashed_ = false;
+        double health_ = 1.0;
+        double payload_mass_ = 0.0;
         // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
         bool pinned_ = false;
         int pin_body_ = -1;

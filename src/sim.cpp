@@ -270,6 +270,14 @@ namespace kosmos
         }
         load_user_content();
         nav.set_beacons(std::move(beacons));
+        {
+            std::vector<std::string> directories, problems;
+            for (const Addon &addon : addons_)
+                directories.push_back(addon.directory);
+            equipment.load(directories, problems);
+            for (const std::string &p : problems)
+                log("equipment: " + p);
+        }
     }
 
     std::string Sim::user_dir()

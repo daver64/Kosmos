@@ -1,0 +1,37 @@
+{
+ "equipment": [
+  {
+   "id": "bomb",
+   "name": "1000 lb bomb",
+   "description": "General-purpose bomb",
+   "kind": "ordnance",
+   "prop": "bomb",
+   "length": 3.0,
+   "radius": 0.25,
+   "mass": 454,
+   "drag_area": 0.08,
+   "fuse": "impact",
+   "blast_radius": 70,
+   "blast_damage": 0.6,
+   "blast_effect": "explosion"
+  },
+  {
+   "id": "fatman",
+   "name": "Atom bomb (Fat Man)",
+   "description": "About 20 kt, airburst at 500 m",
+   "kind": "ordnance",
+   "prop": "fatman",
+   "length": 3.3,
+   "radius": 0.75,
+   "mass": 4670,
+   "drag_area": 0.4,
+   "fuse": "airburst",
+   "burst_height": 500,
+   "blast_radius": 2500,
+   "blast_damage": 3.0,
+   "blast_effect": "mushroom",
+   "yield": 1.0,
+   "thermal_radius": 1800
+  }
+ ]
+}

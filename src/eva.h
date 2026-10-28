@@ -19,6 +19,8 @@ namespace kosmos
         double oxygen = 1.0, battery = 1.0, pressure = 1.0, propellant = 1.0;
         double oxygen_seconds = 6.0 * 3600.0, battery_seconds = 12.0 * 3600.0;
         bool failed = false;
+        /** Bodily health, 1 unhurt to 0 dead; weapons and blasts take it, a ship or base mends it. */
+        double health = 1.0;
         double ambient_density = 0.0;
         double thrusting = 0.0;
     };

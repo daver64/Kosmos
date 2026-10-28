@@ -1,0 +1,227 @@
+{
+ "equipment": [
+  {
+   "id": "tricorder",
+   "name": "Tricorder",
+   "description": "Live atmosphere and gravity",
+   "kind": "instrument",
+   "sensor": "tricorder",
+   "standard": true,
+   "mass": 0.6,
+   "shapes": [
+    {
+     "type": "box",
+     "position": [
+      0.13,
+      -0.15,
+      -0.3
+     ],
+     "size": [
+      0.1,
+      0.17,
+      0.03
+     ],
+     "colour": [
+      62,
+      66,
+      76
+     ],
+     "glow": false
+    },
+    {
+     "type": "box",
+     "position": [
+      0.13,
+      -0.13,
+      -0.283
+     ],
+     "size": [
+      0.08,
+      0.09,
+      0.005
+     ],
+     "colour": [
+      40,
+      210,
+      130
+     ],
+     "glow": true
+    },
+    {
+     "type": "cylinder",
+     "position": [
+      0.16,
+      -0.05,
+      -0.3
+     ],
+     "size": [
+      0.012,
+      0.012,
+      0.07
+     ],
+     "colour": [
+      160,
+      160,
+      170
+     ],
+     "glow": false
+    },
+    {
+     "type": "sphere",
+     "position": [
+      0.1,
+      -0.2,
+      -0.283
+     ],
+     "size": [
+      0.02,
+      0.02,
+      0.02
+     ],
+     "colour": [
+      255,
+      160,
+      40
+     ],
+     "glow": true
+    }
+   ]
+  },
+  {
+   "id": "geo_scanner",
+   "name": "Geo scanner",
+   "description": "Click to sample the ground",
+   "kind": "instrument",
+   "sensor": "geology",
+   "standard": true,
+   "mass": 1.2,
+   "shapes": [
+    {
+     "type": "cylinder",
+     "position": [
+      0.15,
+      -0.16,
+      -0.4
+     ],
+     "size": [
+      0.05,
+      0.05,
+      0.3
+     ],
+     "colour": [
+      90,
+      80,
+      60
+     ],
+     "glow": false
+    },
+    {
+     "type": "sphere",
+     "position": [
+      0.15,
+      -0.15,
+      -0.62
+     ],
+     "size": [
+      0.1,
+      0.1,
+      0.1
+     ],
+     "colour": [
+      255,
+      140,
+      40
+     ],
+     "glow": true
+    },
+    {
+     "type": "box",
+     "position": [
+      0.15,
+      -0.2,
+      -0.3
+     ],
+     "size": [
+      0.06,
+      0.05,
+      0.08
+     ],
+     "colour": [
+      50,
+      50,
+      56
+     ],
+     "glow": false
+    }
+   ]
+  },
+  {
+   "id": "survey_theodolite",
+   "name": "Theodolite",
+   "description": "Click to mark survey points",
+   "kind": "instrument",
+   "sensor": "survey",
+   "standard": true,
+   "mass": 2.0,
+   "shapes": [
+    {
+     "type": "box",
+     "position": [
+      0.15,
+      -0.2,
+      -0.4
+     ],
+     "size": [
+      0.09,
+      0.09,
+      0.09
+     ],
+     "colour": [
+      170,
+      150,
+      40
+     ],
+     "glow": false
+    },
+    {
+     "type": "cylinder",
+     "position": [
+      0.15,
+      -0.14,
+      -0.46
+     ],
+     "size": [
+      0.045,
+      0.045,
+      0.22
+     ],
+     "colour": [
+      40,
+      40,
+      46
+     ],
+     "glow": false
+    },
+    {
+     "type": "cylinder",
+     "position": [
+      0.15,
+      -0.14,
+      -0.58
+     ],
+     "size": [
+      0.036,
+      0.036,
+      0.01
+     ],
+     "colour": [
+      120,
+      200,
+      255
+     ],
+     "glow": true
+    }
+   ]
+  }
+ ]
+}
