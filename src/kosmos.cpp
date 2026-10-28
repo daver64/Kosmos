@@ -3061,8 +3061,11 @@ namespace
 
     // Drives a model's animations: simlib JSON animations read these named properties, and a glTF clip called "gear" is posed from
     // gear-up (start) to gear-down (end).
-    void pose_model(sl::Model *model, double gear, double pod_left = 0.0, double pod_right = 0.0)
+    void pose_model(sl::Model *model, double gear, double pod_left = 0.0, double pod_right = 0.0, const kosmos::Ship *ship = nullptr)
     {
+        if (ship)
+            for (std::size_t i = 0; i < ship->spec().animation_controls.size(); ++i)
+                sl::set_model_property(model, ship->spec().animation_controls[i].property, static_cast<float>(ship->animation_position(i)));
         sl::set_model_property(model, "gear-position", static_cast<float>(gear));
         sl::set_model_property(model, "pod-left", static_cast<float>(pod_left));
         sl::set_model_property(model, "pod-right", static_cast<float>(pod_right));
@@ -3098,7 +3101,7 @@ namespace
         return sl::HudMode::off;
     }
 
-    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0, double pod_left = 0.0, double pod_right = 0.0)
+    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0, double pod_left = 0.0, double pod_right = 0.0, const kosmos::Ship *ship = nullptr)
     {
         for (int s = first_stage; s <= last_stage; ++s)
             for (const kosmos::PartSpec &part : spec.stages[static_cast<std::size_t>(s)].parts)
@@ -3116,7 +3119,7 @@ namespace
                         }
                         if (part.scale != sl::dvec3(1.0))
                             place = glm::scale(place, glm::vec3(part.scale));
-                        pose_model(part_model, gear, pod_left, pod_right);
+                        pose_model(part_model, gear, pod_left, pod_right, ship);
                         sl::draw_model(part_model, model * place);
                     }
                     continue;
@@ -4320,6 +4323,10 @@ int main(int argc, char **argv)
     }
     sl::gui_init();
     sl::Bitmap *mfd_target[2] = {sl::create_render_target(mfd_target_size, mfd_target_size), sl::create_render_target(mfd_target_size, mfd_target_size)};
+    // The boards are minified on screen; nearest sampling made thin lines shimmer as the ship rocked.
+    for (sl::Bitmap *t : mfd_target)
+        if (t)
+            t->smooth = true;
     sl::Bitmap *panel_target = nullptr;
     int panel_target_height = 0;
     vis.screen_quad = make_screen_quad();
@@ -5823,6 +5830,8 @@ int main(int argc, char **argv)
                 const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
                 if (!panel_target || wanted != panel_target_height)
                     panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
+                if (panel_target)
+                    panel_target->smooth = true;
                 if (panel_target && sl::begin_render_target(panel_target))
                 {
                     sl::clear_render_target({18, 20, 26, 255});
@@ -6371,7 +6380,7 @@ int main(int argc, char **argv)
                 const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                         glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
                 if (!((in_cockpit || in_interior) && &other == ship))
-                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true));
+                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
                 else if (in_cockpit3d)
                 {
                     const kosmos::Cockpit &cp = other.spec().cockpit;
@@ -7011,7 +7020,18 @@ int main(int argc, char **argv)
                          {static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 70.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 75.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 95.0), 255});
             sl::set_blend_mode(sl::BlendMode::normal);
         }
-        if (!options.hide_info && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
+        // The weather line is a notice: it shows for a few seconds when the METAR (or station) changes.
+        static std::string weather_seen;
+        static auto weather_until = std::chrono::steady_clock::time_point{};
+        {
+            const std::string key = props.get_string("/environment/station") + "|" + props.get_string("/environment/metar");
+            if (key != weather_seen)
+            {
+                weather_seen = key;
+                weather_until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+            }
+        }
+        if (!options.hide_info && std::chrono::steady_clock::now() < weather_until && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
             sl::gprintf_center(screen_h - 40, {170, 205, 235}, "Wind %03.0f/%.0f m/s  rain %.0f%%  cloud %.0f%%  vis %.1f km   %s%s",
                                props.get_double("/environment/wind-from"), props.get_double("/environment/wind-speed"), props.get_double("/environment/rain") * 100.0,
                                props.get_double("/environment/cloud-cover") * 100.0, props.get_double("/environment/visibility") / 1000.0,

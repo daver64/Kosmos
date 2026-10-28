@@ -8,6 +8,10 @@
  "camera_distance": 32,
  "retractable_gear": true,
  "gear_time": 6,
+ "rcs_modes": true,
+ "animation_controls": [
+  {"name": "Nose hatch", "property": "nose-cone", "duration": 20}
+ ],
  "inertia": [
   60000,
   80000,
@@ -297,7 +301,10 @@
     "width": 1152,
     "height": 282,
     "image": "panel/panel2.png",
-    "instruments": []
+    "instruments": [],
+    "controls": [
+     {"type": "toggle", "property": "/controls/anim/nose-cone", "label": "NOSE HATCH", "x": 40, "y": 150, "w": 120, "h": 30}
+    ]
    }
   ],
   "instruments": [
@@ -722,7 +729,10 @@
     "y": 277,
     "w": 30,
     "h": 122
-   }
+   },
+   {"type": "button", "property": "/controls/rcs-mode", "value": "off", "x": 92, "y": 196, "w": 24, "h": 18},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 113, "y": 182, "w": 24, "h": 14},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 138, "y": 196, "w": 24, "h": 18}
   ]
  }
 }

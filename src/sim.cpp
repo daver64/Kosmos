@@ -430,6 +430,12 @@ namespace kosmos
         c.pod_tilt_left = props.get_double("/controls/pod-tilt-left");
         c.pod_tilt_right = props.get_double("/controls/pod-tilt-right");
         c.rcs_mode = props.get_string("/controls/rcs-mode", "rot");
+        if (const Ship *ship = active_ship())
+            for (std::size_t i = 0; i < ship->spec().animation_controls.size(); ++i)
+            {
+                const std::string path = "/controls/anim/" + ship->spec().animation_controls[i].property;
+                c.anim.push_back(props.exists(path) ? props.get_double(path) : ship->animation_position(i));
+            }
         c.sas = props.get_string("/controls/sas", "stability");
         c.target_pitch = props.get_double("/controls/target-pitch");
         c.target_heading = props.get_double("/controls/target-heading");

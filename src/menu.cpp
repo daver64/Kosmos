@@ -1569,6 +1569,21 @@ namespace kosmos
                                     actions.show_panel(static_cast<int>(pi));
                             ImGui::EndMenu();
                         }
+                        const auto &anims = flown ? flown->spec().animation_controls : std::vector<ShipSpec::AnimationControl>();
+                        if (ImGui::BeginMenu("Animations", !anims.empty()))
+                        {
+                            for (std::size_t ai = 0; ai < anims.size(); ++ai)
+                            {
+                                const std::string path = "/controls/anim/" + anims[ai].property;
+                                const double progress = flown->animation_position(ai);
+                                bool on = (sim.props.exists(path) ? sim.props.get_double(path) : progress) > 0.5;
+                                char label[160];
+                                std::snprintf(label, sizeof label, "%s (%s)", anims[ai].name.c_str(), progress >= 0.999 ? "open" : progress <= 0.001 ? "closed" : on ? "opening" : "closing");
+                                if (ImGui::MenuItem(label, nullptr, &on))
+                                    sim.props.set_double(path, on ? 1.0 : 0.0);
+                            }
+                            ImGui::EndMenu();
+                        }
                     }
                     if (ImGui::BeginMenu("MFD modes", sim.mfd.unit_count() > 0))
                     {

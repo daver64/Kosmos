@@ -257,6 +257,17 @@ namespace kosmos
         bool rcs_modes = false;
         /** How fast an engine pod swings, in radians per second. */
         double pod_turn_rate = 0.2;
+        /**
+         * A named animation the player can trigger (the "animation_controls" list), such as a nose hatch. It runs a model
+         * animation property from 0 to 1 over `duration` seconds, chasing /controls/anim/<property> (0 or 1).
+         */
+        struct AnimationControl
+        {
+            std::string name, property;
+            double duration = 10.0;
+            double initial = 0.0;
+        };
+        std::vector<AnimationControl> animation_controls;
         /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
         bool fuel_pod = false;
         double gear_time = 6.0;
@@ -334,6 +345,8 @@ namespace kosmos
         double pod_left = 0.0, pod_right = 0.0, pod_tilt_left = 0.0, pod_tilt_right = 0.0;
         /** With an RCS mode switch: "rot" (keys rotate), "lin" (the rotation keys translate) or "off". */
         std::string rcs_mode = "rot";
+        /** Targets of the ship's animation controls, in the order of `ShipSpec::animation_controls`. */
+        std::vector<double> anim;
         /** off, stability, prograde, retrograde, radial-out, radial-in, normal, antinormal or attitude. */
         std::string sas = "stability";
         double target_pitch = 90.0, target_heading = 90.0;
@@ -406,6 +419,8 @@ namespace kosmos
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
         /** Where an engine pod points, as a fraction: 0 aft (retro), 0.5 up (hover), 1 forward. `right` picks the starboard pod. */
+        /** Progress (0 to 1) of the ship's `index`th animation control. */
+        double animation_position(std::size_t index) const { return index < anim_pos_.size() ? anim_pos_[index] : index < spec_.animation_controls.size() ? spec_.animation_controls[index].initial : 0.0; }
         double pod_angle(bool right) const { return pod_angle_[right ? 1 : 0] / 3.14159265358979; }
         int stage_count() const { return static_cast<int>(spec_.stages.size()); }
         bool crashed() const { return crashed_; }
@@ -498,6 +513,7 @@ namespace kosmos
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;
         double pod_angle_[2] = {0.0, 0.0};
+        std::vector<double> anim_pos_;
         std::vector<int> thruster_pod_;
         double attached_mass_ = 0.0;
         std::vector<std::pair<double, double>> base_grip_;

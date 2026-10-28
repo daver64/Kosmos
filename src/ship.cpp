@@ -255,6 +255,17 @@ namespace kosmos
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
             spec.pod_turn_rate = json.value("pod_turn_rate", spec.pod_turn_rate);
+            if (json.contains("animation_controls"))
+                for (const auto &ja : json["animation_controls"])
+                {
+                    ShipSpec::AnimationControl a;
+                    a.property = ja.value("property", "");
+                    a.name = ja.value("name", a.property);
+                    a.duration = std::max(0.1, ja.value("duration", a.duration));
+                    a.initial = std::clamp(ja.value("initial", 0.0), 0.0, 1.0);
+                    if (!a.property.empty())
+                        spec.animation_controls.push_back(a);
+                }
             spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
@@ -823,6 +834,18 @@ namespace kosmos
             const double step = spec_.pod_turn_rate * dt;
             pod_angle_[side] += std::clamp(target - pod_angle_[side], -step, step);
         }
+        if (anim_pos_.size() != spec_.animation_controls.size())
+        {
+            anim_pos_.clear();
+            for (const ShipSpec::AnimationControl &a : spec_.animation_controls)
+                anim_pos_.push_back(a.initial);
+        }
+        for (std::size_t i = 0; i < anim_pos_.size(); ++i)
+        {
+            const double target = i < c.anim.size() ? std::clamp(c.anim[i], 0.0, 1.0) : anim_pos_[i];
+            const double step = dt / spec_.animation_controls[i].duration;
+            anim_pos_[i] = std::clamp(anim_pos_[i] + std::clamp(target - anim_pos_[i], -step, step), 0.0, 1.0);
+        }
         sl::FlightBody &b = body();
         if (spec_.retractable_gear)
         {
@@ -1327,6 +1350,8 @@ namespace kosmos
         const auto num = [&](const char *path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
         tree.node(base + "/name")->tie_string([this] { return name; });
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
+        for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
+            tree.node(base + "/anim/" + spec_.animation_controls[i].property)->tie_double([this, i] { return animation_position(i); });
         tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });
         tree.node(base + "/pod-angle-right")->tie_double([this] { return pod_angle_[1] / 3.14159265358979; });
         tree.node(base + "/stage")->tie_int([this] { return active_stage_; });

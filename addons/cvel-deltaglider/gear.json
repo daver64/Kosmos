@@ -10,6 +10,11 @@
   {"type": "rotate", "property": "gear-position", "objects": ["LWheelOCover1", "LWheelOCover2", "LWheelOCover3", "LWheelOCover4"], "axis": [0, 0, -1], "center": [-3.658, -1.239, 3.038], "interpolation": [[0, 110], [1, 0]]},
   {"type": "rotate", "property": "gear-position", "objects": ["LWheelICover1", "LWheelICover2"], "axis": [0, 0, -1], "center": [-2.175, -1.178, 3.438], "interpolation": [[0, 0], [0.3, 90], [0.7, 90], [1, 0]]},
   {"type": "rotate", "property": "gear-position", "objects": ["RWheelOCover1", "RWheelOCover2", "RWheelOCover3", "RWheelOCover4"], "axis": [0, 0, -1], "center": [3.658, -1.239, 3.038], "interpolation": [[0, -110], [1, 0]]},
-  {"type": "rotate", "property": "gear-position", "objects": ["RWheelICover1", "RWheelICover2"], "axis": [0, 0, -1], "center": [2.175, -1.178, 3.438], "interpolation": [[0, 0], [0.3, -90], [0.7, -90], [1, 0]]}
+  {"type": "rotate", "property": "gear-position", "objects": ["RWheelICover1", "RWheelICover2"], "axis": [0, 0, -1], "center": [2.175, -1.178, 3.438], "interpolation": [[0, 0], [0.3, -90], [0.7, -90], [1, 0]]},
+  {"type": "rotate", "property": "nose-cone", "objects": ["NConeTL1", "NConeTL2"], "axis": [-0.707, -0.707, 0], "center": [-0.424, -0.066, -9.838], "interpolation": [[0, 0], [0.01, 0], [0.92, 150], [1, 150]]},
+  {"type": "rotate", "property": "nose-cone", "objects": ["NConeTR1", "NConeTR2"], "axis": [-0.707, 0.707, 0], "center": [0.424, -0.066, -9.838], "interpolation": [[0, 0], [0.02, 0], [0.925, 150], [1, 150]]},
+  {"type": "rotate", "property": "nose-cone", "objects": ["NConeBL1", "NConeBL2"], "axis": [0.707, -0.707, 0], "center": [-0.424, -0.914, -9.838], "interpolation": [[0, 0], [0.91, 150], [1, 150]]},
+  {"type": "rotate", "property": "nose-cone", "objects": ["NConeBR1", "NConeBR2"], "axis": [0.707, 0.707, 0], "center": [0.424, -0.914, -9.838], "interpolation": [[0, 0], [0.015, 0], [0.915, 150], [1, 150]]},
+  {"type": "translate", "property": "nose-cone", "objects": ["NConeDock"], "axis": [0, 0, -1], "interpolation": [[0, 0], [0.8, 0], [1, 0.06]]}
  ]
 }
