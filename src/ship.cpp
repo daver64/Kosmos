@@ -95,9 +95,11 @@ namespace kosmos
                 spec.grid = json.value("grid", "");
             }
             spec.script = json.value("script", "");
-            if (json.contains("cockpit"))
+            // A building's cockpit is its interface: either key works there.
+            const char *cockpit_key = json.contains("cockpit") || !spec.building() ? "cockpit" : "interface";
+            if (json.contains(cockpit_key))
             {
-                const nlohmann::json &jc = json["cockpit"];
+                const nlohmann::json &jc = json[cockpit_key];
                 spec.cockpit.present = true;
                 spec.cockpit.eye_set = jc.contains("eye");
                 spec.cockpit.eye = vec3(jc.value("eye", nlohmann::json()));

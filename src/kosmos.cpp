@@ -2602,6 +2602,25 @@ namespace
         return glm::mat3(glm::vec3(1.0f, 0.0f, 0.0f), up, normal);
     }
 
+    // An upright building looks out along +X with its roof at -Z; this maps a cockpit frame (nose -Z, up +Y) onto that.
+    glm::mat3 interface_frame(const kosmos::ShipSpec &spec)
+    {
+        if (spec.building() && !spec.horizontal)
+            return glm::mat3(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(-1.0f, 0.0f, 0.0f));
+        return glm::mat3(1.0f);
+    }
+
+    // The cockpit with "{ship}" in its control properties replaced by the ship's property path.
+    kosmos::Cockpit resolved_cockpit(const kosmos::Cockpit &cp, int ship_index)
+    {
+        kosmos::Cockpit out = cp;
+        const std::string root = "/ships/ship[" + std::to_string(ship_index) + "]";
+        for (kosmos::Cockpit::PanelControl &pc : out.controls)
+            if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
+                pc.property.replace(token, 6, root);
+        return out;
+    }
+
     sl::Mesh *make_screen_quad()
     {
         std::vector<sl::Vertex3D> v(4);
@@ -4746,7 +4765,7 @@ int main(int argc, char **argv)
                     sim.activate(i);
                     ship = sim.active_ship();
                     cockpit_view = true;
-                    cockpit3d = false;
+                    cockpit3d = options.cockpit3d;
                     break;
                 }
             options.enter_building.clear();
@@ -5768,8 +5787,8 @@ int main(int argc, char **argv)
         {
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
-            const kosmos::Cockpit &pcp = ship->spec().cockpit;
-            if (pcp.instruments.empty())
+            const kosmos::Cockpit pcp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
+            if (pcp.instruments.empty() && pcp.controls.empty())
             {
                 for (int side = 0; side < 2; ++side)
                     sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
@@ -6332,14 +6351,15 @@ int main(int argc, char **argv)
                 {
                     const kosmos::Cockpit &cp = other.spec().cockpit;
                     const glm::mat3 basis = cockpit_screen_basis();
+                    const glm::mat3 frame = interface_frame(other.spec());
                     sl::Material console;
                     console.tint = {38, 40, 46, 255};
                     console.cull = sl::CullMode::none;
-                    if (!cp.instruments.empty())
+                    if (!cp.instruments.empty() || !cp.controls.empty())
                     {
-                        const glm::vec3 centre = glm::vec3(cp.eye) + glm::vec3(cp.panel_pos);
+                        const glm::vec3 centre = glm::vec3(cp.eye) + frame * glm::vec3(cp.panel_pos);
                         const float pw = static_cast<float>(cp.panel_size), ph = pw * cp.panel_height / cp.panel_width;
-                        const glm::mat3 pb = panel_basis(cp);
+                        const glm::mat3 pb = frame * panel_basis(cp);
                         // The console is a slab just behind the board.
                         sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
                         if (panel_target)
@@ -6817,7 +6837,7 @@ int main(int argc, char **argv)
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
             if (down && !mfd_mouse_prev)
             {
-                const kosmos::Cockpit &cp = ship->spec().cockpit;
+                const kosmos::Cockpit cp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
                 const glm::vec3 fwd = glm::normalize(ship_rel);
                 const glm::vec3 right = glm::normalize(glm::cross(fwd, glm::vec3(up)));
                 const glm::vec3 cup = glm::cross(right, fwd);
@@ -6829,10 +6849,11 @@ int main(int argc, char **argv)
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
-                if (!cp.instruments.empty())
+                if (!cp.instruments.empty() || !cp.controls.empty())
                 {
-                    const glm::mat3 pb = panel_basis(cp);
-                    const glm::vec3 centre = glm::vec3(cp.eye) + glm::vec3(cp.panel_pos);
+                    const glm::mat3 frame = interface_frame(ship->spec());
+                    const glm::mat3 pb = frame * panel_basis(cp);
+                    const glm::vec3 centre = glm::vec3(cp.eye) + frame * glm::vec3(cp.panel_pos);
                     const float denom = glm::dot(dir_local, pb[2]);
                     const float t = std::fabs(denom) < 1e-5f ? -1.0f : glm::dot(centre - origin_local, pb[2]) / denom;
                     if (t > 0.0f)
@@ -7775,9 +7796,9 @@ int main(int argc, char **argv)
                         {
                             if (ImGui::Selectable("External", mine && chase_now))
                                 pick(si, false, false, -1, -1, 0);
-                            if (spec.cockpit.present && ImGui::Selectable(spec.cockpit.mfds || !spec.cockpit.panel.empty() ? "Cockpit (2D panel)" : "Cockpit", mine && cockpit_view && !cockpit3d && interior_cam < 0 && base_view < 0))
+                            if (spec.cockpit.present && ImGui::Selectable(spec.building() ? "Interface (2D panel)" : spec.cockpit.mfds || !spec.cockpit.panel.empty() ? "Cockpit (2D panel)" : "Cockpit", mine && cockpit_view && !cockpit3d && interior_cam < 0 && base_view < 0))
                                 pick(si, true, false, -1, -1, 0);
-                            if (spec.cockpit.present && spec.cockpit.mfds && ImGui::Selectable("Cockpit (3D, MFDs)", mine && cockpit_view && cockpit3d && interior_cam < 0 && base_view < 0))
+                            if (spec.cockpit.present && spec.cockpit.mfds && ImGui::Selectable(spec.building() ? "Interface (3D)" : "Cockpit (3D, MFDs)", mine && cockpit_view && cockpit3d && interior_cam < 0 && base_view < 0))
                                 pick(si, true, true, -1, -1, 0);
                             for (std::size_t ci = 0; ci < spec.cameras.size(); ++ci)
                                 if (ImGui::Selectable(spec.cameras[ci].name.c_str(), mine && interior_cam == static_cast<int>(ci) && base_view < 0))

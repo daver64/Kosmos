@@ -85,7 +85,15 @@
   "layout": {
    "name": "Gale habitat",
    "width": 1000,
-   "height": 300
+   "height": 300,
+   "image": "habitat_panel.png",
+   "position": [
+    0,
+    -0.1,
+    -1.5
+   ],
+   "size": 1.8,
+   "tilt": 12
   },
   "controls": [
    {
