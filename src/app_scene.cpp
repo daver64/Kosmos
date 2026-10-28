@@ -778,7 +778,17 @@ namespace kosmos::app
             exhaust_fx.draw(vis.glow, hull);
         }
         arsenal.draw_world(universe, eye_world, vis.glow);
+        // Beams run for kilometres, and the ship camera's near plane is centimetres, which leaves no depth precision at that range
+        // and cuts a beam off a couple of hundred metres out. Shots get a fresh depth buffer and a camera suited to their range.
+        if (sl::clear_depth_3d())
+        {
+            sl::Camera shot_camera = ship_camera;
+            shot_camera.near_plane = 0.5f;
+            shot_camera.far_plane = 1.0e6f;
+            sl::set_camera_3d(shot_camera);
+        }
         ship_weapons.draw(universe, eye_world, vis.quad, vis.glow_texture);
+        sl::set_camera_3d(layered ? ship_camera : camera);
         if (in_eva && arsenal.held(sim) && sl::clear_depth_3d())
         {
             sl::Camera held_camera = ship_camera;

@@ -13,6 +13,12 @@
  "max_rate": 0.6,
  "rcs_thrust": 8000,
  "drag_area": 8.0,
+ "weapons": [
+  {"name": "Nose beam", "weapon": "beam-violet", "group": "primary", "position": [0, 0, -10.5], "direction": [0, 0, -1]},
+  {"name": "Sparkle port", "weapon": "spark-green", "group": "secondary", "position": [-2.2, 0, -9.5], "direction": [0, 0, -1]},
+  {"name": "Sparkle starboard", "weapon": "spark-green", "group": "secondary", "position": [2.2, 0, -9.5], "direction": [0, 0, -1]}
+ ],
+ "shield": {"capacity": 0.5, "recharge": 0.05, "delay": 4, "colour": [170, 120, 255]},
  "camera_distance": 32,
  "cockpit": {
   "eye": [0, 0.8, -4.4],

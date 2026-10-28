@@ -1,5 +1,7 @@
 #include "ship_weapons.h"
 
+#include "weapon_sound.h"
+
 #include <algorithm>
 #include <cmath>
 #include <set>
@@ -87,8 +89,9 @@ namespace kosmos
             Spark s;
             s.body = body;
             s.position = point;
+            s.carry = carry_;
             s.velocity = velocity + random_direction() * speed * random(0.2, 1.0);
-            s.life = random(0.25, 0.9);
+            s.life = random(0.4, 1.2);
             const int *base = colour ? colour : spec.look.colour;
             if (random(0, 1) < 0.35)
                 brighten(base, 0.7, s.colour);
@@ -106,6 +109,7 @@ namespace kosmos
         Flare f;
         f.body = body;
         f.position = point;
+        f.carry = carry_;
         f.size = size;
         f.life = life;
         const int *base = colour ? colour : spec.look.colour;
@@ -121,6 +125,10 @@ namespace kosmos
         const Universe &universe = context.sim->universe;
         const double scale = spec.impact_scale;
         ++hits_;
+        {
+            const sl::FlightBody *planet = universe.world.body(body);
+            carry_ = ray.on_ship && ray.target && planet ? ray.target->body().velocity - planet->velocity : sl::dvec3(0.0);
+        }
         const sl::dvec3 up = unit(point, sl::dvec3(0, 1, 0));
         double hull_damage = damage;
         bool shielded = false;
@@ -167,8 +175,36 @@ namespace kosmos
     {
         (void)context;
         (void)arsenal;
-        add_flare(spec, body, point, (2.0 + spec.look.width * 4.0) * scale, 0.4, spec.look.light);
-        add_sparks(spec, body, point, sl::dvec3(0.0), static_cast<int>(18 + 50 * spec.look.sparkle), 45.0 * std::sqrt(scale));
+        add_flare(spec, body, point, (6.0 + spec.look.width * 10.0) * scale, 0.6, spec.look.light);
+        add_sparks(spec, body, point, sl::dvec3(0.0), static_cast<int>(10 + 14 * spec.look.sparkle), 30.0 * std::sqrt(scale));
+    }
+
+    void ShipWeapons::play_beam(const WeaponSpec &spec)
+    {
+        if (!sound_on_ || sound_gain_ < 0.02)
+            return;
+        const int key = static_cast<int>(spec.duration * 10.0 + 0.5);
+        sl::Sample *&sample = beam_samples_[key];
+        if (!sample)
+        {
+            const std::vector<std::uint8_t> wav = make_beam_wav(spec.duration, 1.0);
+            sample = sl::load_sample_from_memory(wav.data(), wav.size());
+        }
+        if (sample)
+            sl::play_sample(sample, static_cast<int>(255.0 * std::min(1.0, sound_gain_)), 128, 1000, 0);
+    }
+
+    void ShipWeapons::play_zap()
+    {
+        if (!sound_on_ || sound_gain_ < 0.02)
+            return;
+        if (!zap_sample_)
+        {
+            const std::vector<std::uint8_t> wav = make_zap_wav();
+            zap_sample_ = sl::load_sample_from_memory(wav.data(), wav.size());
+        }
+        if (zap_sample_)
+            sl::play_sample(zap_sample_, static_cast<int>(200.0 * std::min(1.0, sound_gain_)), 128, 960 + static_cast<int>(random(0, 80)), 0);
     }
 
     void ShipWeapons::fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship &ship, const ShipSpec::WeaponMount &mount, const WeaponSpec &spec, MountState &state, double dt)
@@ -182,6 +218,7 @@ namespace kosmos
         const sl::dvec3 dir = unit(ship.body().direction_to_world(mount.direction), sl::dvec3(0, 0, -1));
         const sl::dvec3 from = world - universe.position(body) + dir * 0.5;
         const sl::dvec3 vel = ship.point_velocity(world) - planet->velocity;
+        carry_ = vel;
 
         const sl::dvec3 helper = std::fabs(dir.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
         const sl::dvec3 e1 = glm::normalize(glm::cross(dir, helper)), e2 = glm::cross(dir, e1);
@@ -191,13 +228,22 @@ namespace kosmos
         {
             if (state.lock > 0.0)
                 return;
+            if (state.beam_time <= 0.0)
+            {
+                play_beam(spec);
+                add_flare(spec, body, from, spec.look.width * spec.look.glow * 3.0, 0.35, spec.look.light * 2.0);
+            }
             state.beam_time += dt;
-            if (state.beam_time > spec.max_time)
+            if (state.beam_time > spec.duration)
             {
                 state.lock = spec.cooldown;
                 state.beam_time = 0.0;
                 return;
             }
+            // A quick flare up, then a fade to nothing.
+            const double rise = std::min(1.0, state.beam_time / 0.07);
+            const double fall = std::pow(std::max(0.0, 1.0 - state.beam_time / spec.duration), 1.6);
+            const double strength = rise * fall;
             const sl::dvec3 end = from + dir * spec.range;
             const Arsenal::RayHit ray = arsenal.cast_ray(context, body, from, end, &ship);
             Segment seg;
@@ -206,10 +252,11 @@ namespace kosmos
             seg.b = ray.hit ? ray.point : end;
             seg.spec = &spec;
             seg.ended = ray.hit;
+            seg.strength = strength;
             beams_.push_back(seg);
             if (ray.hit)
             {
-                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage * dt, true);
+                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage * dt * strength, true);
                 state.effect_timer += dt;
                 if (state.effect_timer > 0.4)
                 {
@@ -221,12 +268,31 @@ namespace kosmos
             return;
         }
 
+        if (spec.fire == "volley")
+        {
+            add_flare(spec, body, from, spec.look.width * spec.look.glow * 1.5, 0.08, spec.look.light * 0.6);
+            Bolt b;
+            b.body = body;
+            b.position = from;
+            b.velocity = vel + aim_with(spec.spread) * spec.speed;
+            b.spec = &spec;
+            b.carry = vel;
+            b.owner = &ship;
+            b.life = spec.range / spec.speed;
+            if (bolts_.size() >= max_bolts)
+                bolts_.erase(bolts_.begin());
+            bolts_.push_back(b);
+            ++shots_;
+            play_zap();
+            return;
+        }
+
         if (state.cooldown > 0.0)
             return;
         state.cooldown = 1.0 / spec.rate;
         ++shots_;
         add_flare(spec, body, from, spec.look.width * spec.look.glow * 1.6, 0.12, spec.look.light * 0.8);
-        add_sparks(spec, body, from, vel, static_cast<int>(2 + 6 * spec.look.sparkle), 15.0);
+        add_sparks(spec, body, from, sl::dvec3(0.0), static_cast<int>(2 + 6 * spec.look.sparkle), 15.0);
 
         if (spec.fire == "pulse")
         {
@@ -238,6 +304,7 @@ namespace kosmos
             seg.b = ray.hit ? ray.point : end;
             seg.spec = &spec;
             seg.life = spec.duration;
+            seg.carry = vel;
             seg.ended = ray.hit;
             streaks_.push_back(seg);
             if (ray.hit)
@@ -254,6 +321,7 @@ namespace kosmos
                 const double speed = flak ? spec.speed * random(0.75, 1.0) : spec.speed;
                 b.velocity = vel + (flak ? aim_with(spec.cone) : aim_with(spec.spread)) * speed;
                 b.spec = &spec;
+                b.carry = vel;
                 b.owner = &ship;
                 b.life = flak && spec.lifetime > 0.0 ? spec.lifetime : spec.range / spec.speed;
                 b.burst = flak;
@@ -268,6 +336,71 @@ namespace kosmos
     {
         Sim &sim = *context.sim;
         beams_.clear();
+        for (std::size_t i = 0; i < bolts_.size();)
+        {
+            Bolt &b = bolts_[i];
+            const sl::dvec3 next = b.position + b.velocity * dt;
+            b.age += dt;
+            carry_ = b.carry;
+            const Arsenal::RayHit ray = arsenal.cast_ray(context, b.body, b.position, next, b.owner);
+            bool done = false;
+            if (ray.hit)
+            {
+                hit(context, arsenal, *b.spec, b.body, ray.point, ray, b.spec->ship_damage * (b.burst ? 0.25 : 1.0), false);
+                if (b.burst)
+                    burst(context, arsenal, *b.spec, b.body, ray.point, 0.5);
+                done = true;
+            }
+            else
+            {
+                b.position = next;
+                if (random(0, 1) < b.spec->look.sparkle * (b.burst || b.spec->fire == "volley" ? 0.25 : 1.0) * std::min(1.0, dt * 40.0))
+                    add_sparks(*b.spec, b.body, b.position, sl::dvec3(0.0), 1, 6.0);
+                if (b.age >= b.life)
+                {
+                    if (b.burst)
+                        burst(context, arsenal, *b.spec, b.body, b.position, 1.0);
+                    done = true;
+                }
+            }
+            if (done)
+                bolts_.erase(bolts_.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
+
+        for (std::size_t i = 0; i < streaks_.size();)
+        {
+            streaks_[i].age += real_dt;
+            streaks_[i].a += streaks_[i].carry * real_dt;
+            streaks_[i].b += streaks_[i].carry * real_dt;
+            if (streaks_[i].age >= streaks_[i].life)
+                streaks_.erase(streaks_.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
+        const double drag = std::exp(-1.2 * real_dt);
+        for (std::size_t i = 0; i < sparks_.size();)
+        {
+            Spark &s = sparks_[i];
+            s.age += real_dt;
+            s.position += (s.velocity + s.carry) * real_dt;
+            s.velocity *= drag;
+            if (s.age >= s.life)
+                sparks_.erase(sparks_.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
+        for (std::size_t i = 0; i < flares_.size();)
+        {
+            flares_[i].age += real_dt;
+            flares_[i].position += flares_[i].carry * real_dt;
+            if (flares_[i].age >= flares_[i].life)
+                flares_.erase(flares_.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
+        // New shots are made last so they are not carried a frame's travel on the frame they appear.
         std::set<const Ship *> alive;
         if (dt > 0.0)
             for (int i = 0; i < sim.ship_count(); ++i)
@@ -286,78 +419,45 @@ namespace kosmos
                     MountState &state = mounts_[{ship, static_cast<int>(m)}];
                     state.cooldown = std::max(0.0, state.cooldown - dt);
                     state.lock = std::max(0.0, state.lock - dt);
-                    if (fire_input(sim, ship, i, mount.group) > 0.5)
+                    const bool trigger = fire_input(sim, ship, i, mount.group) > 0.5;
+                    const Ship *listener = sim.active_ship();
+                    sound_gain_ = listener ? 1.0 / (1.0 + glm::length(ship->origin() - listener->origin()) / 400.0) : 1.0;
+                    if (spec->fire == "volley")
+                    {
+                        // A volley runs to its end once started, whatever the trigger does.
+                        state.volley_timer -= dt;
+                        if (state.volley_left > 0)
+                        {
+                            if (state.volley_timer <= 0.0)
+                            {
+                                fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
+                                --state.volley_left;
+                                state.volley_timer = spec->interval;
+                            }
+                        }
+                        else if (trigger && state.cooldown <= 0.0)
+                        {
+                            state.volley_left = spec->count;
+                            state.volley_timer = 0.0;
+                            state.cooldown = 1.0 / spec->rate;
+                        }
+                    }
+                    else if (spec->fire == "beam")
+                    {
+                        // A pulse runs its whole course once triggered; held down, it fires again each time it has recharged.
+                        if (state.beam_time > 0.0 || trigger)
+                            fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
+                        else
+                            state.effect_timer = 0.0;
+                    }
+                    else if (trigger)
                         fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
                     else
-                    {
-                        state.beam_time = std::max(0.0, state.beam_time - dt * spec->max_time / std::max(spec->cooldown, 0.1));
                         state.effect_timer = 0.0;
-                    }
                 }
             }
         for (auto it = mounts_.begin(); it != mounts_.end();)
             it = alive.count(it->first.first) || dt <= 0.0 ? std::next(it) : mounts_.erase(it);
-
-        for (std::size_t i = 0; i < bolts_.size();)
-        {
-            Bolt &b = bolts_[i];
-            const sl::dvec3 next = b.position + b.velocity * dt;
-            b.age += dt;
-            const Arsenal::RayHit ray = arsenal.cast_ray(context, b.body, b.position, next, b.owner);
-            bool done = false;
-            if (ray.hit)
-            {
-                hit(context, arsenal, *b.spec, b.body, ray.point, ray, b.spec->ship_damage * (b.burst ? 0.25 : 1.0), false);
-                if (b.burst)
-                    burst(context, arsenal, *b.spec, b.body, ray.point, 0.5);
-                done = true;
-            }
-            else
-            {
-                b.position = next;
-                if (random(0, 1) < b.spec->look.sparkle * std::min(1.0, dt * 40.0))
-                    add_sparks(*b.spec, b.body, b.position, sl::dvec3(0.0), 1, 6.0);
-                if (b.age >= b.life)
-                {
-                    if (b.burst)
-                        burst(context, arsenal, *b.spec, b.body, b.position, 1.0);
-                    done = true;
-                }
-            }
-            if (done)
-                bolts_.erase(bolts_.begin() + static_cast<std::ptrdiff_t>(i));
-            else
-                ++i;
-        }
-
-        for (std::size_t i = 0; i < streaks_.size();)
-        {
-            streaks_[i].age += real_dt;
-            if (streaks_[i].age >= streaks_[i].life)
-                streaks_.erase(streaks_.begin() + static_cast<std::ptrdiff_t>(i));
-            else
-                ++i;
-        }
-        const double drag = std::exp(-1.2 * real_dt);
-        for (std::size_t i = 0; i < sparks_.size();)
-        {
-            Spark &s = sparks_[i];
-            s.age += real_dt;
-            s.position += s.velocity * real_dt;
-            s.velocity *= drag;
-            if (s.age >= s.life)
-                sparks_.erase(sparks_.begin() + static_cast<std::ptrdiff_t>(i));
-            else
-                ++i;
-        }
-        for (std::size_t i = 0; i < flares_.size();)
-        {
-            flares_[i].age += real_dt;
-            if (flares_[i].age >= flares_[i].life)
-                flares_.erase(flares_.begin() + static_cast<std::ptrdiff_t>(i));
-            else
-                ++i;
-        }
     }
 
     // ---- Drawing
@@ -418,7 +518,9 @@ namespace kosmos
         m.cull = sl::CullMode::none;
         m.blend = sl::MaterialBlend::additive;
 
-        auto rel_of = [&](int body, const sl::dvec3 &p) { return to_f(universe.position(body) + p - eye_world); };
+        auto rel_of = [&](int body, const sl::dvec3 &p) {
+            return to_f(universe.position(body) + p - eye_world);
+        };
         // Wide halo, bright body and a white-hot core, so a beam reads as light even at a distance.
         auto glowing_strip = [&](const glm::vec3 &a, const glm::vec3 &b, const WeaponLook &look, double strength) {
             const float distance = std::min(glm::length(a), glm::length(b));
@@ -439,7 +541,7 @@ namespace kosmos
         auto round_glow = [&](const glm::vec3 &at, float size, const int colour[3], double alpha) {
             if (glm::length(at) < 0.5f)
                 return;
-            const float floor_size = glm::length(at) * 0.004f;
+            const float floor_size = glm::length(at) * 0.009f;
             m.texture = glow;
             m.tint = tint_of(colour, alpha);
             sl::draw_mesh(quad, facing_basis(at, std::max(size, floor_size)), m);
@@ -447,12 +549,25 @@ namespace kosmos
 
         for (const Segment &s : beams_)
         {
-            const glm::vec3 a = rel_of(s.body, s.a), b = rel_of(s.body, s.b);
+            const glm::vec3 a = rel_of(s.body, s.a);
+            glm::vec3 b = rel_of(s.body, s.b);
             const double flicker = 0.9 + 0.1 * std::sin(a.x * 3.1 + a.z * 1.7 + b.y);
-            glowing_strip(a, b, s.spec->look, flicker);
-            round_glow(a, static_cast<float>(s.spec->look.width * s.spec->look.glow * 1.4), s.spec->look.colour, 0.8);
+            // A beam that met nothing runs on past its range and fades away, so in perspective it dies into the distance rather
+            // than stopping square. Pieces are cut so each is as wide as its distance calls for.
+            const float reach = s.ended ? 1.0f : 20.0f;
+            const glm::vec3 far_end = a + (b - a) * reach;
+            const int pieces = 40;
+            for (int k = 0; k < pieces; ++k)
+            {
+                const float s0 = std::pow(static_cast<float>(k) / pieces, 3.0f), s1 = std::pow(static_cast<float>(k + 1) / pieces, 3.0f);
+                const float mid = 0.5f * (s0 + s1);
+                const float fade = s.ended ? 1.0f : 1.0f - std::clamp((mid - 0.04f) / 0.06f, 0.0f, 1.0f);
+                if (fade > 0.01f)
+                    glowing_strip(a + (far_end - a) * s0, a + (far_end - a) * s1, s.spec->look, flicker * fade * fade * s.strength);
+            }
+            round_glow(a, static_cast<float>(s.spec->look.width * s.spec->look.glow * 1.4), s.spec->look.colour, 0.8 * s.strength);
             if (s.ended)
-                round_glow(b, static_cast<float>(s.spec->look.width * s.spec->look.glow * 2.2), s.spec->look.colour, 0.9);
+                round_glow(b, static_cast<float>(s.spec->look.width * s.spec->look.glow * 2.2), s.spec->look.colour, 0.9 * s.strength);
         }
         for (const Segment &s : streaks_)
         {
@@ -467,11 +582,16 @@ namespace kosmos
             const WeaponLook &look = b.spec->look;
             const sl::dvec3 dir = unit(b.velocity, sl::dvec3(0, 0, -1));
             const double length = b.burst ? look.length * 0.4 : look.length;
-            const glm::vec3 head = rel_of(b.body, b.position), tail = rel_of(b.body, b.position - dir * length);
-            if (glm::length(head) > 60000.0f)
-                continue;
-            glowing_strip(tail, head, look, 1.0);
-            round_glow(head, static_cast<float>(look.width * look.glow * 1.3 * (b.burst ? 0.6 : 1.0)), look.colour, 0.9);
+            const glm::vec3 head = rel_of(b.body, b.position);
+            const double on_screen = glm::length(head) * 0.05;
+            const glm::vec3 tail = rel_of(b.body, b.position - dir * std::max(length, on_screen));
+            WeaponLook trail = look;
+            trail.glow = std::min(trail.glow, 2.2);
+            glowing_strip(tail, head, trail, 0.9);
+            round_glow(head, static_cast<float>(look.width * look.glow * 1.6), look.colour, 0.8 + 0.2 * std::sin(b.age * 70.0 + head.x));
+            int hot[3];
+            brighten(look.colour, 0.8, hot);
+            round_glow(head, static_cast<float>(look.width * look.glow * 0.6), hot, 1.0);
         }
         for (const Flare &f : flares_)
         {
@@ -491,12 +611,12 @@ namespace kosmos
         for (const Spark &s : sparks_)
         {
             const double fade = 1.0 - s.age / std::max(s.life, 1.0e-3);
-            const glm::vec3 a = rel_of(s.body, s.position), b = rel_of(s.body, s.position - unit(s.velocity, sl::dvec3(0, 1, 0)) * std::min(glm::length(s.velocity) * 0.04, 4.0));
+            const glm::vec3 a = rel_of(s.body, s.position), b = rel_of(s.body, s.position - unit(s.velocity, sl::dvec3(0, 1, 0)) * std::max(std::min(glm::length(s.velocity) * 0.04, 4.0), static_cast<double>(glm::length(a)) * 0.006));
             m.texture = beam_texture_;
             m.tint = tint_of(s.colour, fade);
-            const float width = std::max(s.size, glm::length(a) * 0.002f);
+            const float width = std::max(s.size * 2.0f, glm::length(a) * 0.004f);
             sl::draw_mesh(quad, strip_basis(a, b, width), m);
-            round_glow(a, width * 1.6f, s.colour, 0.6 * fade);
+            round_glow(a, width * 2.0f, s.colour, 0.3 * fade);
         }
     }
 
@@ -539,7 +659,7 @@ namespace kosmos
                 add(s.body, (s.a + s.b) * 0.5, look.colour, look.light * 0.6 * strength, look.light_range);
         };
         for (const Segment &s : beams_)
-            along(s, 1.0);
+            along(s, s.strength);
         for (const Segment &s : streaks_)
         {
             const double fade = 1.0 - s.age / std::max(s.life, 1.0e-3);

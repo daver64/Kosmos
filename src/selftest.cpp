@@ -151,7 +151,7 @@ namespace kosmos
                 }
             };
             check(!ship->spec().weapons.empty(), "the flown ship has weapon mounts");
-            check(sim.weapon_specs.find("neon-beam") && sim.weapon_specs.find("sparkle-flak"), "weapon definitions load from the addon");
+            check(sim.weapon_specs.find("beam-red") && sim.weapon_specs.find("beam-violet") && sim.weapon_specs.find("spark-red") && sim.weapon_specs.find("spark-violet"), "four beam and four sparkle weapons load");
             Ship *target = sim.spawn(ship->spec());
             const sl::dvec3 forward = glm::normalize(ship->body().direction_to_world(sl::dvec3(0, 0, -1)));
             target->body().position = ship->body().position + forward * 400.0;
@@ -162,7 +162,7 @@ namespace kosmos
             check(capacity > 0.0 && target->shield_level() >= capacity - 1.0e-9, "target starts with a full shield");
 
             sim.props.set_double("/controls/weapons/primary/fire", 1.0);
-            run(2.0);
+            run(0.8);
             check(weapons.live_beams() > 0, "beam is drawn while firing");
             check(weapons.hits() > 0, "beam hits the target");
             check(target->shield_level() < capacity, "shield drains first");
@@ -178,18 +178,18 @@ namespace kosmos
 
             target->absorb(10.0);
             check(target->shield_level() <= 0.0, "shield can be emptied");
-            run(1.5);
+            run(3.0);
             check(target->health() < 1.0, "hull takes damage once the shield is down");
 
             sim.props.set_double("/controls/weapons/primary/fire", 0.0);
             sim.props.set_double("/controls/weapons/secondary/fire", 1.0);
             run(0.6);
-            check(weapons.shots_fired() > 0 && weapons.live_bolts() > 0, "flak salvo is in flight");
+            check(weapons.shots_fired() > 0 && weapons.live_bolts() > 0, "sparkle volley is in flight");
             sim.props.set_double("/controls/weapons/secondary/fire", 0.0);
             run(1.5);
-            check(weapons.live_sparks() > 0 || weapons.live_bolts() == 0, "flak bursts into sparks");
+            check(weapons.live_sparks() > 0 || weapons.live_bolts() == 0, "sparkle shots end in sparks");
             run(10.0);
-            check(weapons.live_bolts() == 0 && weapons.live_beams() == 0, "everything ends when the trigger is released");
+            check(weapons.live_bolts() == 0 && weapons.live_beams() == 0, "everything ends after the pulse and volley");
             return failures ? 1 : 0;
         }
     } // namespace

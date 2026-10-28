@@ -26,8 +26,8 @@ namespace kosmos
             w.id = j.value("id", "");
             w.name = j.value("name", w.id);
             w.fire = j.value("fire", w.fire);
-            if (w.fire != "pulse" && w.fire != "beam" && w.fire != "bolt" && w.fire != "flak")
-                throw std::runtime_error("weapon '" + w.id + "': fire must be pulse, beam, bolt or flak");
+            if (w.fire != "pulse" && w.fire != "beam" && w.fire != "bolt" && w.fire != "flak" && w.fire != "volley")
+                throw std::runtime_error("weapon '" + w.id + "': fire must be pulse, beam, bolt, flak or volley");
             w.rate = std::clamp(j.value("rate", w.rate), 0.05, 60.0);
             w.ship_damage = std::max(0.0, j.value("ship_damage", w.ship_damage));
             w.range = std::clamp(j.value("range", w.range), 10.0, 5.0e6);
@@ -35,8 +35,10 @@ namespace kosmos
             w.spread = std::clamp(j.value("spread", w.spread), 0.0, 0.5);
             w.count = std::clamp(j.value("count", w.count), 1, 64);
             w.cone = std::clamp(j.value("cone", w.cone), 0.0, 1.0);
-            w.duration = std::clamp(j.value("duration", w.duration), 0.02, 5.0);
-            w.max_time = std::max(0.1, j.value("max_time", w.max_time));
+            if (w.fire == "beam" && !j.contains("duration"))
+                w.duration = 1.5;
+            w.duration = std::clamp(j.value("duration", w.duration), 0.02, 10.0);
+            w.interval = std::clamp(j.value("interval", w.interval), 0.01, 2.0);
             w.cooldown = std::max(0.0, j.value("cooldown", w.cooldown));
             w.lifetime = std::max(0.0, j.value("lifetime", w.lifetime));
             w.impact = j.value("impact", w.impact);

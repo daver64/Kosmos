@@ -138,6 +138,7 @@ namespace kosmos::app
             arsenal.release(arsenal_ctx, *ship, options.selftest_drop_atom ? static_cast<int>(ship->spec().hardpoints.size()) - 1 : -1);
         }
         arsenal.set_sound(sound_on);
+        ship_weapons.set_sound(sound_on);
         arsenal.update(arsenal_ctx, frame * std::min(sim.current_warp(), 4.0), frame);
         if (!typing)
         {

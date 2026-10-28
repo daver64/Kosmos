@@ -64,6 +64,7 @@ add_executable(kosmos
     src/weapon_specs.cpp
     src/ship_weapons.cpp
     src/blast_sound.cpp
+    src/weapon_sound.cpp
     src/settings.cpp
     src/keybindings.cpp
     src/link/link_server.cpp

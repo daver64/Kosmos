@@ -23,8 +23,9 @@ namespace kosmos
 
     /**
      * A weapon a ship can mount (see `weapons` in ship.json), read from `<addon>/weapons/*.json`.
-     * `fire` is "pulse" (an instant ray drawn as a short-lived streak), "beam" (a ray held while firing), "bolt" (a glowing projectile)
-     * or "flak" (a burst of small bolts that scatter sparks where they end).
+     * `fire` is "pulse" (an instant ray drawn as a short-lived streak), "beam" (a ray that flares and fades out, then recharges), "bolt" (a glowing projectile)
+     * or "flak" (a burst of small bolts that scatter sparks where they end)
+     * or "volley" (`count` bolts fired one after another from a single trigger pull).
      */
     struct WeaponSpec
     {
@@ -41,8 +42,10 @@ namespace kosmos
         double cone = 0.06;
         /** Pulse: seconds the streak stays visible. */
         double duration = 0.25;
-        /** Beam: seconds it may be held before it overheats, and the seconds it then takes to cool. */
-        double max_time = 4.0, cooldown = 3.0;
+        /** Beam: `duration` is how long one pulse lasts (it flares, then fades to nothing); `cooldown` is the recharge before the next. */
+        double cooldown = 2.0;
+        /** Volley: seconds between the `count` shots of one trigger pull. */
+        double interval = 0.06;
         /** Flak: seconds a burst bolt flies before it bursts; 0 uses range over speed. */
         double lifetime = 0.0;
         /** "spark", "plasma" or "explosion": what a hit leaves besides sparks and a flare. */

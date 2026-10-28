@@ -1,0 +1,132 @@
+{
+ "weapons": [
+  {
+   "id": "spark-red",
+   "name": "Red sparkles",
+   "fire": "volley",
+   "rate": 1.2,
+   "ship_damage": 0.004,
+   "range": 400,
+   "speed": 500,
+   "count": 6,
+   "impact": "spark",
+   "impact_scale": 0.4,
+   "look": {
+    "colour": [
+     255,
+     40,
+     30
+    ],
+    "core": [
+     255,
+     200,
+     180
+    ],
+    "width": 0.09,
+    "glow": 7,
+    "length": 4,
+    "sparkle": 0.5,
+    "light": 2,
+    "light_range": 80
+   },
+   "interval": 0.06,
+   "spread": 0.006
+  },
+  {
+   "id": "spark-yellow",
+   "name": "Yellow sparkles",
+   "fire": "volley",
+   "rate": 1.4,
+   "ship_damage": 0.008,
+   "range": 500,
+   "speed": 500,
+   "count": 6,
+   "impact": "spark",
+   "impact_scale": 0.6,
+   "look": {
+    "colour": [
+     255,
+     200,
+     30
+    ],
+    "core": [
+     255,
+     250,
+     200
+    ],
+    "width": 0.09,
+    "glow": 7,
+    "length": 4,
+    "sparkle": 0.5,
+    "light": 3,
+    "light_range": 120
+   },
+   "interval": 0.06,
+   "spread": 0.006
+  },
+  {
+   "id": "spark-green",
+   "name": "Green sparkles",
+   "fire": "volley",
+   "rate": 1.6,
+   "ship_damage": 0.014,
+   "range": 650,
+   "speed": 500,
+   "count": 6,
+   "impact": "explosion",
+   "impact_scale": 0.8,
+   "look": {
+    "colour": [
+     50,
+     255,
+     110
+    ],
+    "core": [
+     225,
+     255,
+     235
+    ],
+    "width": 0.09,
+    "glow": 7,
+    "length": 4,
+    "sparkle": 0.5,
+    "light": 4,
+    "light_range": 160
+   },
+   "interval": 0.06,
+   "spread": 0.006
+  },
+  {
+   "id": "spark-violet",
+   "name": "Violet sparkles",
+   "fire": "volley",
+   "rate": 1.8,
+   "ship_damage": 0.024,
+   "range": 850,
+   "speed": 500,
+   "count": 6,
+   "impact": "explosion",
+   "impact_scale": 1.1,
+   "look": {
+    "colour": [
+     170,
+     70,
+     255
+    ],
+    "core": [
+     245,
+     225,
+     255
+    ],
+    "width": 0.09,
+    "glow": 7,
+    "length": 4,
+    "sparkle": 0.5,
+    "light": 6,
+    "light_range": 240
+   },
+   "interval": 0.06,
+   "spread": 0.006
+  }
+ ]
+}

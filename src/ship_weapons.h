@@ -21,6 +21,7 @@ namespace kosmos
     public:
         ~ShipWeapons();
 
+        void set_sound(bool on) { sound_on_ = on; }
         /** Forget everything: new scenario. */
         void reset();
         /** Fire, move and age everything by `dt` seconds of simulated time (`real_dt` for the sparks and flashes). */
@@ -43,20 +44,21 @@ namespace kosmos
     private:
         struct MountState
         {
-            double cooldown = 0.0, beam_time = 0.0, lock = 0.0, effect_timer = 0.0;
+            double cooldown = 0.0, beam_time = 0.0, lock = 0.0, effect_timer = 0.0, volley_timer = 0.0;
+            int volley_left = 0;
         };
         struct Segment
         {
             int body = -1;
-            sl::dvec3 a{0.0}, b{0.0};
+            sl::dvec3 a{0.0}, b{0.0}, carry{0.0};
             const WeaponSpec *spec = nullptr;
-            double age = 0.0, life = 0.0;
+            double age = 0.0, life = 0.0, strength = 1.0;
             bool ended = false;
         };
         struct Bolt
         {
             int body = -1;
-            sl::dvec3 position{0.0}, velocity{0.0};
+            sl::dvec3 position{0.0}, velocity{0.0}, carry{0.0};
             const WeaponSpec *spec = nullptr;
             Ship *owner = nullptr;
             double age = 0.0, life = 1.0;
@@ -65,7 +67,7 @@ namespace kosmos
         struct Spark
         {
             int body = -1;
-            sl::dvec3 position{0.0}, velocity{0.0};
+            sl::dvec3 position{0.0}, velocity{0.0}, carry{0.0};
             double age = 0.0, life = 0.5;
             int colour[3] = {255, 255, 255};
             float size = 0.2f;
@@ -73,13 +75,15 @@ namespace kosmos
         struct Flare
         {
             int body = -1;
-            sl::dvec3 position{0.0};
+            sl::dvec3 position{0.0}, carry{0.0};
             double age = 0.0, life = 0.3, size = 3.0;
             int colour[3] = {255, 255, 255};
             float light = 0.0f, range = 0.0f;
             bool shield = false;
         };
 
+        // Velocity (relative to the planet) of whatever the effects being added belong to, so they ride along with it.
+        sl::dvec3 carry_{0.0};
         void fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship &ship, const ShipSpec::WeaponMount &mount, const WeaponSpec &spec, MountState &state, double dt);
         void hit(ArsenalContext &context, Arsenal &arsenal, const WeaponSpec &spec, int body, const sl::dvec3 &point, const Arsenal::RayHit &ray, double damage, bool tick);
         void burst(ArsenalContext &context, Arsenal &arsenal, const WeaponSpec &spec, int body, const sl::dvec3 &point, double scale);
@@ -87,6 +91,12 @@ namespace kosmos
         void add_flare(const WeaponSpec &spec, int body, const sl::dvec3 &point, double size, double life, double light, bool shield = false, const int *colour = nullptr);
 
         std::map<std::pair<const Ship *, int>, MountState> mounts_;
+        bool sound_on_ = false;
+        std::map<int, sl::Sample *> beam_samples_;
+        sl::Sample *zap_sample_ = nullptr;
+        double sound_gain_ = 1.0;
+        void play_beam(const WeaponSpec &spec);
+        void play_zap();
         std::vector<Segment> beams_, streaks_;
         std::vector<Bolt> bolts_;
         std::vector<Spark> sparks_;
