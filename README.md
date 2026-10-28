@@ -4,13 +4,17 @@ An Orbiter/Kerbal-style space simulator built on simlib. Fly from a launch pad t
 
 ## Build and run
 
-Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) (`cmake --install` of rsimlib; no version is pinned, so keep it up to date). Needs a C++17 compiler, CMake 3.28+, Ninja and simlib's dependencies.
+Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) (`cmake --install` of rsimlib; pinned to the commit in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it, and the pin is only moved after simlib itself changes). Needs a C++17 compiler, CMake 3.28+, Ninja and simlib's dependencies.
 
     cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/opt
     cmake --build build --target kosmos
     ./build/kosmos [options]
 
 Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source checkout instead.
+
+### Tests
+
+`sh scripts/run-tests.sh` builds and runs everything: the unit tests (`systems_test`, `weather_test`, `joystick_test`, `equipment_test`, which also checks that every locker and hardpoint in the addons names real equipment) and two headless selftests. `kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal` checks the pack, pistol, plasma rifle, thrown charges, blast damage and the bomb rack. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.
 
 ## Launcher
 

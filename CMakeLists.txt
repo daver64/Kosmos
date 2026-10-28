@@ -61,6 +61,19 @@ add_executable(kosmos
     src/ship.cpp
     src/equipment.cpp
     src/ordnance.cpp
+    src/blast_sound.cpp
+    src/settings.cpp
+    src/app.cpp
+    src/multiplayer_ui.cpp
+    src/cockpit_panels.cpp
+    src/ship_visuals.cpp
+    src/body_terrain.cpp
+    src/loading_screen.cpp
+    src/surface_textures.cpp
+    src/scenario_start.cpp
+    src/procedural.cpp
+    src/selftest.cpp
+    src/engine_sound.cpp
     src/systems.cpp
     src/part_kit.cpp
     src/blender_edit.cpp
@@ -118,6 +131,12 @@ add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(weather_test PRIVATE src)
 target_compile_definitions(weather_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
+# Equipment loader, blast falloff and the shipped equipment data: cmake --build build --target equipment_test && build/equipment_test
+add_executable(equipment_test EXCLUDE_FROM_ALL tests/equipment_test.cpp src/equipment.cpp)
+target_link_libraries(equipment_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(equipment_test PRIVATE src)
+target_compile_definitions(equipment_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(joystick_test EXCLUDE_FROM_ALL tests/joystick_test.cpp src/joystick.cpp)
 target_link_libraries(joystick_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

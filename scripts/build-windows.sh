@@ -21,6 +21,8 @@ VCPKG=${VCPKG:-$HOME/vcpkg-mingw}
 TRIPLETS=${TRIPLETS:-$HOME/mingw-triplets}
 SIMLIB_PREFIX=${SIMLIB_PREFIX:-$HOME/opt-win}
 
+sh "$SRC/scripts/check-simlib.sh"
+
 cmake -S "$SRC" -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release -DKOSMOS_BUILD_JOBS="$JOBS" \
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$TRIPLETS/mingw-posix.cmake \

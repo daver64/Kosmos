@@ -2,6 +2,7 @@
 
 #include "universe.h"
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <vector>
@@ -102,6 +103,12 @@ namespace kosmos
     private:
         std::vector<EquipmentSpec> items_;
     };
+
+    /** How much of a blast's damage reaches `distance` metres from the centre: 1 at the centre, fading linearly to 0 at `radius`. */
+    inline double blast_fraction(double distance, double radius)
+    {
+        return radius <= 0.0 ? 0.0 : 1.0 - std::clamp(distance / radius, 0.0, 1.0);
+    }
 
     /** An entry in somebody's pockets or on a rack. */
     struct Stack

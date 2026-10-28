@@ -1,7 +1,7 @@
 {
  "name": "CVEL Vulcan",
  "class": "aircraft",
- "locker": ["plasma_rifle"],
+ "locker": ["plasma_rifle", "frag_charge"],
  "hardpoints": [
   {"name": "Bomb bay", "equipment": "bomb", "count": 21, "position": [0, -1.4, 0]},
   {"name": "Special store", "equipment": "fatman", "count": 1, "position": [0, -1.8, 2]}

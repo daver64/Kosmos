@@ -19,6 +19,8 @@ SRC=$(cd "$(dirname "$0")/.." && pwd)
 OUT=${OUT:-$SRC/build}
 SIMLIB_PREFIX=${SIMLIB_PREFIX:-$HOME/opt}
 
+sh "$SRC/scripts/check-simlib.sh"
+
 cmake -S "$SRC" -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release -DKOSMOS_BUILD_JOBS="$JOBS" \
   -DCMAKE_PREFIX_PATH="$SIMLIB_PREFIX" \
   ${KOSMOS_SIMLIB_DIR:+-DKOSMOS_SIMLIB_DIR=$KOSMOS_SIMLIB_DIR}
