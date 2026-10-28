@@ -47,6 +47,9 @@ namespace kosmos
         /** The field of a body, created on demand; null when it has no atmosphere. */
         const WeatherField *field(const Universe &universe, int body);
 
+        /** The conditions at any place and height (degrees, metres above the ground), as the flown ship would see them; false when the body has no atmosphere or weather is off. */
+        bool at(const Universe &universe, int body, double latitude, double longitude, double altitude, Conditions &out);
+
         /** True while Earth is showing real observations. */
         bool live() const { return live_applied_; }
         std::string live_status() const;

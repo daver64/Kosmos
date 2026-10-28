@@ -129,6 +129,7 @@ namespace kosmos::app
         menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
         {
             vis.clear_parts();
+            link_scenario = sc.id;
             // A scenario belongs to one star system (Sol unless it names another): go there first.
             {
                 const int star = sc.system.empty() ? 0 : sim.galaxy.find(sc.system);

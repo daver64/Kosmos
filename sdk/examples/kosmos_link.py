@@ -1,12 +1,13 @@
-"""A pure-Python KosmosLink client (protocol version 1). One file, standard library only."""
+"""A pure-Python KosmosLink client (protocol version 2). One file, standard library only."""
 import os
 import socket
 import struct
 import time
 
-CAP_READ, CAP_CONTROLS, CAP_WRITE, CAP_SPAWN, CAP_DRAW, CAP_KEYS = 1, 2, 4, 8, 16, 32
+CAP_READ, CAP_CONTROLS, CAP_WRITE, CAP_SPAWN, CAP_DRAW, CAP_KEYS, CAP_WORLD = 1, 2, 4, 8, 16, 32, 64
 (HELLO, SUBSCRIBE, UNSUBSCRIBE, GET, SET, DEFINE_KEY, SPAWN, RELEASE, GIVE, DEFINE_MFD, DRAW, LOG, PING) = range(1, 14)
-WELCOME, ERROR, VALUE, EVENT, OK, PONG = 101, 102, 103, 104, 105, 106
+(WEATHER_AT, SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, LIST_SHIPS, REMOVE_SHIP, PLACE_SHIP, LIST_FACILITIES) = range(14, 22)
+WELCOME, ERROR, VALUE, EVENT, OK, PONG, WEATHER, SHIP_LIST, FACILITY_LIST = 101, 102, 103, 104, 105, 106, 107, 108, 109
 LINE, RECT, FILLRECT, CIRCLE, DISC, TRI, TEXT, IMAGE = range(8)
 
 
@@ -59,7 +60,7 @@ class Link:
         self.next_id = 1
         self.on_value = None  # f(path, value)
         self.on_event = None  # f(name, argument)
-        payload = struct.pack("<H", 1) + _str(addon_id) + _str(name) + _str(version) \
+        payload = struct.pack("<H", 2) + _str(addon_id) + _str(name) + _str(version) \
             + _str(token or os.environ.get("KOSMOS_LINK_TOKEN", "")) + struct.pack("<I", capabilities)
         kind, r = self._request(HELLO, payload)
         r.take("H")
@@ -152,3 +153,68 @@ class Link:
 
     def log(self, text):
         self._send(LOG, _str(text))
+
+    # ---- Protocol 2
+
+    def weather_at(self, latitude, longitude, altitude=0.0, body=""):
+        """Weather at a place (altitude in metres above the ground; body "" is the flown ship's). Returns a dict."""
+        _, r = self._request(WEATHER_AT, _str(body) + struct.pack("<ddd", latitude, longitude, altitude))
+        keys = ("wind_east", "wind_north", "wind_speed", "wind_from", "gust", "rain", "thunder", "cloud_cover",
+                "cloud_base", "cloud_top", "visibility", "temperature", "pressure")
+        out = {k: r.take("d") for k in keys}
+        out["station"], out["metar"] = r.str(), r.str()
+        return out
+
+    def set_weather(self, mode, arg=""):
+        """mode: "metar" (arg is a METAR line), "preset" (arg is a preset id) or "auto". Needs CAP_WORLD."""
+        self._request(SET_WEATHER, _str(mode) + _str(arg))
+
+    def subscribe_event(self, name):
+        """Asks for an opt-in event: pause, warp, scenario, soi, crash, touchdown, weather, ships or tick."""
+        self._request(SUBSCRIBE_EVENT, _str(name))
+
+    def unsubscribe_event(self, name):
+        self._request(UNSUBSCRIBE_EVENT, _str(name))
+
+    def ships(self, radius=0.0, buildings=False):
+        """Ships within radius metres of the flown one (0: all), as a list of dicts. flags: 1 flown, 2 landed, 4 crashed, 8 spawned by a link."""
+        _, r = self._request(LIST_SHIPS, struct.pack("<dB", radius, buildings))
+        out = []
+        for _ in range(r.take("I")):
+            s = {"index": r.take("I"), "name": r.str(), "body": r.str()}
+            for k in ("latitude", "longitude", "altitude", "heading", "speed", "vertical_speed", "distance"):
+                s[k] = r.take("d")
+            s["flags"] = r.take("B")
+            out.append(s)
+        return out
+
+    def remove_ship(self, index):
+        """Deletes a ship an addon spawned. Needs CAP_WORLD."""
+        self._request(REMOVE_SHIP, struct.pack("<I", index))
+
+    def place_ship(self, index, latitude, longitude, altitude=0.0, heading=0.0, speed=0.0, body=""):
+        """Moves a ship; altitude 0 puts it on the ground. Needs CAP_WORLD."""
+        self._request(PLACE_SHIP, struct.pack("<I", index) + _str(body) + struct.pack("<5d", latitude, longitude, altitude, heading, speed))
+
+    def facilities(self, latitude, longitude, radius_km=0.0, kind="", body="", limit=100):
+        """Bases near a point, nearest first, as a list of dicts with runways and navaids."""
+        _, r = self._request(LIST_FACILITIES, _str(kind) + _str(body) + struct.pack("<dddH", latitude, longitude, radius_km, limit))
+        out = []
+        for _ in range(r.take("I")):
+            f = {"id": r.str(), "name": r.str(), "icao": r.str(), "body": r.str()}
+            for k in ("latitude", "longitude", "elevation", "heading", "distance"):
+                f[k] = r.take("d")
+            f["runways"], f["navaids"] = [], []
+            for _ in range(r.take("H")):
+                rw = {"name": r.str()}
+                for k in ("latitude", "longitude", "heading", "length", "width"):
+                    rw[k] = r.take("d")
+                rw["ils"] = [r.take("d") for _ in range(r.take("B"))]
+                f["runways"].append(rw)
+            for _ in range(r.take("H")):
+                nv = {"type": r.str(), "id": r.str(), "name": r.str()}
+                for k in ("latitude", "longitude", "frequency", "range"):
+                    nv[k] = r.take("d")
+                f["navaids"].append(nv)
+            out.append(f)
+        return out

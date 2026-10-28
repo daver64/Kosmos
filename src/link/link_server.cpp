@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
+#include <iterator>
 
 namespace kosmos::link
 {
@@ -30,6 +32,10 @@ namespace kosmos::link
             return !id.empty() && id.size() <= 48 && std::all_of(id.begin(), id.end(), [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; });
         }
 
+        const char *const opt_in_events[] = {"pause", "warp", "scenario", "soi", "crash", "touchdown", "weather", "ships", "tick"};
+
+        bool opt_in(const std::string &name) { return std::find(std::begin(opt_in_events), std::end(opt_in_events), name) != std::end(opt_in_events); }
+
         bool starts_with(const std::string &s, const std::string &prefix) { return s.compare(0, prefix.size(), prefix) == 0; }
     } // namespace
 
@@ -52,6 +58,7 @@ namespace kosmos::link
         std::uint32_t requested = 0, granted = 0;
         std::vector<Subscription> subscriptions;
         std::vector<std::string> keys_defined;
+        std::vector<std::string> events;
     };
 
     LinkServer::LinkServer(sl::PropertyTree &props, LinkHost &host, LinkPolicy *policy) : props_(props), host_(host), policy_(policy) {}
@@ -192,7 +199,7 @@ namespace kosmos::link
             c.requested = r.u32() & cap_all;
             if (!r.ok() || c.hello)
                 return bad();
-            if (version != protocol_version)
+            if (version < min_protocol_version || version > protocol_version)
             {
                 reply_error(c, f.request, err_version, "protocol version " + std::to_string(version) + " is not supported; Kosmos speaks " + std::to_string(protocol_version));
                 c.dead = true;
@@ -404,6 +411,142 @@ namespace kosmos::link
             page->second.drawn = true;
             break;
         }
+        case msg_weather_at:
+        {
+            const std::string body = r.str();
+            const double lat = r.f64(), lon = r.f64(), alt = r.f64();
+            if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || std::fabs(lat) > 90.0)
+                return bad();
+            if (!need(cap_read, "reading the weather"))
+                return;
+            WeatherInfo info;
+            std::string station, metar;
+            const std::string error = host_.weather_at(body, lat, lon, alt, info, station, metar);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            Writer w(msg_weather, f.request);
+            w.f64(info.wind_east).f64(info.wind_north).f64(info.wind_speed).f64(info.wind_from).f64(info.gust).f64(info.rain).f64(info.thunder);
+            w.f64(info.cloud_cover).f64(info.cloud_base).f64(info.cloud_top).f64(info.visibility).f64(info.temperature).f64(info.pressure);
+            w.str(station).str(metar);
+            send(c, w.finish());
+            break;
+        }
+        case msg_set_weather:
+        {
+            const std::string mode = r.str(), arg = r.str();
+            if (!r.ok() || (mode != "metar" && mode != "preset" && mode != "auto") || arg.size() > 512)
+                return bad();
+            if (!need(cap_world, "changing the weather"))
+                return;
+            const std::string error = host_.set_weather(mode, arg);
+            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            break;
+        }
+        case msg_subscribe_event:
+        case msg_unsubscribe_event:
+        {
+            const std::string name = r.str();
+            if (!r.ok() || !opt_in(name))
+                return bad();
+            if (!need(cap_read, "receiving events"))
+                return;
+            auto it = std::find(c.events.begin(), c.events.end(), name);
+            if (f.type == msg_subscribe_event && it == c.events.end())
+                c.events.push_back(name);
+            else if (f.type == msg_unsubscribe_event && it != c.events.end())
+                c.events.erase(it);
+            reply_ok(c, f.request, 0);
+            break;
+        }
+        case msg_list_ships:
+        {
+            const double radius = r.f64();
+            const std::uint8_t flags = r.u8();
+            if (!r.ok() || !std::isfinite(radius) || radius < 0.0)
+                return bad();
+            if (!need(cap_read, "listing ships"))
+                return;
+            std::vector<ShipInfo> ships;
+            const std::string error = host_.list_ships(radius, (flags & 1) != 0, ships);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            if (ships.size() > 2000)
+                ships.resize(2000);
+            Writer w(msg_ship_list, f.request);
+            w.u32(static_cast<std::uint32_t>(ships.size()));
+            for (const ShipInfo &s : ships)
+            {
+                w.u32(s.index).str(s.name).str(s.body).f64(s.latitude).f64(s.longitude).f64(s.altitude).f64(s.heading).f64(s.speed).f64(s.vertical_speed).f64(s.distance).u8(s.flags);
+            }
+            send(c, w.finish());
+            break;
+        }
+        case msg_remove_ship:
+        {
+            const std::uint32_t index = r.u32();
+            if (!r.ok())
+                return bad();
+            if (!need(cap_world, "removing ships"))
+                return;
+            const std::string error = host_.remove_ship(index);
+            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            break;
+        }
+        case msg_place_ship:
+        {
+            const std::uint32_t index = r.u32();
+            const std::string body = r.str();
+            const double lat = r.f64(), lon = r.f64(), alt = r.f64(), heading = r.f64(), speed = r.f64();
+            if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || !std::isfinite(heading) || !std::isfinite(speed) || std::fabs(lat) > 90.0 || speed < 0.0)
+                return bad();
+            if (!need(cap_world, "placing ships"))
+                return;
+            const std::string error = host_.place_ship(index, body, lat, lon, alt, heading, speed);
+            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            break;
+        }
+        case msg_list_facilities:
+        {
+            const std::string kind = r.str(), body = r.str();
+            const double lat = r.f64(), lon = r.f64(), radius = r.f64();
+            const std::uint16_t max = r.u16();
+            if (!r.ok() || kind.size() > 32 || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(radius))
+                return bad();
+            if (!need(cap_read, "listing facilities"))
+                return;
+            std::vector<Facility> found;
+            const std::size_t limit = std::clamp<std::size_t>(max ? max : 100, 1, 200);
+            const std::string error = host_.list_facilities(kind, body, lat, lon, radius, limit, found);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            if (found.size() > limit)
+                found.resize(limit);
+            Writer w(msg_facility_list, f.request);
+            w.u32(static_cast<std::uint32_t>(found.size()));
+            for (const Facility &b : found)
+            {
+                w.str(b.id).str(b.name).str(b.icao).str(b.body).f64(b.latitude).f64(b.longitude).f64(b.elevation).f64(b.heading).f64(b.distance);
+                const std::size_t nr = std::min<std::size_t>(b.runways.size(), 32), nn = std::min<std::size_t>(b.navaids.size(), 64);
+                w.u16(static_cast<std::uint16_t>(nr));
+                for (std::size_t i = 0; i < nr; ++i)
+                {
+                    const FacilityRunway &rw = b.runways[i];
+                    w.str(rw.name).f64(rw.latitude).f64(rw.longitude).f64(rw.heading).f64(rw.length).f64(rw.width);
+                    const std::size_t ni = std::min<std::size_t>(rw.ils.size(), 4);
+                    w.u8(static_cast<std::uint8_t>(ni));
+                    for (std::size_t k = 0; k < ni; ++k)
+                        w.f64(rw.ils[k]);
+                }
+                w.u16(static_cast<std::uint16_t>(nn));
+                for (std::size_t i = 0; i < nn; ++i)
+                {
+                    const FacilityNavaid &n = b.navaids[i];
+                    w.str(n.type).str(n.id).str(n.name).f64(n.latitude).f64(n.longitude).f64(n.frequency).f64(n.range);
+                }
+            }
+            send(c, w.finish());
+            break;
+        }
         default:
             break; // unknown messages are ignored so newer addons still run
         }
@@ -498,10 +641,16 @@ namespace kosmos::link
         }
     }
 
+    bool LinkServer::wants_event(const std::string &name) const
+    {
+        return std::any_of(clients_.begin(), clients_.end(), [&](const std::unique_ptr<Client> &c) { return c->hello && !c->dead && std::find(c->events.begin(), c->events.end(), name) != c->events.end(); });
+    }
+
     void LinkServer::broadcast_event(const std::string &name, const std::string &arg)
     {
+        const bool optional = opt_in(name);
         for (auto &c : clients_)
-            if (c->hello && !c->dead)
+            if (c->hello && !c->dead && (!optional || std::find(c->events.begin(), c->events.end(), name) != c->events.end()))
             {
                 Writer w(msg_event, 0);
                 w.str(name).str(arg);

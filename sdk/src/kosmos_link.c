@@ -29,7 +29,9 @@ enum
 {
     MSG_HELLO = 1, MSG_SUBSCRIBE = 2, MSG_UNSUBSCRIBE = 3, MSG_GET = 4, MSG_SET = 5, MSG_DEFINE_KEY = 6, MSG_SPAWN_SHIP = 7,
     MSG_RELEASE = 8, MSG_GIVE = 9, MSG_DEFINE_MFD = 10, MSG_DRAW = 11, MSG_LOG = 12, MSG_PING = 13,
-    MSG_WELCOME = 101, MSG_ERROR = 102, MSG_VALUE = 103, MSG_EVENT = 104, MSG_OK = 105, MSG_PONG = 106
+    MSG_WEATHER_AT = 14, MSG_SET_WEATHER = 15, MSG_SUBSCRIBE_EVENT = 16, MSG_UNSUBSCRIBE_EVENT = 17, MSG_LIST_SHIPS = 18,
+    MSG_REMOVE_SHIP = 19, MSG_PLACE_SHIP = 20, MSG_LIST_FACILITIES = 21,
+    MSG_WELCOME = 101, MSG_ERROR = 102, MSG_VALUE = 103, MSG_EVENT = 104, MSG_OK = 105, MSG_PONG = 106, MSG_WEATHER = 107, MSG_SHIP_LIST = 108, MSG_FACILITY_LIST = 109
 };
 
 #define MAX_FRAME (1u << 20)
@@ -199,6 +201,7 @@ struct kl_client
     kl_value reply_value;
     uint32_t reply_handle;
     int reply_ready;
+    buf reply_payload; /* the body of a weather, ship list or facility list reply */
 };
 
 static void set_error(kl_client *c, const char *text)
@@ -304,6 +307,18 @@ static void dispatch(kl_client *c, unsigned type, uint32_t request, const unsign
             set_error(c, message);
             if (c->on_error)
                 c->on_error(error_from_code(code), message, c->error_user);
+        }
+    }
+    else if (type == MSG_WEATHER || type == MSG_SHIP_LIST || type == MSG_FACILITY_LIST)
+    {
+        if (request && request == c->waiting)
+        {
+            c->reply_payload.size = 0;
+            buf_reserve(&c->reply_payload, size);
+            memcpy(c->reply_payload.data, payload, size);
+            c->reply_payload.size = size;
+            c->reply_type = type;
+            c->reply_ready = 1;
         }
     }
     else if (type == MSG_OK || type == MSG_PONG)
@@ -528,6 +543,7 @@ void kl_close(kl_client *c)
     kl_close_socket(c->sock);
     free(c->in.data);
     free(c->draw.data);
+    free(c->reply_payload.data);
     free(c);
 }
 
@@ -665,6 +681,226 @@ int kl_give(kl_client *c, const char *id, int count)
     int r = request(c, &frame, rid);
     free(frame.data);
     return r;
+}
+
+static reader payload_reader(kl_client *c)
+{
+    reader r = {c->reply_payload.data, c->reply_payload.size, 0, 1};
+    return r;
+}
+
+int kl_weather_at(kl_client *c, const char *body, double lat, double lon, double alt, kl_weather *out)
+{
+    if (!out)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_WEATHER_AT, rid);
+    put_str(&frame, body ? body : "");
+    put_f64(&frame, lat);
+    put_f64(&frame, lon);
+    put_f64(&frame, alt);
+    int res = request(c, &frame, rid);
+    free(frame.data);
+    if (res != KL_OK)
+        return res;
+    reader r = payload_reader(c);
+    memset(out, 0, sizeof(*out));
+    out->wind_east = rd_f64(&r);
+    out->wind_north = rd_f64(&r);
+    out->wind_speed = rd_f64(&r);
+    out->wind_from = rd_f64(&r);
+    out->gust = rd_f64(&r);
+    out->rain = rd_f64(&r);
+    out->thunder = rd_f64(&r);
+    out->cloud_cover = rd_f64(&r);
+    out->cloud_base = rd_f64(&r);
+    out->cloud_top = rd_f64(&r);
+    out->visibility = rd_f64(&r);
+    out->temperature = rd_f64(&r);
+    out->pressure = rd_f64(&r);
+    rd_str(&r, out->station, sizeof(out->station));
+    rd_str(&r, out->metar, sizeof(out->metar));
+    if (!r.ok)
+    {
+        set_error(c, "bad weather reply");
+        return KL_ERR_IO;
+    }
+    return KL_OK;
+}
+
+int kl_set_weather(kl_client *c, const char *mode, const char *arg)
+{
+    if (!mode)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_SET_WEATHER, rid);
+    put_str(&frame, mode);
+    put_str(&frame, arg ? arg : "");
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+static int event_request(kl_client *c, unsigned type, const char *name)
+{
+    if (!name)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, type, rid);
+    put_str(&frame, name);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_subscribe_event(kl_client *c, const char *name) { return event_request(c, MSG_SUBSCRIBE_EVENT, name); }
+int kl_unsubscribe_event(kl_client *c, const char *name) { return event_request(c, MSG_UNSUBSCRIBE_EVENT, name); }
+
+int kl_list_ships(kl_client *c, double radius, int include_buildings, kl_ship_info *out, int max, int *count)
+{
+    if (!out || max < 0)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_LIST_SHIPS, rid);
+    put_f64(&frame, radius);
+    put_u8(&frame, include_buildings ? 1 : 0);
+    int res = request(c, &frame, rid);
+    free(frame.data);
+    if (res != KL_OK)
+        return res;
+    reader r = payload_reader(c);
+    uint32_t n = rd_u32(&r);
+    int stored = 0;
+    for (uint32_t i = 0; i < n && r.ok; ++i)
+    {
+        kl_ship_info s;
+        memset(&s, 0, sizeof(s));
+        s.index = rd_u32(&r);
+        rd_str(&r, s.name, sizeof(s.name));
+        rd_str(&r, s.body, sizeof(s.body));
+        s.latitude = rd_f64(&r);
+        s.longitude = rd_f64(&r);
+        s.altitude = rd_f64(&r);
+        s.heading = rd_f64(&r);
+        s.speed = rd_f64(&r);
+        s.vertical_speed = rd_f64(&r);
+        s.distance = rd_f64(&r);
+        s.flags = rd_u8(&r);
+        if (r.ok && stored < max)
+            out[stored++] = s;
+    }
+    if (count)
+        *count = stored;
+    return r.ok ? KL_OK : KL_ERR_IO;
+}
+
+int kl_remove_ship(kl_client *c, unsigned index)
+{
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_REMOVE_SHIP, rid);
+    put_u32(&frame, index);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_place_ship(kl_client *c, unsigned index, const char *body, double lat, double lon, double alt, double heading, double speed)
+{
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_PLACE_SHIP, rid);
+    put_u32(&frame, index);
+    put_str(&frame, body ? body : "");
+    put_f64(&frame, lat);
+    put_f64(&frame, lon);
+    put_f64(&frame, alt);
+    put_f64(&frame, heading);
+    put_f64(&frame, speed);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_list_facilities(kl_client *c, const char *kind, const char *body, double lat, double lon, double radius_km, kl_facility *out, int max, int *count)
+{
+    if (!out || max < 0)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_LIST_FACILITIES, rid);
+    put_str(&frame, kind ? kind : "");
+    put_str(&frame, body ? body : "");
+    put_f64(&frame, lat);
+    put_f64(&frame, lon);
+    put_f64(&frame, radius_km);
+    put_u16(&frame, max > 200 ? 200 : (unsigned)max);
+    int res = request(c, &frame, rid);
+    free(frame.data);
+    if (res != KL_OK)
+        return res;
+    reader r = payload_reader(c);
+    uint32_t n = rd_u32(&r);
+    int stored = 0;
+    for (uint32_t i = 0; i < n && r.ok; ++i)
+    {
+        kl_facility f;
+        memset(&f, 0, sizeof(f));
+        rd_str(&r, f.id, sizeof(f.id));
+        rd_str(&r, f.name, sizeof(f.name));
+        rd_str(&r, f.icao, sizeof(f.icao));
+        rd_str(&r, f.body, sizeof(f.body));
+        f.latitude = rd_f64(&r);
+        f.longitude = rd_f64(&r);
+        f.elevation = rd_f64(&r);
+        f.heading = rd_f64(&r);
+        f.distance = rd_f64(&r);
+        unsigned nr = rd_u16(&r);
+        for (unsigned k = 0; k < nr && r.ok; ++k)
+        {
+            kl_runway rw;
+            memset(&rw, 0, sizeof(rw));
+            rd_str(&r, rw.name, sizeof(rw.name));
+            rw.latitude = rd_f64(&r);
+            rw.longitude = rd_f64(&r);
+            rw.heading = rd_f64(&r);
+            rw.length = rd_f64(&r);
+            rw.width = rd_f64(&r);
+            unsigned ni = rd_u8(&r);
+            for (unsigned q = 0; q < ni && r.ok; ++q)
+            {
+                double mhz = rd_f64(&r);
+                if (rw.ils_count < 4)
+                    rw.ils[rw.ils_count++] = mhz;
+            }
+            if (f.runway_count < KL_MAX_RUNWAYS)
+                f.runways[f.runway_count++] = rw;
+        }
+        unsigned nn = rd_u16(&r);
+        for (unsigned k = 0; k < nn && r.ok; ++k)
+        {
+            kl_navaid nv;
+            memset(&nv, 0, sizeof(nv));
+            rd_str(&r, nv.type, sizeof(nv.type));
+            rd_str(&r, nv.id, sizeof(nv.id));
+            rd_str(&r, nv.name, sizeof(nv.name));
+            nv.latitude = rd_f64(&r);
+            nv.longitude = rd_f64(&r);
+            nv.frequency = rd_f64(&r);
+            nv.range = rd_f64(&r);
+            if (f.navaid_count < KL_MAX_NAVAIDS)
+                f.navaids[f.navaid_count++] = nv;
+        }
+        if (r.ok && stored < max)
+            out[stored++] = f;
+    }
+    if (count)
+        *count = stored;
+    return r.ok ? KL_OK : KL_ERR_IO;
 }
 
 int kl_define_mfd(kl_client *c, const char *id, const char *title)

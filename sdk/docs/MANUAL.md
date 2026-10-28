@@ -31,7 +31,7 @@ A connection goes: connect, send *hello* (addon id, name, version, the capabilit
 | `include/kosmos_link.hpp` | A small C++17 wrapper. |
 | `src/kosmos_link.c` | The client implementation; no dependencies. |
 | `CMakeLists.txt` | Builds the `kosmos::link` library; use it with `add_subdirectory`. |
-| `examples/` | `hello_props.c`, `speed_mfd.cpp`, and a pure-Python client with `speed_hold.py`. |
+| `examples/` | `hello_props.c`, `speed_mfd.cpp`, `weather_mfd.cpp` (a weather page), and a pure-Python client with `speed_hold.py` and `nearest_runway.py`. |
 | `template/` | An addon folder to copy: `addon.json`, a CMake project and `src/main.cpp`. |
 | `tools/kosmos_link_sim.py` | A mock Kosmos for developing without the game. |
 | `docs/PROTOCOL.md` | The wire protocol, for other languages. |
@@ -80,6 +80,7 @@ The player decides. Nothing connects usefully until the player ticks the addon i
 | `spawn` | spawn ships, release ordnance, give equipment |
 | `draw` | add MFD pages and draw on them |
 | `keys` | define key actions |
+| `world` | change the weather, and place and remove ships (protocol 2) |
 
 What you receive is what you asked for, narrowed by the manifest. Check `kl_granted()` and handle the `granted` event, because the player can change the choice while you run.
 
@@ -118,7 +119,7 @@ kl_release(c, -1);                                    /* release from the flown 
 kl_give(c, "tricorder", 1);                           /* add equipment to the person's pack */
 ```
 
-Names are those in the ship and equipment lists. A spawned ship copies the flown ship's velocity. There is no call to remove one again.
+Names are those in the ship and equipment lists. A spawned ship copies the flown ship's velocity. Ships your program spawned can be removed again with `kl_remove_ship` (see Ships and the world below).
 
 ## MFD pages
 
@@ -135,7 +136,63 @@ The page is 400 by 400 units. Kosmos sends an `mfd` event about 20 times a secon
 
 ## Events
 
-`ship` (the flown ship changed; the argument is its name), `mfd`, `granted` (the new capability mask), `shutdown` (Kosmos is closing). Set them with `kl_set_event_handler`.
+`ship` (the flown ship changed; the argument is its name), `mfd`, `granted` (the new capability mask), `shutdown` (Kosmos is closing) always arrive. Set a handler with `kl_set_event_handler`.
+
+Protocol 2 adds events you ask for with `kl_subscribe_event(c, name)` (needs `read`); until you do, Kosmos sends you none of them and does no work for them:
+
+| Event | Argument | When |
+|---|---|---|
+| `pause` | `1` or `0` | the player pauses or resumes |
+| `warp` | the new time-warp factor | the warp step changes |
+| `scenario` | the scenario id | a scenario starts |
+| `soi` | body name | the flown ship enters another body's sphere of influence |
+| `crash` | ship name | the flown ship is destroyed |
+| `touchdown` | ship name | the flown ship lands |
+| `weather` | the METAR, if any | the weather at the flown ship changes noticeably |
+| `ships` | the ship count | a ship is added or removed |
+| `tick` | the Julian date | once a second |
+
+```c
+kl_subscribe_event(c, "tick");
+/* in the event handler: if (strcmp(name, "tick") == 0) { re-read what you need } */
+```
+
+## Weather
+
+```c
+kl_weather w;
+if (kl_weather_at(c, "", 51.5, -0.1, 300.0, &w) == KL_OK)   /* body "" = the flown ship's; metres above the ground */
+    printf("wind %03.0f at %.0f m/s, visibility %.0f m\n", w.wind_from, w.wind_speed, w.visibility);
+kl_set_weather(c, "preset", "storm");                        /* needs the world capability */
+kl_set_weather(c, "metar", "EGLL 011200Z 27012KT 9999 FEW040 15/09 Q1013");
+kl_set_weather(c, "auto", "");                               /* back to the simulated weather */
+```
+
+`kl_weather_at` returns the weather the flown ship would feel at any place (wind grows with height, and there is none above the atmosphere). It fails for a body without an atmosphere. `kl_weather` holds wind east and north, speed, the direction it blows from, gust, rain, thunder, cloud cover (0 to 1), cloud base and top, visibility (m), temperature (C) and pressure (hPa); `station` and `metar` are filled in only for the flown ship's own body. Setting the weather overrides it everywhere until the player picks something else in the weather settings; presets are `clear`, `scattered`, `overcast`, `rain`, `fog` and `storm`.
+
+## Ships and the world
+
+```c
+kl_ship_info ships[32];
+int n;
+kl_list_ships(c, 5000.0, 0, ships, 32, &n);                  /* within 5 km of the flown ship; 0 = all */
+kl_place_ship(c, ships[0].index, "Earth", 64.0, -22.0, 2000.0, 90.0, 120.0); /* lat, lon, height m, heading, speed m/s; height 0 = on the ground */
+kl_remove_ship(c, handle);                                    /* only ships a link program spawned */
+```
+
+`kl_ship_info` gives the ship's index, name, body, latitude, longitude, altitude, heading, speed, vertical speed, distance from the flown ship and flags (`KL_SHIP_FLOWN`, `KL_SHIP_LANDED`, `KL_SHIP_CRASHED`, `KL_SHIP_FROM_LINK`). Indices are positions in the ship list: removing a ship moves every later ship down one place, so list again afterwards. The flown ship cannot be removed, but it can be placed. In multiplayer, other players do not see a placement.
+
+## Facilities
+
+```c
+kl_facility airports[5];
+int n;
+kl_list_facilities(c, "airport", "", lat, lon, 300.0, airports, 5, &n);   /* within 300 km, nearest first */
+for (int i = 0; i < n; ++i)
+    printf("%s %s %.0f km, %d runway(s)\n", airports[i].icao, airports[i].name, airports[i].distance / 1000, airports[i].runway_count);
+```
+
+`kind` is `airport` (bases with runways), `base` (without) or empty for both. Each `kl_facility` has the id, name, ICAO code, body, position, elevation, heading, distance and up to eight runways (name, centre, heading, length, width, ILS frequencies) and sixteen navaids (type, id, name, position, frequency, range). Positions of runways and navaids are worked out from the base's frame, so they are accurate to a few metres.
 
 ## Errors
 
@@ -163,6 +220,12 @@ All functions are in `kosmos_link.h`. Functions that talk to Kosmos return `KL_O
 | `kl_release(c, hardpoint)`, `kl_give(c, id, count)` | Release ordnance; give equipment. |
 | `kl_define_mfd(c, id, title)` | Add an MFD page. |
 | `kl_draw_begin`, `kl_draw_colour`, `kl_draw_line`, `_rect`, `_fillrect`, `_circle`, `_disc`, `_tri`, `_text`, `_image`, `kl_draw_end(c, id)` | Collect draw commands and send them as one page. |
+| `kl_weather_at(c, body, lat, lon, alt, &w)` | Weather at a place; see Weather. |
+| `kl_set_weather(c, mode, arg)` | `metar`, `preset` or `auto`. Needs `world`. |
+| `kl_subscribe_event(c, name)` / `kl_unsubscribe_event(c, name)` | Opt in to or out of `pause`, `warp`, `scenario`, `soi`, `crash`, `touchdown`, `weather`, `ships`, `tick`. |
+| `kl_list_ships(c, radius, buildings, out, max, &n)` | Ships near the flown one. |
+| `kl_remove_ship(c, index)` / `kl_place_ship(c, index, body, lat, lon, alt, heading, speed)` | Remove a link-spawned ship; move any ship. Need `world`. |
+| `kl_list_facilities(c, kind, body, lat, lon, radius_km, out, max, &n)` | Airports and bases near a point. |
 | `kl_log(c, text)`, `kl_ping(c)` | Print to the Lua console window; round trip. |
 
 A `kl_value` has a `type` (`KL_NONE`, `KL_BOOL`, `KL_INT`, `KL_DOUBLE`, `KL_STRING`) and the matching `boolean`, `integer`, `real` or `string` member. Strings are cut to 255 bytes.
@@ -206,6 +269,8 @@ int main(void)
 | `subscribe(path, hz)` | Subscribe. |
 | `get(path, fallback)`, `get_string(path)` | Read a number or a string. |
 | `set(path, double / bool / string)` | Write. |
+| `weather_at(lat, lon, alt, w, body)`, `set_weather(mode, arg)`, `subscribe_event(name)` | Weather and events. |
+| `ships(radius, buildings)`, `facilities(lat, lon, radius_km, kind, max, body)` | Return `std::vector`s of `kl_ship_info` and `kl_facility`. |
 | `log(text)`, `granted()`, `raw()` | `raw()` gives the `kl_client *` for keys, MFDs, spawning and drawing. |
 
 ## Python client
@@ -244,14 +309,14 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 
 - Local TCP only. Android is not supported yet; the C API is portable, and the transport will be revisited then.
 - There is no lockstep mode: your program sees the simulation slightly behind real time and cannot pause a frame for itself.
-- Spawned ships cannot be removed individually.
-- The protocol is version 1. Kosmos refuses a client that speaks a newer one.
+- Only ships a link program spawned can be removed. Weather can be read anywhere but set only as one global override.
+- The protocol is version 2. Kosmos accepts versions 1 and 2 and refuses a client that speaks a newer one.
 
 ## Releasing
 
 Ship your addon folder with `bin/` for each platform you built. Players tick it in View > Native addons the first time. Do not ask players to disable their firewall: the link never leaves the computer.
 
-## Appendix: the wire protocol (version 1)
+## Appendix: the wire protocol (version 2)
 
 Most addons should use the C library. This appendix is for writing a client in another language; the same text is in `docs/PROTOCOL.md`.
 
@@ -272,7 +337,7 @@ A malformed frame, a frame larger than 1 MiB or a missing hello within 5 seconds
 
 | Type | Name | Payload |
 |---|---|---|
-| 1 | hello | `u16 protocol(1)`, str addon id, str name, str version, str token, `u32 capabilities` |
+| 1 | hello | `u16 protocol` (1 or 2; send 2), str addon id, str name, str version, str token, `u32 capabilities` |
 | 2 | subscribe | str path, `u16 hz` (0 = every change) |
 | 3 | unsubscribe | str path |
 | 4 | get | str path |
@@ -285,6 +350,14 @@ A malformed frame, a frame larger than 1 MiB or a missing hello within 5 seconds
 | 11 | draw | str id, `u16 count`, then per command: `u8 kind`, `f32 a b c d e f`, `u8 r g b align`, str text |
 | 12 | log | str text |
 | 13 | ping | none |
+| 14 | weather_at | str body (empty: the flown ship's), `f64 latitude, longitude, altitude` (degrees; metres above the ground) |
+| 15 | set_weather | str mode (`metar`, `preset` or `auto`), str argument |
+| 16 | subscribe_event | str event name |
+| 17 | unsubscribe_event | str event name |
+| 18 | list_ships | `f64 radius` (metres, 0 = all), `u8 flags` (1 = include buildings) |
+| 19 | remove_ship | `u32 index` |
+| 20 | place_ship | `u32 index`, str body (empty: the flown ship's), `f64 latitude, longitude, altitude, heading, speed` |
+| 21 | list_facilities | str kind (`airport`, `base` or empty), str body, `f64 latitude, longitude, radius_km`, `u16 max` (0 = 100, at most 200) |
 
 Draw kinds: 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image. Coordinates are in MFD units, 0-400 on both axes. At most 2000 commands per page.
 
@@ -298,6 +371,12 @@ Draw kinds: 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image
 | 104 | event | str name, str argument |
 | 105 | ok | `u32 handle` (the new ship's index for spawn_ship, otherwise 0) |
 | 106 | pong | none |
+| 107 | weather | `f64` wind east, wind north, wind speed, wind from, gust, rain, thunder, cloud cover, cloud base, cloud top, visibility, temperature, pressure; str station; str METAR |
+| 108 | ship_list | `u32 count`, then per ship: `u32 index`, str name, str body, `f64` latitude, longitude, altitude, heading, speed, vertical speed, distance, `u8 flags` (1 flown, 2 landed, 4 crashed, 8 spawned by a link) |
+| 109 | facility_list | `u32 count`, then per base: str id, name, icao, body; `f64` latitude, longitude, elevation, heading, distance; `u16 runways` each: str name, `f64` latitude, longitude, heading, length, width, `u8 ils` then `f64` frequencies; `u16 navaids` each: str type, id, name, `f64` latitude, longitude, frequency, range |
 
-Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `ship`, `mfd` (sent at 20 Hz while the page is on screen), `granted`, `shutdown`. Capability bits: read 1, controls 2, write 4, spawn 8, draw 16, keys 32.
+Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `ship`, `mfd` (sent at 20 Hz while the page is on screen), `granted`, `shutdown`. Capability bits: read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships). Bit 128 is reserved.
 
+Protocol 2 adds requests 14 to 21 and replies 107 to 109. Kosmos accepts a hello carrying 1 or 2, and a version 1 client simply never sends the new requests. An older Kosmos (protocol 1) refuses a version 2 hello with error 5; retry with 1 if you want to support it. Weather values are SI units except temperature (Celsius) and pressure (hPa); wind east and north are the way the air moves, wind from is the compass direction it blows from. The weather the game shows is a global override while `set_weather` is in force: it lasts until the player (or another addon) changes it, and `auto` returns to simulated weather. `remove_ship` works only on ships link addons spawned and never on the flown ship; the ships after it move down one place, so list again afterwards. `place_ship` may move any ship including the flown one (in multiplayer the other players will not follow). List replies are capped (2000 ships, 200 facilities) to stay under the frame limit.
+
+Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date). Always-on events are unchanged.

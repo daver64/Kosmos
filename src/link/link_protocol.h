@@ -1,6 +1,6 @@
 #pragma once
 
-// KosmosLink wire protocol, version 1. The same layout is implemented by the SDK clients (sdk/src/kosmos_link.c and
+// KosmosLink wire protocol, version 2 (version 1 clients are still accepted; they just never use the later requests). The same layout is implemented by the SDK clients (sdk/src/kosmos_link.c and
 // sdk/docs/PROTOCOL.md). All integers are little-endian.
 //
 //   frame   = u32 length (bytes after this field), u16 type, u32 request id, payload
@@ -14,7 +14,8 @@
 
 namespace kosmos::link
 {
-    constexpr std::uint16_t protocol_version = 1;
+    constexpr std::uint16_t protocol_version = 2;
+    constexpr std::uint16_t min_protocol_version = 1;
     constexpr std::uint16_t default_port = 9420;
     constexpr std::size_t max_frame = 1u << 20;
 
@@ -34,13 +35,25 @@ namespace kosmos::link
         msg_draw = 11,
         msg_log = 12,
         msg_ping = 13,
+        // protocol 2
+        msg_weather_at = 14,
+        msg_set_weather = 15,
+        msg_subscribe_event = 16,
+        msg_unsubscribe_event = 17,
+        msg_list_ships = 18,
+        msg_remove_ship = 19,
+        msg_place_ship = 20,
+        msg_list_facilities = 21,
         // Kosmos to addon
         msg_welcome = 101,
         msg_error = 102,
         msg_value = 103,
         msg_event = 104,
         msg_ok = 105,
-        msg_pong = 106
+        msg_pong = 106,
+        msg_weather = 107,
+        msg_ship_list = 108,
+        msg_facility_list = 109
     };
 
     /** What an addon may do; the user grants these per addon. */
@@ -52,7 +65,8 @@ namespace kosmos::link
         cap_spawn = 8,    // spawn ships, release ordnance, give equipment
         cap_draw = 16,    // add MFD modes and draw on them
         cap_keys = 32,    // define key actions
-        cap_all = 63
+        cap_world = 64,   // set the weather, place and remove ships
+        cap_all = 127
     };
 
     enum ErrorCode : std::uint16_t

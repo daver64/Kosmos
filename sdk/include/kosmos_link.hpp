@@ -7,6 +7,7 @@
 #include <functional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace kosmos
 {
@@ -69,6 +70,28 @@ namespace kosmos
         void set(const std::string &path, double value) { kl_set_double(client_, path.c_str(), value); }
         void set(const std::string &path, bool value) { kl_set_bool(client_, path.c_str(), value); }
         void set(const std::string &path, const std::string &value) { kl_set_string(client_, path.c_str(), value.c_str()); }
+        /** Weather at a place (body "" is the flown ship's); false when the body has none or the request failed. */
+        bool weather_at(double latitude, double longitude, double altitude, kl_weather &out, const std::string &body = "") { return kl_weather_at(client_, body.c_str(), latitude, longitude, altitude, &out) == KL_OK; }
+        bool set_weather(const std::string &mode, const std::string &arg = "") { return kl_set_weather(client_, mode.c_str(), arg.c_str()) == KL_OK; }
+        bool subscribe_event(const std::string &name) { return kl_subscribe_event(client_, name.c_str()) == KL_OK; }
+        std::vector<kl_ship_info> ships(double radius = 0.0, bool buildings = false)
+        {
+            std::vector<kl_ship_info> out(256);
+            int n = 0;
+            if (kl_list_ships(client_, radius, buildings, out.data(), static_cast<int>(out.size()), &n) != KL_OK)
+                n = 0;
+            out.resize(static_cast<std::size_t>(n));
+            return out;
+        }
+        std::vector<kl_facility> facilities(double latitude, double longitude, double radius_km = 0.0, const std::string &kind = "", int max = 20, const std::string &body = "")
+        {
+            std::vector<kl_facility> out(static_cast<std::size_t>(max > 0 ? max : 1));
+            int n = 0;
+            if (kl_list_facilities(client_, kind.c_str(), body.c_str(), latitude, longitude, radius_km, out.data(), static_cast<int>(out.size()), &n) != KL_OK)
+                n = 0;
+            out.resize(static_cast<std::size_t>(n));
+            return out;
+        }
         void log(const std::string &text) { kl_log(client_, text.c_str()); }
 
     private:

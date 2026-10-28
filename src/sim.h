@@ -54,6 +54,9 @@ namespace kosmos
         /** Create a ship from a spec and publish it as /ships/ship[n]. */
         Ship *spawn(const ShipSpec &spec);
         void clear_ships();
+        /** Deletes ship @p index (never the flown one); later ships move down one place, so handles to them change. Returns false when it may not be removed. */
+        bool remove_ship(int index);
+        int active_index() const { return active_; }
         void activate(int index);
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }

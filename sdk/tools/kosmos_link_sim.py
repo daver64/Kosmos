@@ -13,8 +13,9 @@ import threading
 import time
 
 sys.path.insert(0, __file__.rsplit("/", 2)[0] + "/examples")
-from kosmos_link import (DEFINE_KEY, DEFINE_MFD, DRAW, ERROR, EVENT, GET, GIVE, HELLO, LOG, OK, PING, PONG, RELEASE, SET,  # noqa: E402
-                         SPAWN, SUBSCRIBE, UNSUBSCRIBE, VALUE, WELCOME, Reader, _str, _value)
+from kosmos_link import (DEFINE_KEY, DEFINE_MFD, DRAW, ERROR, EVENT, FACILITY_LIST, GET, GIVE, HELLO, LIST_FACILITIES, LIST_SHIPS,  # noqa: E402
+                         LOG, OK, PING, PLACE_SHIP, PONG, RELEASE, REMOVE_SHIP, SET, SET_WEATHER, SHIP_LIST, SPAWN, SUBSCRIBE,
+                         SUBSCRIBE_EVENT, UNSUBSCRIBE, UNSUBSCRIBE_EVENT, VALUE, WEATHER, WEATHER_AT, WELCOME, Reader, _str, _value)
 
 props = {"/sim/active-ship": 0, "/sim/paused": False, "/ships/ship[0]/name": "Mock Ship"}
 
@@ -58,7 +59,7 @@ def serve(conn):
                 r.take("H")
                 addon = r.str()
                 print("hello from", addon)
-                conn.sendall(frame(WELCOME, rid, struct.pack("<H", 1) + _str("mock") + struct.pack("<I", 63)))
+                conn.sendall(frame(WELCOME, rid, struct.pack("<H", 2) + _str("mock") + struct.pack("<I", 127)))
             elif kind == PING:
                 conn.sendall(frame(PONG, rid))
             elif kind == GET:
@@ -77,6 +78,17 @@ def serve(conn):
                 print("[%s] %s" % (addon, r.str()))
             elif kind == DRAW:
                 print("%s: page %s drawn" % (addon, r.str()))
+            elif kind == WEATHER_AT:
+                values = (3.0, 0.0, 3.0, 270.0, 0.0, 0.0, 0.0, 0.2, 2500.0, 3500.0, 10000.0, 15.0, 1013.0)
+                conn.sendall(frame(WEATHER, rid, struct.pack("<13d", *values) + _str("MOCK") + _str("")))
+            elif kind == LIST_SHIPS:
+                payload = struct.pack("<I", 1) + struct.pack("<I", 0) + _str("Mock Ship") + _str("Earth") + struct.pack("<7d", 0, 0, props["/ships/ship[0]/altitude"], 90, 250, 0, 0) + b"\x01"
+                conn.sendall(frame(SHIP_LIST, rid, payload))
+            elif kind == LIST_FACILITIES:
+                conn.sendall(frame(FACILITY_LIST, rid, struct.pack("<I", 0)))
+            elif kind in (SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, REMOVE_SHIP, PLACE_SHIP):
+                print("%s: request type %d" % (addon, kind))
+                conn.sendall(frame(OK, rid, struct.pack("<I", 0)))
             elif kind in (DEFINE_KEY, DEFINE_MFD, SPAWN, RELEASE, GIVE):
                 print("%s: request type %d" % (addon, kind))
                 conn.sendall(frame(OK, rid, struct.pack("<I", 1 if kind == SPAWN else 0)))

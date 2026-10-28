@@ -233,8 +233,213 @@ static void test_manifest()
     fs::remove_all(dir);
 }
 
+namespace
+{
+    struct WorldHost : LinkHost
+    {
+        std::string weather_mode, weather_arg, placed, removed;
+        std::string weather_at(const std::string &body, double lat, double, double alt, WeatherInfo &out, std::string &station, std::string &metar) override
+        {
+            if (body == "Mars")
+                return "that body has no weather";
+            out.wind_speed = 6.0;
+            out.wind_from = 270.0;
+            out.temperature = lat;
+            out.cloud_base = alt;
+            station = "EGLL";
+            metar = "EGLL 011200Z 27012KT";
+            return "";
+        }
+        std::string set_weather(const std::string &mode, const std::string &arg) override { weather_mode = mode; weather_arg = arg; return ""; }
+        std::string list_ships(double radius, bool, std::vector<ShipInfo> &out) override
+        {
+            ShipInfo a, b;
+            a.index = 0;
+            a.name = "Flown";
+            a.body = "Earth";
+            a.flags = 1;
+            b.index = 1;
+            b.name = "Tanker";
+            b.body = "Earth";
+            b.distance = 900.0;
+            b.flags = 8;
+            out.push_back(a);
+            if (radius == 0.0 || radius > 1000.0)
+                out.push_back(b);
+            return "";
+        }
+        std::string remove_ship(std::uint32_t index) override
+        {
+            if (index == 0)
+                return "the flown ship cannot be removed";
+            removed = std::to_string(index);
+            return "";
+        }
+        std::string place_ship(std::uint32_t index, const std::string &body, double lat, double lon, double alt, double heading, double speed) override
+        {
+            placed = std::to_string(index) + body + ":" + std::to_string(static_cast<int>(lat)) + "," + std::to_string(static_cast<int>(lon)) + "," + std::to_string(static_cast<int>(alt)) + "," + std::to_string(static_cast<int>(heading)) + "," + std::to_string(static_cast<int>(speed));
+            return "";
+        }
+        std::string list_facilities(const std::string &kind, const std::string &, double, double, double, std::size_t max, std::vector<Facility> &out) override
+        {
+            for (std::size_t i = 0; i < 3 && i < max; ++i)
+            {
+                Facility f;
+                f.id = "base" + std::to_string(i);
+                f.name = kind;
+                f.icao = "ABCD";
+                f.distance = 1000.0 * static_cast<double>(i);
+                f.runways.push_back({"09/27", 1.0, 2.0, 90.0, 3000.0, 45.0, {110.3, 110.9}});
+                f.navaids.push_back({"vor", "VOR", "Test VOR", 1.0, 2.0, 113.4, 100000.0});
+                out.push_back(f);
+            }
+            return "";
+        }
+    };
+
+    struct EventCounts
+    {
+        std::atomic<int> tick{0}, pause{0};
+    };
+
+    void count_events(const char *name, const char *, void *user)
+    {
+        EventCounts *e = static_cast<EventCounts *>(user);
+        if (std::string(name) == "tick")
+            ++e->tick;
+        if (std::string(name) == "pause")
+            ++e->pause;
+    }
+
+    kl_client *open_client(int port, const char *id, unsigned caps)
+    {
+        kl_options o{};
+        o.host = "127.0.0.1";
+        o.port = port;
+        o.addon_id = id;
+        o.name = id;
+        o.capabilities = caps;
+        char err[256];
+        return kl_connect(&o, err, sizeof err);
+    }
+
+    void run_world_client(int port, std::atomic<bool> &subscribed, std::atomic<bool> &done)
+    {
+        kl_client *c = open_client(port, "world-addon", KL_CAP_READ | KL_CAP_WORLD);
+        kl_client *quiet_client = open_client(port, "quiet-addon", KL_CAP_READ);
+        CHECK(c && quiet_client);
+        if (!c || !quiet_client)
+        {
+            done = true;
+            return;
+        }
+        EventCounts quiet, wanted;
+        kl_set_event_handler(quiet_client, count_events, &quiet);
+        kl_set_event_handler(c, count_events, &wanted);
+
+        kl_weather w;
+        CHECK(kl_weather_at(c, "Earth", 12.0, 3.0, 450.0, &w) == KL_OK);
+        CHECK(w.wind_speed == 6.0 && w.wind_from == 270.0 && w.temperature == 12.0 && w.cloud_base == 450.0);
+        CHECK(std::string(w.station) == "EGLL" && std::string(w.metar) == "EGLL 011200Z 27012KT");
+        CHECK(kl_weather_at(c, "Mars", 0, 0, 0, &w) == KL_ERR_FAILED);
+        CHECK(kl_set_weather(c, "bogus", "") == KL_ERR_BAD_REQUEST);
+        CHECK(kl_set_weather(c, "preset", "storm") == KL_OK);
+        CHECK(kl_subscribe_event(c, "nonsense") == KL_ERR_BAD_REQUEST);
+
+        kl_ship_info ships[4];
+        int n = 0;
+        CHECK(kl_list_ships(c, 0.0, 0, ships, 4, &n) == KL_OK && n == 2);
+        CHECK(std::string(ships[0].name) == "Flown" && (ships[0].flags & KL_SHIP_FLOWN) && std::string(ships[1].name) == "Tanker" && (ships[1].flags & KL_SHIP_FROM_LINK));
+        CHECK(kl_list_ships(c, 100.0, 0, ships, 4, &n) == KL_OK && n == 1);
+        CHECK(kl_list_ships(c, 0.0, 0, ships, 1, &n) == KL_OK && n == 1);
+        CHECK(kl_remove_ship(c, 1) == KL_OK);
+        CHECK(kl_remove_ship(c, 0) == KL_ERR_FAILED);
+        CHECK(kl_place_ship(c, 1, "Earth", 51.0, -1.0, 3000.0, 270.0, 120.0) == KL_OK);
+
+        kl_facility fac[5];
+        CHECK(kl_list_facilities(c, "airport", "", 0, 0, 0, fac, 5, &n) == KL_OK && n == 3);
+        CHECK(std::string(fac[1].id) == "base1" && std::string(fac[1].icao) == "ABCD" && fac[1].distance == 1000.0);
+        CHECK(fac[0].runway_count == 1 && std::string(fac[0].runways[0].name) == "09/27" && fac[0].runways[0].ils_count == 2 && fac[0].runways[0].ils[1] == 110.9);
+        CHECK(fac[0].navaid_count == 1 && fac[0].navaids[0].frequency == 113.4);
+        CHECK(kl_list_facilities(c, "", "", 0, 0, 0, fac, 2, &n) == KL_OK && n == 2);
+
+        // Only subscribers get opt-in events.
+        CHECK(kl_subscribe_event(c, "tick") == KL_OK);
+        subscribed = true;
+        for (int i = 0; i < 500 && wanted.tick < 1; ++i)
+        {
+            kl_poll(c, 10);
+            kl_poll(quiet_client, 0);
+        }
+        CHECK(wanted.tick >= 1 && wanted.pause == 0);
+        CHECK(quiet.tick == 0 && quiet.pause == 0);
+
+        // Without the world capability the changing requests are refused; reading still works.
+        CHECK(kl_set_weather(quiet_client, "auto", "") == KL_ERR_DENIED);
+        CHECK(kl_remove_ship(quiet_client, 1) == KL_ERR_DENIED);
+        CHECK(kl_place_ship(quiet_client, 1, "", 0, 0, 0, 0, 0) == KL_ERR_DENIED);
+        CHECK(kl_weather_at(quiet_client, "Earth", 0, 0, 0, &w) == KL_OK);
+
+        kl_close(quiet_client);
+        kl_close(c);
+        done = true;
+    }
+} // namespace
+
+static void test_protocol_two()
+{
+    sl::PropertyTree props;
+    WorldHost host;
+    FakePolicy policy;
+    LinkServer server(props, host, &policy);
+    CHECK(server.start(0));
+
+    std::atomic<bool> subscribed{false}, done{false};
+    std::thread client(run_world_client, static_cast<int>(server.port()), std::ref(subscribed), std::ref(done));
+    const auto start = std::chrono::steady_clock::now();
+    while (!done && std::chrono::steady_clock::now() - start < std::chrono::seconds(20))
+    {
+        server.poll();
+        server.flush();
+        if (subscribed)
+        {
+            server.broadcast_event("pause", "1");
+            server.broadcast_event("tick", "5");
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    client.join();
+    CHECK(host.weather_mode == "preset" && host.weather_arg == "storm");
+    CHECK(host.removed == "1");
+    CHECK(host.placed == "1Earth:51,-1,3000,270,120");
+
+    // A protocol 1 client is still welcome.
+    sl::TcpSocket raw;
+    raw.connect("127.0.0.1", server.port());
+    for (int i = 0; i < 200 && !raw.connected(); ++i)
+    {
+        raw.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    Writer hello(msg_hello, 1);
+    hello.u16(1).str("old-addon").str("Old").str("1.0").str("").u32(cap_read);
+    raw.send(hello.finish());
+    std::string received;
+    Frame f;
+    int got = 0;
+    for (int i = 0; i < 200 && got == 0; ++i)
+    {
+        server.poll();
+        raw.receive(received);
+        got = take_frame(received, f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    CHECK(got == 1 && f.type == msg_welcome);
+}
+
 int main()
 {
+    test_protocol_two();
     test_protocol_edges();
     test_manifest();
 

@@ -183,6 +183,7 @@ namespace kosmos::app
         std::unique_ptr<kosmos::link::LinkServer> link_server;
         std::chrono::steady_clock::time_point link_tick{};
         const Ship *link_ship{};
+        std::string link_scenario;
         bool link_failed{};
         std::string keys_status;
         bool joystick_window{};

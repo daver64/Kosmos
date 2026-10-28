@@ -108,6 +108,30 @@ namespace kosmos
         return live_.status(real_unix_time());
     }
 
+    bool Weather::at(const Universe &universe, int body, double latitude, double longitude, double altitude, Conditions &out)
+    {
+        if (body < 0 || body >= static_cast<int>(universe.bodies.size()))
+            return false;
+        const WeatherField *field = ensure(universe, body);
+        if (!field)
+            return false;
+        Conditions c = forced_valid_ ? forced_ : field->sample(latitude, longitude);
+        const Body &b = universe.bodies[static_cast<std::size_t>(body)];
+        if (altitude >= std::max(b.atmosphere_scale_height * 12.0, 30.0e3))
+        {
+            c.rain = c.thunder = c.cloud_cover = c.gust = c.wind_east = c.wind_north = 0.0;
+            c.visibility = 1.0e5;
+        }
+        else
+        {
+            const double lift = 1.0 + std::clamp(altitude, 0.0, 3000.0) / 3000.0;
+            c.wind_east *= lift;
+            c.wind_north *= lift;
+        }
+        out = c;
+        return true;
+    }
+
     void Weather::step(Universe &universe, sl::PropertyTree &props, int body, double latitude, double longitude, double altitude, double dt)
     {
         // The wind a planet had last frame is dropped when the flown ship moves to another body or weather is off.

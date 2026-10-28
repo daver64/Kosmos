@@ -388,6 +388,21 @@ namespace kosmos
         script_loaded_ = false;
     }
 
+    bool Sim::remove_ship(int index)
+    {
+        if (index < 0 || index >= ship_count() || index == active_)
+            return false;
+        nav.clear_links();
+        ships_.erase(ships_.begin() + index);
+        if (active_ > index)
+            --active_;
+        for (int i = index; i < ship_count(); ++i)
+            ships_[static_cast<std::size_t>(i)]->publish(props, "/ships/ship[" + std::to_string(i) + "]");
+        props.set_int("/sim/active-ship", active_);
+        props.set_int("/ships/count", ship_count());
+        return true;
+    }
+
     void Sim::activate(int index)
     {
         if (index < 0 || index >= ship_count())

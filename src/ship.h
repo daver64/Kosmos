@@ -421,6 +421,8 @@ namespace kosmos
         /** For the part editor, which swaps a procedural part for an exported mesh while the ship flies. */
         ShipSpec &editable_spec() { return spec_; }
         std::string name;
+        /** Set for ships a KosmosLink addon created, which are the only ones an addon may remove. */
+        bool from_link = false;
         int body_id() const { return body_; }
         /**
          * The body's position is its centre of mass, which leaves the ship-frame origin once the lower stages have gone. This is
