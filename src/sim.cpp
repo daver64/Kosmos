@@ -416,10 +416,12 @@ namespace kosmos
         active_ = index;
         props.set_int("/sim/active-ship", index);
         script_loaded_ = false;
-        const ShipSpec &spec = ships_[static_cast<std::size_t>(index)]->spec();
+        const Ship &ship = *ships_[static_cast<std::size_t>(index)];
+        const ShipSpec &spec = ship.spec();
+        flying_as_aircraft_ = ship.flies_as_aircraft();
         const std::filesystem::path script = !spec.script.empty() ? std::filesystem::path(spec.directory) / spec.script
-                                             : spec.aircraft()   ? std::filesystem::path(root()) / "data/autopilot/aircraft.lua"
-                                                                 : std::filesystem::path();
+                                             : flying_as_aircraft_ ? std::filesystem::path(root()) / "data/autopilot/aircraft.lua"
+                                                                   : std::filesystem::path();
         if (script.empty())
             return;
         std::ifstream in(script);
@@ -507,6 +509,13 @@ namespace kosmos
         }
         if (props.get_bool("/sim/paused"))
             return;
+        if (Ship *flown = active_ship(); flown && flown->spec().hybrid && flown->flies_as_aircraft() != flying_as_aircraft_)
+        {
+            // Crossing between air and space changes which autopilot applies, so the old one is disengaged.
+            props.set_bool("/autopilot/enabled", false);
+            activate(active_);
+            log(flying_as_aircraft_ ? "Aircraft mode: wings and aircraft autopilot" : "Spacecraft mode: RCS and SAS, autopilot off");
+        }
         if (script_loaded_)
         {
             const sl::LuaScriptResult result = lua.emit("update", static_cast<float>(frame));
@@ -526,7 +535,7 @@ namespace kosmos
             bool all_ok = !ships_.empty();
             std::string why;
             for (std::size_t i = 0; i < ships_.size(); ++i)
-                if (!ships_[i]->on_rails())
+                if (!ships_[i]->on_rails() && !ships_[i]->spec().building())
                 {
                     const std::string b = ships_[i]->rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
                     if (!b.empty())
@@ -551,7 +560,9 @@ namespace kosmos
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
             Ship &ship = *ships_[i];
-            if (warp > max_physics_warp)
+            if (ship.spec().building())
+                ship.go_dynamic();
+            else if (warp > max_physics_warp)
                 ship.go_rails();
             else
                 ship.go_dynamic();
@@ -591,7 +602,8 @@ namespace kosmos
         for (const std::unique_ptr<Ship> &ship : ships_)
             if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
                 ship->set_surface_grip(grip);
-        universe.world.max_substep = warp <= 4.0 ? fixed_step : 0.1;
+        // On rails everything is analytic, so big substeps lose nothing and keep a 100000x frame cheap.
+        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > max_physics_warp ? 1.0e12 : 0.1);
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 

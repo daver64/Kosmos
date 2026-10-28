@@ -19,6 +19,10 @@ namespace kosmos
         // `toward` names a body the orbit lies in that body's orbital plane with its apoapsis aimed where the body will be.
         double apoapsis_km = 0.0;
         std::string toward;
+        // When set (with `apoapsis_km` unused), the ship is on the escape hyperbola of a Hohmann departure to this planet; altitude_km is the periapsis and phase the angle past it.
+        std::string escape_to;
+        // With escape_to: the flight time in days, for a Lambert transfer that arrives at the planet then. Zero is a Hohmann transfer.
+        double escape_days = 0.0;
         // Surface: either latitude/longitude, or the home planet's launch pad when pad is set.
         bool pad = false;
         std::string base; // a base id: stand on that base's pad instead
@@ -59,6 +63,8 @@ namespace kosmos
         double throttle = 0.0;
         bool autopilot = false;
         std::string mfd_left, mfd_right;
+        /** Properties set when the scenario starts, as "path=value" (a number, true/false or text); written as an object in the JSON. */
+        std::vector<std::string> sets;
         /** Start inside the building of this name (a base's building), looking at its panel. */
         std::string enter_building;
         std::vector<double> nav;

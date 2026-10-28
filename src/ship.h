@@ -263,6 +263,8 @@ namespace kosmos
         bool retractable_gear = false;
         /** An RCS mode switch (/controls/rcs-mode: "rot", "lin" or "off"), as on the Shuttle-A. */
         bool rcs_modes = false;
+        /** An aircraft that flies as a spaceship (RCS, SAS, orbital autopilots) wherever the air is thinner than a tenth of Earth's at sea level, as the Deltaglider does. */
+        bool hybrid = false;
         /** How fast an engine pod swings, in radians per second. */
         double pod_turn_rate = 0.2;
         /**
@@ -502,6 +504,11 @@ namespace kosmos
          * lies in that body's orbital plane and its apoapsis points at where the body will be when the ship gets there.
          */
         void place_on_ellipse(int body, double periapsis, double apoapsis, double true_anomaly_degrees, int toward);
+        /**
+         * Places the ship on an escape hyperbola about `body`, in the plane of the body's orbit, leaving prograde with the excess speed of a
+         * Hohmann transfer to the planet `toward` (or, with `flight_days`, the Lambert transfer arriving after that many days): the state just after the departure burn. `true_anomaly_degrees` is the angle past periapsis.
+         */
+        void place_on_escape(int body, double periapsis, double true_anomaly_degrees, int toward, double flight_days = 0.0);
 
         /** Docking port `index` in the world frame: position, outward direction and up. */
         void port_world(int index, sl::dvec3 &position, sl::dvec3 &direction, sl::dvec3 &up) const;
@@ -521,6 +528,8 @@ namespace kosmos
         /** Put a coasting ship on Kepler rails around the body whose sphere of influence holds it. */
         bool go_rails();
         bool on_rails() const;
+        /** True while the ship is flying on its wings: an aircraft, except a hybrid one outside thick air. */
+        bool flies_as_aircraft() const;
         /** True when the ship may be put on rails: coasting above any atmosphere and not landed. */
         bool can_rails(const Controls &controls) const;
         /** Why the ship cannot go on rails, or an empty string when it can. */

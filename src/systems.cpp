@@ -596,7 +596,7 @@ namespace kosmos
     {
         if (dt <= 0.0 || crew_lost_)
             return;
-        const int n = std::clamp(static_cast<int>(std::ceil(dt / 10.0)), 1, 2000);
+        const int n = std::clamp(static_cast<int>(std::ceil(dt / 10.0)), 1, 24);
         const double h = dt / n;
         for (int i = 0; i < n; ++i)
         {

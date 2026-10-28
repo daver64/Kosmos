@@ -383,7 +383,7 @@ namespace kosmos::app
             joystick.poll_learn();
         else if (!typing && !on_foot)
         {
-            const kosmos::JoyResult joy = joystick.update(ship->spec().aircraft());
+            const kosmos::JoyResult joy = joystick.update(ship->flies_as_aircraft());
             for (const auto &[action, value] : joy.axes)
             {
                 const std::string path = "/controls/" + action;

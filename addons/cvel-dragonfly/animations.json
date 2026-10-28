@@ -1,0 +1,205 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "dock-latch",
+   "objects": [
+    "Latch_L"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    0.25,
+    0,
+    -3.06
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.6,
+     -45
+    ],
+    [
+     1,
+     -45
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "dock-latch",
+   "objects": [
+    "Latch_R"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    -0.25,
+    0,
+    -3.06
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.6,
+     45
+    ],
+    [
+     1,
+     45
+    ]
+   ]
+  },
+  {
+   "type": "translate",
+   "property": "dock-latch",
+   "objects": [
+    "Latch_Slide"
+   ],
+   "axis": [
+    0,
+    0,
+    -1
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.5,
+     0
+    ],
+    [
+     1,
+     0.5
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "ant-u-yaw",
+   "objects": [
+    "AntU_a",
+    "AntU_b"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    0,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     -150
+    ],
+    [
+     1,
+     150
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "ant-u-pitch",
+   "objects": [
+    "AntU_a",
+    "AntU_b"
+   ],
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "center": [
+    0,
+    3.18,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "ant-l-yaw",
+   "objects": [
+    "AntL_a",
+    "AntL_b"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    0,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     -150
+    ],
+    [
+     1,
+     150
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "ant-l-pitch",
+   "objects": [
+    "AntL_a",
+    "AntL_b"
+   ],
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "center": [
+    0,
+    -3.18,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ]
+  }
+ ]
+}

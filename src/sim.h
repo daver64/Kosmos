@@ -133,6 +133,8 @@ namespace kosmos
         double current_warp_ = 1.0;
         double step_accumulator_ = 0.0;
         bool script_loaded_ = false;
+        /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
+        bool flying_as_aircraft_ = false;
         std::vector<std::string> messages_;
         std::vector<std::chrono::steady_clock::time_point> message_times_;
     };

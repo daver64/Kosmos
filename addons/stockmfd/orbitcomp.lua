@@ -2,6 +2,8 @@
 --   ORB  the ship's orbit and the target's, with closest approach.
 --   MAN  a manoeuvre node: set the burn time and prograde / radial / normal delta-v, see the orbit you would get,
 --        the burn length, and how close you would pass the target.
+--   HEL  the orbit about the star the ship would follow after leaving the sphere of influence it is in (an escape
+--        orbit), with the planet's orbit and the target's, and closest approach.
 --   PLN  a transfer plan to the target: a Hohmann transfer for a target around the same body, or an ejection burn
 --        for a planet around the same star. TO MAN loads the plan into the manoeuvre page to fine tune.
 -- It only advises; the burn is flown by hand. Planning assumes near circular, coplanar orbits.
@@ -257,7 +259,7 @@ local function cycle_target(dir)
 end
 
 -- Manoeuvre state; shared by both MFD units so the plan survives switching pages.
-local PAGES = { "ORB", "MAN", "PLN" }
+local PAGES = { "ORB", "MAN", "PLN", "HEL" }
 local NODE_MODES = { "T+", "Pe", "Ap", "AN", "DN" }
 local FIELDS = { "Pro", "Rad", "Nrm", "Time" }
 local DV_STEPS = { 0.1, 1, 10, 100, 1000 }
@@ -348,11 +350,11 @@ local function plot_point(g, v, P, Q, cx, cy, scale, rad)
 end
 
 local M = { name = "OrbitComp" }
-M.buttons = { "ORB", "MAN", "PLN", "TGT+", "TGT-", "", "", "", "", "", "", "" }
+M.buttons = { "ORB", "MAN", "PLN", "TGT+", "TGT-", "HEL", "", "", "", "", "", "" }
 
 local function set_buttons()
   local right = { "", "", "", "", "", "" }
-  if page == 1 then right = { "ZOOM+", "ZOOM-", "FIT", "", "", "" }
+  if page == 1 or page == 4 then right = { "ZOOM+", "ZOOM-", "FIT", "", "", "" }
   elseif page == 2 then right = { "FIELD", "+", "-", "STEP", "NODE", "ZERO" }
   else right = { "TO MAN", "", "", "", "", "" } end
   for i = 1, 6 do M.buttons[6 + i] = right[i] end
@@ -368,11 +370,13 @@ local function need_target(g, y)
   g:text(200, y, "No target - TGT+ / TGT-", 1)
 end
 
+local AU = 1.495978707e11
+
 local function draw_orb(g, f, ot, tr)
   title(g, f)
   local o = f.o
   local cx, cy = 200, 215
-  local body_r = ship("body-radius")
+  local body_r = f.body_r or ship("body-radius")
   local extent = o.bound and o.ra or o.rp * 4
   -- A far larger target orbit (the Moon from low orbit) would squash the ship's own to a dot; ZOOM- brings it in.
   if ot and (ot.ra or ot.rp * 2) < 6 * extent then extent = math.max(extent, ot.ra or ot.rp * 2) end
@@ -390,6 +394,11 @@ local function draw_orb(g, f, ot, tr)
     g:circle(cx - o.ra * scale, cy, 4)
     g:text(cx - o.ra * scale - 8, cy - 8, "Ap", 2)
   end
+  if f.home then
+    g:colour(80, 160, 255)
+    draw_orbit(g, f.home, P, Q, cx, cy, scale, limit)
+    plot_point(g, f.home_r, P, Q, cx, cy, scale, 3)
+  end
   g:colour(255, 255, 255)
   plot_point(g, f.r, P, Q, cx, cy, scale, 4)
   local scanned = scan(f, ot, nil)
@@ -405,10 +414,16 @@ local function draw_orb(g, f, ot, tr)
   end
   g:colour(120, 255, 140)
   g:text(LX, 36, "T " .. (o.bound and fmt_time(o.period) or "--"), 0)
-  g:text(LX, 52, "Tpe " .. fmt_time(ship("orbit/time-to-periapsis")), 0)
-  if o.bound then g:text(LX, 68, "Tap " .. fmt_time(ship("orbit/time-to-apoapsis")), 0) end
-  g:text(LX, 84, string.format("Vel %.0f m/s", len(f.v)), 0)
-  g:text(LX, 100, "Alt " .. fmt_len(ship("altitude")), 0)
+  if f.home then
+    g:text(LX, 52, "Tap " .. fmt_time(time_to(o, o.nu, PI)), 0)
+    g:text(LX, 68, string.format("Vel %.2f km/s", len(f.v) / 1000), 0)
+    g:text(LX, 84, string.format("V inf %.2f km/s", f.v_inf / 1000), 0)
+  else
+    g:text(LX, 52, "Tpe " .. fmt_time(ship("orbit/time-to-periapsis")), 0)
+    if o.bound then g:text(LX, 68, "Tap " .. fmt_time(ship("orbit/time-to-apoapsis")), 0) end
+    g:text(LX, 84, string.format("Vel %.0f m/s", len(f.v)), 0)
+    g:text(LX, 100, "Alt " .. fmt_len(ship("altitude")), 0)
+  end
   if ot then
     g:colour(255, 140, 60)
     g:text(LX, 124, "Tgt " .. target_name(), 0)
@@ -425,10 +440,48 @@ local function draw_orb(g, f, ot, tr)
     g:text(LX, 140, "other frame", 0)
   end
   g:colour(120, 255, 140)
-  g:text(LX, 352, "PeA " .. fmt_len(o.rp - body_r), 0)
-  g:text(230, 352, "ApA " .. (o.bound and fmt_len(o.ra - body_r) or "--"), 0)
+  if f.home then
+    g:text(LX, 352, string.format("Pe %.3f AU", o.rp / AU), 0)
+    g:text(230, 352, "Ap " .. (o.bound and string.format("%.3f AU", o.ra / AU) or "--"), 0)
+  else
+    g:text(LX, 352, "PeA " .. fmt_len(o.rp - body_r), 0)
+    g:text(230, 352, "ApA " .. (o.bound and fmt_len(o.ra - body_r) or "--"), 0)
+  end
   g:text(LX, 368, string.format("Ecc %.4f   Inc %.2f", o.e, o.inc), 0)
   g:text(LX, 384, string.format("LAN %.1f   ArgPe %.1f", o.raan, o.argp), 0)
+end
+
+-- The orbit about the star the ship would follow once it leaves the sphere of influence it is in: the planet's state plus the
+-- escape orbit's excess velocity along its outgoing asymptote. A ship already about the star just shows its own orbit.
+local function helio_frame(f)
+  if not f.parent or f.parent == "" then return f end
+  local o = f.o
+  if o.bound then return nil end
+  local pidx = body_by_name(f.parent)
+  if not pidx then return nil end
+  local sp, sv, smu = body_state(pidx)
+  local v_inf = math.sqrt(-o.mu / o.a)
+  local u = add(mul(o.P, -1 / o.e), mul(o.Q, math.sqrt(1 - 1 / (o.e * o.e))))
+  local rp, vp = sub(f.bp, sp), sub(f.bv, sv)
+  local r, v = add(rp, f.r), add(vp, mul(u, v_inf))
+  local ho = make_orbit(r, v, smu)
+  local home = make_orbit(rp, vp, smu)
+  if not ho or not home then return nil end
+  local _, _, _, grand = body_state(pidx)
+  return { soi = f.parent, idx = pidx, mu = smu, parent = grand, bp = sp, bv = sv, r = r, v = v, o = ho,
+           body_r = 6.96e8, home = home, home_r = rp, v_inf = v_inf }
+end
+
+local function draw_hel(g, f)
+  local h = helio_frame(f)
+  if not h then
+    title(g, f)
+    g:colour(255, 200, 80)
+    g:text(200, 200, "Bound to " .. f.soi .. " - no escape orbit", 1)
+    return
+  end
+  local ot, tr = target_state(h)
+  draw_orb(g, h, ot, tr)
 end
 
 local function draw_man(g, f, ot, tr)
@@ -644,11 +697,11 @@ end
 
 function M.init(self) end
 
--- Scripts (and --set) can drive the planner: set /orbitcomp/page to 1-3 and the node values, and it is applied once.
+-- Scripts (and --set) can drive the planner: set /orbitcomp/page to 1-4 and the node values, and it is applied once.
 local function apply_script()
   local p = tonumber(props.get("/orbitcomp/page")) or 0
   if p < 1 then return end
-  page = clamp(math.floor(p), 1, 3)
+  page = clamp(math.floor(p), 1, 4)
   node.mode = clamp(math.floor(tonumber(props.get("/orbitcomp/node-mode")) or 1), 1, #NODE_MODES)
   node.time = tonumber(props.get("/orbitcomp/time")) or node.time
   node.dv = { tonumber(props.get("/orbitcomp/prograde")) or 0, tonumber(props.get("/orbitcomp/radial")) or 0,
@@ -672,15 +725,17 @@ function M.draw(self, g, w, h)
   M.plan = nil
   if page == 1 then draw_orb(g, f, ot, tr)
   elseif page == 2 then draw_man(g, f, ot, tr)
+  elseif page == 4 then draw_hel(g, f)
   else M.plan = draw_plan(g, f, ot, tr, tv) end
 end
 
 function M.button(self, i)
   scan_cache = nil
   if i <= 3 then page = i; return end
+  if i == 6 then page = 4; return end
   if i == 4 then cycle_target(1); return end
   if i == 5 then cycle_target(-1); return end
-  if page == 1 then
+  if page == 1 or page == 4 then
     if i == 7 then zoom = math.min(zoom * 1.5, 40) elseif i == 8 then zoom = math.max(zoom / 1.5, 0.1) elseif i == 9 then zoom = 1 end
   elseif page == 2 then
     local sgn = 0

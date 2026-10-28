@@ -420,7 +420,8 @@
    ],
    "parts": [
     {
-     "model": "models/dragonfly.obj"
+     "model": "models/dragonfly.obj",
+     "animations": "animations.json"
     }
    ]
   }
@@ -852,5 +853,34 @@
     "h": 34
    }
   ]
- }
+ },
+ "animation_controls": [
+  {
+   "name": "Docking latch",
+   "property": "dock-latch",
+   "duration": 10
+  },
+  {
+   "name": "Upper antenna yaw",
+   "property": "ant-u-yaw",
+   "duration": 18,
+   "initial": 0.5
+  },
+  {
+   "name": "Upper antenna pitch",
+   "property": "ant-u-pitch",
+   "duration": 18
+  },
+  {
+   "name": "Lower antenna yaw",
+   "property": "ant-l-yaw",
+   "duration": 18,
+   "initial": 0.5
+  },
+  {
+   "name": "Lower antenna pitch",
+   "property": "ant-l-pitch",
+   "duration": 18
+  }
+ ]
 }

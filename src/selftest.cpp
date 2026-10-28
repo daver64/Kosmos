@@ -274,6 +274,8 @@ namespace kosmos
                             sim.universe.time(), sim.props.get_string("/autopilot/status").c_str(), tm.altitude / km, tm.surface_speed,
                             tm.vertical_speed, tm.apoapsis / km, tm.periapsis / km, tm.pitch, ship->active_stage(), tm.stage_fuel,
                             tm.mass, sim.current_warp(), ship->crashed() ? " CRASHED" : "");
+                if (sim.props.get_bool("/target/valid"))
+                    std::printf("   target %s: distance %.0f km\n", sim.props.get_string("/sim/target").c_str(), sim.props.get_double("/target/distance") / km);
                 if (sim.props.get_string("/environment/station") != "")
                     std::printf("   wx: %s wind %.1f from %.0f rain %.2f cloud %.2f vis %.0f wet %.2f | %s\n", sim.props.get_string("/environment/station").c_str(),
                                 sim.props.get_double("/environment/wind-speed"), sim.props.get_double("/environment/wind-from"), sim.props.get_double("/environment/rain"),

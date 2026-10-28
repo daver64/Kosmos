@@ -1229,8 +1229,8 @@ namespace kosmos
             return;
         }
         const Telemetry &tm = ship->telemetry();
-        if (!ship->spec().aircraft())
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is not an aircraft; these modes need wings.", ship->name.c_str());
+        if (!ship->flies_as_aircraft())
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is not flying as an aircraft; these modes need wings.", ship->name.c_str());
 
         bool engaged = p.get_bool("/autopilot/enabled");
         if (ImGui::Checkbox("Autopilot engaged  [P]", &engaged))
@@ -1313,8 +1313,8 @@ namespace kosmos
             ImGui::End();
             return;
         }
-        if (ship->spec().aircraft())
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is an aircraft; see Autopilot > Aircraft.", ship->name.c_str());
+        if (ship->flies_as_aircraft())
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is flying as an aircraft; see Autopilot > Aircraft.", ship->name.c_str());
 
         const bool scripted = !ship->spec().script.empty();
         bool engaged = p.get_bool("/autopilot/enabled");

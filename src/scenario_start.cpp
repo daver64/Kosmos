@@ -1,4 +1,5 @@
 #include "scenario_start.h"
+#include "settings.h"
 
 namespace kosmos::app
 {
@@ -127,7 +128,9 @@ namespace kosmos::app
             }
             if (!entry.landed)
             {
-                if (entry.apoapsis_km > 0.0)
+                if (!entry.escape_to.empty())
+                    ship->place_on_escape(body, entry.altitude_km * km, entry.phase, sim.universe.find(entry.escape_to), entry.escape_days);
+                else if (entry.apoapsis_km > 0.0)
                     ship->place_on_ellipse(body, entry.altitude_km * km, entry.apoapsis_km * km, entry.phase, entry.toward.empty() ? -1 : sim.universe.find(entry.toward));
                 else
                     ship->place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
@@ -202,6 +205,7 @@ namespace kosmos::app
         sim.props.set_string("/sim/enter-building", sc.enter_building);
         sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
         sim.props.set_int("/sim/warp-index", 0);
+        apply_sets(sim.props, sc.sets);
         return sim.active_ship();
     }
 

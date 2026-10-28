@@ -33,6 +33,9 @@ namespace kosmos
             out.mfd_left = json.value("mfd_left", "");
             out.mfd_right = json.value("mfd_right", "");
             out.enter_building = json.value("enter_building", "");
+            if (json.contains("set"))
+                for (auto it = json["set"].begin(); it != json["set"].end(); ++it)
+                    out.sets.push_back(it.key() + "=" + (it.value().is_string() ? it.value().get<std::string>() : it.value().dump()));
             if (json.contains("mjd"))
                 out.epoch_jd = json["mjd"].get<double>() + mjd_offset;
             else if (json.contains("date"))
@@ -58,6 +61,8 @@ namespace kosmos
                     s.phase = o.value("phase", 0.0);
                     s.apoapsis_km = o.value("apoapsis_km", 0.0);
                     s.toward = o.value("toward", "");
+                    s.escape_to = o.value("escape_to", "");
+                    s.escape_days = o.value("escape_days", 0.0);
                 }
                 else if (js.contains("surface"))
                 {
@@ -148,6 +153,12 @@ namespace kosmos
             json["mfd_right"] = sc.mfd_right;
         if (!sc.enter_building.empty())
             json["enter_building"] = sc.enter_building;
+        for (const std::string &assignment : sc.sets)
+        {
+            const std::size_t eq = assignment.find('=');
+            if (eq != std::string::npos)
+                json["set"][assignment.substr(0, eq)] = assignment.substr(eq + 1);
+        }
         if (sc.epoch_jd > 0.0)
         {
             if (!sc.date_text.empty())
@@ -172,6 +183,12 @@ namespace kosmos
                     js["orbit"]["apoapsis_km"] = s.apoapsis_km;
                 if (!s.toward.empty())
                     js["orbit"]["toward"] = s.toward;
+                if (!s.escape_to.empty())
+                    {
+                    js["orbit"]["escape_to"] = s.escape_to;
+                    if (s.escape_days > 0.0)
+                        js["orbit"]["escape_days"] = s.escape_days;
+                }
             }
             else
             {
