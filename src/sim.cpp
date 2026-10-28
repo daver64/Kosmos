@@ -477,6 +477,25 @@ namespace kosmos
         return c;
     }
 
+    int Sim::advance(double frame)
+    {
+        if (current_warp_ > 4.0 || props.get_bool("/sim/paused"))
+        {
+            step_accumulator_ = 0.0;
+            step(frame);
+            return 1;
+        }
+        step_accumulator_ = std::min(step_accumulator_ + frame, fixed_step * max_steps_per_frame);
+        int steps = 0;
+        while (step_accumulator_ >= fixed_step)
+        {
+            step(fixed_step);
+            step_accumulator_ -= fixed_step;
+            ++steps;
+        }
+        return steps;
+    }
+
     void Sim::step(double frame)
     {
         // HUD messages are notices: they go after a few seconds.
@@ -572,6 +591,7 @@ namespace kosmos
         for (const std::unique_ptr<Ship> &ship : ships_)
             if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
                 ship->set_surface_grip(grip);
+        universe.world.max_substep = warp <= 4.0 ? fixed_step : 0.1;
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 

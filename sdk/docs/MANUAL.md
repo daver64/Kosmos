@@ -307,6 +307,8 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 |---|---|
 | `/sim/active-ship` | Index of the flown ship. |
 | `/sim/paused`, `/sim/warp-index`, `/sim/target` | Pause, time warp step, selected target. |
+| `/sim/frame-rate`, `/sim/frame-time` | Smoothed frames per second and seconds per frame (read only). |
+| `/sim/physics-steps` | Physics steps taken in the last frame. Physics runs in fixed 1/240 s steps at 4x warp and below (read only). |
 | `/ships/ship[N]/name`, `speed`, `altitude` | Name, speed (m/s) and altitude of ship N. |
 | `/ships/ship[N]/gear-position`, `landed`, `crashed` | Gear (0 up, 1 down), on the ground, destroyed. |
 | `/ships/ship[N]/stage`, `stage-count` | Current stage and the number of stages. |

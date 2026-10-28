@@ -1,6 +1,7 @@
 #include "menu.h"
 
 #include <imgui.h>
+#include "ui_slider.h"
 #include <imgui_internal.h>
 
 #include <algorithm>
@@ -440,7 +441,7 @@ namespace kosmos
             std::snprintf(desc, sizeof desc, "%s", scenario_.description.c_str());
             if (ImGui::InputTextMultiline("Description", desc, sizeof desc, ImVec2(-FLT_MIN, 52.0f)))
                 scenario_.description = desc;
-            ImGui::SliderInt("Flown ship", &scenario_.active, 0, std::max(0, static_cast<int>(scenario_.ships.size()) - 1));
+            ui::slider_int("Flown ship", &scenario_.active, 0, std::max(0, static_cast<int>(scenario_.ships.size()) - 1));
             text("Target", scenario_.target);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("A ship or body name for the Target MFD; empty for none");
@@ -951,7 +952,7 @@ namespace kosmos
                         if (ImGui::Button("Place at flown ship"))
                             ship_xz(o.x, o.z);
                         ImGui::SeparatorText("Row");
-                        ImGui::SliderInt("Copies", &o.count, 1, 200);
+                        ui::slider_int("Copies", &o.count, 1, 200);
                         dbl("Step x", o.step_x, 0.5f);
                         dbl("Step z", o.step_z, 0.5f);
                         ImGui::SeparatorText("Size (0 keeps the default)");
@@ -961,7 +962,7 @@ namespace kosmos
                         dbl("Height", o.height, 0.1f, 0.0, 1000.0, "%.2f");
                         dbl("Length", o.length, 0.1f, 0.0, 1000.0, "%.2f");
                         dbl("Radius", o.radius, 0.1f, 0.0, 1000.0, "%.2f");
-                        ImGui::SliderInt("Number", &o.number, 0, 100);
+                        ui::slider_int("Number", &o.number, 0, 100);
                         int seed = static_cast<int>(o.seed);
                         if (ImGui::InputInt("Seed", &seed))
                             o.seed = static_cast<unsigned>(std::max(0, seed));
@@ -1334,7 +1335,7 @@ namespace kosmos
             if (ImGui::InputFloat("Target orbit (km)", &altitude, 10.0f, 100.0f, "%.0f"))
                 p.set_double("/autopilot/sc/target-altitude", std::clamp(static_cast<double>(altitude), 80.0, 2000.0));
             ImGui::SetNextItemWidth(140.0f);
-            if (ImGui::SliderFloat("Launch heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+            if (ui::slider_float("Launch heading", &heading, 0.0f, 360.0f, "%.0f deg"))
                 p.set_double("/autopilot/sc/heading", heading);
             ImGui::TextDisabled("Liftoff, gravity turn, staging, coast and circularise.");
         }
@@ -1363,10 +1364,10 @@ namespace kosmos
         {
             float pitch = static_cast<float>(p.get_double("/controls/target-pitch")), heading = static_cast<float>(p.get_double("/controls/target-heading"));
             ImGui::SetNextItemWidth(160.0f);
-            if (ImGui::SliderFloat("Pitch", &pitch, -90.0f, 90.0f, "%.0f deg"))
+            if (ui::slider_float("Pitch", &pitch, -90.0f, 90.0f, "%.0f deg"))
                 p.set_double("/controls/target-pitch", pitch);
             ImGui::SetNextItemWidth(160.0f);
-            if (ImGui::SliderFloat("Heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+            if (ui::slider_float("Heading", &heading, 0.0f, 360.0f, "%.0f deg"))
                 p.set_double("/controls/target-heading", heading);
         }
 
@@ -1374,7 +1375,7 @@ namespace kosmos
         ImGui::TextUnformatted("Throttle");
         float throttle = static_cast<float>(p.get_double("/controls/throttle") * 100.0);
         ImGui::SetNextItemWidth(160.0f);
-        if (ImGui::SliderFloat("##throttle", &throttle, 0.0f, 100.0f, "%.0f%%"))
+        if (ui::slider_float("##throttle", &throttle, 0.0f, 100.0f, "%.0f%%"))
             p.set_double("/controls/throttle", throttle / 100.0);
         ImGui::SameLine();
         if (ImGui::SmallButton("Cut"))

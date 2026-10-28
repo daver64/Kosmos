@@ -853,7 +853,7 @@ namespace kosmos
         return up;
     }
 
-    void Ship::apply_attitude(const Controls &c, double)
+    void Ship::apply_attitude(const Controls &c, double dt)
     {
         sl::FlightBody &b = body();
         const sl::dvec3 w = b.angular_velocity;
@@ -876,12 +876,14 @@ namespace kosmos
         }
         const sl::dvec3 manual(c.pitch, c.yaw, c.roll);
         sl::dvec3 command(0.0);
+        // The torque is held for the whole step, so the gain must stay under one step's worth or a slow frame makes the ship oscillate.
+        const double gain = dt > 0.0 && spec_.torque_accel > 0.0 ? std::min(2.0, 0.8 / (spec_.torque_accel * dt)) : 2.0;
         for (int axis = 0; axis < 3; ++axis)
         {
             if (std::fabs(manual[axis]) > 0.02)
                 command[axis] = std::clamp(manual[axis], -1.0, 1.0);
             else if (active)
-                command[axis] = std::clamp((desired[axis] - w[axis]) * 2.0, -1.0, 1.0);
+                command[axis] = std::clamp((desired[axis] - w[axis]) * gain, -1.0, 1.0);
         }
         rcs_torque_ = command;
         if (glm::length(command) > 0.0)

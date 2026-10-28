@@ -258,7 +258,7 @@ namespace kosmos
                 sim.props.set_double("/controls/throttle", options.throttle);
             if (options.gear_up && ship->telemetry().altitude > 30.0)
                 sim.props.set_double("/controls/gear", 0.0);
-            sim.step(dt);
+            sim.advance(dt);
             const kosmos::Telemetry &tm = ship->telemetry();
             const double report_every = ship->spec().aircraft() ? 2.0 : 10.0;
             if (sim.universe.time() >= next_report)

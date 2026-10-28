@@ -229,7 +229,8 @@ namespace kosmos::app
             sl::gprintf_center(96, {255, 80, 70}, "!! %s !!", ship->systems()->alarm_text().c_str());
         if (show_info)
         {
-            sl::gprintf(16, 34, {200, 220, 255}, "%s  Alt %s   Speed %.1f m/s   Vertical %.1f m/s", soi_name.c_str(), format_distance(tm.altitude).c_str(), tm.surface_speed, tm.vertical_speed);
+            sl::gprintf(16, 34, {200, 220, 255}, "%s  Alt %s   Speed %.1f m/s   Vertical %.1f m/s   %.0f fps (%.1f ms)", soi_name.c_str(), format_distance(tm.altitude).c_str(), tm.surface_speed, tm.vertical_speed,
+                        props.get_double("/sim/frame-rate"), props.get_double("/sim/frame-time") * 1000.0);
             if (ship->spec().aircraft())
                 sl::gprintf(16, 52, {120, 255, 150}, "Climb %.1f m/s   Flight path %.1f deg   AoA %.1f deg   Slip %.1f deg   Q %.0f Pa   Flaps %.0f%%%s%s", tm.vertical_speed, tm.flight_path,
                             tm.alpha, tm.sideslip, tm.dynamic_pressure, props.get_double("/controls/flaps") * 100.0, props.get_double("/controls/brake") > 0.5 ? "   BRAKES" : "",

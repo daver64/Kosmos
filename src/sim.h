@@ -41,6 +41,9 @@ namespace kosmos
 
         /** Time warp factors selectable with /sim/warp-index. Above max_physics_warp ships must be on rails. */
         static constexpr int warp_levels = 11;
+        // Physics step at warp 4x and below, and the most steps one frame may catch up before the simulation runs slow instead.
+        static constexpr double fixed_step = 1.0 / 240.0;
+        static constexpr int max_steps_per_frame = 24;
         static double warp_factor(int index);
         static constexpr double max_physics_warp = 4.0;
 
@@ -80,6 +83,8 @@ namespace kosmos
         /** Advance by one frame of real time, applying the time warp. */
         void step(double frame_seconds);
         /** Warp factor in effect after the last step. */
+        /** Runs `frame` seconds of wall time as constant physics steps and returns how many ran. Above 4x warp, or paused, it is a single step of the frame. */
+        int advance(double frame);
         double current_warp() const { return current_warp_; }
         const std::vector<std::string> &messages() const { return messages_; }
         const std::vector<Addon> &addons() const { return addons_; }
@@ -126,6 +131,7 @@ namespace kosmos
         int system_ = 0;
         int active_ = 0;
         double current_warp_ = 1.0;
+        double step_accumulator_ = 0.0;
         bool script_loaded_ = false;
         std::vector<std::string> messages_;
         std::vector<std::chrono::steady_clock::time_point> message_times_;

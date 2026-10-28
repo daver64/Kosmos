@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "ui_slider.h"
 
 #include "scenario_start.h"
 
@@ -560,7 +561,7 @@ namespace kosmos::app
             else
                 ImGui::TextDisabled(link_failed ? "Cannot listen on the link port (is another program using it?)" : "Not listening");
             float timeout = sim.props.exists(timeout_setting) ? static_cast<float>(sim.props.get_double(timeout_setting)) : 15.0f;
-            if (ImGui::SliderFloat("Drop silent programs after (s, 0 = never)", &timeout, 0.0f, 60.0f, "%.0f"))
+            if (ui::slider_float("Drop silent programs after (s, 0 = never)", &timeout, 0.0f, 60.0f, "%.0f"))
             {
                 sim.props.set_double(timeout_setting, timeout);
                 kosmos::settings_save(sim.props);

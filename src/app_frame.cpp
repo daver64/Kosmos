@@ -157,6 +157,13 @@ namespace kosmos::app
         clock += frame;
         kosmos::Universe &universe = sim.universe; universe_ref = &universe;
         sl::PropertyTree &props = sim.props; props_ref = &props;
+        {
+            const double raw = last_frame_stamp ? std::clamp(static_cast<double>(now - last_frame_stamp) * 0.001, 0.0005, 1.0) : 1.0 / 60.0;
+            last_frame_stamp = now;
+            const double smooth = props.get_double("/sim/frame-time", raw) * 0.9 + raw * 0.1;
+            props.set_double("/sim/frame-time", smooth);
+            props.set_double("/sim/frame-rate", 1.0 / smooth);
+        }
 
         event = sl::Event();
     }

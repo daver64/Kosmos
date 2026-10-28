@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "ui_slider.h"
 
 namespace kosmos::app
 {
@@ -65,7 +66,7 @@ namespace kosmos::app
                     if (selected_vessel < sys->vessel_count() && sys->vessels()[static_cast<std::size_t>(selected_vessel)].alive)
                     {
                         ImGui::SeparatorText("Cabin gas grid");
-                        ImGui::SliderInt("Height", &slice_y, 1, 10);
+                        ui::slider_int("Height", &slice_y, 1, 10);
                         ImGui::RadioButton("O2", &slice_gas, 0);
                         ImGui::SameLine();
                         ImGui::RadioButton("N2", &slice_gas, 1);
@@ -141,10 +142,10 @@ namespace kosmos::app
                         {
                             ImGui::SameLine();
                             ImGui::SetNextItemWidth(80.0f);
-                            ImGui::SliderFloat("Dead", &b.deadzone, 0.0f, 0.5f, "%.2f");
+                            ui::slider_float("Dead", &b.deadzone, 0.0f, 0.5f, "%.2f");
                             ImGui::SameLine();
                             ImGui::SetNextItemWidth(80.0f);
-                            ImGui::SliderFloat("Curve", &b.expo, 0.0f, 1.0f, "%.2f");
+                            ui::slider_float("Curve", &b.expo, 0.0f, 1.0f, "%.2f");
                         }
                         ImGui::PopID();
                     }
@@ -265,15 +266,15 @@ namespace kosmos::app
                     }
                     int fps = props.get_int("/sim/settings/gfx-max-fps");
                     ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::SliderInt("Max frame rate", &fps, 10, 240))
+                    if (ui::slider_int("Max frame rate", &fps, 10, 240))
                         props.set_int("/sim/settings/gfx-max-fps", fps);
                     int radius = props.get_int("/sim/settings/gfx-light-radius");
                     ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::SliderInt("Base light radius (m)", &radius, 500, 20000))
+                    if (ui::slider_int("Base light radius (m)", &radius, 500, 20000))
                         props.set_int("/sim/settings/gfx-light-radius", radius);
                     int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
                     ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::SliderInt("Weapon lights", &weapon_lights, 0, 8))
+                    if (ui::slider_int("Weapon lights", &weapon_lights, 0, 8))
                         props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
                     static const char *details[] = {"Ultra", "High", "Medium", "Low"};
                     int detail = props.get_int("/sim/settings/gfx-terrain-detail");
@@ -291,7 +292,7 @@ namespace kosmos::app
                     {
                         int clutter_density = props.get_int("/sim/settings/gfx-clutter-density", 100);
                         ImGui::SetNextItemWidth(160.0f);
-                        if (ImGui::SliderInt("Scatter density (%)", &clutter_density, 10, 200))
+                        if (ui::slider_int("Scatter density (%)", &clutter_density, 10, 200))
                             props.set_int("/sim/settings/gfx-clutter-density", clutter_density);
                     }
                     bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
@@ -303,7 +304,7 @@ namespace kosmos::app
                 ImGui::SeparatorText("Sound");
                 flag("Sound on", "/sim/settings/sound", "Engine sound (M)");
                 int volume = props.get_int("/sim/settings/volume");
-                if (ImGui::SliderInt("Volume", &volume, 0, 100, "%d%%"))
+                if (ui::slider_int("Volume", &volume, 0, 100, "%d%%"))
                     props.set_int("/sim/settings/volume", volume);
                 ImGui::SeparatorText("Generated worlds");
                 {
@@ -324,7 +325,7 @@ namespace kosmos::app
                 }
                 ImGui::SeparatorText("Simulation");
                 int warp = props.get_int("/sim/warp-index");
-                if (ImGui::SliderInt("Time warp", &warp, 0, Sim::warp_levels - 1))
+                if (ui::slider_int("Time warp", &warp, 0, Sim::warp_levels - 1))
                     props.set_int("/sim/warp-index", warp);
                 ImGui::TextDisabled("Settings are saved when you exit.");
             }
@@ -815,13 +816,13 @@ namespace kosmos::app
                         if (ImGui::InputDouble("Distance (m, 0 frames it)", &d, 0.0, 0.0, "%.0f"))
                             uc.distance = std::max(0.0, d), changed = true;
                         float f = static_cast<float>(uc.yaw);
-                        if (ImGui::SliderFloat("Around", &f, -180.0f, 180.0f, "%.0f deg"))
+                        if (ui::slider_float("Around", &f, -180.0f, 180.0f, "%.0f deg"))
                             uc.yaw = f, changed = true;
                         f = static_cast<float>(uc.pitch);
-                        if (ImGui::SliderFloat("Above", &f, -89.0f, 89.0f, "%.0f deg"))
+                        if (ui::slider_float("Above", &f, -89.0f, 89.0f, "%.0f deg"))
                             uc.pitch = f, changed = true;
                         f = static_cast<float>(uc.spin);
-                        if (ImGui::SliderFloat("Spin", &f, -30.0f, 30.0f, "%.1f deg/s"))
+                        if (ui::slider_float("Spin", &f, -30.0f, 30.0f, "%.1f deg/s"))
                             uc.spin = f, changed = true;
                         ImGui::TextDisabled("Right-drag orbits, [ and ] zoom.");
                     }
@@ -838,10 +839,10 @@ namespace kosmos::app
                         if (uc.look_at == kosmos::UserCamera::look_ahead)
                         {
                             float f = static_cast<float>(uc.look_yaw);
-                            if (ImGui::SliderFloat("Turned", &f, -180.0f, 180.0f, "%.0f deg"))
+                            if (ui::slider_float("Turned", &f, -180.0f, 180.0f, "%.0f deg"))
                                 uc.look_yaw = f, changed = true;
                             f = static_cast<float>(uc.look_pitch);
-                            if (ImGui::SliderFloat("Raised", &f, -89.0f, 89.0f, "%.0f deg"))
+                            if (ui::slider_float("Raised", &f, -89.0f, 89.0f, "%.0f deg"))
                                 uc.look_pitch = f, changed = true;
                         }
                         else if (uc.look_at != kosmos::UserCamera::look_flown_ship)
@@ -849,7 +850,7 @@ namespace kosmos::app
                         ImGui::TextDisabled("On a ship: x right, y up, z back. On a body: east, up, south. Right-drag peeks around.");
                     }
                     float fov = static_cast<float>(uc.fov);
-                    if (ImGui::SliderFloat("Field of view", &fov, 10.0f, 110.0f, "%.0f deg"))
+                    if (ui::slider_float("Field of view", &fov, 10.0f, 110.0f, "%.0f deg"))
                         uc.fov = fov, changed = true;
                 }
                 ImGui::Separator();

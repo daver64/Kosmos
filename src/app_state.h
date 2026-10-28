@@ -110,6 +110,7 @@ namespace kosmos::app
         bool first_frame{};
         bool show_orbit{};
         bool show_info{};
+        std::uint32_t last_frame_stamp{};
         bool running{};
         bool shot_saved{};
         bool map_mode{};
