@@ -43,7 +43,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | **G** | Toggle landing gear (also **L**) |
 | **N** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
 | Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
-| **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (hold Alt to free the pointer), arrows also look, F manoeuvring pack, Q/E roll when floating |
+| **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (press ` or hold Alt to free the pointer for the menus), arrows also look, F manoeuvring pack, Q/E roll when floating |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
 | **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp. Saved to `~/.config/kosmos/settings.json` on exit |

@@ -174,7 +174,7 @@ namespace kosmos
                     // Directly above or below the hull there is no sideways way out, so stay where you were.
                     if (fraction < 0.3)
                         return from;
-                    to += normalised(flat, sl::dvec3(1.0, 0.0, 0.0)) * std::min((reach - d) / fraction, 2.0 * reach);
+                    to += normalised(flat, sl::dvec3(1.0, 0.0, 0.0)) * std::min((reach - d) / fraction, 1.0);
                 }
             }
         }

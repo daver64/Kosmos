@@ -82,6 +82,34 @@ namespace kosmos
             return value > 0.0 ? static_cast<float>(value) : fallback;
         }
 
+        // A ground rack: the flat panel strip tilted towards the viewer's +Z side and held up on two posts.
+        sl::MeshData solar_rack(float length, float width, int panels, sl::Colour cell)
+        {
+            const float a = glm::radians(28.0f), half = 0.5f * width;
+            const float centre = 0.6f + half * std::sin(a);
+            const glm::vec3 across(0.0f, std::sin(a), -std::cos(a)), normal(0.0f, std::cos(a), std::sin(a));
+            const glm::mat4 place(glm::vec4(1, 0, 0, 0), glm::vec4(across, 0), glm::vec4(normal, 0), glm::vec4(-0.5f * length, centre, 0.0f, 1));
+            sl::MeshData out = sl::make_solar_array_data(length, width, panels, cell);
+            for (sl::Vertex3D &v : out.vertices)
+            {
+                const glm::vec3 p = glm::vec3(place * glm::vec4(v.position[0], v.position[1], v.position[2], 1.0f));
+                const glm::vec3 n = glm::mat3(place) * glm::vec3(v.normal[0], v.normal[1], v.normal[2]);
+                for (int k = 0; k < 3; ++k)
+                {
+                    v.position[k] = p[k];
+                    v.normal[k] = n[k];
+                }
+            }
+            for (const float x : {-0.3f, 0.3f})
+            {
+                sl::MeshData post = sl::make_barrel_data(0.07f, centre, {110, 112, 118, 255});
+                for (sl::Vertex3D &v : post.vertices)
+                    v.position[0] += x * length;
+                sl::append_mesh_data(out, post);
+            }
+            return out;
+        }
+
         // Returns an empty mesh for an unknown type.
         sl::MeshData build(const BaseObject &o)
         {
@@ -157,9 +185,9 @@ namespace kosmos
             if (t == "station_module")
                 return sl::make_station_module_data(pick(r, 3.3f), pick(len, 14.6f), col({236, 236, 230, 255}), o.seed);
             if (t == "solar_array")
-                return sl::make_solar_array_data(pick(len, 10.0f), pick(w, 3.0f), o.number > 0 ? o.number : 4, col({30, 48, 118, 255}));
+                return solar_rack(pick(len, 10.0f), pick(w, 3.0f), o.number > 0 ? o.number : 4, col({30, 48, 118, 255}));
             if (t == "solar_windmill")
-                return sl::make_solar_windmill_data(pick(len, 7.0f), pick(w, 3.0f));
+                return solar_rack(pick(len, 7.0f) * 2.0f, pick(w, 3.0f), 4, col({30, 48, 118, 255}));
             if (t == "antenna_dish")
                 return sl::make_antenna_dish_data(pick(r, 1.0f));
             if (t == "satellite")

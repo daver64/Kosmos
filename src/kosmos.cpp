@@ -2448,8 +2448,12 @@ namespace
             sl::rectfill(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {255, 190, 60, 235});
             sl::rect(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {40, 30, 10, 255}, 1.0f);
         }
+        else if (c.type == "label" && c.w > 0.0f)
+            sl::rectfill(sl::screen, x, y + h + 2, x + w, y + h + 3, {70, 90, 110, 255});
         else if (c.type == "button" || c.type == "toggle")
         {
+            if (!c.label.empty())
+                sl::rectfill(sl::screen, x, y, x + w, y + h, {24, 28, 36, 255});
             if (control_lit(sim, c))
             {
                 sl::rectfill(sl::screen, x, y, x + w, y + h, {90, 255, 120, 55});
@@ -2464,6 +2468,11 @@ namespace
             sl::rectfill(sl::screen, x, y, x + w, y + h, {12, 16, 20, 255});
             sl::rectfill(sl::screen, x, y, x + w * v, y + h, c.alarm && v < 0.25f ? sl::Colour{230, 80, 60, 255} : sl::Colour{70, 200, 110, 255});
             sl::rect(sl::screen, x, y, x + w, y + h, {90, 100, 115, 255}, 1.0f);
+            // The reading itself, inside the bar at its right-hand end.
+            char reading[32];
+            const double raw = sim.props.get_double(c.property) * c.scale;
+            std::snprintf(reading, sizeof reading, std::fabs(raw) >= 100.0 ? "%.0f" : "%.1f", raw);
+            sl::gprintf(static_cast<int>(x + w - 8.0f * std::strlen(reading) - 4), static_cast<int>(y + h * 0.5f - 7), {235, 245, 240}, "%s", reading);
         }
         else if (c.type == "lamp")
         {
@@ -2482,7 +2491,7 @@ namespace
         else if (!c.label.empty())
         {
             const bool beside = c.type == "gauge" || c.type == "lamp";
-            sl::gprintf(static_cast<int>(beside ? x + w + 6 : x + 4), static_cast<int>(beside ? y : y + h * 0.5f - 7), {210, 220, 235}, "%s", c.label.c_str());
+            sl::gprintf(static_cast<int>(beside ? x + w + 10 : x + 10), static_cast<int>(beside ? y + h * 0.5f - 7 : y + h * 0.5f - 7), {210, 220, 235}, "%s", c.label.c_str());
         }
     }
 
@@ -4209,6 +4218,7 @@ int main(int argc, char **argv)
     bool cockpit_view = options.cockpit;
     kosmos::Astronaut eva;
     bool mouse_captured = false;
+    bool pointer_free = false; // ` toggles between mouselook and a free pointer for the menus when on foot
     if (!options.target.empty())
         sim.props.set_string("/sim/target", options.target);
     apply_sets(sim.props, options.sets);
@@ -4403,7 +4413,7 @@ int main(int argc, char **argv)
     {
         const sl::dvec3 eye = eva.eye_world(sim.universe);
         for (int i = 0; i < sim.ship_count(); ++i)
-            if (sim.ship(i)->spec().building() && glm::length(door_world(*sim.ship(i)) - eye) <= sim.ship(i)->spec().door_radius)
+            if (sim.ship(i)->spec().building() && glm::length(door_world(*sim.ship(i)) - eye) <= sim.ship(i)->spec().door_radius + 1.7)
                 return i;
         return -1;
     };
@@ -4458,10 +4468,6 @@ int main(int argc, char **argv)
             cockpit_view = cockpit3d = false;
             interior_cam = base_view = user_cam = -1;
             eva_look_yaw = eva_look_pitch = 0.0;
-            {
-                const sl::dvec3 eye = eva.eye_world(sim.universe);
-                std::fprintf(stderr, "DBG door dist %.2f at_door %d\n", glm::length(door_world(*flown) - eye), building_at_door());
-            }
             sim.log("Outside " + flown->name + ": Enter at the door to go back in");
             return;
         }
@@ -4785,6 +4791,8 @@ int main(int argc, char **argv)
                     property_window = !property_window;
                 else if (key == sl::Event::Key::f1)
                     systems_window = !systems_window;
+                else if (key == sl::Event::Key::backquote)
+                    pointer_free = !pointer_free;
                 else if (key == sl::Event::Key::f11)
                     lua_window = !lua_window;
                 else if (key == sl::Event::Key::f12)
@@ -5300,9 +5308,9 @@ int main(int argc, char **argv)
         last_mouse_x = mx;
         last_mouse_y = my;
         {
-            // On foot the mouse steers the view like a first-person game; Alt, or any open window, gives the pointer back.
+            // On foot the mouse steers the view like a first-person game; the ` key, Alt, or any open window gives the pointer back.
             const bool windows_open = camera_window || settings_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
-            const bool free_pointer = windows_open || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
+            const bool free_pointer = windows_open || pointer_free || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
             const bool capture = in_eva && options.shot.empty() && !free_pointer;
             if (capture != mouse_captured)
             {
@@ -5802,7 +5810,7 @@ int main(int argc, char **argv)
                     const double sun_height = glm::dot(glm::normalize(from_centre), glm::normalize(universe.position(0) - eye_world));
                     const double dusk = std::clamp((0.10 - sun_height) / 0.16, 0.0, 1.0);
                     const double low = 1.0 - std::clamp((alt_here - 50.0e3) / 150.0e3, 0.0, 1.0);
-                    light.ambient = static_cast<float>(glm::mix(static_cast<double>(options.ambient), std::min<double>(options.ambient, 0.07), dusk * dusk * (3.0 - 2.0 * dusk) * low));
+                    light.ambient = static_cast<float>(glm::mix(static_cast<double>(options.ambient), std::min<double>(options.ambient, universe.world.air_density_at(eye_world) < 0.1 ? 0.02 : 0.07), dusk * dusk * (3.0 - 2.0 * dusk) * low));
                 }
             }
             if (sim.system_index() != 0)
@@ -6608,6 +6616,24 @@ int main(int argc, char **argv)
             double ship_distance = 0.0;
             const int near_ship = nearest_ship(ship_distance);
             const double ship_speed = near_ship >= 0 ? glm::length(sim.ship(near_ship)->body().velocity - universe.world.body(eva.body)->velocity - eva.velocity) : 0.0;
+            // Mark each building's door so it can be found, and say when Enter will go in.
+            const sl::dvec3 eva_eye = eva.eye_world(universe);
+            for (int s = 0; s < sim.ship_count(); ++s)
+            {
+                if (!sim.ship(s)->spec().building())
+                    continue;
+                const sl::dvec3 rel = door_world(*sim.ship(s)) - eva_eye;
+                const double distance = glm::length(rel);
+                if (distance > 300.0)
+                    continue;
+                if (s == building_at_door())
+                    sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, "Press Enter to go into %s", sim.ship(s)->name.c_str());
+                float x = 0.0f, y = 0.0f;
+                if (distance < 1.0 || !project(view_proj, glm::vec3(rel / distance * 1000.0), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
+                    continue;
+                sl::circle(sl::screen, x, y, 6.0f, {120, 255, 150}, 1.0f);
+                sl::gprintf(static_cast<int>(x) + 10, static_cast<int>(y) - 6, {120, 255, 150}, "DOOR %s  %s", sim.ship(s)->name.c_str(), format_distance(distance).c_str());
+            }
             kosmos::draw_suit_hud(eva, universe, screen_w, screen_h, near_ship >= 0 ? ship_distance : -1.0, ship_speed, near_ship >= 0 ? sim.ship(near_ship)->name.c_str() : nullptr);
         }
 

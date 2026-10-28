@@ -1,0 +1,310 @@
+{
+ "name": "Tranquility comms mast",
+ "class": "building",
+ "door": [
+  3.4000000000000004,
+  0,
+  4.0
+ ],
+ "door_radius": 4,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 30000,
+   "max_w": 6000
+  },
+  {
+   "type": "solar",
+   "name": "Solar array",
+   "area_m2": 30,
+   "efficiency": 0.25,
+   "facing": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "type": "comms",
+   "name": "Uplink dish",
+   "watts": 400,
+   "priority": 1,
+   "wear_hours": 20
+  },
+  {
+   "type": "comms",
+   "name": "Downlink",
+   "watts": 250,
+   "priority": 1
+  },
+  {
+   "type": "load",
+   "name": "Beacon",
+   "watts": 40,
+   "priority": 0
+  }
+ ],
+ "vessels": [],
+ "cockpit": {
+  "present": true,
+  "eye": [
+   0,
+   0,
+   2.3
+  ],
+  "layout": {
+   "name": "Tranquility comms mast",
+   "width": 1000,
+   "height": 300
+  },
+  "controls": [
+   {
+    "type": "label",
+    "label": "COMMUNICATIONS",
+    "x": 20,
+    "y": 10,
+    "w": 960,
+    "h": 20
+   },
+   {
+    "type": "label",
+    "label": "STATUS",
+    "x": 20,
+    "y": 46,
+    "w": 330,
+    "h": 16
+   },
+   {
+    "type": "label",
+    "label": "CONTROLS",
+    "x": 400,
+    "y": 46,
+    "w": 230,
+    "h": 16
+   },
+   {
+    "type": "label",
+    "label": "POWER BUS",
+    "x": 680,
+    "y": 46,
+    "w": 300,
+    "h": 16
+   },
+   {
+    "type": "gauge",
+    "label": "UPLINK WEAR",
+    "property": "{ship}/systems/component[2]/wear",
+    "max": 1.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 20,
+    "y": 80,
+    "w": 230,
+    "h": 22
+   },
+   {
+    "type": "lamp",
+    "label": "UPLINK LINK",
+    "property": "{ship}/systems/component[2]/powered",
+    "alarm": false,
+    "x": 20,
+    "y": 120,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "lamp",
+    "label": "DOWNLINK LINK",
+    "property": "{ship}/systems/component[3]/powered",
+    "alarm": false,
+    "x": 20,
+    "y": 150,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "lamp",
+    "label": "UPLINK FAULT",
+    "property": "{ship}/systems/component[2]/failed",
+    "alarm": true,
+    "x": 20,
+    "y": 180,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Uplink dish",
+    "property": "{ship}/systems/component[2]/enabled",
+    "x": 400,
+    "y": 80,
+    "w": 230,
+    "h": 34
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[2]/powered",
+    "x": 602,
+    "y": 88,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Downlink",
+    "property": "{ship}/systems/component[3]/enabled",
+    "x": 400,
+    "y": 124,
+    "w": 230,
+    "h": 34
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[3]/powered",
+    "x": 602,
+    "y": 132,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "toggle",
+    "label": "Beacon",
+    "property": "{ship}/systems/component[4]/enabled",
+    "x": 400,
+    "y": 168,
+    "w": 230,
+    "h": 34
+   },
+   {
+    "type": "lamp",
+    "property": "{ship}/systems/component[4]/powered",
+    "x": 602,
+    "y": 176,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "button",
+    "label": "REPAIR ALL",
+    "property": "{ship}/systems/repair",
+    "value": "1",
+    "x": 400,
+    "y": 220,
+    "w": 230,
+    "h": 34
+   },
+   {
+    "type": "gauge",
+    "label": "BATTERY %",
+    "property": "{ship}/systems/battery/percent",
+    "max": 100.0,
+    "scale": 1.0,
+    "alarm": true,
+    "x": 680,
+    "y": 80,
+    "w": 200,
+    "h": 22
+   },
+   {
+    "type": "gauge",
+    "label": "SUPPLY W",
+    "property": "{ship}/systems/bus/supply-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 680,
+    "y": 116,
+    "w": 200,
+    "h": 22
+   },
+   {
+    "type": "gauge",
+    "label": "DEMAND W",
+    "property": "{ship}/systems/bus/demand-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 680,
+    "y": 152,
+    "w": 200,
+    "h": 22
+   }
+  ]
+ },
+ "stages": [
+  {
+   "name": "Tranquility comms mast",
+   "dry_mass": 20000,
+   "propellant": 0,
+   "z": 0,
+   "length": 8.0,
+   "radius": 2.2,
+   "parts": [
+    {
+     "profile": [
+      [
+       -3.0,
+       0.0
+      ],
+      [
+       -3.0,
+       2.2
+      ],
+      [
+       4.0,
+       2.2
+      ]
+     ],
+     "colour": [
+      210,
+      210,
+      215
+     ]
+    },
+    {
+     "profile": [
+      [
+       -8.0,
+       0.0
+      ],
+      [
+       -8.0,
+       0.25
+      ],
+      [
+       -3.0,
+       0.25
+      ]
+     ],
+     "colour": [
+      160,
+      160,
+      165
+     ]
+    },
+    {
+     "profile": [
+      [
+       -5.0,
+       0.0
+      ],
+      [
+       -5.0,
+       1.8
+      ],
+      [
+       -6.0,
+       2.4
+      ]
+     ],
+     "colour": [
+      240,
+      240,
+      240
+     ]
+    }
+   ]
+  }
+ ]
+}

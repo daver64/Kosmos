@@ -77,44 +77,32 @@
     "label": "IN SITU RESOURCE EXTRACTION",
     "x": 20,
     "y": 10,
-    "w": 300,
+    "w": 960,
     "h": 20
    },
    {
-    "type": "gauge",
-    "label": "BATTERY %",
-    "property": "{ship}/systems/battery/percent",
-    "max": 100.0,
-    "scale": 1.0,
-    "alarm": true,
+    "type": "label",
+    "label": "STATUS",
     "x": 20,
-    "y": 50,
-    "w": 260,
-    "h": 18
+    "y": 46,
+    "w": 330,
+    "h": 16
    },
    {
-    "type": "gauge",
-    "label": "SUPPLY W",
-    "property": "{ship}/systems/bus/supply-w",
-    "max": 12000.0,
-    "scale": 1.0,
-    "alarm": false,
-    "x": 20,
-    "y": 78,
-    "w": 260,
-    "h": 18
+    "type": "label",
+    "label": "CONTROLS",
+    "x": 400,
+    "y": 46,
+    "w": 230,
+    "h": 16
    },
    {
-    "type": "gauge",
-    "label": "DEMAND W",
-    "property": "{ship}/systems/bus/demand-w",
-    "max": 12000.0,
-    "scale": 1.0,
-    "alarm": false,
-    "x": 20,
-    "y": 106,
-    "w": 260,
-    "h": 18
+    "type": "label",
+    "label": "POWER BUS",
+    "x": 680,
+    "y": 46,
+    "w": 300,
+    "h": 16
    },
    {
     "type": "gauge",
@@ -124,9 +112,9 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 150,
-    "w": 260,
-    "h": 18
+    "y": 80,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -136,9 +124,9 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 178,
-    "w": 260,
-    "h": 18
+    "y": 116,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -148,24 +136,24 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 206,
-    "w": 260,
-    "h": 18
+    "y": 152,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "toggle",
     "label": "Regolith dryer",
     "property": "{ship}/systems/component[2]/enabled",
-    "x": 420,
-    "y": 50,
-    "w": 150,
-    "h": 30
+    "x": 400,
+    "y": 80,
+    "w": 230,
+    "h": 34
    },
    {
     "type": "lamp",
     "property": "{ship}/systems/component[2]/powered",
-    "x": 576,
-    "y": 56,
+    "x": 602,
+    "y": 88,
     "w": 18,
     "h": 18
    },
@@ -173,16 +161,16 @@
     "type": "toggle",
     "label": "Electrolyser",
     "property": "{ship}/systems/component[3]/enabled",
-    "x": 420,
-    "y": 90,
-    "w": 150,
-    "h": 30
+    "x": 400,
+    "y": 124,
+    "w": 230,
+    "h": 34
    },
    {
     "type": "lamp",
     "property": "{ship}/systems/component[3]/powered",
-    "x": 576,
-    "y": 96,
+    "x": 602,
+    "y": 132,
     "w": 18,
     "h": 18
    },
@@ -191,10 +179,46 @@
     "label": "REPAIR ALL",
     "property": "{ship}/systems/repair",
     "value": "1",
-    "x": 420,
-    "y": 190,
+    "x": 400,
+    "y": 176,
+    "w": 230,
+    "h": 34
+   },
+   {
+    "type": "gauge",
+    "label": "BATTERY %",
+    "property": "{ship}/systems/battery/percent",
+    "max": 100.0,
+    "scale": 1.0,
+    "alarm": true,
+    "x": 680,
+    "y": 80,
     "w": 200,
-    "h": 40
+    "h": 22
+   },
+   {
+    "type": "gauge",
+    "label": "SUPPLY W",
+    "property": "{ship}/systems/bus/supply-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 680,
+    "y": 116,
+    "w": 200,
+    "h": 22
+   },
+   {
+    "type": "gauge",
+    "label": "DEMAND W",
+    "property": "{ship}/systems/bus/demand-w",
+    "max": 12000.0,
+    "scale": 1.0,
+    "alarm": false,
+    "x": 680,
+    "y": 152,
+    "w": 200,
+    "h": 22
    }
   ]
  },

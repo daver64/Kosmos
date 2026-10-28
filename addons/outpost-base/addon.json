@@ -1,0 +1,17 @@
+{
+ "id": "outpost-base",
+ "name": "Moon and Mercury base buildings",
+ "version": "0.1",
+ "buildings": [
+  "tranquility_habitat.json",
+  "tranquility_power.json",
+  "tranquility_comms.json",
+  "tranquility_isru.json",
+  "mare_habitat.json",
+  "mare_power.json",
+  "mare_comms.json",
+  "caloris_habitat.json",
+  "caloris_power.json",
+  "caloris_comms.json"
+ ]
+}

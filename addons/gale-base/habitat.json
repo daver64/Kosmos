@@ -93,8 +93,32 @@
     "label": "HABITAT LIFE SUPPORT",
     "x": 20,
     "y": 10,
-    "w": 300,
+    "w": 960,
     "h": 20
+   },
+   {
+    "type": "label",
+    "label": "STATUS",
+    "x": 20,
+    "y": 46,
+    "w": 330,
+    "h": 16
+   },
+   {
+    "type": "label",
+    "label": "CONTROLS",
+    "x": 400,
+    "y": 46,
+    "w": 230,
+    "h": 16
+   },
+   {
+    "type": "label",
+    "label": "POWER BUS",
+    "x": 680,
+    "y": 46,
+    "w": 300,
+    "h": 16
    },
    {
     "type": "gauge",
@@ -104,9 +128,9 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 50,
-    "w": 260,
-    "h": 18
+    "y": 80,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -116,9 +140,9 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 78,
-    "w": 260,
-    "h": 18
+    "y": 116,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -128,9 +152,9 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 106,
-    "w": 260,
-    "h": 18
+    "y": 152,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -140,9 +164,9 @@
     "scale": 1.0,
     "alarm": true,
     "x": 20,
-    "y": 134,
-    "w": 260,
-    "h": 18
+    "y": 188,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -152,44 +176,24 @@
     "scale": 1.0,
     "alarm": false,
     "x": 20,
-    "y": 162,
-    "w": 260,
-    "h": 18
-   },
-   {
-    "type": "lamp",
-    "label": "LEAK",
-    "property": "{ship}/systems/vessel[0]/leak-rate",
-    "alarm": true,
-    "x": 20,
-    "y": 200,
-    "w": 18,
-    "h": 18
-   },
-   {
-    "type": "lamp",
-    "label": "BUS POWER",
-    "property": "{ship}/systems/bus/powered",
-    "alarm": false,
-    "x": 20,
-    "y": 226,
-    "w": 18,
-    "h": 18
+    "y": 224,
+    "w": 230,
+    "h": 22
    },
    {
     "type": "toggle",
     "label": "Regulator",
     "property": "{ship}/systems/component[6]/enabled",
-    "x": 420,
-    "y": 50,
-    "w": 150,
-    "h": 30
+    "x": 400,
+    "y": 80,
+    "w": 230,
+    "h": 34
    },
    {
     "type": "lamp",
     "property": "{ship}/systems/component[6]/powered",
-    "x": 576,
-    "y": 56,
+    "x": 602,
+    "y": 88,
     "w": 18,
     "h": 18
    },
@@ -197,16 +201,16 @@
     "type": "toggle",
     "label": "CO2 scrubber",
     "property": "{ship}/systems/component[7]/enabled",
-    "x": 420,
-    "y": 90,
-    "w": 150,
-    "h": 30
+    "x": 400,
+    "y": 124,
+    "w": 230,
+    "h": 34
    },
    {
     "type": "lamp",
     "property": "{ship}/systems/component[7]/powered",
-    "x": 576,
-    "y": 96,
+    "x": 602,
+    "y": 132,
     "w": 18,
     "h": 18
    },
@@ -214,16 +218,16 @@
     "type": "toggle",
     "label": "Habitat loads",
     "property": "{ship}/systems/component[2]/enabled",
-    "x": 420,
-    "y": 130,
-    "w": 150,
-    "h": 30
+    "x": 400,
+    "y": 168,
+    "w": 230,
+    "h": 34
    },
    {
     "type": "lamp",
     "property": "{ship}/systems/component[2]/powered",
-    "x": 576,
-    "y": 136,
+    "x": 602,
+    "y": 176,
     "w": 18,
     "h": 18
    },
@@ -234,10 +238,10 @@
     "max": 100.0,
     "scale": 1.0,
     "alarm": true,
-    "x": 420,
-    "y": 190,
-    "w": 260,
-    "h": 18
+    "x": 680,
+    "y": 80,
+    "w": 200,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -246,10 +250,10 @@
     "max": 12000.0,
     "scale": 1.0,
     "alarm": false,
-    "x": 420,
-    "y": 218,
-    "w": 260,
-    "h": 18
+    "x": 680,
+    "y": 116,
+    "w": 200,
+    "h": 22
    },
    {
     "type": "gauge",
@@ -258,9 +262,29 @@
     "max": 12000.0,
     "scale": 1.0,
     "alarm": false,
-    "x": 420,
-    "y": 246,
-    "w": 260,
+    "x": 680,
+    "y": 152,
+    "w": 200,
+    "h": 22
+   },
+   {
+    "type": "lamp",
+    "label": "LEAK",
+    "property": "{ship}/systems/vessel[0]/leak-rate",
+    "alarm": true,
+    "x": 680,
+    "y": 198,
+    "w": 18,
+    "h": 18
+   },
+   {
+    "type": "lamp",
+    "label": "BUS POWER",
+    "property": "{ship}/systems/bus/powered",
+    "alarm": false,
+    "x": 680,
+    "y": 226,
+    "w": 18,
     "h": 18
    }
   ],

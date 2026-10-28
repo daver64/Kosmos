@@ -237,7 +237,9 @@ namespace kosmos
                 const sl::dvec3 push = fixed - position;
                 if (glm::length(push) > 1e-9)
                 {
-                    velocity -= glm::normalize(push) * std::min(0.0, glm::dot(velocity, glm::normalize(push)));
+                    // Only the motion relative to the ground is stopped by a wall, not the planet's spin.
+                    const sl::dvec3 spin = glm::cross(omega, before), normal = glm::normalize(push);
+                    velocity -= normal * std::min(0.0, glm::dot(velocity - spin, normal));
                     position = fixed;
                 }
             }
@@ -308,12 +310,15 @@ namespace kosmos
         double heading = std::atan2(glm::dot(fwd, east), glm::dot(fwd, north)) * 180.0 / 3.14159265358979323846;
         if (heading < 0.0)
             heading += 360.0;
-        const double vertical = glm::dot(a.velocity - glm::cross(universe.pole(a.body) * universe.world.body(a.body)->spin_rate, a.position), up);
+        const double vertical_raw = glm::dot(a.velocity - glm::cross(universe.pole(a.body) * universe.world.body(a.body)->spin_rate, a.position), up);
+        // Standing on the ground the height and vertical speed jitter by millimetres; show them as zero.
+        const bool on_ground = a.height < 0.2;
+        const double vertical = on_ground && std::fabs(vertical_raw) < 0.3 ? 0.0 : vertical_raw;
         const int rx = x0 + bar_w + 130;
         char line[96];
         std::snprintf(line, sizeof line, "HDG %03.0f", heading);
         sl::textout(small, rx, y0, green, line);
-        std::snprintf(line, sizeof line, "ALT %.1f m", a.height);
+        std::snprintf(line, sizeof line, "ALT %.1f m", on_ground ? 0.0 : a.height);
         sl::textout(small, rx, y0 + 24, green, line);
         std::snprintf(line, sizeof line, "SPD %.1f m/s", a.speed);
         sl::textout(small, rx, y0 + 48, green, line);
