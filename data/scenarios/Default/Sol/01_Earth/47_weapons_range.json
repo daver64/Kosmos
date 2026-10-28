@@ -1,0 +1,11 @@
+{
+ "name": "Earth: weapons range",
+ "description": "The Deltaglider in a 200 km orbit with an Argo and a Wren a few hundred metres off, for target practice. Keypad 1 fires the yellow beam, keypad 7 the green sparklies; V switches to the Argo, which has a violet beam of its own. Shields soak hits first, and the Wren has none.",
+ "active": 0,
+ "target": "Argo",
+ "ships": [
+  {"ship": "CVEL Deltaglider", "body": "Earth", "orbit": {"altitude_km": 200, "inclination": 28.5, "phase": 0}},
+  {"ship": "Argo", "body": "Earth", "orbit": {"altitude_km": 200, "inclination": 28.5, "phase": 0.0030}},
+  {"ship": "Wren", "body": "Earth", "orbit": {"altitude_km": 200, "inclination": 28.5, "phase": 0.0060}}
+ ]
+}

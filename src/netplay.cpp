@@ -45,6 +45,7 @@ namespace kosmos
         out.write<std::uint8_t>(s.stage);
         out.write<std::uint8_t>(s.engine ? 1 : 0);
         out.write<float>(s.throttle);
+        out.write<std::uint8_t>(s.fire);
         for (int i = 0; i < 3; ++i)
             out.write<double>(s.position[i]);
         for (int i = 0; i < 3; ++i)
@@ -59,7 +60,7 @@ namespace kosmos
     {
         std::uint8_t engine = 0;
         double q[4] = {1, 0, 0, 0};
-        bool ok = in.read_string(s.ship) && in.read(s.soi) && in.read(s.stage) && in.read(engine) && in.read(s.throttle);
+        bool ok = in.read_string(s.ship) && in.read(s.soi) && in.read(s.stage) && in.read(engine) && in.read(s.throttle) && in.read(s.fire);
         for (int i = 0; ok && i < 3; ++i)
             ok = in.read(s.position[i]);
         for (int i = 0; ok && i < 3; ++i)
@@ -74,6 +75,7 @@ namespace kosmos
             return false;
         s.orientation = sl::dquat(q[0] / norm, q[1] / norm, q[2] / norm, q[3] / norm);
         s.engine = engine != 0;
+        s.fire &= 3;
         s.throttle = std::clamp(s.throttle, 0.0f, 1.0f);
         return true;
     }

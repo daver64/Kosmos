@@ -179,11 +179,12 @@ Ships can carry energy weapons: beams (a pulse that flares and fades, then recha
 
 ## Addons
 
-Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Native DLL addons through a C ABI are not implemented (see the [roadmap](docs/native_addon_roadmap.md)); Lua covers scripting.
+Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Lua covers scripting, and compiled or other-language addons connect to a running game through KosmosLink (see the SDK manual, `sdk/docs/MANUAL.md`; the old in-process design is kept in [docs/native_addon_roadmap.md](docs/native_addon_roadmap.md) as history).
 
 ## Roadmap
 
-- [Native addon modules (C interface)](docs/native_addon_roadmap.md): exploratory design for compiled vessel, MFD and rendering modules. Not scheduled.
+- Planned: a module block that launches its KosmosLink program with the ship, and more ships carrying weapons.
+- Not planned: in-process native modules ([old design](docs/native_addon_roadmap.md), superseded by KosmosLink).
 
 ## Engines and exhaust
 
@@ -328,7 +329,7 @@ Headless test: `--scenario 19_skylark_takeoff --selftest 60 --selftest-throttle 
 
 ### Multiplayer (F12)
 
-Up to 4 players share a sky as "ghost ships": each runs their own simulation and sees the others (drawn, labelled with name and distance, and listed in the HUD). There is no collision or docking between players. One player hosts (`--host`, or **Host a game** in the F12 window); others join by `host:port` or pick the game from the IRC lobby, which the host announces automatically. The host must make UDP port 7777 reachable (port forward or a VPN). Press **J** (or **Go to** beside a name in the F12 window) to move your ship next to another player, so everyone can gather at a scene: in space you appear about 150 m away matching their velocity, and beside a landed player you are set down on the ground 60 m away. Time warp is held at 1x while two or more players are connected. Clocks are not synchronised, so ghosts are positioned relative to the body they orbit; views that span two bodies can be a little off. The lobby uses plain-text IRC: don't type anything private.
+Up to 4 players share a sky as "ghost ships": each runs their own simulation and sees the others (drawn, labelled with name and distance, and listed in the HUD). There is no collision or docking between players, but weapon fire is shared: other players' shots look and sound right and do no damage. One player hosts (`--host`, or **Host a game** in the F12 window); others join by `host:port` or pick the game from the IRC lobby, which the host announces automatically. The host must make UDP port 7777 reachable (port forward or a VPN). Press **J** (or **Go to** beside a name in the F12 window) to move your ship next to another player, so everyone can gather at a scene: in space you appear about 150 m away matching their velocity, and beside a landed player you are set down on the ground 60 m away. Time warp is held at 1x while two or more players are connected. Clocks are not synchronised, so ghosts are positioned relative to the body they orbit; views that span two bodies can be a little off. The lobby uses plain-text IRC: don't type anything private.
 
 ### In-game editors (Tools menu)
 

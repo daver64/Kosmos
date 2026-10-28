@@ -4,6 +4,7 @@
 #include "ordnance.h"
 #include "weapon_specs.h"
 
+#include <cstdint>
 #include <map>
 #include <utility>
 #include <vector>
@@ -26,6 +27,18 @@ namespace kosmos
         void reset();
         /** Fire, move and age everything by `dt` seconds of simulated time (`real_dt` for the sparks and flashes). */
         void update(ArsenalContext &context, Arsenal &arsenal, double dt, double real_dt);
+        /** Another player's ship, for show only: its shots look and sound the same but do no damage. `fire` has bit 0 for primary and bit 1 for secondary. */
+        struct GhostShooter
+        {
+            std::uint32_t id = 0;
+            const ShipSpec *spec = nullptr;
+            int body = 0;
+            sl::dvec3 position{0.0}, velocity{0.0}; // world position; velocity relative to the planet
+            sl::dquat orientation{1.0, 0.0, 0.0, 0.0};
+            std::uint8_t fire = 0;
+        };
+        /** Run after update(): fires what the ghosts' trigger bits ask for. */
+        void update_ghosts(ArsenalContext &context, Arsenal &arsenal, const std::vector<GhostShooter> &ghosts, double dt);
 
         /** Draw inside the 3D scene with the eye at the origin: additive streaks, flares and sparks. `quad` is a 2x2 plane and `glow` a soft round texture. */
         void draw(const Universe &universe, const sl::dvec3 &eye_world, sl::Mesh *quad, sl::Bitmap *glow);
@@ -40,6 +53,15 @@ namespace kosmos
         int shots_fired() const { return shots_; }
         int hits() const { return hits_; }
         int shield_hits() const { return shield_hits_; }
+        /** A shot that struck a ship, for programs that listen (KosmosLink's `weapon` event). */
+        struct HitEvent
+        {
+            const Ship *target = nullptr;
+            std::string weapon;
+            bool shielded = false;
+        };
+        /** Hands over the hits since the last call. */
+        std::vector<HitEvent> take_hits() { std::vector<HitEvent> out; out.swap(hit_events_); return out; }
 
     private:
         struct MountState
@@ -84,13 +106,20 @@ namespace kosmos
 
         // Velocity (relative to the planet) of whatever the effects being added belong to, so they ride along with it.
         sl::dvec3 carry_{0.0};
-        void fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship &ship, const ShipSpec::WeaponMount &mount, const WeaponSpec &spec, MountState &state, double dt);
+        struct Muzzle
+        {
+            int body = 0;
+            sl::dvec3 position{0.0}, direction{0.0, 0.0, -1.0}, velocity{0.0};
+        };
+        void drive_mount(ArsenalContext &context, Arsenal &arsenal, Ship *shooter, const Muzzle &muzzle, const WeaponSpec &spec, MountState &state, bool trigger, double dt);
+        void fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship *shooter, const Muzzle &muzzle, const WeaponSpec &spec, MountState &state, double dt);
         void hit(ArsenalContext &context, Arsenal &arsenal, const WeaponSpec &spec, int body, const sl::dvec3 &point, const Arsenal::RayHit &ray, double damage, bool tick);
         void burst(ArsenalContext &context, Arsenal &arsenal, const WeaponSpec &spec, int body, const sl::dvec3 &point, double scale);
         void add_sparks(const WeaponSpec &spec, int body, const sl::dvec3 &point, const sl::dvec3 &velocity, int count, double speed, const int *colour = nullptr);
         void add_flare(const WeaponSpec &spec, int body, const sl::dvec3 &point, double size, double life, double light, bool shield = false, const int *colour = nullptr);
 
         std::map<std::pair<const Ship *, int>, MountState> mounts_;
+        std::map<std::pair<std::uint32_t, int>, MountState> ghost_mounts_;
         bool sound_on_ = false;
         std::map<int, sl::Sample *> beam_samples_;
         sl::Sample *zap_sample_ = nullptr;
@@ -101,6 +130,7 @@ namespace kosmos
         std::vector<Bolt> bolts_;
         std::vector<Spark> sparks_;
         std::vector<Flare> flares_;
+        std::vector<HitEvent> hit_events_;
         sl::Bitmap *beam_texture_ = nullptr;
         unsigned rng_ = 12345u;
         int shots_ = 0, hits_ = 0, shield_hits_ = 0;

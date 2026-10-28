@@ -153,6 +153,25 @@ namespace kosmos::app
             secondary_was = secondary;
         }
         ship_weapons.update(arsenal_ctx, arsenal, frame * std::min(sim.current_warp(), 4.0), frame);
+        {
+            std::vector<kosmos::ShipWeapons::GhostShooter> shooters;
+            for (const kosmos::Ghost &g : netplay.ghosts())
+            {
+                const kosmos::ShipSpec *gspec = g.have_state ? sim.find_ship_spec(g.state.ship) : nullptr;
+                if (!gspec || g.age > 5.0 || g.state.soi < 0 || g.state.soi >= static_cast<int>(universe.bodies.size()))
+                    continue;
+                kosmos::ShipWeapons::GhostShooter s;
+                s.id = g.id;
+                s.spec = gspec;
+                s.body = g.state.soi;
+                s.position = universe.position(g.state.soi) + g.shown_position();
+                s.velocity = g.state.velocity;
+                s.orientation = g.shown;
+                s.fire = g.state.fire;
+                shooters.push_back(s);
+            }
+            ship_weapons.update_ghosts(arsenal_ctx, arsenal, shooters, frame * std::min(sim.current_warp(), 4.0));
+        }
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.
@@ -195,6 +214,7 @@ namespace kosmos::app
             mine.stage = static_cast<std::uint8_t>(std::clamp(ship->active_stage(), 0, 255));
             mine.throttle = static_cast<float>(props.get_double("/controls/throttle"));
             mine.engine = tm.thrust > 0.0;
+            mine.fire = static_cast<std::uint8_t>((props.get_double("/controls/weapons/primary/fire") > 0.5 ? 1 : 0) | (props.get_double("/controls/weapons/secondary/fire") > 0.5 ? 2 : 0));
             mine.position = nb.position - universe.position(tm.soi);
             mine.velocity = nb.velocity - universe.world.body(tm.soi)->velocity;
             mine.orientation = nb.orientation;

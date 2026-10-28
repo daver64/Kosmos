@@ -123,7 +123,7 @@ kl_give(c, "tricorder", 1);                           /* add equipment to the pe
 kl_fire(c, -1, "primary", 1);                         /* pull the trigger of the flown ship's primary weapons */
 ```
 
-`kl_fire` pulls or releases the trigger of a weapon group on a ship (`-1`: the flown ship). The groups are `primary` and `secondary`, or any name a ship's `weapons` block defines; see the modders manual, Ship weapons. A beam pulses once per pull and then recharges, a volley fires to the end, and a held trigger repeats. Players pull the same triggers with keypad 1 and 7, so a program can fight alongside them. Without `weapons` fitted the call returns an error.
+`kl_fire` pulls or releases the trigger of a weapon group on a ship (`-1`: the flown ship). The groups are `primary` and `secondary`, or any name a ship's `weapons` block defines; see the modders manual, Ship weapons. A beam pulses once per pull and then recharges, a volley fires to the end, and a held trigger repeats. Players pull the same triggers with keypad 1 and 7, so a program can fight alongside them. Without `weapons` fitted the call returns an error. Subscribe to the `weapon` event to hear when a shot hits a ship.
 
 Names are those in the ship and equipment lists. A spawned ship copies the flown ship's velocity. Ships your program spawned can be removed again with `kl_remove_ship` (see Ships and the world below).
 
@@ -157,6 +157,7 @@ Protocol 2 adds events you ask for with `kl_subscribe_event(c, name)` (needs `re
 | `weather` | the METAR, if any | the weather at the flown ship changes noticeably |
 | `ships` | the ship count | a ship is added or removed |
 | `tick` | the Julian date | once a second |
+| `weapon` | `ship shield` or `ship hull`, then the weapon id and the ship's health, e.g. `3 hull beam-red 0.82` | a weapon shot hits a ship (`ship` is its index) |
 
 ```c
 kl_subscribe_event(c, "tick");
@@ -210,7 +211,7 @@ These need protocol 3. All of the calls below are in `kosmos_link.h` (C) and `ko
 
 **Vessels (`vessel`).** `kl_claim_ship(c, index, passthrough)` makes a program own a ship's behaviour. Its controls are then read from `/ships/ship[N]/module/<addon>/controls/...`, which you write with `kl_ship_value(c, index, "controls/throttle", 1.0)`. Other names are published under `/ships/ship[N]/module/<addon>/`. `kl_ship_force` applies a force and torque (ship axes as above, newtons and newton metres) every step until you change it, clamped to the ship's limits. The flown ship can be claimed only if the player turns on *Allow claiming the flown ship* in View > Native addons; with `passthrough` the player keeps flying it. A ship spec may name its module in an optional block, `"module": {"addon": "id", "max_force": N, "max_torque": N}`. The block only records the addon and the limits: the game does not launch the program. Claims end on disconnect.
 
-**3D drawing (`draw3d`).** `kl_3d_begin(layer)`, then `kl_3d_line/marker/label/ring/sphere` and `kl_3d_end` send a named layer of up to 2000 primitives that replaces the previous layer of that name. Positions are in one of three frames: `KL_FRAME_LLA` (latitude, longitude in degrees, altitude in metres above the mean radius of the body you are near), `KL_FRAME_BODY` (metres in the body-fixed frame) or `KL_FRAME_SHIP` (metres in a ship's own axes, around its centre of mass: x right, y up, and z aft, so forward is -z, as in `ship.json`). With depth on (the default), a primitive is hidden when the planet or a ship within 20 km is in front of it. Ships count as bounding spheres sized from their stages, so this is approximate; scenery (terrain relief, buildings, trees) does not hide anything. Pass depth off to draw over everything. An empty layer removes it. Up to 8 layers per program. Kosmos draws them with simlib's line, circle and text calls, so this is a way to mark things, not a renderer.
+**3D drawing (`draw3d`).** `kl_3d_begin(layer)`, then `kl_3d_line/marker/label/ring/sphere` and `kl_3d_end` send a named layer of up to 2000 primitives that replaces the previous layer of that name. Positions are in one of three frames: `KL_FRAME_LLA` (latitude, longitude in degrees, altitude in metres above the mean radius of the body you are near), `KL_FRAME_BODY` (metres in the body-fixed frame) or `KL_FRAME_SHIP` (metres in a ship's own axes, around its centre of mass: x right, y up, and z aft, so forward is -z, as in `ship.json`). With depth on (the default), a primitive is hidden when the planet, terrain relief or a ship's box (buildings count as ships) is between it and the camera. Trees and other clutter hide nothing, and the tests run on a per-frame budget, so very busy layers may show some points through obstacles. Pass depth off to draw over everything. An empty layer removes it. Up to 8 layers per program. Kosmos draws them with simlib's line, circle and text calls, so this is a way to mark things, not a renderer.
 
 **Settings.** *Ping timeout* (`/sim/settings/link-timeout`, default 15 s) in View > Native addons: a protocol 3 program that is silent for that long is pinged, and dropped if it does not answer within as long again. The SDK answers pings itself. Programs speaking protocol 1 or 2 are never timed out.
 
@@ -243,7 +244,7 @@ All functions are in `kosmos_link.h`. Functions that talk to Kosmos return `KL_O
 | `kl_draw_begin`, `kl_draw_colour`, `kl_draw_line`, `_rect`, `_fillrect`, `_circle`, `_disc`, `_tri`, `_text`, `_image`, `kl_draw_end(c, id)` | Collect draw commands and send them as one page. |
 | `kl_weather_at(c, body, lat, lon, alt, &w)` | Weather at a place; see Weather. |
 | `kl_set_weather(c, mode, arg)` | `metar`, `preset` or `auto`. Needs `world`. |
-| `kl_subscribe_event(c, name)` / `kl_unsubscribe_event(c, name)` | Opt in to or out of `pause`, `warp`, `scenario`, `soi`, `crash`, `touchdown`, `weather`, `ships`, `tick`. |
+| `kl_subscribe_event(c, name)` / `kl_unsubscribe_event(c, name)` | Opt in to or out of `pause`, `warp`, `scenario`, `soi`, `crash`, `touchdown`, `weather`, `ships`, `tick`, `weapon`. |
 | `kl_list_ships(c, radius, buildings, out, max, &n)` | Ships near the flown one. |
 | `kl_remove_ship(c, index)` / `kl_place_ship(c, index, body, lat, lon, alt, heading, speed)` | Remove a link-spawned ship; move any ship. Need `world`. |
 | `kl_list_facilities(c, kind, body, lat, lon, radius_km, out, max, &n)` | Airports and bases near a point. |
@@ -331,7 +332,7 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 
 - Local TCP only. Android is not supported yet; the C API is portable, and the transport will be revisited then.
 - Without lockstep your program sees the simulation slightly behind real time; use lockstep when a controller must answer every step.
-- 3D drawing hides behind the planet and ship bounding spheres only, not scenery, and the ship `module` block does not launch your program.
+- 3D drawing is hidden by terrain relief and ship boxes but not by trees or clutter, and the ship `module` block does not launch your program.
 - Only ships a link program spawned can be removed. Weather can be read anywhere but set only as one global override.
 - The protocol is version 3. Kosmos accepts versions 1 to 3 and refuses a client that speaks a newer one.
 
@@ -402,7 +403,7 @@ Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `s
 
 Protocol 2 adds requests 14 to 21 and replies 107 to 109. Kosmos accepts a hello carrying 1 or 2, and a version 1 client simply never sends the new requests. An older Kosmos (protocol 1) refuses a version 2 hello with error 5; retry with 1 if you want to support it. Weather values are SI units except temperature (Celsius) and pressure (hPa); wind east and north are the way the air moves, wind from is the compass direction it blows from. The weather the game shows is a global override while `set_weather` is in force: it lasts until the player (or another addon) changes it, and `auto` returns to simulated weather. `remove_ship` works only on ships link addons spawned and never on the flown ship; the ships after it move down one place, so list again afterwards. `place_ship` may move any ship including the flown one (in multiplayer the other players will not follow). List replies are capped (2000 ships, 200 facilities) to stay under the frame limit.
 
-Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date). Always-on events are unchanged.
+Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date), `weapon` (a weapon hit a ship; argument `<ship index> <shield|hull> <weapon id> <health>`). Always-on events are unchanged.
 
 ### Protocol 3
 

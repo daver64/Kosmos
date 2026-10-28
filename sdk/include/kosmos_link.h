@@ -84,7 +84,7 @@ typedef struct
 /* Called when a subscribed property changes (path and value are valid only during the call). */
 typedef void (*kl_value_fn)(const char *path, const kl_value *value, void *user);
 /* Called for events: "ship", "mfd" (draw the page named in arg), "granted", "shutdown", and the ones you ask for with
-   kl_subscribe_event: "pause", "warp", "scenario", "soi", "crash", "touchdown", "weather", "ships", "tick". */
+   kl_subscribe_event: "pause", "warp", "scenario", "soi", "crash", "touchdown", "weather", "ships", "tick", "weapon". */
 typedef void (*kl_event_fn)(const char *name, const char *arg, void *user);
 /* Called when Kosmos rejects a request that had no reply wanted (kl_set, drawing). */
 typedef void (*kl_error_fn)(int code, const char *message, void *user);

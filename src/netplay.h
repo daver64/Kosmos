@@ -30,6 +30,8 @@ namespace kosmos
         std::uint8_t stage = 0;
         bool engine = false;
         float throttle = 0.0f;
+        /** Weapon triggers held: bit 0 primary, bit 1 secondary. */
+        std::uint8_t fire = 0;
         sl::dvec3 position{0.0}, velocity{0.0};
         sl::dquat orientation{1.0, 0.0, 0.0, 0.0};
     };
@@ -59,7 +61,7 @@ namespace kosmos
             host,
             client
         };
-        static constexpr std::uint16_t protocol = 1;
+        static constexpr std::uint16_t protocol = 2;
         static constexpr std::uint16_t default_port = 7777;
         static constexpr int max_players = 4;
 

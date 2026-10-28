@@ -581,6 +581,71 @@ namespace kosmos
         return hit;
     }
 
+    bool Arsenal::blocked(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to) const
+    {
+        Sim &sim = *context.sim;
+        const Universe &universe = sim.universe;
+        const double length = glm::length(to - from);
+        if (length < 1.0)
+            return false;
+        // Stop short of the end so a point lying on the ground or a hull is not hidden by the surface it sits on.
+        const double margin = std::max(1.0, length * 0.003);
+        const double reach = std::max(0.0, 1.0 - margin / length);
+        const sl::dvec3 planet = universe.position(body);
+
+        for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            Ship *s = sim.ship(i);
+            if (s->telemetry().soi != body)
+                continue;
+            double z_min, z_max, radius;
+            ship_box(*s, z_min, z_max, radius);
+            const sl::dvec3 a = s->body().to_local(planet + from) + s->com_offset();
+            const sl::dvec3 b = s->body().to_local(planet + to) + s->com_offset();
+            const auto inside = [&](const sl::dvec3 &p) { return std::fabs(p.x) <= radius && std::fabs(p.y) <= radius && p.z >= z_min && p.z <= z_max; };
+            if (inside(b))
+                continue;
+            const sl::dvec3 d = (b - a) * reach;
+            const double low[3] = {-radius, -radius, z_min}, high[3] = {radius, radius, z_max};
+            double t0 = 0.0, t1 = 1.0;
+            bool miss = false;
+            for (int k = 0; k < 3 && !miss; ++k)
+            {
+                if (std::fabs(d[k]) < 1.0e-12)
+                    miss = a[k] < low[k] || a[k] > high[k];
+                else
+                {
+                    double near_t = (low[k] - a[k]) / d[k], far_t = (high[k] - a[k]) / d[k];
+                    if (near_t > far_t)
+                        std::swap(near_t, far_t);
+                    t0 = std::max(t0, near_t);
+                    t1 = std::min(t1, far_t);
+                    miss = t0 > t1;
+                }
+            }
+            if (!miss)
+                return true;
+        }
+
+        const sl::Terrain *terrain = context.terrain ? context.terrain(body) : nullptr;
+        if (!terrain)
+            return false;
+        const double body_radius = universe.bodies[static_cast<std::size_t>(body)].radius;
+        // Relief only matters near the surface: skip segments that stay far above the highest ground.
+        const sl::dvec3 dir = (to - from) / length;
+        const double closest = glm::length(from + dir * std::clamp(-glm::dot(from, dir), 0.0, length));
+        if (closest > body_radius + 40.0e3)
+            return false;
+        const int steps = std::clamp(static_cast<int>(length / 25.0), 8, 128);
+        for (int i = 1; i <= steps; ++i)
+        {
+            const sl::dvec3 p = from + (to - from) * (reach * static_cast<double>(i) / steps);
+            if (glm::length(p) <= ground_radius(terrain, body_radius, p))
+                return true;
+        }
+        return false;
+    }
+
     Arsenal::RayHit Arsenal::cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const
     {
         const Hit hit = trace(context, body, from, to, ignore);

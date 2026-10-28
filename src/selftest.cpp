@@ -190,6 +190,28 @@ namespace kosmos
             check(weapons.live_sparks() > 0 || weapons.live_bolts() == 0, "sparkle shots end in sparks");
             run(10.0);
             check(weapons.live_bolts() == 0 && weapons.live_beams() == 0, "everything ends after the pulse and volley");
+
+            // Another player's ship, for show: it fires the same effects but a ship in the way takes no damage.
+            ShipWeapons::GhostShooter ghost;
+            ghost.id = 1;
+            ghost.spec = &ship->spec();
+            ghost.body = ship->telemetry().soi;
+            ghost.position = ship->body().position - forward * 400.0;
+            ghost.velocity = ship->body().velocity - sim.universe.world.body(ghost.body)->velocity;
+            ghost.orientation = ship->body().orientation;
+            ghost.fire = 3;
+            const double health = ship->health(), shield = ship->shield_level();
+            sim.props.set_double("/controls/weapons/secondary/fire", 0.0);
+            std::size_t seen = 0;
+            for (double t = 0.0; t < 1.0; t += dt)
+            {
+                sim.step(dt);
+                weapons.update(ctx, arsenal, dt, dt);
+                weapons.update_ghosts(ctx, arsenal, {ghost}, dt);
+                seen = std::max(seen, weapons.live_beams() + weapons.live_bolts());
+            }
+            check(seen > 0, "a ghost ship's triggers make shots");
+            check(ship->health() >= health && ship->shield_level() >= shield, "a ghost ship's shots do no damage");
             return failures ? 1 : 0;
         }
     } // namespace

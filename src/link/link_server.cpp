@@ -34,7 +34,7 @@ namespace kosmos::link
             return !id.empty() && id.size() <= 48 && std::all_of(id.begin(), id.end(), [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; });
         }
 
-        const char *const opt_in_events[] = {"pause", "warp", "scenario", "soi", "crash", "touchdown", "weather", "ships", "tick"};
+        const char *const opt_in_events[] = {"pause", "warp", "scenario", "soi", "crash", "touchdown", "weather", "ships", "tick", "weapon"};
 
         bool opt_in(const std::string &name) { return std::find(std::begin(opt_in_events), std::end(opt_in_events), name) != std::end(opt_in_events); }
 

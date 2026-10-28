@@ -54,6 +54,8 @@ namespace kosmos
     void ShipWeapons::reset()
     {
         mounts_.clear();
+        hit_events_.clear();
+        ghost_mounts_.clear();
         beams_.clear();
         streaks_.clear();
         bolts_.clear();
@@ -147,6 +149,8 @@ namespace kosmos
             }
             if (hull_damage > 0.0)
                 target.damage(hull_damage);
+            if (damage > 0.0 && hit_events_.size() < 64)
+                hit_events_.push_back({&target, spec.id, shielded && hull_damage <= 0.0});
         }
         if (shielded && hull_damage <= 0.0)
             return;
@@ -207,17 +211,15 @@ namespace kosmos
             sl::play_sample(zap_sample_, static_cast<int>(200.0 * std::min(1.0, sound_gain_)), 128, 960 + static_cast<int>(random(0, 80)), 0);
     }
 
-    void ShipWeapons::fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship &ship, const ShipSpec::WeaponMount &mount, const WeaponSpec &spec, MountState &state, double dt)
+    void ShipWeapons::fire_mount(ArsenalContext &context, Arsenal &arsenal, Ship *shooter, const Muzzle &muzzle, const WeaponSpec &spec, MountState &state, double dt)
     {
         Universe &universe = context.sim->universe;
-        const int body = ship.telemetry().soi;
-        const sl::FlightBody *planet = universe.world.body(body);
-        if (!planet)
-            return;
-        const sl::dvec3 world = ship.origin() + ship.body().direction_to_world(mount.position);
-        const sl::dvec3 dir = unit(ship.body().direction_to_world(mount.direction), sl::dvec3(0, 0, -1));
-        const sl::dvec3 from = world - universe.position(body) + dir * 0.5;
-        const sl::dvec3 vel = ship.point_velocity(world) - planet->velocity;
+        const int body = muzzle.body;
+        // A shooter that is not a local ship (another player's ghost) only makes the show: its shots do no damage.
+        const double damage_scale = shooter ? 1.0 : 0.0;
+        const sl::dvec3 dir = muzzle.direction;
+        const sl::dvec3 from = muzzle.position - universe.position(body) + dir * 0.5;
+        const sl::dvec3 vel = muzzle.velocity;
         carry_ = vel;
 
         const sl::dvec3 helper = std::fabs(dir.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
@@ -245,7 +247,7 @@ namespace kosmos
             const double fall = std::pow(std::max(0.0, 1.0 - state.beam_time / spec.duration), 1.6);
             const double strength = rise * fall;
             const sl::dvec3 end = from + dir * spec.range;
-            const Arsenal::RayHit ray = arsenal.cast_ray(context, body, from, end, &ship);
+            const Arsenal::RayHit ray = arsenal.cast_ray(context, body, from, end, shooter);
             Segment seg;
             seg.body = body;
             seg.a = from;
@@ -256,7 +258,7 @@ namespace kosmos
             beams_.push_back(seg);
             if (ray.hit)
             {
-                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage * dt * strength, true);
+                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage * dt * strength * damage_scale, true);
                 state.effect_timer += dt;
                 if (state.effect_timer > 0.4)
                 {
@@ -277,7 +279,7 @@ namespace kosmos
             b.velocity = vel + aim_with(spec.spread) * spec.speed;
             b.spec = &spec;
             b.carry = vel;
-            b.owner = &ship;
+            b.owner = shooter;
             b.life = spec.range / spec.speed;
             if (bolts_.size() >= max_bolts)
                 bolts_.erase(bolts_.begin());
@@ -297,7 +299,7 @@ namespace kosmos
         if (spec.fire == "pulse")
         {
             const sl::dvec3 end = from + aim_with(spec.spread) * spec.range;
-            const Arsenal::RayHit ray = arsenal.cast_ray(context, body, from, end, &ship);
+            const Arsenal::RayHit ray = arsenal.cast_ray(context, body, from, end, shooter);
             Segment seg;
             seg.body = body;
             seg.a = from;
@@ -308,7 +310,7 @@ namespace kosmos
             seg.ended = ray.hit;
             streaks_.push_back(seg);
             if (ray.hit)
-                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage, false);
+                hit(context, arsenal, spec, body, ray.point, ray, spec.ship_damage * damage_scale, false);
         }
         else
         {
@@ -322,7 +324,7 @@ namespace kosmos
                 b.velocity = vel + (flak ? aim_with(spec.cone) : aim_with(spec.spread)) * speed;
                 b.spec = &spec;
                 b.carry = vel;
-                b.owner = &ship;
+                b.owner = shooter;
                 b.life = flak && spec.lifetime > 0.0 ? spec.lifetime : spec.range / spec.speed;
                 b.burst = flak;
                 if (bolts_.size() >= max_bolts)
@@ -330,6 +332,76 @@ namespace kosmos
                 bolts_.push_back(b);
             }
         }
+    }
+
+    void ShipWeapons::drive_mount(ArsenalContext &context, Arsenal &arsenal, Ship *shooter, const Muzzle &muzzle, const WeaponSpec &spec, MountState &state, bool trigger, double dt)
+    {
+        if (spec.fire == "volley")
+        {
+            // A volley runs to its end once started, whatever the trigger does.
+            state.volley_timer -= dt;
+            if (state.volley_left > 0)
+            {
+                if (state.volley_timer <= 0.0)
+                {
+                    fire_mount(context, arsenal, shooter, muzzle, spec, state, dt);
+                    --state.volley_left;
+                    state.volley_timer = spec.interval;
+                }
+            }
+            else if (trigger && state.cooldown <= 0.0)
+            {
+                state.volley_left = spec.count;
+                state.volley_timer = 0.0;
+                state.cooldown = 1.0 / spec.rate;
+            }
+        }
+        else if (spec.fire == "beam")
+        {
+            // A pulse runs its whole course once triggered; held down, it fires again each time it has recharged.
+            if (state.beam_time > 0.0 || trigger)
+                fire_mount(context, arsenal, shooter, muzzle, spec, state, dt);
+            else
+                state.effect_timer = 0.0;
+        }
+        else if (trigger)
+            fire_mount(context, arsenal, shooter, muzzle, spec, state, dt);
+        else
+            state.effect_timer = 0.0;
+    }
+
+    void ShipWeapons::update_ghosts(ArsenalContext &context, Arsenal &arsenal, const std::vector<GhostShooter> &ghosts, double dt)
+    {
+        Sim &sim = *context.sim;
+        std::set<std::uint32_t> present;
+        for (const GhostShooter &g : ghosts)
+        {
+            present.insert(g.id);
+            const sl::FlightBody *planet = sim.universe.world.body(g.body);
+            if (!planet || !g.spec || g.spec->weapons.empty())
+                continue;
+            for (std::size_t m = 0; m < g.spec->weapons.size(); ++m)
+            {
+                const ShipSpec::WeaponMount &mount = g.spec->weapons[m];
+                const WeaponSpec *spec = sim.weapon_specs.find(mount.weapon);
+                if (!spec)
+                    continue;
+                MountState &state = ghost_mounts_[{g.id, static_cast<int>(m)}];
+                state.cooldown = std::max(0.0, state.cooldown - dt);
+                state.lock = std::max(0.0, state.lock - dt);
+                Muzzle muzzle;
+                muzzle.body = g.body;
+                muzzle.position = g.position + g.orientation * mount.position;
+                muzzle.direction = unit(g.orientation * mount.direction, sl::dvec3(0, 0, -1));
+                muzzle.velocity = g.velocity;
+                const Ship *listener = sim.active_ship();
+                sound_gain_ = listener ? 1.0 / (1.0 + glm::length(muzzle.position - listener->origin()) / 400.0) : 1.0;
+                const bool trigger = mount.group == "primary" ? (g.fire & 1) != 0 : mount.group == "secondary" && (g.fire & 2) != 0;
+                drive_mount(context, arsenal, nullptr, muzzle, *spec, state, trigger, dt);
+            }
+        }
+        for (auto it = ghost_mounts_.begin(); it != ghost_mounts_.end();)
+            it = present.count(it->first.first) || dt <= 0.0 ? std::next(it) : ghost_mounts_.erase(it);
     }
 
     void ShipWeapons::update(ArsenalContext &context, Arsenal &arsenal, double dt, double real_dt)
@@ -346,7 +418,7 @@ namespace kosmos
             bool done = false;
             if (ray.hit)
             {
-                hit(context, arsenal, *b.spec, b.body, ray.point, ray, b.spec->ship_damage * (b.burst ? 0.25 : 1.0), false);
+                hit(context, arsenal, *b.spec, b.body, ray.point, ray, b.owner ? b.spec->ship_damage * (b.burst ? 0.25 : 1.0) : 0.0, false);
                 if (b.burst)
                     burst(context, arsenal, *b.spec, b.body, ray.point, 0.5);
                 done = true;
@@ -417,43 +489,21 @@ namespace kosmos
                     if (!spec)
                         continue;
                     MountState &state = mounts_[{ship, static_cast<int>(m)}];
+                    const sl::FlightBody *planet = sim.universe.world.body(ship->telemetry().soi);
+                    if (!planet)
+                        continue;
+                    const sl::dvec3 world = ship->origin() + ship->body().direction_to_world(mount.position);
+                    Muzzle muzzle;
+                    muzzle.body = ship->telemetry().soi;
+                    muzzle.position = world;
+                    muzzle.direction = unit(ship->body().direction_to_world(mount.direction), sl::dvec3(0, 0, -1));
+                    muzzle.velocity = ship->point_velocity(world) - planet->velocity;
                     state.cooldown = std::max(0.0, state.cooldown - dt);
                     state.lock = std::max(0.0, state.lock - dt);
                     const bool trigger = fire_input(sim, ship, i, mount.group) > 0.5;
                     const Ship *listener = sim.active_ship();
                     sound_gain_ = listener ? 1.0 / (1.0 + glm::length(ship->origin() - listener->origin()) / 400.0) : 1.0;
-                    if (spec->fire == "volley")
-                    {
-                        // A volley runs to its end once started, whatever the trigger does.
-                        state.volley_timer -= dt;
-                        if (state.volley_left > 0)
-                        {
-                            if (state.volley_timer <= 0.0)
-                            {
-                                fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
-                                --state.volley_left;
-                                state.volley_timer = spec->interval;
-                            }
-                        }
-                        else if (trigger && state.cooldown <= 0.0)
-                        {
-                            state.volley_left = spec->count;
-                            state.volley_timer = 0.0;
-                            state.cooldown = 1.0 / spec->rate;
-                        }
-                    }
-                    else if (spec->fire == "beam")
-                    {
-                        // A pulse runs its whole course once triggered; held down, it fires again each time it has recharged.
-                        if (state.beam_time > 0.0 || trigger)
-                            fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
-                        else
-                            state.effect_timer = 0.0;
-                    }
-                    else if (trigger)
-                        fire_mount(context, arsenal, *ship, mount, *spec, state, dt);
-                    else
-                        state.effect_timer = 0.0;
+                    drive_mount(context, arsenal, ship, muzzle, *spec, state, trigger, dt);
                 }
             }
         for (auto it = mounts_.begin(); it != mounts_.end();)

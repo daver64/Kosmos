@@ -456,6 +456,19 @@ namespace kosmos::app
         static Watch w;
         link::LinkServer &srv = *link_server;
         auto &props = sim.props;
+        {
+            const auto hits = ship_weapons.take_hits();
+            if (srv.wants_event("weapon"))
+                for (const auto &h : hits)
+                    for (int i = 0; i < sim.ship_count(); ++i)
+                        if (sim.ship(i) == h.target)
+                        {
+                            char text[160];
+                            std::snprintf(text, sizeof text, "%d %s %s %.2f", i, h.shielded ? "shield" : "hull", h.weapon.c_str(), h.target->health());
+                            srv.broadcast_event("weapon", text);
+                            break;
+                        }
+        }
         if (!link_scenario.empty())
         {
             srv.broadcast_event("scenario", link_scenario);
@@ -701,25 +714,9 @@ namespace kosmos::app
                 pt.ok = false;
             return pt;
         };
-        // Ships hide things behind them as a bounding sphere sized from their stages: approximate, but cheap.
-        struct Occluder
-        {
-            sl::dvec3 rel;
-            double radius;
-        };
-        std::vector<Occluder> occluders;
-        for (int i = 0; i < sim.ship_count(); ++i)
-        {
-            const kosmos::Ship *ship = sim.ship(i);
-            if (!ship)
-                continue;
-            double r = 2.0;
-            for (const auto &stage : ship->spec().stages)
-                r = std::max({r, std::fabs(stage.z) + stage.length * 0.5, stage.radius});
-            const sl::dvec3 rel = ship->body().position - eye_world;
-            if (glm::length(rel) < 20.0e3)
-                occluders.push_back({rel, std::min(r, 200.0)});
-        }
+        // The planet hides things analytically; ships and terrain relief are tested with the arsenal's ray code, within a per-frame budget.
+        const sl::dvec3 eye_body = eye_world - universe.position(soi);
+        int rays_left = 6000;
         auto hidden = [&](const sl::dvec3 &rel) {
             const double length = glm::length(rel);
             if (length < 1.0)
@@ -728,37 +725,39 @@ namespace kosmos::app
             const double along = glm::dot(body_rel, dir);
             if (along > 0.0 && along < length && glm::length(body_rel - dir * along) < radius * 0.999)
                 return true;
-            for (const Occluder &o : occluders)
+            if (rays_left <= 0)
+                return false;
+            --rays_left;
+            return arsenal.blocked(arsenal_ctx, soi, eye_body, eye_body + rel);
+        };
+        auto segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
+            const int pieces = p.depth ? std::clamp(static_cast<int>(glm::length(b - a) / 40.0) + 1, 1, 32) : 1;
+            // Each vertex is tested once; a piece shows when both its ends are in view.
+            bool last_visible = true;
+            sl::dvec3 last = a;
+            for (int i = 0; i <= pieces; ++i)
             {
-                const double t = glm::dot(o.rel, dir);
-                if (t > 0.0 && t < length - o.radius && glm::length(o.rel - dir * t) < o.radius && glm::length(rel - o.rel) > o.radius)
-                    return true;
+                const sl::dvec3 at = a + (b - a) * (static_cast<double>(i) / pieces);
+                const bool visible = !p.depth || !hidden(at);
+                if (i > 0 && visible && last_visible)
+                {
+                    glm::vec4 ca = view_proj * glm::vec4(glm::vec3(last), 1.0f), cb = view_proj * glm::vec4(glm::vec3(at), 1.0f);
+                    const float near_w = 0.05f;
+                    if (ca.w >= near_w || cb.w >= near_w)
+                    {
+                        if (ca.w < near_w)
+                            ca += (cb - ca) * ((near_w - ca.w) / (cb.w - ca.w));
+                        else if (cb.w < near_w)
+                            cb += (ca - cb) * ((near_w - cb.w) / (ca.w - cb.w));
+                        const float x1 = (ca.x / ca.w * 0.5f + 0.5f) * static_cast<float>(screen_w), y1 = (1.0f - (ca.y / ca.w * 0.5f + 0.5f)) * static_cast<float>(screen_h);
+                        const float x2 = (cb.x / cb.w * 0.5f + 0.5f) * static_cast<float>(screen_w), y2 = (1.0f - (cb.y / cb.w * 0.5f + 0.5f)) * static_cast<float>(screen_h);
+                        if (std::fabs(x1) < 1.0e5f && std::fabs(y1) < 1.0e5f && std::fabs(x2) < 1.0e5f && std::fabs(y2) < 1.0e5f)
+                            sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
+                    }
+                }
+                last = at;
+                last_visible = visible;
             }
-            return false;
-        };
-        std::function<void(const sl::dvec3 &, const sl::dvec3 &, const link::Primitive3 &)> segment;
-        auto draw_segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
-            if (p.depth && (hidden(a) || hidden(b)))
-                return;
-            glm::vec4 ca = view_proj * glm::vec4(glm::vec3(a), 1.0f), cb = view_proj * glm::vec4(glm::vec3(b), 1.0f);
-            const float near_w = 0.05f;
-            if (ca.w < near_w && cb.w < near_w)
-                return;
-            if (ca.w < near_w)
-                ca += (cb - ca) * ((near_w - ca.w) / (cb.w - ca.w));
-            else if (cb.w < near_w)
-                cb += (ca - cb) * ((near_w - cb.w) / (ca.w - cb.w));
-            auto sx = [&](const glm::vec4 &c) { return (c.x / c.w * 0.5f + 0.5f) * static_cast<float>(screen_w); };
-            auto sy = [&](const glm::vec4 &c) { return (1.0f - (c.y / c.w * 0.5f + 0.5f)) * static_cast<float>(screen_h); };
-            const float x1 = sx(ca), y1 = sy(ca), x2 = sx(cb), y2 = sy(cb);
-            if (std::fabs(x1) > 1.0e5f || std::fabs(y1) > 1.0e5f || std::fabs(x2) > 1.0e5f || std::fabs(y2) > 1.0e5f)
-                return;
-            sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
-        };
-        segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
-            const int pieces = p.depth && !occluders.empty() ? 16 : 1;
-            for (int i = 0; i < pieces; ++i)
-                draw_segment(a + (b - a) * (static_cast<double>(i) / pieces), a + (b - a) * (static_cast<double>(i + 1) / pieces), p);
         };
         auto ring = [&](const sl::dvec3 &centre, const sl::dvec3 &normal, double r, const link::Primitive3 &p) {
             const sl::dvec3 helper = std::fabs(normal.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
