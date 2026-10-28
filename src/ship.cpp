@@ -253,6 +253,8 @@ namespace kosmos
             }
             spec.horizontal = json.value("horizontal", false);
             spec.retractable_gear = json.value("retractable_gear", false);
+            spec.rcs_modes = json.value("rcs_modes", false);
+            spec.pod_turn_rate = json.value("pod_turn_rate", spec.pod_turn_rate);
             spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             for (const nlohmann::json &js : json.at("stages"))
@@ -278,6 +280,7 @@ namespace kosmos
                     e.plume_glow = je.value("plume_glow", e.plume_glow);
                     e.plume_density = std::max(0.1, je.value("plume_density", e.plume_density));
                     e.hover = je.value("group", std::string("main")) == "hover";
+                    e.pod = je.value("group", std::string("main")) == "pod";
                     e.air_breathing = je.value("air_breathing", false);
                     // Older specs only had air_breathing; that still means a jet.
                     e.type = engine_type_from_name(je.value("type", ""), e.air_breathing ? EngineType::jet : EngineType::rocket);
@@ -420,6 +423,7 @@ namespace kosmos
                 t.air_breathing = e.air_breathing;
                 b.thrusters.push_back(t);
                 thruster_hover_.push_back(e.hover);
+                thruster_pod_.push_back(e.pod ? (e.position.x < 0.0 ? 0 : 1) : -1);
             }
             for (const sl::dvec3 &g : stage.gear)
             {
@@ -794,11 +798,31 @@ namespace kosmos
         }
     }
 
-    void Ship::apply_controls(const Controls &c, double dt)
+    void Ship::apply_controls(const Controls &input, double dt)
     {
+        Controls c = input;
         rcs_torque_ = rcs_push_ = sl::dvec3(0.0);
         if (crashed_)
             return;
+        if (spec_.rcs_modes)
+        {
+            if (c.rcs_mode == "off")
+                c.pitch = c.yaw = c.roll = c.rcs_x = c.rcs_y = c.rcs_z = 0.0;
+            else if (c.rcs_mode == "lin")
+            {
+                // The rotation keys push instead: W/S forward and back, A/D left and right, Q/E up and down.
+                c.rcs_z = -c.pitch;
+                c.rcs_x = -c.yaw;
+                c.rcs_y = c.roll;
+                c.pitch = c.yaw = c.roll = 0.0;
+            }
+        }
+        for (int side = 0; side < 2; ++side)
+        {
+            const double target = std::clamp(side == 0 ? c.pod_tilt_left : c.pod_tilt_right, 0.0, 1.0) * 3.14159265358979;
+            const double step = spec_.pod_turn_rate * dt;
+            pod_angle_[side] += std::clamp(target - pod_angle_[side], -step, step);
+        }
         sl::FlightBody &b = body();
         if (spec_.retractable_gear)
         {
@@ -817,7 +841,18 @@ namespace kosmos
             b.thrusters[i].level = 0.0;
         for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
              i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
-            b.thrusters[static_cast<std::size_t>(i)].level = thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
+        {
+            const int pod = thruster_pod_[static_cast<std::size_t>(i)];
+            sl::Thruster &t = b.thrusters[static_cast<std::size_t>(i)];
+            if (pod >= 0)
+            {
+                const double a = pod_angle_[pod];
+                t.direction = {0.0, std::sin(a), std::cos(a)};
+                t.level = std::clamp(pod == 0 ? c.pod_left : c.pod_right, 0.0, 1.0);
+            }
+            else
+                t.level = thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
+        }
         if (spec_.aircraft())
         {
             // A parked aircraft holds its brakes; once rolling, only the pedal brakes.
@@ -1292,6 +1327,8 @@ namespace kosmos
         const auto num = [&](const char *path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
         tree.node(base + "/name")->tie_string([this] { return name; });
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
+        tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });
+        tree.node(base + "/pod-angle-right")->tie_double([this] { return pod_angle_[1] / 3.14159265358979; });
         tree.node(base + "/stage")->tie_int([this] { return active_stage_; });
         tree.node(base + "/stage-count")->tie_int([this] { return stage_count(); });
         tree.node(base + "/crashed")->tie_bool([this] { return crashed_; });

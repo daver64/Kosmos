@@ -2432,7 +2432,7 @@ namespace
         if (c.value == "level-horizon")
             return sim.props.get_string("/controls/sas") == "attitude" && std::fabs(sim.props.get_double("/controls/target-pitch")) < 0.5;
         if (control_is_numeric(c.value))
-            return std::fabs(sim.props.get_double(c.property) - std::atof(c.value.c_str())) < 0.01;
+            return std::fabs(sim.props.get_double(c.property == "/controls/pod-tilt" ? "/controls/pod-tilt-left" : c.property) - std::atof(c.value.c_str())) < 0.01;
         return sim.props.get_string(c.property) == c.value;
     }
 
@@ -2536,6 +2536,11 @@ namespace
                 sim.props.set_double("/controls/target-pitch", 0.0);
                 sim.props.set_double("/controls/target-heading", ship ? ship->telemetry().heading : 0.0);
                 sim.props.set_string("/controls/sas", "attitude");
+            }
+            else if (c.property == "/controls/pod-tilt")
+            {
+                sim.props.set_double("/controls/pod-tilt-left", std::atof(c.value.c_str()));
+                sim.props.set_double("/controls/pod-tilt-right", std::atof(c.value.c_str()));
             }
             else if (control_is_numeric(c.value))
                 sim.props.set_double(c.property, std::atof(c.value.c_str()));
@@ -3056,9 +3061,11 @@ namespace
 
     // Drives a model's animations: simlib JSON animations read these named properties, and a glTF clip called "gear" is posed from
     // gear-up (start) to gear-down (end).
-    void pose_model(sl::Model *model, double gear)
+    void pose_model(sl::Model *model, double gear, double pod_left = 0.0, double pod_right = 0.0)
     {
         sl::set_model_property(model, "gear-position", static_cast<float>(gear));
+        sl::set_model_property(model, "pod-left", static_cast<float>(pod_left));
+        sl::set_model_property(model, "pod-right", static_cast<float>(pod_right));
         const int clip = sl::find_model_clip(model, "gear");
         if (clip >= 0)
             sl::sample_model_clip(model, clip, static_cast<float>(gear) * sl::model_clip_duration(model, clip), false);
@@ -3091,7 +3098,7 @@ namespace
         return sl::HudMode::off;
     }
 
-    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0)
+    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0, double pod_left = 0.0, double pod_right = 0.0)
     {
         for (int s = first_stage; s <= last_stage; ++s)
             for (const kosmos::PartSpec &part : spec.stages[static_cast<std::size_t>(s)].parts)
@@ -3109,7 +3116,7 @@ namespace
                         }
                         if (part.scale != sl::dvec3(1.0))
                             place = glm::scale(place, glm::vec3(part.scale));
-                        pose_model(part_model, gear);
+                        pose_model(part_model, gear, pod_left, pod_right);
                         sl::draw_model(part_model, model * place);
                     }
                     continue;
@@ -5070,6 +5077,24 @@ int main(int argc, char **argv)
             props.set_double("/controls/hover", std::min(1.0, hover + throttle_rate));
         if (!typing && !on_foot && sl::key_down(sl::Key::keypad_minus))
             props.set_double("/controls/hover", std::max(0.0, hover - throttle_rate));
+        if (!typing && !on_foot && ship->spec().has_pods())
+        {
+            // Engine pods: keypad 9 and 3 set their thrust, 8 and 2 swing them (forward and back), 4, 5 and 6 jump to retro, hover and forward.
+            auto bump = [&](const char *path, double d) { props.set_double(path, std::clamp(props.get_double(path) + d, 0.0, 1.0)); };
+            const double pod_step = throttle_rate * (sl::key_down(sl::Key::keypad_9) ? 1.0 : sl::key_down(sl::Key::keypad_3) ? -1.0 : 0.0);
+            const double tilt_step = frame * 0.4 * (sl::key_down(sl::Key::keypad_8) ? 1.0 : sl::key_down(sl::Key::keypad_2) ? -1.0 : 0.0);
+            for (const char *side : {"left", "right"})
+            {
+                bump((std::string("/controls/pod-") + side).c_str(), pod_step);
+                bump((std::string("/controls/pod-tilt-") + side).c_str(), tilt_step);
+            }
+            const int preset = sl::key_down(sl::Key::keypad_4) ? 0 : sl::key_down(sl::Key::keypad_5) ? 1 : sl::key_down(sl::Key::keypad_6) ? 2 : -1;
+            if (preset >= 0)
+            {
+                props.set_double("/controls/pod-tilt-left", preset * 0.5);
+                props.set_double("/controls/pod-tilt-right", preset * 0.5);
+            }
+        }
         for (; options.shot_stages > 0; --options.shot_stages)
             ship->stage_once();
         if (options.shot_throttle >= 0.0)
@@ -6346,7 +6371,7 @@ int main(int argc, char **argv)
                 const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                         glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
                 if (!((in_cockpit || in_interior) && &other == ship))
-                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position());
+                    draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true));
                 else if (in_cockpit3d)
                 {
                     const kosmos::Cockpit &cp = other.spec().cockpit;

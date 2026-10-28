@@ -47,6 +47,12 @@ namespace kosmos
         bool afterburner = false;
         /** Engines with `"group": "hover"` follow /controls/hover (keypad + and -) instead of the main throttle. */
         bool hover = false;
+        /**
+         * `"group": "pod"`: a swivelling engine pod, like the Shuttle-A's. Its thrust follows /controls/pod-left or pod-right (by
+         * which side of the ship it is on) and its direction swings in the YZ plane from aft (0) through up to forward, chasing
+         * /controls/pod-tilt-left or pod-tilt-right (0 to 1) at `pod_turn_rate`.
+         */
+        bool pod = false;
         /** Jump range of a hyperjump drive, in light years. */
         double range_ly = 50.0;
     };
@@ -247,6 +253,10 @@ namespace kosmos
         sl::dvec3 camera_target{0.0};
         /** Landing gear that folds away: it takes `gear_time` seconds to move and only carries load while fully down. */
         bool retractable_gear = false;
+        /** An RCS mode switch (/controls/rcs-mode: "rot", "lin" or "off"), as on the Shuttle-A. */
+        bool rcs_modes = false;
+        /** How fast an engine pod swings, in radians per second. */
+        double pod_turn_rate = 0.2;
         /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
         bool fuel_pod = false;
         double gear_time = 6.0;
@@ -275,6 +285,14 @@ namespace kosmos
         /** Buildings with the same grid name at a base share one power bus. */
         std::string grid;
         bool aircraft() const { return kind == "aircraft"; }
+        bool has_pods() const
+        {
+            for (const StageSpec &st : stages)
+                for (const EngineSpec &e : st.engines)
+                    if (e.pod)
+                        return true;
+            return false;
+        }
         bool has_hover() const
         {
             for (const StageSpec &st : stages)
@@ -312,6 +330,10 @@ namespace kosmos
         double hover = 0.0;
         double pitch = 0.0, yaw = 0.0, roll = 0.0;
         double rcs_x = 0.0, rcs_y = 0.0, rcs_z = 0.0;
+        /** Thrust of the left and right engine pods, and where each is asked to point (0 aft/retro, 0.5 up/hover, 1 forward). */
+        double pod_left = 0.0, pod_right = 0.0, pod_tilt_left = 0.0, pod_tilt_right = 0.0;
+        /** With an RCS mode switch: "rot" (keys rotate), "lin" (the rotation keys translate) or "off". */
+        std::string rcs_mode = "rot";
         /** off, stability, prograde, retrograde, radial-out, radial-in, normal, antinormal or attitude. */
         std::string sas = "stability";
         double target_pitch = 90.0, target_heading = 90.0;
@@ -383,6 +405,8 @@ namespace kosmos
         int active_stage() const { return active_stage_; }
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
+        /** Where an engine pod points, as a fraction: 0 aft (retro), 0.5 up (hover), 1 forward. `right` picks the starboard pod. */
+        double pod_angle(bool right) const { return pod_angle_[right ? 1 : 0] / 3.14159265358979; }
         int stage_count() const { return static_cast<int>(spec_.stages.size()); }
         bool crashed() const { return crashed_; }
         const Telemetry &telemetry() const { return telemetry_; }
@@ -473,6 +497,8 @@ namespace kosmos
         double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;
+        double pod_angle_[2] = {0.0, 0.0};
+        std::vector<int> thruster_pod_;
         double attached_mass_ = 0.0;
         std::vector<std::pair<double, double>> base_grip_;
         Telemetry telemetry_;

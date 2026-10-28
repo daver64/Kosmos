@@ -219,7 +219,7 @@
       1,
       0
      ],
-     "thrust": 744975,
+     "thrust": 1490000,
      "isp": 3364,
      "isp_sl": 3058,
      "plume": 14,
@@ -241,7 +241,7 @@
       1,
       0
      ],
-     "thrust": 744975,
+     "thrust": 1490000,
      "isp": 3364,
      "isp_sl": 3058,
      "plume": 14,
@@ -251,6 +251,34 @@
      "type": "rocket",
      "fuel": "hydrogen",
      "group": "hover"
+    },
+    {
+     "position": [-6.97215, 0, 0],
+     "direction": [0, 0, 1],
+     "thrust": 770000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 8,
+     "plume_width": 1.0,
+     "plume_glow": 1.5,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "pod"
+    },
+    {
+     "position": [6.97215, 0, 0],
+     "direction": [0, 0, 1],
+     "thrust": 770000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 8,
+     "plume_width": 1.0,
+     "plume_glow": 1.5,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "pod"
     }
    ],
    "gear": [
@@ -277,7 +305,8 @@
    ],
    "parts": [
     {
-     "model": "models/shuttlea.obj"
+     "model": "models/shuttlea.obj",
+    "animations": "pods.json"
     }
    ]
   }
@@ -288,6 +317,7 @@
   -2
  ],
  "horizontal": true,
+ "rcs_modes": true,
  "cockpit": {
   "eye": [
    -0.575,
@@ -714,7 +744,17 @@
     "y": 52,
     "w": 80,
     "h": 183
-   }
+   },
+   {"type": "slider", "property": "/controls/pod-left", "x": 423, "y": 258, "w": 17, "h": 92},
+   {"type": "slider", "property": "/controls/pod-right", "x": 441, "y": 258, "w": 17, "h": 92},
+   {"type": "slider", "property": "/controls/pod-tilt-left", "x": 522, "y": 267, "w": 19, "h": 36},
+   {"type": "slider", "property": "/controls/pod-tilt-right", "x": 552, "y": 267, "w": 19, "h": 36},
+   {"type": "button", "property": "/controls/pod-tilt", "value": "1", "x": 605, "y": 253, "w": 42, "h": 15},
+   {"type": "button", "property": "/controls/pod-tilt", "value": "0.5", "x": 605, "y": 271, "w": 42, "h": 15},
+   {"type": "button", "property": "/controls/pod-tilt", "value": "0", "x": 605, "y": 289, "w": 42, "h": 14},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 719, "y": 62, "w": 21, "h": 14},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 719, "y": 76, "w": 21, "h": 12},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "off", "x": 719, "y": 88, "w": 21, "h": 14}
   ]
  },
  "cameras": [

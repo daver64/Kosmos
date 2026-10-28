@@ -425,6 +425,11 @@ namespace kosmos
         c.rcs_x = props.get_double("/controls/rcs-x");
         c.rcs_y = props.get_double("/controls/rcs-y");
         c.rcs_z = props.get_double("/controls/rcs-z");
+        c.pod_left = props.get_double("/controls/pod-left");
+        c.pod_right = props.get_double("/controls/pod-right");
+        c.pod_tilt_left = props.get_double("/controls/pod-tilt-left");
+        c.pod_tilt_right = props.get_double("/controls/pod-tilt-right");
+        c.rcs_mode = props.get_string("/controls/rcs-mode", "rot");
         c.sas = props.get_string("/controls/sas", "stability");
         c.target_pitch = props.get_double("/controls/target-pitch");
         c.target_heading = props.get_double("/controls/target-heading");

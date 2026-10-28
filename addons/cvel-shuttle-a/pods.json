@@ -1,0 +1,7 @@
+{
+ "version": 1,
+ "animations": [
+  {"type": "rotate", "property": "pod-left", "objects": ["podL_a", "podL_b", "podL_c"], "axis": [1, 0, 0], "center": [0, 0, 0], "interpolation": [[0, 0], [1, -180]]},
+  {"type": "rotate", "property": "pod-right", "objects": ["podR_a", "podR_b", "podR_c"], "axis": [1, 0, 0], "center": [0, 0, 0], "interpolation": [[0, 0], [1, -180]]}
+ ]
+}

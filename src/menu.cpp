@@ -1112,6 +1112,7 @@ namespace kosmos
                                    "  Space            stage\n"
                                    "  W A S D Q E      rotate (pitch, yaw, roll)\n"
                                    "  Arrows           RCS translation\n"
+                                   "  Keypad 9/3 8/2   engine pods (Shuttle-A): thrust, swing; 4/5/6 retro/hover/fwd\n"
                                    "  T                cycle attitude hold\n"
                                    "  P                autopilot (Autopilot menu for modes)\n"
                                    "  U                undock\n"
