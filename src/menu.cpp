@@ -1132,6 +1132,8 @@ namespace kosmos
                                    "  F                manoeuvring pack on / off (airless worlds, orbit)\n"
                                    "  Q / E            roll (when floating free)\n"
                                    "  1-9              pick a pack item   Left mouse   use it (tricorder, pistol, plasma rifle, charges)\n"
+                                   "Lights\n"
+                                   "  Y                navigation lights and strobes on / off   Shift+Y   landing and nose lights (also View menu)\n"
                                    "Ordnance (flying a ship with hardpoints, such as the Vulcan)\n"
                                    "  K                drop the next bomb   Shift+K   drop the special store (atom bomb)\n"
                                    "Animations\n"
@@ -1612,6 +1614,14 @@ namespace kosmos
                             }
                         }
                         ImGui::EndMenu();
+                    }
+                    ImGui::Separator();
+                    {
+                        bool nav = sim.props.get_bool("/controls/lighting/nav", true), lamps = sim.props.get_bool("/controls/lighting/lamps", true);
+                        if (ImGui::MenuItem("Navigation lights", "Y", &nav))
+                            sim.props.set_bool("/controls/lighting/nav", nav);
+                        if (ImGui::MenuItem("Landing and nose lights", "Shift+Y", &lamps))
+                            sim.props.set_bool("/controls/lighting/lamps", lamps);
                     }
                     ImGui::Separator();
                     ImGui::MenuItem("Scenario editor", nullptr, &scenario_editor_open);

@@ -73,6 +73,8 @@ add_executable(kosmos
     src/app_draw_world.cpp
     src/app_draw_hud.cpp
     src/app_gui.cpp
+    src/app_windows.cpp
+    src/app_scene.cpp
     src/command_line.cpp
     src/multiplayer_ui.cpp
     src/cockpit_panels.cpp

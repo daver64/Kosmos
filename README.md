@@ -14,7 +14,7 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 ### Source layout
 
-`src/kosmos.cpp` is only `main`. The application is the `App` struct in `src/app_state.h` (its members are the state that used to be `main`'s locals); `App::run` calls the start-up steps in `app_start.cpp`, `app_world_setup.cpp` and `app_ui_setup.cpp`, then one frame at a time from `app_frame.cpp`, whose phases live in `app_input.cpp` (events, keys), `app_camera.cpp` (time, camera), `app_draw_world.cpp` (the 3D scene), `app_draw_hud.cpp` (overlays, sound, HUD) and `app_gui.cpp` (menus and windows). The pieces that need no shared state are modules of their own: `scenario_start`, `body_terrain`, `surface_textures`, `cockpit_panels`, `ship_visuals`, `exhaust_fx`, `map_views`, `settings`, `procedural`, `engine_sound`, `selftest` and `command_line`.
+`src/kosmos.cpp` is only `main`. The application is the `App` struct in `src/app_state.h` (its members are the state that used to be `main`'s locals); `App::run` calls the start-up steps in `app_start.cpp`, `app_world_setup.cpp` and `app_ui_setup.cpp`, then one frame at a time from `app_frame.cpp`, whose phases live in `app_input.cpp` (events, keys), `app_camera.cpp` (time, camera), `app_draw_world.cpp` (the 3D scene; its lighting, sky, bodies, ships, weather and effects passes are in `app_scene.cpp`), `app_draw_hud.cpp` (overlays, sound, HUD) and `app_gui.cpp` and `app_windows.cpp` (menus and the tool windows). The pieces that need no shared state are modules of their own: `scenario_start`, `body_terrain`, `surface_textures`, `cockpit_panels`, `ship_visuals`, `exhaust_fx`, `map_views`, `settings`, `procedural`, `engine_sound`, `selftest` and `command_line`.
 
 ### Tests
 
@@ -61,6 +61,7 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 | **Menu bar** | A **File / Edit / View / Tools / Help** bar is pinned along the top (untick View > *Keep menu bar visible* and it slides in only when the mouse touches the top edge). **File**: open a scenario (built-in list or a `.json` file), *Save scenario* (captures every ship's live position; orbits are saved as circular), restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, *Start/Stop recording video* (H.264 + AAC sound, `kosmos-<time>.mp4` in the working directory, needs `ffmpeg` on the path), reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
 | B / F | Wheel brakes / cycle flaps (aircraft) |
 | L | Landing gear up / down (retractable gear) |
+| Y / Shift+Y | Navigation lights / landing and nose lights on or off (also under View) |
 | V | Switch ship |
 | O | Orbit line |
 | I | Show or hide all on-screen text (title, telemetry, nearest base, key help); hidden when Kosmos starts |

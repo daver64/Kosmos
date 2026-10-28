@@ -62,6 +62,13 @@
 
 namespace kosmos::app
 {
+    struct StarPlace
+    {
+        bool valid = false;
+        glm::vec3 dir{0.0f}, tint{1.0f};
+        double distance = 0.0, radius = 0.0, angular = 0.0;
+    };
+
     struct App
     {
         kosmos::Universe *universe_ref{};
@@ -267,7 +274,37 @@ namespace kosmos::app
         void draw_overlays();
         void update_sound();
         void draw_hud();
+        bool depth_layers_work = true;
+        double backdrop{};
+        std::size_t limb_used{};
+        bool layered{};
+        double near_plane{};
+        sl::Camera ship_camera;
+        sl::Environment3D environment;
+        sl::Light3D light;
+        std::vector<kosmos::PlacedLight> lamps;
+        std::function<StarPlace(std::size_t)> place_star;
+        std::function<glm::mat4(const StarPlace &, double, double, float)> star_basis_base;
+        std::function<sl::Colour(const glm::vec3 &, float)> tint_of;
+        std::function<void(const StarPlace &)> draw_photosphere;
+        std::function<void(const sl::dvec3 &, const kosmos::Body &)> draw_atmosphere_glow;
+        void scene_lighting();
+        void scene_sky();
+        void scene_star_glare();
+        void scene_bodies();
+        void scene_ships();
+        void scene_weather();
+        void scene_lightning();
+        void scene_lamp_bulbs();
+        void scene_exhaust_and_held();
         void draw_gui();
+    void draw_systems_window();
+    void draw_joystick_window();
+    void draw_settings_window();
+    void draw_part_window();
+    void draw_quantum_window();
+    void draw_camera_editor_window();
+    void draw_camera_window();
         void present();
         void shutdown();
 

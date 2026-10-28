@@ -139,6 +139,11 @@ namespace kosmos::app
                     props.set_double("/controls/gear", down ? 0.0 : 1.0);
                     sound.play(down ? "gear_up" : "gear_down", 200);
                 }
+                else if (key == sl::Event::Key::letter_y)
+                {
+                    const char *path = sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift) ? "/controls/lighting/lamps" : "/controls/lighting/nav";
+                    props.set_bool(path, !props.get_bool(path, true));
+                }
                 else if (key == sl::Event::Key::letter_u)
                     props.set_bool("/dock/undock", true);
                 else if (key == sl::Event::Key::letter_o)
