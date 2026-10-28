@@ -342,6 +342,9 @@ namespace kosmos
                     e.hover = je.value("group", std::string("main")) == "hover";
                     e.pod = je.value("group", std::string("main")) == "pod";
                     e.air_breathing = je.value("air_breathing", false);
+                    if (je.value("group", std::string()) == "rcs")
+                        for (const nlohmann::json &g : je.value("rcs_groups", nlohmann::json::array()))
+                            e.rcs_groups.push_back(g.get<std::string>());
                     // Older specs only had air_breathing; that still means a jet.
                     e.type = engine_type_from_name(je.value("type", ""), e.air_breathing ? EngineType::jet : EngineType::rocket);
                     e.fuel = je.value("fuel", e.type == EngineType::solid ? std::string("solid") : e.type == EngineType::nuclear ? std::string("hydrogen") : e.fuel);
@@ -461,6 +464,25 @@ namespace kosmos
     sl::FlightBody &Ship::body() { return *universe_.world.body(body_); }
     const sl::FlightBody &Ship::body() const { return *universe_.world.body(body_); }
 
+    namespace
+    {
+        // Bits of the RCS control groups; see EngineSpec::rcs_groups.
+        enum RcsGroup : unsigned
+        {
+            g_left = 1, g_right = 2, g_up = 4, g_down = 8, g_forward = 16, g_back = 32,
+            g_pitch_up = 64, g_pitch_down = 128, g_yaw_left = 256, g_yaw_right = 512, g_bank_left = 1024, g_bank_right = 2048
+        };
+
+        unsigned rcs_group_bit(const std::string &name)
+        {
+            static const char *names[] = {"left", "right", "up", "down", "forward", "back", "pitch-up", "pitch-down", "yaw-left", "yaw-right", "bank-left", "bank-right"};
+            for (unsigned i = 0; i < 12; ++i)
+                if (name == names[i])
+                    return 1u << i;
+            return 0;
+        }
+    }
+
     void Ship::build_body()
     {
         body_ = universe_.world.create_body(name);
@@ -484,6 +506,11 @@ namespace kosmos
                 t.air_breathing = e.air_breathing;
                 b.thrusters.push_back(t);
                 thruster_hover_.push_back(e.hover);
+                unsigned mask = 0;
+                for (const std::string &g : e.rcs_groups)
+                    mask |= rcs_group_bit(g);
+                thruster_rcs_.push_back(mask);
+                explicit_rcs_ = explicit_rcs_ || mask != 0;
                 thruster_pod_.push_back(e.pod ? (e.position.x < 0.0 ? 0 : 1) : -1);
             }
             for (const sl::dvec3 &g : stage.gear)
@@ -886,6 +913,8 @@ namespace kosmos
                 command[axis] = std::clamp((desired[axis] - w[axis]) * gain, -1.0, 1.0);
         }
         rcs_torque_ = command;
+        if (explicit_rcs_)
+            return;
         if (glm::length(command) > 0.0)
             universe_.world.apply_torque(body_, b.direction_to_world(command * spec_.torque_accel * b.inertia()));
     }
@@ -979,7 +1008,7 @@ namespace kosmos
                 t.level = std::clamp(pod == 0 ? c.pod_left : c.pod_right, 0.0, 1.0);
             }
             else
-                t.level = thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
+                t.level = thruster_rcs_[static_cast<std::size_t>(i)] ? 0.0 : thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
         }
         if (spec_.aircraft())
         {
@@ -1015,7 +1044,28 @@ namespace kosmos
         {
             apply_attitude(c, dt);
             rcs_push_ = sl::dvec3(0.0);
-            if (spec_.rcs_thrust > 0.0)
+            if (explicit_rcs_)
+            {
+                // The thrusters themselves make the force and torque; each fires in proportion to its strongest group.
+                const double lin[6] = {-c.rcs_x, c.rcs_x, c.rcs_y, -c.rcs_y, c.rcs_z, -c.rcs_z};
+                const double rot[6] = {rcs_torque_.x, -rcs_torque_.x, rcs_torque_.y, -rcs_torque_.y, rcs_torque_.z, -rcs_torque_.z};
+                for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
+                     i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+                {
+                    const unsigned mask = thruster_rcs_[static_cast<std::size_t>(i)];
+                    double level = 0.0;
+                    for (int k = 0; k < 6; ++k)
+                    {
+                        if (mask & (1u << k))
+                            level = std::max(level, lin[k]);
+                        if (mask & (1u << (k + 6)))
+                            level = std::max(level, rot[k]);
+                    }
+                    b.thrusters[static_cast<std::size_t>(i)].level = std::clamp(level, 0.0, 1.0);
+                }
+                rcs_torque_ = sl::dvec3(0.0);
+            }
+            else if (spec_.rcs_thrust > 0.0)
             {
                 const sl::dvec3 push(c.rcs_x, c.rcs_y, -c.rcs_z);
                 rcs_push_ = glm::length(push) > 0.0 ? glm::normalize(push) : push;

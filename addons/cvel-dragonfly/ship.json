@@ -1,9 +1,8 @@
 {
  "name": "CVEL Dragonfly",
  "class": "tug",
- "torque_accel": 0.4,
+ "torque_accel": 0.2,
  "max_rate": 0.5,
- "rcs_thrust": 1000,
  "drag_area": 10,
  "camera_distance": 26,
  "systems": [
@@ -58,23 +57,343 @@
    "engines": [
     {
      "position": [
+      -3.5,
       0,
+      0
+     ],
+     "direction": [
+      1,
       0,
-      11.5
+      0
+     ],
+     "thrust": 2000,
+     "isp": 408,
+     "plume": 2.5,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "right"
+     ]
+    },
+    {
+     "position": [
+      -2.98,
+      0,
+      0.8
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 30000,
-     "isp": 407,
-     "plume": 12,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 1.5,
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
      "type": "rocket",
-     "fuel": "hypergolic"
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "forward"
+     ]
+    },
+    {
+     "position": [
+      -2.98,
+      0,
+      -0.8
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "back"
+     ]
+    },
+    {
+     "position": [
+      -2.98,
+      -0.8,
+      0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "up",
+      "bank-right"
+     ]
+    },
+    {
+     "position": [
+      -2.98,
+      0.8,
+      0
+     ],
+     "direction": [
+      0,
+      -1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "down",
+      "bank-left"
+     ]
+    },
+    {
+     "position": [
+      3.5,
+      0,
+      0
+     ],
+     "direction": [
+      -1,
+      0,
+      0
+     ],
+     "thrust": 2000,
+     "isp": 408,
+     "plume": 2.5,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "left"
+     ]
+    },
+    {
+     "position": [
+      2.98,
+      0,
+      0.8
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "forward"
+     ]
+    },
+    {
+     "position": [
+      2.98,
+      0,
+      -0.8
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "back"
+     ]
+    },
+    {
+     "position": [
+      2.98,
+      -0.8,
+      0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "up",
+      "bank-left"
+     ]
+    },
+    {
+     "position": [
+      2.98,
+      0.8,
+      0
+     ],
+     "direction": [
+      0,
+      -1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "down",
+      "bank-right"
+     ]
+    },
+    {
+     "position": [
+      -0.8,
+      0,
+      11.1
+     ],
+     "direction": [
+      1,
+      0,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "yaw-left"
+     ]
+    },
+    {
+     "position": [
+      0.8,
+      0,
+      11.1
+     ],
+     "direction": [
+      -1,
+      0,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "yaw-right"
+     ]
+    },
+    {
+     "position": [
+      0,
+      -0.8,
+      11.1
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "pitch-down"
+     ]
+    },
+    {
+     "position": [
+      0,
+      0.8,
+      11.1
+     ],
+     "direction": [
+      0,
+      -1,
+      0
+     ],
+     "thrust": 1000,
+     "isp": 408,
+     "plume": 1.8,
+     "plume_width": 0.35,
+     "plume_glow": 1.2,
+     "plume_density": 1.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "rcs",
+     "rcs_groups": [
+      "pitch-up"
+     ]
     }
    ],
    "gear": [
@@ -105,5 +424,433 @@
     }
    ]
   }
- ]
+ ],
+ "rcs_modes": true,
+ "camera_target": [
+  0,
+  0,
+  2
+ ],
+ "ports": [
+  {
+   "name": "Nose",
+   "position": [
+    0,
+    0,
+    -3.2
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "cockpit": {
+  "eye": [
+   0,
+   1.5,
+   0
+  ],
+  "mfds": true,
+  "mfd_left": "adi",
+  "mfd_right": "orbit",
+  "layout": {
+   "name": "Main panel",
+   "width": 920,
+   "height": 300,
+   "image": "panel/panel1.png",
+   "size": 0.8,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "instruments": [
+   {
+    "mode": "adi",
+    "x": 52,
+    "y": 20,
+    "size": 246
+   },
+   {
+    "mode": "orbit",
+    "x": 622,
+    "y": 20,
+    "size": 246
+   }
+  ],
+  "panel": [
+   {
+    "label": "FUEL",
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f kg"
+   },
+   {
+    "label": "ALT",
+    "property": "{ship}/altitude",
+    "format": "%.0f m"
+   }
+  ],
+  "controls": [
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 0,
+    "x": 14,
+    "y": 52,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 6,
+    "x": 305,
+    "y": 52,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 1,
+    "x": 14,
+    "y": 87,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 7,
+    "x": 305,
+    "y": 87,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 2,
+    "x": 14,
+    "y": 122,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 8,
+    "x": 305,
+    "y": 122,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 3,
+    "x": 14,
+    "y": 157,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 9,
+    "x": 305,
+    "y": 157,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 4,
+    "x": 14,
+    "y": 192,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 10,
+    "x": 305,
+    "y": 192,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 5,
+    "x": 14,
+    "y": 227,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 11,
+    "x": 305,
+    "y": 227,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 12,
+    "x": 113,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 13,
+    "x": 160,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 14,
+    "x": 207,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 0,
+    "x": 584,
+    "y": 52,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 6,
+    "x": 875,
+    "y": 52,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 1,
+    "x": 584,
+    "y": 87,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 7,
+    "x": 875,
+    "y": 87,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 2,
+    "x": 584,
+    "y": 122,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 8,
+    "x": 875,
+    "y": 122,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 3,
+    "x": 584,
+    "y": 157,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 9,
+    "x": 875,
+    "y": 157,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 4,
+    "x": 584,
+    "y": 192,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 10,
+    "x": 875,
+    "y": 192,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 5,
+    "x": 584,
+    "y": 227,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 11,
+    "x": 875,
+    "y": 227,
+    "w": 32,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 12,
+    "x": 683,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 13,
+    "x": 730,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 14,
+    "x": 777,
+    "y": 270,
+    "w": 33,
+    "h": 16
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "lin",
+    "x": 366,
+    "y": 36,
+    "w": 60,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "rot",
+    "x": 434,
+    "y": 36,
+    "w": 60,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "off",
+    "x": 502,
+    "y": 36,
+    "w": 60,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "prograde",
+    "x": 366,
+    "y": 112,
+    "w": 60,
+    "h": 34
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "retrograde",
+    "x": 434,
+    "y": 112,
+    "w": 60,
+    "h": 34
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "stability",
+    "x": 502,
+    "y": 112,
+    "w": 60,
+    "h": 34
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "normal",
+    "x": 366,
+    "y": 156,
+    "w": 60,
+    "h": 34
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "antinormal",
+    "x": 434,
+    "y": 156,
+    "w": 60,
+    "h": 34
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "level-horizon",
+    "x": 502,
+    "y": 156,
+    "w": 60,
+    "h": 34
+   }
+  ]
+ }
 }

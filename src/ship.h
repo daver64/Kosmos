@@ -55,6 +55,11 @@ namespace kosmos
         bool pod = false;
         /** Jump range of a hyperjump drive, in light years. */
         double range_ly = 50.0;
+        /**
+         * `"group": "rcs"`: a reaction-control thruster fired by the control groups it lists in `rcs_groups`: "left", "right", "up",
+         * "down", "forward", "back" (translation) and "pitch-up", "pitch-down", "yaw-left", "yaw-right", "bank-left", "bank-right".
+         */
+        std::vector<std::string> rcs_groups;
     };
 
     /**
@@ -565,6 +570,9 @@ namespace kosmos
         double pod_angle_[2] = {0.0, 0.0};
         std::vector<double> anim_pos_;
         std::vector<int> thruster_pod_;
+        /** Bit mask of the RCS control groups driving each thruster; 0 for a main or hover engine. */
+        std::vector<unsigned> thruster_rcs_;
+        bool explicit_rcs_ = false;
         double attached_mass_ = 0.0;
         std::vector<std::pair<double, double>> base_grip_;
         Telemetry telemetry_;
