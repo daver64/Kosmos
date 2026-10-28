@@ -63,6 +63,7 @@ add_executable(kosmos
     src/ordnance.cpp
     src/blast_sound.cpp
     src/settings.cpp
+    src/keybindings.cpp
     src/app.cpp
     src/app_start.cpp
     src/app_world_setup.cpp
@@ -154,6 +155,11 @@ add_executable(joystick_test EXCLUDE_FROM_ALL tests/joystick_test.cpp src/joysti
 target_link_libraries(joystick_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(joystick_test PRIVATE src)
 target_compile_definitions(joystick_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
+add_executable(keybindings_test EXCLUDE_FROM_ALL tests/keybindings_test.cpp src/keybindings.cpp)
+target_link_libraries(keybindings_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(keybindings_test PRIVATE src)
+target_compile_definitions(keybindings_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 # ---- launcher -----------------------------------------------------------------------------------------------------
 # A separate wxWidgets program (no simlib) that picks a scenario and options and starts kosmos; see launcher/main.cpp.

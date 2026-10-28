@@ -11,6 +11,7 @@
 #include "lightning.h"
 #include "lua_console.h"
 #include "joystick.h"
+#include "keybindings.h"
 #include "menu.h"
 #include "netplay.h"
 #include "planet_data.h"
@@ -173,6 +174,9 @@ namespace kosmos::app
         int sas_index{};
         double earth_sphere_switch_m{};
         kosmos::Joystick joystick;
+        kosmos::KeyBindings keys;
+        bool keys_window{};
+        std::string keys_status;
         bool joystick_window{};
         float cam_yaw{};
         float cam_pitch{};
@@ -300,6 +304,8 @@ namespace kosmos::app
         void draw_gui();
     void draw_systems_window();
     void draw_joystick_window();
+    void draw_keys_window();
+    void refresh_menu_keys();
     void draw_settings_window();
     void draw_part_window();
     void draw_quantum_window();

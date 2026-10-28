@@ -7,12 +7,12 @@ SRC=$(cd "$(dirname "$0")/.." && pwd)
 OUT=${1:-$SRC/build}
 JOBS=${JOBS:-4}
 
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test weather_test joystick_test equipment_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test weather_test joystick_test equipment_test keybindings_test
 cd "$OUT"
 export HOME=$(mktemp -d)
 trap 'rm -rf "$HOME"' EXIT
 
-for t in systems_test weather_test joystick_test equipment_test; do
+for t in systems_test weather_test joystick_test equipment_test keybindings_test; do
     echo "== $t"
     ./$t
 done

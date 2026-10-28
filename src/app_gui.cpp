@@ -11,6 +11,7 @@ namespace kosmos::app
             sl::gui_new_frame();
             draw_systems_window();
             draw_joystick_window();
+            draw_keys_window();
             draw_settings_window();
             menu_bar.draw_windows(sim, menu_actions);
             draw_part_window();

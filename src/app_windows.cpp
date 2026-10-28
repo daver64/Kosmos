@@ -484,6 +484,88 @@ namespace kosmos::app
         }
     }
 
+    // Window menu hints follow the player's key bindings.
+    void App::refresh_menu_keys()
+    {
+        static const std::pair<const char *, const char *> windows[] = {{"Cameras", "window_cameras"}, {"Settings", "window_settings"}, {"Ship systems", "window_systems"},
+                                                                       {"Properties", "window_properties"}, {"Lua console", "window_lua"}, {"Multiplayer", "window_multiplayer"}};
+        for (kosmos::MenuWindow &w : menu_windows)
+            for (const auto &[label, action] : windows)
+                if (w.label == label)
+                    w.key = keys.label_for(action);
+    }
+
+    void App::draw_keys_window()
+    {
+        if (!keys_window)
+            return;
+        ImGui::SetNextWindowPos(ImVec2(380.0f, 50.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(560.0f, 520.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowBgAlpha(0.94f);
+        if (ImGui::Begin("Keyboard", &keys_window))
+        {
+            ImGui::TextWrapped("Click a key to rebind it, then press the new key (Esc cancels). Right-click a key to clear it. A key already used by another action in the same context is taken from it.");
+            ImGui::TextDisabled("Fixed: Esc, Alt+Enter, 1-9 (pack items), arrows and Enter in the galaxy map.");
+            if (!keys_status.empty())
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s", keys_status.c_str());
+            if (ImGui::Button("Reset all to defaults"))
+            {
+                keys.reset_all();
+                keys.save();
+                keys_status.clear();
+                refresh_menu_keys();
+            }
+            ImGui::Separator();
+            if (ImGui::BeginChild("keylist"))
+            {
+                std::string group;
+                bool open = false;
+                for (const kosmos::KeyAction &a : keys.actions())
+                {
+                    if (a.group != group)
+                    {
+                        group = a.group;
+                        open = ImGui::CollapsingHeader(group.c_str(), group == "Ship controls" ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+                    }
+                    if (!open)
+                        continue;
+                    ImGui::PushID(a.id.c_str());
+                    ImGui::TextUnformatted(a.label.c_str());
+                    ImGui::SameLine(300.0f);
+                    for (int slot = 0; slot < 2; ++slot)
+                    {
+                        ImGui::PushID(slot);
+                        const bool waiting = keys.learning() && keys.learn_id() == a.id && keys.learn_slot() == slot;
+                        const std::string text = waiting ? "Press a key..." : kosmos::KeyBindings::chord_name(a.chord[slot]);
+                        if (ImGui::Button(text.c_str(), ImVec2(100.0f, 0.0f)))
+                            waiting ? keys.cancel_learn() : keys.begin_learn(a.id, slot);
+                        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                        {
+                            keys.clear(a.id, slot);
+                            keys.save();
+                            refresh_menu_keys();
+                        }
+                        ImGui::PopID();
+                        ImGui::SameLine();
+                    }
+                    if (!keys.is_default(a) && ImGui::SmallButton("Reset"))
+                    {
+                        keys.reset(a.id);
+                        keys.save();
+                        refresh_menu_keys();
+                    }
+                    ImGui::NewLine();
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndChild();
+        }
+        ImGui::End();
+        // A rebind finishes in the event loop; keep the window hints current.
+        if (!keys.learning())
+            refresh_menu_keys();
+    }
+
     void App::draw_quantum_window()
     {
         if (quantum_window)

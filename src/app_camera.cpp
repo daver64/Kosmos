@@ -49,18 +49,18 @@ namespace kosmos::app
             eva_look_yaw = eva_look_pitch = 0.0;
             if (!typing)
             {
-                auto held = [](sl::Key k) { return sl::key_down(k) ? 1.0 : 0.0; };
-                in.forward = held(sl::Key::letter_w) - held(sl::Key::letter_s);
-                in.right = held(sl::Key::letter_d) - held(sl::Key::letter_a);
-                const bool ctrl = sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control);
-                const bool space = sl::key_down(sl::Key::space);
+                auto held = [this](const char *id) { return keys.down(id) ? 1.0 : 0.0; };
+                in.forward = held("walk_forward") - held("walk_back");
+                in.right = held("walk_right") - held("walk_left");
+                const bool ctrl = keys.down("crouch");
+                const bool space = keys.down("jump");
                 in.jump = space;
                 in.crouch = ctrl;
                 in.up = (space ? 1.0 : 0.0) - (ctrl ? 1.0 : 0.0);
-                in.run = sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift);
-                yaw += (held(sl::Key::arrow_left) - held(sl::Key::arrow_right)) * 1.8 * frame;
-                pitch += (held(sl::Key::arrow_up) - held(sl::Key::arrow_down)) * 1.2 * frame;
-                in.roll = (held(sl::Key::letter_q) - held(sl::Key::letter_e)) * 1.2 * frame;
+                in.run = keys.down("run");
+                yaw += (held("look_left") - held("look_right")) * 1.8 * frame;
+                pitch += (held("look_up") - held("look_down")) * 1.2 * frame;
+                in.roll = (held("foot_roll_left") - held("foot_roll_right")) * 1.2 * frame;
             }
             if (options.eva_walk)
             {
@@ -206,8 +206,8 @@ namespace kosmos::app
                 mouse_captured = capture;
             }
         }
-        const double zoom_in = sl::key_down(sl::Key::left_bracket) ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
-        const double zoom_out = sl::key_down(sl::Key::right_bracket) ? 1.0 + 2.0 * frame : 1.0;
+        const double zoom_in = keys.down("zoom_in") ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
+        const double zoom_out = keys.down("zoom_out") ? 1.0 + 2.0 * frame : 1.0;
         if (galaxy_mode)
             gview.ly_per_pixel = std::clamp(gview.ly_per_pixel * zoom_in * zoom_out, 0.02, 400.0);
         else if (map_mode)

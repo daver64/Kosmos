@@ -37,6 +37,8 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 ## Controls
 
+The keys below are the defaults. View > Keyboard rebinds any of them (saved in `keys.json` in the config folder); addons can add bindable actions with a `keys.json` of their own, see the modders manual.
+
 | Key | Action |
 |---|---|
 | Z / X, Shift / Ctrl | Throttle |

@@ -1140,7 +1140,7 @@ namespace kosmos
                                    "  View > Animations lists the ship's hatches, doors and other moving parts; click one to open or close it.\n"
 "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
-                                   "  F5-F9 MFDs   F10 next scenario   View > Joystick: bind sticks\n"
+                                   "  F5-F9 MFDs   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";
     }
@@ -1618,9 +1618,9 @@ namespace kosmos
                     ImGui::Separator();
                     {
                         bool nav = sim.props.get_bool("/controls/lighting/nav", true), lamps = sim.props.get_bool("/controls/lighting/lamps", true);
-                        if (ImGui::MenuItem("Navigation lights", "Y", &nav))
+                        if (ImGui::MenuItem("Navigation lights", actions.key_label ? actions.key_label("nav_lights").c_str() : nullptr, &nav))
                             sim.props.set_bool("/controls/lighting/nav", nav);
-                        if (ImGui::MenuItem("Landing and nose lights", "Shift+Y", &lamps))
+                        if (ImGui::MenuItem("Landing and nose lights", actions.key_label ? actions.key_label("lamps").c_str() : nullptr, &lamps))
                             sim.props.set_bool("/controls/lighting/lamps", lamps);
                     }
                     ImGui::Separator();

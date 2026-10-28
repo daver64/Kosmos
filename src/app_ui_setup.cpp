@@ -94,7 +94,19 @@ namespace kosmos::app
         earth_sphere_switch_m = 20.0e3;
         sl::gamepad_init();
         joystick.load();
+        for (const kosmos::Addon &addon : sim.addons())
+        {
+            std::ifstream in(std::filesystem::path(addon.directory) / "keys.json");
+            if (!in)
+                continue;
+            std::stringstream text;
+            text << in.rdbuf();
+            if (const std::string error = keys.add_from_json(text.str(), "addon " + addon.id + " keys.json"); !error.empty())
+                sim.log(error);
+        }
+        keys.load();
         joystick_window = false;
+        keys_window = options.keys_window;
         cam_yaw = static_cast<float>(options.cam_yaw);
         cam_pitch = static_cast<float>(options.cam_pitch);
         cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
@@ -112,7 +124,7 @@ namespace kosmos::app
         menu_bar.aircraft_autopilot_open = options.aircraft_autopilot;
         menu_bar.spacecraft_autopilot_open = options.spacecraft_autopilot;
         menu_bar.base_editor_open = options.base_editor;
-        menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+        menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Keyboard", "", &keys_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
         menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
         {
             vis.clear_parts();
@@ -301,6 +313,8 @@ namespace kosmos::app
             sim.log("On foot: Enter near the ship to board");
         };
         menu_actions.toggle_eva = toggle_eva;
+        menu_actions.key_label = [this](const char *id) { return keys.label_for(id); };
+        refresh_menu_keys();
         menu_actions.on_foot = [&]() { return eva.active; };
         menu_actions.in_building = [&]() { return !eva.active && sim.active_ship() && sim.active_ship()->spec().building(); };
         menu_actions.show_panel = [&](int index)

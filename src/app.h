@@ -33,6 +33,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <sstream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -100,6 +101,7 @@ extern int screen_h;
         bool no_tiles = false;
         bool camera_window = false;
         bool settings_window = false;
+        bool keys_window = false;
         bool aircraft_autopilot = false, spacecraft_autopilot = false;
         bool property_window = false;
         bool lua_window = false;

@@ -28,6 +28,7 @@ namespace kosmos
         std::function<void()> toggle_eva;     // leave the ship on foot, or board the nearest one
         std::function<bool()> on_foot;
         std::function<bool()> in_building;
+        std::function<std::string(const char *)> key_label; // the keys bound to a keyboard action, for menu hints
         std::function<void(int)> show_panel; // switch to the flown ship's 2D panel with this index
     };
 
