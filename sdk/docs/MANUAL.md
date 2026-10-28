@@ -120,7 +120,10 @@ unsigned handle;
 kl_spawn_ship(c, "Shuttle-A", 0, 0, -200, &handle); /* metres in the flown ship's frame: x right, y up, z forward */
 kl_release(c, -1);                                    /* release from the flown ship's arsenal */
 kl_give(c, "tricorder", 1);                           /* add equipment to the person's pack */
+kl_fire(c, -1, "primary", 1);                         /* pull the trigger of the flown ship's primary weapons */
 ```
+
+`kl_fire` pulls or releases the trigger of a weapon group on a ship (`-1`: the flown ship). The groups are `primary` and `secondary`, or any name a ship's `weapons` block defines; see the modders manual, Ship weapons. A beam pulses once per pull and then recharges, a volley fires to the end, and a held trigger repeats. Players pull the same triggers with keypad 1 and 7, so a program can fight alongside them. Without `weapons` fitted the call returns an error.
 
 Names are those in the ship and equipment lists. A spawned ship copies the flown ship's velocity. Ships your program spawned can be removed again with `kl_remove_ship` (see Ships and the world below).
 
@@ -235,6 +238,7 @@ All functions are in `kosmos_link.h`. Functions that talk to Kosmos return `KL_O
 | `kl_define_key(c, id, label, group, key, shift, hold)` | Add a rebindable key action; see Keys. |
 | `kl_spawn_ship(c, name, x, y, z, &handle)` | Spawn a ship; `handle` is its index in `/ships/ship[N]`. |
 | `kl_release(c, hardpoint)`, `kl_give(c, id, count)` | Release ordnance; give equipment. |
+| `kl_fire(c, ship, group, on)` | Pull or release a ship weapon trigger (`-1`: the flown ship). C++ `fire()`, Python `fire()`. Needs `spawn`. |
 | `kl_define_mfd(c, id, title)` | Add an MFD page. |
 | `kl_draw_begin`, `kl_draw_colour`, `kl_draw_line`, `_rect`, `_fillrect`, `_circle`, `_disc`, `_tri`, `_text`, `_image`, `kl_draw_end(c, id)` | Collect draw commands and send them as one page. |
 | `kl_weather_at(c, body, lat, lon, alt, &w)` | Weather at a place; see Weather. |
@@ -305,6 +309,7 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 | `/ships/ship[N]/name`, `speed`, `altitude` | Name, speed (m/s) and altitude of ship N. |
 | `/ships/ship[N]/gear-position`, `landed`, `crashed` | Gear (0 up, 1 down), on the ground, destroyed. |
 | `/ships/ship[N]/stage`, `stage-count` | Current stage and the number of stages. |
+| `/ships/ship[N]/shield`, `health` | Shield level and hull health, 0 to 1 (`shield` is 0 on ships without one). |
 | `/controls/throttle`, `/controls/gear` | Flown ship controls you may set with the `controls` capability. |
 | `/addons/<id>/...` | Your own properties. You can always write these with `controls`. |
 
@@ -415,5 +420,6 @@ Protocol 3 adds requests 22 to 31. Kosmos accepts a hello carrying 1, 2 or 3. Re
 | 29 | ship_value | `u32 index`, str name, `f64 value`. A name beginning `controls/` sets a module control |
 | 30 | ship_force | `u32 index`, 3 x `f64` force, 3 x `f64` torque (ship axes, N and N m) |
 | 31 | draw3d | str layer, `u16 n`, then per primitive: `u8 kind` (0 line, 1 marker, 2 label, 3 ring, 4 sphere), `u8 frame` (0 lat/lon/alt, 1 body-fixed, 2 ship), `u32 ship`, 3 x `f64` a, 3 x `f64` b, `f64 size`, `u8` r, g, b, alpha, `u8 depth`, str text. `n` = 0 removes the layer. Needs `draw3d` |
+| 32 | fire | `u32 ship` (`0xFFFFFFFF`: the flown ship), str group (`primary`, `secondary` or a group the ship defines), `u8 on`. Pulls or releases a weapon trigger. Needs `spawn` |
 
 New events: `step` (to the lockstep program only; argument `frame dt simtime`) and `ui` (to the window's owner; argument `window widget value`; a closed window sends an empty widget and `closed`). Kosmos sends a `ping` frame (type 13) to a protocol 3 client that has been silent for the timeout; any frame from the client, such as a `ping` back, resets the timer, and a client silent for twice the timeout is dropped. Protocol 1 and 2 clients are not timed out. Limits: 8 windows, 64 widgets, 8 layers and 2000 primitives per client. A program's windows, layers, claims and lockstep end when it disconnects.

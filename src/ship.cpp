@@ -1454,6 +1454,7 @@ namespace kosmos
         tree.node(base + "/name")->tie_string([this] { return name; });
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
         tree.node(base + "/shield")->tie_double([this] { return spec_.shield.capacity > 0.0 ? shield_ / spec_.shield.capacity : 0.0; });
+        tree.node(base + "/health")->tie_double([this] { return health_; });
         for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
             tree.node(base + "/anim/" + spec_.animation_controls[i].property)->tie_double([this, i] { return animation_position(i); });
         tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });

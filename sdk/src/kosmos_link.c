@@ -32,7 +32,7 @@ enum
     MSG_WEATHER_AT = 14, MSG_SET_WEATHER = 15, MSG_SUBSCRIBE_EVENT = 16, MSG_UNSUBSCRIBE_EVENT = 17, MSG_LIST_SHIPS = 18,
     MSG_REMOVE_SHIP = 19, MSG_PLACE_SHIP = 20, MSG_LIST_FACILITIES = 21,
     MSG_UI_WINDOW = 22, MSG_UI_CLOSE = 23, MSG_UI_NOTIFY = 24, MSG_LOCKSTEP = 25, MSG_STEP_DONE = 26, MSG_CLAIM_SHIP = 27,
-    MSG_RELEASE_SHIP = 28, MSG_SHIP_VALUE = 29, MSG_SHIP_FORCE = 30, MSG_DRAW3D = 31,
+    MSG_RELEASE_SHIP = 28, MSG_SHIP_VALUE = 29, MSG_SHIP_FORCE = 30, MSG_DRAW3D = 31, MSG_FIRE = 32,
     MSG_WELCOME = 101, MSG_ERROR = 102, MSG_VALUE = 103, MSG_EVENT = 104, MSG_OK = 105, MSG_PONG = 106, MSG_WEATHER = 107, MSG_SHIP_LIST = 108, MSG_FACILITY_LIST = 109
 };
 
@@ -684,6 +684,21 @@ int kl_release(kl_client *c, int hardpoint)
     uint32_t rid = new_request(c);
     begin_frame(&frame, MSG_RELEASE, rid);
     put_u32(&frame, (uint32_t)(int32_t)hardpoint);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_fire(kl_client *c, int ship, const char *group, int on)
+{
+    if (!group)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_FIRE, rid);
+    put_u32(&frame, (uint32_t)(int32_t)ship);
+    put_str(&frame, group);
+    put_u8(&frame, on ? 1 : 0);
     int r = request(c, &frame, rid);
     free(frame.data);
     return r;

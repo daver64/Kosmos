@@ -64,6 +64,18 @@ namespace kosmos::app
                 return app_.arsenal.release(app_.arsenal_ctx, *ship, hardpoint) ? "" : "nothing to release";
             }
 
+            std::string fire_weapons(std::uint32_t index, const std::string &group, bool on) override
+            {
+                Sim &sim = app_.sim;
+                const int ship = index == 0xffffffffu ? sim.active_index() : static_cast<int>(index);
+                if (ship < 0 || ship >= sim.ship_count())
+                    return "no such ship";
+                if (sim.ship(ship)->spec().weapons.empty())
+                    return "the ship has no weapons";
+                sim.props.set_double("/ships/ship[" + std::to_string(ship) + "]/weapons/" + group + "/fire", on ? 1.0 : 0.0);
+                return "";
+            }
+
             std::string give_equipment(const std::string &id, int count) override
             {
                 return app_.arsenal.give(app_.sim, id, count) ? "" : "no equipment called '" + id + "'";

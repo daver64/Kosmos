@@ -96,6 +96,7 @@ namespace kosmos
         void notify(const std::string &text, double seconds = 4.0) { kl_ui_notify(client_, text.c_str(), seconds); }
         /** Lockstep: wait for the "step" event, compute, then step_done(frame). See the SDK manual. */
         bool lockstep(bool enable, int max_wait_ms = 100, double fixed_dt = 0.0) { return kl_lockstep(client_, enable, max_wait_ms, fixed_dt) == KL_OK; }
+        bool fire(int ship, const std::string &group, bool on) { return kl_fire(client_, ship, group.c_str(), on ? 1 : 0) == KL_OK; }
         void step_done(unsigned frame) { kl_step_done(client_, frame); }
         bool claim_ship(unsigned index, bool passthrough = false) { return kl_claim_ship(client_, index, passthrough) == KL_OK; }
         bool release_ship(unsigned index) { return kl_release_ship(client_, index) == KL_OK; }

@@ -75,6 +75,8 @@ namespace kosmos::link
         /** Spawns a ship next to the flown one, offset in the flown ship's axes (metres). */
         virtual std::string spawn_ship(const std::string &name, double x, double y, double z, std::uint32_t &handle) { (void)name; (void)x; (void)y; (void)z; handle = 0; return "not supported"; }
         virtual std::string release_ordnance(int hardpoint) { (void)hardpoint; return "not supported"; }
+        /** Pulls (or releases) the trigger of a weapon group on ship `index`. */
+        virtual std::string fire_weapons(std::uint32_t index, const std::string &group, bool on) { (void)index; (void)group; (void)on; return "not supported"; }
         virtual std::string give_equipment(const std::string &id, int count) { (void)id; (void)count; return "not supported"; }
         /** Adds an MFD page. The page's drawing arrives through LinkServer::page(). */
         virtual std::string define_mfd(const std::string &addon, const std::string &id, const std::string &title) { (void)addon; (void)id; (void)title; return "not supported"; }

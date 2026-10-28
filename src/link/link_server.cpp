@@ -355,6 +355,19 @@ namespace kosmos::link
             error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
             break;
         }
+        case msg_fire:
+        {
+            const std::uint32_t index = r.u32();
+            const std::string group = r.str();
+            const bool on = r.u8() != 0;
+            if (!r.ok() || group.empty() || group.size() > 32 || group.find_first_of("/[]") != std::string::npos)
+                return bad();
+            if (!need(cap_spawn, "firing weapons"))
+                return;
+            const std::string error = host_.fire_weapons(index, group, on);
+            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            break;
+        }
         case msg_give:
         {
             const std::string id = r.str();

@@ -14,7 +14,7 @@ import time
 
 sys.path.insert(0, __file__.rsplit("/", 2)[0] + "/examples")
 from kosmos_link import (CLAIM_SHIP, DRAW3D, LOCKSTEP, RELEASE_SHIP, SHIP_FORCE, SHIP_VALUE, STEP_DONE, UI_CLOSE, UI_NOTIFY, UI_WINDOW, DEFINE_KEY, DEFINE_MFD, DRAW, ERROR, EVENT, FACILITY_LIST, GET, GIVE, HELLO, LIST_FACILITIES, LIST_SHIPS,  # noqa: E402
-                         LOG, OK, PING, PLACE_SHIP, PONG, RELEASE, REMOVE_SHIP, SET, SET_WEATHER, SHIP_LIST, SPAWN, SUBSCRIBE,
+                         LOG, OK, PING, PLACE_SHIP, PONG, FIRE, RELEASE, REMOVE_SHIP, SET, SET_WEATHER, SHIP_LIST, SPAWN, SUBSCRIBE,
                          SUBSCRIBE_EVENT, UNSUBSCRIBE, UNSUBSCRIBE_EVENT, VALUE, WEATHER, WEATHER_AT, WELCOME, Reader, _str, _value)
 
 props = {"/sim/active-ship": 0, "/sim/paused": False, "/ships/ship[0]/name": "Mock Ship"}
@@ -104,7 +104,7 @@ def serve(conn):
             elif kind in (SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, REMOVE_SHIP, PLACE_SHIP):
                 print("%s: request type %d" % (addon, kind))
                 conn.sendall(frame(OK, rid, struct.pack("<I", 0)))
-            elif kind in (DEFINE_KEY, DEFINE_MFD, SPAWN, RELEASE, GIVE):
+            elif kind in (DEFINE_KEY, DEFINE_MFD, SPAWN, RELEASE, GIVE, FIRE):
                 print("%s: request type %d" % (addon, kind))
                 conn.sendall(frame(OK, rid, struct.pack("<I", 1 if kind == SPAWN else 0)))
 

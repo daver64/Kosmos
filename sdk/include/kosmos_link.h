@@ -133,6 +133,9 @@ int kl_define_key(kl_client *client, const char *id, const char *label, const ch
 int kl_spawn_ship(kl_client *client, const char *ship_name, double x, double y, double z, unsigned *handle);
 /* Releases ordnance from a hardpoint of the flown ship (-1: the first loaded one). */
 int kl_release(kl_client *client, int hardpoint);
+/* Pulls (on = 1) or releases (on = 0) the trigger of a weapon group ("primary", "secondary" or a name the ship defines) on a ship; -1 is the flown ship. Beams pulse once per pull, volleys fire
+   to the end, and a held trigger repeats. Needs spawn. */
+int kl_fire(kl_client *client, int ship, const char *group, int on);
 /* Adds equipment (an id from data/equipment) to the person's pack. */
 int kl_give(kl_client *client, const char *equipment_id, int count);
 

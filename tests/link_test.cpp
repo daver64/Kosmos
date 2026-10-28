@@ -34,6 +34,7 @@ namespace
     {
         std::string keys_json, last_ship, last_equipment;
         int released = -2;
+        std::string fired;
         std::string mfd;
         std::string sim_version() override { return "test-1"; }
         std::string define_keys(const std::string &json) override { keys_json = json; return ""; }
@@ -46,6 +47,7 @@ namespace
             return "";
         }
         std::string release_ordnance(int hardpoint) override { released = hardpoint; return ""; }
+        std::string fire_weapons(std::uint32_t index, const std::string &group, bool on) override { fired = std::to_string(index) + group + (on ? "+" : "-"); return ""; }
         std::string give_equipment(const std::string &id, int) override { last_equipment = id; return ""; }
         std::string define_mfd(const std::string &addon, const std::string &id, const std::string &) override { mfd = addon + "/" + id; return ""; }
     };
@@ -133,6 +135,8 @@ namespace
         CHECK(kl_spawn_ship(c, "nothing", 0, 0, 0, &handle) == KL_ERR_FAILED);
         CHECK(std::string(kl_error(c)).find("nothing") != std::string::npos);
         CHECK(kl_release(c, 1) == KL_OK);
+        CHECK(kl_fire(c, 2, "secondary", 1) == KL_OK);
+        CHECK(kl_fire(c, -1, "bad/group", 1) != KL_OK);
         CHECK(kl_give(c, "pistol", 2) == KL_OK);
         CHECK(kl_define_mfd(c, "sight", "Bomb sight") == KL_OK);
         kl_draw_begin(c);
@@ -701,6 +705,7 @@ int main()
     CHECK(host.keys_json.find("\"test-addon.fire\"") != std::string::npos && host.keys_json.find("/addons/test-addon/keys/fire") != std::string::npos);
     CHECK(host.last_ship == "Skylark");
     CHECK(host.released == 1);
+    CHECK(host.fired == "2secondary+");
     CHECK(host.last_equipment == "pistol");
     CHECK(props.get_double("/controls/flight/elevator") == 0.25);
     CHECK(props.get_double("/position/altitude-m") == 1234.5);

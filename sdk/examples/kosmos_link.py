@@ -8,7 +8,7 @@ CAP_READ, CAP_CONTROLS, CAP_WRITE, CAP_SPAWN, CAP_DRAW, CAP_KEYS, CAP_WORLD = 1,
 CAP_UI, CAP_VESSEL, CAP_DRAW3D = 128, 256, 512
 (HELLO, SUBSCRIBE, UNSUBSCRIBE, GET, SET, DEFINE_KEY, SPAWN, RELEASE, GIVE, DEFINE_MFD, DRAW, LOG, PING) = range(1, 14)
 (WEATHER_AT, SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, LIST_SHIPS, REMOVE_SHIP, PLACE_SHIP, LIST_FACILITIES) = range(14, 22)
-(UI_WINDOW, UI_CLOSE, UI_NOTIFY, LOCKSTEP, STEP_DONE, CLAIM_SHIP, RELEASE_SHIP, SHIP_VALUE, SHIP_FORCE, DRAW3D) = range(22, 32)
+(UI_WINDOW, UI_CLOSE, UI_NOTIFY, LOCKSTEP, STEP_DONE, CLAIM_SHIP, RELEASE_SHIP, SHIP_VALUE, SHIP_FORCE, DRAW3D, FIRE) = range(22, 33)
 FRAME_LLA, FRAME_BODY, FRAME_SHIP = 0, 1, 2
 LABEL, BUTTON, CHECKBOX, SLIDER, TEXTBOX, SEPARATOR = range(6)
 LINE3, MARKER3, LABEL3, RING3, SPHERE3 = range(5)
@@ -144,6 +144,10 @@ class Link:
 
     def release(self, hardpoint=-1):
         self._request(RELEASE, struct.pack("<i", hardpoint))
+
+    def fire(self, group="primary", on=True, ship=-1):
+        """Pulls or releases the trigger of a weapon group; ship -1 is the flown ship."""
+        self._request(FIRE, struct.pack("<I", ship & 0xFFFFFFFF) + _str(group) + struct.pack("<B", 1 if on else 0))
 
     def give(self, equipment, count=1):
         self._request(GIVE, _str(equipment) + struct.pack("<i", count))

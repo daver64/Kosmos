@@ -55,6 +55,7 @@ namespace kosmos::link
         msg_ship_value = 29,
         msg_ship_force = 30,
         msg_draw3d = 31,
+        msg_fire = 32,
         // Kosmos to addon
         msg_welcome = 101,
         msg_error = 102,
@@ -73,7 +74,7 @@ namespace kosmos::link
         cap_read = 1,     // get and subscribe to properties
         cap_controls = 2, // set /controls/ and the addon's own /addons/<id>/ properties
         cap_write = 4,    // set any property
-        cap_spawn = 8,    // spawn ships, release ordnance, give equipment
+        cap_spawn = 8,    // spawn ships, release ordnance, fire ship weapons, give equipment
         cap_draw = 16,    // add MFD modes and draw on them
         cap_keys = 32,    // define key actions
         cap_world = 64,   // set the weather, place and remove ships
