@@ -317,6 +317,8 @@ namespace kosmos::app
     void setup_link();
     void update_link();
     void draw_link_window();
+        void draw_link_ui();
+        void draw_link_3d();
     void shutdown_link();
     void refresh_menu_keys();
     void draw_settings_window();

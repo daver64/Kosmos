@@ -13,7 +13,7 @@ import threading
 import time
 
 sys.path.insert(0, __file__.rsplit("/", 2)[0] + "/examples")
-from kosmos_link import (DEFINE_KEY, DEFINE_MFD, DRAW, ERROR, EVENT, FACILITY_LIST, GET, GIVE, HELLO, LIST_FACILITIES, LIST_SHIPS,  # noqa: E402
+from kosmos_link import (CLAIM_SHIP, DRAW3D, LOCKSTEP, RELEASE_SHIP, SHIP_FORCE, SHIP_VALUE, STEP_DONE, UI_CLOSE, UI_NOTIFY, UI_WINDOW, DEFINE_KEY, DEFINE_MFD, DRAW, ERROR, EVENT, FACILITY_LIST, GET, GIVE, HELLO, LIST_FACILITIES, LIST_SHIPS,  # noqa: E402
                          LOG, OK, PING, PLACE_SHIP, PONG, RELEASE, REMOVE_SHIP, SET, SET_WEATHER, SHIP_LIST, SPAWN, SUBSCRIBE,
                          SUBSCRIBE_EVENT, UNSUBSCRIBE, UNSUBSCRIBE_EVENT, VALUE, WEATHER, WEATHER_AT, WELCOME, Reader, _str, _value)
 
@@ -32,6 +32,7 @@ def frame(kind, request, payload=b""):
 
 def serve(conn):
     subs, buf, addon = {}, b"", "?"
+    lock, step, acked, step_at = False, 0, 0, 0.0
     conn.settimeout(0.05)
     last = 0.0
     while True:
@@ -43,6 +44,9 @@ def serve(conn):
         if now - last >= 0.1:
             last = now
             conn.sendall(frame(EVENT, 0, _str("mfd") + _str("")))
+        if lock and acked >= step and now - step_at >= 0.05:
+            step, step_at = step + 1, now
+            conn.sendall(frame(EVENT, 0, _str("step") + _str("%d 0.016667 %.3f" % (step, now))))
         try:
             data = conn.recv(65536)
         except socket.timeout:
@@ -59,7 +63,7 @@ def serve(conn):
                 r.take("H")
                 addon = r.str()
                 print("hello from", addon)
-                conn.sendall(frame(WELCOME, rid, struct.pack("<H", 2) + _str("mock") + struct.pack("<I", 127)))
+                conn.sendall(frame(WELCOME, rid, struct.pack("<H", 3) + _str("mock") + struct.pack("<I", 1023)))
             elif kind == PING:
                 conn.sendall(frame(PONG, rid))
             elif kind == GET:
@@ -86,6 +90,17 @@ def serve(conn):
                 conn.sendall(frame(SHIP_LIST, rid, payload))
             elif kind == LIST_FACILITIES:
                 conn.sendall(frame(FACILITY_LIST, rid, struct.pack("<I", 0)))
+            elif kind == LOCKSTEP:
+                lock = bool(r.take("B"))
+                acked, step_at = step, 0.0
+                conn.sendall(frame(OK, rid, struct.pack("<I", 0)))
+            elif kind == STEP_DONE:
+                acked = max(acked, r.take("I"))
+            elif kind in (UI_WINDOW, UI_CLOSE, UI_NOTIFY, SHIP_VALUE, SHIP_FORCE, DRAW3D):
+                print("%s: message type %d" % (addon, kind))
+            elif kind in (CLAIM_SHIP, RELEASE_SHIP):
+                print("%s: request type %d" % (addon, kind))
+                conn.sendall(frame(OK, rid, struct.pack("<I", 0)))
             elif kind in (SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, REMOVE_SHIP, PLACE_SHIP):
                 print("%s: request type %d" % (addon, kind))
                 conn.sendall(frame(OK, rid, struct.pack("<I", 0)))

@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -57,6 +58,16 @@ namespace kosmos
         /** Deletes ship @p index (never the flown one); later ships move down one place, so handles to them change. Returns false when it may not be removed. */
         bool remove_ship(int index);
         int active_index() const { return active_; }
+
+        /** A ship a native program owns: it supplies the controls (alone, or beside the player's when passthrough) and may push on the ship. */
+        struct LinkClaim
+        {
+            int owner = 0;
+            std::string addon;
+            bool passthrough = false;
+            double force[3] = {0, 0, 0}, torque[3] = {0, 0, 0};
+        };
+        std::map<int, LinkClaim> link_claims;
         void activate(int index);
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }
@@ -102,7 +113,7 @@ namespace kosmos
     private:
         void scan_addons();
         void publish_galaxy();
-        Controls read_controls();
+        Controls read_controls(const std::string &prefix = "/controls", const Ship *ship = nullptr);
         /** Publish /target/* relative to the ship named by /sim/target (a ship or a body). */
         void update_target();
 

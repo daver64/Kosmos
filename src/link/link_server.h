@@ -48,6 +48,22 @@ namespace kosmos::link
         std::vector<FacilityNavaid> navaids;
     };
 
+    /** One window a native program shows, kept by the server and drawn by the game. */
+    struct UiWindow
+    {
+        std::string addon, id, title;
+        std::vector<UiWidget> widgets;
+        int owner = 0;
+    };
+
+    /** A set of 3D primitives a program draws, replaced wholesale on every update. */
+    struct Layer3
+    {
+        std::string addon, id;
+        std::vector<Primitive3> items;
+        int owner = 0;
+    };
+
     /** What the game does for an addon's requests that go beyond the property tree. Each returns an error message, or empty on success. */
     class LinkHost
     {
@@ -63,6 +79,18 @@ namespace kosmos::link
         /** Adds an MFD page. The page's drawing arrives through LinkServer::page(). */
         virtual std::string define_mfd(const std::string &addon, const std::string &id, const std::string &title) { (void)addon; (void)id; (void)title; return "not supported"; }
         virtual void log(const std::string &addon, const std::string &text) { (void)addon; (void)text; }
+
+        /** Shows a short notice on screen. */
+        virtual void notify(const std::string &text, double seconds) { (void)text; (void)seconds; }
+        /** Makes @p owner (a client id) the one that controls a ship; @p passthrough keeps the player's controls working alongside. */
+        virtual std::string claim_ship(int owner, const std::string &addon, std::uint32_t index, bool passthrough) { (void)owner; (void)addon; (void)index; (void)passthrough; return "not supported"; }
+        virtual std::string release_ship(int owner, std::uint32_t index) { (void)owner; (void)index; return "not supported"; }
+        /** Releases everything @p owner claimed (it disconnected). */
+        virtual void release_all(int owner) { (void)owner; }
+        /** Publishes a value under the claimed ship's module properties; names starting "controls/" are the ship's controls. */
+        virtual std::string ship_value(int owner, std::uint32_t index, const std::string &name, double value) { (void)owner; (void)index; (void)name; (void)value; return "not supported"; }
+        /** Force (N) and torque (N m) in the ship's own axes, held until replaced. */
+        virtual std::string ship_force(int owner, std::uint32_t index, const double force[3], const double torque[3]) { (void)owner; (void)index; (void)force; (void)torque; return "not supported"; }
 
         /** Weather at a place; @p body empty means the flown ship's body. */
         virtual std::string weather_at(const std::string &body, double lat, double lon, double alt, WeatherInfo &out, std::string &station, std::string &metar) { (void)body; (void)lat; (void)lon; (void)alt; (void)out; (void)station; (void)metar; return "not supported"; }
@@ -93,6 +121,7 @@ namespace kosmos::link
         std::string addon, name, version;
         std::uint32_t requested = 0, granted = 0;
         std::size_t subscriptions = 0;
+        double idle = 0; // seconds since the program last sent anything
     };
 
     /** An MFD page an addon draws. */
@@ -130,6 +159,23 @@ namespace kosmos::link
         bool wants_event(const std::string &name) const;
 
         std::vector<ClientInfo> clients() const;
+
+        /** Seconds of silence after which a protocol 3 program is pinged and, one timeout later, dropped; 0 turns this off. */
+        void set_timeout(double seconds) { timeout_ = seconds; }
+
+        /**
+         * Lockstep: when a program asked for it, tells it a step is due and waits (at most its limit) for step_done. Returns the
+         * fixed step length the program asked for, or 0. Call once per frame before the simulation steps.
+         */
+        double lockstep_gate(double frame, double sim_time);
+        bool lockstep_active() const;
+        std::uint32_t lockstep_missed() const { return missed_; }
+
+        std::vector<UiWindow> ui_windows() const;
+        /** Tells the program that owns a window its widget changed (or the window was closed with widget empty). */
+        void ui_event(const std::string &addon, const std::string &window, const std::string &widget, const std::string &value);
+        /** The 3D layers of all connected programs. */
+        std::vector<const Layer3 *> layers() const;
         /** The page an addon draws, or null. */
         Page *page(const std::string &addon, const std::string &id);
         /** Whether the addon that owns a page is still connected. */
@@ -151,6 +197,13 @@ namespace kosmos::link
         sl::TcpListener listener_;
         std::vector<std::unique_ptr<Client>> clients_;
         std::map<std::string, Page> pages_;
+        std::map<std::string, UiWindow> windows_;
+        std::map<std::string, Layer3> layers_;
+        double timeout_ = 0.0;
+        int lockstep_owner_ = 0;
+        double lockstep_wait_ = 0.1, lockstep_dt_ = 0.0;
+        std::uint32_t step_frame_ = 0, step_acked_ = 0, missed_ = 0;
+        void drop(Client &c);
         int next_id_ = 1;
     };
 } // namespace kosmos::link

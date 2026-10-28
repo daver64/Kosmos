@@ -1,4 +1,4 @@
-# KosmosLink protocol, version 2
+# KosmosLink protocol, version 3
 
 Most addons should use the C library (`kosmos_link.h`). This page is for writing a client in another language.
 
@@ -73,10 +73,29 @@ Protocol 2 adds requests 14 to 21 and replies 107 to 109. Kosmos accepts a hello
 
 Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date). Always-on events are unchanged.
 
+## Protocol 3
+
+Protocol 3 adds requests 22 to 31. Kosmos accepts a hello carrying 1, 2 or 3. Requests answer with `ok` or an error frame (102) where noted; the others are fire and forget and report failures as errors with request id 0.
+
+| Type | Name | Payload |
+|---|---|---|
+| 22 | ui_window | str id, str title, `u16 n`, then per widget: `u8 kind` (0 label, 1 button, 2 checkbox, 3 slider, 4 text, 5 separator), str id, str label, str text, `f64` value, low, high. Replaces a window of the same id. Needs `ui`. Fire and forget |
+| 23 | ui_close | str id |
+| 24 | ui_notify | str text, `f64` seconds |
+| 25 | lockstep | `u8 enable`, `u32 max_wait_ms`, `f64 fixed_dt` (0, or 0.001 to 0.1). Needs `controls`. One holder at a time. Replies ok |
+| 26 | step_done | `u32 frame`. Fire and forget |
+| 27 | claim_ship | `u32 index`, `u8 passthrough`. Needs `vessel`. Replies ok or an error |
+| 28 | release_ship | `u32 index` |
+| 29 | ship_value | `u32 index`, str name, `f64 value`. A name beginning `controls/` sets a module control |
+| 30 | ship_force | `u32 index`, 3 x `f64` force, 3 x `f64` torque (ship axes, N and N m) |
+| 31 | draw3d | str layer, `u16 n`, then per primitive: `u8 kind` (0 line, 1 marker, 2 label, 3 ring, 4 sphere), `u8 frame` (0 lat/lon/alt, 1 body-fixed, 2 ship), `u32 ship`, 3 x `f64` a, 3 x `f64` b, `f64 size`, `u8` r, g, b, alpha, `u8 depth`, str text. `n` = 0 removes the layer. Needs `draw3d` |
+
+New events: `step` (to the lockstep program only; argument `frame dt simtime`) and `ui` (to the window's owner; argument `window widget value`; a closed window sends an empty widget and `closed`). Kosmos sends a `ping` frame (type 13) to a protocol 3 client that has been silent for the timeout; any frame from the client, such as a `ping` back, resets the timer, and a client silent for twice the timeout is dropped. Protocol 1 and 2 clients are not timed out. Limits: 8 windows, 64 widgets, 8 layers and 2000 primitives per client. A program's windows, layers, claims and lockstep end when it disconnects.
+
 ## Capabilities
 
-read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships). Bit 128 is reserved. The player grants these per addon. A manifest's `capabilities` narrow what a request can obtain. The welcome message and `granted` events report what you actually have. Requests beyond that fail with error 3.
+read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships), ui 128, vessel 256, draw3d 512. The player grants these per addon. A manifest's `capabilities` narrow what a request can obtain. The welcome message and `granted` events report what you actually have. Requests beyond that fail with error 3.
 
 ## Limits
 
-There is no lockstep mode and no ping timeout. A page that has not been redrawn for a second shows NO SIGNAL.
+Lockstep waits at most the `max_wait_ms` you ask for. A page that has not been redrawn for a second shows NO SIGNAL.

@@ -1,12 +1,17 @@
-"""A pure-Python KosmosLink client (protocol version 2). One file, standard library only."""
+"""A pure-Python KosmosLink client (protocol version 3). One file, standard library only."""
 import os
 import socket
 import struct
 import time
 
 CAP_READ, CAP_CONTROLS, CAP_WRITE, CAP_SPAWN, CAP_DRAW, CAP_KEYS, CAP_WORLD = 1, 2, 4, 8, 16, 32, 64
+CAP_UI, CAP_VESSEL, CAP_DRAW3D = 128, 256, 512
 (HELLO, SUBSCRIBE, UNSUBSCRIBE, GET, SET, DEFINE_KEY, SPAWN, RELEASE, GIVE, DEFINE_MFD, DRAW, LOG, PING) = range(1, 14)
 (WEATHER_AT, SET_WEATHER, SUBSCRIBE_EVENT, UNSUBSCRIBE_EVENT, LIST_SHIPS, REMOVE_SHIP, PLACE_SHIP, LIST_FACILITIES) = range(14, 22)
+(UI_WINDOW, UI_CLOSE, UI_NOTIFY, LOCKSTEP, STEP_DONE, CLAIM_SHIP, RELEASE_SHIP, SHIP_VALUE, SHIP_FORCE, DRAW3D) = range(22, 32)
+FRAME_LLA, FRAME_BODY, FRAME_SHIP = 0, 1, 2
+LABEL, BUTTON, CHECKBOX, SLIDER, TEXTBOX, SEPARATOR = range(6)
+LINE3, MARKER3, LABEL3, RING3, SPHERE3 = range(5)
 WELCOME, ERROR, VALUE, EVENT, OK, PONG, WEATHER, SHIP_LIST, FACILITY_LIST = 101, 102, 103, 104, 105, 106, 107, 108, 109
 LINE, RECT, FILLRECT, CIRCLE, DISC, TRI, TEXT, IMAGE = range(8)
 
@@ -60,7 +65,7 @@ class Link:
         self.next_id = 1
         self.on_value = None  # f(path, value)
         self.on_event = None  # f(name, argument)
-        payload = struct.pack("<H", 2) + _str(addon_id) + _str(name) + _str(version) \
+        payload = struct.pack("<H", 3) + _str(addon_id) + _str(name) + _str(version) \
             + _str(token or os.environ.get("KOSMOS_LINK_TOKEN", "")) + struct.pack("<I", capabilities)
         kind, r = self._request(HELLO, payload)
         r.take("H")
@@ -92,6 +97,8 @@ class Link:
             self.on_value(r.str(), r.value())
         elif kind == EVENT and self.on_event:
             self.on_event(r.str(), r.str())
+        elif kind == PING:
+            self._send(PING)  # Kosmos checks that the program still answers
 
     def _request(self, kind, payload=b"", timeout=5.0):
         rid, self.next_id = self.next_id, self.next_id + 1
@@ -218,3 +225,90 @@ class Link:
                 f["navaids"].append(nv)
             out.append(f)
         return out
+
+    # ---- Protocol 3
+
+    def notify(self, text, seconds=4.0):
+        """A short message on the HUD. Needs CAP_UI."""
+        self._send(UI_NOTIFY, _str(text) + struct.pack("<d", seconds))
+
+    def ui_window(self, id, title, widgets):
+        """Shows or updates a window. widgets: tuples (kind, id, label, text, value, low, high); see the helpers below.
+        Changes arrive as the event "ui" with the argument "window widget value" (see parse_ui_event). Needs CAP_UI."""
+        payload = _str(id) + _str(title) + struct.pack("<H", len(widgets))
+        for kind, wid, label, text, value, low, high in widgets:
+            payload += struct.pack("<B", kind) + _str(wid) + _str(label) + _str(text) + struct.pack("<3d", value, low, high)
+        self._send(UI_WINDOW, payload)
+
+    def ui_close(self, id):
+        self._send(UI_CLOSE, _str(id))
+
+    def lockstep(self, enable=True, max_wait_ms=100, fixed_dt=0.0):
+        """While on, each simulation step waits for step_done(frame) after the "step" event. Needs CAP_CONTROLS."""
+        self._request(LOCKSTEP, struct.pack("<BId", enable, max_wait_ms, fixed_dt))
+
+    def step_done(self, frame):
+        self._send(STEP_DONE, struct.pack("<I", frame))
+
+    def claim_ship(self, index, passthrough=False):
+        """Takes over a ship's controls. Needs CAP_VESSEL (and the player's consent for the flown ship)."""
+        self._request(CLAIM_SHIP, struct.pack("<IB", index, passthrough))
+
+    def release_ship(self, index):
+        self._request(RELEASE_SHIP, struct.pack("<I", index))
+
+    def ship_value(self, index, name, value):
+        """Publishes /ships/ship[index]/module/<id>/<name>; names starting "controls/" steer the ship."""
+        self._send(SHIP_VALUE, struct.pack("<I", index) + _str(name) + struct.pack("<d", value))
+
+    def ship_force(self, index, force=(0.0, 0.0, 0.0), torque=(0.0, 0.0, 0.0)):
+        """Force (N) and torque (N m) in the ship's own axes, held until replaced."""
+        self._send(SHIP_FORCE, struct.pack("<I6d", index, *force, *torque))
+
+    def draw3d(self, layer, primitives):
+        """primitives: tuples (kind, frame, ship, a, b, size, (r, g, b, alpha), depth, text) with a and b as 3-tuples.
+        Use the helpers below to build them. An empty list removes the layer. Needs CAP_DRAW3D."""
+        payload = _str(layer) + struct.pack("<H", len(primitives))
+        for kind, frame, ship, a, b, size, rgba, depth, text in primitives:
+            payload += struct.pack("<BBI7d5B", kind, frame, ship, *a, *b, size, *rgba, depth) + _str(text)
+        self._send(DRAW3D, payload)
+
+
+def parse_ui_event(arg):
+    """Splits the argument of a "ui" event into (window, widget, value)."""
+    window, widget, value = arg.split(" ", 2)
+    return window, widget, value
+
+
+def parse_step(arg):
+    """Splits the argument of a "step" event into (frame, dt, sim_time)."""
+    frame, dt, t = arg.split()
+    return int(frame), float(dt), float(t)
+
+
+def label(text): return (LABEL, "", text, "", 0.0, 0.0, 0.0)
+def button(id, text): return (BUTTON, id, text, "", 0.0, 0.0, 0.0)
+def checkbox(id, text, value=False): return (CHECKBOX, id, text, "", float(value), 0.0, 0.0)
+def slider(id, text, value, low, high): return (SLIDER, id, text, "", value, low, high)
+def textbox(id, text, value=""): return (TEXTBOX, id, text, value, 0.0, 0.0, 0.0)
+def separator(): return (SEPARATOR, "", "", "", 0.0, 0.0, 0.0)
+
+
+def line3(a, b, frame=FRAME_LLA, ship=0, rgba=(255, 255, 255, 255), depth=True):
+    return (LINE3, frame, ship, a, b, 0.0, rgba, depth, "")
+
+
+def marker3(a, radius_px=6.0, frame=FRAME_LLA, ship=0, rgba=(255, 255, 255, 255), depth=True):
+    return (MARKER3, frame, ship, a, (0, 0, 0), radius_px, rgba, depth, "")
+
+
+def label3(a, text, frame=FRAME_LLA, ship=0, rgba=(255, 255, 255, 255), depth=True):
+    return (LABEL3, frame, ship, a, (0, 0, 0), 0.0, rgba, depth, text)
+
+
+def ring3(a, radius_m, frame=FRAME_LLA, ship=0, rgba=(255, 255, 255, 255), depth=True):
+    return (RING3, frame, ship, a, (0, 0, 0), radius_m, rgba, depth, "")
+
+
+def sphere3(a, radius_m, frame=FRAME_LLA, ship=0, rgba=(255, 255, 255, 255), depth=True):
+    return (SPHERE3, frame, ship, a, (0, 0, 0), radius_m, rgba, depth, "")

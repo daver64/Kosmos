@@ -17,7 +17,7 @@ extern "C" {
 
 #include <stddef.h>
 
-#define KL_PROTOCOL_VERSION 2
+#define KL_PROTOCOL_VERSION 3
 #define KL_DEFAULT_PORT 9420
 
 /* What an addon may ask for; the player decides what is granted. */
@@ -30,7 +30,10 @@ enum
     KL_CAP_DRAW = 16,    /* add MFD pages and draw on them */
     KL_CAP_KEYS = 32,    /* define key actions */
     KL_CAP_WORLD = 64,   /* change the weather, place and remove ships */
-    KL_CAP_ALL = 127
+    KL_CAP_UI = 128,     /* notices and small windows */
+    KL_CAP_VESSEL = 256, /* own the behaviour of a ship */
+    KL_CAP_DRAW3D = 512, /* lines, markers and labels in the 3D view */
+    KL_CAP_ALL = 1023
 };
 
 enum
@@ -233,6 +236,55 @@ void kl_draw_text(kl_client *client, float x, float y, const char *text, int ali
 /* A bitmap from your addon folder, centred at x,y, drawn w by h, rotated by angle degrees. */
 void kl_draw_image(kl_client *client, const char *file, float cx, float cy, float w, float h, float angle);
 int kl_draw_end(kl_client *client, const char *mfd_id);
+
+/* ---- Windows and notices (KL_CAP_UI) */
+/* Widgets are collected, then sent as one window that replaces the previous contents. Widget ids identify what changed in the "ui" event. */
+void kl_ui_begin(kl_client *client);
+void kl_ui_label(kl_client *client, const char *text);
+void kl_ui_button(kl_client *client, const char *id, const char *label);
+void kl_ui_checkbox(kl_client *client, const char *id, const char *label, int value);
+void kl_ui_slider(kl_client *client, const char *id, const char *label, double value, double low, double high);
+void kl_ui_text(kl_client *client, const char *id, const char *label, const char *value);
+void kl_ui_separator(kl_client *client);
+/* Shows (or updates) the window. At most 8 windows of 64 widgets each. The player can close it; you then get a "ui" event with an empty widget and value "closed". */
+int kl_ui_show(kl_client *client, const char *window_id, const char *title);
+int kl_ui_close(kl_client *client, const char *window_id);
+/* A short message on the HUD. */
+int kl_ui_notify(kl_client *client, const char *text, double seconds);
+/* Splits the argument of a "ui" event ("window widget value") into its parts. Returns 0 on success. */
+int kl_parse_ui_event(const char *arg, char *window, size_t window_size, char *widget, size_t widget_size, char *value, size_t value_size);
+
+/* ---- Lockstep (KL_CAP_CONTROLS) */
+/* While on, Kosmos sends a "step" event before every simulation step and waits (at most max_wait_ms, default 100) for kl_step_done. Writes made before that apply to the step. Only one program may hold lockstep; time warp is held at 1x. fixed_dt (0.001 to 0.1 s) makes every step that long; 0 uses the frame time. */
+int kl_lockstep(kl_client *client, int enable, int max_wait_ms, double fixed_dt);
+int kl_step_done(kl_client *client, unsigned frame);
+/* Splits the argument of a "step" event. Returns 0 on success. */
+int kl_parse_step(const char *arg, unsigned *frame, double *dt, double *sim_time);
+
+/* ---- Vessel modules (KL_CAP_VESSEL) */
+/* Takes over a ship (an index from kl_list_ships): your controls replace the player's (or add to them with passthrough). The flown ship needs the player's consent in the Native addons window. Released when you disconnect. */
+int kl_claim_ship(kl_client *client, unsigned index, int passthrough);
+int kl_release_ship(kl_client *client, unsigned index);
+/* Publishes a number at /ships/ship[index]/module/<your id>/<name> for MFDs, scripts and panels. Names starting "controls/" are the ship's controls: controls/throttle, controls/pitch, controls/yaw, controls/roll, controls/gear, controls/sas and so on, as under /controls/. */
+int kl_ship_value(kl_client *client, unsigned index, const char *name, double value);
+/* Force (N) and torque (N m) in the ship's own axes, held until replaced and limited by the ship's "module" block (or 20 N and 20 N m per kg). Send zeros to stop. */
+int kl_ship_force(kl_client *client, unsigned index, const double force[3], const double torque[3]);
+
+/* ---- 3D drawing (KL_CAP_DRAW3D) */
+/* Primitives are collected, then sent as one layer that replaces the previous one (an empty layer removes it); at most 2000 per layer and 8 layers. Frames: KL_FRAME_LLA is latitude, longitude (degrees) and altitude (m) above the mean radius of the body the flown ship is at; KL_FRAME_BODY is metres in the body's fixed axes (x through latitude 0 longitude 0, y the north pole); KL_FRAME_SHIP is metres from the ship's centre of mass in its own axes (ship is the kl_list_ships index). Depth hides what the planet itself covers. */
+enum { KL_FRAME_LLA = 0, KL_FRAME_BODY = 1, KL_FRAME_SHIP = 2 };
+void kl_3d_begin(kl_client *client);
+void kl_3d_colour(kl_client *client, int r, int g, int b, int a);
+void kl_3d_depth(kl_client *client, int hidden_by_planet);
+void kl_3d_line(kl_client *client, int frame, unsigned ship, double ax, double ay, double az, double bx, double by, double bz);
+/* radius_px is the size on screen */
+void kl_3d_marker(kl_client *client, int frame, unsigned ship, double x, double y, double z, double radius_px);
+void kl_3d_label(kl_client *client, int frame, unsigned ship, double x, double y, double z, const char *text);
+/* A flat circle about the point, level with the ground there (or the ship's up), radius in metres. */
+void kl_3d_ring(kl_client *client, int frame, unsigned ship, double x, double y, double z, double radius_m);
+/* Three circles that make a sphere of radius_m. */
+void kl_3d_sphere(kl_client *client, int frame, unsigned ship, double x, double y, double z, double radius_m);
+int kl_3d_end(kl_client *client, const char *layer_id);
 
 /* ---- Misc */
 int kl_log(kl_client *client, const char *text); /* shows in the Lua console window */

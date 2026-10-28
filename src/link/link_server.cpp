@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iterator>
+#include <thread>
 
 namespace kosmos::link
 {
@@ -17,6 +18,7 @@ namespace kosmos::link
         constexpr std::size_t max_draw_commands = 2000;
         constexpr double hello_timeout = 5.0;
         constexpr double mfd_redraw_interval = 0.05;
+        constexpr std::size_t max_ui_widgets = 64, max_windows_per_client = 8, max_layers_per_client = 8, max_primitives = 2000;
 
         std::string json_text(const std::string &s) { return nlohmann::json(s).dump(); }
 
@@ -59,10 +61,17 @@ namespace kosmos::link
         std::vector<Subscription> subscriptions;
         std::vector<std::string> keys_defined;
         std::vector<std::string> events;
+        std::uint16_t proto = 0;
+        std::chrono::steady_clock::time_point last_rx = std::chrono::steady_clock::now();
+        bool pinged = false;
     };
 
     LinkServer::LinkServer(sl::PropertyTree &props, LinkHost &host, LinkPolicy *policy) : props_(props), host_(host), policy_(policy) {}
-    LinkServer::~LinkServer() { stop(); }
+    LinkServer::~LinkServer()
+    {
+        clients_.clear();
+        listener_.close();
+    }
 
     bool LinkServer::start(std::uint16_t port)
     {
@@ -72,6 +81,8 @@ namespace kosmos::link
 
     void LinkServer::stop()
     {
+        for (auto &c : clients_)
+            drop(*c);
         clients_.clear();
         listener_.close();
     }
@@ -212,6 +223,7 @@ namespace kosmos::link
                 return;
             }
             c.hello = true;
+            c.proto = version;
             if (policy_)
                 policy_->seen(c.addon, c.name.empty() ? c.addon : c.name, c.requested);
             c.granted = policy_ ? (policy_->granted(c.addon, c.token, c.requested) & c.requested) : c.requested;
@@ -547,6 +559,202 @@ namespace kosmos::link
             send(c, w.finish());
             break;
         }
+        case msg_ui_window:
+        {
+            const std::string id = r.str(), title = r.str();
+            const std::uint16_t count = r.u16();
+            if (!r.ok() || !id_ok(id) || title.size() > 128 || count > max_ui_widgets)
+                return bad();
+            if (!need(cap_ui, "showing windows"))
+                return;
+            std::vector<UiWidget> widgets;
+            for (int n = 0; n < count && r.ok(); ++n)
+            {
+                UiWidget w;
+                w.kind = r.u8();
+                w.id = r.str();
+                w.label = r.str();
+                w.text = r.str();
+                w.value = r.f64();
+                w.low = r.f64();
+                w.high = r.f64();
+                if (w.kind > 5 || w.id.size() > 48 || w.label.size() > 200 || w.text.size() > 200 || !std::isfinite(w.value) || !std::isfinite(w.low) || !std::isfinite(w.high))
+                    return bad();
+                widgets.push_back(std::move(w));
+            }
+            if (!r.ok())
+                return bad();
+            const std::string key = c.addon + "." + id;
+            if (!windows_.count(key) && std::count_if(windows_.begin(), windows_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_windows_per_client))
+                return reply_error(c, f.request, err_failed, "too many windows");
+            UiWindow &win = windows_[key];
+            win.addon = c.addon;
+            win.id = id;
+            win.title = title.empty() ? id : title;
+            win.widgets = std::move(widgets);
+            win.owner = c.id;
+            break;
+        }
+        case msg_ui_close:
+        {
+            const std::string id = r.str();
+            if (!r.ok())
+                return bad();
+            auto it = windows_.find(c.addon + "." + id);
+            if (it != windows_.end() && it->second.owner == c.id)
+                windows_.erase(it);
+            break;
+        }
+        case msg_ui_notify:
+        {
+            const std::string text = r.str();
+            const double seconds = r.f64();
+            if (!r.ok() || text.size() > 200 || !std::isfinite(seconds))
+                return bad();
+            if (!need(cap_ui, "showing notices"))
+                return;
+            host_.notify(c.name.empty() ? text : c.name + ": " + text, std::clamp(seconds, 1.0, 30.0));
+            break;
+        }
+        case msg_lockstep:
+        {
+            const bool on = r.u8() != 0;
+            const std::uint32_t wait_ms = r.u32();
+            const double dt = r.f64();
+            if (!r.ok() || !std::isfinite(dt) || (dt != 0.0 && (dt < 0.001 || dt > 0.1)))
+                return bad();
+            if (!need(cap_controls, "lockstep"))
+                return;
+            if (on)
+            {
+                if (lockstep_owner_ && lockstep_owner_ != c.id)
+                    return reply_error(c, f.request, err_failed, "another program already holds lockstep");
+                lockstep_owner_ = c.id;
+                lockstep_wait_ = std::clamp<double>(wait_ms ? wait_ms : 100, 1.0, 1000.0) / 1000.0;
+                lockstep_dt_ = dt;
+                step_acked_ = step_frame_;
+                missed_ = 0;
+            }
+            else if (lockstep_owner_ == c.id)
+                lockstep_owner_ = 0;
+            if (f.request)
+                reply_ok(c, f.request, 0);
+            break;
+        }
+        case msg_step_done:
+        {
+            const std::uint32_t frame = r.u32();
+            if (r.ok() && c.id == lockstep_owner_)
+                step_acked_ = std::max(step_acked_, frame);
+            break;
+        }
+        case msg_claim_ship:
+        {
+            const std::uint32_t index = r.u32();
+            const bool passthrough = r.u8() != 0;
+            if (!r.ok())
+                return bad();
+            if (!need(cap_vessel, "owning a ship"))
+                return;
+            const std::string error = host_.claim_ship(c.id, c.addon, index, passthrough);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            reply_ok(c, f.request, 0);
+            break;
+        }
+        case msg_release_ship:
+        {
+            const std::uint32_t index = r.u32();
+            if (!r.ok())
+                return bad();
+            if (!need(cap_vessel, "owning a ship"))
+                return;
+            const std::string error = host_.release_ship(c.id, index);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            reply_ok(c, f.request, 0);
+            break;
+        }
+        case msg_ship_value:
+        {
+            const std::uint32_t index = r.u32();
+            const std::string name = r.str();
+            const double value = r.f64();
+            if (!r.ok() || name.empty() || name.size() > 64 || !path_ok("/" + name) || !std::isfinite(value))
+                return bad();
+            if (!need(cap_vessel, "owning a ship"))
+                return;
+            const std::string error = host_.ship_value(c.id, index, name, value);
+            if (!error.empty())
+                reply_error(c, f.request, err_failed, error);
+            break;
+        }
+        case msg_ship_force:
+        {
+            const std::uint32_t index = r.u32();
+            double force[3], torque[3];
+            for (double &v : force)
+                v = r.f64();
+            for (double &v : torque)
+                v = r.f64();
+            if (!r.ok() || !std::all_of(force, force + 3, [](double v) { return std::isfinite(v); }) || !std::all_of(torque, torque + 3, [](double v) { return std::isfinite(v); }))
+                return bad();
+            if (!need(cap_vessel, "owning a ship"))
+                return;
+            const std::string error = host_.ship_force(c.id, index, force, torque);
+            if (!error.empty())
+                reply_error(c, f.request, err_failed, error);
+            break;
+        }
+        case msg_draw3d:
+        {
+            const std::string id = r.str();
+            const std::uint16_t count = r.u16();
+            if (!r.ok() || !id_ok(id) || count > max_primitives)
+                return bad();
+            if (!need(cap_draw3d, "drawing in the 3D view"))
+                return;
+            std::vector<Primitive3> items;
+            items.reserve(count);
+            for (int n = 0; n < count && r.ok(); ++n)
+            {
+                Primitive3 p;
+                p.kind = r.u8();
+                p.frame = r.u8();
+                p.ship = r.u32();
+                for (double &v : p.a)
+                    v = r.f64();
+                for (double &v : p.b)
+                    v = r.f64();
+                p.size = r.f64();
+                p.r = r.u8();
+                p.g = r.u8();
+                p.bl = r.u8();
+                p.alpha = r.u8();
+                p.depth = r.u8();
+                p.text = r.str();
+                const bool finite = std::all_of(p.a, p.a + 3, [](double v) { return std::isfinite(v); }) && std::all_of(p.b, p.b + 3, [](double v) { return std::isfinite(v); }) && std::isfinite(p.size);
+                if (p.kind > 4 || p.frame > 2 || p.text.size() > 120 || !finite)
+                    return bad();
+                items.push_back(std::move(p));
+            }
+            if (!r.ok())
+                return bad();
+            const std::string key = c.addon + "." + id;
+            if (items.empty())
+            {
+                layers_.erase(key);
+                break;
+            }
+            if (!layers_.count(key) && std::count_if(layers_.begin(), layers_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_layers_per_client))
+                return reply_error(c, f.request, err_failed, "too many layers");
+            Layer3 &layer = layers_[key];
+            layer.addon = c.addon;
+            layer.id = id;
+            layer.owner = c.id;
+            layer.items = std::move(items);
+            break;
+        }
         default:
             break; // unknown messages are ignored so newer addons still run
         }
@@ -570,7 +778,11 @@ namespace kosmos::link
             c->socket.update();
             std::string chunk;
             if (c->socket.receive(chunk) > 0)
+            {
                 c->in += chunk;
+                c->last_rx = now;
+                c->pinged = false;
+            }
             if (c->socket.state() == sl::TcpState::closed)
                 c->dead = true;
             for (int n = 0; n < max_frames_per_poll && !c->dead; ++n)
@@ -585,6 +797,20 @@ namespace kosmos::link
             }
             if (!c->hello && std::chrono::duration<double>(now - c->connected).count() > hello_timeout)
                 c->dead = true;
+            if (c->hello && !c->dead && timeout_ > 0.0 && c->proto >= 3)
+            {
+                const double idle = std::chrono::duration<double>(now - c->last_rx).count();
+                if (idle > 2.0 * timeout_)
+                {
+                    host_.log(c->addon, "no answer for " + std::to_string(static_cast<int>(idle)) + " s; disconnected");
+                    c->dead = true;
+                }
+                else if (idle > timeout_ && !c->pinged)
+                {
+                    c->pinged = true;
+                    send(*c, Writer(msg_ping, 0).finish());
+                }
+            }
             if (c->hello && !c->dead && policy_)
             {
                 const std::uint32_t now_granted = policy_->granted(c->addon, c->token, c->requested) & c->requested;
@@ -597,7 +823,102 @@ namespace kosmos::link
                 }
             }
         }
+        for (auto &c : clients_)
+            if (c->dead)
+                drop(*c);
         clients_.erase(std::remove_if(clients_.begin(), clients_.end(), [](const std::unique_ptr<Client> &c) { return c->dead; }), clients_.end());
+    }
+
+    // Forgets what a program left behind: its windows and layers, its ships and its hold on lockstep.
+    void LinkServer::drop(Client &c)
+    {
+        for (auto it = windows_.begin(); it != windows_.end();)
+            it = it->second.owner == c.id ? windows_.erase(it) : std::next(it);
+        for (auto it = layers_.begin(); it != layers_.end();)
+            it = it->second.owner == c.id ? layers_.erase(it) : std::next(it);
+        if (lockstep_owner_ == c.id)
+            lockstep_owner_ = 0;
+        if (c.hello)
+            host_.release_all(c.id);
+    }
+
+    bool LinkServer::lockstep_active() const { return lockstep_owner_ != 0; }
+
+    double LinkServer::lockstep_gate(double frame, double sim_time)
+    {
+        if (!lockstep_owner_ || !listener_.listening())
+            return 0.0;
+        flush();
+        const double dt = lockstep_dt_ > 0.0 ? lockstep_dt_ : frame;
+        const std::uint32_t step = ++step_frame_;
+        const std::string arg = std::to_string(step) + " " + std::to_string(dt) + " " + std::to_string(sim_time);
+        bool sent = false;
+        for (auto &c : clients_)
+            if (c->id == lockstep_owner_ && c->hello && !c->dead)
+            {
+                Writer w(msg_event, 0);
+                w.str("step").str(arg);
+                send(*c, w.finish());
+                sent = true;
+            }
+        if (!sent)
+        {
+            lockstep_owner_ = 0;
+            return 0.0;
+        }
+        const auto start = std::chrono::steady_clock::now();
+        while (lockstep_owner_ && step_acked_ < step)
+        {
+            if (std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() > lockstep_wait_)
+            {
+                ++missed_;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+            poll();
+        }
+        return lockstep_owner_ ? lockstep_dt_ : 0.0;
+    }
+
+    std::vector<UiWindow> LinkServer::ui_windows() const
+    {
+        std::vector<UiWindow> out;
+        for (const auto &e : windows_)
+            out.push_back(e.second);
+        return out;
+    }
+
+    void LinkServer::ui_event(const std::string &addon, const std::string &window, const std::string &widget, const std::string &value)
+    {
+        auto it = windows_.find(addon + "." + window);
+        if (it == windows_.end())
+            return;
+        const bool closed = widget.empty() && value == "closed";
+        for (UiWidget &w : it->second.widgets)
+            if (!closed && w.id == widget)
+            {
+                if (w.kind == 4)
+                    w.text = value;
+                else
+                    w.value = std::atof(value.c_str());
+            }
+        for (auto &c : clients_)
+            if (c->id == it->second.owner && c->hello && !c->dead)
+            {
+                Writer w(msg_event, 0);
+                w.str("ui").str(window + " " + widget + " " + value);
+                send(*c, w.finish());
+            }
+        if (closed)
+            windows_.erase(it);
+    }
+
+    std::vector<const Layer3 *> LinkServer::layers() const
+    {
+        std::vector<const Layer3 *> out;
+        for (const auto &e : layers_)
+            out.push_back(&e.second);
+        return out;
     }
 
     void LinkServer::flush()
@@ -663,7 +984,7 @@ namespace kosmos::link
         std::vector<ClientInfo> out;
         for (const auto &c : clients_)
             if (c->hello)
-                out.push_back({c->id, c->addon, c->name, c->version, c->requested, c->granted, c->subscriptions.size()});
+                out.push_back({c->id, c->addon, c->name, c->version, c->requested, c->granted, c->subscriptions.size(), std::chrono::duration<double>(std::chrono::steady_clock::now() - c->last_rx).count()});
         return out;
     }
 

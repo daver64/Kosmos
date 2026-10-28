@@ -57,13 +57,19 @@ namespace kosmos::link
             return cap_keys;
         if (name == "world")
             return cap_world;
+        if (name == "ui")
+            return cap_ui;
+        if (name == "vessel")
+            return cap_vessel;
+        if (name == "draw3d")
+            return cap_draw3d;
         return 0;
     }
 
     std::string capability_names(std::uint32_t caps)
     {
         std::string out;
-        for (const char *name : {"read", "controls", "write", "spawn", "draw", "keys", "world"})
+        for (const char *name : {"read", "controls", "write", "spawn", "draw", "keys", "world", "ui", "vessel", "draw3d"})
             if (caps & capability_from_name(name))
                 out += (out.empty() ? "" : ", ") + std::string(name);
         return out.empty() ? "none" : out;

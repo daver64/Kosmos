@@ -81,6 +81,9 @@ The player decides. Nothing connects usefully until the player ticks the addon i
 | `draw` | add MFD pages and draw on them |
 | `keys` | define key actions |
 | `world` | change the weather, and place and remove ships (protocol 2) |
+| `ui` | show windows and notices (protocol 3) |
+| `vessel` | take over a ship's controls and apply forces to it (protocol 3) |
+| `draw3d` | draw lines, markers and labels in the 3D view (protocol 3) |
 
 What you receive is what you asked for, narrowed by the manifest. Check `kl_granted()` and handle the `granted` event, because the player can change the choice while you run.
 
@@ -193,6 +196,20 @@ for (int i = 0; i < n; ++i)
 ```
 
 `kind` is `airport` (bases with runways), `base` (without) or empty for both. Each `kl_facility` has the id, name, ICAO code, body, position, elevation, heading, distance and up to eight runways (name, centre, heading, length, width, ILS frequencies) and sixteen navaids (type, id, name, position, frequency, range). Positions of runways and navaids are worked out from the base's frame, so they are accurate to a few metres.
+
+## Windows, lockstep, vessels and 3D (protocol 3)
+
+These need protocol 3. All of the calls below are in `kosmos_link.h` (C) and `kosmos_link.py`; the C++ wrapper has the plain calls and `raw()` for the builders. Examples: `ui_panel.py`, `lockstep_hold.py`, `waypoints3d.py`, `vessel_hover.py`.
+
+**Windows (`ui`).** Build a window with `kl_ui_begin`, add `kl_ui_label/button/checkbox/slider/text/separator`, then `kl_ui_show`. Kosmos draws it as an ordinary window. Clicks and edits arrive as a `ui` event whose argument is `window widget value`; `kl_parse_ui_event` splits it. Closing the window sends the event with an empty widget and the value `closed`. `kl_ui_close` removes a window, and `kl_ui_notify` shows a short notice. Windows are removed when the program disconnects. Limits: 8 windows per program, 64 widgets per window.
+
+**Lockstep (`controls`).** `kl_lockstep(c, 1, max_wait_ms, fixed_dt)` makes the simulation wait for you each step. Kosmos sends a `step` event (`frame dt simtime`), you read, decide and set controls, then call `kl_step_done(frame)`. If you do not answer within `max_wait_ms` the step goes ahead without you and the miss is counted. `fixed_dt` of 0 keeps the game's step; otherwise 0.001 to 0.1 s. Time warp is held at 1x while lockstep is on, and the game does not wait while paused. Only one program at a time may hold lockstep, and it is released when the program disconnects.
+
+**Vessels (`vessel`).** `kl_claim_ship(c, index, passthrough)` makes a program own a ship's behaviour. Its controls are then read from `/ships/ship[N]/module/<addon>/controls/...`, which you write with `kl_ship_value(c, index, "controls/throttle", 1.0)`. Other names are published under `/ships/ship[N]/module/<addon>/`. `kl_ship_force` applies a force and torque (ship axes as above, newtons and newton metres) every step until you change it, clamped to the ship's limits. The flown ship can be claimed only if the player turns on *Allow claiming the flown ship* in View > Native addons; with `passthrough` the player keeps flying it. A ship spec may name its module in an optional block, `"module": {"addon": "id", "max_force": N, "max_torque": N}`. The block only records the addon and the limits: the game does not launch the program. Claims end on disconnect.
+
+**3D drawing (`draw3d`).** `kl_3d_begin(layer)`, then `kl_3d_line/marker/label/ring/sphere` and `kl_3d_end` send a named layer of up to 2000 primitives that replaces the previous layer of that name. Positions are in one of three frames: `KL_FRAME_LLA` (latitude, longitude in degrees, altitude in metres above the mean radius of the body you are near), `KL_FRAME_BODY` (metres in the body-fixed frame) or `KL_FRAME_SHIP` (metres in a ship's own axes, around its centre of mass: x right, y up, and z aft, so forward is -z, as in `ship.json`). Depth testing only hides what the planet itself covers; the primitives are drawn over ships and scenery. An empty layer removes it. Up to 8 layers per program. Kosmos draws them with simlib's line, circle and text calls, so this is a way to mark things, not a renderer.
+
+**Settings.** *Ping timeout* (`/sim/settings/link-timeout`, default 15 s) in View > Native addons: a protocol 3 program that is silent for that long is pinged, and dropped if it does not answer within as long again. The SDK answers pings itself. Programs speaking protocol 1 or 2 are never timed out.
 
 ## Errors
 
@@ -308,15 +325,16 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 ## Limits
 
 - Local TCP only. Android is not supported yet; the C API is portable, and the transport will be revisited then.
-- There is no lockstep mode: your program sees the simulation slightly behind real time and cannot pause a frame for itself.
+- Without lockstep your program sees the simulation slightly behind real time; use lockstep when a controller must answer every step.
+- 3D drawing has no depth against ships or scenery, and the ship `module` block does not launch your program.
 - Only ships a link program spawned can be removed. Weather can be read anywhere but set only as one global override.
-- The protocol is version 2. Kosmos accepts versions 1 and 2 and refuses a client that speaks a newer one.
+- The protocol is version 3. Kosmos accepts versions 1 to 3 and refuses a client that speaks a newer one.
 
 ## Releasing
 
 Ship your addon folder with `bin/` for each platform you built. Players tick it in View > Native addons the first time. Do not ask players to disable their firewall: the link never leaves the computer.
 
-## Appendix: the wire protocol (version 2)
+## Appendix: the wire protocol (version 3)
 
 Most addons should use the C library. This appendix is for writing a client in another language; the same text is in `docs/PROTOCOL.md`.
 
@@ -375,8 +393,27 @@ Draw kinds: 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image
 | 108 | ship_list | `u32 count`, then per ship: `u32 index`, str name, str body, `f64` latitude, longitude, altitude, heading, speed, vertical speed, distance, `u8 flags` (1 flown, 2 landed, 4 crashed, 8 spawned by a link) |
 | 109 | facility_list | `u32 count`, then per base: str id, name, icao, body; `f64` latitude, longitude, elevation, heading, distance; `u16 runways` each: str name, `f64` latitude, longitude, heading, length, width, `u8 ils` then `f64` frequencies; `u16 navaids` each: str type, id, name, `f64` latitude, longitude, frequency, range |
 
-Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `ship`, `mfd` (sent at 20 Hz while the page is on screen), `granted`, `shutdown`. Capability bits: read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships). Bit 128 is reserved.
+Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `ship`, `mfd` (sent at 20 Hz while the page is on screen), `granted`, `shutdown`. Capability bits: read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships), ui 128, vessel 256, draw3d 512.
 
 Protocol 2 adds requests 14 to 21 and replies 107 to 109. Kosmos accepts a hello carrying 1 or 2, and a version 1 client simply never sends the new requests. An older Kosmos (protocol 1) refuses a version 2 hello with error 5; retry with 1 if you want to support it. Weather values are SI units except temperature (Celsius) and pressure (hPa); wind east and north are the way the air moves, wind from is the compass direction it blows from. The weather the game shows is a global override while `set_weather` is in force: it lasts until the player (or another addon) changes it, and `auto` returns to simulated weather. `remove_ship` works only on ships link addons spawned and never on the flown ship; the ships after it move down one place, so list again afterwards. `place_ship` may move any ship including the flown one (in multiplayer the other players will not follow). List replies are capped (2000 ships, 200 facilities) to stay under the frame limit.
 
 Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date). Always-on events are unchanged.
+
+### Protocol 3
+
+Protocol 3 adds requests 22 to 31. Kosmos accepts a hello carrying 1, 2 or 3. Requests answer with `ok` or an error frame (102) where noted; the others are fire and forget and report failures as errors with request id 0.
+
+| Type | Name | Payload |
+|---|---|---|
+| 22 | ui_window | str id, str title, `u16 n`, then per widget: `u8 kind` (0 label, 1 button, 2 checkbox, 3 slider, 4 text, 5 separator), str id, str label, str text, `f64` value, low, high. Replaces a window of the same id. Needs `ui`. Fire and forget |
+| 23 | ui_close | str id |
+| 24 | ui_notify | str text, `f64` seconds |
+| 25 | lockstep | `u8 enable`, `u32 max_wait_ms`, `f64 fixed_dt` (0, or 0.001 to 0.1). Needs `controls`. One holder at a time. Replies ok |
+| 26 | step_done | `u32 frame`. Fire and forget |
+| 27 | claim_ship | `u32 index`, `u8 passthrough`. Needs `vessel`. Replies ok or an error |
+| 28 | release_ship | `u32 index` |
+| 29 | ship_value | `u32 index`, str name, `f64 value`. A name beginning `controls/` sets a module control |
+| 30 | ship_force | `u32 index`, 3 x `f64` force, 3 x `f64` torque (ship axes, N and N m) |
+| 31 | draw3d | str layer, `u16 n`, then per primitive: `u8 kind` (0 line, 1 marker, 2 label, 3 ring, 4 sphere), `u8 frame` (0 lat/lon/alt, 1 body-fixed, 2 ship), `u32 ship`, 3 x `f64` a, 3 x `f64` b, `f64 size`, `u8` r, g, b, alpha, `u8 depth`, str text. `n` = 0 removes the layer. Needs `draw3d` |
+
+New events: `step` (to the lockstep program only; argument `frame dt simtime`) and `ui` (to the window's owner; argument `window widget value`; a closed window sends an empty widget and `closed`). Kosmos sends a `ping` frame (type 13) to a protocol 3 client that has been silent for the timeout; any frame from the client, such as a `ping` back, resets the timer, and a client silent for twice the timeout is dropped. Protocol 1 and 2 clients are not timed out. Limits: 8 windows, 64 widgets, 8 layers and 2000 primitives per client. A program's windows, layers, claims and lockstep end when it disconnects.

@@ -14,7 +14,7 @@
 
 namespace kosmos::link
 {
-    constexpr std::uint16_t protocol_version = 2;
+    constexpr std::uint16_t protocol_version = 3;
     constexpr std::uint16_t min_protocol_version = 1;
     constexpr std::uint16_t default_port = 9420;
     constexpr std::size_t max_frame = 1u << 20;
@@ -44,6 +44,17 @@ namespace kosmos::link
         msg_remove_ship = 19,
         msg_place_ship = 20,
         msg_list_facilities = 21,
+        // protocol 3
+        msg_ui_window = 22,
+        msg_ui_close = 23,
+        msg_ui_notify = 24,
+        msg_lockstep = 25,
+        msg_step_done = 26,
+        msg_claim_ship = 27,
+        msg_release_ship = 28,
+        msg_ship_value = 29,
+        msg_ship_force = 30,
+        msg_draw3d = 31,
         // Kosmos to addon
         msg_welcome = 101,
         msg_error = 102,
@@ -66,7 +77,10 @@ namespace kosmos::link
         cap_draw = 16,    // add MFD modes and draw on them
         cap_keys = 32,    // define key actions
         cap_world = 64,   // set the weather, place and remove ships
-        cap_all = 127
+        cap_ui = 128,     // notices and small windows
+        cap_vessel = 256, // own the behaviour of a ship
+        cap_draw3d = 512, // lines, markers and labels in the 3D view
+        cap_all = 1023
     };
 
     enum ErrorCode : std::uint16_t
@@ -121,6 +135,23 @@ namespace kosmos::link
         std::uint8_t kind = 0; // 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image
         float a = 0, b = 0, c = 0, d = 0, e = 0, f = 0;
         std::uint8_t r = 120, g = 255, bl = 140, align = 0;
+        std::string text;
+    };
+
+    /** One widget of a native window. kind: 0 label, 1 button, 2 checkbox, 3 slider, 4 text input, 5 separator. */
+    struct UiWidget
+    {
+        std::uint8_t kind = 0;
+        std::string id, label, text;
+        double value = 0, low = 0, high = 1;
+    };
+
+    /** One primitive of a 3D layer. kind: 0 line (a to b), 1 marker (at a), 2 label (at a), 3 ring (flat, around a), 4 sphere (three rings about a). frame: 0 lat/lon/alt, 1 body-fixed metres, 2 ship-local metres. */
+    struct Primitive3
+    {
+        std::uint8_t kind = 0, frame = 0, r = 255, g = 255, bl = 255, alpha = 255, depth = 1;
+        std::uint32_t ship = 0;
+        double a[3] = {0, 0, 0}, b[3] = {0, 0, 0}, size = 1;
         std::string text;
     };
 

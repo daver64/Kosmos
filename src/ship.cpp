@@ -97,6 +97,13 @@ namespace kosmos
             spec.script = json.value("script", "");
             // A building's cockpit is its interface: either key works there.
             const char *cockpit_key = json.contains("cockpit") || !spec.building() ? "cockpit" : "interface";
+            if (json.contains("module") && json["module"].is_object())
+            {
+                const nlohmann::json &jm = json["module"];
+                spec.module_addon = jm.value("addon", "");
+                spec.module_max_force = jm.value("max_force", 0.0);
+                spec.module_max_torque = jm.value("max_torque", 0.0);
+            }
             if (json.contains(cockpit_key))
             {
                 const nlohmann::json &jc = json[cockpit_key];

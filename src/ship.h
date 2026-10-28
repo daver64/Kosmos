@@ -234,6 +234,9 @@ namespace kosmos
         std::string source_file;
         std::string script;
         Cockpit cockpit;
+        /** The native addon that flies this ship and the most force (N) and torque (N m) it may apply; 0 uses a default scaled to the ship's mass. */
+        std::string module_addon;
+        double module_max_force = 0.0, module_max_torque = 0.0;
         std::vector<PortSpec> ports;
         /** Transponder frequency in MHz; 0 assigns one when the ship is created. */
         double transponder = 0.0;

@@ -93,6 +93,14 @@ namespace kosmos
             return out;
         }
         void log(const std::string &text) { kl_log(client_, text.c_str()); }
+        void notify(const std::string &text, double seconds = 4.0) { kl_ui_notify(client_, text.c_str(), seconds); }
+        /** Lockstep: wait for the "step" event, compute, then step_done(frame). See the SDK manual. */
+        bool lockstep(bool enable, int max_wait_ms = 100, double fixed_dt = 0.0) { return kl_lockstep(client_, enable, max_wait_ms, fixed_dt) == KL_OK; }
+        void step_done(unsigned frame) { kl_step_done(client_, frame); }
+        bool claim_ship(unsigned index, bool passthrough = false) { return kl_claim_ship(client_, index, passthrough) == KL_OK; }
+        bool release_ship(unsigned index) { return kl_release_ship(client_, index) == KL_OK; }
+        void ship_value(unsigned index, const std::string &name, double value) { kl_ship_value(client_, index, name.c_str(), value); }
+        void ship_force(unsigned index, const double force[3], const double torque[3]) { kl_ship_force(client_, index, force, torque); }
 
     private:
         kl_client *client_ = nullptr;

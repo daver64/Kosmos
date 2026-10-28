@@ -13,6 +13,8 @@ namespace kosmos::app
     namespace
     {
         constexpr const char *listen_setting = "/sim/settings/link-listen";
+        constexpr const char *timeout_setting = "/sim/settings/link-timeout";
+        constexpr const char *claim_flown_setting = "/sim/settings/link-claim-flown";
 
         // What the game does for a connected program's requests that go beyond reading and writing properties.
         class AppLinkHost : public link::LinkHost
@@ -299,6 +301,70 @@ namespace kosmos::app
 
             void log(const std::string &addon, const std::string &text) override { app_.sim.log("[" + addon + "] " + text); }
 
+            void notify(const std::string &text, double seconds) override
+            {
+                (void)seconds; // notices share the HUD message list and its timing
+                app_.sim.log(text);
+            }
+
+            std::string claim_ship(int owner, const std::string &addon, std::uint32_t index, bool passthrough) override
+            {
+                Sim &sim = app_.sim;
+                if (index >= static_cast<std::uint32_t>(sim.ship_count()))
+                    return "no such ship";
+                if (static_cast<int>(index) == sim.active_index() && !sim.props.get_bool(claim_flown_setting))
+                    return "the player has not allowed programs to take over the flown ship (View > Native addons)";
+                const auto held = sim.link_claims.find(static_cast<int>(index));
+                if (held != sim.link_claims.end() && held->second.owner != owner)
+                    return "another program already owns that ship";
+                Sim::LinkClaim &claim = sim.link_claims[static_cast<int>(index)];
+                claim.owner = owner;
+                claim.addon = addon;
+                claim.passthrough = passthrough;
+                return "";
+            }
+
+            std::string release_ship(int owner, std::uint32_t index) override
+            {
+                auto &claims = app_.sim.link_claims;
+                const auto held = claims.find(static_cast<int>(index));
+                if (held == claims.end() || held->second.owner != owner)
+                    return "that ship is not owned by this program";
+                claims.erase(held);
+                return "";
+            }
+
+            void release_all(int owner) override
+            {
+                for (auto it = app_.sim.link_claims.begin(); it != app_.sim.link_claims.end();)
+                    it = it->second.owner == owner ? app_.sim.link_claims.erase(it) : std::next(it);
+            }
+
+            Sim::LinkClaim *owned(int owner, std::uint32_t index)
+            {
+                const auto held = app_.sim.link_claims.find(static_cast<int>(index));
+                return held != app_.sim.link_claims.end() && held->second.owner == owner ? &held->second : nullptr;
+            }
+
+            std::string ship_value(int owner, std::uint32_t index, const std::string &name, double value) override
+            {
+                const Sim::LinkClaim *claim = owned(owner, index);
+                if (!claim)
+                    return "that ship is not owned by this program";
+                app_.sim.props.set_double("/ships/ship[" + std::to_string(index) + "]/module/" + claim->addon + "/" + name, value);
+                return "";
+            }
+
+            std::string ship_force(int owner, std::uint32_t index, const double force[3], const double torque[3]) override
+            {
+                Sim::LinkClaim *claim = owned(owner, index);
+                if (!claim)
+                    return "that ship is not owned by this program";
+                std::copy(force, force + 3, claim->force);
+                std::copy(torque, torque + 3, claim->torque);
+                return "";
+            }
+
         private:
             App &app_;
         };
@@ -355,6 +421,7 @@ namespace kosmos::app
         }
         if (!link_server->running())
             return;
+        link_server->set_timeout(sim.props.exists(timeout_setting) ? sim.props.get_double(timeout_setting) : 15.0);
         link_server->poll();
         link_server->flush();
         const Ship *active = sim.active_ship();
@@ -466,6 +533,18 @@ namespace kosmos::app
                 ImGui::TextDisabled("Listening on 127.0.0.1:%d (this computer only)", static_cast<int>(link_server->port()));
             else
                 ImGui::TextDisabled(link_failed ? "Cannot listen on the link port (is another program using it?)" : "Not listening");
+            float timeout = sim.props.exists(timeout_setting) ? static_cast<float>(sim.props.get_double(timeout_setting)) : 15.0f;
+            if (ImGui::SliderFloat("Drop silent programs after (s, 0 = never)", &timeout, 0.0f, 60.0f, "%.0f"))
+            {
+                sim.props.set_double(timeout_setting, timeout);
+                kosmos::settings_save(sim.props);
+            }
+            bool claim_flown = sim.props.get_bool(claim_flown_setting);
+            if (ImGui::Checkbox("Let programs with the vessel permission take over the ship I fly", &claim_flown))
+            {
+                sim.props.set_bool(claim_flown_setting, claim_flown);
+                kosmos::settings_save(sim.props);
+            }
             ImGui::Separator();
             std::vector<link::NativeEntry> &entries = native_addons.entries();
             if (entries.empty())
@@ -488,6 +567,8 @@ namespace kosmos::app
                     state += ", connected";
                 else if (!e.status.empty())
                     state += ", " + e.status;
+                if (connected)
+                    state += ", last heard " + std::to_string(static_cast<int>(connected->idle)) + " s ago";
                 ImGui::TextDisabled("    %s", state.c_str());
                 ImGui::TextDisabled("    %s: %s", e.allowed ? "allowed" : "wants", link::capability_names(connected ? connected->requested : e.caps).c_str());
                 if (!e.program.empty())
@@ -500,5 +581,193 @@ namespace kosmos::app
             }
         }
         ImGui::End();
+    }
+
+    // Windows the programs show: the server keeps their widgets, the game draws them and reports what the player did.
+    void App::draw_link_ui()
+    {
+        if (!link_server || !link_server->running())
+            return;
+        for (const link::UiWindow &w : link_server->ui_windows())
+        {
+            bool open = true;
+            ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowBgAlpha(0.94f);
+            const std::string title = w.title + "###link." + w.addon + "." + w.id;
+            if (ImGui::Begin(title.c_str(), &open))
+            {
+                int n = 0;
+                for (const link::UiWidget &wd : w.widgets)
+                {
+                    ImGui::PushID(n++);
+                    switch (wd.kind)
+                    {
+                    case 0:
+                        ImGui::TextWrapped("%s", wd.label.c_str());
+                        break;
+                    case 1:
+                        if (ImGui::Button(wd.label.c_str()))
+                            link_server->ui_event(w.addon, w.id, wd.id, "1");
+                        break;
+                    case 2:
+                    {
+                        bool v = wd.value != 0.0;
+                        if (ImGui::Checkbox(wd.label.c_str(), &v))
+                            link_server->ui_event(w.addon, w.id, wd.id, v ? "1" : "0");
+                        break;
+                    }
+                    case 3:
+                    {
+                        float v = static_cast<float>(wd.value);
+                        if (ImGui::SliderFloat(wd.label.c_str(), &v, static_cast<float>(wd.low), static_cast<float>(wd.high)))
+                            link_server->ui_event(w.addon, w.id, wd.id, std::to_string(v));
+                        break;
+                    }
+                    case 4:
+                    {
+                        char buffer[201] = {};
+                        std::copy_n(wd.text.begin(), std::min<std::size_t>(wd.text.size(), 200), buffer);
+                        if (ImGui::InputText(wd.label.c_str(), buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue))
+                            link_server->ui_event(w.addon, w.id, wd.id, buffer);
+                        break;
+                    }
+                    default:
+                        ImGui::Separator();
+                    }
+                    ImGui::PopID();
+                }
+            }
+            ImGui::End();
+            if (!open)
+                link_server->ui_event(w.addon, w.id, "", "closed");
+        }
+    }
+
+    // Lines, markers and labels the programs place in the world, projected with the same view as the orbit line.
+    void App::draw_link_3d()
+    {
+        if (!link_server || !link_server->running() || map_mode || galaxy_mode)
+            return;
+        const std::vector<const link::Layer3 *> layers = link_server->layers();
+        if (layers.empty() || !universe_ref)
+            return;
+        kosmos::Universe &universe = sim.universe;
+        const sl::FlightBody *body_fb = universe.world.body(soi);
+        if (!body_fb)
+            return;
+        const double radius = universe.bodies[static_cast<std::size_t>(soi)].radius;
+        const sl::dquat orient = universe.orientation(soi);
+        const sl::dvec3 body_rel = body_fb->position - eye_world;
+
+        struct Point
+        {
+            sl::dvec3 rel, up;
+            bool ok = true;
+        };
+        auto locate = [&](const link::Primitive3 &p, const double v[3]) {
+            Point pt;
+            if (p.frame == 0)
+            {
+                const sl::dvec3 dir = direction_from_lat_lon(universe, soi, v[0], v[1]);
+                pt.rel = body_rel + dir * (radius + v[2]);
+                pt.up = dir;
+            }
+            else if (p.frame == 1)
+            {
+                const sl::dvec3 local = orient * sl::dvec3(v[0], v[1], v[2]);
+                pt.rel = body_rel + local;
+                pt.up = glm::length(local) > 0.0 ? glm::normalize(local) : sl::dvec3(0, 1, 0);
+            }
+            else if (p.ship < static_cast<std::uint32_t>(sim.ship_count()))
+            {
+                const sl::FlightBody &fb = sim.ship(static_cast<int>(p.ship))->body();
+                pt.rel = fb.position - eye_world + fb.direction_to_world(sl::dvec3(v[0], v[1], v[2]));
+                pt.up = fb.direction_to_world(sl::dvec3(0, 1, 0));
+            }
+            else
+                pt.ok = false;
+            return pt;
+        };
+        auto hidden = [&](const sl::dvec3 &rel) {
+            const double length = glm::length(rel);
+            if (length < 1.0)
+                return false;
+            const sl::dvec3 dir = rel / length;
+            const double along = glm::dot(body_rel, dir);
+            return along > 0.0 && along < length && glm::length(body_rel - dir * along) < radius * 0.999;
+        };
+        auto segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
+            if (p.depth && (hidden(a) || hidden(b)))
+                return;
+            glm::vec4 ca = view_proj * glm::vec4(glm::vec3(a), 1.0f), cb = view_proj * glm::vec4(glm::vec3(b), 1.0f);
+            const float near_w = 0.05f;
+            if (ca.w < near_w && cb.w < near_w)
+                return;
+            if (ca.w < near_w)
+                ca += (cb - ca) * ((near_w - ca.w) / (cb.w - ca.w));
+            else if (cb.w < near_w)
+                cb += (ca - cb) * ((near_w - cb.w) / (ca.w - cb.w));
+            auto sx = [&](const glm::vec4 &c) { return (c.x / c.w * 0.5f + 0.5f) * static_cast<float>(screen_w); };
+            auto sy = [&](const glm::vec4 &c) { return (1.0f - (c.y / c.w * 0.5f + 0.5f)) * static_cast<float>(screen_h); };
+            const float x1 = sx(ca), y1 = sy(ca), x2 = sx(cb), y2 = sy(cb);
+            if (std::fabs(x1) > 1.0e5f || std::fabs(y1) > 1.0e5f || std::fabs(x2) > 1.0e5f || std::fabs(y2) > 1.0e5f)
+                return;
+            sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
+        };
+        auto ring = [&](const sl::dvec3 &centre, const sl::dvec3 &normal, double r, const link::Primitive3 &p) {
+            const sl::dvec3 helper = std::fabs(normal.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+            const sl::dvec3 e1 = glm::normalize(glm::cross(normal, helper)), e2 = glm::cross(normal, e1);
+            sl::dvec3 last = centre + e1 * r;
+            for (int i = 1; i <= 40; ++i)
+            {
+                const double t = i * 6.283185307179586 / 40.0;
+                const sl::dvec3 next = centre + (e1 * std::cos(t) + e2 * std::sin(t)) * r;
+                segment(last, next, p);
+                last = next;
+            }
+        };
+        for (const link::Layer3 *layer : layers)
+            for (const link::Primitive3 &p : layer->items)
+            {
+                const Point a = locate(p, p.a);
+                if (!a.ok)
+                    continue;
+                switch (p.kind)
+                {
+                case 0:
+                {
+                    const Point b = locate(p, p.b);
+                    if (b.ok)
+                        segment(a.rel, b.rel, p);
+                    break;
+                }
+                case 1:
+                case 2:
+                {
+                    if (hidden(a.rel) && p.depth)
+                        break;
+                    float x = 0.0f, y = 0.0f;
+                    if (glm::length(a.rel) < 1.0 || !project(view_proj, glm::vec3(a.rel), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
+                        break;
+                    const sl::Colour colour{p.r, p.g, p.bl, p.alpha};
+                    if (p.kind == 1)
+                        sl::circle(sl::screen, x, y, static_cast<float>(std::clamp(p.size, 2.0, 40.0)), colour, 1.0f);
+                    else
+                        sl::gprintf(static_cast<int>(x) + 8, static_cast<int>(y) - 6, colour, "%s", p.text.c_str());
+                    break;
+                }
+                case 3:
+                    ring(a.rel, a.up, p.size, p);
+                    break;
+                default:
+                {
+                    const sl::dvec3 helper = std::fabs(a.up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+                    const sl::dvec3 e1 = glm::normalize(glm::cross(a.up, helper)), e2 = glm::cross(a.up, e1);
+                    ring(a.rel, a.up, p.size, p);
+                    ring(a.rel, e1, p.size, p);
+                    ring(a.rel, e2, p.size, p);
+                }
+                }
+            }
     }
 } // namespace kosmos::app

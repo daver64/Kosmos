@@ -31,6 +31,8 @@ enum
     MSG_RELEASE = 8, MSG_GIVE = 9, MSG_DEFINE_MFD = 10, MSG_DRAW = 11, MSG_LOG = 12, MSG_PING = 13,
     MSG_WEATHER_AT = 14, MSG_SET_WEATHER = 15, MSG_SUBSCRIBE_EVENT = 16, MSG_UNSUBSCRIBE_EVENT = 17, MSG_LIST_SHIPS = 18,
     MSG_REMOVE_SHIP = 19, MSG_PLACE_SHIP = 20, MSG_LIST_FACILITIES = 21,
+    MSG_UI_WINDOW = 22, MSG_UI_CLOSE = 23, MSG_UI_NOTIFY = 24, MSG_LOCKSTEP = 25, MSG_STEP_DONE = 26, MSG_CLAIM_SHIP = 27,
+    MSG_RELEASE_SHIP = 28, MSG_SHIP_VALUE = 29, MSG_SHIP_FORCE = 30, MSG_DRAW3D = 31,
     MSG_WELCOME = 101, MSG_ERROR = 102, MSG_VALUE = 103, MSG_EVENT = 104, MSG_OK = 105, MSG_PONG = 106, MSG_WEATHER = 107, MSG_SHIP_LIST = 108, MSG_FACILITY_LIST = 109
 };
 
@@ -184,6 +186,12 @@ struct kl_client
     buf draw;    /* the page being drawn */
     unsigned draw_count;
     int colour[3];
+    buf ui;
+    unsigned ui_count;
+    buf d3;
+    unsigned d3_count;
+    int d3_colour[4];
+    int d3_depth;
     uint32_t next_request;
     unsigned granted;
     char sim_version[64];
@@ -320,6 +328,14 @@ static void dispatch(kl_client *c, unsigned type, uint32_t request, const unsign
             c->reply_type = type;
             c->reply_ready = 1;
         }
+    }
+    else if (type == MSG_PING)
+    {
+        /* Kosmos checks that the program still answers; any message will do. */
+        buf f = {0};
+        begin_frame(&f, MSG_PING, 0);
+        finish_frame(c, &f);
+        free(f.data);
     }
     else if (type == MSG_OK || type == MSG_PONG)
     {
@@ -511,6 +527,8 @@ kl_client *kl_connect(const kl_options *o, char *err, size_t err_size)
 
     kl_client *c = (kl_client *)calloc(1, sizeof(*c));
     c->sock = s;
+    c->d3_colour[0] = c->d3_colour[1] = c->d3_colour[2] = c->d3_colour[3] = 255;
+    c->d3_depth = 1;
     c->colour[0] = 120;
     c->colour[1] = 255;
     c->colour[2] = 140;
@@ -543,6 +561,8 @@ void kl_close(kl_client *c)
     kl_close_socket(c->sock);
     free(c->in.data);
     free(c->draw.data);
+    free(c->ui.data);
+    free(c->d3.data);
     free(c->reply_payload.data);
     free(c);
 }
@@ -969,6 +989,248 @@ int kl_draw_end(kl_client *c, const char *mfd_id)
     int r = finish_frame(c, &frame);
     free(frame.data);
     return r;
+}
+
+#define MAX_UI 64
+
+static void ui_widget(kl_client *c, unsigned kind, const char *id, const char *label, const char *text, double value, double low, double high)
+{
+    if (c->ui_count >= MAX_UI)
+        return;
+    put_u8(&c->ui, kind);
+    put_str(&c->ui, id);
+    put_str(&c->ui, label);
+    put_str(&c->ui, text);
+    put_f64(&c->ui, value);
+    put_f64(&c->ui, low);
+    put_f64(&c->ui, high);
+    ++c->ui_count;
+}
+
+void kl_ui_begin(kl_client *c) { c->ui.size = 0; c->ui_count = 0; }
+void kl_ui_label(kl_client *c, const char *text) { ui_widget(c, 0, "", text, "", 0, 0, 0); }
+void kl_ui_button(kl_client *c, const char *id, const char *label) { ui_widget(c, 1, id, label, "", 0, 0, 0); }
+void kl_ui_checkbox(kl_client *c, const char *id, const char *label, int value) { ui_widget(c, 2, id, label, "", value ? 1 : 0, 0, 0); }
+void kl_ui_slider(kl_client *c, const char *id, const char *label, double value, double low, double high) { ui_widget(c, 3, id, label, "", value, low, high); }
+void kl_ui_text(kl_client *c, const char *id, const char *label, const char *value) { ui_widget(c, 4, id, label, value, 0, 0, 0); }
+void kl_ui_separator(kl_client *c) { ui_widget(c, 5, "", "", "", 0, 0, 0); }
+
+static int finish_with_body(kl_client *c, buf *frame, const buf *body, unsigned count)
+{
+    put_u16(frame, count);
+    buf_reserve(frame, body->size);
+    if (body->size)
+        memcpy(frame->data + frame->size, body->data, body->size);
+    frame->size += body->size;
+    int r = finish_frame(c, frame);
+    free(frame->data);
+    return r;
+}
+
+int kl_ui_show(kl_client *c, const char *window_id, const char *title)
+{
+    if (!window_id)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_UI_WINDOW, 0);
+    put_str(&frame, window_id);
+    put_str(&frame, title ? title : window_id);
+    return finish_with_body(c, &frame, &c->ui, c->ui_count);
+}
+
+int kl_ui_close(kl_client *c, const char *window_id)
+{
+    if (!window_id)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_UI_CLOSE, 0);
+    put_str(&frame, window_id);
+    int r = finish_frame(c, &frame);
+    free(frame.data);
+    return r;
+}
+
+int kl_ui_notify(kl_client *c, const char *text, double seconds)
+{
+    if (!text)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_UI_NOTIFY, 0);
+    put_str(&frame, text);
+    put_f64(&frame, seconds);
+    int r = finish_frame(c, &frame);
+    free(frame.data);
+    return r;
+}
+
+int kl_parse_ui_event(const char *arg, char *window, size_t window_size, char *widget, size_t widget_size, char *value, size_t value_size)
+{
+    if (!arg || !window || !widget || !value || !window_size || !widget_size || !value_size)
+        return KL_ERR_ARGUMENT;
+    /* "window widget value": the widget may be empty and the value may hold spaces */
+    const char *sp1 = strchr(arg, ' ');
+    if (!sp1)
+        return KL_ERR_BAD_REQUEST;
+    const char *sp2 = strchr(sp1 + 1, ' ');
+    if (!sp2)
+        return KL_ERR_BAD_REQUEST;
+    snprintf(window, window_size, "%.*s", (int)(sp1 - arg), arg);
+    snprintf(widget, widget_size, "%.*s", (int)(sp2 - sp1 - 1), sp1 + 1);
+    snprintf(value, value_size, "%s", sp2 + 1);
+    return KL_OK;
+}
+
+int kl_lockstep(kl_client *c, int enable, int max_wait_ms, double fixed_dt)
+{
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_LOCKSTEP, rid);
+    put_u8(&frame, enable ? 1 : 0);
+    put_u32(&frame, (uint32_t)(max_wait_ms < 0 ? 0 : max_wait_ms));
+    put_f64(&frame, fixed_dt);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_step_done(kl_client *c, unsigned frame_number)
+{
+    buf frame = {0};
+    begin_frame(&frame, MSG_STEP_DONE, 0);
+    put_u32(&frame, frame_number);
+    int r = finish_frame(c, &frame);
+    free(frame.data);
+    return r;
+}
+
+int kl_parse_step(const char *arg, unsigned *frame, double *dt, double *sim_time)
+{
+    unsigned f = 0;
+    double d = 0, t = 0;
+    if (!arg || sscanf(arg, "%u %lf %lf", &f, &d, &t) != 3)
+        return KL_ERR_BAD_REQUEST;
+    if (frame) *frame = f;
+    if (dt) *dt = d;
+    if (sim_time) *sim_time = t;
+    return KL_OK;
+}
+
+int kl_claim_ship(kl_client *c, unsigned index, int passthrough)
+{
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_CLAIM_SHIP, rid);
+    put_u32(&frame, index);
+    put_u8(&frame, passthrough ? 1 : 0);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_release_ship(kl_client *c, unsigned index)
+{
+    buf frame = {0};
+    uint32_t rid = new_request(c);
+    begin_frame(&frame, MSG_RELEASE_SHIP, rid);
+    put_u32(&frame, index);
+    int r = request(c, &frame, rid);
+    free(frame.data);
+    return r;
+}
+
+int kl_ship_value(kl_client *c, unsigned index, const char *name, double value)
+{
+    if (!name)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_SHIP_VALUE, 0);
+    put_u32(&frame, index);
+    put_str(&frame, name);
+    put_f64(&frame, value);
+    int r = finish_frame(c, &frame);
+    free(frame.data);
+    return r;
+}
+
+int kl_ship_force(kl_client *c, unsigned index, const double force[3], const double torque[3])
+{
+    if (!force || !torque)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_SHIP_FORCE, 0);
+    put_u32(&frame, index);
+    for (int i = 0; i < 3; ++i)
+        put_f64(&frame, force[i]);
+    for (int i = 0; i < 3; ++i)
+        put_f64(&frame, torque[i]);
+    int r = finish_frame(c, &frame);
+    free(frame.data);
+    return r;
+}
+
+static void prim3(kl_client *c, unsigned kind, int frame, unsigned ship, const double a[3], const double b[3], double size, const char *text)
+{
+    if (c->d3_count >= MAX_DRAW)
+        return;
+    put_u8(&c->d3, kind);
+    put_u8(&c->d3, (unsigned)frame);
+    put_u32(&c->d3, ship);
+    for (int i = 0; i < 3; ++i)
+        put_f64(&c->d3, a[i]);
+    for (int i = 0; i < 3; ++i)
+        put_f64(&c->d3, b[i]);
+    put_f64(&c->d3, size);
+    put_u8(&c->d3, (unsigned)c->d3_colour[0]);
+    put_u8(&c->d3, (unsigned)c->d3_colour[1]);
+    put_u8(&c->d3, (unsigned)c->d3_colour[2]);
+    put_u8(&c->d3, (unsigned)c->d3_colour[3]);
+    put_u8(&c->d3, (unsigned)c->d3_depth);
+    put_str(&c->d3, text ? text : "");
+    ++c->d3_count;
+}
+
+void kl_3d_begin(kl_client *c) { c->d3.size = 0; c->d3_count = 0; }
+void kl_3d_colour(kl_client *c, int r, int g, int b, int a) { c->d3_colour[0] = clamp8(r); c->d3_colour[1] = clamp8(g); c->d3_colour[2] = clamp8(b); c->d3_colour[3] = clamp8(a); }
+void kl_3d_depth(kl_client *c, int hidden_by_planet) { c->d3_depth = hidden_by_planet ? 1 : 0; }
+
+void kl_3d_line(kl_client *c, int frame, unsigned ship, double ax, double ay, double az, double bx, double by, double bz)
+{
+    const double a[3] = {ax, ay, az}, b[3] = {bx, by, bz};
+    prim3(c, 0, frame, ship, a, b, 0, NULL);
+}
+
+void kl_3d_marker(kl_client *c, int frame, unsigned ship, double x, double y, double z, double radius_px)
+{
+    const double a[3] = {x, y, z}, b[3] = {0, 0, 0};
+    prim3(c, 1, frame, ship, a, b, radius_px, NULL);
+}
+
+void kl_3d_label(kl_client *c, int frame, unsigned ship, double x, double y, double z, const char *text)
+{
+    const double a[3] = {x, y, z}, b[3] = {0, 0, 0};
+    prim3(c, 2, frame, ship, a, b, 0, text);
+}
+
+void kl_3d_ring(kl_client *c, int frame, unsigned ship, double x, double y, double z, double radius_m)
+{
+    const double a[3] = {x, y, z}, b[3] = {0, 0, 0};
+    prim3(c, 3, frame, ship, a, b, radius_m, NULL);
+}
+
+void kl_3d_sphere(kl_client *c, int frame, unsigned ship, double x, double y, double z, double radius_m)
+{
+    const double a[3] = {x, y, z}, b[3] = {0, 0, 0};
+    prim3(c, 4, frame, ship, a, b, radius_m, NULL);
+}
+
+int kl_3d_end(kl_client *c, const char *layer_id)
+{
+    if (!layer_id)
+        return KL_ERR_ARGUMENT;
+    buf frame = {0};
+    begin_frame(&frame, MSG_DRAW3D, 0);
+    put_str(&frame, layer_id);
+    return finish_with_body(c, &frame, &c->d3, c->d3_count);
 }
 
 int kl_log(kl_client *c, const char *text)

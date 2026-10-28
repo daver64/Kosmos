@@ -437,9 +437,251 @@ static void test_protocol_two()
     CHECK(got == 1 && f.type == msg_welcome);
 }
 
+
+namespace
+{
+    struct VesselHost : LinkHost
+    {
+        std::string notice, claimed, value, forces;
+        int released_owner = -1;
+        std::string notify_text;
+        void notify(const std::string &text, double) override { notice = text; }
+        std::string claim_ship(int owner, const std::string &addon, std::uint32_t index, bool passthrough) override
+        {
+            if (index == 9)
+                return "no such ship";
+            claimed = addon + ":" + std::to_string(index) + (passthrough ? "p" : "");
+            (void)owner;
+            return "";
+        }
+        std::string release_ship(int, std::uint32_t) override { return ""; }
+        void release_all(int owner) override { released_owner = owner; }
+        std::string ship_value(int, std::uint32_t index, const std::string &name, double v) override { value = std::to_string(index) + name + "=" + std::to_string(static_cast<int>(v)); return ""; }
+        std::string ship_force(int, std::uint32_t index, const double f[3], const double t[3]) override { forces = std::to_string(index) + ":" + std::to_string(static_cast<int>(f[1])) + "," + std::to_string(static_cast<int>(t[2])); return ""; }
+        void log(const std::string &, const std::string &text) override { notify_text = text; }
+    };
+
+    struct Raw
+    {
+        sl::TcpSocket socket;
+        std::string received;
+        explicit Raw(LinkServer &server, std::uint32_t caps, std::uint16_t version = 3)
+        {
+            socket.connect("127.0.0.1", server.port());
+            for (int i = 0; i < 200 && !socket.connected(); ++i)
+            {
+                socket.update();
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            Writer hello(msg_hello, 1);
+            hello.u16(version).str("p3").str("Protocol 3").str("1.0").str("").u32(caps);
+            socket.send(hello.finish());
+        }
+        void send(const std::string &frame) { socket.send(frame); }
+        // Pumps the server until a frame of the type arrives; returns false on timeout.
+        bool wait(LinkServer &server, std::uint16_t type, Frame &out, int ms = 1000)
+        {
+            for (int i = 0; i < ms / 5; ++i)
+            {
+                server.poll();
+                server.flush();
+                socket.update();
+                std::string chunk;
+                if (socket.receive(chunk) > 0)
+                    received += chunk;
+                int got;
+                while ((got = take_frame(received, out)) == 1)
+                    if (out.type == type)
+                        return true;
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+            return false;
+        }
+        void pump(LinkServer &server, int ms = 100)
+        {
+            for (int i = 0; i < ms / 5; ++i)
+            {
+                server.poll();
+                socket.update();
+                std::string chunk;
+                socket.receive(chunk);
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            }
+        }
+    };
+} // namespace
+
+static void test_protocol_three()
+{
+    sl::PropertyTree props;
+    VesselHost host;
+    FakePolicy policy;
+    LinkServer server(props, host, &policy);
+    CHECK(server.start(0));
+    Frame f;
+
+    // Windows, notices, claims, forces and 3D layers.
+    {
+        Raw a(server, cap_ui | cap_vessel | cap_draw3d | cap_controls);
+        CHECK(a.wait(server, msg_welcome, f));
+        Writer win(msg_ui_window, 0);
+        win.str("panel").str("Panel").u16(2);
+        win.u8(1).str("go").str("Go").str("").f64(0).f64(0).f64(1);
+        win.u8(3).str("level").str("Level").str("").f64(2).f64(0).f64(10);
+        a.send(win.finish());
+        a.send(Writer(msg_ui_notify, 0).str("hello").f64(3.0).finish());
+        Writer claim(msg_claim_ship, 5);
+        claim.u32(2).u8(1);
+        a.send(claim.finish());
+        CHECK(a.wait(server, msg_ok, f));
+        Writer bad(msg_claim_ship, 6);
+        bad.u32(9).u8(0);
+        a.send(bad.finish());
+        CHECK(a.wait(server, msg_error, f));
+        a.send(Writer(msg_ship_value, 0).u32(2).str("controls/throttle").f64(1).finish());
+        a.send(Writer(msg_ship_force, 0).u32(2).f64(0).f64(500).f64(0).f64(0).f64(0).f64(7).finish());
+        Writer layer(msg_draw3d, 0);
+        layer.str("path").u16(1);
+        layer.u8(0).u8(0).u32(0).f64(1).f64(2).f64(3).f64(4).f64(5).f64(6).f64(0).u8(1).u8(2).u8(3).u8(255).u8(1).str("");
+        a.send(layer.finish());
+        a.pump(server);
+        CHECK(server.ui_windows().size() == 1 && server.ui_windows()[0].widgets.size() == 2);
+        CHECK(host.notice.find("hello") != std::string::npos);
+        CHECK(host.claimed == "p3:2p");
+        CHECK(host.value == "2controls/throttle=1");
+        CHECK(host.forces == "2:500,7");
+        CHECK(server.layers().size() == 1 && server.layers()[0]->items.size() == 1 && server.layers()[0]->items[0].b[2] == 6);
+
+        server.ui_event("p3", "panel", "level", "5.5");
+        CHECK(a.wait(server, msg_event, f));
+        Reader r(f.payload.data(), f.payload.size());
+        CHECK(r.str() == "ui" && r.str() == "panel level 5.5");
+        CHECK(server.ui_windows()[0].widgets[1].value == 5.5);
+        server.ui_event("p3", "panel", "", "closed");
+        CHECK(server.ui_windows().empty());
+
+        a.send(win.finish());
+        a.pump(server);
+        CHECK(server.ui_windows().size() == 1);
+    }
+    // Disconnecting takes the windows and layers away and releases the ships.
+    Raw gone(server, cap_read);
+    gone.pump(server, 300);
+    CHECK(server.ui_windows().empty() && server.layers().empty());
+    CHECK(host.released_owner > 0);
+
+    // Without the capabilities these are refused.
+    {
+        Raw b(server, cap_read);
+        CHECK(b.wait(server, msg_welcome, f));
+        Writer claim(msg_claim_ship, 3);
+        claim.u32(0).u8(0);
+        b.send(claim.finish());
+        CHECK(b.wait(server, msg_error, f));
+        Writer ls(msg_lockstep, 4);
+        ls.u8(1).u32(50).f64(0);
+        b.send(ls.finish());
+        CHECK(b.wait(server, msg_error, f));
+        CHECK(!server.lockstep_active());
+    }
+
+    // Lockstep: the gate waits for step_done, times out on a silent program and is released by a disconnect.
+    {
+        Raw c(server, cap_controls);
+        CHECK(c.wait(server, msg_welcome, f));
+        Writer on(msg_lockstep, 8);
+        on.u8(1).u32(60).f64(0.02);
+        c.send(on.finish());
+        CHECK(c.wait(server, msg_ok, f));
+        CHECK(server.lockstep_active());
+        Raw second(server, cap_controls);
+        CHECK(second.wait(server, msg_welcome, f));
+        Writer on2(msg_lockstep, 9);
+        on2.u8(1).u32(60).f64(0);
+        second.send(on2.finish());
+        CHECK(second.wait(server, msg_error, f));
+
+        std::atomic<bool> answer{true}, stop{false};
+        std::thread driver([&] {
+            // The program side: answer each step as soon as it is seen.
+            std::string buffer;
+            while (!stop)
+            {
+                c.socket.update();
+                std::string chunk;
+                if (c.socket.receive(chunk) > 0)
+                    buffer += chunk;
+                Frame g;
+                while (take_frame(buffer, g) == 1)
+                    if (g.type == msg_event && answer)
+                    {
+                        Reader r(g.payload.data(), g.payload.size());
+                        if (r.str() == "step")
+                        {
+                            const std::string arg = r.str();
+                            c.socket.send(Writer(msg_step_done, 0).u32(static_cast<std::uint32_t>(std::atoi(arg.c_str()))).finish());
+                        }
+                    }
+                std::this_thread::sleep_for(std::chrono::microseconds(300));
+            }
+        });
+        const auto t0 = std::chrono::steady_clock::now();
+        const double dt = server.lockstep_gate(0.016, 1.0);
+        const auto answered = std::chrono::steady_clock::now() - t0;
+        CHECK(dt == 0.02);
+        CHECK(server.lockstep_missed() == 0 && answered < std::chrono::milliseconds(50));
+        answer = false;
+        server.lockstep_gate(0.016, 2.0);
+        CHECK(server.lockstep_missed() == 1);
+        stop = true;
+        driver.join();
+    }
+    for (int i = 0; i < 20 && server.lockstep_active(); ++i)
+        server.poll(), std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    CHECK(!server.lockstep_active());
+    CHECK(server.lockstep_gate(0.016, 3.0) == 0.0);
+
+    // A protocol 3 program that goes silent is pinged, then dropped; one that answers stays.
+    {
+        server.set_timeout(0.1);
+        Raw quiet(server, cap_read), lively(server, cap_read);
+        CHECK(quiet.wait(server, msg_welcome, f) && lively.wait(server, msg_welcome, f));
+        bool pinged = false;
+        const auto t0 = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - t0 < std::chrono::milliseconds(600))
+        {
+            server.poll();
+            lively.socket.update();
+            std::string chunk, chunk2;
+            lively.socket.receive(chunk);
+            lively.received += chunk;
+            Frame g;
+            while (take_frame(lively.received, g) == 1)
+                if (g.type == msg_ping)
+                {
+                    pinged = true;
+                    lively.send(Writer(msg_ping, 0).finish());
+                }
+            quiet.socket.update();
+            quiet.socket.receive(chunk2);
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        CHECK(pinged);
+        CHECK(server.clients().size() == 1);
+        // A protocol 2 program is never timed out.
+        Raw old(server, cap_read, 2);
+        CHECK(old.wait(server, msg_welcome, f));
+        old.pump(server, 500);
+        // The idle protocol 3 program is gone by now; the protocol 2 one remains.
+        CHECK(server.clients().size() == 1);
+        server.set_timeout(0.0);
+    }
+}
+
 int main()
 {
     test_protocol_two();
+    test_protocol_three();
     test_protocol_edges();
     test_manifest();
 

@@ -34,7 +34,17 @@ namespace kosmos::app
             if (vis.reload_models() > 0 && edit_paused)
                 part_status = "Reloaded the edited mesh";
         }
-        sim.step(frame);
+        double step_dt = frame;
+        if (link_server && link_server->running() && !props.get_bool("/sim/paused"))
+        {
+            // Lockstep: a program that asked for it computes each step before the simulation takes it (at 1x).
+            if (link_server->lockstep_active() && props.get_int("/sim/warp-index") > 0)
+                props.set_int("/sim/warp-index", 0);
+            const double fixed = link_server->lockstep_gate(frame, universe.time());
+            if (fixed > 0.0)
+                step_dt = fixed;
+        }
+        sim.step(step_dt);
         {
             const bool storms = sim.props.get_bool("/sim/settings/weather", true) && sim.props.get_bool("/sim/settings/weather-rain", true);
             const double thunder = storms && sim.current_warp() <= 4.0 ? sim.props.get_double("/environment/thunder") : 0.0;

@@ -393,6 +393,11 @@ namespace kosmos
         if (index < 0 || index >= ship_count() || index == active_)
             return false;
         nav.clear_links();
+        std::map<int, LinkClaim> shifted;
+        for (auto &entry : link_claims)
+            if (entry.first != index)
+                shifted[entry.first > index ? entry.first - 1 : entry.first] = entry.second;
+        link_claims = std::move(shifted);
         ships_.erase(ships_.begin() + index);
         if (active_ > index)
             --active_;
@@ -434,37 +439,40 @@ namespace kosmos
         return active_ < ship_count() ? ships_[static_cast<std::size_t>(active_)].get() : nullptr;
     }
 
-    Controls Sim::read_controls()
+    Controls Sim::read_controls(const std::string &prefix, const Ship *ship)
     {
         Controls c;
-        c.throttle = props.get_double("/controls/throttle");
-        c.hover = props.get_double("/controls/hover");
-        c.pitch = props.get_double("/controls/pitch");
-        c.yaw = props.get_double("/controls/yaw");
-        c.roll = props.get_double("/controls/roll");
-        c.brake = props.get_double("/controls/brake");
-        c.flaps = props.get_double("/controls/flaps");
-        c.gear = props.get_double("/controls/gear");
-        c.rcs_x = props.get_double("/controls/rcs-x");
-        c.rcs_y = props.get_double("/controls/rcs-y");
-        c.rcs_z = props.get_double("/controls/rcs-z");
-        c.pod_left = props.get_double("/controls/pod-left");
-        c.pod_right = props.get_double("/controls/pod-right");
-        c.pod_tilt_left = props.get_double("/controls/pod-tilt-left");
-        c.pod_tilt_right = props.get_double("/controls/pod-tilt-right");
-        c.rcs_mode = props.get_string("/controls/rcs-mode", "rot");
-        if (const Ship *ship = active_ship())
+        auto path_of = [&](const char *name) { return prefix + "/" + name; };
+        c.throttle = props.get_double(path_of("throttle"));
+        c.hover = props.get_double(path_of("hover"));
+        c.pitch = props.get_double(path_of("pitch"));
+        c.yaw = props.get_double(path_of("yaw"));
+        c.roll = props.get_double(path_of("roll"));
+        c.brake = props.get_double(path_of("brake"));
+        c.flaps = props.get_double(path_of("flaps"));
+        c.gear = props.get_double(path_of("gear"));
+        c.rcs_x = props.get_double(path_of("rcs-x"));
+        c.rcs_y = props.get_double(path_of("rcs-y"));
+        c.rcs_z = props.get_double(path_of("rcs-z"));
+        c.pod_left = props.get_double(path_of("pod-left"));
+        c.pod_right = props.get_double(path_of("pod-right"));
+        c.pod_tilt_left = props.get_double(path_of("pod-tilt-left"));
+        c.pod_tilt_right = props.get_double(path_of("pod-tilt-right"));
+        c.rcs_mode = props.get_string(path_of("rcs-mode"), "rot");
+        if (!ship)
+            ship = active_ship();
+        if (ship)
             for (std::size_t i = 0; i < ship->spec().animation_controls.size(); ++i)
             {
-                const std::string path = "/controls/anim/" + ship->spec().animation_controls[i].property;
+                const std::string path = prefix + "/anim/" + ship->spec().animation_controls[i].property;
                 c.anim.push_back(props.exists(path) ? props.get_double(path) : ship->animation_position(i));
             }
-        c.sas = props.get_string("/controls/sas", "stability");
-        c.target_pitch = props.get_double("/controls/target-pitch");
-        c.target_heading = props.get_double("/controls/target-heading");
-        c.stage = props.get_bool("/controls/stage");
+        c.sas = props.get_string(path_of("sas"), "stability");
+        c.target_pitch = props.get_double(path_of("target-pitch"));
+        c.target_heading = props.get_double(path_of("target-heading"));
+        c.stage = props.get_bool(path_of("stage"));
         if (c.stage)
-            props.set_bool("/controls/stage", false);
+            props.set_bool(path_of("stage"), false);
         return c;
     }
 
@@ -529,7 +537,29 @@ namespace kosmos
                 ship.go_dynamic();
             Controls held = idle;
             held.gear = ship.gear_position() > 0.5 ? 1.0 : 0.0;
-            ship.apply_controls(static_cast<int>(i) == active_ ? controls : held, frame * warp);
+            const auto claim = link_claims.find(static_cast<int>(i));
+            if (claim != link_claims.end() && !(claim->second.passthrough && static_cast<int>(i) == active_))
+            {
+                const std::string prefix = "/ships/ship[" + std::to_string(i) + "]/module/" + claim->second.addon + "/controls";
+                Controls module = read_controls(prefix, &ship);
+                if (!props.exists(prefix + "/gear"))
+                    module.gear = held.gear;
+                ship.apply_controls(module, frame * warp);
+            }
+            else
+                ship.apply_controls(static_cast<int>(i) == active_ ? controls : held, frame * warp);
+            if (claim != link_claims.end() && warp <= max_physics_warp)
+            {
+                const double limit_force = ship.spec().module_max_force > 0.0 ? ship.spec().module_max_force : ship.telemetry().mass * 20.0;
+                const double limit_torque = ship.spec().module_max_torque > 0.0 ? ship.spec().module_max_torque : ship.telemetry().mass * 20.0;
+                auto clamped = [](const double v[3], double limit) {
+                    sl::dvec3 out(v[0], v[1], v[2]);
+                    const double len = glm::length(out);
+                    return len > limit && len > 0.0 ? out * (limit / len) : out;
+                };
+                universe.world.apply_force(ship.body_id(), ship.body().direction_to_world(clamped(claim->second.force, limit_force)));
+                universe.world.apply_torque(ship.body_id(), ship.body().direction_to_world(clamped(claim->second.torque, limit_torque)));
+            }
         }
 
         if (active_ >= 0 && active_ < static_cast<int>(ships_.size()))

@@ -286,6 +286,7 @@ namespace kosmos::app
         prepare_scene();
         draw_world();
         draw_overlays();
+        draw_link_3d();
         update_sound();
         draw_hud();
         draw_gui();
