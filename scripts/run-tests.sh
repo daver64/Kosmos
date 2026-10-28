@@ -24,6 +24,6 @@ rm -f arsenal_test.log
 
 echo "== bombing selftest (regular and atom bomb detonate)"
 for atom in "" "--selftest-drop-atom"; do
-    ./kosmos --scenario 14_vulcan_bombing_wagga --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
+    ./kosmos --scenario 14_vulcan_atom_iceland --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
 done
 echo "all tests passed"

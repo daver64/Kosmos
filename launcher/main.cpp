@@ -337,7 +337,19 @@ namespace
                 std::error_code ec;
                 Launch(fs::exists(user_dir() / "scenarios" / "last_session.json", ec) ? "last_session" : profile_.last_scenario);
             });
-            blurb_->Bind(wxEVT_SIZE, [this](wxSizeEvent &e) { blurb_->Wrap(std::max(200, e.GetSize().x)); e.Skip(); });
+            // Text wraps to the width left beside the scenario tree, so a long description or ship list stays inside its box.
+            page->Bind(wxEVT_SIZE, [this](wxSizeEvent &e) { WrapScenarioText(); e.Skip(); });
+        }
+
+        void WrapScenarioText()
+        {
+            const int width = std::max(200, blurb_->GetParent()->GetClientSize().x - tree_->GetSize().x - 48);
+            wxStaticText *labels[3] = {title_, detail_, blurb_};
+            for (int i = 0; i < 3; ++i)
+            {
+                labels[i]->SetLabel(scenario_text_[i]);
+                labels[i]->Wrap(width);
+            }
         }
 
         const ScenarioInfo *SelectedScenario() const
@@ -361,13 +373,13 @@ namespace
             if (!s)
                 return;
             thumb_->SetBitmap(load_thumbnail(s->thumbnail, 480, 270));
-            title_->SetLabel(W(s->name));
+            scenario_text_[0] = W(s->name);
             wxString ships;
             for (const std::string &n : s->ships)
                 ships += (ships.empty() ? "" : ", ") + W(n);
-            detail_->SetLabel(wxString::Format("Ship: %s    Location: %s", ships, W(s->body.empty() ? "n/a" : s->body)));
-            blurb_->SetLabel(W(s->description));
-            blurb_->Wrap(std::max(200, blurb_->GetSize().x));
+            scenario_text_[1] = wxString::Format("Ship: %s    Location: %s", ships, W(s->body.empty() ? "n/a" : s->body));
+            scenario_text_[2] = W(s->description);
+            WrapScenarioText();
             Layout();
         }
 
@@ -1113,6 +1125,7 @@ namespace
         wxListbook *book_ = nullptr;
         wxTreeCtrl *tree_ = nullptr;
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
+        wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
         wxButton *launch_ = nullptr, *resume_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr;
         wxCheckListBox *addon_list_ = nullptr;

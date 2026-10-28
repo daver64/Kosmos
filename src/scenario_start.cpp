@@ -170,7 +170,10 @@ namespace kosmos::app
                     if (terrain)
                         height = terrain->height_at_direction(dir);
                 }
-                ship->place_on_surface(body, dir, entry.heading, height);
+                if (entry.altitude > 0.0)
+                    ship->place_airborne(body, dir, entry.heading, height, entry.altitude, entry.speed);
+                else
+                    ship->place_on_surface(body, dir, entry.heading, height);
             }
         }
         for (std::size_t i = 0; i < sc.ships.size(); ++i)

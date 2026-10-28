@@ -479,6 +479,7 @@
    "parts": [
     {
      "model": "models/avro-vulcan.obj",
+     "animations": "gear.json",
      "offset": [
       0,
       0,

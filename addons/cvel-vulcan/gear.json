@@ -1,0 +1,7 @@
+{
+ "version": 1,
+ "animations": [
+  {"type": "translate", "property": "gear-position", "objects": ["Material0_Avro_Wing_1", "Material1", "Material5_Avro_Wheel_1"], "axis": [0, 1, 0], "interpolation": [[0, 2.4], [1, 0]]},
+  {"type": "translate", "property": "gear-position", "objects": ["Material2_Avro_Wing_1", "Material3", "Material4_Avro_Wing_1", "Material6_Avro_Wheel_2"], "axis": [0, 1, 0], "interpolation": [[0, 2.4], [1, 0]]}
+ ]
+}

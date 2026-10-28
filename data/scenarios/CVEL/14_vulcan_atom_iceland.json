@@ -1,0 +1,19 @@
+{
+ "name": "CVEL: Vulcan atom bomb drop, south of Iceland",
+ "description": "CVEL Vulcan at 8,000 ft over the open North Atlantic south of Iceland, with 21 bombs and one atom bomb. K drops the bombs, Shift+K the atom bomb.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Vulcan",
+   "body": "Earth",
+   "surface": {
+    "latitude": 62.0,
+    "longitude": -19.0,
+    "heading": 0,
+    "altitude": 2438,
+    "speed": 220
+   }
+  }
+ ],
+ "date": "2024-06-21 22:30:00"
+}
