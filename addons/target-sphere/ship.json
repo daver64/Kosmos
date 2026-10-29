@@ -1,0 +1,26 @@
+{
+ "name": "Target sphere",
+ "class": "probe",
+ "torque_accel": 0.1,
+ "max_rate": 0.2,
+ "rcs_thrust": 1,
+ "drag_area": 1,
+ "camera_distance": 160,
+ "shield": {"capacity": 40, "recharge": 40, "delay": 0.5, "colour": [255, 170, 60]},
+ "stages": [
+  {
+   "name": "Target",
+   "dry_mass": 5000,
+   "propellant": 0,
+   "z": 0,
+   "length": 80,
+   "radius": 40,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/target.obj"
+    }
+   ]
+  }
+ ]
+}

@@ -160,6 +160,9 @@ extern int screen_h;
         double cam_yaw = 0.7;
         double cam_distance = 0.0;
         bool alone = false; // --alone: with --orbit, do not place the other addon ships alongside
+        std::string scenario_file; // --scenario-file PATH: run a scenario from this file without installing it
+        std::vector<std::pair<double, std::string>> set_at; // --set-at SECS PATH=VALUE: set a property this many seconds into the run
+        double launch_at = -1.0; // --launch-at SECS: with --auto-stage, hold the engines until this time, then light them over 3 s (for video)
         double cam_tilt = 0.0; // --cam-tilt DEG: nod the chase camera up and down by this much (for video)
         double cam_spin = 0.0; // --cam-spin DEG_PER_SEC: slowly swing the chase camera round the ship (for video)
         bool cam_sunward = false;

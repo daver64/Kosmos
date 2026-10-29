@@ -237,7 +237,9 @@ namespace kosmos::app
             if (!kosmos::save_scenario((std::filesystem::path(kosmos::Sim::user_dir()) / "scenarios" / "last_session.json").string(), last, error))
                 std::fprintf(stderr, "kosmos: %s\n", error.c_str());
         }
-        settings_save(sim.props);
+        // A recorded run may force sound on (--set), which must not overwrite the player's own settings.
+        if (options.record_seconds <= 0.0)
+            settings_save(sim.props);
         sl::gui_shutdown();
         lightning.release();
         sound.stop();

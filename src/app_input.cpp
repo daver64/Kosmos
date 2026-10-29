@@ -352,7 +352,18 @@ namespace kosmos::app
         {
             // A scripted rocket ascent for videos: pitch over once half of the first stage's propellant is gone, drop each empty stage,
             // and light the next stage 5 s after the last one has fallen away.
-            const double throttle = std::max(options.shot_throttle, 0.0);
+            const double throttle = options.shot_throttle >= 0.0 ? options.shot_throttle : 1.0;
+            // Engines light over 3 s rather than snapping to full thrust, with a thump as they catch.
+            auto light_engines = [&] {
+                ramp_clock = clock;
+                sound.play("thump", 255);
+            };
+            if (options.launch_at >= 0.0 && ramp_clock < 0.0 && first_stage_clock < 0.0)
+            {
+                props.set_double("/controls/throttle", 0.0);
+                if (clock >= options.launch_at)
+                    light_engines();
+            }
             if (ascent_fuel0 < 0.0 && ship->active_stage() == 0 && ship->telemetry().stage_fuel > 0.0 && ship->telemetry().thrust > 0.0)
                 ascent_fuel0 = ship->telemetry().stage_fuel;
             if (pitchover_clock < 0.0 && ascent_fuel0 > 0.0 && ship->telemetry().stage_fuel < 0.5 * ascent_fuel0)
@@ -365,20 +376,31 @@ namespace kosmos::app
             }
             if (ignite_clock >= 0.0)
             {
-                props.set_double("/controls/throttle", clock >= ignite_clock ? throttle : 0.0);
+                props.set_double("/controls/throttle", 0.0);
                 if (clock >= ignite_clock)
+                {
                     ignite_clock = -1.0;
+                    light_engines();
+                }
             }
-            else if (ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
-                     ship->telemetry().total_fuel > 1.0 && ship->stage_once())
+            else if (ramp_clock >= 0.0)
+            {
+                const double t = std::clamp((clock - ramp_clock) / 3.0, 0.0, 1.0);
+                props.set_double("/controls/throttle", throttle * t * t * (3.0 - 2.0 * t));
+            }
+            if (ignite_clock < 0.0 && ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
+                ship->telemetry().total_fuel > 1.0 && ship->stage_once())
             {
                 if (first_stage_clock < 0.0)
                     first_stage_clock = clock;
                 ignite_clock = clock + 5.0;
+                ramp_clock = -1.0;
                 props.set_double("/controls/throttle", 0.0);
                 props.set_int("/sim/warp-index", 0);
             }
         }
+        for (; set_at_done < options.set_at.size() && clock >= options.set_at[set_at_done].first; ++set_at_done)
+            apply_sets(props, {options.set_at[set_at_done].second});
         if (options.shot_throttle >= 0.0 && !options.auto_stage)
             props.set_double("/controls/throttle", options.shot_throttle);
         auto axis = [this, on_foot](const char *plus, const char *minus) { return typing || on_foot ? 0.0 : (keys.down(plus) ? 1.0 : 0.0) - (keys.down(minus) ? 1.0 : 0.0); };

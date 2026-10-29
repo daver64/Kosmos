@@ -330,6 +330,15 @@ namespace kosmos
             log("user " + e);
     }
 
+    void Sim::add_scenario(Scenario scenario)
+    {
+        const auto same = std::find_if(scenarios_.begin(), scenarios_.end(), [&](const Scenario &o) { return o.id == scenario.id; });
+        if (same != scenarios_.end())
+            *same = std::move(scenario);
+        else
+            scenarios_.push_back(std::move(scenario));
+    }
+
     const Scenario *Sim::find_scenario(const std::string &name) const
     {
         const auto lower = [](std::string t) {

@@ -57,13 +57,6 @@
           "heading": 180
         },
         {
-          "type": "saturn_v",
-          "size": 0.55,
-          "x": -90,
-          "z": 130,
-          "y": 1.5
-        },
-        {
           "type": "tank",
           "radius": 4,
           "height": 10,

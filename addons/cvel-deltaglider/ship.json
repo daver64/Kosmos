@@ -745,5 +745,88 @@
    {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 113, "y": 182, "w": 24, "h": 14},
    {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 138, "y": 196, "w": 24, "h": 18}
   ]
- }
+ },
+ "lights": [
+  {
+   "position": [
+    -8.9,
+    2.3,
+    5.3
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    8.9,
+    2.3,
+    5.3
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    0,
+    8.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    -8.9,
+    2.3,
+    5.25
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0
+  },
+  {
+   "position": [
+    8.9,
+    2.3,
+    5.25
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.5
+  }
+ ]
 }

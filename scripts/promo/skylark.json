@@ -1,0 +1,15 @@
+{
+ "name": "Promo: Skylark cruising",
+ "description": "The Skylark over Wagga Wagga at 1500 m on the autopilot, for the promo video.",
+ "active": 0,
+ "date": "2024-06-21 02:00:00",
+ "throttle": 0.6,
+ "autopilot": true,
+ "ships": [
+  {
+   "ship": "Skylark",
+   "body": "Earth",
+   "surface": { "base": "wagga", "runway": 0, "along": 20, "altitude": 1500, "speed": 75 }
+  }
+ ]
+}

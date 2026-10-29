@@ -269,6 +269,18 @@ namespace kosmos::app
                 options.cam_yaw = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-spin") && i + 1 < argc)
                 options.cam_spin = std::atof(argv[++i]);
+            else if (!std::strcmp(argv[i], "--scenario-file") && i + 1 < argc)
+            {
+                options.scenario_file = argv[++i];
+            }
+            else if (!std::strcmp(argv[i], "--set-at") && i + 2 < argc)
+            {
+                const double at = std::atof(argv[i + 1]);
+                options.set_at.emplace_back(at, argv[i + 2]);
+                i += 2;
+            }
+            else if (!std::strcmp(argv[i], "--launch-at") && i + 1 < argc)
+                options.launch_at = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--alone"))
                 options.alone = true;
             else if (!std::strcmp(argv[i], "--cam-tilt") && i + 1 < argc)

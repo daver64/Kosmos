@@ -93,6 +93,9 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--cam-spin DEG` | Swing the chase camera round the ship at DEG degrees per second (for video) |
 | `--record SECS` | Record a video from the start for SECS seconds, then quit |
 | `--auto-stage` | Scripted ascent for video: pitch over at half the first stage's propellant, drop each empty stage and light the next 5 s later (and return to 1x warp) |
+| `--launch-at SECS` | With `--auto-stage`, hold the throttle at zero until SECS, then light the engines with a thump and ramp thrust up over 3 s |
+| `--scenario-file PATH` | Start from a scenario file outside the scenario folders |
+| `--set-at SECS PATH=VALUE` | Set a property once SECS into the run (repeatable) |
 | `--record-after-stage SECS` | With `--record`, end the video SECS after the first staging instead of at the `--record` time |
 | `--host [PORT]` | Host a multiplayer game (default UDP port 7777) |
 | `--join HOST[:PORT]` | Join a hosted game |

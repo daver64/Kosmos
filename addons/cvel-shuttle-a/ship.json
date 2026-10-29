@@ -784,5 +784,88 @@
    "induced_drag": 0.5,
    "stall_deg": 15
   }
+ ],
+ "lights": [
+  {
+   "position": [
+    -7.7,
+    0.3,
+    1.1
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    7.7,
+    0.3,
+    1.1
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    0.4,
+    16.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    4.0,
+    -13.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0
+  },
+  {
+   "position": [
+    2.5,
+    -2.9,
+    12.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.5
+  }
  ]
 }

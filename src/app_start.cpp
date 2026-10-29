@@ -26,6 +26,18 @@ namespace kosmos::app
             std::fprintf(stderr, "kosmos: %s\n", error.c_str());
             return 1;
         }
+        if (!options.scenario_file.empty())
+        {
+            kosmos::Scenario file_scenario;
+            std::string scenario_error;
+            if (!kosmos::load_scenario(options.scenario_file, file_scenario, scenario_error))
+            {
+                std::fprintf(stderr, "kosmos: %s\n", scenario_error.c_str());
+                return 1;
+            }
+            options.scenario = file_scenario.id;
+            sim.add_scenario(std::move(file_scenario));
+        }
         sim.life_support = kosmos::parse_life_support(options.life_support, sim.life_support);
         // A scenario set in another star system starts there, unless --system says otherwise.
         if (options.system_name.empty() && !options.scenario.empty())

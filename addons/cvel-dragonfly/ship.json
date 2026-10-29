@@ -882,5 +882,88 @@
    "property": "ant-l-pitch",
    "duration": 18
   }
+ ],
+ "lights": [
+  {
+   "position": [
+    -3.6,
+    -0.1,
+    0
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    3.6,
+    -0.1,
+    0
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    0,
+    -3.3
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    3.7,
+    -0.5
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0
+  },
+  {
+   "position": [
+    0,
+    -3.7,
+    -0.5
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.5
+  }
  ]
 }

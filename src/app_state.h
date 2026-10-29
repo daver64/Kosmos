@@ -224,7 +224,8 @@ namespace kosmos::app
         std::string record_pcm_file;
         long record_frames{};
         double first_stage_clock = -1.0;
-        double ascent_fuel0 = -1.0, pitchover_clock = -1.0, ignite_clock = -1.0;
+        double ascent_fuel0 = -1.0, pitchover_clock = -1.0, ignite_clock = -1.0, ramp_clock = -1.0;
+        std::size_t set_at_done = 0;
         int record_w{};
         int record_h{};
         int record_rate{};

@@ -1,0 +1,6 @@
+{
+  "id": "target-sphere",
+  "name": "Target sphere",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

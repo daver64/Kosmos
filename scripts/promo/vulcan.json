@@ -1,0 +1,15 @@
+{
+ "name": "Promo: Vulcan cruising",
+ "description": "The Vulcan over Wagga Wagga at 3000 m on the autopilot, for the promo video.",
+ "active": 0,
+ "date": "2024-06-21 02:00:00",
+ "throttle": 0.7,
+ "autopilot": true,
+ "ships": [
+  {
+   "ship": "CVEL Vulcan",
+   "body": "Earth",
+   "surface": { "base": "wagga", "runway": 0, "along": 20, "altitude": 3000, "speed": 200 }
+  }
+ ]
+}

@@ -92,6 +92,8 @@ namespace kosmos
         const std::vector<Scenario> &scenarios() const { return scenarios_; }
         /** Match a scenario by id (file name without .json), case-insensitively, or by full name. */
         const Scenario *find_scenario(const std::string &name) const;
+        /** Adds a scenario that does not live in an installed folder (replacing one with the same id). */
+        void add_scenario(Scenario scenario);
 
         /** Appends to the HUD message list and stderr; also forwarded to log_sink (the Lua console). */
         void log(const std::string &text);

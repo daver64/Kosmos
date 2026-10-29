@@ -635,7 +635,9 @@ namespace kosmos
             const double length = b.burst ? look.length * 0.4 : look.length;
             const glm::vec3 head = rel_of(b.body, b.position);
             const double on_screen = glm::length(head) * 0.05;
-            const glm::vec3 tail = rel_of(b.body, b.position - dir * std::max(length, on_screen));
+            // The widened trail must not reach back past the muzzle, or a new shot seems to start behind the ship.
+            const double travelled = glm::length(b.velocity - b.carry) * b.age;
+            const glm::vec3 tail = rel_of(b.body, b.position - dir * std::min(std::max(length, on_screen), std::max(travelled, 0.0)));
             WeaponLook trail = look;
             trail.glow = std::min(trail.glow, 2.2);
             glowing_strip(tail, head, trail, 0.9);
