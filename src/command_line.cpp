@@ -3,6 +3,7 @@
 #include "body_terrain.h"
 #include "surface_textures.h"
 #include "scenario.h"
+#include <algorithm>
 
 namespace kosmos::app
 {
@@ -278,7 +279,9 @@ namespace kosmos::app
             else if (!std::strcmp(argv[i], "--set-at") && i + 2 < argc)
             {
                 const double at = std::atof(argv[i + 1]);
-                options.set_at.emplace_back(at, argv[i + 2]);
+                // Kept in time order, so an earlier event given later on the command line is not held up.
+                const auto later = std::find_if(options.set_at.begin(), options.set_at.end(), [at](const std::pair<double, std::string> &e) { return e.first > at; });
+                options.set_at.insert(later, {at, argv[i + 2]});
                 i += 2;
             }
             else if (!std::strcmp(argv[i], "--drop") && i + 3 < argc)

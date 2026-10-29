@@ -168,7 +168,7 @@ namespace kosmos
             check(target->shield_level() < capacity, "shield drains first");
             check(target->health() > 0.999, "hull is untouched while the shield holds");
             check(weapons.shield_hits() > 0, "shield flashes are counted");
-            check(weapons.live_sparks() > 0, "hits throw sparks");
+            check(weapons.live_flares() > 0, "hits on a ship flash");
             std::vector<PlacedLight> lights;
             weapons.collect_lights(sim.universe, ship->origin(), 4, lights);
             check(!lights.empty() && lights.size() <= 4, "weapon lights are made and capped at four");

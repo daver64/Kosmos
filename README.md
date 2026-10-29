@@ -325,7 +325,7 @@ A scenario stands a ship on a base with `"surface": {"base": "mysite"}`, optiona
 
 ## Aircraft
 
-Every ship feels atmospheric drag (`drag_area`) and wind; a ship with `"class": "aircraft"` also flies on simlib's aerodynamic model of lifting surfaces. Besides `stages` and `engines` (give a jet `"type": "jet"` so thrust fades with air density), it describes:
+Every ship feels atmospheric drag (`drag_area`) and wind; weapons hit a ship's bounding box, or a ball of the stage radius with `"hit_sphere": true`; a ship with `"class": "aircraft"` also flies on simlib's aerodynamic model of lifting surfaces. Besides `stages` and `engines` (give a jet `"type": "jet"` so thrust fades with air density), it describes:
 
 - `surfaces`: lifting surfaces in the ship frame (nose is -Z, roof +Y). Each has `position`, `area`, `cl0`, `cl_alpha`, `cd0`, `induced_drag`, `stall_deg`, optional `forward`/`up` (a fin has `up: [1,0,0]`), and a `control` of `elevator` (pitch), `aileron` (roll), `rudder` (yaw) or `flaps`, with `gain_deg` the angle change at full deflection. W/S, Q/E and A/D drive the surfaces; with SAS on, a rate damper (`damping`) steadies them.
 - `wheels`: contact points (`position`, optional `steer_deg` for the nose wheel, `rolling_resistance`). B brakes; a parked aircraft holds its brakes.

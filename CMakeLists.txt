@@ -240,7 +240,7 @@ if(UNIX AND NOT APPLE)
     endif()
 endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
-    "/data/landclass/.*\\.kavlc$")
+    "/data/landclass/.*\\.kavlc$" "\\.blend1?$")
 if(WIN32)
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin(/|$)")
 endif()

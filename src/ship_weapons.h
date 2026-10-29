@@ -50,6 +50,7 @@ namespace kosmos
         std::size_t live_beams() const { return beams_.size() + streaks_.size(); }
         std::size_t live_bolts() const { return bolts_.size(); }
         std::size_t live_sparks() const { return sparks_.size(); }
+        std::size_t live_flares() const { return flares_.size(); }
         int shots_fired() const { return shots_; }
         int hits() const { return hits_; }
         int shield_hits() const { return shield_hits_; }

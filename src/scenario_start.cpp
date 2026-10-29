@@ -340,7 +340,7 @@ namespace kosmos::app
             }
             ship->place_on_surface(earth, pad, heading, height);
         }
-        if (options.sunlit && options.orbit_start)
+        if (options.sunlit && (options.orbit_start || target >= 0))
             rotate_fleet_to_sun(sim, ship, options.sun_angle);
         sim.activate(options.ship_index);
         sim.props.set_double("/controls/throttle", 0.0);
