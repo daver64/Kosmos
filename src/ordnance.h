@@ -69,7 +69,8 @@ namespace kosmos
             Ship *target = nullptr;
         };
         /** The first thing a ray from `from` to `to` (body-relative, world axes) meets on `body`: the ground, or a ship other than `ignore`. */
-        RayHit cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const;
+        /** `step` is the time the segment covers: ships are tested where they were along it, so a fast bolt does not hit a target ahead of it too early. */
+        RayHit cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore, double step = 0.0) const;
         /**
          * Whether the ground or a ship hides the end of the segment `from` .. `to` (body-relative, world axes) from `from`, for drawing that
          * must hide behind scenery. A ship whose bounding box holds `to` does not hide it, so marks on a ship stay visible.
@@ -153,7 +154,7 @@ namespace kosmos
 
         Rack &rack_of(const Ship &ship);
         void sync_payload(const Sim &sim, Ship &ship, Rack &rack);
-        Hit trace(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const;
+        Hit trace(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore, double step = 0.0) const;
         void impact(ArsenalContext &context, const EquipmentSpec &spec, int body, const sl::dvec3 &point, const Hit &hit, bool by_person);
         void detonate(ArsenalContext &context, const Round &round, const sl::dvec3 &point);
         void add_effect(const Universe &universe, sl::Effect3DKind kind, int body, const sl::dvec3 &position, double scale, const sl::dvec3 &direction = sl::dvec3(0.0));

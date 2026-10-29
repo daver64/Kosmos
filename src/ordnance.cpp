@@ -529,7 +529,7 @@ namespace kosmos
                             body, kind == sl::Effect3DKind::mushroom});
     }
 
-    Arsenal::Hit Arsenal::trace(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const
+    Arsenal::Hit Arsenal::trace(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore, double step) const
     {
         Hit hit;
         Sim &sim = *context.sim;
@@ -542,6 +542,7 @@ namespace kosmos
         {
             Ship *ship;
             double z_min, z_max, radius;
+            sl::dvec3 drift; // how far the ship moved over the step
         };
         std::vector<Candidate> targets;
         for (int i = 0; i < sim.ship_count(); ++i)
@@ -549,8 +550,11 @@ namespace kosmos
             Ship *s = sim.ship(i);
             if (s == ignore || s->telemetry().soi != body)
                 continue;
-            Candidate c{s, 0, 0, 0};
+            Candidate c{s, 0, 0, 0, sl::dvec3(0.0)};
             ship_box(*s, c.z_min, c.z_max, c.radius);
+            const sl::FlightBody *planet_body = universe.world.body(body);
+            if (step > 0.0 && planet_body)
+                c.drift = (s->body().velocity - planet_body->velocity) * step;
             targets.push_back(c);
         }
 
@@ -566,9 +570,10 @@ namespace kosmos
                 hit.point = unit(p, sl::dvec3(0, 1, 0)) * ground;
                 return hit;
             }
+            const double back = 1.0 - static_cast<double>(i) / steps;
             for (const Candidate &c : targets)
             {
-                const sl::dvec3 local = c.ship->body().to_local(planet + p) + c.ship->com_offset();
+                const sl::dvec3 local = c.ship->body().to_local(planet + p + c.drift * back) + c.ship->com_offset();
                 if (std::fabs(local.x) <= c.radius + 0.3 && std::fabs(local.y) <= c.radius + 0.3 && local.z >= c.z_min - 0.3 && local.z <= c.z_max + 0.3)
                 {
                     hit.kind = Hit::ship;
@@ -646,9 +651,9 @@ namespace kosmos
         return false;
     }
 
-    Arsenal::RayHit Arsenal::cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore) const
+    Arsenal::RayHit Arsenal::cast_ray(ArsenalContext &context, int body, const sl::dvec3 &from, const sl::dvec3 &to, const Ship *ignore, double step) const
     {
-        const Hit hit = trace(context, body, from, to, ignore);
+        const Hit hit = trace(context, body, from, to, ignore, step);
         RayHit out;
         out.hit = hit.kind != Hit::none;
         out.on_ship = hit.kind == Hit::ship;

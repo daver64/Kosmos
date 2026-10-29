@@ -414,7 +414,7 @@ namespace kosmos
             const sl::dvec3 next = b.position + b.velocity * dt;
             b.age += dt;
             carry_ = b.carry;
-            const Arsenal::RayHit ray = arsenal.cast_ray(context, b.body, b.position, next, b.owner);
+            const Arsenal::RayHit ray = arsenal.cast_ray(context, b.body, b.position, next, b.owner, dt);
             bool done = false;
             if (ray.hit)
             {

@@ -1,6 +1,6 @@
 {
  "name": "Promo: Deltaglider and target",
- "description": "A Deltaglider in a 200 km orbit with a target sphere 1 km ahead, for the promo video's weapons shots.",
+ "description": "A Deltaglider in a 200 km orbit with a target sphere 500 m ahead, for the promo video's weapons shots.",
  "active": 0,
  "ships": [
   {
@@ -11,7 +11,7 @@
   {
    "ship": "Target sphere",
    "body": "Earth",
-   "orbit": { "altitude_km": 200, "inclination": 0, "phase": 0.0087 }
+   "orbit": { "altitude_km": 200, "inclination": 0, "phase": 0.0044 }
   }
  ]
 }

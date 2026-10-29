@@ -34,7 +34,7 @@ Step out and walk into the base|default|Walkable interiors|--scenario 14_mare_qu
 Lamps, windows and live life support|default|Life support simulation|--scenario 14_mare_quarters_on_foot --clean --interior-at 3.2 4.0 90 -5
 Skylark - straight and level, then a banked turn|18|Aerodynamics and autopilot|--scenario-file "$SRC/scripts/promo/skylark.json" --clean --set /controls/lighting/nav=1 --set /controls/lighting/lamps=0 --set-at 8 /autopilot/ac/heading=150 --cam-yaw 60 --cam-pitch 6 --cam-distance 40 --cam-spin 3
 Vulcan - lift, drag and a banked curve|18|Lift, drag and thrust equations|--scenario-file "$SRC/scripts/promo/vulcan.json" --clean --set /controls/lighting/nav=1 --set /controls/lighting/lamps=0 --set-at 8 /autopilot/ac/heading=150 --cam-yaw 60 --cam-pitch 6 --cam-distance 60 --cam-spin 3
-Beams and sparkles hit a target 1 km away|14|Weapons and shields|--scenario-file "$SRC/scripts/promo/weapons.json" --clean --sunlit --set /controls/weapons/primary/fire=1 --set /controls/weapons/secondary/fire=1 --cam-yaw 110 --cam-pitch 8 --cam-distance 260 --cam-spin 4 --cam-tilt 8
+Beams and sparklies hit a target|14|Weapons and shields|--scenario-file "$SRC/scripts/promo/weapons.json" --clean --sunlit --set /controls/weapons/primary/fire=1 --set /controls/weapons/secondary/fire=1 --cam-yaw 100 --cam-pitch 4 --cam-distance 750 --cam-spin 1.5 --cam-tilt 3
 Argo - beam weapon|15|Weapons and shields|--ship "Argo" --orbit --alone --clean --sunlit --set /controls/lighting/nav=0 --set /controls/lighting/lamps=0 --set /controls/weapons/primary/fire=1 --cam-yaw 95 --cam-pitch 6 --cam-distance 140 --cam-spin 4 --cam-tilt 8'
 
 n=0
