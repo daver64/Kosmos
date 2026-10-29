@@ -20,7 +20,7 @@ namespace kosmos
         /** Connects using the environment Kosmos sets when it starts your program; @p id and @p name describe the addon. Throws on failure. */
         Link(const char *id, const char *name, unsigned capabilities, const char *version = "1.0")
         {
-            kl_options o;
+            kl_options o{};
             kl_options_from_env(&o);
             o.addon_id = id;
             o.name = name;

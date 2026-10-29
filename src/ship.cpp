@@ -1663,6 +1663,7 @@ namespace kosmos
         base_ = base;
         const auto num = [&](const char *path, std::function<double()> getter) { tree.node(base + "/" + path)->tie_double(std::move(getter)); };
         tree.node(base + "/name")->tie_string([this] { return name; });
+        tree.node(base + "/class")->tie_string([this] { return spec().name; });
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
         tree.node(base + "/shield")->tie_double([this] { return spec_.shield.capacity > 0.0 ? shield_ / spec_.shield.capacity : 0.0; });
         tree.node(base + "/health")->tie_double([this] { return health_; });

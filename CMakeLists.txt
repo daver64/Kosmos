@@ -242,12 +242,23 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
+# KosmosAV, the pilot's program for the KosmosAV freight network (kav/client), is a GTK 3 program too and also needs libcurl (the Windows program is built by scripts/build-win-tools.sh with WinHTTP).
+if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
+    find_package(CURL QUIET)
+    if(CURL_FOUND)
+        set(KOSMOSAV_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosav/bin" CACHE PATH "" FORCE)
+        add_subdirectory(kav/client)
+        list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosav)
+    else()
+        message(STATUS "libcurl not found: KosmosAV will not be built")
+    endif()
+endif()
 # planetbake, the world texture baker, sits next to KosmosMap in addons/planetbake/bin (Linux and Windows). It needs zlib, glm and
 # FastNoiseLite but not simlib; it gets a preview window where GTK 3 is found (Linux; the Windows one comes from scripts/build-win-tools.sh).
 set(PLANETBAKE_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/planetbake/bin" CACHE PATH "" FORCE)
 # build-windows.sh builds the GTK window versions of both programs first (scripts/build-win-tools.sh) and passes KOSMOS_PREBUILT_WIN_TOOLS,
 # so the Windows build neither replaces planetbake.exe with the command line one nor needs GTK in CMake.
-option(KOSMOS_PREBUILT_WIN_TOOLS "Windows: ship the planetbake.exe and kosmosmap.exe already built into addons" OFF)
+option(KOSMOS_PREBUILT_WIN_TOOLS "Windows: ship the planetbake.exe, kosmosmap.exe and kosmosav.exe already built into addons" OFF)
 if(NOT (WIN32 AND KOSMOS_PREBUILT_WIN_TOOLS))
     add_subdirectory(sdk/planetbake)
 endif()
@@ -260,10 +271,10 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/planetbake/bin/planetbake$")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/planetbake/bin/planetbake$")
 else()
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$"
-        "/addons/(planetbake|kosmosmap)/share(/|$)")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
+        "/addons/(planetbake|kosmosmap|kosmosav)/share(/|$)")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------

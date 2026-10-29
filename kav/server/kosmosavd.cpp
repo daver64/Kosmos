@@ -626,7 +626,7 @@ namespace
     // The KosmosAV program calls this when the game reports the cargo delivered. The pilot's last heartbeat has to be at the destination.
     std::string job_complete(long account, long id)
     {
-        Stmt j("SELECT dest,kind,qty,pay,accepted,deadline FROM jobs WHERE id=? AND account_id=? AND status='accepted'", {std::to_string(id), std::to_string(account)});
+        Stmt j("SELECT dest,kind,qty,pay,accepted,deadline,ship,dv FROM jobs WHERE id=? AND account_id=? AND status='accepted'", {std::to_string(id), std::to_string(account)});
         if (!j.row())
             return "That is not one of your jobs.";
         std::string dest = j.text(0), kind = j.text(1);
@@ -634,10 +634,15 @@ namespace
         long pay = j.num(3), accepted = j.num(4);
         if (j.num(5) < now_s())
             return "That job ran out of time.";
-        Stmt f("SELECT location,updated FROM flights WHERE account_id=?", {std::to_string(account)});
+        Stmt f("SELECT location,updated,ship FROM flights WHERE account_id=?", {std::to_string(account)});
+        std::string job_ship = j.text(6);
         if (!f.row() || f.text(0) != dest || now_s() - f.num(1) > 900)
             return "Your KosmosAV program has not reported you at " + loc_name(dest) + ".";
-        if (now_s() - accepted < 20)
+        if (f.text(2) != job_ship)
+            return "You rented the " + (find_ship(job_ship) ? find_ship(job_ship)->name : job_ship) + " for this job but your program reports a different ship.";
+        // The program is trusted to report honestly, so a delivery cannot be faster than a plausible burn and coast: 20 s plus 8 s per km/s of delta-v.
+        const long least = 20 + (long)(8 * sqlite3_column_double(j.s, 7));
+        if (now_s() - accepted < least)
             return "That was too quick to be a delivery.";
         exec("UPDATE jobs SET status='done',finished=? WHERE id=?", {std::to_string(now_s()), std::to_string(id)});
         exec("UPDATE accounts SET location=?,deliveries=deliveries+1,hours=hours+? WHERE id=?",
@@ -961,7 +966,7 @@ namespace
         while (st.row())
         {
             ++n;
-            o << "<tr><td>" << esc(st.text(0)) << "</td><td>" << esc(st.text(1)) << "</td><td>" << esc(loc_name(st.text(2))) << "</td><td>" << esc(st.text(3)) << "</td><td>"
+            o << "<tr><td>" << esc(st.text(0)) << "</td><td>" << esc(find_ship(st.text(1)) ? find_ship(st.text(1))->name : st.text(1)) << "</td><td>" << (st.text(2).empty() ? "in flight" : esc(loc_name(st.text(2)))) << "</td><td>" << esc(st.text(3)) << "</td><td>"
               << (now_s() - st.num(4)) << " s ago</td></tr>";
         }
         o << "</table>";
@@ -1472,6 +1477,18 @@ int main(int argc, char **argv)
         std::fprintf(stderr, "cannot open %s\n", cfg.db.c_str());
         return 1;
     }
+    exec("PRAGMA journal_mode=WAL");
+    migrate();
+    if (!admin_call.empty())
+        return make_admin(admin_call, admin_pass);
+    if (list_admins)
+    {
+        Stmt st("SELECT callsign FROM accounts WHERE is_admin=1");
+        while (st.row())
+            std::printf("%s\n", st.text(0).c_str());
+        return 0;
+    }
+
     if (!load_registry(registry))
     {
         std::fprintf(stderr, "cannot read the registry %s (use --registry FILE)\n", registry.c_str());
@@ -1488,18 +1505,6 @@ int main(int argc, char **argv)
                 }
         return 0;
     }
-    exec("PRAGMA journal_mode=WAL");
-    migrate();
-    if (!admin_call.empty())
-        return make_admin(admin_call, admin_pass);
-    if (list_admins)
-    {
-        Stmt st("SELECT callsign FROM accounts WHERE is_admin=1");
-        while (st.row())
-            std::printf("%s\n", st.text(0).c_str());
-        return 0;
-    }
-
     signal(SIGPIPE, SIG_IGN);
     int ls = socket(AF_INET, SOCK_STREAM, 0);
     int one = 1;

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Cross-builds the Windows GTK 3 programs for the game package: addons/planetbake/bin/planetbake.exe and
-# addons/kosmosmap/bin/kosmosmap.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
+# addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
 # Usage: build-win-tools.sh
 # Needs mingw-w64 and GTK 3 in vcpkg's x64-mingw-posix tree (see README, "Windows GTK"), plus the overlays in ~/mingw-triplets.
 # Overrides (env): VCPKG_MINGW (default ~/vcpkg-mingw), MINGW_PKGCONFIG_EXTRA (default ~/mingw-triplets/pkgconfig), FASTNOISE_DIR, GLM_INCLUDE_DIR
@@ -54,4 +54,14 @@ printf '%s\n' main render terrain | xargs -P 4 -I{} sh -c \
 mkdir -p "$SRC/addons/kosmosmap/bin"
 "$WINCXX" -static -o "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$TMP"/km/*.o $LIBS -lws2_32
 schemas "$SRC/addons/kosmosmap"
-ls -la "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe"
+
+# KosmosAV (WinHTTP, no libcurl).
+KAV=$SRC/kav/client/src
+mkdir -p "$TMP/av"
+printf '%s\n' main agent http | xargs -P 4 -I{} sh -c \
+    '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"$SRC/sdk/include" -I"'"$KAV"'" -I"$WINGTK/include" -c "'"$KAV"'/{}.cpp" -o "$TMP/av/{}.o"'
+"$WINCC" -O2 -I"$SRC/sdk/include" -c "$SRC/sdk/src/kosmos_link.c" -o "$TMP/av/kosmos_link.o"
+mkdir -p "$SRC/addons/kosmosav/bin"
+"$WINCXX" -static -mwindows -o "$SRC/addons/kosmosav/bin/kosmosav.exe" "$TMP"/av/*.o $LIBS -lws2_32 -lwinhttp
+schemas "$SRC/addons/kosmosav"
+ls -la "$SRC/addons/kosmosav/bin/kosmosav.exe" "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe"

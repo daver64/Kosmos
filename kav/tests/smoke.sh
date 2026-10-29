@@ -33,8 +33,10 @@ PAY=$(sqlite3 "$T/kav.db" "select pay from jobs where id=$JOB")
 curl -s -H "$A" -d "id=$JOB&ship=nonsense" $U/api/v1/jobs/accept | grep -q error || fail "bad ship accepted"
 curl -s -H "$A" -d "id=$JOB&ship=deltaglider" $U/api/v1/jobs/accept | grep -q '"credits":4700' || fail "accept / rental fee"
 curl -s -H "$A" -d "id=$JOB" $U/api/v1/jobs/complete | grep -q error || fail "completed without flying"
-curl -s -H "$A" -d "ship=CVEL Deltaglider&location=$DEST&job=$JOB" $U/api/v1/heartbeat >/dev/null
-sqlite3 "$T/kav.db" "update jobs set accepted=accepted-60 where id=$JOB"
+curl -s -H "$A" -d "ship=shuttle-a&location=$DEST&job=$JOB" $U/api/v1/heartbeat >/dev/null
+sqlite3 "$T/kav.db" "update jobs set accepted=accepted-3600 where id=$JOB"
+curl -s -H "$A" -d "id=$JOB" $U/api/v1/jobs/complete | grep -q "different ship" || fail "wrong ship accepted"
+curl -s -H "$A" -d "ship=deltaglider&location=$DEST&job=$JOB" $U/api/v1/heartbeat >/dev/null
 curl -s -H "$A" -d "id=$JOB" $U/api/v1/jobs/complete | grep -q "\"credits\":$((4700 + PAY))" || fail "pay on completion"
 curl -s -H "$A" $U/api/v1/me | grep -q "\"location\":\"$DEST\"" || fail "location after delivery"
 [ "$(sqlite3 "$T/kav.db" "select count(*) from ledger")" = 2 ] || fail "ledger entries"

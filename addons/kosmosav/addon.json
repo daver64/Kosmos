@@ -1,0 +1,16 @@
+{
+  "id": "kosmosav",
+  "name": "KosmosAV",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/kosmosav",
+      "windows": "bin/kosmosav.exe"
+    },
+    "capabilities": [
+      "read"
+    ],
+    "autostart": false,
+    "restart": false
+  }
+}

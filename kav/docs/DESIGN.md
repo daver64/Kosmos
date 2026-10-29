@@ -51,9 +51,9 @@ Pages (relative to `--base`): `/` home, `/account` (API key and change password)
 
 ## Still to do
 
-1. Game hooks: cargo and passenger mass properties, `cargo_capacity_kg` and `passenger_seats` in `ship.json`, landed and docked events over KosmosLink (check what `app_link.cpp` already emits first).
-2. KosmosAV GTK client (job board, my jobs, fleet, ledger, map, game link status, heartbeat), with a Windows build through `scripts/build-win-tools.sh`.
-3. Delivery flow end to end, then tests (job and pay unit tests, a fake-link end-to-end run, web smoke tests, a `--selftest` delivery).
+1. Done: no game hooks were needed beyond the `/ships/ship[N]/class` property. The client reads the flown ship, landed flag and nearest base (within 15 km) over KosmosLink; cargo is server-side bookkeeping. Job completion requires the last heartbeat to show the same ship as the job.
+2. Done on Linux: GTK3 client in `kav/client` (built into `addons/kosmosav/bin`), tested by `kav/tests/client.sh` and against the real game. Still to do: Windows build (needs an HTTP layer without libcurl, then `scripts/build-win-tools.sh`), fleet, ledger and map views.
+3. Done: unit-style tests (`kav/tests/smoke.sh`, `kav/tests/client.sh`). Still to do: a `--selftest` delivery.
 4. Security review before the pages are opened to the public; image re-encoding; password reset (forgotten password); email notification of approval.
 5. Interstellar routing: catalogue-star locations, long hauls, multi-leg jobs.
 6. Packaging: a server tarball, release notes, README and in-game help text, website manual pages.
