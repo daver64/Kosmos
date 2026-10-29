@@ -19,7 +19,7 @@ namespace
     void usage()
     {
         std::puts(
-            "planetbake " PLANETBAKE_VERSION " - bakes colour, height, normal, specular and night-lights maps of a Kosmos generated world\n"
+            "planetbake " PLANETBAKE_VERSION " - bakes colour, height, normal, specular, night-lights and cloud maps of a Kosmos generated world\n"
             "\n"
             "  planetbake                       open the preview window (when built with GTK)\n"
             "  planetbake [options] --out DIR   write the maps\n"
@@ -39,10 +39,11 @@ namespace
             "  --out DIR           output folder\n"
             "  --name NAME         file name stem for single images\n"
             "  --width N           pixels round the equator (single images 256-16384; tiles up to 65536)\n"
-            "  --layers LIST       colour,height,normal,specular,night or all (default all)\n"
+            "  --layers LIST       colour,height,normal,specular,night,clouds or all (default all)\n"
             "  --format png|dds    (default png; height is always a 16 bit PNG)\n"
             "  --dds bc1|bc3|rgba  DDS encoding (default bc1)\n"
             "  --tiles             write a tile pyramid per layer (levelN/tx_C_R.ext + tiles.ctx), resumable\n"
+            "  --detail F          fine land colour detail at high resolution (default 1; 0 is the generator's smooth colour)\n"
             "  --normal-strength F (default 8; 1 is the true slope)\n"
             "  --memory MB         refuse jobs needing more than this (default 4096)\n"
             "  --estimate          print the size of the job and exit\n"
@@ -81,7 +82,7 @@ namespace
 
     bool preview(const Job &job, int layer, const std::string &path, std::string &error)
     {
-        World world(job.style, job.radius, job.normal_strength);
+        World world(job.style, job.radius, job.normal_strength, job.detail);
         LayerSet one;
         one.on[layer] = true;
         if (!world.applicable(layer))
@@ -95,6 +96,8 @@ namespace
         bool ok;
         if (layer == layer_height)
             ok = write_png_gray16(path, r.height.data(), r.w, r.h);
+        else if (layer == layer_clouds)
+            ok = write_png_rgba(path, r.layer[layer].data(), r.w, r.h);
         else if (layer == layer_specular)
             ok = write_png_gray(path, r.layer[layer].data(), r.w, r.h);
         else
@@ -204,6 +207,8 @@ int main(int argc, char **argv)
         }
         else if (a == "--tiles")
             job.tiles = true;
+        else if (a == "--detail")
+            job.detail = static_cast<float>(std::max(0.0, std::atof(value())));
         else if (a == "--normal-strength")
             job.normal_strength = static_cast<float>(std::atof(value()));
         else if (a == "--memory")

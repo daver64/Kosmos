@@ -1,0 +1,74 @@
+{
+ "name": "Tau Ceti",
+ "home": "Thalassa",
+ "bodies": [
+  {
+   "name": "Tau Ceti",
+   "kind": "star",
+   "gm": 1.0351570321404e+20,
+   "radius": 549603000.0,
+   "spin": 2.9e-06,
+   "colour": [
+    255,
+    236,
+    200
+   ]
+  },
+  {
+   "name": "Thalassa",
+   "kind": "planet",
+   "parent": "Tau Ceti",
+   "gm": 398600441800000.0,
+   "radius": 6371000.0,
+   "colour": [
+    60,
+    110,
+    170
+   ],
+   "tilt": 18,
+   "spin": 7.2921e-05,
+   "atmosphere": {
+    "density": 1.225,
+    "scale_height": 8500.0,
+    "colour": [
+     110,
+     160,
+     235
+    ],
+    "clouds": {
+     "cover": 0.4,
+     "height": 12000.0,
+     "colour": [
+      255,
+      255,
+      255
+     ]
+    }
+   },
+   "terrain": "earth",
+   "style": {
+    "type": "earth",
+    "seed": 7,
+    "ocean": 0.34,
+    "ice": 0.35,
+    "relief": 1.0,
+    "tint": [
+     0.6,
+     0.6,
+     0.6
+    ],
+    "bands": 9,
+    "contrast": 0.5
+   },
+   "tiles": "bigworld",
+   "orbit": {
+    "a_au": 0.72,
+    "e": 0.02,
+    "i": 0.5,
+    "raan": 120.0,
+    "argp": 40.0,
+    "m0": 75.0
+   }
+  }
+ ]
+}

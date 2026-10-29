@@ -22,6 +22,7 @@ namespace planetbake
         layer_normal,   // tangent space normal map (R east, G north, B up)
         layer_specular, // gloss: white is shiny (seas, ice)
         layer_night,    // city lights on the night side (Earth-like worlds)
+        layer_clouds,   // white cloud cover in the alpha channel (worlds with an atmosphere: earth, venus, mars)
         layer_count
     };
 
@@ -31,7 +32,7 @@ namespace planetbake
 
     struct LayerSet
     {
-        bool on[layer_count] = {false, false, false, false, false};
+        bool on[layer_count] = {false, false, false, false, false, false};
         bool any() const;
         static LayerSet all();
     };
@@ -40,7 +41,7 @@ namespace planetbake
     class World
     {
     public:
-        World(const kosmos::PlanetStyle &style, double radius_m, float normal_strength = 8.0f);
+        World(const kosmos::PlanetStyle &style, double radius_m, float normal_strength = 8.0f, float detail = 1.0f);
 
         const kosmos::PlanetStyle &style() const { return surface_.style(); }
         double radius() const { return radius_; }
@@ -51,14 +52,26 @@ namespace planetbake
         /** Whether the layer means anything for this world (a gas giant has only colour). */
         bool applicable(int layer) const;
         /** City light brightness 0-1 at a point on dry land; the rest of the world is dark. */
+        /**
+         * Fine variation for land colour at scales from tens of kilometres down to tens of metres, scaled by how fine the pixels are
+         * (a coarse preview gets none). Multiplies the colour in place; pixel_m is the ground distance one pixel covers.
+         */
+        void add_detail(const sl::dvec3 &direction, double pixel_m, float rgb[3]) const;
+        /** Cloud opacity 0-1 and the cloud's brightness, of the type that suits the world. */
+        float cloud(const sl::dvec3 &direction, float tint[3]) const;
         float lights(const sl::dvec3 &direction, double height, const float rgb[3]) const;
 
     private:
         struct Night;
+        struct Clouds;
+        struct Detail;
         kosmos::PlanetSurface surface_;
         double radius_;
         float normal_strength_;
+        float detail_;
         std::shared_ptr<const Night> night_;
+        std::shared_ptr<const Clouds> clouds_;
+        std::shared_ptr<const Detail> detail_noise_;
     };
 
     /** A rectangle u0..u1 by v0..v1 of the map (both 0-1), rendered at w x h pixels. */

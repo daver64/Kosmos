@@ -54,7 +54,7 @@ namespace planetbake
             return false;
         width_ = width;
         height_ = height;
-        pixel_bytes_ = kind == PngKind::gray8 ? 1 : kind == PngKind::gray16 ? 2 : 3;
+        pixel_bytes_ = kind == PngKind::gray8 ? 1 : kind == PngKind::gray16 ? 2 : kind == PngKind::rgba8 ? 4 : 3;
         row_bytes_ = width * pixel_bytes_;
         previous_.assign(static_cast<std::size_t>(row_bytes_), 0);
         filtered_.assign(static_cast<std::size_t>(row_bytes_) + 1, 0);
@@ -64,7 +64,7 @@ namespace planetbake
         put32(ihdr, static_cast<std::uint32_t>(width));
         put32(ihdr + 4, static_cast<std::uint32_t>(height));
         ihdr[8] = kind == PngKind::gray16 ? 16 : 8;
-        ihdr[9] = kind == PngKind::rgb8 ? 2 : 0;
+        ihdr[9] = kind == PngKind::rgba8 ? 6 : kind == PngKind::rgb8 ? 2 : 0;
         ihdr[10] = ihdr[11] = ihdr[12] = 0;
         if (std::fwrite(signature, 1, 8, file_) != 8 || !chunk("IHDR", ihdr, 13))
             return false;
@@ -150,6 +150,14 @@ namespace planetbake
             const std::uint8_t *source = rgba + static_cast<std::size_t>(y) * width * 4;
             for (int x = 0; x < width; ++x)
                 std::memcpy(line + x * 3, source + x * 4, 3);
+        });
+    }
+
+    bool write_png_rgba(const std::string &path, const std::uint8_t *rgba, int width, int height)
+    {
+        return write_rows(path, width, height, PngKind::rgba8, [&](int y, std::uint8_t *line)
+        {
+            std::memcpy(line, rgba + static_cast<std::size_t>(y) * width * 4, static_cast<std::size_t>(width) * 4);
         });
     }
 

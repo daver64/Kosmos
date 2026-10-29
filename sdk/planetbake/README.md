@@ -1,6 +1,6 @@
 # planetbake
 
-Bakes the generated worlds of Kosmos into image files: colour, height, normal, specular and night-lights maps, as PNG or DDS, as one image or as a tile pyramid. It is a tool of its own, not part of the game, so a very large job (65536 pixels wide is 4 GB of PNG per layer) does not run inside Kosmos.
+Bakes the generated worlds of Kosmos into image files: colour, height, normal, specular, night-lights and cloud maps, as PNG or DDS, as one image or as a tile pyramid. It is a tool of its own, not part of the game, so a very large job (65536 pixels wide is 4 GB of PNG per layer) does not run inside Kosmos.
 
 It uses the game's own world generator (`gen/planet_gen.*`), so a world baked here is the world you see in Kosmos, given the same type, seed and parameters. It does not need simlib.
 
@@ -8,7 +8,7 @@ It uses the game's own world generator (`gen/planet_gen.*`), so a world baked he
 
 ## Running it
 
-`planetbake` with no options opens the window (when it was built with GTK 3): a 1024 x 512 preview of the world, buttons for the layer shown (Colour, Height, Normal, Specular, Night), controls for the world (type, seed, ocean, ice, relief, tint, bands and contrast for gas giants, radius) and an Export panel (width, layers, PNG or DDS, tile pyramid, folder, name). The panel shows the disk size before you start, and refuses a job that would not fit the memory limit. Export runs in the background with a progress bar and can be cancelled; a tile export that was stopped carries on where it left off when started again.
+`planetbake` with no options opens the window (when it was built with GTK 3): a 1024 x 512 preview of the world, buttons for the layer shown (Colour, Height, Normal, Specular, Night, Clouds), controls for the world (type, seed, ocean, ice, relief, tint, bands and contrast for gas giants, radius) and an Export panel (width, layers, PNG or DDS, tile pyramid, folder, name). The panel shows the disk size before you start, and refuses a job that would not fit the memory limit. Export runs in the background with a progress bar and can be cancelled; a tile export that was stopped carries on where it left off when started again.
 
 With options it runs in the terminal:
 
@@ -25,10 +25,12 @@ With options it runs in the terminal:
 | `--radius-km F` | Planet radius, default 6371. It sets the real size of heights and slopes. |
 | `--out DIR`, `--name NAME` | Where the files go, and the file name stem for single images |
 | `--width N` | Pixels round the equator. Single images 256 to 16384; tile pyramids go to 65536. |
-| `--layers LIST` | Any of `colour,height,normal,specular,night`, or `all` (default). Layers that mean nothing for the world are skipped (a gas giant has only colour; night lights are for earth-like worlds). |
+| `--layers LIST` | Any of `colour,height,normal,specular,night,clouds`, or `all` (default). A single layer can be baked on its own (`--layers clouds`) into an existing folder or pack: the other layers are left alone and `info.json` keeps listing them. Layers that mean nothing for the world are skipped (a gas giant has only colour; night lights are for earth-like worlds; clouds are for worlds with an atmosphere: earth, venus and mars). |
 | `--format png\|dds` | Default `png`. Height is always a 16 bit PNG, because DDS here is 8 bit. |
 | `--dds bc1\|bc3\|rgba` | `bc1` is 4 bits a pixel, `bc3` 8, `rgba` uncompressed. Every DDS has a full mip chain. |
 | `--tiles` | A tile pyramid per layer instead of single images |
+| `--detail F` | Fine land colour detail (default 1, 0 for the generator's own smooth colour). The generator's colour only varies over roughly 100 km and more, so without this a 64k map is a very smooth image. The detail is added at scales from 40 km down to 40 m, and only the scales the pixels can resolve, so previews and small images look as before. |
+| `--detail F` | Fine land colour detail (default 1; 0 gives the generator's own smooth colour). The generator's colour only varies over about 100 km and more, so without this a 64k map is a very smooth image. Detail is added from 40 km down to 40 m, and only at scales the pixels can resolve, so previews and small images look as before. |
 | `--normal-strength F` | Default 8. A whole planet's real slopes are tiny, so a normal map exaggerates them; 1 is the true slope. |
 | `--memory MB` | Refuse a job that needs more than this (default 4096) |
 | `--threads N` | 1 to 4 |
@@ -44,6 +46,7 @@ With options it runs in the terminal:
 | `normal` | Tangent space normals: R east, G north, B up, as 0.5 + 0.5 x component |
 | `specular` | Gloss, white is shiny: seas and ice on earth-like worlds, ice on others |
 | `night` | City lights for the dark side (earth-like worlds), black elsewhere |
+| `clouds` | White cloud cover in the alpha channel (RGBA PNG, or BC3 DDS; BC1 is raised to BC3). Earth: equatorial convection, clear subtropics, swirled mid-latitude storm belts. Venus: an unbroken, streaky yellowish deck. Mars: thin wisps and a polar hood. Mercury and gas giants have none |
 
 Single images are written as `NAME_LAYER.png` (or `.dds`) and `NAME_info.json`, with the parameters, size and height range. Images are written a strip at a time, so a 16384 wide PNG needs a few hundred MB of memory. A DDS layer is kept whole to build its mip chain and needs about 1.3 x width x height x 4 bytes.
 
@@ -69,7 +72,7 @@ From the SDK folder (needs a C++17 compiler, CMake, zlib, glm and `FastNoiseLite
 
 | File | Contents |
 |---|---|
-| `src/layers.*` | The layers: samples the generator once per region and derives colour, height, normal, specular and night from it |
+| `src/layers.*` | The layers: samples the generator once per region and derives colour, height, normal, specular, night and clouds from it |
 | `src/encode.*` | PNG (streaming, zlib only) and DDS (BC1, BC3, RGBA, mip chains) writers |
 | `src/bake.*` | Jobs: single images and tile pyramids, size estimates |
 | `src/main.cpp`, `src/gui.cpp` | The command line and the GTK 3 window |

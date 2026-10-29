@@ -13,7 +13,8 @@ namespace planetbake
     {
         gray8,  // 1 byte a pixel
         gray16, // 2 bytes a pixel, big endian
-        rgb8    // 3 bytes a pixel
+        rgb8,   // 3 bytes a pixel
+        rgba8   // 4 bytes a pixel
     };
 
     /** Writes a PNG one row at a time (so a huge image needs only a few rows of memory). Needs only zlib. */
@@ -45,6 +46,7 @@ namespace planetbake
 
     /** The whole image at once. rgba is width * height * 4 bytes; the alpha is dropped. */
     bool write_png_rgb(const std::string &path, const std::uint8_t *rgba, int width, int height);
+    bool write_png_rgba(const std::string &path, const std::uint8_t *rgba, int width, int height);
     /** As above, keeping only the red channel as an 8 bit grey image. */
     bool write_png_gray(const std::string &path, const std::uint8_t *rgba, int width, int height);
     bool write_png_gray16(const std::string &path, const std::uint16_t *values, int width, int height);

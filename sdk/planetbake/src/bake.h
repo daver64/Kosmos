@@ -28,6 +28,7 @@ namespace planetbake
         Format format = Format::png;
         DdsKind dds = DdsKind::bc1;
         bool tiles = false; // a Celestia-style tile pyramid per layer instead of single images
+        float detail = 1.0f;          // fine land colour detail below the generator's own scale; 0 for none
         float normal_strength = 8.0f; // the real slopes of a whole planet are tiny, so a normal map wants them exaggerated
         unsigned threads = max_threads;
         std::uint64_t memory_mb = 4096;

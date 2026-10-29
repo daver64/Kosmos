@@ -1,7 +1,47 @@
 #include "app_state.h"
 
+#include <algorithm>
+#include <cctype>
+#include <filesystem>
+
 namespace kosmos::app
 {
+    namespace
+    {
+        // A cloud map baked with planetbake, if there is one: clouds.dds/.png (or NAME_clouds) in the body's tile pack folder, or
+        // <body>_clouds in data/textures-hires. The caller falls back to the procedural clouds when this returns null.
+        sl::Bitmap *baked_clouds(const std::string &root, const Body &body, int max_size)
+        {
+            namespace fs = std::filesystem;
+            std::string path;
+            if (!body.tiles.empty())
+            {
+                const std::string folder = root + "/data/textures-hires/" + body.tiles + "/";
+                path = find_texture_in_directory("", folder, "clouds", {".dds", ".png"});
+                std::error_code ec;
+                if (path.empty() && fs::is_directory(folder, ec))
+                    for (const fs::directory_entry &entry : fs::directory_iterator(folder, ec))
+                    {
+                        const std::string name = entry.path().filename().string();
+                        if (name.size() > 11 && (name.compare(name.size() - 11, 11, "_clouds.dds") == 0 || name.compare(name.size() - 11, 11, "_clouds.png") == 0))
+                            path = entry.path().string();
+                    }
+            }
+            if (path.empty())
+            {
+                std::string lower = body.name;
+                std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                path = find_texture_in_directory(root, "/data/textures-hires/", lower + "_clouds", {".dds", ".png"});
+            }
+            if (path.empty())
+                return nullptr;
+            sl::Bitmap *bitmap = load_surface_texture(path, max_size);
+            if (bitmap)
+                std::fprintf(stderr, "kosmos: clouds for %s from %s\n", body.name.c_str(), path.c_str());
+            return bitmap;
+        }
+    }
+
     // The star system: terrain, bodies, bases, and the functions that enter and leave a system.
     int App::init_systems()
     {
@@ -198,7 +238,8 @@ namespace kosmos::app
             if (!options.no_tiles)
             {
                 const int home = sim.universe.home_id();
-                if (home >= 0 && sim.universe.bodies[static_cast<std::size_t>(home)].name == "Earth")
+                const std::string pack = home >= 0 ? sim.universe.bodies[static_cast<std::size_t>(home)].tiles : std::string();
+                if (home >= 0 && (sim.universe.bodies[static_cast<std::size_t>(home)].name == "Earth" || !pack.empty()))
                 {
                     loading.note("Opening the Earth imagery tiles");
                     const std::string hires = sim.root() + "/import/celestia/hires/";
@@ -208,10 +249,21 @@ namespace kosmos::app
                     // Full-strength, tight glint blows out into a white disc from orbit.
                     tiles.specular_strength = 0.45f;
                     tiles.specular_min_roughness = 0.3f;
-                    tiles.colour = find_tile_source(hires + "earth");
-                    tiles.specular = find_tile_source(hires + "earth_specular");
-                    if (!options.no_relief)
-                        tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                    if (!pack.empty())
+                    {
+                        const std::string base = sim.root() + "/data/textures-hires/" + pack + "/";
+                        tiles.colour = find_tile_source(base + "colour");
+                        tiles.specular = find_tile_source(base + "specular");
+                        if (!options.no_relief)
+                            tiles.normal = find_tile_source(base + "normal");
+                    }
+                    else
+                    {
+                        tiles.colour = find_tile_source(hires + "earth");
+                        tiles.specular = find_tile_source(hires + "earth_specular");
+                        if (!options.no_relief)
+                            tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                    }
                     if (!tiles.colour.empty())
                     {
                         vis.earth_tiles = sl::PlanetTiles::create(tiles);
@@ -276,13 +328,17 @@ namespace kosmos::app
                 const kosmos::Body &b = sim.universe.bodies[i];
                 if (b.cloud_cover <= 0.0 || static_cast<int>(i) == earth_id)
                     continue;
-                vis.body_cloud_textures[i] = fx::make_cloud_texture(2048, 1024, b.cloud_cover, 101 + static_cast<std::uint32_t>(i), 7.0);
+                vis.body_cloud_textures[i] = baked_clouds(sim.root(), b, options.max_texture);
+                if (!vis.body_cloud_textures[i])
+                    vis.body_cloud_textures[i] = fx::make_cloud_texture(2048, 1024, b.cloud_cover, 101 + static_cast<std::uint32_t>(i), 7.0);
                 vis.body_cloud_meshes[i] = sl::create_sphere_mesh(static_cast<float>(b.radius + b.cloud_height), 128, 64, {255, 255, 255, 255});
             }
             loading.note("Building the cloud layers");
             if (earth_body->name != "Earth" && earth_body->cloud_cover > 0.0)
             {
-                home_cloud_texture = fx::make_cloud_texture(2048, 1024, earth_body->cloud_cover, 101 + static_cast<std::uint32_t>(earth_id), 7.0);
+                home_cloud_texture = baked_clouds(sim.root(), *earth_body, options.max_texture);
+                if (!home_cloud_texture)
+                    home_cloud_texture = fx::make_cloud_texture(2048, 1024, earth_body->cloud_cover, 101 + static_cast<std::uint32_t>(earth_id), 7.0);
                 home_cloud_height = earth_body->cloud_height;
             }
             cloud_shell = sl::create_sphere_mesh(static_cast<float>(earth_body->radius + home_cloud_height), 256, 128, {255, 255, 255, 255});

@@ -76,6 +76,14 @@ namespace
                     red = p[0];
                     green = layer == layer_specular ? p[0] : p[1];
                     blue = layer == layer_specular ? p[0] : p[2];
+                    if (layer == layer_clouds)
+                    {
+                        // Cloud shown over a dark sea so the cover reads clearly.
+                        const int a = p[3];
+                        red = static_cast<unsigned char>((10 * (255 - a) + p[0] * a) / 255);
+                        green = static_cast<unsigned char>((24 * (255 - a) + p[1] * a) / 255);
+                        blue = static_cast<unsigned char>((48 * (255 - a) + p[2] * a) / 255);
+                    }
                 }
                 d[x * 4 + 0] = blue;
                 d[x * 4 + 1] = green;
@@ -375,7 +383,7 @@ namespace
         gtk_box_pack_start(GTK_BOX(left), ui->area, TRUE, TRUE, 0);
         GtkWidget *layers = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         GtkWidget *group = nullptr;
-        const char *titles[] = {"Colour", "Height", "Normal", "Specular", "Night"};
+        const char *titles[] = {"Colour", "Height", "Normal", "Specular", "Night", "Clouds"};
         for (int i = 0; i < layer_count; ++i)
         {
             ui->layer_radio[i] = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(group), titles[i]);

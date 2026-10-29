@@ -161,6 +161,7 @@ namespace kosmos
             body.detail_tile = entry.value("detail_tile", 128.0);
             body.detail_strength = entry.value("detail_strength", 0.9);
             body.texture = entry.value("texture", "");
+            body.tiles = entry.value("tiles", "");
             body.mesh = entry.value("mesh", "");
             body.minor = entry.value("minor", false);
             body.tilt = entry.value("tilt", 0.0) * pi / 180.0;

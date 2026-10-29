@@ -1,10 +1,8 @@
 {
  "name": "Argo",
  "lights": [
-  { "position": [-3.4, 0, 8.5], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.12 },
-  { "position": [3.4, 0, 8.5], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.12 },
-  { "position": [0, 1.4, 6], "colour": [255, 255, 255], "intensity": 4, "range": 50, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.18 },
-  { "position": [0, 0.3, -9.5], "direction": [0, 0, -1], "colour": [255, 248, 235], "intensity": 6, "range": 120, "inner": 12, "outer": 32, "glow": 0.1 }
+  { "position": [-4.8, 0.4, 3], "colour": [255, 40, 30], "intensity": 1.4, "range": 26, "glow": 0.12 },
+  { "position": [4.8, 0.4, 3], "colour": [40, 255, 70], "intensity": 1.4, "range": 26, "glow": 0.12 }
  ],
  "class": "transfer",
  "horizontal": true,

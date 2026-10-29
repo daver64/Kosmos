@@ -1,0 +1,15 @@
+{
+ "name": "Argo over Thalassa",
+ "description": "The Argo in a 1500 km orbit around Thalassa, an Earth-like world of the Tau Ceti system drawn from a 64k x 32k planetbake texture pack (data/textures-hires/bigworld).",
+ "system": "Tau Ceti",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Thalassa",
+   "orbit": {
+    "altitude_km": 1500
+   }
+  }
+ ]
+}

@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -28,10 +29,15 @@ namespace planetbake
                 return 2.0;
             case layer_specular:
                 return 0.15;
+            case layer_clouds:
+                return 1.2;
             default:
                 return 0.1;
             }
         }
+
+        // Cloud cover lives in the alpha channel, which BC1 cannot hold.
+        DdsKind dds_kind(const Job &job, int layer) { return layer == layer_clouds && job.dds == DdsKind::bc1 ? DdsKind::bc3 : job.dds; }
 
         bool dds_layer(const Job &job, int layer) { return job.format == Format::dds && layer != layer_height; }
 
@@ -52,7 +58,9 @@ namespace planetbake
             const kosmos::PlanetStyle &style = job.style;
             for (int i = 0; i < layer_count; ++i)
             {
-                const bool applicable = i == layer_colour ? style.valid() : style.has_ground() && (i != layer_night || style.type == kosmos::Archetype::earth);
+                bool applicable = i == layer_colour ? style.valid() : style.has_ground() && (i != layer_night || style.type == kosmos::Archetype::earth);
+                if (i == layer_clouds)
+                    applicable = style.type == kosmos::Archetype::earth || style.type == kosmos::Archetype::venus || style.type == kosmos::Archetype::mars;
                 set.on[i] = job.layers.on[i] && applicable;
             }
             return set;
@@ -88,19 +96,24 @@ namespace planetbake
                     line[x] = source[x * 4];
                 return;
             }
+            if (layer == layer_clouds)
+            {
+                line.assign(source, source + static_cast<std::size_t>(w) * 4);
+                return;
+            }
             line.resize(static_cast<std::size_t>(w) * 3);
             for (int x = 0; x < w; ++x)
                 std::copy_n(source + x * 4, 3, line.data() + x * 3);
         }
 
-        PngKind png_kind(int layer) { return layer == layer_height ? PngKind::gray16 : layer == layer_specular ? PngKind::gray8 : PngKind::rgb8; }
+        PngKind png_kind(int layer) { return layer == layer_height ? PngKind::gray16 : layer == layer_specular ? PngKind::gray8 : layer == layer_clouds ? PngKind::rgba8 : PngKind::rgb8; }
 
         bool write_whole(const Job &job, int layer, const Rendered &r, const fs::path &final_path)
         {
             const fs::path part = final_path.string() + ".part";
             bool ok;
             if (dds_layer(job, layer))
-                ok = write_dds(part.string(), r.layer[layer].data(), r.w, r.h, job.dds, true);
+                ok = write_dds(part.string(), r.layer[layer].data(), r.w, r.h, dds_kind(job, layer), true);
             else
             {
                 PngWriter writer;
@@ -132,9 +145,21 @@ namespace planetbake
                  << world.highest() << ",\n  \"height_encoding\": \"16 bit PNG, linear from height_min_m (0) to height_max_m (65535)\""
                  << ",\n  \"normal_encoding\": \"RGB = 0.5 + 0.5 * (east, north, up) of the unit normal; strength " << job.normal_strength << "\""
                  << ",\n  \"layers\": [";
+            // Baking one more layer into an existing pack keeps the layers already listed there.
+            LayerSet listed = layers;
+            {
+                std::ifstream old(path);
+                const std::string old_text((std::istreambuf_iterator<char>(old)), std::istreambuf_iterator<char>());
+                const std::size_t open = old_text.find("\"layers\": [");
+                const std::size_t close = open == std::string::npos ? open : old_text.find(']', open);
+                if (close != std::string::npos)
+                    for (int i = 0; i < layer_count; ++i)
+                        if (old_text.substr(open, close - open).find(std::string("\"") + layer_name(i) + "\"") != std::string::npos)
+                            listed.on[i] = true;
+            }
             bool first = true;
             for (int i = 0; i < layer_count; ++i)
-                if (layers.on[i])
+                if (listed.on[i])
                 {
                     text << (first ? "" : ", ") << "\"" << layer_name(i) << "\"";
                     first = false;
@@ -215,7 +240,7 @@ namespace planetbake
                 {
                     if (progress)
                         progress(0.9 + 0.1 * done / static_cast<double>(outputs.size()), std::string("Compressing ") + layer_name(output->layer));
-                    ok = write_dds(output->part.string(), output->whole.data(), w, h, job.dds, true);
+                    ok = write_dds(output->part.string(), output->whole.data(), w, h, dds_kind(job, output->layer), true);
                     std::vector<std::uint8_t>().swap(output->whole);
                 }
                 else
@@ -322,7 +347,7 @@ namespace planetbake
             if (layers.on[i])
             {
                 ++e.layer_count;
-                e.disk_bytes += pixels * (dds_layer(job, i) ? dds_bytes_per_pixel(job.dds) : png_bytes_per_pixel(i));
+                e.disk_bytes += pixels * (dds_layer(job, i) ? dds_bytes_per_pixel(dds_kind(job, i)) : png_bytes_per_pixel(i));
                 if (!job.tiles && dds_layer(job, i))
                     e.memory_bytes += static_cast<double>(e.width) * e.height * 4.0 * 1.34; // kept whole, plus the mip levels while compressing
             }
@@ -378,7 +403,7 @@ namespace planetbake
             error = "cannot create " + job.out + ": " + ec.message();
             return false;
         }
-        World world(job.style, job.radius, job.normal_strength);
+        World world(job.style, job.radius, job.normal_strength, job.detail);
         const LayerSet layers = usable_layers(job, world);
         return job.tiles ? run_tiles(job, world, layers, progress, error) : run_image(job, world, layers, progress, error);
     }

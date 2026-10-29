@@ -50,6 +50,8 @@ namespace kosmos
         double detail_strength = 0.9;
         /** Optional surface image (equirectangular, any size up to 16384 x 8192 or more) relative to data/; empty looks for data/textures/<name>.jpg|png. */
         std::string texture;
+        /** Optional planetbake tile pack folder (relative to data/textures-hires/) holding colour, specular and normal layers; used when this is the home body. */
+        std::string tiles;
         /** Optional glTF mesh relative to data/ drawn instead of the sphere; unit mean radius, scaled by `radius`. Physics stays a sphere. */
         std::string mesh;
         /** A procedurally generated rock: drawn but not labelled or listed on the map. */
