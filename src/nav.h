@@ -68,6 +68,14 @@ namespace kosmos
         /** Release every dock of a ship (or just one port) and push the pair gently apart. */
         bool undock(const std::vector<std::unique_ptr<Ship>> &ships, int ship, int port = -1);
         bool docked(int ship) const;
+        /** The current docks as {ship a, port on a, ship b, port on b}, for saving a session. */
+        std::vector<std::array<int, 4>> dock_links() const
+        {
+            std::vector<std::array<int, 4>> out;
+            for (const Link &l : links_)
+                out.push_back({l.a, l.pa, l.b, l.pb});
+            return out;
+        }
         /** Joins two ships through the given ports without needing a capture (scenarios that start docked). */
         void link(int a, int port_a, int b, int port_b) { links_.push_back({a, port_a, b, port_b}); }
 

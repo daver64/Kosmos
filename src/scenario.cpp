@@ -63,6 +63,21 @@ namespace kosmos
                     s.toward = o.value("toward", "");
                     s.escape_to = o.value("escape_to", "");
                     s.escape_days = o.value("escape_days", 0.0);
+                    if (js.contains("state"))
+                    {
+                        const nlohmann::json &st = js["state"];
+                        if (st.contains("r") && st.contains("v") && st.contains("q") && st["r"].size() == 3 && st["v"].size() == 3 && st["q"].size() == 4)
+                        {
+                            s.has_state = true;
+                            for (std::size_t k = 0; k < 3; ++k)
+                            {
+                                s.state_position[k] = st["r"][k].get<double>();
+                                s.state_velocity[k] = st["v"][k].get<double>();
+                            }
+                            for (std::size_t k = 0; k < 4; ++k)
+                                s.state_orientation[k] = st["q"][k].get<double>();
+                        }
+                    }
                 }
                 else if (js.contains("surface"))
                 {
@@ -183,6 +198,8 @@ namespace kosmos
                     js["orbit"]["apoapsis_km"] = s.apoapsis_km;
                 if (!s.toward.empty())
                     js["orbit"]["toward"] = s.toward;
+                if (s.has_state)
+                    js["state"] = {{"r", s.state_position}, {"v", s.state_velocity}, {"q", s.state_orientation}};
                 if (!s.escape_to.empty())
                     {
                     js["orbit"]["escape_to"] = s.escape_to;

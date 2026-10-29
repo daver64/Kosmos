@@ -837,9 +837,10 @@ namespace kosmos
         const double mu_sun = universe_.bodies[static_cast<std::size_t>(star_id)].gm;
         const sl::dvec3 r_planet = pb.position - sb.position, v_planet = pb.velocity - sb.velocity;
         const double r1 = glm::length(r_planet), r2 = glm::length(tb.position - sb.position);
-        sl::dvec3 u = glm::normalize(v_planet);
         sl::dvec3 normal = glm::normalize(glm::cross(r_planet, v_planet));
-        double v_inf = std::sqrt(mu_sun / r1) * (std::sqrt(2.0 * r2 / (r1 + r2)) - 1.0);
+        const double signed_v_inf = std::sqrt(mu_sun / r1) * (std::sqrt(2.0 * r2 / (r1 + r2)) - 1.0);
+        double v_inf = std::fabs(signed_v_inf);
+        sl::dvec3 u = glm::normalize(v_planet) * (signed_v_inf < 0.0 ? -1.0 : 1.0);
         const double mu = planet.gm, rp = planet.radius + periapsis;
         sl::OrbitElements target_orbit, home_orbit;
         if (flight_days > 0.0 && universe_.world.orbit_of(toward, star_id, target_orbit) && universe_.world.orbit_of(body_id, star_id, home_orbit))

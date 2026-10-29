@@ -78,7 +78,7 @@ namespace kosmos::app
                 }
             }
         };
-        // A scenario on another date in the same system keeps the terrain, textures and cloud layers; only the planets' positions
+        // A scenario on another date in the current system keeps the terrain, textures and cloud layers; only the planets' positions
         // and the turn of each terrain body (baked into the terrain when it was built) are brought to the new date.
         change_date = [&](double epoch_jd, std::string &error) -> bool
         {
@@ -308,7 +308,10 @@ namespace kosmos::app
         ship = start_scenario(sim, options, terrain_set);
         if (!ship)
         {
-            std::fprintf(stderr, "No Kestrel addon found under %s\n", options.root.c_str());
+            if (!options.scenario.empty() && sim.find_scenario(options.scenario))
+                std::fprintf(stderr, "kosmos: unable to start scenario \"%s\"\n", options.scenario.c_str());
+            else
+                std::fprintf(stderr, "No Kestrel addon found under %s\n", options.root.c_str());
             sl::shutdown();
             return 1;
         }

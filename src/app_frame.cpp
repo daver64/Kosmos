@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "watchdog.h" // WATCHDOG
 
 namespace kosmos::app
 {
@@ -274,6 +275,7 @@ namespace kosmos::app
             return code;
         if (const int code = init_loop(); code != keep_going)
             return code;
+        Watchdog::start(); // WATCHDOG
         while (running)
             if (!run_frame())
                 break;
@@ -283,23 +285,40 @@ namespace kosmos::app
 
     bool App::run_frame()
     {
+        Watchdog::stage("begin_frame"); // WATCHDOG
         if (!begin_frame())
             return false;
+        Watchdog::stage("apply_settings"); // WATCHDOG
         apply_settings();
+        Watchdog::stage("poll_events"); // WATCHDOG
         poll_events();
+        Watchdog::stage("follow_window"); // WATCHDOG
         follow_window();
+        Watchdog::stage("keyboard"); // WATCHDOG
         keyboard();
+        Watchdog::stage("update_link"); // WATCHDOG
         update_link();
+        Watchdog::stage("advance_time"); // WATCHDOG
         advance_time();
+        Watchdog::stage("place_camera"); // WATCHDOG
         place_camera();
+        Watchdog::stage("prepare_scene"); // WATCHDOG
         prepare_scene();
+        Watchdog::stage("draw_world"); // WATCHDOG
         draw_world();
+        Watchdog::stage("draw_overlays"); // WATCHDOG
         draw_overlays();
+        Watchdog::stage("draw_link_3d"); // WATCHDOG
         draw_link_3d();
+        Watchdog::stage("update_sound"); // WATCHDOG
         update_sound();
+        Watchdog::stage("draw_hud"); // WATCHDOG
         draw_hud();
+        Watchdog::stage("draw_gui"); // WATCHDOG
         draw_gui();
+        Watchdog::stage("present"); // WATCHDOG
         present();
+        Watchdog::frame_done(universe_ref->time(), props_ref->get_int("/sim/warp-index")); // WATCHDOG
         return true;
     }
 } // namespace kosmos::app

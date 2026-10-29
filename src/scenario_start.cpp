@@ -96,6 +96,23 @@ namespace kosmos::app
     // Returns the ship to fly, or nullptr (with a message on stderr) if the scenario cannot be built.
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
+        for (const kosmos::ScenarioShip &entry : sc.ships)
+        {
+            if (entry.landed || entry.escape_to.empty())
+                continue;
+            const int origin = sim.universe.find(entry.body);
+            if (origin < 0)
+                continue;
+            const int target = sim.universe.find(entry.escape_to);
+            const int parent = sim.universe.bodies[static_cast<std::size_t>(origin)].parent;
+            if (target < 0 || target == origin || parent < 0 ||
+                sim.universe.bodies[static_cast<std::size_t>(target)].parent != parent)
+            {
+                std::fprintf(stderr, "kosmos: scenario %s: invalid escape target \"%s\" from %s; target must orbit the same body\n",
+                             sc.id.c_str(), entry.escape_to.c_str(), entry.body.c_str());
+                return nullptr;
+            }
+        }
         sim.clear_ships();
         sim.props.set_string("/sim/weather-force", sc.weather);
         if (!sc.life_support.empty())
@@ -134,6 +151,13 @@ namespace kosmos::app
                     ship->place_on_ellipse(body, entry.altitude_km * km, entry.apoapsis_km * km, entry.phase, entry.toward.empty() ? -1 : sim.universe.find(entry.toward));
                 else
                     ship->place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
+                if (entry.has_state)
+                {
+                    const auto &r = entry.state_position;
+                    const auto &v = entry.state_velocity;
+                    const auto &q = entry.state_orientation;
+                    ship->place_relative(body, sl::dvec3(r[0], r[1], r[2]), sl::dvec3(v[0], v[1], v[2]), sl::dquat(q[0], q[1], q[2], q[3]));
+                }
             }
             else
             {
@@ -238,12 +262,14 @@ namespace kosmos::app
     {
         if (!options.scenario.empty())
             if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
-                if (Ship *flown = apply_scenario(sim, *sc, terrains))
-                {
-                    if (options.sunlit)
-                        rotate_fleet_to_sun(sim, flown);
-                    return flown;
-                }
+            {
+                Ship *flown = apply_scenario(sim, *sc, terrains);
+                if (!flown)
+                    return nullptr;
+                if (options.sunlit)
+                    rotate_fleet_to_sun(sim, flown);
+                return flown;
+            }
         sim.clear_ships();
         const kosmos::ShipSpec *spec = sim.find_ship_spec(options.ship_name);
         if (!spec)

@@ -229,6 +229,7 @@ namespace kosmos
         sol::protected_function init = modes_[static_cast<std::size_t>(mode)].table["init"];
         if (init.valid())
         {
+            lua_->execute(""); // restarts the instruction budget, which direct calls into Lua do not do
             sol::protected_function_result r = init(u.self);
             if (!r.valid())
             {
@@ -265,6 +266,7 @@ namespace kosmos
         sol::protected_function fn = modes_[static_cast<std::size_t>(u.mode)].table["button"];
         if (!fn.valid())
             return;
+        lua_->execute(""); // restarts the instruction budget, which direct calls into Lua do not do
         sol::protected_function_result r = fn(u.self, button + 1);
         if (!r.valid())
         {
@@ -282,6 +284,7 @@ namespace kosmos
             sol::protected_function fn = modes_[static_cast<std::size_t>(u.mode)].table["update"];
             if (!fn.valid())
                 continue;
+            lua_->execute(""); // restarts the instruction budget, which direct calls into Lua do not do
             sol::protected_function_result r = fn(u.self, dt);
             if (!r.valid())
             {
@@ -427,6 +430,7 @@ namespace kosmos
             sol::protected_function fn = mode->table["draw"];
             if (fn.valid())
             {
+                lua_->execute(""); // restarts the instruction budget, which direct calls into Lua do not do
                 sol::protected_function_result r = fn(u.self, std::ref(g), mfd_size, mfd_size, layout.bare);
                 if (!r.valid())
                 {

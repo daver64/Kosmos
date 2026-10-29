@@ -206,16 +206,15 @@ namespace kosmos::app
             // Unless the command line or the scenario gives a date, start on the real date and time, so the Earth is turned the way it really is.
             if (start_jd <= 0.0 && options.selftest <= 0.0)
                 start_jd = 2440587.5 + std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count() / 86400.0;
-            if (start_jd > 0.0 && options.system == 0)
+            if (start_jd > 0.0)
             {
                 sim.start_epoch_jd = start_jd;
                 std::string epoch_error;
-                if (!sim.change_system(0, epoch_error))
+                if (!sim.change_system(options.system, epoch_error))
                 {
                     std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
                     return 1;
                 }
-            
             }
         }
         if (options.selftest > 0.0)
@@ -235,7 +234,10 @@ namespace kosmos::app
             Ship *flown = start_scenario(sim, options, TerrainSet());
             if (!flown)
             {
-                std::fprintf(stderr, "No Kestrel addon found under %s\n", sim.root().c_str());
+                if (!options.scenario.empty() && sim.find_scenario(options.scenario))
+                    std::fprintf(stderr, "kosmos: unable to start scenario \"%s\"\n", options.scenario.c_str());
+                else
+                    std::fprintf(stderr, "No Kestrel addon found under %s\n", sim.root().c_str());
                 return 1;
             }
             apply_sets(sim.props, options.sets);

@@ -208,8 +208,26 @@ namespace kosmos
                 const double inc = s.inclination * pi / 180.0;
                 const sl::dvec3 prograde0(0.0, std::sin(inc), -std::cos(inc));
                 s.phase = std::atan2(glm::dot(r, prograde0), r.x) * 180.0 / pi;
+                // The circular orbit above loses the real orbit and the attitude, so keep the exact state too.
+                const sl::dquat &q = ship.body().orientation;
+                s.has_state = true;
+                s.state_position = {r.x, r.y, r.z};
+                s.state_velocity = {v.x, v.y, v.z};
+                s.state_orientation = {q.w, q.x, q.y, q.z};
             }
             sc.ships.push_back(std::move(s));
+        }
+        // Docks are stored on the later ship of each pair, pointing at the earlier one.
+        for (const std::array<int, 4> &l : sim.nav.dock_links())
+        {
+            const bool swap = l[0] > l[2];
+            const int first = swap ? l[2] : l[0], second = swap ? l[0] : l[2];
+            ScenarioShip &follower = sc.ships[static_cast<std::size_t>(second)];
+            if (follower.dock_to >= 0 || first == second)
+                continue;
+            follower.dock_to = first;
+            follower.dock_port = swap ? l[3] : l[1];
+            follower.own_port = swap ? l[1] : l[3];
         }
         return sc;
     }

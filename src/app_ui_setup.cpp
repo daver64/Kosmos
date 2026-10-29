@@ -130,6 +130,8 @@ namespace kosmos::app
         {
             vis.clear_parts();
             link_scenario = sc.id;
+            const int previous_system = sim.system_index();
+            bool world_rebuilt = false;
             // A scenario belongs to one star system (Sol unless it names another): go there first.
             {
                 const int star = sc.system.empty() ? 0 : sim.galaxy.find(sc.system);
@@ -140,24 +142,28 @@ namespace kosmos::app
                     if (!sim.change_system(star, system_error) || !enter_system())
                     {
                         std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc.system.c_str(), system_error.c_str());
+                        ship = nullptr;
                         running = false;
                         return;
                     }
+                    world_rebuilt = true;
                     map.focus = -1;
                     quantum_selected = -1;
                     gview.refresh(sim.galaxy, sim.system_index());
                 }
             }
             // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
-            if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9 && sim.system_index() == 0)
+            if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9)
             {
                 std::string epoch_error;
                 if (!change_date(sc.epoch_jd, epoch_error))
                 {
                     std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
+                    ship = nullptr;
                     running = false;
                     return;
                 }
+                world_rebuilt = true;
             }
             if (sc.fullscreen && !sl::is_fullscreen())
                 sl::set_fullscreen(true);
@@ -168,6 +174,11 @@ namespace kosmos::app
                 cockpit_view = cockpit3d = false;
                 interior_cam = base_view = user_cam = -1;
                 look_yaw = look_pitch = 0.0f;
+            }
+            else if (world_rebuilt || sim.system_index() != previous_system)
+            {
+                ship = nullptr;
+                running = false;
             }
         };
         menu_actions.restart = [&]()

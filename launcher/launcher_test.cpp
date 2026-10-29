@@ -61,7 +61,7 @@ int main()
     CHECK(scenarios.size() > 10);
     bool found = false;
     for (const ScenarioInfo &s : scenarios)
-        found = found || (s.id == "09_dragonfly_orbit" && s.category == "CVEL" && !s.ships.empty() && s.body == "Earth");
+        found = found || (s.id == "07_dragonfly_orbit" && s.category == "CVEL" && !s.ships.empty() && s.body == "Earth");
     CHECK(found);
 
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);

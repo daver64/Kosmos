@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <utility>
 #include <string>
 #include <vector>
@@ -21,6 +22,11 @@ namespace kosmos
         std::string toward;
         // When set (with `apoapsis_km` unused), the ship is on the escape hyperbola of a Hohmann departure to this planet; altitude_km is the periapsis and phase the angle past it.
         std::string escape_to;
+        // Optional exact state, written when a session is saved: position and velocity relative to the body's centre (world axes)
+        // and the orientation as w, x, y, z. It overrides the orbit above, which is kept as a fallback for older readers.
+        bool has_state = false;
+        std::array<double, 3> state_position{}, state_velocity{};
+        std::array<double, 4> state_orientation{1.0, 0.0, 0.0, 0.0};
         // With escape_to: the flight time in days, for a Lambert transfer that arrives at the planet then. Zero is a Hohmann transfer.
         double escape_days = 0.0;
         // Surface: either latitude/longitude, or the home planet's launch pad when pad is set.

@@ -505,8 +505,9 @@ namespace kosmos
          */
         void place_on_ellipse(int body, double periapsis, double apoapsis, double true_anomaly_degrees, int toward);
         /**
-         * Places the ship on an escape hyperbola about `body`, in the plane of the body's orbit, leaving prograde with the excess speed of a
-         * Hohmann transfer to the planet `toward` (or, with `flight_days`, the Lambert transfer arriving after that many days): the state just after the departure burn. `true_anomaly_degrees` is the angle past periapsis.
+         * Places the ship on an escape hyperbola about `body`, with the transfer excess velocity for a Hohmann transfer to `toward` (or,
+         * with `flight_days`, a Lambert transfer arriving after that many days): the state just after the departure burn.
+         * `true_anomaly_degrees` is the angle past periapsis.
          */
         void place_on_escape(int body, double periapsis, double true_anomaly_degrees, int toward, double flight_days = 0.0);
 

@@ -18,7 +18,7 @@
      "colour": [170, 168, 164], "orbit": {"a_km": 384400, "e": 0.0549, "i": 5.145, "raan": 125.08, "argp": 318.15, "m0": 135.27}},
     {"name": "Mars", "kind": "planet", "parent": "Sun", "gm": 4.282837e13, "radius": 3.3895e6, "spin": 7.0882e-5,
      "pole": {"ra": 317.68143, "dec": 52.8865}, "meridian": {"w0": 176.630, "rate": 350.89198226, "node_ra": 47.68143}, "terrain": "orbiter", "detail": "detail_mars.jpg", "detail_tile": 64, "detail_strength": 1.0,
-     "colour": [190, 105, 70], "atmosphere": {"density": 0.020, "scale_height": 11100.0, "colour": [210, 150, 110], "clouds": {"cover": 0.42, "height": 18000, "colour": [240, 228, 215]}},
+     "colour": [190, 105, 70], "atmosphere": {"density": 0.020, "scale_height": 11100.0, "colour": [210, 150, 110], "clouds": {"cover": 0.12, "height": 18000, "colour": [225, 215, 205]}},
      "orbit": {"a_au": 1.523679, "e": 0.093400, "i": 1.850, "raan": 49.558, "argp": 286.502, "m0": 19.373}},
     {"name": "Phobos", "kind": "moon", "parent": "Mars", "gm": 7.087e5, "radius": 1.1267e4, "synchronous": true,
      "colour": [120, 110, 100], "orbit": {"a_km": 9376, "e": 0.0151, "i": 26.0, "raan": 49.0, "argp": 150.0, "m0": 10.0}},

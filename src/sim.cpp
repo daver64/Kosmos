@@ -44,7 +44,7 @@ namespace kosmos
         root_ = root;
         system_ = std::clamp(system, 0, galaxy.size() - 1);
         galaxy.set_systems_dir(root + "/data/systems");
-        universe.epoch_override = system_ == 0 ? start_epoch_jd : 0.0;
+        universe.epoch_override = start_epoch_jd;
         if (system_ == 0 ? !universe.load(root + "/data/sol.json", error) : !universe.load_text(galaxy.system_json(system_), galaxy.star(system_).name, error))
             return false;
         universe.world.integrator = sl::FlightIntegrator::rk4;
@@ -95,7 +95,7 @@ namespace kosmos
         const std::size_t old_count = universe.bodies.size();
         const int index = std::clamp(system, 0, galaxy.size() - 1);
         Universe fresh;
-        fresh.epoch_override = index == 0 ? start_epoch_jd : 0.0;
+        fresh.epoch_override = start_epoch_jd;
         if (index == 0 ? !fresh.load(root_ + "/data/sol.json", error) : !fresh.load_text(galaxy.system_json(index), galaxy.star(index).name, error))
             return false;
         universe = std::move(fresh);

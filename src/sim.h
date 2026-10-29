@@ -49,7 +49,7 @@ namespace kosmos
 
         /** `system` is a Galaxy index: 0 loads data/sol.json, anything else is generated. */
         bool init(const std::string &root, std::string &error, int system = 0);
-        /** Julian date (UTC) the home system starts on; 0 keeps the system file's epoch (J2000). */
+        /** Julian date (UTC) systems start on; 0 keeps each system file's epoch (J2000). */
         double start_epoch_jd = 0.0;
         /** What failing life support does to new ships' crews; a scenario's own setting or --life-support replaces it. */
         LifeSupportMode life_support = LifeSupportMode::warn;
