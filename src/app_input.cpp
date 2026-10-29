@@ -351,7 +351,7 @@ namespace kosmos::app
         if (options.auto_stage)
         {
             // A scripted rocket ascent for videos: pitch over once half of the first stage's propellant is gone, drop each empty stage,
-            // and light the next stage 2 s after the last one has fallen away.
+            // and light the next stage 5 s after the last one has fallen away.
             const double throttle = std::max(options.shot_throttle, 0.0);
             if (ascent_fuel0 < 0.0 && ship->active_stage() == 0 && ship->telemetry().stage_fuel > 0.0 && ship->telemetry().thrust > 0.0)
                 ascent_fuel0 = ship->telemetry().stage_fuel;
@@ -374,7 +374,7 @@ namespace kosmos::app
             {
                 if (first_stage_clock < 0.0)
                     first_stage_clock = clock;
-                ignite_clock = clock + 2.0;
+                ignite_clock = clock + 5.0;
                 props.set_double("/controls/throttle", 0.0);
                 props.set_int("/sim/warp-index", 0);
             }

@@ -159,6 +159,8 @@ extern int screen_h;
         double cam_pitch = 0.25;
         double cam_yaw = 0.7;
         double cam_distance = 0.0;
+        bool alone = false; // --alone: with --orbit, do not place the other addon ships alongside
+        double cam_tilt = 0.0; // --cam-tilt DEG: nod the chase camera up and down by this much (for video)
         double cam_spin = 0.0; // --cam-spin DEG_PER_SEC: slowly swing the chase camera round the ship (for video)
         bool cam_sunward = false;
         /** Put the camera on the far side of the ship from the star, turned aside, so the star is in view (for pictures). */

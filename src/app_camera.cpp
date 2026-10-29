@@ -413,7 +413,10 @@ namespace kosmos::app
         }
         if (options.cam_spin != 0.0)
             cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
-        const double yaw_d = cam_yaw, pitch_d = cam_pitch;
+        static double tilt_clock = 0.0;
+        tilt_clock += frame;
+        const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(tilt_clock * 0.5);
+        const double yaw_d = cam_yaw, pitch_d = cam_pitch + tilt;
         sl::dvec3 offset_dir = (east * std::sin(yaw_d) + north * std::cos(yaw_d)) * std::cos(pitch_d) + up * std::sin(pitch_d);
         if (options.cam_sunward)
             offset_dir = glm::normalize(universe.position(0) - fb.position);

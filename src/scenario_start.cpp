@@ -305,7 +305,7 @@ namespace kosmos::app
             double phase = 0.02;
             for (const kosmos::Addon &addon : sim.addons())
                 for (const kosmos::ShipSpec &other : addon.ships)
-                    if (other.name != spec->name)
+                    if (!options.alone && other.name != spec->name)
                     {
                         sim.spawn(other)->place_in_orbit(earth, 200.0 * km, 0.0, phase);
                         phase += 0.02;

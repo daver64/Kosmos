@@ -21,13 +21,14 @@ FONT=${FONT:-/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf}
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-SHOTS='Kosmos - a spaceflight simulator|default|--scenario 07_dragonfly_orbit --clean --cam-yaw 60 --cam-pitch 15 --cam-distance 55 --cam-spin 6
-Real rockets - the Apollo 11 Saturn V|auto|--scenario 01_apollo11_saturn_v_t_minus_5 --clean --auto-stage --shot-throttle 1 --set /controls/throttle=1 --set /sim/warp-index=3 --cam-yaw 40 --cam-pitch 10 --cam-distance 500 --cam-spin 3 --record 400 --record-after-stage 5
-Fly the Deltaglider|default|--ship "CVEL Deltaglider" --orbit --clean --sunlit --cam-yaw 70 --cam-pitch 10 --cam-distance 36 --cam-spin 7
+SHOTS='Kosmos - a spaceflight simulator|default|--scenario 07_dragonfly_orbit --clean --cam-yaw 60 --cam-pitch 15 --cam-distance 55 --cam-spin 6 --cam-tilt 6
+Real rockets - the Apollo 11 Saturn V|auto|--scenario 01_apollo11_saturn_v_t_minus_5 --clean --auto-stage --shot-throttle 1 --set /controls/throttle=1 --set /sim/warp-index=3 --cam-yaw 40 --cam-pitch 10 --cam-distance 500 --cam-spin 3 --record 400 --record-after-stage 10
+Fly the Deltaglider|default|--ship "CVEL Deltaglider" --orbit --clean --sunlit --cam-yaw 70 --cam-pitch 10 --cam-distance 36 --cam-spin 7 --cam-tilt 8
 Dock, transfer, arrive - Mars departure|default|--scenario 13_dragonfly_deltaglider_mars --clean --cam-yaw 40 --cam-pitch 12 --cam-distance 50 --cam-spin -6
 Step out and walk into the base|default|--scenario 14_mare_quarters_on_foot --clean --interior-at 5.5 3.5 0 0
 Lamps, windows and live life support|default|--scenario 14_mare_quarters_on_foot --clean --interior-at 3.2 4.0 90 -5
-TECHNO Beams and sparkles|12|--ship "CVEL Deltaglider" --orbit --clean --sunlit --set /controls/weapons/primary/fire=1 --set /controls/weapons/secondary/fire=1 --cam-yaw 60 --cam-pitch 10 --cam-distance 120'
+TECHNO Beams and sparkles|10|--ship "CVEL Deltaglider" --orbit --alone --clean --sunlit --set /controls/weapons/primary/fire=1 --set /controls/weapons/secondary/fire=1 --cam-yaw 150 --cam-pitch 8 --cam-distance 220 --cam-spin 5 --cam-tilt 10
+Argo - beam weapon|15|--ship "Argo" --orbit --alone --clean --sunlit --set /controls/lighting/nav=0 --set /controls/lighting/lamps=0 --set /controls/weapons/primary/fire=1 --cam-yaw 95 --cam-pitch 6 --cam-distance 140 --cam-spin 4 --cam-tilt 8'
 
 n=0
 : >"$tmp/list.txt"
@@ -81,6 +82,6 @@ python3 "$SRC/scripts/promo-music.py" "$tmp/music.wav" "$total" "$techno_at"
 
 # The game's sound (engines, weapons) is mixed loud on top of the music; the music ducks under it a little.
 ffmpeg -nostdin -loglevel error -y -i "$tmp/video.mp4" -i "$tmp/music.wav" \
-    -filter_complex "[0:a]volume=$GAME_GAIN[g];[1:a]volume=$MUSIC_GAIN[m];[m][g]sidechaincompress=threshold=0.05:ratio=3:attack=20:release=400[md];[md][g]amix=inputs=2:normalize=0,alimiter=limit=0.95[a]" \
+    -filter_complex "[0:a]volume=$GAME_GAIN,asplit[g][g2];[1:a]volume=$MUSIC_GAIN[m];[m][g]sidechaincompress=threshold=0.05:ratio=3:attack=20:release=400[md];[md][g2]amix=inputs=2:normalize=0,alimiter=limit=0.95[a]" \
     -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -movflags +faststart "$OUT"
 echo "Wrote $OUT ($total s, techno from $techno_at s)"

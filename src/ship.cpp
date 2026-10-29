@@ -355,6 +355,7 @@ namespace kosmos
                     e.plume_width = je.value("plume_width", e.plume_width);
                     e.plume_glow = je.value("plume_glow", e.plume_glow);
                     e.plume_density = std::max(0.1, je.value("plume_density", e.plume_density));
+                    e.plume_billow = std::clamp(je.value("plume_billow", e.plume_billow), 0.0, 1.0);
                     e.hover = je.value("group", std::string("main")) == "hover";
                     e.pod = je.value("group", std::string("main")) == "pod";
                     e.air_breathing = je.value("air_breathing", false);

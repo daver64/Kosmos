@@ -663,11 +663,15 @@ namespace kosmos
         {
             const double fade = 1.0 - s.age / std::max(s.life, 1.0e-3);
             const glm::vec3 a = rel_of(s.body, s.position), b = rel_of(s.body, s.position - unit(s.velocity, sl::dvec3(0, 1, 0)) * std::max(std::min(glm::length(s.velocity) * 0.04, 4.0), static_cast<double>(glm::length(a)) * 0.006));
-            m.texture = beam_texture_;
-            m.tint = tint_of(s.colour, fade);
             const float width = std::max(s.size * 2.0f, glm::length(a) * 0.004f);
-            sl::draw_mesh(quad, strip_basis(a, b, width), m);
-            round_glow(a, width * 2.0f, s.colour, 0.3 * fade);
+            // A short streak is a hard-edged chip at distance; draw those as soft points instead.
+            if (glm::length(a - b) > width * 3.0f)
+            {
+                m.texture = beam_texture_;
+                m.tint = tint_of(s.colour, fade);
+                sl::draw_mesh(quad, strip_basis(a, b, width), m);
+            }
+            round_glow(a, width * 2.0f, s.colour, 0.3 * fade + (glm::length(a - b) > width * 3.0f ? 0.0 : 0.5 * fade));
         }
     }
 

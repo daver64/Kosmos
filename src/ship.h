@@ -39,6 +39,7 @@ namespace kosmos
         double plume_glow = 1.0;
         /** Scales how many particles the plume spawns; raise it for a big engine that looks sparse. */
         double plume_density = 1.0;
+        double plume_billow = 0.0; // 0..1: how much a hydrogen plume stays full and soft in vacuum instead of going tight and clean
         /** Thrust fades with air density (propellers, jets); such an engine does not work in a vacuum. */
         bool air_breathing = false;
         EngineType type = EngineType::rocket;

@@ -159,9 +159,11 @@ namespace kosmos::app
                 // An afterburner only lights above 80% throttle and ramps up from there.
                 const float level = kind == afterburner ? static_cast<float>((t.level - 0.8) / 0.2) : static_cast<float>(t.level);
                 // A hydrogen engine in thin air or vacuum runs a short, tight, clean plume with shock diamonds, like a scramjet's.
+                const float billow = i < engines.size() ? static_cast<float>(engines[i]->plume_billow) : 0.0f;
                 const float crisp = kind == hydrogen ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
+                const float tight = crisp * (1.0f - billow);
                 const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(vacuum)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
-                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * crisp : 1.0f);
+                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * tight : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
@@ -173,12 +175,12 @@ namespace kosmos::app
                     continue;
                 }
                 const float density = i < engines.size() ? static_cast<float>(engines[i]->plume_density) : 1.0f;
-                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * density * level * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
+                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * density * level * (kind == hydrogen ? 1.0f - 0.5f * tight : 1.0f);
                 float &carry = carry_main;
                 carry += rate * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
                 {
-                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(vacuum)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * crisp : 1.0f);
+                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(vacuum)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * tight : 1.0f);
                     const float life = (0.45f + random01() * 0.35f) * st.life;
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
@@ -189,7 +191,7 @@ namespace kosmos::app
                     p.life = life;
                     p.size = width * 0.35f * (0.75f + 0.5f * random01());
                     p.kind = static_cast<std::uint8_t>(kind);
-                    p.body = 0.55f - 0.48f * crisp;
+                    p.body = 0.55f - 0.48f * tight;
                     p.bright = bright;
                     particles.push_back(p);
                 }
