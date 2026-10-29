@@ -770,6 +770,7 @@ namespace kosmos
 
     void Ship::place_in_orbit(int body_id, double altitude, double inclination_degrees, double phase_degrees)
     {
+        gear_position_ = 0.0;
         const Body &planet = universe_.bodies[static_cast<std::size_t>(body_id)];
         const sl::FlightBody &pb = *universe_.world.body(body_id);
         sl::FlightBody &b = body();
@@ -838,6 +839,7 @@ namespace kosmos
 
     void Ship::place_on_escape(int body_id, double periapsis, double true_anomaly_degrees, int toward, double flight_days)
     {
+        gear_position_ = 0.0;
         const Body &planet = universe_.bodies[static_cast<std::size_t>(body_id)];
         const sl::FlightBody &pb = *universe_.world.body(body_id);
         sl::FlightBody &b = body();

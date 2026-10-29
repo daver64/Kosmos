@@ -212,6 +212,10 @@ namespace kosmos::app
                 options.record_seconds = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--shot-at") && i + 1 < argc)
                 options.shot_at = std::atof(argv[++i]);
+            else if (!std::strcmp(argv[i], "--auto-stage"))
+                options.auto_stage = true;
+            else if (!std::strcmp(argv[i], "--record-after-stage") && i + 1 < argc)
+                options.record_after_stage = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--autopilot"))
                 options.autopilot = true;
             else if (!std::strcmp(argv[i], "--cockpit"))
@@ -263,6 +267,8 @@ namespace kosmos::app
                 options.cam_pitch = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-yaw") && i + 1 < argc)
                 options.cam_yaw = std::atof(argv[++i]);
+            else if (!std::strcmp(argv[i], "--cam-spin") && i + 1 < argc)
+                options.cam_spin = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-fov") && i + 1 < argc)
                 options.cam_fov = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-antisun"))

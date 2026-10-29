@@ -143,6 +143,8 @@ namespace kosmos::app
                 if (entry.leak_cm2 > 0.0)
                     systems->breach(0, entry.leak_cm2);
             }
+            if (!entry.landed || entry.altitude > 0.0)
+                ship->set_gear_position(0.0);
             if (!entry.landed)
             {
                 if (!entry.escape_to.empty())
@@ -221,7 +223,7 @@ namespace kosmos::app
             sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
         sim.props.set_double("/controls/throttle", sc.throttle);
         const std::size_t flown_entry = static_cast<std::size_t>(std::min<int>(sc.active, static_cast<int>(sc.ships.size()) - 1));
-        sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude > 0.0 ? 0.0 : 1.0);
+        sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude <= 0.0 ? 1.0 : 0.0);
         sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");
         sim.props.set_bool("/autopilot/enabled", sc.autopilot);
@@ -292,10 +294,12 @@ namespace kosmos::app
                     phase += std::atan2(s.x, s.z) * 180.0 / 3.14159265358979;
                 }
             }
+            sim.props.set_double("/controls/gear", 0.0);
             ship->place_in_orbit(target, options.orbit_altitude > 0.0 ? options.orbit_altitude * km : arrival_altitude > 0.0 ? arrival_altitude : b.radius * 0.5, 0.0, phase);
         }
         else if (options.orbit_start)
         {
+            sim.props.set_double("/controls/gear", 0.0);
             ship->place_in_orbit(earth, 200.0 * km, 0.0);
             // Every other addon ship shares the orbit a few kilometres apart, so there is something to fly to and switch to.
             double phase = 0.02;

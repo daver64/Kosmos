@@ -630,7 +630,8 @@ namespace kosmos
         for (const Bolt &b : bolts_)
         {
             const WeaponLook &look = b.spec->look;
-            const sl::dvec3 dir = unit(b.velocity, sl::dvec3(0, 0, -1));
+            // The trail follows the motion relative to the shooter; the planet-relative velocity would include the orbital speed.
+            const sl::dvec3 dir = unit(b.velocity - b.carry, sl::dvec3(0, 0, -1));
             const double length = b.burst ? look.length * 0.4 : look.length;
             const glm::vec3 head = rel_of(b.body, b.position);
             const double on_screen = glm::length(head) * 0.05;

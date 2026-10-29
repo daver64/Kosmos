@@ -96,6 +96,8 @@ extern int screen_h;
         double shot_throttle = -1.0;
         /** Separate this many stages before a --shot, to photograph the upper stages. */
         int shot_stages = 0;
+        bool auto_stage = false;            // --auto-stage: drop each stage when its propellant runs out
+        double record_after_stage = 0.0;    // --record-after-stage SECONDS: with --record, end the video this long after the first staging
         /** Which 2D panel the 2D cockpit starts on (--panel N, from 0). */
         int panel = 0;
         /** Ignore the tiled Earth imagery and use the single image (--no-tiles). */
@@ -157,6 +159,7 @@ extern int screen_h;
         double cam_pitch = 0.25;
         double cam_yaw = 0.7;
         double cam_distance = 0.0;
+        double cam_spin = 0.0; // --cam-spin DEG_PER_SEC: slowly swing the chase camera round the ship (for video)
         bool cam_sunward = false;
         /** Put the camera on the far side of the ship from the star, turned aside, so the star is in view (for pictures). */
         bool cam_antisun = false;

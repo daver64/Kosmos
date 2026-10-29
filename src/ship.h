@@ -463,6 +463,7 @@ namespace kosmos
         int active_stage() const { return active_stage_; }
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
+        void set_gear_position(double p) { gear_position_ = std::clamp(p, 0.0, 1.0); }
         /** Where an engine pod points, as a fraction: 0 aft (retro), 0.5 up (hover), 1 forward. `right` picks the starboard pod. */
         /** Progress (0 to 1) of the ship's `index`th animation control. */
         double animation_position(std::size_t index) const { return index < anim_pos_.size() ? anim_pos_[index] : index < spec_.animation_controls.size() ? spec_.animation_controls[index].initial : 0.0; }

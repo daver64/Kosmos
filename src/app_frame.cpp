@@ -207,7 +207,7 @@ namespace kosmos::app
         {
             if (!record_pipe && record_frames == 0)
                 menu_actions.toggle_recording();
-            else if (clock >= options.record_seconds)
+            else if (options.record_after_stage > 0.0 ? (first_stage_clock >= 0.0 && clock >= first_stage_clock + options.record_after_stage) : clock >= options.record_seconds)
                 running = false;
         }
         if (record_pipe && sl::download_bitmap(sl::screen))

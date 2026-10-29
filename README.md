@@ -88,7 +88,10 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot |
+| `--cam-spin DEG` | Swing the chase camera round the ship at DEG degrees per second (for video) |
 | `--record SECS` | Record a video from the start for SECS seconds, then quit |
+| `--auto-stage` | Drop each stage when its propellant runs out (and return to 1x warp) |
+| `--record-after-stage SECS` | With `--record`, end the video SECS after the first staging instead of at the `--record` time |
 | `--host [PORT]` | Host a multiplayer game (default UDP port 7777) |
 | `--join HOST[:PORT]` | Join a hosted game |
 | `--name NAME` | Your name in multiplayer and the lobby |

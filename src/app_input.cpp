@@ -348,7 +348,38 @@ namespace kosmos::app
         }
         for (; options.shot_stages > 0; --options.shot_stages)
             ship->stage_once();
-        if (options.shot_throttle >= 0.0)
+        if (options.auto_stage)
+        {
+            // A scripted rocket ascent for videos: pitch over once half of the first stage's propellant is gone, drop each empty stage,
+            // and light the next stage 2 s after the last one has fallen away.
+            const double throttle = std::max(options.shot_throttle, 0.0);
+            if (ascent_fuel0 < 0.0 && ship->active_stage() == 0 && ship->telemetry().stage_fuel > 0.0 && ship->telemetry().thrust > 0.0)
+                ascent_fuel0 = ship->telemetry().stage_fuel;
+            if (pitchover_clock < 0.0 && ascent_fuel0 > 0.0 && ship->telemetry().stage_fuel < 0.5 * ascent_fuel0)
+                pitchover_clock = clock;
+            if (pitchover_clock >= 0.0)
+            {
+                props.set_string("/controls/sas", "attitude");
+                props.set_double("/controls/target-heading", 90.0);
+                props.set_double("/controls/target-pitch", std::max(40.0, 90.0 - 0.8 * (clock - pitchover_clock)));
+            }
+            if (ignite_clock >= 0.0)
+            {
+                props.set_double("/controls/throttle", clock >= ignite_clock ? throttle : 0.0);
+                if (clock >= ignite_clock)
+                    ignite_clock = -1.0;
+            }
+            else if (ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
+                     ship->telemetry().total_fuel > 1.0 && ship->stage_once())
+            {
+                if (first_stage_clock < 0.0)
+                    first_stage_clock = clock;
+                ignite_clock = clock + 2.0;
+                props.set_double("/controls/throttle", 0.0);
+                props.set_int("/sim/warp-index", 0);
+            }
+        }
+        if (options.shot_throttle >= 0.0 && !options.auto_stage)
             props.set_double("/controls/throttle", options.shot_throttle);
         auto axis = [this, on_foot](const char *plus, const char *minus) { return typing || on_foot ? 0.0 : (keys.down(plus) ? 1.0 : 0.0) - (keys.down(minus) ? 1.0 : 0.0); };
         props.set_double("/controls/pitch", axis("pitch_up", "pitch_down"));

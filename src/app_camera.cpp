@@ -34,6 +34,7 @@ namespace kosmos::app
             if (vis.reload_models() > 0 && edit_paused)
                 part_status = "Reloaded the edited mesh";
         }
+        const double time_before_step = universe.time();
         double step_dt = frame;
         bool lockstepped = false;
         if (link_server && link_server->running() && !props.get_bool("/sim/paused"))
@@ -202,7 +203,9 @@ namespace kosmos::app
             primary_was = primary;
             secondary_was = secondary;
         }
-        ship_weapons.update(arsenal_ctx, arsenal, frame * std::min(sim.current_warp(), 4.0), frame);
+        // Ships move in whole physics steps, so bolts advance by the simulated time that really passed; otherwise they drift against the muzzle by the orbital speed times the rounding.
+        const double simulated = universe.time() - time_before_step;
+        ship_weapons.update(arsenal_ctx, arsenal, simulated >= 0.0 && simulated < 1.0 ? simulated : frame * std::min(sim.current_warp(), 4.0), frame);
         {
             std::vector<kosmos::ShipWeapons::GhostShooter> shooters;
             for (const kosmos::Ghost &g : netplay.ghosts())
@@ -408,6 +411,8 @@ namespace kosmos::app
             east = carried_east;
             north = glm::cross(up, east);
         }
+        if (options.cam_spin != 0.0)
+            cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
         const double yaw_d = cam_yaw, pitch_d = cam_pitch;
         sl::dvec3 offset_dir = (east * std::sin(yaw_d) + north * std::cos(yaw_d)) * std::cos(pitch_d) + up * std::sin(pitch_d);
         if (options.cam_sunward)
