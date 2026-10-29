@@ -489,6 +489,8 @@ namespace kosmos
         sl::FlightBody &body();
         const sl::FlightBody &body() const;
         /** Power, life-support and pressure-vessel state; null for ships that declare none. */
+        /** Doors and airlock of a building with an interior. */
+        InteriorState interior_state;
         Systems *systems() { return systems_.get(); }
         const Systems *systems() const { return systems_.get(); }
         /** Whether failing life support only warns, can kill the crew (ending the flight), or is ignored. */

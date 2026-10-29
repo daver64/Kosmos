@@ -1,6 +1,7 @@
 #include "interior.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <queue>
 
@@ -8,8 +9,6 @@ namespace kosmos
 {
     namespace
     {
-        constexpr int door_cells = 4;
-
         std::uint32_t hash3(int x, int y, int z)
         {
             std::uint32_t h = static_cast<std::uint32_t>(x) * 73856093u ^ static_cast<std::uint32_t>(y) * 19349663u ^ static_cast<std::uint32_t>(z) * 83492791u;
@@ -67,6 +66,8 @@ namespace kosmos
         };
         auto set = [&](int x, int y, int z, Cell c) { in->cells_[(static_cast<std::size_t>(y) * in->nz_ + z) * in->nx_ + x] = c; };
 
+        // Windows span roughly 0.9 m to 2.1 m above the floor.
+        const int win_lo = static_cast<int>(std::ceil(0.9 / in->cell_)) + 1, win_hi = std::min(height, static_cast<int>(std::floor(2.1 / in->cell_)));
         for (int level = 0; level < levels; ++level)
             for (int z = 0; z < d; ++z)
                 for (int x = 0; x < w; ++x)
@@ -77,7 +78,9 @@ namespace kosmos
                     {
                         if (c == '#')
                             set(x, base + k, z, Cell::wall);
-                        else if ((c == 'D' || c == 'A') && k > door_cells)
+                        else if (c == 'W')
+                            set(x, base + k, z, k >= win_lo && k <= win_hi ? Cell::glass : Cell::wall);
+                        else if ((c == 'D' || c == 'A' || c == 'd') && k > door_cells)
                             set(x, base + k, z, Cell::wall);
                         else if (c == 'A')
                             set(x, base + k, z, Cell::hatch);
@@ -96,7 +99,61 @@ namespace kosmos
             offset = sl::dvec3(json["origin"][0].get<double>(), json["origin"][1].get<double>(), json["origin"][2].get<double>());
         in->origin_ = sl::dvec3(0.0, 0.0, ground_z) + offset - in->frame_ * sl::dvec3(w * in->cell_ * 0.5, -0.08, d * in->cell_ * 0.5); // floor just above the ground so the terrain does not poke through
 
+        in->door_col_.assign(static_cast<std::size_t>(w) * d, 0);
+        for (int z = 0; z < d; ++z)
+            for (int x = 0; x < w; ++x)
+                in->door_col_[static_cast<std::size_t>(z) * w + x] = ch(0, x, z) == 'd';
         in->classify();
+        in->airlock_name_ = json.value("airlock", "");
+        in->find_rooms(json, levels);
+        // A door is the 'd' columns of the bottom level; each needs a floor cell on both sides.
+        in->door_at_.assign(static_cast<std::size_t>(w) * d, -1);
+        for (int z = 0; z < d; ++z)
+            for (int x = 0; x < w; ++x)
+            {
+                if (ch(0, x, z) != 'd')
+                    continue;
+                auto floor_at = [&](int fx, int fz) { const char f = ch(0, fx, fz); return f == '.' || f == 'D' || f == 'd'; };
+                Door door;
+                door.x = x;
+                door.z = z;
+                door.along_x = floor_at(x, z - 1) && floor_at(x, z + 1);
+                door.centre = sl::dvec3((x + 0.5) * in->cell_, 0.0, (z + 0.5) * in->cell_);
+                const int ax = door.along_x ? x : x - 1, az = door.along_x ? z - 1 : z;
+                const int bx = door.along_x ? x : x + 1, bz = door.along_x ? z + 1 : z;
+                door.room_a = in->room_at(sl::dvec3((ax + 0.5) * in->cell_, 0.1, (az + 0.5) * in->cell_));
+                door.room_b = in->room_at(sl::dvec3((bx + 0.5) * in->cell_, 0.1, (bz + 0.5) * in->cell_));
+                in->door_at_[static_cast<std::size_t>(z) * w + x] = static_cast<int>(in->doors_.size());
+                in->doors_.push_back(door);
+            }
+
+        if (json.contains("lights") && json["lights"].is_array())
+            for (const nlohmann::json &lj : json["lights"])
+                if (lj.contains("pos") && lj["pos"].is_array() && lj["pos"].size() >= 3)
+                {
+                    Light light;
+                    light.pos = sl::dvec3(lj["pos"][0].get<double>(), lj["pos"][1].get<double>(), lj["pos"][2].get<double>());
+                    if (lj.contains("colour") && lj["colour"].is_array() && lj["colour"].size() >= 3)
+                        light.colour = sl::dvec3(lj["colour"][0].get<double>(), lj["colour"][1].get<double>(), lj["colour"][2].get<double>());
+                    light.intensity = lj.value("intensity", light.intensity);
+                    light.range = lj.value("range", light.range);
+                    in->lights_.push_back(light);
+                }
+        if (json.contains("mesh") && json["mesh"].is_string())
+            in->mesh_path = json["mesh"].get<std::string>();
+
+        if (json.contains("panels") && json["panels"].is_array())
+            for (const nlohmann::json &pj : json["panels"])
+            {
+                Panel panel;
+                if (!pj.contains("pos") || !pj["pos"].is_array() || pj["pos"].size() < 3)
+                    continue;
+                panel.pos = sl::dvec3(pj["pos"][0].get<double>(), pj["pos"][1].get<double>(), pj["pos"][2].get<double>());
+                const std::string face = pj.value("facing", "+z");
+                panel.normal = face == "+x" ? sl::dvec3(1, 0, 0) : face == "-x" ? sl::dvec3(-1, 0, 0) : face == "-z" ? sl::dvec3(0, 0, -1) : sl::dvec3(0, 0, 1);
+                panel.width = pj.value("width", 1.2);
+                in->panels_.push_back(panel);
+            }
 
         // The way in is the first hatch on the bottom level, entered from an open floor cell beside it.
         const double c = in->cell_;
@@ -177,7 +234,82 @@ namespace kosmos
         }
     }
 
-    bool Interior::blocked(const sl::dvec3 &feet, double radius, double height) const
+    int Interior::panel_in_view(const sl::dvec3 &eye, const sl::dvec3 &forward, double reach) const
+    {
+        int best = -1;
+        double best_dot = 0.8;
+        for (std::size_t i = 0; i < panels_.size(); ++i)
+        {
+            const sl::dvec3 to = panels_[i].pos - eye;
+            const double d = glm::length(to);
+            if (d > reach || d < 1e-6 || glm::dot(forward, panels_[i].normal) > -0.2)
+                continue;
+            const double facing = glm::dot(forward, to / d);
+            if (facing > best_dot)
+                best_dot = facing, best = static_cast<int>(i);
+        }
+        return best;
+    }
+
+    int Interior::room_at(const sl::dvec3 &p) const
+    {
+        const int x = static_cast<int>(std::floor(p.x / cell_)), z = static_cast<int>(std::floor(p.z / cell_)), y = static_cast<int>(std::floor(p.y / cell_)) + 1;
+        if (x < 0 || z < 0 || y < 0 || x >= nx_ || z >= nz_ || y >= ny_ || room_.empty())
+            return -1;
+        return room_[(static_cast<std::size_t>(y) * nz_ + z) * nx_ + x];
+    }
+
+    // Rooms are the connected pockets of enclosed air; walls, closed doors and the hatch separate them. Each is named by a "rooms" seed.
+    void Interior::find_rooms(const nlohmann::json &json, int)
+    {
+        room_.assign(cells_.size(), -1);
+        const std::vector<std::uint8_t> &door_cell = door_col_;
+        std::vector<std::pair<int, int>> seeds;
+        std::vector<std::string> names;
+        if (json.contains("rooms") && json["rooms"].is_array())
+            for (const nlohmann::json &r : json["rooms"])
+                if (r.contains("at") && r["at"].is_array() && r["at"].size() >= 2)
+                {
+                    seeds.push_back({r["at"][0].get<int>(), r["at"][1].get<int>()});
+                    names.push_back(r.value("name", ""));
+                }
+        auto idx = [&](int x, int y, int z) { return (static_cast<std::size_t>(y) * nz_ + z) * nx_ + x; };
+        int next = 0;
+        for (int y = 1; y < ny_; ++y)
+            for (int z = 0; z < nz_; ++z)
+                for (int x = 0; x < nx_; ++x)
+                {
+                    if (solid(x, y, z) || outdoor_[idx(x, y, z)] || room_[idx(x, y, z)] >= 0 || door_cell[static_cast<std::size_t>(z) * nx_ + x])
+                        continue;
+                    const int id = next++;
+                    std::queue<std::array<int, 3>> open;
+                    room_[idx(x, y, z)] = id;
+                    open.push({x, y, z});
+                    while (!open.empty())
+                    {
+                        const auto c = open.front();
+                        open.pop();
+                        const int d[6][3] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+                        for (const auto &o : d)
+                        {
+                            const int a = c[0] + o[0], b = c[1] + o[1], e = c[2] + o[2];
+                            if (a < 0 || b < 1 || e < 0 || a >= nx_ || b >= ny_ || e >= nz_ || solid(a, b, e) || room_[idx(a, b, e)] >= 0 || door_cell[static_cast<std::size_t>(e) * nx_ + a])
+                                continue;
+                            room_[idx(a, b, e)] = id;
+                            open.push({a, b, e});
+                        }
+                    }
+                }
+        room_names_.assign(static_cast<std::size_t>(next), "");
+        for (std::size_t i = 0; i < seeds.size(); ++i)
+        {
+            const int id = room_at(sl::dvec3((seeds[i].first + 0.5) * cell_, 0.1, (seeds[i].second + 0.5) * cell_));
+            if (id >= 0)
+                room_names_[static_cast<std::size_t>(id)] = names[i];
+        }
+    }
+
+    bool Interior::blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state) const
     {
         const double eps = 1e-6;
         const int x0 = static_cast<int>(std::floor((feet.x - radius) / cell_)), x1 = static_cast<int>(std::floor((feet.x + radius) / cell_));
@@ -190,11 +322,17 @@ namespace kosmos
                     // Beyond the plan is outdoors: nobody walks off the edge of the grid.
                     if (x < 0 || z < 0 || x >= nx_ || z >= nz_ || y < 0 || y >= ny_ || solid(x, y, z))
                         return true;
+                    if (state && y >= 1 && y <= door_cells && !door_at_.empty())
+                    {
+                        const int di = door_at_[static_cast<std::size_t>(z) * nx_ + x];
+                        if (di >= 0 && static_cast<std::size_t>(di) < state->door_open.size() && state->door_open[static_cast<std::size_t>(di)] < 0.75)
+                            return true;
+                    }
                 }
         return false;
     }
 
-    void Interior::build_meshes(sl::MeshData &exterior, sl::MeshData &inside) const
+    void Interior::build_meshes(sl::MeshData &exterior, sl::MeshData &inside, sl::MeshData &glass) const
     {
         const double c = cell_;
         // Per face direction (axis, sign): the two tangent axes follow the cycle so that u x v points along the normal.
@@ -211,10 +349,11 @@ namespace kosmos
                         {
                             int n[3] = {x, y, z};
                             n[axis] += sign;
-                            if (solid(n[0], n[1], n[2]))
+                            // Glass shows its faces to open air only; walls show theirs to anything but another opaque cell.
+                            if (type == Cell::glass ? solid(n[0], n[1], n[2]) : solid(n[0], n[1], n[2]) && at(n[0], n[1], n[2]) != Cell::glass)
                                 continue;
                             const bool out = outdoors(n[0], n[1], n[2]);
-                            sl::MeshData &mesh = out ? exterior : inside;
+                            sl::MeshData &mesh = type == Cell::glass ? glass : out ? exterior : inside;
                             const int ua = (axis + 1) % 3, va = (axis + 2) % 3;
                             sl::dvec3 corner(pos[0] * c, (pos[1] - 1) * c, pos[2] * c);
                             if (sign > 0)
@@ -231,7 +370,16 @@ namespace kosmos
                                 shade = axis == 1 ? (sign > 0 ? 0.8f : 0.5f) : 0.68f;
                             shade *= 0.92f + 0.08f * static_cast<float>(hash3(x, y, z) & 255u) / 255.0f;
                             float colour[3] = {0.78f, 0.8f, 0.84f};
-                            if (type == Cell::hatch)
+                            float alpha = 1.0f;
+                            if (type == Cell::glass)
+                            {
+                                colour[0] = 0.55f;
+                                colour[1] = 0.75f;
+                                colour[2] = 0.9f;
+                                alpha = 0.22f;
+                                shade = 1.0f;
+                            }
+                            else if (type == Cell::hatch)
                             {
                                 colour[0] = 0.95f;
                                 colour[1] = 0.7f;
@@ -256,7 +404,7 @@ namespace kosmos
                                     vert.normal[k] = static_cast<float>(n_ship[k]);
                                     vert.colour[k] = colour[k] * shade;
                                 }
-                                vert.colour[3] = 1.0f;
+                                vert.colour[3] = alpha;
                                 mesh.vertices.push_back(vert);
                             }
                             for (std::uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u})
@@ -281,7 +429,7 @@ namespace kosmos
         grounded = true;
     }
 
-    void InteriorWalker::step(const Interior &interior, const EvaInput &input, double gravity, double dt)
+    void InteriorWalker::step(const Interior &interior, const EvaInput &input, double gravity, double dt, const InteriorState *state)
     {
         yaw += input.yaw;
         pitch = std::clamp(pitch + input.pitch, -1.5, 1.5);
@@ -310,7 +458,7 @@ namespace kosmos
         {
             sl::dvec3 next = position;
             next[axis] += velocity[axis] * dt;
-            if (!interior.blocked(next, radius, height))
+            if (!interior.blocked(next, radius, height, state))
                 position = next;
             else
             {

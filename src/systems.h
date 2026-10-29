@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -125,6 +126,10 @@ namespace kosmos
         void set_tank_fraction(const std::string &gas, double fraction);
         void set_battery_fraction(double fraction);
         bool breach(int vessel, double area_cm2, const sl::dvec3 &at = {0.0, 0.5, 0.5});
+        /** A controllable hole from vessel `index` to vacuum (an open hatch). `key` names it so it can be changed or closed with area 0. */
+        void set_opening(int vessel, int key, double area_cm2);
+        /** A passage between two vessels (an open door): gas flows until the pressures match. Closed with area 0. */
+        void set_link(int vessel_a, int vessel_b, int key, double area_cm2);
         void set_mode(LifeSupportMode mode) { mode_ = mode; }
         LifeSupportMode mode() const { return mode_; }
 
@@ -168,6 +173,7 @@ namespace kosmos
     private:
         void solve_bus(double dt, const SystemsContext &ctx);
         void step_vessels(double dt, const SystemsContext &ctx);
+        void step_links(double dt);
         SystemComponent *find_tank(const std::string &gas);
         double take(const std::string &gas, double kg);
         double give(const std::string &gas, double kg);
@@ -180,5 +186,12 @@ namespace kosmos
         bool instruments_powered_ = true;
         double supply_w_ = 0.0, demand_w_ = 0.0;
         std::vector<std::string> alarms_;
+        std::map<std::pair<int, int>, double> openings_; // (vessel, key) -> area_cm2
+        struct Link
+        {
+            int a = 0, b = 0;
+            double area_cm2 = 0.0;
+        };
+        std::map<int, Link> links_;
     };
 } // namespace kosmos

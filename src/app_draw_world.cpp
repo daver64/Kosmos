@@ -48,6 +48,25 @@ namespace kosmos::app
                 environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / vis));
         }
 
+        if (in_eva && eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior &&
+            !sim.ship(eva.building)->spec().interior->panels().empty() && !sim.ship(eva.building)->spec().cockpit.controls.empty())
+        {
+            // Wall panels show the building's interface, drawn live into a texture.
+            const Ship &bld = *sim.ship(eva.building);
+            const kosmos::Cockpit pcp = resolved_cockpit(bld.spec().cockpit, eva.building);
+            const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
+            if (!panel_target || wanted != panel_target_height)
+                panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
+            if (panel_target)
+                panel_target->smooth = true;
+            if (panel_target && sl::begin_render_target(panel_target))
+            {
+                sl::clear_render_target({18, 20, 26, 255});
+                draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(bld.spec().directory) / pcp.panel_image).string(),
+                           0.0f, 0.0f, static_cast<float>(panel_target_width) / pcp.panel_width);
+                sl::end_render_target();
+            }
+        }
         if (in_cockpit3d)
         {
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();

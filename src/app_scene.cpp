@@ -572,14 +572,104 @@ namespace kosmos::app
             if (other.spec().interior)
             {
                 const Visuals::InteriorMeshes &rooms = vis.interior_meshes(*other.spec().interior);
+                const kosmos::Interior &shell_room = *other.spec().interior;
+                const bool inside_here = eva.active && eva.building == s;
+                const bool powered = !other.systems() || other.systems()->powered();
                 sl::Material shell;
                 shell.cull = sl::CullMode::back;
-                if (rooms.outside)
-                    sl::draw_mesh(rooms.outside, model, shell);
-                shell.lit = false;
-                shell.fog = false;
-                if (rooms.inside)
-                    sl::draw_mesh(rooms.inside, model, shell);
+                // From inside, the room is lit by its own lamps (and a dim glow when the bus is dead) instead of the Sun.
+                const sl::Light3D saved_light = sl::get_light_3d();
+                const std::vector<sl::LocalLight3D> saved_lamps = sl::get_local_lights_3d();
+                if (inside_here)
+                {
+                    sl::Light3D dim;
+                    dim.ambient = powered ? 0.22f : 0.06f;
+                    dim.colour = glm::vec3(0.0f);
+                    sl::set_light_3d(dim);
+                    std::vector<sl::LocalLight3D> room_lamps;
+                    if (powered)
+                        for (const kosmos::Interior::Light &l : shell_room.lights())
+                        {
+                            sl::LocalLight3D lamp;
+                            lamp.position = glm::vec3(model * glm::vec4(glm::vec3(shell_room.to_ship(l.pos)), 1.0f));
+                            lamp.colour = glm::vec3(l.colour);
+                            lamp.intensity = static_cast<float>(l.intensity);
+                            lamp.range = static_cast<float>(l.range);
+                            room_lamps.push_back(lamp);
+                        }
+                    sl::set_local_lights_3d(room_lamps);
+                }
+                if (rooms.model)
+                {
+                    const glm::mat4 place = model * glm::translate(glm::mat4(1.0f), glm::vec3(shell_room.to_ship(sl::dvec3(0.0)))) *
+                                            glm::mat4(glm::mat3(glm::vec3(shell_room.dir_to_ship({1, 0, 0})), glm::vec3(shell_room.dir_to_ship({0, 1, 0})), glm::vec3(shell_room.dir_to_ship({0, 0, 1}))));
+                    sl::draw_model(rooms.model, place);
+                }
+                else
+                {
+                    if (rooms.outside)
+                        sl::draw_mesh(rooms.outside, model, shell);
+                    if (inside_here)
+                        shell.lit = true;
+                    else
+                    {
+                        shell.lit = false;
+                        shell.tint = {170, 170, 170, 255};
+                    }
+                    shell.fog = false;
+                    if (rooms.inside)
+                        sl::draw_mesh(rooms.inside, model, shell);
+                    if (rooms.glass)
+                    {
+                        sl::Material pane;
+                        pane.lit = false;
+                        pane.fog = false;
+                        pane.blend = sl::MaterialBlend::alpha;
+                        sl::draw_mesh(rooms.glass, model, pane);
+                    }
+                }
+                if (inside_here)
+                {
+                    sl::set_light_3d(saved_light);
+                    sl::set_local_lights_3d(saved_lamps);
+                }
+                {
+                    const kosmos::Interior &room = *other.spec().interior;
+                    sl::Material slab;
+                    slab.lit = false;
+                    slab.fog = false;
+                    slab.tint = {96, 116, 140, 255};
+                    const glm::mat3 axes(glm::vec3(room.dir_to_ship({1, 0, 0})), glm::vec3(room.dir_to_ship({0, 1, 0})), glm::vec3(room.dir_to_ship({0, 0, 1})));
+                    const double dh = room.door_height(), c = room.cell();
+                    for (std::size_t di = 0; di < room.doors().size() && di < other.interior_state.door_open.size(); ++di)
+                    {
+                        const kosmos::Interior::Door &door = room.doors()[di];
+                        const double open = other.interior_state.door_open[di], shown = dh * (1.0 - open);
+                        if (shown < 0.02)
+                            continue;
+                        const sl::dvec3 mid = door.centre + sl::dvec3(0.0, dh - shown * 0.5, 0.0);
+                        const glm::vec3 size = door.along_x ? glm::vec3(static_cast<float>(c), static_cast<float>(shown), static_cast<float>(c * 0.3)) : glm::vec3(static_cast<float>(c * 0.3), static_cast<float>(shown), static_cast<float>(c));
+                        sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), glm::vec3(room.to_ship(mid))) * glm::mat4(axes) * glm::scale(glm::mat4(1.0f), size), slab);
+                    }
+                }
+                if (panel_target && in_eva && eva.building == s && !other.spec().cockpit.controls.empty())
+                {
+                    const kosmos::Cockpit &cp = other.spec().cockpit;
+                    const double aspect = cp.panel_height / cp.panel_width;
+                    sl::Material board;
+                    board.texture = panel_target;
+                    board.lit = false;
+                    board.fog = false;
+                    board.cull = sl::CullMode::none;
+                    for (const kosmos::Interior::Panel &pn : other.spec().interior->panels())
+                    {
+                        const sl::dvec3 right = glm::cross(sl::dvec3(0.0, 1.0, 0.0), pn.normal);
+                        const glm::mat3 basis(glm::vec3(other.spec().interior->dir_to_ship(right)), glm::vec3(other.spec().interior->dir_to_ship(sl::dvec3(0.0, 1.0, 0.0))), glm::vec3(other.spec().interior->dir_to_ship(pn.normal)));
+                        const glm::vec3 centre = glm::vec3(other.spec().interior->to_ship(pn.pos + pn.normal * 0.02));
+                        const float w = static_cast<float>(pn.width);
+                        sl::draw_mesh(vis.screen_quad, model * glm::translate(glm::mat4(1.0f), centre) * glm::mat4(basis) * glm::scale(glm::mat4(1.0f), glm::vec3(w, static_cast<float>(w * aspect), 1.0f)), board);
+                    }
+                }
             }
             if (!((in_cockpit || in_interior) && &other == ship))
                 draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);

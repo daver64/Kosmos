@@ -262,11 +262,17 @@ namespace kosmos
             if (spec.building() && json.contains("interior"))
             {
                 std::string error;
-                spec.interior = Interior::parse(json["interior"], !spec.horizontal, spec.door.z, error);
-                if (!spec.interior)
+                std::shared_ptr<Interior> parsed = Interior::parse(json["interior"], !spec.horizontal, spec.door.z, error);
+                if (!parsed)
                     std::fprintf(stderr, "[kosmos] %s: %s\n", file.c_str(), error.c_str());
-                else if (!json.contains("door"))
-                    spec.door = spec.interior->door_ship();
+                else
+                {
+                    if (!parsed->mesh_path.empty())
+                        parsed->mesh_path = (std::filesystem::path(file).parent_path() / parsed->mesh_path).string();
+                    if (!json.contains("door"))
+                        spec.door = parsed->door_ship();
+                    spec.interior = parsed;
+                }
             }
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);

@@ -254,6 +254,18 @@ namespace kosmos::app
             if (eva.active)
             {
                 const int door = building_at_door();
+                if (eva.building >= 0 && interior_panel >= 0)
+                {
+                    // Use the panel: the building's own interface, with Enter to step back.
+                    panel_return = eva.building;
+                    eva.active = false;
+                    sim.activate(eva.building);
+                    ship = sim.active_ship();
+                    cockpit_view = ship->spec().cockpit.present;
+                    cockpit3d = false;
+                    look_yaw = look_pitch = 0.0f;
+                    return;
+                }
                 if (eva.building >= 0)
                 {
                     Ship *inside = sim.ship(eva.building);
@@ -261,6 +273,21 @@ namespace kosmos::app
                     {
                         sim.log("Go to the airlock hatch to leave");
                         return;
+                    }
+                    if (!inside->spec().interior->airlock_name().empty())
+                    {
+                        if (!in_airlock)
+                        {
+                            sim.log("The way out is through the airlock");
+                            return;
+                        }
+                        if (room_kpa > kosmos::airlock_safe_kpa)
+                        {
+                            inside->interior_state.airlock = kosmos::InteriorState::Airlock::venting;
+                            sim.log("Airlock depressurising: wait, then press Enter again");
+                            return;
+                        }
+                        inside->interior_state.airlock = kosmos::InteriorState::Airlock::vacuum;
                     }
                     const kosmos::Telemetry &bt = inside->telemetry();
                     const sl::dvec3 spot = door_world(*inside);
@@ -274,6 +301,11 @@ namespace kosmos::app
                 {
                     eva.building = door;
                     walker.place(*sim.ship(door)->spec().interior);
+                    if (sim.ship(door)->interior_state.airlock == kosmos::InteriorState::Airlock::vacuum)
+                    {
+                        sim.ship(door)->interior_state.airlock = kosmos::InteriorState::Airlock::normal;
+                        sim.log("Airlock repressurising");
+                    }
                     eva_look_yaw = eva_look_pitch = 0.0;
                     sim.log("Inside " + sim.ship(door)->name + ": Enter at the airlock hatch to go out");
                     return;
@@ -295,6 +327,16 @@ namespace kosmos::app
             Ship *flown = sim.active_ship();
             if (!flown)
                 return;
+            if (flown->spec().building() && panel_return >= 0 && panel_return < sim.ship_count() && sim.ship(panel_return) == flown && flown->spec().interior)
+            {
+                eva.active = true;
+                eva.building = panel_return;
+                panel_return = -1;
+                cockpit_view = cockpit3d = false;
+                eva_look_yaw = eva_look_pitch = 0.0;
+                return;
+            }
+            panel_return = -1;
             if (flown->spec().building())
             {
                 const kosmos::Telemetry &bt = flown->telemetry();

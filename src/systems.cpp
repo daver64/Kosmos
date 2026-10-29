@@ -354,6 +354,26 @@ namespace kosmos
         return true;
     }
 
+    void Systems::set_opening(int index, int key, double area_cm2)
+    {
+        if (index < 0 || index >= static_cast<int>(vessels_.size()))
+            return;
+        if (area_cm2 > 0.0)
+            openings_[{index, key}] = area_cm2;
+        else
+            openings_.erase({index, key});
+    }
+
+    void Systems::set_link(int a, int b, int key, double area_cm2)
+    {
+        if (a < 0 || b < 0 || a == b || a >= static_cast<int>(vessels_.size()) || b >= static_cast<int>(vessels_.size()))
+            return;
+        if (area_cm2 > 0.0)
+            links_[key] = {a, b, area_cm2};
+        else
+            links_.erase(key);
+    }
+
     float Systems::grid_cell(int vessel, int x, int y, int z, int gas) const
     {
         if (vessel < 0 || vessel >= static_cast<int>(vessels_.size()) || !vessels_[static_cast<std::size_t>(vessel)].grid)
@@ -506,6 +526,28 @@ namespace kosmos
             }
     }
 
+    // Open doors mix two vessels toward the same gas density, so the pressures and the air itself even out.
+    void Systems::step_links(double dt)
+    {
+        for (const auto &entry : links_)
+        {
+            Vessel &a = vessels_[static_cast<std::size_t>(entry.second.a)], &b = vessels_[static_cast<std::size_t>(entry.second.b)];
+            if (!a.alive || !b.alive || a.volume <= 0.0 || b.volume <= 0.0)
+                continue;
+            const double k = entry.second.area_cm2 * 1e-4 * 170.0 / std::min(a.volume, b.volume);
+            const double mix = 1.0 - std::exp(-k * dt);
+            auto share = [&](double &ma, double &mb) {
+                const double target_a = (ma + mb) * a.volume / (a.volume + b.volume);
+                const double move = (target_a - ma) * mix;
+                ma += move;
+                mb -= move;
+            };
+            share(a.o2, b.o2);
+            share(a.n2, b.n2);
+            share(a.co2, b.co2);
+        }
+    }
+
     void Systems::step_vessels(double dt, const SystemsContext &ctx)
     {
         for (std::size_t vi = 0; vi < vessels_.size(); ++vi)
@@ -557,9 +599,13 @@ namespace kosmos
                 }
             }
 
-            if (v.leak_k > 0.0)
+            double hatch_k = 0.0;
+            for (const auto &opening : openings_)
+                if (opening.first.first == static_cast<int>(vi) && v.volume > 0.0)
+                    hatch_k += opening.second * 1e-4 * 170.0 / v.volume;
+            if (v.leak_k + hatch_k > 0.0)
             {
-                const double keep = std::exp(-v.leak_k * dt);
+                const double keep = std::exp(-(v.leak_k + hatch_k) * dt);
                 v.o2 *= keep;
                 v.n2 *= keep;
                 v.co2 *= keep;
@@ -590,6 +636,7 @@ namespace kosmos
                     crew_lost_ = true;
             }
         }
+        step_links(dt);
     }
 
     void Systems::step(double dt, const SystemsContext &ctx)

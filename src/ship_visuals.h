@@ -48,7 +48,8 @@ namespace kosmos::app
         }
         struct InteriorMeshes
         {
-            sl::Mesh *outside = nullptr, *inside = nullptr;
+            sl::Mesh *outside = nullptr, *inside = nullptr, *glass = nullptr;
+            sl::Model *model = nullptr; // a modder's mesh, which replaces the generated walls
         };
         std::map<const kosmos::Interior *, InteriorMeshes> interiors;
         const InteriorMeshes &interior_meshes(const kosmos::Interior &interior)
@@ -56,9 +57,20 @@ namespace kosmos::app
             auto found = interiors.find(&interior);
             if (found != interiors.end())
                 return found->second;
-            sl::MeshData outside, inside;
-            interior.build_meshes(outside, inside);
+            sl::MeshData outside, inside, glass;
+            interior.build_meshes(outside, inside, glass);
             InteriorMeshes made;
+            if (!glass.indices.empty())
+                made.glass = sl::create_mesh(glass.vertices, glass.indices);
+            if (!interior.mesh_path.empty())
+            {
+                made.model = sl::load_model(interior.mesh_path);
+                if (!made.model)
+                    std::fprintf(stderr, "[kosmos] cannot load interior mesh %s: %s\n", interior.mesh_path.c_str(), sl::last_error().c_str());
+                else
+                    for (sl::ModelPart &mp : made.model->parts)
+                        mp.material.cull = sl::CullMode::none;
+            }
             if (!outside.indices.empty())
                 made.outside = sl::create_mesh(outside.vertices, outside.indices);
             if (!inside.indices.empty())

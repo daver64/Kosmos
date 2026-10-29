@@ -99,8 +99,17 @@ namespace kosmos::app
                 const double distance = glm::length(rel);
                 if (distance > 300.0)
                     continue;
-                if (s == building_at_door())
+                if (eva.building == s && interior_panel >= 0)
+                    sl::gprintf_center(screen_h / 2 + 70, {120, 255, 150}, "Press Enter to use the panel");
+                else if (s == building_at_door() && eva.building == s && !sim.ship(s)->spec().interior->airlock_name().empty())
+                {
+                    if (in_airlock)
+                        sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, room_kpa > kosmos::airlock_safe_kpa ? "Press Enter to depressurise and go out" : "Press Enter to go outside");
+                }
+                else if (s == building_at_door())
                     sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, eva.building == s ? "Press Enter to go outside" : "Press Enter to go into %s", sim.ship(s)->name.c_str());
+                if (eva.building == s && room_kpa >= 0.0)
+                    sl::gprintf_center(screen_h / 2 + 130, {160, 210, 255}, "%s  %.0f kPa", room_label.empty() ? "Room" : room_label.c_str(), room_kpa);
                 float x = 0.0f, y = 0.0f;
                 if (distance < 1.0 || !project(view_proj, glm::vec3(rel / distance * 1000.0), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
                     continue;

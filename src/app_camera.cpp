@@ -59,6 +59,9 @@ namespace kosmos::app
         }
         lua_console.tick(frame);
         ship = sim.active_ship();
+        for (int i = 0; i < sim.ship_count(); ++i)
+            if (sim.ship(i)->spec().interior)
+                kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walker.position : nullptr, frame);
         if (eva.active)
         {
             kosmos::EvaInput in;
@@ -109,13 +112,27 @@ namespace kosmos::app
             const bool indoors = eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior;
             if (eva.building >= 0 && !indoors)
                 eva.building = -1;
+            if (!indoors)
+            {
+                interior_panel = -1;
+                in_airlock = false;
+                room_kpa = -1.0;
+                room_label.clear();
+            }
             if (indoors)
             {
                 const Ship &bld = *sim.ship(eva.building);
                 const kosmos::Interior &room = *bld.spec().interior;
                 const kosmos::Body &here = sim.universe.bodies[static_cast<std::size_t>(eva.body)];
                 const double g = here.gm / std::max(1.0, glm::dot(eva.position, eva.position));
-                walker.step(room, in, g, frame);
+                walker.step(room, in, g, frame, &bld.interior_state);
+                interior_panel = room.panel_in_view(walker.eye(), walker.forward(), 2.5);
+                {
+                    const int here = room.room_at(walker.position + sl::dvec3(0.0, 0.1, 0.0));
+                    room_kpa = kosmos::room_pressure_kpa(bld, here);
+                    room_label = here >= 0 ? room.room_name(here) : "";
+                    in_airlock = here >= 0 && !room.airlock_name().empty() && room.room_name(here) == room.airlock_name();
+                }
                 // Mirror the walker into the astronaut so the camera, HUD and weapons work as outdoors.
                 const sl::FlightBody &pb = *sim.universe.world.body(eva.body);
                 auto world_dir = [&](const sl::dvec3 &d) { return bld.body().direction_to_world(room.dir_to_ship(d)); };

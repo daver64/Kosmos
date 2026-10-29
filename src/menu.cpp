@@ -1157,7 +1157,7 @@ namespace kosmos
                                    "  Tab / N          map / galaxy map\n"
                                    "Time\n"
                                    "  , .              slower / faster time warp\n"
-                                   "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door)\n"
+                                   "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door; inside, face a wall panel and Enter to use it, and leave through the airlock hatch)\n"
                                    "  W A S D          walk / strafe       Shift   boost\n"
                                    "  Space jump  Ctrl crouch              Mouse or arrows   look (` or Alt frees the mouse)\n"
                                    "  F                manoeuvring pack on / off (airless worlds, orbit)\n"

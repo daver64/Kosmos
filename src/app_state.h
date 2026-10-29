@@ -22,6 +22,7 @@
 #include "usercam.h"
 #include "eva.h"
 #include "interior.h"
+#include "interior_runtime.h"
 #include "eva_solids.h"
 #include "ordnance.h"
 #include "ship_weapons.h"
@@ -173,6 +174,11 @@ namespace kosmos::app
         float look_yaw{};
         float look_pitch{};
         kosmos::InteriorWalker walker;
+        int panel_return{-1}; // index of the building whose panel is open from inside; Enter returns to walking there
+        bool in_airlock{};     // the walker stands in the airlock room
+        double room_kpa{-1.0}; // pressure of the room the walker is in, or negative
+        std::string room_label;
+        int interior_panel{-1}; // the wall panel the walker is facing, or -1
         double eva_look_yaw{};
         double eva_look_pitch{};
         sl::dvec3 eye_shift;
