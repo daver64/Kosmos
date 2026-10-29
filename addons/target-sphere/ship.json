@@ -5,6 +5,7 @@
  "max_rate": 0.2,
  "rcs_thrust": 1,
  "drag_area": 1,
+ "hit_sphere": true,
  "camera_distance": 160,
  "shield": {"capacity": 40, "recharge": 40, "delay": 0.5, "colour": [255, 170, 60]},
  "stages": [

@@ -75,6 +75,8 @@ while IFS='|' read -r caption secs tag options; do
         # recording time t+1 is app time; T-minus counts down to the launch, then T-plus counts up until the cut
         overlay="$overlay,drawtext=fontfile=$FONT:text='T-%{eif\\:max(0\\,ceil($launch-t-1))\\:d}':fontsize=h/8:fontcolor=white:borderw=4:bordercolor=black@0.7:x=w-tw-w/25:y=h/12:enable='lt(t+1,$launch)'"
         overlay="$overlay,drawtext=fontfile=$FONT:text='T+%{eif\\:floor(t+1-$launch)\\:d}':fontsize=h/8:fontcolor=white:borderw=4:bordercolor=black@0.7:x=w-tw-w/25:y=h/12:enable='between(t+1,$launch,$head+1)'"
+        # the cut after staging jumps ahead in app time, so the clock carries on from where the kept tail begins
+        [ -n "$tstart" ] && overlay="$overlay,drawtext=fontfile=$FONT:text='T+%{eif\\:floor($tstart+t-$head-$launch)\\:d}':fontsize=h/8:fontcolor=white:borderw=4:bordercolor=black@0.7:x=w-tw-w/25:y=h/12:enable='gt(t+1,$head+1)'"
     fi
     # keep the game's own sound, or silence if the clip has none
     if ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 "$clip" | grep -q audio; then

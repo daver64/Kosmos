@@ -254,6 +254,7 @@ namespace kosmos
         double rcs_thrust = 0.0;
         /** Cd * A for the whole stack in m^2. */
         double drag_area = 10.0;
+        bool hit_sphere = false; // weapons hit a sphere of the stage radius instead of the bounding box
         /** Camera distance that frames the ship. */
         double camera_distance = 60.0;
         /** Point in the ship frame the external camera orbits and looks at; unset means the centre of mass. */

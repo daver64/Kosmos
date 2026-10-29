@@ -543,6 +543,7 @@ namespace kosmos
             Ship *ship;
             double z_min, z_max, radius;
             sl::dvec3 drift; // how far the ship moved over the step
+            bool sphere = false;
         };
         std::vector<Candidate> targets;
         for (int i = 0; i < sim.ship_count(); ++i)
@@ -551,7 +552,7 @@ namespace kosmos
             // A target in its last moments no longer stops fire
             if (s == ignore || s->telemetry().soi != body || s->health() < 0.1)
                 continue;
-            Candidate c{s, 0, 0, 0, sl::dvec3(0.0)};
+            Candidate c{s, 0, 0, 0, sl::dvec3(0.0), s->spec().hit_sphere};
             ship_box(*s, c.z_min, c.z_max, c.radius);
             const sl::FlightBody *planet_body = universe.world.body(body);
             if (step > 0.0 && planet_body)
@@ -575,7 +576,9 @@ namespace kosmos
             for (const Candidate &c : targets)
             {
                 const sl::dvec3 local = c.ship->body().to_local(planet + p + c.drift * back) + c.ship->com_offset();
-                if (std::fabs(local.x) <= c.radius + 0.3 && std::fabs(local.y) <= c.radius + 0.3 && local.z >= c.z_min - 0.3 && local.z <= c.z_max + 0.3)
+                const bool inside = c.sphere ? glm::length(local - sl::dvec3(0.0, 0.0, 0.5 * (c.z_min + c.z_max))) <= c.radius + 0.3
+                                             : std::fabs(local.x) <= c.radius + 0.3 && std::fabs(local.y) <= c.radius + 0.3 && local.z >= c.z_min - 0.3 && local.z <= c.z_max + 0.3;
+                if (inside)
                 {
                     hit.kind = Hit::ship;
                     hit.point = p;
@@ -612,6 +615,15 @@ namespace kosmos
             if (inside(b))
                 continue;
             const sl::dvec3 d = (b - a) * reach;
+            if (s->spec().hit_sphere)
+            {
+                const sl::dvec3 centre(0.0, 0.0, 0.5 * (z_min + z_max));
+                const double len2 = glm::dot(d, d);
+                const double u = len2 > 1.0e-12 ? std::clamp(glm::dot(centre - a, d) / len2, 0.0, 1.0) : 0.0;
+                if (glm::length(a + d * u - centre) <= radius)
+                    return true;
+                continue;
+            }
             const double low[3] = {-radius, -radius, z_min}, high[3] = {radius, radius, z_max};
             double t0 = 0.0, t1 = 1.0;
             bool miss = false;

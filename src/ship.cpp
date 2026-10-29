@@ -209,6 +209,7 @@ namespace kosmos
             spec.max_rate = json.value("max_rate", spec.max_rate);
             spec.rcs_thrust = json.value("rcs_thrust", 0.0);
             spec.drag_area = json.value("drag_area", spec.drag_area);
+            spec.hit_sphere = json.value("hit_sphere", spec.hit_sphere);
             spec.inertia = vec3(json.value("inertia", nlohmann::json()), spec.inertia);
             spec.damping = vec3(json.value("damping", nlohmann::json()), spec.damping);
             for (const nlohmann::json &jl : json.value("lights", nlohmann::json::array()))
