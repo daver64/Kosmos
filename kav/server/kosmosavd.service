@@ -1,0 +1,16 @@
+[Unit]
+Description=KosmosAV server
+After=network.target
+
+[Service]
+User=kav
+EnvironmentFile=-/etc/default/kosmosav
+ExecStart=/opt/kosmosav/kosmosavd --db /var/lib/kosmosav/kav.db --data /var/lib/kosmosav/img --registry /opt/kosmosav/registry.txt --base /kosmos/kav/app $KAV_OPTS 
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/kosmosav
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

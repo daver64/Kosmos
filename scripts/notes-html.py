@@ -22,6 +22,7 @@ page = """<!DOCTYPE html>
     <a href="sdk.html">SDK manual</a>
     <a href="developers.html">Developers manual</a>
     <a href="download.html">Download</a>
+    <a href="kav/index.html">KosmosAV</a>
   </nav>
 </header>
 <main class="wrap" style="max-width:860px;margin:40px auto;padding:0 24px">
