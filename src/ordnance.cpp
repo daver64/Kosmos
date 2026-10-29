@@ -548,7 +548,8 @@ namespace kosmos
         for (int i = 0; i < sim.ship_count(); ++i)
         {
             Ship *s = sim.ship(i);
-            if (s == ignore || s->telemetry().soi != body)
+            // A target in its last moments no longer stops fire
+            if (s == ignore || s->telemetry().soi != body || s->health() < 0.1)
                 continue;
             Candidate c{s, 0, 0, 0, sl::dvec3(0.0)};
             ship_box(*s, c.z_min, c.z_max, c.radius);
@@ -601,7 +602,7 @@ namespace kosmos
         for (int i = 0; i < sim.ship_count(); ++i)
         {
             Ship *s = sim.ship(i);
-            if (s->telemetry().soi != body)
+            if (s->telemetry().soi != body || s->health() < 0.1)
                 continue;
             double z_min, z_max, radius;
             ship_box(*s, z_min, z_max, radius);

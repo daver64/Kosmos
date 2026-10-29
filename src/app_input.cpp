@@ -400,7 +400,24 @@ namespace kosmos::app
             }
         }
         for (; set_at_done < options.set_at.size() && clock >= options.set_at[set_at_done].first; ++set_at_done)
+        {
+            {
+                const std::string &assignment = options.set_at[set_at_done].second;
+                const std::size_t eq = assignment.find('=');
+                if (eq != std::string::npos)
+                    for (const char *axis_name : {"pitch", "yaw", "roll", "rcs-x", "rcs-y", "rcs-z"})
+                        if (assignment.substr(0, eq) == std::string("/controls/") + axis_name)
+                            held_axes[axis_name] = std::atof(assignment.c_str() + eq + 1);
+            }
             apply_sets(props, {options.set_at[set_at_done].second});
+        }
+        if (options.drop_at >= 0.0)
+            while (drops_done < options.drop_count && clock >= options.drop_at + drops_done * options.drop_interval)
+            {
+                if (Ship *flown = sim.active_ship())
+                    arsenal.release(arsenal_ctx, *flown, 0);
+                ++drops_done;
+            }
         if (options.shot_throttle >= 0.0 && !options.auto_stage)
             props.set_double("/controls/throttle", options.shot_throttle);
         auto axis = [this, on_foot](const char *plus, const char *minus) { return typing || on_foot ? 0.0 : (keys.down(plus) ? 1.0 : 0.0) - (keys.down(minus) ? 1.0 : 0.0); };
@@ -432,6 +449,8 @@ namespace kosmos::app
         }
         props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis("rcs_right", "rcs_left"));
         props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis("rcs_up", "rcs_down"));
+        for (const auto &[name, value] : held_axes)
+            props.set_double("/controls/" + name, value);
         if (joystick.learning())
             joystick.poll_learn();
         else if (!typing && !on_foot)

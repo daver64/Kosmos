@@ -82,7 +82,8 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--render-style normal\|flat\|wireframe` | Shading style (flat and wireframe are much cheaper on slow or software graphics) |
 | `--stars` | Print the 20 nearest stars and exit |
 | `--galaxy-map` | Start in the galaxy map |
-| `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit |
+| `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit (`--orbit-alt` also lifts a scenario's circular orbits) |
+| `--sunlit`, `--sun-angle DEG` | Start on the Sun side of the planet; with `--sun-angle`, DEG round from there (about 70 gives a planet two thirds lit) |
 | `--max-texture N` | Largest body texture accepted (default 16384; halved until the GPU accepts it) |
 | `--gl`, `--vulkan`, `--d3d12` | Choose the graphics backend (D3D12 is Windows only). Vulkan prefers a discrete GPU (`SIMLIB_VULKAN_DEVICE_TYPE=discrete\|integrated\|any` overrides); the chosen GPU is printed at startup |
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
@@ -90,9 +91,11 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot |
 | `--alone` | With `--orbit`, leave out the other addon ships that normally share the orbit |
 | `--cam-tilt DEG` | Nod the chase camera up and down by up to DEG degrees (for video) |
+| `--cam-dolly M` | Move the chase camera away from the ship at M metres per second (negative moves in), for video |
 | `--cam-spin DEG` | Swing the chase camera round the ship at DEG degrees per second (for video) |
 | `--record SECS` | Record a video from the start for SECS seconds, then quit |
 | `--auto-stage` | Scripted ascent for video: pitch over at half the first stage's propellant, drop each empty stage and light the next 5 s later (and return to 1x warp) |
+| `--drop SECS COUNT INTERVAL` | Release COUNT bombs from the first hardpoint, one every INTERVAL seconds from SECS (a scripted ripple drop for video) |
 | `--launch-at SECS` | With `--auto-stage`, hold the throttle at zero until SECS, then light the engines with a thump and ramp thrust up over 3 s |
 | `--scenario-file PATH` | Start from a scenario file outside the scenario folders |
 | `--set-at SECS PATH=VALUE` | Set a property once SECS into the run (repeatable) |

@@ -1,0 +1,23 @@
+{
+ "name": "Promo: Dragonfly and Deltaglider docked over Mars",
+ "description": "The Dragonfly tug with a Deltaglider docked to its nose in a circular orbit round Mars, for the promo video.",
+ "active": 0,
+ "date": "2014-09-22 02:00:00",
+ "target": "Mars",
+ "set": {
+  "/controls/anim/dock-latch": 1
+ },
+ "ships": [
+  {
+   "ship": "CVEL Dragonfly",
+   "body": "Mars",
+   "orbit": { "altitude_km": 2500, "inclination": 0, "phase": 0 }
+  },
+  {
+   "ship": "CVEL Deltaglider",
+   "body": "Mars",
+   "dock": { "to": 0, "port": 0, "own_port": 0 },
+   "orbit": { "altitude_km": 2500, "inclination": 0, "phase": 0 }
+  }
+ ]
+}

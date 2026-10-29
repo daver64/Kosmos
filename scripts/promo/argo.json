@@ -1,0 +1,17 @@
+{
+ "name": "Promo: Argo and target",
+ "description": "An Argo in a 200 km orbit with a target sphere 500 m ahead, for the promo video's weapons shots.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Argo",
+   "body": "Earth",
+   "orbit": { "altitude_km": 200, "inclination": 0, "phase": 0 }
+  },
+  {
+   "ship": "Target sphere",
+   "body": "Earth",
+   "orbit": { "altitude_km": 200, "inclination": 0, "phase": 0.0044 }
+  }
+ ]
+}

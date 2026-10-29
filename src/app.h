@@ -162,8 +162,11 @@ extern int screen_h;
         bool alone = false; // --alone: with --orbit, do not place the other addon ships alongside
         std::string scenario_file; // --scenario-file PATH: run a scenario from this file without installing it
         std::vector<std::pair<double, std::string>> set_at; // --set-at SECS PATH=VALUE: set a property this many seconds into the run
+        double drop_at = -1.0, drop_interval = 0.5; // --drop SECS COUNT INTERVAL: release COUNT bombs from the first loaded hardpoint, one every INTERVAL s from SECS (for video)
+        int drop_count = 0;
         double launch_at = -1.0; // --launch-at SECS: with --auto-stage, hold the engines until this time, then light them over 3 s (for video)
         double cam_tilt = 0.0; // --cam-tilt DEG: nod the chase camera up and down by this much (for video)
+        double cam_dolly = 0.0; // --cam-dolly M_PER_SEC: move the chase camera away (or in, if negative) as it films (for video)
         double cam_spin = 0.0; // --cam-spin DEG_PER_SEC: slowly swing the chase camera round the ship (for video)
         bool cam_sunward = false;
         /** Put the camera on the far side of the ship from the star, turned aside, so the star is in view (for pictures). */
@@ -173,6 +176,7 @@ extern int screen_h;
         bool orbit_half = false;
         float ambient = 0.3f;
         bool sunlit = false;
+        double sun_angle = 0.0; // --sun-angle DEG: with --sunlit, sit DEG round the planet from the sub-solar point (about 70 shows two thirds lit)
         bool fullscreen = false;
         double orbit_phase = 0.0;
         int system = 0;

@@ -267,6 +267,8 @@ namespace kosmos::app
                 options.cam_pitch = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-yaw") && i + 1 < argc)
                 options.cam_yaw = std::atof(argv[++i]);
+            else if (!std::strcmp(argv[i], "--cam-dolly") && i + 1 < argc)
+                options.cam_dolly = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--cam-spin") && i + 1 < argc)
                 options.cam_spin = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--scenario-file") && i + 1 < argc)
@@ -278,6 +280,12 @@ namespace kosmos::app
                 const double at = std::atof(argv[i + 1]);
                 options.set_at.emplace_back(at, argv[i + 2]);
                 i += 2;
+            }
+            else if (!std::strcmp(argv[i], "--drop") && i + 3 < argc)
+            {
+                options.drop_at = std::atof(argv[++i]);
+                options.drop_count = std::atoi(argv[++i]);
+                options.drop_interval = std::atof(argv[++i]);
             }
             else if (!std::strcmp(argv[i], "--launch-at") && i + 1 < argc)
                 options.launch_at = std::atof(argv[++i]);
@@ -299,6 +307,8 @@ namespace kosmos::app
                 options.orbit_phase = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--sunlit"))
                 options.sunlit = true;
+            else if (!std::strcmp(argv[i], "--sun-angle") && i + 1 < argc)
+                options.sun_angle = std::atof(argv[++i]);
             else if (!std::strcmp(argv[i], "--orbit-half"))
                 options.orbit_half = true;
             else if (!std::strcmp(argv[i], "--orbit-alt") && i + 1 < argc)

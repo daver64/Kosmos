@@ -144,8 +144,7 @@ namespace kosmos
             {
                 ++shield_hits_;
                 const int *shield_colour = target.spec().shield.colour;
-                add_flare(spec, body, point, (tick ? 4.0 : 9.0) * std::sqrt(scale), tick ? 0.12 : 0.5, spec.look.light * 0.8, true, shield_colour);
-                add_sparks(spec, body, point, sl::dvec3(0.0), tick ? 1 : 10, 30.0, shield_colour);
+                add_flare(spec, body, point, (tick ? 2.0 : 4.0) * std::sqrt(scale), tick ? 0.12 : 0.3, spec.look.light * 0.6, true, shield_colour);
             }
             if (hull_damage > 0.0)
                 target.damage(hull_damage);
@@ -154,6 +153,11 @@ namespace kosmos
         }
         if (shielded && hull_damage <= 0.0)
             return;
+        if (ray.on_ship)
+        {
+            add_flare(spec, body, point, (tick ? 1.5 : 3.0) * std::sqrt(scale), tick ? 0.08 : 0.25, spec.look.light * 0.5);
+            return;
+        }
         const double size = (2.0 + spec.look.width * 3.0) * std::sqrt(scale);
         add_flare(spec, body, point, tick ? size * 0.7 : size, tick ? 0.08 : 0.35, spec.look.light * 1.4);
         const int sparks = static_cast<int>((tick ? 3.0 : 14.0 + 40.0 * spec.look.sparkle) * std::sqrt(scale) * (0.4 + spec.look.sparkle));
@@ -183,10 +187,20 @@ namespace kosmos
         add_sparks(spec, body, point, sl::dvec3(0.0), static_cast<int>(10 + 14 * spec.look.sparkle), 30.0 * std::sqrt(scale));
     }
 
-    void ShipWeapons::play_beam(const WeaponSpec &spec)
+    void ShipWeapons::play_beam(ArsenalContext &context, const WeaponSpec &spec)
     {
         if (!sound_on_ || sound_gain_ < 0.02)
             return;
+        if (!rifle_tried_)
+        {
+            rifle_tried_ = true;
+            rifle_sample_ = sl::load_sample(context.sim->root() + "/data/sounds/Rifleprimary2.ogg");
+        }
+        if (rifle_sample_)
+        {
+            sl::play_sample(rifle_sample_, static_cast<int>(255.0 * std::min(1.0, sound_gain_)), 128, 1000, 0);
+            return;
+        }
         const int key = static_cast<int>(spec.duration * 10.0 + 0.5);
         sl::Sample *&sample = beam_samples_[key];
         if (!sample)
@@ -232,7 +246,7 @@ namespace kosmos
                 return;
             if (state.beam_time <= 0.0)
             {
-                play_beam(spec);
+                play_beam(context, spec);
                 add_flare(spec, body, from, spec.look.width * spec.look.glow * 3.0, 0.35, spec.look.light * 2.0);
             }
             state.beam_time += dt;
@@ -574,8 +588,8 @@ namespace kosmos
         // Wide halo, bright body and a white-hot core, so a beam reads as light even at a distance.
         auto glowing_strip = [&](const glm::vec3 &a, const glm::vec3 &b, const WeaponLook &look, double strength) {
             const float distance = std::min(glm::length(a), glm::length(b));
-            const float core = std::max(static_cast<float>(look.width), distance * 0.01f);
-            const float halo = core * static_cast<float>(look.glow);
+            const float core = std::max(static_cast<float>(look.width), distance * 0.003f);
+            const float halo = std::min(core * static_cast<float>(look.glow), std::max(static_cast<float>(look.width * look.glow), distance * 0.012f));
             int hot[3];
             brighten(look.colour, 0.5, hot);
             m.texture = beam_texture_;
@@ -591,7 +605,7 @@ namespace kosmos
         auto round_glow = [&](const glm::vec3 &at, float size, const int colour[3], double alpha) {
             if (glm::length(at) < 0.5f)
                 return;
-            const float floor_size = glm::length(at) * 0.009f;
+            const float floor_size = glm::length(at) * 0.004f;
             m.texture = glow;
             m.tint = tint_of(colour, alpha);
             sl::draw_mesh(quad, facing_basis(at, std::max(size, floor_size)), m);

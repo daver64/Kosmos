@@ -236,7 +236,7 @@ namespace kosmos::app
     }
 
     // Swings every ship about the planet's axis until the active one is on the Sun side, keeping the fleet's layout intact.
-    void rotate_fleet_to_sun(Sim &sim, Ship *flown)
+    void rotate_fleet_to_sun(Sim &sim, Ship *flown, double extra_degrees = 0.0)
     {
         const sl::dvec3 here = flown->body().position;
         const int soi = sim.universe.soi_body(here);
@@ -247,7 +247,7 @@ namespace kosmos::app
         const sl::dvec3 r = here - planet.position, s = sim.universe.world.body(sun)->position - planet.position;
         const sl::dvec3 axis = sim.universe.pole(soi);
         const sl::dvec3 rp = r - axis * glm::dot(r, axis), sp = s - axis * glm::dot(s, axis);
-        const double angle = std::atan2(glm::dot(axis, glm::cross(rp, sp)), glm::dot(rp, sp));
+        const double angle = std::atan2(glm::dot(axis, glm::cross(rp, sp)), glm::dot(rp, sp)) - extra_degrees * 3.14159265358979 / 180.0;
         const sl::dquat spin = glm::angleAxis(angle, axis);
         for (int i = 0; i < sim.ship_count(); ++i)
         {
@@ -265,11 +265,17 @@ namespace kosmos::app
         if (!options.scenario.empty())
             if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
             {
-                Ship *flown = apply_scenario(sim, *sc, terrains);
+                kosmos::Scenario adjusted = *sc;
+                // --orbit-alt lifts the circular orbits a scenario sets, so a promo shot can show more of the planet.
+                if (options.orbit_altitude > 0.0)
+                    for (auto &entry : adjusted.ships)
+                        if (!entry.landed && entry.escape_to.empty() && entry.apoapsis_km <= 0.0 && entry.altitude <= 0.0 && !entry.has_state)
+                            entry.altitude_km = options.orbit_altitude;
+                Ship *flown = apply_scenario(sim, adjusted, terrains);
                 if (!flown)
                     return nullptr;
                 if (options.sunlit)
-                    rotate_fleet_to_sun(sim, flown);
+                    rotate_fleet_to_sun(sim, flown, options.sun_angle);
                 return flown;
             }
         sim.clear_ships();
@@ -300,7 +306,7 @@ namespace kosmos::app
         else if (options.orbit_start)
         {
             sim.props.set_double("/controls/gear", 0.0);
-            ship->place_in_orbit(earth, 200.0 * km, 0.0);
+            ship->place_in_orbit(earth, (options.orbit_altitude > 0.0 ? options.orbit_altitude : 200.0) * km, 0.0);
             // Every other addon ship shares the orbit a few kilometres apart, so there is something to fly to and switch to.
             double phase = 0.02;
             for (const kosmos::Addon &addon : sim.addons())
@@ -334,6 +340,8 @@ namespace kosmos::app
             }
             ship->place_on_surface(earth, pad, heading, height);
         }
+        if (options.sunlit && options.orbit_start)
+            rotate_fleet_to_sun(sim, ship, options.sun_angle);
         sim.activate(options.ship_index);
         sim.props.set_double("/controls/throttle", 0.0);
         sim.props.set_double("/controls/hover", 0.0);

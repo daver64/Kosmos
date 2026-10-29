@@ -1,15 +1,16 @@
 {
- "name": "Promo: Vulcan cruising",
- "description": "The Vulcan over Wagga Wagga at 3000 m on the autopilot, for the promo video.",
+ "name": "Promo: Vulcan bombing run",
+ "description": "The Vulcan on a low level run about 50 miles east of Wagga Wagga on the autopilot, for the promo video's ripple bomb drop.",
  "active": 0,
  "date": "2024-06-21 02:00:00",
  "throttle": 0.7,
  "autopilot": true,
+ "weather": "YSWG 210200Z 27008KT 9999 SCT040 BKN070 17/08 Q1018",
  "ships": [
   {
    "ship": "CVEL Vulcan",
    "body": "Earth",
-   "surface": { "base": "wagga", "runway": 0, "along": 20, "altitude": 3000, "speed": 200 }
+   "surface": { "latitude": -35.1082, "longitude": 148.245, "heading": 270, "altitude": 90, "speed": 200 }
   }
  ]
 }

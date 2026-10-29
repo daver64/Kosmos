@@ -413,6 +413,8 @@ namespace kosmos::app
         }
         if (options.cam_spin != 0.0)
             cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
+        if (options.cam_dolly != 0.0)
+            cam_distance = std::clamp(cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
         static double tilt_clock = 0.0;
         tilt_clock += frame;
         const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(tilt_clock * 0.5);
@@ -728,6 +730,18 @@ namespace kosmos::app
         double extent = 4.0;
         for (const kosmos::StageSpec &st : ship->spec().stages)
             extent = std::max(extent, std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
+        // Ships close by (a docked pair, say) reach out from the piloted ship's origin by their offset plus their own length.
+        for (int si = 0; si < sim.ship_count(); ++si)
+        {
+            const kosmos::Ship *other = sim.ship(si);
+            if (!other || other == ship)
+                continue;
+            const double offset = glm::length(other->origin() - ship->origin());
+            if (offset > 300.0)
+                continue;
+            for (const kosmos::StageSpec &st : other->spec().stages)
+                extent = std::max(extent, offset + std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
+        }
         eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
         const double nearest_ground = std::max(1.0, 0.9 * (eye_soi_altitude - 10.0e3));
         view_distance = in_user && user_cams[static_cast<std::size_t>(user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : cam_distance;

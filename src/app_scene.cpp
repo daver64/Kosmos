@@ -91,7 +91,8 @@ namespace kosmos::app
                             p.light.intensity *= 0.35f;
                             p.glow_size *= 0.5f;
                             p.glow_strength *= 0.7f;
-                            p.far_size = 0.003f;
+                            p.far_size = 0.0012f;
+                            p.glow_strength *= 1.0f - 0.5f * std::clamp(static_cast<float>(distance) / 600.0f, 0.0f, 1.0f);
                         }
                         p.distance = static_cast<float>(distance);
                         lamps.push_back(p);

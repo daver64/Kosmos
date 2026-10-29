@@ -226,6 +226,8 @@ namespace kosmos::app
         double first_stage_clock = -1.0;
         double ascent_fuel0 = -1.0, pitchover_clock = -1.0, ignite_clock = -1.0, ramp_clock = -1.0;
         std::size_t set_at_done = 0;
+        int drops_done = 0;
+        std::map<std::string, double> held_axes; // scripted control axes (--set-at) that the keyboard polling must not zero
         int record_w{};
         int record_h{};
         int record_rate{};
