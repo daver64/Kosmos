@@ -259,6 +259,15 @@ namespace kosmos
                 spec.camera_target = vec3(json["camera_target"], spec.camera_target);
             }
             spec.horizontal = json.value("horizontal", false);
+            if (spec.building() && json.contains("interior"))
+            {
+                std::string error;
+                spec.interior = Interior::parse(json["interior"], !spec.horizontal, spec.door.z, error);
+                if (!spec.interior)
+                    std::fprintf(stderr, "[kosmos] %s: %s\n", file.c_str(), error.c_str());
+                else if (!json.contains("door"))
+                    spec.door = spec.interior->door_ship();
+            }
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
             spec.hybrid = json.value("hybrid", false);

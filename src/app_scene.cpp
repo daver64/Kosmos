@@ -569,6 +569,18 @@ namespace kosmos::app
             const sl::FlightBody &ob = other.body();
             const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                     glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
+            if (other.spec().interior)
+            {
+                const Visuals::InteriorMeshes &rooms = vis.interior_meshes(*other.spec().interior);
+                sl::Material shell;
+                shell.cull = sl::CullMode::back;
+                if (rooms.outside)
+                    sl::draw_mesh(rooms.outside, model, shell);
+                shell.lit = false;
+                shell.fog = false;
+                if (rooms.inside)
+                    sl::draw_mesh(rooms.inside, model, shell);
+            }
             if (!((in_cockpit || in_interior) && &other == ship))
                 draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
             else if (in_cockpit3d)

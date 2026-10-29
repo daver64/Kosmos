@@ -21,6 +21,7 @@
 #include "blender_edit.h"
 #include "usercam.h"
 #include "eva.h"
+#include "interior.h"
 #include "eva_solids.h"
 #include "ordnance.h"
 #include "ship_weapons.h"
@@ -171,6 +172,7 @@ namespace kosmos::app
         std::string mfd_ship_id;
         float look_yaw{};
         float look_pitch{};
+        kosmos::InteriorWalker walker;
         double eva_look_yaw{};
         double eva_look_pitch{};
         sl::dvec3 eye_shift;

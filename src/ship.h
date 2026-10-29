@@ -1,5 +1,6 @@
 #pragma once
 
+#include "interior.h"
 #include "lights.h"
 #include "systems.h"
 #include "universe.h"
@@ -333,6 +334,8 @@ namespace kosmos
         /** Where the door is, in the ship frame, and how close (metres) a person must stand to go in. */
         sl::dvec3 door{0.0, 0.0, 0.0};
         double door_radius = 4.0;
+        /** A walkable inside, if the building has one (the "interior" block of its ship.json). */
+        std::shared_ptr<const Interior> interior;
         /** Buildings with the same grid name at a base share one power bus. */
         std::string grid;
         bool aircraft() const { return kind == "aircraft"; }

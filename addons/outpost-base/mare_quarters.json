@@ -1,0 +1,35 @@
+{
+ "name": "Mare Frigoris quarters",
+ "class": "building",
+ "door_radius": 3,
+ "interior": {
+  "cell": 0.5,
+  "height": 6,
+  "ground_z": 3.0,
+  "levels": [
+   [
+    "##############",
+    "#......#.....#",
+    "#......D.....#",
+    "#......D.....#",
+    "#......#.....#",
+    "#......#.....#",
+    "#......#.....#",
+    "#......#.....#",
+    "#......#.....#",
+    "###AA#########"
+   ]
+  ]
+ },
+ "stages": [
+  {
+   "name": "Mare Frigoris quarters",
+   "dry_mass": 15000,
+   "propellant": 0,
+   "z": 0,
+   "length": 6.0,
+   "radius": 4.0,
+   "parts": []
+  }
+ ]
+}

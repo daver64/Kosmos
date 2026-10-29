@@ -46,6 +46,25 @@ namespace kosmos::app
             parts[&part] = mesh;
             return mesh;
         }
+        struct InteriorMeshes
+        {
+            sl::Mesh *outside = nullptr, *inside = nullptr;
+        };
+        std::map<const kosmos::Interior *, InteriorMeshes> interiors;
+        const InteriorMeshes &interior_meshes(const kosmos::Interior &interior)
+        {
+            auto found = interiors.find(&interior);
+            if (found != interiors.end())
+                return found->second;
+            sl::MeshData outside, inside;
+            interior.build_meshes(outside, inside);
+            InteriorMeshes made;
+            if (!outside.indices.empty())
+                made.outside = sl::create_mesh(outside.vertices, outside.indices);
+            if (!inside.indices.empty())
+                made.inside = sl::create_mesh(inside.vertices, inside.indices);
+            return interiors[&interior] = made;
+        }
         struct LoadedModel
         {
             sl::Model *model = nullptr;

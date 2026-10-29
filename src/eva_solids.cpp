@@ -98,6 +98,16 @@ namespace kosmos
             const sl::dquat inverse = glm::inverse(b.orientation);
             const double heights[2] = {0.25, 1.7}; // feet and head
             const ShipSpec &spec = ship->spec();
+            if (spec.interior)
+            {
+                // A building with an interior is its grid of walls; stepping into one means staying where you were.
+                const Interior &room = *spec.interior;
+                auto feet = [&](const sl::dvec3 &p) { return room.from_ship(inverse * (p - origin)) + sl::dvec3(0.0, 0.3, 0.0); };
+                const double r = person_radius + margin;
+                if (room.blocked(feet(to), r, 1.4) && !room.blocked(feet(from), r, 1.4))
+                    return from;
+                continue;
+            }
             for (const double h : heights)
             {
                 const sl::dvec3 sample = to + up * h;

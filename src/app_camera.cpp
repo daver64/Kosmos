@@ -106,9 +106,35 @@ namespace kosmos::app
                         scene.clutter = bt->clutter.get();
                 return kosmos::push_out_of_solids(scene, from, to, height);
             };
-            eva.step(sim.universe, terrain_of(eva.body), in, frame, solids);
+            const bool indoors = eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior;
+            if (eva.building >= 0 && !indoors)
+                eva.building = -1;
+            if (indoors)
+            {
+                const Ship &bld = *sim.ship(eva.building);
+                const kosmos::Interior &room = *bld.spec().interior;
+                const kosmos::Body &here = sim.universe.bodies[static_cast<std::size_t>(eva.body)];
+                const double g = here.gm / std::max(1.0, glm::dot(eva.position, eva.position));
+                walker.step(room, in, g, frame);
+                // Mirror the walker into the astronaut so the camera, HUD and weapons work as outdoors.
+                const sl::FlightBody &pb = *sim.universe.world.body(eva.body);
+                auto world_dir = [&](const sl::dvec3 &d) { return bld.body().direction_to_world(room.dir_to_ship(d)); };
+                eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(walker.position)) - pb.position;
+                eva.velocity = bld.body().velocity - pb.velocity;
+                const sl::dvec3 fwd = world_dir(walker.forward());
+                const sl::dvec3 up = world_dir(sl::dvec3(0.0, 1.0, 0.0));
+                const sl::dvec3 right = glm::normalize(glm::cross(fwd, up));
+                eva.orientation = glm::normalize(glm::quat_cast(sl::dmat3(right, glm::cross(right, fwd), -fwd)));
+                eva.grounded = true;
+                eva.upright = true;
+                eva.crouch = walker.crouch;
+                eva.speed = walker.speed;
+                eva.height = 0.0;
+            }
+            else
+                eva.step(sim.universe, terrain_of(eva.body), in, frame, solids);
             const double warp_now = sim.current_warp();
-            if (warp_now > 1.0)
+            if (warp_now > 1.0 && !indoors)
                 eva.carry(sim.universe, terrain_of(eva.body), frame * (warp_now - 1.0));
             double ship_distance = 0.0;
             const int near_ship = nearest_ship(ship_distance);
@@ -681,6 +707,6 @@ namespace kosmos::app
         const double nearest_ground = std::max(1.0, 0.9 * (eye_soi_altitude - 10.0e3));
         view_distance = in_user && user_cams[static_cast<std::size_t>(user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : cam_distance;
         in_user_mounted = in_user && !user_cams[static_cast<std::size_t>(user_cam)].orbit;
-        ship_near = in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (user_extent >= 0.0 ? user_extent : extent), nearest_ground));
+        ship_near = in_eva && eva.building >= 0 ? 0.1 : in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (user_extent >= 0.0 ? user_extent : extent), nearest_ground));
     }
 } // namespace kosmos::app

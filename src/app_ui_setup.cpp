@@ -254,6 +254,30 @@ namespace kosmos::app
             if (eva.active)
             {
                 const int door = building_at_door();
+                if (eva.building >= 0)
+                {
+                    Ship *inside = sim.ship(eva.building);
+                    if (door != eva.building)
+                    {
+                        sim.log("Go to the airlock hatch to leave");
+                        return;
+                    }
+                    const kosmos::Telemetry &bt = inside->telemetry();
+                    const sl::dvec3 spot = door_world(*inside);
+                    eva.building = -1;
+                    eva.leave(sim.universe, bt.soi, spot, inside->body().velocity, inside->origin() - spot, terrain_of(bt.soi), true);
+                    eva_look_yaw = eva_look_pitch = 0.0;
+                    sim.log("Outside " + inside->name);
+                    return;
+                }
+                if (door >= 0 && sim.ship(door)->spec().interior)
+                {
+                    eva.building = door;
+                    walker.place(*sim.ship(door)->spec().interior);
+                    eva_look_yaw = eva_look_pitch = 0.0;
+                    sim.log("Inside " + sim.ship(door)->name + ": Enter at the airlock hatch to go out");
+                    return;
+                }
                 if (door >= 0)
                 {
                     eva.active = false;

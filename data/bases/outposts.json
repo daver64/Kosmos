@@ -49,6 +49,7 @@
       "objects": [
         { "type": "landing_pad", "radius": 8, "x": 0, "z": 0 },
         { "type": "building", "building": "Mare Frigoris habitat", "x": -34, "z": 20, "heading": 30 },
+        { "type": "building", "building": "Mare Frigoris quarters", "x": -10, "z": 30, "heading": 0 },
         { "type": "habitat_tube", "length": 12, "radius": 2, "x": -32, "z": -6, "heading": 90 },
         { "type": "solar_array", "length": 12, "width": 4, "number": 5, "x": 36, "z": 6, "heading": 90, "count": 2, "step_z": 10 },
         { "type": "building", "building": "Mare Frigoris comms mast", "x": 18, "z": 34, "heading": 0 },

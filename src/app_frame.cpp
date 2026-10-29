@@ -135,6 +135,13 @@ namespace kosmos::app
                     ship = sim.active_ship();
                     cockpit_view = true;
                     cockpit3d = options.cockpit3d;
+                    if (options.eva && ship->spec().interior)
+                    {
+                        // Test aid: step out of the building and straight back in on foot.
+                        toggle_eva();
+                        toggle_eva();
+                        options.eva = false;
+                    }
                     break;
                 }
             options.enter_building.clear();

@@ -55,6 +55,8 @@ namespace kosmos
         Suit suit;
         /** Index of the ship stepped out of. */
         int home_ship = -1;
+        /** Index of the building whose interior this person is walking in, or -1 when outdoors. */
+        int building = -1;
         static constexpr double eye_height = 1.7;
 
         /** Step out at `world_position` (a point on or beside the ship) moving with `world_velocity`; `look` is the way to face; `landed` puts you on the ground below. */

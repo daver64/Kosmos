@@ -100,7 +100,7 @@ namespace kosmos::app
                 if (distance > 300.0)
                     continue;
                 if (s == building_at_door())
-                    sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, "Press Enter to go into %s", sim.ship(s)->name.c_str());
+                    sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, eva.building == s ? "Press Enter to go outside" : "Press Enter to go into %s", sim.ship(s)->name.c_str());
                 float x = 0.0f, y = 0.0f;
                 if (distance < 1.0 || !project(view_proj, glm::vec3(rel / distance * 1000.0), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
                     continue;
