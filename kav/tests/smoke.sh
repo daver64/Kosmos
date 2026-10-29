@@ -45,6 +45,14 @@ curl -s -H "$A" $U/api/v1/me | grep -q "\"location\":\"$DEST\"" || fail "locatio
 OTHER=$(sqlite3 "$T/kav.db" "select id from jobs where status='open' and origin<>'$DEST' limit 1")
 curl -s -H "$A" -d "id=$OTHER&ship=shuttle-a" $U/api/v1/jobs/accept | grep -q "leaves from" || fail "accepted a job from another location"
 
+# an interstellar job needs the jump drive
+sqlite3 "$T/kav.db" "update accounts set location='sirius_depot',ship='',credits=9000"
+FAR=$(sqlite3 "$T/kav.db" "select id from jobs where status='open' and origin='sirius_depot' limit 1")
+[ -n "$FAR" ] || fail "no job at the Sirius depot"
+curl -s -H "$A" -d "id=$FAR&ship=dragonfly" $U/api/v1/jobs/accept | grep -q "quantum jump" || fail "a ship without a jump drive took an interstellar job"
+curl -s -H "$A" -d "id=$FAR&ship=shuttle-aq" $U/api/v1/jobs/accept | grep -q '"credits":6500' || fail "Shuttle-AQ could not take an interstellar job"
+curl -s $U/api/v1/registry | grep -q '"jump_ly":50' || fail "registry lacks the jump range"
+
 kill "$(cat "$T/pid")"
 rm -rf "$T"
 echo "ok"

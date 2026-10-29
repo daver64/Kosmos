@@ -212,8 +212,16 @@ namespace
             exec("ALTER TABLE accounts ADD COLUMN ship TEXT DEFAULT ''");
         }
         exec("CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY, origin TEXT, dest TEXT, kind TEXT, qty INTEGER, pay INTEGER, dv REAL, dist REAL, created INTEGER,"
-             " deadline INTEGER, status TEXT DEFAULT 'open', account_id INTEGER, ship TEXT, accepted INTEGER, finished INTEGER)");
+             " deadline INTEGER, status TEXT DEFAULT 'open', account_id INTEGER, ship TEXT, accepted INTEGER, finished INTEGER, ly REAL DEFAULT 0)");
         exec("CREATE TABLE IF NOT EXISTS ledger(id INTEGER PRIMARY KEY, account_id INTEGER, t INTEGER, amount INTEGER, balance INTEGER, text TEXT)");
+        {
+            std::string jc;
+            Stmt tj("PRAGMA table_info(jobs)");
+            while (tj.row())
+                jc += " " + tj.text(1) + " ";
+            if (jc.find(" ly ") == std::string::npos)
+                exec("ALTER TABLE jobs ADD COLUMN ly REAL DEFAULT 0");
+        }
         exec("CREATE INDEX IF NOT EXISTS jobs_status ON jobs(status,origin)");
     }
 
@@ -342,11 +350,13 @@ namespace
 
     struct Body { std::string id, parent; double gm = 0, radius = 0, a = 0; bool atm = false; };
     struct Location { std::string id, body, name; double lat = 0, lon = 0; };
-    struct ShipType { std::string id, name; int cargo = 0, seats = 0; double max_dv = 0; int fee = 0; };
+    struct ShipType { std::string id, name; int cargo = 0, seats = 0; double max_dv = 0; int fee = 0; double jump_ly = 0; };
+    struct StarSystem { std::string id, root, name; double x = 0, y = 0, z = 0; };
 
     std::map<std::string, Body> bodies;
     std::vector<Location> locations;
     std::vector<ShipType> ship_types;
+    std::vector<StarSystem> star_systems;
 
     bool load_registry(const std::string &path)
     {
@@ -379,10 +389,18 @@ namespace
                 l.name.erase(0, l.name.find_first_not_of(' '));
                 locations.push_back(l);
             }
+            else if (kind == "system")
+            {
+                StarSystem y;
+                ls >> y.id >> y.root >> y.x >> y.y >> y.z;
+                std::getline(ls, y.name);
+                y.name.erase(0, y.name.find_first_not_of(' '));
+                star_systems.push_back(y);
+            }
             else if (kind == "ship")
             {
                 ShipType s;
-                ls >> s.id >> s.cargo >> s.seats >> s.max_dv >> s.fee;
+                ls >> s.id >> s.cargo >> s.seats >> s.max_dv >> s.fee >> s.jump_ly;
                 std::getline(ls, s.name);
                 s.name.erase(0, s.name.find_first_not_of(' '));
                 ship_types.push_back(s);
@@ -473,12 +491,35 @@ namespace
         return 0;
     }
 
-    struct Route { double dv_kms = 0, dist_km = 0; };
+    struct Route { double dv_kms = 0, dist_km = 0, ly = 0; };
+
+    constexpr double km_per_ly = 9.4607e12;
+
+    // The star system a body belongs to: the one whose root body is at the top of its chain.
+    const StarSystem *system_of(const std::string &body)
+    {
+        auto c = body_chain(body);
+        if (c.empty())
+            return nullptr;
+        for (auto &y : star_systems)
+            if (y.root == c.back())
+                return &y;
+        return nullptr;
+    }
 
     Route route_between(const Location &l1, const Location &l2)
     {
         Route r;
         const Body &b1 = bodies[l1.body], &b2 = bodies[l2.body];
+        const StarSystem *y1 = system_of(b1.id), *y2 = system_of(b2.id);
+        if (y1 && y2 && y1 != y2)
+        {
+            // A quantum jump leaves from and arrives in low orbit, so only the climb and the landing cost delta-v.
+            r.ly = std::sqrt((y1->x - y2->x) * (y1->x - y2->x) + (y1->y - y2->y) * (y1->y - y2->y) + (y1->z - y2->z) * (y1->z - y2->z));
+            r.dv_kms = (1.25 * circ_low(b1) + (b2.atm ? 0.15 : 1.1) * circ_low(b2)) / 1000;
+            r.dist_km = r.ly * km_per_ly;
+            return r;
+        }
         if (b1.id == b2.id)
         {
             double p1 = l1.lat * pi / 180, p2 = l2.lat * pi / 180, dl = (l2.lon - l1.lon) * pi / 180;
@@ -500,10 +541,10 @@ namespace
 
     constexpr int pax_kg = 90;
 
-    // Credits: per kilogram 0.05 + 0.4 per km/s of delta-v + 0.08 per million km, passengers three times that.
+    // Credits: per kilogram 0.05 + 0.4 per km/s of delta-v + 0.08 per million km (+ 4 per light year between stars), passengers three times that.
     long job_pay(bool pax, int qty, const Route &r)
     {
-        double per_kg = 0.05 + 0.4 * r.dv_kms + 0.08 * r.dist_km / 1e6;
+        double per_kg = 0.05 + 0.4 * r.dv_kms + (r.ly > 0 ? 4.0 * r.ly : 0.08 * r.dist_km / 1e6);
         double pay = (pax ? qty * pax_kg * 3.0 : (double)qty) * per_kg;
         return std::max(400L, (long)(pay / 10 + 0.5) * 10);
     }
@@ -528,10 +569,10 @@ namespace
         return m;
     }
 
-    bool some_ship_fits(bool pax, int qty, double dv)
+    bool some_ship_fits(bool pax, int qty, double dv, double ly)
     {
         for (auto &s : ship_types)
-            if (s.max_dv >= dv && (pax ? s.seats : s.cargo) >= qty)
+            if (s.max_dv >= dv && s.jump_ly >= ly && (pax ? s.seats : s.cargo) >= qty)
                 return true;
         return false;
     }
@@ -547,14 +588,18 @@ namespace
             Route r = route_between(from, to);
             if (r.dv_kms > max_fleet_dv())
                 continue;
+            // Most jobs stay inside a star system, but a depot with nothing else nearby only has the long hauls.
+            bool lonely = std::none_of(locations.begin(), locations.end(), [&](const Location &o) { return o.id != from.id && system_of(o.body) == system_of(from.body); });
+            if (r.ly > 0 && !lonely && u(rng) > 0.25)
+                continue;
             bool pax = u(rng) < 0.3;
             int qty = pax ? 1 + (int)(rng() % 8) : (int)(std::pow(2.0, u(rng) * 7.2) * 100 / 50) * 50;
-            if (!some_ship_fits(pax, qty, r.dv_kms))
+            if (!some_ship_fits(pax, qty, r.dv_kms, r.ly))
                 continue;
             long deadline = now_s() + (long)((3 + std::min(27.0, r.dist_km / 1e6 * 0.5)) * 86400);
-            exec("INSERT INTO jobs(origin,dest,kind,qty,pay,dv,dist,created,deadline) VALUES(?,?,?,?,?,?,?,?,?)",
+            exec("INSERT INTO jobs(origin,dest,kind,qty,pay,dv,dist,created,deadline,ly) VALUES(?,?,?,?,?,?,?,?,?,?)",
                  {from.id, to.id, pax ? "pax" : "cargo", std::to_string(qty), std::to_string(job_pay(pax, qty, r)), std::to_string(r.dv_kms), std::to_string(r.dist_km),
-                  std::to_string(now_s()), std::to_string(deadline)});
+                  std::to_string(now_s()), std::to_string(deadline), std::to_string(r.ly)});
             return;
         }
     }
@@ -586,7 +631,7 @@ namespace
             return "No such pilot.";
         long credits = a.num(0);
         std::string where = a.text(1), have_ship = a.text(2);
-        Stmt j("SELECT origin,kind,qty,pay,dv,deadline FROM jobs WHERE id=? AND status='open'", {std::to_string(id)});
+        Stmt j("SELECT origin,kind,qty,pay,dv,deadline,ly FROM jobs WHERE id=? AND status='open'", {std::to_string(id)});
         if (!j.row())
             return "That job is not available any more.";
         std::string origin = j.text(0), kind = j.text(1);
@@ -601,6 +646,8 @@ namespace
             return "Choose a ship.";
         if (!have_ship.empty() && have_ship != ship->id)
             return "You are already flying jobs in the " + (find_ship(have_ship) ? find_ship(have_ship)->name : have_ship) + ".";
+        if (sqlite3_column_double(j.s, 6) > ship->jump_ly)
+            return "This job crosses between stars; the " + ship->name + " has no quantum jump drive that reaches that far.";
         if (dv > ship->max_dv)
             return "This job needs " + std::to_string((int)(dv + 0.5)) + " km/s of delta-v; the " + ship->name + " manages " + std::to_string((int)ship->max_dv) + ".";
         long loaded = scalar("SELECT COALESCE(SUM(qty),0) FROM jobs WHERE account_id=? AND status='accepted' AND kind=?", {std::to_string(account), kind});
@@ -626,7 +673,7 @@ namespace
     // The KosmosAV program calls this when the game reports the cargo delivered. The pilot's last heartbeat has to be at the destination.
     std::string job_complete(long account, long id)
     {
-        Stmt j("SELECT dest,kind,qty,pay,accepted,deadline,ship,dv FROM jobs WHERE id=? AND account_id=? AND status='accepted'", {std::to_string(id), std::to_string(account)});
+        Stmt j("SELECT dest,kind,qty,pay,accepted,deadline,ship,dv,ly FROM jobs WHERE id=? AND account_id=? AND status='accepted'", {std::to_string(id), std::to_string(account)});
         if (!j.row())
             return "That is not one of your jobs.";
         std::string dest = j.text(0), kind = j.text(1);
@@ -641,7 +688,7 @@ namespace
         if (f.text(2) != job_ship)
             return "You rented the " + (find_ship(job_ship) ? find_ship(job_ship)->name : job_ship) + " for this job but your program reports a different ship.";
         // The program is trusted to report honestly, so a delivery cannot be faster than a plausible burn and coast: 20 s plus 8 s per km/s of delta-v.
-        const long least = 20 + (long)(8 * sqlite3_column_double(j.s, 7));
+        const long least = 20 + (long)(8 * sqlite3_column_double(j.s, 7) + 30 * sqlite3_column_double(j.s, 8));
         if (now_s() - accepted < least)
             return "That was too quick to be a delivery.";
         exec("UPDATE jobs SET status='done',finished=? WHERE id=?", {std::to_string(now_s()), std::to_string(id)});
@@ -1040,11 +1087,11 @@ namespace
 
     std::string load_text(long kg_or_seats, const std::string &kind) { return kind == "pax" ? std::to_string(kg_or_seats) + (kg_or_seats == 1 ? " passenger" : " passengers") : std::to_string(kg_or_seats) + " kg"; }
 
-    std::string ships_that_fit(const std::string &kind, int qty, double dv)
+    std::string ships_that_fit(const std::string &kind, int qty, double dv, double ly)
     {
         std::string out;
         for (auto &s : ship_types)
-            if (s.max_dv >= dv && (kind == "pax" ? s.seats : s.cargo) >= qty)
+            if (s.max_dv >= dv && s.jump_ly >= ly && (kind == "pax" ? s.seats : s.cargo) >= qty)
                 out += (out.empty() ? "" : ", ") + s.name;
         return out;
     }
@@ -1092,16 +1139,16 @@ namespace
         if (me)
             o << "<p>You are at <strong>" << esc(loc_name(where)) << "</strong>. Jobs can only be taken from where you are.</p>";
         o << "<table><tr><th>Job</th><th>From</th><th>To</th><th>Load</th><th>Delta-v</th><th>Pay</th><th>Due</th><th>Ships</th><th></th></tr>";
-        Stmt st(from.empty() ? "SELECT id,origin,dest,kind,qty,pay,dv,deadline FROM jobs WHERE status='open' ORDER BY origin,id"
-                             : "SELECT id,origin,dest,kind,qty,pay,dv,deadline FROM jobs WHERE status='open' AND origin=? ORDER BY id",
+        Stmt st(from.empty() ? "SELECT id,origin,dest,kind,qty,pay,dv,deadline,ly FROM jobs WHERE status='open' ORDER BY origin,id"
+                             : "SELECT id,origin,dest,kind,qty,pay,dv,deadline,ly FROM jobs WHERE status='open' AND origin=? ORDER BY id",
                 from.empty() ? std::vector<std::string>{} : std::vector<std::string>{from});
         while (st.row())
         {
             double dv = sqlite3_column_double(st.s, 6);
             std::string kind = st.text(3);
             o << "<tr><td>" << st.num(0) << "</td><td>" << esc(loc_name(st.text(1))) << "</td><td>" << esc(loc_name(st.text(2))) << "</td><td>" << load_text(st.num(4), kind)
-              << "</td><td>" << (int)(dv * 10 + 0.5) / 10.0 << " km/s</td><td>" << st.num(5) << "</td><td>" << (st.num(7) - now_s()) / 86400 << " d</td><td>"
-              << esc(ships_that_fit(kind, (int)st.num(4), dv)) << "</td><td>";
+              << "</td><td>" << (int)(dv * 10 + 0.5) / 10.0 << " km/s" << (sqlite3_column_double(st.s, 8) > 0 ? " + " + std::to_string((int)(sqlite3_column_double(st.s, 8) * 10 + 0.5) / 10.0).substr(0, 4) + " ly" : "") << "</td><td>" << st.num(5) << "</td><td>" << (st.num(7) - now_s()) / 86400 << " d</td><td>"
+              << esc(ships_that_fit(kind, (int)st.num(4), dv, sqlite3_column_double(st.s, 8))) << "</td><td>";
             if (me && st.text(1) == where)
             {
                 o << "<form method=\"post\">" << csrf_field(me) << "<input type=\"hidden\" name=\"id\" value=\"" << st.num(0) << "\"><select name=\"ship\">";
@@ -1189,7 +1236,7 @@ namespace
     {
         std::ostringstream o;
         o << "{\"id\":" << st.num(0) << ",\"from\":\"" << jesc(st.text(1)) << "\",\"to\":\"" << jesc(st.text(2)) << "\",\"kind\":\"" << jesc(st.text(3)) << "\",\"qty\":" << st.num(4)
-          << ",\"pay\":" << st.num(5) << ",\"dv_kms\":" << sqlite3_column_double(st.s, 6) << ",\"deadline\":" << st.num(7) << "}";
+          << ",\"pay\":" << st.num(5) << ",\"dv_kms\":" << sqlite3_column_double(st.s, 6) << ",\"ly\":" << sqlite3_column_double(st.s, 8) << ",\"deadline\":" << st.num(7) << "}";
         return o.str();
     }
 
@@ -1203,8 +1250,8 @@ namespace
             auto q = rq.query.find("from=");
             if (q != std::string::npos)
                 from = rq.query.substr(q + 5, rq.query.find('&', q) - q - 5);
-            Stmt st(from.empty() ? "SELECT id,origin,dest,kind,qty,pay,dv,deadline FROM jobs WHERE status='open' ORDER BY id"
-                                 : "SELECT id,origin,dest,kind,qty,pay,dv,deadline FROM jobs WHERE status='open' AND origin=? ORDER BY id",
+            Stmt st(from.empty() ? "SELECT id,origin,dest,kind,qty,pay,dv,deadline,ly FROM jobs WHERE status='open' ORDER BY id"
+                                 : "SELECT id,origin,dest,kind,qty,pay,dv,deadline,ly FROM jobs WHERE status='open' AND origin=? ORDER BY id",
                     from.empty() ? std::vector<std::string>{} : std::vector<std::string>{from});
             std::string o = "{\"jobs\":[";
             for (bool first = true; st.row(); first = false)
@@ -1219,7 +1266,7 @@ namespace
             o += "],\"ships\":[";
             for (size_t i = 0; i < ship_types.size(); ++i)
                 o += std::string(i ? "," : "") + "{\"id\":\"" + jesc(ship_types[i].id) + "\",\"name\":\"" + jesc(ship_types[i].name) + "\",\"cargo_kg\":" + std::to_string(ship_types[i].cargo) +
-                     ",\"seats\":" + std::to_string(ship_types[i].seats) + ",\"max_dv_kms\":" + std::to_string((int)ship_types[i].max_dv) + ",\"fee\":" + std::to_string(ship_types[i].fee) + "}";
+                     ",\"seats\":" + std::to_string(ship_types[i].seats) + ",\"jump_ly\":" + std::to_string((int)ship_types[i].jump_ly) + ",\"max_dv_kms\":" + std::to_string((int)ship_types[i].max_dv) + ",\"fee\":" + std::to_string(ship_types[i].fee) + "}";
             return json(200, o + "]}");
         }
         auto a = rq.headers.find("authorization");
@@ -1237,7 +1284,7 @@ namespace
         if (p == "/api/v1/me" && rq.method == "GET")
         {
             std::string o = "{\"callsign\":\"" + jesc(who.text(1)) + "\",\"credits\":" + std::to_string(who.num(2)) + ",\"location\":\"" + jesc(who.text(3)) + "\",\"ship\":\"" + jesc(who.text(4)) + "\",\"jobs\":[";
-            Stmt st("SELECT id,origin,dest,kind,qty,pay,dv,deadline FROM jobs WHERE account_id=? AND status='accepted' ORDER BY id", {std::to_string(account)});
+            Stmt st("SELECT id,origin,dest,kind,qty,pay,dv,deadline,ly FROM jobs WHERE account_id=? AND status='accepted' ORDER BY id", {std::to_string(account)});
             for (bool first = true; st.row(); first = false)
                 o += (first ? "" : ",") + job_json(st);
             return json(200, o + "]}");

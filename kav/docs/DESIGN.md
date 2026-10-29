@@ -7,9 +7,9 @@ A shared, persistent freight and passenger network for Kosmos, in the spirit of 
 | `kosmosavd` server and members' web pages | `kav/server/` | built (phase 1a) |
 | Static landing page | `/var/www/html/kosmos/kav/index.html` | built |
 | Location registry, job board, ships, ledger (web and `/api/v1`) | `kav/data/registry.txt`, `kav/server/` | built (phase 1b) |
-| Game hooks (cargo, passengers, events) | `src/` | to do |
-| KosmosAV GTK client | `kav/client/` | to do |
-| Interstellar routes | | to do (phase 2) |
+| Game hooks | `src/ship.cpp` (`/ships/ship[N]/class`) | done (nothing else needed) |
+| KosmosAV GTK client | `kav/client/` | done (Linux tested, Windows built) |
+| Interstellar routes | Shuttle-AQ, four depots | done (first version) |
 
 "KosmosLink" is already the native-addon protocol (`src/link/`, TCP 9420). KosmosAV will use it only as the local bridge from the client to the running game.
 
@@ -52,8 +52,8 @@ Pages (relative to `--base`): `/` home, `/account` (API key and change password)
 ## Still to do
 
 1. Done: no game hooks were needed beyond the `/ships/ship[N]/class` property. The client reads the flown ship, landed flag and nearest base (within 15 km) over KosmosLink; cargo is server-side bookkeeping. Job completion requires the last heartbeat to show the same ship as the job.
-2. Done on Linux: GTK3 client in `kav/client` (built into `addons/kosmosav/bin`), tested by `kav/tests/client.sh` and against the real game. Still to do: Windows build (needs an HTTP layer without libcurl, then `scripts/build-win-tools.sh`), fleet, ledger and map views.
+2. Done: GTK3 client in `kav/client` (built into `addons/kosmosav/bin`; libcurl on Linux, WinHTTP on Windows via `scripts/build-win-tools.sh`), tested by `kav/tests/client.sh` and against the real game on Linux. The Windows exe compiles but has not been run. Still to do: fleet, ledger and map views.
 3. Done: unit-style tests (`kav/tests/smoke.sh`, `kav/tests/client.sh`). Still to do: a `--selftest` delivery.
-4. Security review before the pages are opened to the public; image re-encoding; password reset (forgotten password); email notification of approval.
-5. Interstellar routing: catalogue-star locations, long hauls, multi-leg jobs.
+4. Reviewed once (CSRF, cookies, rate limits and CSP were already in place). The program is trusted to report location honestly, so completion has a minimum trip time of 20 s + 8 s per km/s of delta-v; true verification would need the game to sign its reports. Still to do before the pages are opened to the public: HTTPS (`--secure`) on gemini; image re-encoding; password reset (forgotten password); email notification of approval.
+5. Interstellar routing: done for the first version. The registry has `system` records (star positions in light years, as in `src/galaxy.cpp`) and the CVEL Shuttle-AQ (`jump_ly` 50) is the only ship that can take a job between systems. A cross-system route costs only the climb and landing delta-v (a jump leaves from and arrives in low orbit) and pays 4 credits per kg per light year instead of the distance term; the depots are `data/bases/depots.json`. Jobs between stars are about a quarter of those from Sol bases, and every job from a depot is interstellar (each system has one depot). Still to do: more depots, multi-leg and passenger-liner routes, systems beyond the five.
 6. Packaging: a server tarball, release notes, README and in-game help text, website manual pages.

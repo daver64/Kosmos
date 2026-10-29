@@ -1,0 +1,981 @@
+{
+ "name": "CVEL Shuttle-AQ",
+ "class": "transfer",
+ "locker": [
+  "plasma_rifle",
+  "frag_charge"
+ ],
+ "torque_accel": 0.15,
+ "max_rate": 0.35,
+ "rcs_thrust": 18000,
+ "drag_area": 90,
+ "camera_distance": 60,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 8,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    1,
+    -14
+   ],
+   "size": [
+    3,
+    3,
+    4
+   ],
+   "crew": 2
+  }
+ ],
+ "ports": [
+  {
+   "name": "Starboard forward",
+   "position": [
+    1.76,
+    0,
+    -6.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Starboard middle",
+   "position": [
+    1.76,
+    0,
+    1.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Starboard aft",
+   "position": [
+    1.76,
+    0,
+    6.6
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port forward",
+   "position": [
+    -1.76,
+    0,
+    -6.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port middle",
+   "position": [
+    -1.76,
+    0,
+    1.28
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Port aft",
+   "position": [
+    -1.76,
+    0,
+    6.6
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "stages": [
+  {
+   "name": "Shuttle-A",
+   "dry_mass": 13000,
+   "propellant": 71500,
+   "z": 0,
+   "length": 36,
+   "radius": 7.7,
+   "engines": [
+    {
+     "position": [
+      -1.76,
+      0,
+      13.87
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1064360,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 25,
+     "plume_width": 1.6,
+     "plume_glow": 1.8,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      1.76,
+      0,
+      13.87
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1064360,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 25,
+     "plume_width": 1.6,
+     "plume_glow": 1.8,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      0,
+      -1.49,
+      -13.0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 1490000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 14,
+     "plume_width": 1.3,
+     "plume_glow": 1.6,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    },
+    {
+     "position": [
+      0,
+      -1.49,
+      13.0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 1490000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 14,
+     "plume_width": 1.3,
+     "plume_glow": 1.6,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    },
+    {
+     "position": [
+      -6.97215,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
+     "thrust": 770000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 8,
+     "plume_width": 1.0,
+     "plume_glow": 1.5,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "pod"
+    },
+    {
+     "position": [
+      6.97215,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
+     "thrust": 770000,
+     "isp": 3364,
+     "isp_sl": 3058,
+     "plume": 8,
+     "plume_width": 1.0,
+     "plume_glow": 1.5,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "pod"
+    },
+    {
+     "position": [
+      0,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 0,
+     "type": "hyperjump",
+     "range_ly": 50
+    }
+   ],
+   "gear": [
+    [
+     -3,
+     -3.05,
+     -12.5
+    ],
+    [
+     3,
+     -3.05,
+     -12.5
+    ],
+    [
+     -3,
+     -3.05,
+     13.5
+    ],
+    [
+     3,
+     -3.05,
+     13.5
+    ]
+   ],
+   "parts": [
+    {
+     "model": "../cvel-shuttle-a/models/shuttlea.obj",
+     "animations": "../cvel-shuttle-a/pods.json"
+    }
+   ]
+  }
+ ],
+ "camera_target": [
+  0,
+  0,
+  -2
+ ],
+ "horizontal": true,
+ "rcs_modes": true,
+ "cockpit": {
+  "eye": [
+   -0.575,
+   2.4,
+   -15.9
+  ],
+  "mfds": true,
+  "mfd_left": "orbit",
+  "mfd_right": "surface",
+  "layout": {
+   "name": "Main panel",
+   "width": 1152,
+   "height": 382,
+   "image": "../cvel-shuttle-a/panel/panel1.png",
+   "size": 0.9,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "panels": [
+   {
+    "name": "Fuel and systems",
+    "width": 1152,
+    "height": 300,
+    "image": "../cvel-shuttle-a/panel/panel2.png",
+    "instruments": [
+     {
+      "mode": "engine",
+      "x": 62,
+      "y": 22,
+      "size": 262
+     }
+    ],
+    "controls": [
+     {
+      "type": "toggle",
+      "property": "/controls/gear",
+      "x": 528,
+      "y": 126,
+      "w": 30,
+      "h": 38
+     }
+    ]
+   }
+  ],
+  "instruments": [
+   {
+    "mode": "adi",
+    "x": 66,
+    "y": 83,
+    "size": 260
+   },
+   {
+    "mode": "surface",
+    "x": 828,
+    "y": 83,
+    "size": 260
+   }
+  ],
+  "panel": [
+   {
+    "label": "FUEL",
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f kg"
+   },
+   {
+    "label": "MAIN",
+    "property": "/controls/throttle",
+    "scale": 100,
+    "format": "%.0f %%"
+   },
+   {
+    "label": "HOVER",
+    "property": "/controls/hover",
+    "scale": 100,
+    "format": "%.0f %%"
+   },
+   {
+    "label": "ALT",
+    "property": "{ship}/altitude",
+    "format": "%.0f m"
+   }
+  ],
+  "controls": [
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 0,
+    "x": 22,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 6,
+    "x": 333,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 1,
+    "x": 22,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 7,
+    "x": 333,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 2,
+    "x": 22,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 8,
+    "x": 333,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 3,
+    "x": 22,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 9,
+    "x": 333,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 4,
+    "x": 22,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 10,
+    "x": 333,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 5,
+    "x": 22,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 11,
+    "x": 333,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 12,
+    "x": 128,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 13,
+    "x": 177,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 14,
+    "x": 227,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 0,
+    "x": 785,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 6,
+    "x": 1095,
+    "y": 104.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 1,
+    "x": 785,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 7,
+    "x": 1095,
+    "y": 142.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 2,
+    "x": 785,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 8,
+    "x": 1095,
+    "y": 180.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 3,
+    "x": 785,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 9,
+    "x": 1095,
+    "y": 218.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 4,
+    "x": 785,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 10,
+    "x": 1095,
+    "y": 256.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 5,
+    "x": 785,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 11,
+    "x": 1095,
+    "y": 294.0,
+    "w": 36,
+    "h": 26
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 12,
+    "x": 889,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 13,
+    "x": 939,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 14,
+    "x": 990,
+    "y": 348,
+    "w": 35,
+    "h": 20
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "antinormal",
+    "x": 113,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "normal",
+    "x": 158,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "retrograde",
+    "x": 201,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "prograde",
+    "x": 244,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "level-horizon",
+    "x": 289,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "stability",
+    "x": 334,
+    "y": 18,
+    "w": 41,
+    "h": 30
+   },
+   {
+    "type": "slider",
+    "property": "/controls/throttle",
+    "x": 400,
+    "y": 52,
+    "w": 84,
+    "h": 183
+   },
+   {
+    "type": "slider",
+    "property": "/controls/hover",
+    "x": 490,
+    "y": 52,
+    "w": 80,
+    "h": 183
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-left",
+    "x": 423,
+    "y": 258,
+    "w": 17,
+    "h": 92
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-right",
+    "x": 441,
+    "y": 258,
+    "w": 17,
+    "h": 92
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-tilt-left",
+    "x": 522,
+    "y": 267,
+    "w": 19,
+    "h": 36
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-tilt-right",
+    "x": 552,
+    "y": 267,
+    "w": 19,
+    "h": 36
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "1",
+    "x": 605,
+    "y": 253,
+    "w": 42,
+    "h": 15
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "0.5",
+    "x": 605,
+    "y": 271,
+    "w": 42,
+    "h": 15
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "0",
+    "x": 605,
+    "y": 289,
+    "w": 42,
+    "h": 14
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "lin",
+    "x": 719,
+    "y": 62,
+    "w": 21,
+    "h": 14
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "rot",
+    "x": 719,
+    "y": 76,
+    "w": 21,
+    "h": 12
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "off",
+    "x": 719,
+    "y": 88,
+    "w": 21,
+    "h": 14
+   }
+  ]
+ },
+ "cameras": [
+  {
+   "name": "Cockpit",
+   "position": [
+    -0.575,
+    2.4,
+    -15.9
+   ],
+   "fov": 70
+  }
+ ],
+ "surfaces": [
+  {
+   "control": "",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "area": 120,
+   "cl0": 0,
+   "cl_alpha": 0.3,
+   "cd0": 0.25,
+   "induced_drag": 0.5,
+   "stall_deg": 15
+  }
+ ],
+ "lights": [
+  {
+   "position": [
+    -7.7,
+    0.3,
+    1.1
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    7.7,
+    0.3,
+    1.1
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    0.4,
+    16.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    4.0,
+    -13.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0
+  },
+  {
+   "position": [
+    2.5,
+    -2.9,
+    12.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.5
+  }
+ ]
+}

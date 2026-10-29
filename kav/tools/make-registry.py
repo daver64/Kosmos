@@ -7,7 +7,8 @@ ship types are the table below. Run it from anywhere; it rewrites the file. The 
 Format, one record a line, # starts a comment:
   body ID PARENT|- GM_m3s2 RADIUS_m ORBIT_a_m ATMOSPHERE(0|1)
   location ID BODY LAT LON NAME...
-  ship ID CARGO_KG SEATS MAX_DV_KMS RENTAL_FEE NAME...
+  system ID ROOT_BODY X_ly Y_ly Z_ly NAME...
+  ship ID CARGO_KG SEATS MAX_DV_KMS RENTAL_FEE JUMP_LY NAME...
 """
 import glob
 import json
@@ -19,15 +20,41 @@ AU = 1.495978707e11
 # Placeholders for game balance, not derived from the ships' tanks: max_dv is the biggest delta-v (km/s, ascent + transfer + landing) a job may
 # need, the fee is charged each time a pilot rents the ship for a job. Cargo and seats are what the job board treats as its capacity.
 SHIPS = [
-    ("deltaglider", 800, 4, 20, 300, "CVEL Deltaglider"),
-    ("shuttle-a", 20000, 8, 40, 1500, "CVEL Shuttle-A"),
-    ("dragonfly", 3000, 6, 30, 1000, "CVEL Dragonfly"),
+    ("deltaglider", 800, 4, 20, 300, 0, "CVEL Deltaglider"),
+    ("shuttle-a", 20000, 8, 40, 1500, 0, "CVEL Shuttle-A"),
+    ("dragonfly", 3000, 6, 30, 1000, 0, "CVEL Dragonfly"),
+    ("shuttle-aq", 20000, 8, 40, 2500, 50, "CVEL Shuttle-AQ"),
+]
+
+# Star positions in light years, the same table as src/galaxy.cpp (Sol is the origin). The system files are data/systems/<file>.json.
+SYSTEMS = [
+    ("sirius", "Sirius", -1.61, 8.07, -2.47),
+    ("proxima", "Proxima Centauri", -1.55, -1.18, -3.77),
+    ("tau-ceti", "Tau Ceti", 10.27, 5.00, -3.27),
+    ("trappist-1", "TRAPPIST-1", 8.24, -30.62, 25.51),
 ]
 
 
-def main():
+def ident(name):
+    return name.replace(" ", "_")
+
+
+def load_world():
+    """All bodies by name: {name: (record, system id)}; Sol first, then the other systems' files."""
+    world = {}
     sol = json.load(open(os.path.join(ROOT, "data", "sol.json")))
-    by_name = {b["name"]: b for b in sol["bodies"]}
+    for b in sol["bodies"]:
+        world[b["name"]] = (b, "sol")
+    for fid, _, _, _, _ in SYSTEMS:
+        path = os.path.join(ROOT, "data", "systems", "%s.json" % ("proxima-centauri" if fid == "proxima" else fid))
+        for b in json.load(open(path))["bodies"]:
+            world[b["name"]] = (b, fid)
+    return world
+
+
+def main():
+    world = load_world()
+    by_name = {n: v[0] for n, v in world.items()}
     locations = []
     for f in sorted(glob.glob(os.path.join(ROOT, "data", "bases", "*.json"))):
         for b in json.load(open(f))["bases"]:
@@ -43,11 +70,14 @@ def main():
         b = by_name[n]
         orbit = b.get("orbit", {})
         a = orbit["a_au"] * AU if "a_au" in orbit else orbit.get("a_km", 0) * 1000
-        out.append("body %s %s %.6g %.6g %.6g %d" % (n, b.get("parent", "-"), b["gm"], b["radius"], a, 1 if b.get("atmosphere") else 0))
+        out.append("body %s %s %.6g %.6g %.6g %d" % (ident(n), ident(b.get("parent", "-")), b["gm"], b["radius"], a, 1 if b.get("atmosphere") else 0))
     for b in locations:
-        out.append("location %s %s %.4f %.4f %s" % (b["id"], b["body"], b["latitude"], b["longitude"], b["name"]))
+        out.append("location %s %s %.4f %.4f %s" % (b["id"], ident(b["body"]), b["latitude"], b["longitude"], b["name"]))
+    out.append("system sol Sun 0 0 0 Sol")
+    for fid, root, x, y, z in SYSTEMS:
+        out.append("system %s %s %g %g %g %s" % (fid, ident(root), x, y, z, root))
     for s in SHIPS:
-        out.append("ship %s %d %d %g %d %s" % s)
+        out.append("ship %s %d %d %g %d %g %s" % s)
     path = os.path.join(ROOT, "kav", "data", "registry.txt")
     open(path, "w").write("\n".join(out) + "\n")
     print("wrote", os.path.normpath(path), "-", len(needed), "bodies,", len(locations), "locations,", len(SHIPS), "ships")
