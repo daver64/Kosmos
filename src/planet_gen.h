@@ -69,8 +69,8 @@ namespace kosmos
 
         /** Equirectangular far-view texture of the given size, built on several threads. The caller destroys it. */
         sl::Bitmap *make_texture(int width, int height) const;
-        /** The same, for the rectangle u0..u1 by v0..v1 of the equirectangular map (both 0-1), as one tile of a larger image. */
-        sl::Bitmap *make_region(double u0, double v0, double u1, double v1, int width, int height) const;
+        /** The same, for the rectangle u0..u1 by v0..v1 of the equirectangular map (both 0-1), as one tile of a larger image. At most max_threads threads are used. */
+        sl::Bitmap *make_region(double u0, double v0, double u1, double v1, int width, int height, unsigned max_threads = 16) const;
         /** The terrain source for sl::Terrain (not valid for a gas world). */
         std::shared_ptr<sl::TerrainSource> make_source() const;
 

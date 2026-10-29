@@ -8,6 +8,9 @@ endif()
 # Ninja otherwise starts (cores + 2) jobs. A job pool caps compiles and links no matter what
 # -j says, including a bare `ninja`. Change the cap with -DKOSMOS_BUILD_JOBS=N (the build scripts pass their -j value).
 set(KOSMOS_BUILD_JOBS 4 CACHE STRING "Most compile or link jobs run at once (Ninja generator)")
+if(KOSMOS_BUILD_JOBS GREATER 4)
+    set(KOSMOS_BUILD_JOBS 4) # a hard cap for tooling
+endif()
 if(CMAKE_GENERATOR MATCHES "Ninja")
     set_property(GLOBAL APPEND PROPERTY JOB_POOLS kosmos_jobs=${KOSMOS_BUILD_JOBS})
     set(CMAKE_JOB_POOL_COMPILE kosmos_jobs)
@@ -239,10 +242,22 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
+# planetbake, the world texture baker, sits next to KosmosMap in addons/planetbake/bin (Linux and Windows). It needs zlib, glm and
+# FastNoiseLite but not simlib; it gets a preview window where GTK 3 is found (Linux) and is command line only elsewhere.
+set(PLANETBAKE_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/planetbake/bin" CACHE PATH "" FORCE)
+add_subdirectory(sdk/planetbake)
+if(TARGET planetbake)
+    list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS planetbake)
+else()
+    message(STATUS "planetbake will not be built (needs zlib, glm and FastNoiseLite.h)")
+endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$")
+# Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin(/|$)")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin(/|$)" "/addons/planetbake/bin/planetbake$")
+else()
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------

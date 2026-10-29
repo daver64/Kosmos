@@ -33,7 +33,8 @@ A connection goes: connect, send *hello* (addon id, name, version, the capabilit
 | `CMakeLists.txt` | Builds the `kosmos::link` library; use it with `add_subdirectory`. |
 | `examples/` | `hello_props.c`, `speed_mfd.cpp`, `weather_mfd.cpp` (a weather page), and a pure-Python client with `speed_hold.py` and `nearest_runway.py`. |
 | `template/` | An addon folder to copy: `addon.json`, a CMake project and `src/main.cpp`. |
-| `kosmosmap/` | KosmosMap, a complete program: a GTK 3 moving map in C++ (about 2000 lines, Linux) that reads ships, facilities and properties and shades Kosmos's terrain data. Built with the SDK when GTK 3 and zlib are installed; see its `README.md`. |
+| `kosmosmap/` | KosmosMap, a complete program: a GTK 3 moving map in C++ (about 1,600 lines, Linux) that reads ships and facilities over the link and shades Kosmos's terrain data. Built with the SDK when GTK 3 and zlib are installed; see the worked example below and its `README.md`. |
+| `planetbake/` | planetbake, a standalone tool (source and ready-made binaries in `planetbake/bin/`) that bakes Kosmos's generated worlds into colour, height, normal, specular and night-lights maps, as PNG or DDS, as images or tile pyramids, from a GTK 3 preview window or the command line. It uses at most 4 threads. Not a link program; see its `README.md`. |
 | `tools/kosmos_link_sim.py` | A mock Kosmos for developing without the game. |
 | `docs/PROTOCOL.md` | The wire protocol, for other languages. |
 
@@ -316,6 +317,16 @@ Browse the full tree with F4 in the game. Some that addons commonly use:
 | `/ships/ship[N]/shield`, `health` | Shield level and hull health, 0 to 1 (`shield` is 0 on ships without one). |
 | `/controls/throttle`, `/controls/gear` | Flown ship controls you may set with the `controls` capability. |
 | `/addons/<id>/...` | Your own properties. You can always write these with `controls`. |
+
+## A worked example: KosmosMap
+
+`kosmosmap/` is a complete native program (a GTK 3 moving map, Linux) worth reading before you write your own. Its own `README.md` has the player guide and the full structure; in short:
+
+- **Manifest.** `addon.json` asks for `read` only, does not autostart and does not restart. The game's `cmake --build build` builds it into `addons/kosmosmap/bin`, next to the manifest.
+- **Link.** `connect_link` builds a `kosmos::Link` with `KL_CAP_READ` and carries on as a plain browser if Kosmos is not there. A 200 ms GTK timer calls `poll(0)` (and quits when the game goes), `ships()` for every ship, and `facilities()` around the view centre, at most every two seconds.
+- **Layers.** `terrain` (Orbiter elevation trees and pictures) and `render` (view to pixels, hillshade) use no link and no windows, so `--shot` and other front ends can reuse them. `main.cpp` holds the state (`App`), the link polling and the cairo drawing.
+- **Threads.** Rendering happens on a worker thread against an immutable, shared ground, tagged with a generation number so stale work is dropped; only the GTK main thread touches GTK and cairo. Your own program will want the same split between the link, the work and the UI.
+- **Extending.** A new layer is data in `App`, filled in the tick and drawn in `paint`; add the capability it needs to the manifest.
 
 ## Troubleshooting
 

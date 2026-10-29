@@ -421,7 +421,7 @@ namespace kosmos
         return make_region(0.0, 0.0, 1.0, 1.0, width, height);
     }
 
-    sl::Bitmap *PlanetSurface::make_region(double u0, double v0, double u1, double v1, int width, int height) const
+    sl::Bitmap *PlanetSurface::make_region(double u0, double v0, double u1, double v1, int width, int height, unsigned max_threads) const
     {
         sl::Bitmap *bitmap = sl::create_bitmap(width, height);
         if (!bitmap)
@@ -430,7 +430,7 @@ namespace kosmos
         std::shared_ptr<PlanetSurface> haze;
         if (style_.type == Archetype::venus)
             haze = haze_layer(style_, impl_->radius);
-        const unsigned threads = std::max(1u, std::min(16u, std::thread::hardware_concurrency()));
+        const unsigned threads = std::max(1u, std::min(std::max(1u, max_threads), std::thread::hardware_concurrency()));
         auto run = [&](int rows, const std::function<void(int)> &row)
         {
             std::vector<std::thread> pool;

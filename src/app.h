@@ -153,6 +153,10 @@ extern int screen_h;
         int bake_width = 16384;
         bool bake_estimate = false;
         bool bake_lazy = false;
+        std::string gen_world; // --gen-world
+        int gen_width = 16384;
+        int gen_threads = 4;
+        int gen_memory_mb = 4096;
         double map_scale = 0.0;
         std::string map_focus;
         std::string orbit_body;

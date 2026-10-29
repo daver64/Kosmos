@@ -91,7 +91,7 @@ namespace kmap
         std::vector<float> heights(static_cast<std::size_t>(gw) * gh, nan);
         std::vector<std::uint32_t> pixels(static_cast<std::size_t>(w) * h, 0xFF141820u);
 
-        const int threads = static_cast<int>(std::clamp(std::thread::hardware_concurrency(), 1u, 8u));
+        const int threads = static_cast<int>(std::clamp(std::thread::hardware_concurrency(), 1u, 4u));
         auto each_row = [&](int rows, const auto &work) {
             std::vector<std::thread> pool;
             for (int t = 0; t < threads; ++t)

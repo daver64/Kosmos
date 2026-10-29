@@ -39,6 +39,16 @@ namespace kosmos
     bool bake_tiles(const PlanetSurface &surface, const std::filesystem::path &dir, int width, const std::function<bool(double)> &progress,
                     std::string &error);
 
+    /** Where the game looks for the far-view image of an invented world at this width. */
+    std::filesystem::path far_image_path(const PlanetStyle &style, int width);
+
+    /**
+     * Makes the far-view image of a world (width x width/2) into the cache, in horizontal strips so the working memory stays
+     * under max_bytes and on at most max_threads threads. False with an error if the image would not fit.
+     */
+    bool generate_far_image(const PlanetSurface &surface, int width, unsigned max_threads, std::uint64_t max_bytes,
+                            const std::function<void(double)> &progress, std::string &error);
+
     /**
      * Tiles made the first time the terrain asks for them and kept on disk, so only the parts of a world you visit cost space. A tile
      * that is too coarse for the requested cell size is skipped: below `width` pixels across the equator the generator itself is used.

@@ -161,7 +161,7 @@ namespace kosmos::app
     {
         const bool large = b.radius > 2.0e6;
         const int width = generated_texture_width > 0 ? generated_texture_width : large ? 2048 : 1024, height = width / 2;
-        const std::filesystem::path path = kosmos::generated_cache_dir() / (b.style.key() + "-g1-" + std::to_string(width) + ".png");
+        const std::filesystem::path path = kosmos::far_image_path(b.style, width);
         std::error_code ec;
         if (std::filesystem::exists(path, ec))
             return path.string();

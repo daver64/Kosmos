@@ -15,6 +15,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 case $JOBS in ''|*[!0-9]*|0) echo "jobs must be a positive number" >&2; exit 1 ;; esac
+
+# Tooling never uses more than 4 jobs at once, whatever -j or JOBS says.
+if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 OUT=${OUT:-$SRC/build}
 SIMLIB_PREFIX=${SIMLIB_PREFIX:-$HOME/opt}

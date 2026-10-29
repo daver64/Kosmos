@@ -12,6 +12,9 @@
 # launch countdown (T-minus, then T-plus) drawn over it.
 # The first shot whose caption starts with "TECHNO" is where the music changes; captions cannot contain colons.
 set -e
+# ffmpeg and x264 otherwise use every core; tooling never uses more than 4 threads.
+export OMP_NUM_THREADS=4
+ffmpeg() { command ffmpeg -threads 4 -filter_threads 4 -filter_complex_threads 4 "$@"; }
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 export SRC
 KOSMOS=${KOSMOS:-$SRC/build/kosmos}

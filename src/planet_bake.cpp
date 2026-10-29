@@ -259,6 +259,61 @@ namespace kosmos
         return true;
     }
 
+    fs::path far_image_path(const PlanetStyle &style, int width)
+    {
+        return generated_cache_dir() / (style.key() + "-g1-" + std::to_string(width) + ".png");
+    }
+
+    bool generate_far_image(const PlanetSurface &surface, int width, unsigned max_threads, std::uint64_t max_bytes,
+                            const std::function<void(double)> &progress, std::string &error)
+    {
+        const int height = width / 2;
+        const std::uint64_t whole = static_cast<std::uint64_t>(width) * height * 4;
+        // The finished image, plus a strip's pixels (4 bytes) and its heights (4 bytes), plus a margin for the PNG writer.
+        const std::uint64_t margin = 256ull << 20;
+        if (whole + margin + 8ull * width > max_bytes)
+        {
+            error = "a " + std::to_string(width) + " pixel wide image needs about " + format_bytes(static_cast<double>(whole + margin)) + ", over the limit";
+            return false;
+        }
+        const std::uint64_t spare = max_bytes - whole - margin;
+        const int rows = static_cast<int>(std::clamp<std::uint64_t>(spare / (8ull * (width + 2)), 16, 1024));
+        sl::Bitmap *image = sl::create_bitmap(width, height);
+        if (!image)
+        {
+            error = "out of memory";
+            return false;
+        }
+        for (int y = 0; y < height; y += rows)
+        {
+            const int strip = std::min(rows, height - y);
+            sl::Bitmap *part = surface.make_region(0.0, static_cast<double>(y) / height, 1.0, static_cast<double>(y + strip) / height, width, strip, max_threads);
+            if (!part)
+            {
+                sl::destroy_bitmap(image);
+                error = "out of memory";
+                return false;
+            }
+            std::copy(part->pixels.begin(), part->pixels.begin() + static_cast<std::size_t>(strip) * width * 4, image->pixels.begin() + static_cast<std::size_t>(y) * width * 4);
+            sl::destroy_bitmap(part);
+            if (progress)
+                progress(static_cast<double>(y + strip) / height);
+        }
+        const fs::path path = far_image_path(surface.style(), width);
+        const std::string partial = path.string() + ".part.png";
+        std::error_code ec;
+        const bool saved = sl::save_bitmap(image, partial);
+        sl::destroy_bitmap(image);
+        if (saved)
+            fs::rename(partial, path, ec);
+        if (!saved || ec)
+        {
+            error = "cannot write " + path.string();
+            return false;
+        }
+        return true;
+    }
+
     std::string format_bytes(double bytes)
     {
         const char *units[] = {"B", "KB", "MB", "GB", "TB"};

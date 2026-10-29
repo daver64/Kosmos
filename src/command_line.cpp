@@ -231,6 +231,14 @@ namespace kosmos::app
                 options.sets.push_back(argv[++i]);
             else if (!std::strcmp(argv[i], "--bake-planet") && i + 1 < argc)
                 options.bake_body = argv[++i];
+            else if (!std::strcmp(argv[i], "--gen-world") && i + 1 < argc)
+                options.gen_world = argv[++i];
+            else if (!std::strcmp(argv[i], "--gen-width") && i + 1 < argc)
+                options.gen_width = std::atoi(argv[++i]);
+            else if (!std::strcmp(argv[i], "--gen-threads") && i + 1 < argc)
+                options.gen_threads = std::clamp(std::atoi(argv[++i]), 1, 4);
+            else if (!std::strcmp(argv[i], "--gen-memory") && i + 1 < argc)
+                options.gen_memory_mb = std::clamp(std::atoi(argv[++i]), 512, 4096);
             else if (!std::strcmp(argv[i], "--bake-width") && i + 1 < argc)
                 options.bake_width = std::atoi(argv[++i]);
             else if (!std::strcmp(argv[i], "--bake-lazy"))

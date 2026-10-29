@@ -6,6 +6,8 @@ set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 OUT=${1:-$SRC/build}
 JOBS=${JOBS:-4}
+# Tooling never uses more than 4 jobs at once, whatever -j or JOBS says.
+if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test weather_test joystick_test equipment_test keybindings_test link_test
 cd "$OUT"

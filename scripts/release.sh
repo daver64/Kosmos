@@ -21,6 +21,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Tooling never uses more than 4 jobs at once, whatever -j or JOBS says.
+case $JOBS in ''|*[!0-9]*|0) echo "jobs must be a positive number" >&2; exit 1 ;; esac
+if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 export JOBS
 archives=
 if [ $linux -eq 1 ]; then

@@ -28,4 +28,7 @@ if(PROJECT_IS_TOP_LEVEL)
             add_subdirectory(kosmosmap)
         endif()
     endif()
+
+    # planetbake, the world texture baker, builds where zlib, glm and FastNoiseLite are found (it adds a preview window if GTK 3 is there).
+    add_subdirectory(planetbake)
 endif()

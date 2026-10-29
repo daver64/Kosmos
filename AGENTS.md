@@ -4,6 +4,7 @@ Kosmos is an Kerbal/Orbiter-style space flight sim in C++17, built on **simlib**
 
 ## Working rules
 - **The owner handles git.** Do not commit or push unless asked. If you do commit, end the message with `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
+- **Tooling never uses more than 4 threads** (builds with make or ninja, ffmpeg, ImageMagick, the SDK tools such as planetbake and KosmosMap, anything else spawned to do work). Kosmos and simlib's own internal threads are exempt. Pass `-j4` at most; the build scripts clamp it.
 - The working tree often has unrelated uncommitted changes (addon edits, deleted scenario files). Leave them alone.
 - Keep release notes honest. A line in `docs/release-notes/X.md` must describe something that changed since the previous *published* build. Check `git log` before claiming something is new.
 - Docs to keep in step with behaviour: `README.md`, the in-game help text in `src/menu.cpp` (search "F5-F9 MFDs"), and the website under `/var/www/html/kosmos/` (`manual.html`, `index.html`, `modding.html`, `release-notes.html`).

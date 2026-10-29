@@ -4,7 +4,10 @@
 #
 # Usage: build-sdk.sh [--publish]
 #   --publish   also copies the archives to the web download folder, updates SHA256SUMS.txt, and regenerates sdk.html
-# Overrides (env): WEB_ROOT (default /var/www/html)
+# Overrides (env): WEB_ROOT (default /var/www/html), FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
+#                  VCPKG_MINGW (vcpkg root with x64-mingw-static zlib, default ~/vcpkg-mingw; no Windows planetbake.exe without it)
+#                  GLM_INCLUDE_DIR (folder holding glm/, default FASTNOISE_DIR; for the Windows planetbake build)
+# The build never runs more than 4 jobs at once.
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WEB_ROOT=${WEB_ROOT:-/var/www/html}
@@ -14,18 +17,44 @@ VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
 
 rm -rf "$OUT/sdk-stage"
 mkdir -p "$STAGE" "$OUT"
-cp -r "$SRC/sdk/include" "$SRC/sdk/src" "$SRC/sdk/examples" "$SRC/sdk/template" "$SRC/sdk/kosmosmap" "$SRC/sdk/tools" "$SRC/sdk/docs" "$SRC/sdk/CMakeLists.txt" "$STAGE/"
+cp -r "$SRC/sdk/include" "$SRC/sdk/src" "$SRC/sdk/examples" "$SRC/sdk/template" "$SRC/sdk/kosmosmap" "$SRC/sdk/planetbake" "$SRC/sdk/tools" "$SRC/sdk/docs" "$SRC/sdk/CMakeLists.txt" "$STAGE/"
 rm -rf "$STAGE/template/bin" "$STAGE/kosmosmap/bin" "$STAGE/examples/__pycache__" "$STAGE/tools/__pycache__"
 cp "$STAGE/docs/MANUAL.md" "$STAGE/README.md"
+rm -rf "$STAGE/planetbake/bin"
+# planetbake uses the game's own world generator, so the SDK carries a copy of it.
+FASTNOISE_DIR=${FASTNOISE_DIR:-$HOME/opt/include}
+mkdir -p "$STAGE/planetbake/gen"
+cp "$SRC/src/planet_gen.h" "$SRC/src/planet_gen.cpp" "$STAGE/planetbake/gen/"
+cp "$FASTNOISE_DIR/FastNoiseLite.h" "$STAGE/planetbake/gen/"
 echo "$VER" > "$STAGE/VERSION"
 cp "$SRC/LICENSE"* "$STAGE/" 2>/dev/null || true
 
 # Prove the package builds before shipping it.
 BUILD=$(mktemp -d)
 cmake -S "$STAGE" -B "$BUILD" > /dev/null
-cmake --build "$BUILD" > /dev/null
+cmake --build "$BUILD" --parallel 4 > /dev/null
 cmake -S "$STAGE/template" -B "$BUILD/template" > /dev/null
-cmake --build "$BUILD/template" > /dev/null
+cmake --build "$BUILD/template" --parallel 4 > /dev/null
+
+# Ship planetbake as a program too: the Linux build from the test build above, and a Windows command line build if mingw is here.
+mkdir -p "$STAGE/planetbake/bin"
+cp "$BUILD/planetbake/bin/planetbake" "$STAGE/planetbake/bin/planetbake-linux-x86_64"
+VCPKG_MINGW=${VCPKG_MINGW:-$HOME/vcpkg-mingw}
+WINZ=$VCPKG_MINGW/installed/x64-mingw-static
+WINCXX=x86_64-w64-mingw32-g++-posix
+if command -v "$WINCXX" > /dev/null 2>&1 && [ -f "$WINZ/lib/libzs.a" ]; then
+    PB=$STAGE/planetbake
+    WINTMP=$(mktemp -d)
+    # At most 4 compiles at once.
+    export WINCXX PB WINZ WINTMP VER FASTNOISE_DIR
+    printf '%s\n' main bake layers encode gui | xargs -P 4 -I{} sh -c \
+        '"$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/src/{}.cpp" -o "$WINTMP/{}.o"' 2> /dev/null || true
+    "$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/gen/planet_gen.cpp" -o "$WINTMP/planet_gen.o" 2> /dev/null || true
+    "$WINCXX" -static -o "$PB/bin/planetbake-windows-x86_64.exe" "$WINTMP"/*.o "$WINZ/lib/libzs.a" 2> /dev/null || echo "note: no Windows planetbake.exe in the SDK (mingw build failed)"
+    rm -rf "$WINTMP"
+else
+    echo "note: no Windows planetbake.exe in the SDK (needs $WINCXX and zlib in $WINZ)"
+fi
 rm -rf "$BUILD" "$STAGE/template/bin" "$STAGE/kosmosmap/bin"
 
 rm -f "$OUT/kosmos-sdk.tar.gz" "$OUT/kosmos-sdk.zip"

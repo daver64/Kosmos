@@ -39,6 +39,8 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`). `addons/kosmosmap` is the launcher for KosmosMap, a GTK 3 moving map of the body the ship is at (Linux); its source is the SDK's model program, `sdk/kosmosmap`.
 
+**KosmosMap (Linux).** Tick it in View > Native addons to open a map window: relief or imagery of the body you are at, your ship (yellow), other ships (blue), your track, airports with runways and navaids, and a read-out of position, altitude, heading, speed and the height under the pointer. Drag pans, the wheel and +/- zoom, F follows the ship, C clears the track. It also runs on its own: `kosmosmap --body Moon --lat 10 --lon 20 --ppd 12` (`--imagery`, `--root DIR`, `--no-link`, `--shot FILE.png [--size WxH]`). Usage and internals: `sdk/kosmosmap/README.md`.
+
 ## Controls
 
 The keys below are the defaults. View > Keyboard rebinds any of them (saved in `keys.json` in the config folder); addons can add bindable actions with a `keys.json` of their own, see the modders manual.
@@ -88,7 +90,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--gl`, `--vulkan`, `--d3d12` | Choose the graphics backend (D3D12 is Windows only). Vulkan prefers a discrete GPU (`SIMLIB_VULKAN_DEVICE_TYPE=discrete\|integrated\|any` overrides); the chosen GPU is printed at startup |
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
-| `--shot FILE`, `--shot-at SECS` | Save a screenshot |
+| `--shot FILE`, `--shot-at SECS` | Save a screenshot (`scripts/make-gallery.sh` uses it to make the web gallery's JPEGs; `scripts/make-promo.sh` records the showreel) |
 | `--alone` | With `--orbit`, leave out the other addon ships that normally share the orbit |
 | `--cam-tilt DEG` | Nod the chase camera up and down by up to DEG degrees (for video) |
 | `--cam-dolly M` | Move the chase camera away from the ship at M metres per second (negative moves in), for video |
@@ -143,9 +145,13 @@ Nothing is shipped for these worlds. The first time a system is entered, each fa
 
 **Far-view detail.** The default far-view image is 2048x1024 (1024x512 for small bodies). Settings (F3) > "World texture", the `/sim/settings/world-texture` property or `--world-texture WIDTH` picks Automatic, 2048, 4096, 8192 or 16384 wide instead, and the change is applied at once (a few seconds for the larger sizes; each size is made once and kept). Measured on a Mars-like world, 4096 took about 2 s and a 34 MB PNG, 8192 about 6 s and 134 MB; 16384 is about four times that again (roughly 540 MB, and as much video memory). The cache keeps every width you have tried, so delete the folder to reclaim the space. Close to the ground the terrain colours come straight from the generator (or from baked tiles, below), so this only changes the view from afar.
 
+`kosmos --system N --gen-world "Name" [--gen-width 16384] [--gen-threads 4] [--gen-memory MB]` makes one world's far-view image into the cache from the command line, so the game finds it ready. It works in horizontal strips on at most 4 threads (the default and the limit) and 4 GB (`--gen-memory`, 512 to 4096; a 16384 image needs under 1 GB and about a minute). Use it instead of setting World texture to 16384, which makes every world in the system when you arrive. The image is not made again if it is already cached.
+
 `--gen-planet TYPE SEED out.png [WIDTH]` writes a preview image of a type (`mercury venus earth mars gas`) and exits.
 
 #### High-resolution bake (optional)
+
+**For big or many-layer maps use planetbake.** It is a separate program next to KosmosMap (`addons/planetbake/bin/planetbake`, built with the game on Linux and Windows and in the game packages; the window needs GTK 3, so it is Linux only, and the Windows program is command line). Its source is in the SDK (`sdk/planetbake`; the SDK download has source and ready-made Linux and Windows programs) that bakes a generated world into colour, height, normal, specular and night-lights maps, as PNG or DDS, as single images (to 16384 wide) or tile pyramids (to 65536), from a GTK 3 preview window or the command line, on at most 4 threads. It uses the same generator, so the maps match the game. `--gen-world` and `--bake-planet` print the planetbake command line for the world they were given. See `sdk/planetbake/README.md`.
 
 For a closer-looking far view, or maps you can open in other tools, pre-generate a tile set for one world:
 

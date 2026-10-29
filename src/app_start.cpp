@@ -1,3 +1,6 @@
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
 #include "app_state.h"
 
 namespace kosmos::app
@@ -98,6 +101,58 @@ namespace kosmos::app
                             sim.galaxy.distance_ly(sim.system_index(), id), sim.galaxy.planet_count(id));
             return 0;
         }
+        // The planetbake (SDK) command line that makes the same world, with every value in full so the maps match the game.
+        auto print_planetbake = [](const kosmos::Body &b) {
+            std::printf("for bigger maps, PNG/DDS and more layers use planetbake: planetbake --type %s --seed %d --ocean %.9g --ice %.9g --relief %.9g --tint %.9g,%.9g,%.9g --bands %d --contrast %.9g --radius-km %.9g --out DIR\n",
+                        kosmos::archetype_name(b.style.type), b.style.seed, b.style.ocean, b.style.ice, b.style.relief, b.style.tint[0], b.style.tint[1], b.style.tint[2],
+                        b.style.bands, b.style.contrast, b.radius / 1000.0);
+        };
+        if (!options.gen_world.empty())
+        {
+            // Makes the far-view image of an invented world into the cache, within 4 threads and 4 GB:
+            // --system N --gen-world "Name" [--gen-width 16384] [--gen-threads 4] [--gen-memory MB]
+            const int id = sim.universe.find(options.gen_world);
+            if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.valid())
+            {
+                std::fprintf(stderr, "kosmos: no generated world '%s' in this system. Candidates:\n", options.gen_world.c_str());
+                for (const kosmos::Body &b : sim.universe.bodies)
+                    if (b.style.valid() && !b.minor)
+                        std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+                return 1;
+            }
+            const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
+            const int width = std::clamp(options.gen_width, 256, 16384) & ~1;
+            const std::uint64_t limit = static_cast<std::uint64_t>(options.gen_memory_mb) << 20;
+#ifdef __linux__
+            // A hard ceiling on address space, so a mistake fails the run rather than the machine.
+            struct rlimit cap = {limit + (512ull << 20), limit + (512ull << 20)};
+            setrlimit(RLIMIT_AS, &cap);
+#endif
+            const std::filesystem::path path = kosmos::far_image_path(b.style, width);
+            if (std::filesystem::exists(path))
+            {
+                std::printf("already there: %s\n", path.string().c_str());
+                return 0;
+            }
+            std::printf("%s (%s): %d x %d, %d threads, up to %d MB\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), width, width / 2,
+                        options.gen_threads, options.gen_memory_mb, path.string().c_str());
+            print_planetbake(b);
+            const kosmos::PlanetSurface surface(b.style, b.radius);
+            std::string error;
+            int last = -1;
+            const bool ok = kosmos::generate_far_image(surface, width, static_cast<unsigned>(options.gen_threads), limit, [&](double fraction)
+            {
+                const int percent = static_cast<int>(fraction * 100.0);
+                if (percent != last)
+                {
+                    last = percent;
+                    std::printf("\r%3d%%", percent);
+                    std::fflush(stdout);
+                }
+            }, error);
+            std::printf("\n%s\n", ok ? "done" : error.c_str());
+            return ok ? 0 : 1;
+        }
         if (!options.bake_body.empty())
         {
             // Pre-generates the high-resolution tile set of an invented world: --system N --bake-planet "Name" [--bake-width 16384] [--bake-estimate | --bake-lazy]
@@ -115,6 +170,7 @@ namespace kosmos::app
             const std::filesystem::path dir = kosmos::baked_tiles_dir(b.style, b.radius);
             std::printf("%s (%s): %d x %d pixels, %lld tiles, about %s on disk\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), estimate.width,
                         estimate.height, static_cast<long long>(estimate.tiles), kosmos::format_bytes(estimate.disk_bytes).c_str(), dir.string().c_str());
+            print_planetbake(b);
             if (options.bake_estimate)
                 return 0;
             if (options.bake_lazy)
