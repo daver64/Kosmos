@@ -224,8 +224,20 @@ namespace kosmos
                     result.levels[action] = v;
                 }
             }
-            else if (v != 0.0f)
-                result.axes[action] = v;
+            else
+            {
+                // A stick axis that first reads fully pinned is a device that has not reported its rest position yet; ignore it until it moves.
+                const std::string key = (aircraft_profile ? "a:" : "s:") + action;
+                const auto it = pinned_.find(key);
+                if (it == pinned_.end())
+                    pinned_[key] = std::fabs(raw) >= 0.95f ? raw : 2.0f;
+                else if (it->second <= 1.0f && std::fabs(raw - it->second) > 0.05f)
+                    it->second = 2.0f;
+                if (pinned_[key] <= 1.0f)
+                    continue;
+                if (v != 0.0f)
+                    result.axes[action] = v;
+            }
         }
         for (const auto &[action, b] : p.buttons)
         {

@@ -88,6 +88,27 @@
      "plume_density": 3,
      "type": "rocket",
      "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      0,
+      0,
+      26.3
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 3370000,
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 100,
+     "plume_width": 2.4,
+     "plume_glow": 2.2,
+     "plume_density": 3,
+     "type": "rocket",
+     "fuel": "hydrogen"
     }
    ],
    "gear": [

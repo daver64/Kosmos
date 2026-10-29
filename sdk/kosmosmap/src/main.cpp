@@ -5,6 +5,9 @@
 #include <kosmos_link.hpp>
 
 #include <gtk/gtk.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -918,6 +921,19 @@ int main(int argc, char **argv)
         return write_shot(app, shot, width, height);
     }
 
+#ifdef _WIN32
+    {
+        // The Windows package carries the compiled GSettings schemas GTK's file chooser needs in <program folder>/../share/glib-2.0/schemas.
+        char exe[MAX_PATH] = {};
+        if (GetModuleFileNameA(nullptr, exe, MAX_PATH) > 0)
+        {
+            std::string dir = exe;
+            for (int up = 0; up < 2; ++up)
+                dir.erase(std::min(dir.size(), dir.find_last_of("\\/")));
+            g_setenv("GSETTINGS_SCHEMA_DIR", (dir + "\\share\\glib-2.0\\schemas").c_str(), FALSE);
+        }
+    }
+#endif
     gtk_init(&argc, &argv);
     build_window(app, width, height);
     g_timeout_add(200, on_tick, &app);

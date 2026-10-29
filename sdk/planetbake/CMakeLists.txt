@@ -50,7 +50,7 @@ endforeach()
 target_compile_definitions(planetbake PRIVATE PLANETBAKE_VERSION="${PB_VERSION}")
 target_link_libraries(planetbake PRIVATE ZLIB::ZLIB Threads::Threads)
 
-# planetbake builds on Windows too (command line only there); the preview window is optional: without GTK 3 the program is command line only.
+# planetbake builds on Windows too (command line only unless GTK 3 is found, as scripts/build-win-tools.sh does for the game package); the preview window is optional: without GTK 3 the program is command line only.
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND AND NOT PLANETBAKE_NO_GUI AND UNIX AND NOT CMAKE_CROSSCOMPILING)
     pkg_check_modules(PB_GTK QUIET IMPORTED_TARGET gtk+-3.0)

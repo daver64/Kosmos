@@ -20,3 +20,5 @@ data/textures-hires/
 /kosmos-hires.tar.*
 /addons/kosmosmap/bin/
 /addons/planetbake/bin/
+/addons/planetbake/share/
+/addons/kosmosmap/share/

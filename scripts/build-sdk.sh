@@ -41,16 +41,37 @@ mkdir -p "$STAGE/planetbake/bin"
 cp "$BUILD/planetbake/bin/planetbake" "$STAGE/planetbake/bin/planetbake-linux-x86_64"
 VCPKG_MINGW=${VCPKG_MINGW:-$HOME/vcpkg-mingw}
 WINZ=$VCPKG_MINGW/installed/x64-mingw-static
+# With GTK 3 in vcpkg's x64-mingw-posix tree (and pkg-config) the Windows program gets the preview window too; otherwise it is command line only.
+WINGTK=$VCPKG_MINGW/installed/x64-mingw-posix
+WINPC=$WINGTK/lib/pkgconfig:${MINGW_PKGCONFIG_EXTRA:-$HOME/mingw-triplets/pkgconfig}
+GTKDEF=""
+GTKINC=""
+GTKLIBS=""
+if [ -f "$WINGTK/lib/libgtk-3.a" ] && command -v pkg-config > /dev/null 2>&1 \
+    && PKG_CONFIG_LIBDIR=$WINPC PKG_CONFIG_PATH= pkg-config --exists gtk+-3.0; then
+    GTKDEF=-DPLANETBAKE_GTK=1
+    GTKINC=$(PKG_CONFIG_LIBDIR=$WINPC PKG_CONFIG_PATH= pkg-config --cflags gtk+-3.0)
+    GTKLIBS=$(PKG_CONFIG_LIBDIR=$WINPC PKG_CONFIG_PATH= pkg-config --static --libs gtk+-3.0 | sed 's/-lgcc_s//g')
+    WINZ=$WINGTK
+fi
 WINCXX=x86_64-w64-mingw32-g++-posix
 if command -v "$WINCXX" > /dev/null 2>&1 && [ -f "$WINZ/lib/libzs.a" ]; then
     PB=$STAGE/planetbake
     WINTMP=$(mktemp -d)
     # At most 4 compiles at once.
-    export WINCXX PB WINZ WINTMP VER FASTNOISE_DIR
+    export WINCXX PB WINZ WINTMP VER FASTNOISE_DIR GTKDEF GTKINC
     printf '%s\n' main bake layers encode gui imageio pack settings fill edit | xargs -P 4 -I{} sh -c \
-        '"$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/src/{}.cpp" -o "$WINTMP/{}.o"' 2> /dev/null || true
+        '"$WINCXX" -std=c++17 -O2 $GTKDEF $GTKINC "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/src/{}.cpp" -o "$WINTMP/{}.o"' 2> /dev/null || true
     "$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/gen/planet_gen.cpp" -o "$WINTMP/planet_gen.o" 2> /dev/null || true
-    "$WINCXX" -static -o "$PB/bin/planetbake-windows-x86_64.exe" "$WINTMP"/*.o "$WINZ/lib/libzs.a" 2> /dev/null || echo "note: no Windows planetbake.exe in the SDK (mingw build failed)"
+    if [ -n "$GTKDEF" ]; then
+        "$WINCXX" -static -o "$PB/bin/planetbake-windows-x86_64.exe" "$WINTMP"/*.o $GTKLIBS 2> /dev/null || echo "note: no Windows planetbake.exe in the SDK (mingw build failed)"
+        # GTK aborts without GSettings schemas (the file chooser needs them); GLib looks in <exe folder>/../share/glib-2.0/schemas
+        mkdir -p "$PB/share/glib-2.0/schemas"
+        cp "$WINGTK"/share/glib-2.0/schemas/*.gschema.xml "$PB/share/glib-2.0/schemas/"
+        glib-compile-schemas "$PB/share/glib-2.0/schemas" && rm -f "$PB/share/glib-2.0/schemas"/*.xml
+    else
+        "$WINCXX" -static -o "$PB/bin/planetbake-windows-x86_64.exe" "$WINTMP"/*.o "$WINZ/lib/libzs.a" 2> /dev/null || echo "note: no Windows planetbake.exe in the SDK (mingw build failed)"
+    fi
     rm -rf "$WINTMP"
 else
     echo "note: no Windows planetbake.exe in the SDK (needs $WINCXX and zlib in $WINZ)"

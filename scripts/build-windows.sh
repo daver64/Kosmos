@@ -26,7 +26,11 @@ SIMLIB_PREFIX=${SIMLIB_PREFIX:-$HOME/opt-win}
 
 sh "$SRC/scripts/check-simlib.sh"
 
-cmake -S "$SRC" -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release -DKOSMOS_BUILD_JOBS="$JOBS" \
+# The GTK window programs (planetbake, KosmosMap) are built apart from CMake; without Windows GTK the package just lacks them.
+PREBUILT=OFF
+if sh "$SRC/scripts/build-win-tools.sh"; then PREBUILT=ON; else echo "note: no Windows planetbake/KosmosMap in the package" >&2; fi
+
+cmake -S "$SRC" -B "$OUT" -DKOSMOS_PREBUILT_WIN_TOOLS=$PREBUILT -G Ninja -DCMAKE_BUILD_TYPE=Release -DKOSMOS_BUILD_JOBS="$JOBS" \
   -DCMAKE_TOOLCHAIN_FILE=$VCPKG/scripts/buildsystems/vcpkg.cmake \
   -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$TRIPLETS/mingw-posix.cmake \
   -DVCPKG_TARGET_TRIPLET=x64-mingw-posix -DVCPKG_HOST_TRIPLET=x64-linux -DVCPKG_MANIFEST_MODE=OFF \

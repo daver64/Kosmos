@@ -89,6 +89,7 @@ namespace kosmos
         std::string learn_action_;
         std::map<std::pair<int, int>, float> baseline_;
         std::map<std::string, float> last_level_;
+        std::map<std::string, float> pinned_; // raw value an axis was stuck at since start (2 = not stuck)
         std::map<std::string, bool> last_button_;
     };
 

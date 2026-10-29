@@ -58,7 +58,7 @@ On the command line:
     planetbake --open DIR --restore-tile colour:3:5:2
     planetbake --list-sources                                     # public datasets planetbake can download
 
-`--source` takes `[LAYER=]PATH` (a picture, or a folder of pictures) or a catalogue name (`bluemarble`, `bluemarble-small`, `gebco`, `blackmarble`, plus any in `~/.config/planetbake/sources.json`), which is downloaded with curl into `~/.cache/planetbake/downloads` (NASA imagery, free to use with credit). `--no-generate` stops the fill at sources and coarser levels. Source pictures must be equirectangular (longitude -180 to 180, north up) and are not reprojected; JPEG and TIFF are converted with ImageMagick when it is installed. The GEBCO height range is approximate. The Windows program is command line only.
+`--source` takes `[LAYER=]PATH` (a picture, or a folder of pictures) or a catalogue name (`bluemarble`, `bluemarble-small`, `gebco`, `blackmarble`, plus any in `~/.config/planetbake/sources.json`), which is downloaded with curl into `~/.cache/planetbake/downloads` (NASA imagery, free to use with credit). `--no-generate` stops the fill at sources and coarser levels. Source pictures must be equirectangular (longitude -180 to 180, north up) and are not reprojected; JPEG and TIFF are converted with ImageMagick when it is installed. The GEBCO height range is approximate. The Windows program has the same window.
 
 ## What the layers are
 
@@ -81,7 +81,7 @@ To use a colour pyramid in the game, copy `OUT/colour` into the world's folder i
 
 ## Building
 
-The game's own build (`scripts/build-linux.sh`, `build-windows.sh`, `release.sh`) builds it into `addons/planetbake/bin/` and puts it in the game packages; the Windows program is command line only. To build it alone:
+The game's own build (`scripts/build-linux.sh`, `build-windows.sh`, `release.sh`) builds it into `addons/planetbake/bin/` and puts it in the game packages (the game's Windows cross build makes the command line version; the SDK's Windows program has the window). To build it alone:
 
 From the SDK folder (needs a C++17 compiler, CMake, zlib, glm and `FastNoiseLite.h`; GTK 3 adds the window):
 
@@ -89,7 +89,7 @@ From the SDK folder (needs a C++17 compiler, CMake, zlib, glm and `FastNoiseLite
     cmake --build build-pb --parallel 4
     build-pb/bin/planetbake --help
 
-`gen/` holds the generator, `FastNoiseLite.h` is looked for in `gen/`, `~/opt/include`, or where `-DFASTNOISE_DIR=` and `-DGLM_INCLUDE_DIR=` point. `-DPLANETBAKE_NO_GUI=ON` makes a command line only build. Build with at most 4 jobs (the Windows cross build is command line only; GTK is not used when cross compiling). The SDK download also has ready-made programs in `bin/`: `planetbake-linux-x86_64` (needs GTK 3 for the window) and `planetbake-windows-x86_64.exe` (command line only).
+`gen/` holds the generator, `FastNoiseLite.h` is looked for in `gen/`, `~/opt/include`, or where `-DFASTNOISE_DIR=` and `-DGLM_INCLUDE_DIR=` point. `-DPLANETBAKE_NO_GUI=ON` makes a command line only build. Build with at most 4 jobs (the Windows GTK build is made by `scripts/build-sdk.sh`, which needs GTK 3 installed in vcpkg's `x64-mingw-posix` tree). The SDK download also has ready-made programs in `bin/`: `planetbake-linux-x86_64` (needs GTK 3 for the window) and `planetbake-windows-x86_64.exe` (with the window; it needs its `share/` folder next to `bin/`).
 
 ## Source
 

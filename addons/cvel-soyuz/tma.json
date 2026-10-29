@@ -22,6 +22,9 @@
  "vessels": [
   { "name": "Cabin", "stage": "Soyuz TMA", "position": [0, 0, -1.5], "size": [2.2, 2.2, 2.0], "crew": 3 }
  ],
+ "animation_controls": [
+  {"name": "Panels and antennae", "property": "panels", "duration": 10}
+ ],
  "ports": [
   { "name": "Docking", "position": [0, 0, -4.615], "direction": [0, 0, -1], "up": [0, 1, 0] }
  ],
@@ -40,7 +43,7 @@
     { "position": [0, 0, 2.64], "direction": [0, 0, -1], "thrust": 3924, "isp": 305, "plume": 3, "plume_width": 0.5, "plume_glow": 0.8, "plume_density": 1, "type": "rocket", "fuel": "hypergolic" }
    ],
    "parts": [
-    { "model": "models/soyuz.obj", "offset": [0, 0, 0] }
+    { "model": "models/soyuz.obj", "offset": [0, 0, 0], "animations": "tma_animations.json" }
    ]
   }
  ]
