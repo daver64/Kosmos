@@ -3,6 +3,7 @@
 #include "ship.h"
 #include "universe.h"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>

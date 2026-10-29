@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn the NASA 3D Resources models in data/nasa into Kosmos stock parts and a body mesh.
+"""Turn the NASA 3D Resources models in import/nasa into Kosmos stock parts and a body mesh.
 
     python3 tools/nasa_import.py [--only ID ...] [--tris N] [--keep]
 
@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCE = ROOT / "data" / "nasa"
+SOURCE = ROOT / "import" / "nasa"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import glb_unpack  # noqa: E402
 

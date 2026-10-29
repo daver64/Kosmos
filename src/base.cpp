@@ -1065,7 +1065,7 @@ namespace kosmos
         if (tarmac_tried_)
             return tarmac_;
         tarmac_tried_ = true;
-        tarmac_ = sl::load_bitmap((root + "/data/open-game-art/textures/tarmac/ground_asphalt_synth_05.png").c_str());
+        tarmac_ = sl::load_bitmap((root + "/data/textures/tarmac/ground_asphalt_synth_05.png").c_str());
         if (!tarmac_ || tarmac_->pixels.empty())
         {
             tarmac_ = nullptr;

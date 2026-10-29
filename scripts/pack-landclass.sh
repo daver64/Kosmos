@@ -1,6 +1,6 @@
 #!/bin/sh
 # Condenses the Earth land cover into the gzipped cache that ships in the game package (about 26 MB).
-# Run it after adding or changing data/landclass/sol/earth/consensus_full_class_N.tif. The game builds
+# Run it after adding or changing import/landclass/sol/earth/consensus_full_class_N.tif. The game builds
 # landclass.kavlc from those rasters on first use if it is missing, then this script compresses it.
 # Usage: pack-landclass.sh
 set -e

@@ -175,7 +175,7 @@ namespace kosmos::app
                     std::string celestia_normal = find_texture_in_directory(sim.root(), "/data/textures-hires/", lower + "_normal",
                                                                              {".dds", ".png", ".jpg", ".jpeg"});
                     if (celestia_normal.empty())
-                        celestia_normal = find_image_in_folder(sim.root() + "/data/celestia/hires/" + lower + "_normal");
+                        celestia_normal = find_image_in_folder(sim.root() + "/import/celestia/hires/" + lower + "_normal");
                     if (celestia_normal.empty())
                         celestia_normal = find_texture_in_directory(sim.root(), "/data/textures/", lower + "_normal",
                                                                      {".dds", ".png", ".jpg", ".jpeg"});
@@ -201,7 +201,7 @@ namespace kosmos::app
                 if (home >= 0 && sim.universe.bodies[static_cast<std::size_t>(home)].name == "Earth")
                 {
                     loading.note("Opening the Earth imagery tiles");
-                    const std::string hires = sim.root() + "/data/celestia/hires/";
+                    const std::string hires = sim.root() + "/import/celestia/hires/";
                     sl::PlanetTilesOptions tiles;
                     // Skirts show as bright lines along tile edges from orbit.
                     tiles.skirt = 0.0f;

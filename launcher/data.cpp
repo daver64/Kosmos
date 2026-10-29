@@ -116,7 +116,7 @@ namespace launcher
         std::error_code ec;
         fs::path dir = launcher_dir;
         for (int up = 0; up < 4 && !dir.empty(); ++up, dir = dir.parent_path())
-            if (fs::is_directory(dir / "data" / "scenarios", ec) && fs::is_directory(dir / "addons", ec))
+            if (fs::is_directory(dir / "scenarios", ec) && fs::is_directory(dir / "addons", ec))
                 return dir;
         return launcher_dir;
     }
@@ -202,7 +202,7 @@ namespace launcher
     std::vector<ScenarioInfo> scan_scenarios(const fs::path &root, const std::vector<AddonInfo> &addons)
     {
         std::vector<ScenarioInfo> out;
-        add_scenarios(root / "data" / "scenarios", out);
+        add_scenarios(root / "scenarios", out);
         for (const AddonInfo &a : addons)
         {
             if (!a.enabled)

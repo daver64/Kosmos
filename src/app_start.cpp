@@ -194,7 +194,7 @@ namespace kosmos::app
     // The start date and the headless self-tests.
     int App::init_start_date()
     {
-        // With no scenario or start flags, load the "default" scenario (data/scenarios/default.json, overridable from ~/.config/kosmos/scenarios).
+        // With no scenario or start flags, load the "default" scenario (scenarios/default.json, overridable from ~/.config/kosmos/scenarios).
         if (options.scenario.empty() && options.selftest <= 0.0 && !options.orbit_start && options.orbit_body.empty() && options.ship_name == "Kestrel" && sim.find_scenario("default"))
             options.scenario = "default";
         // The start date shapes the planets' positions and the home planet's orientation, which the terrain bakes in, so it is set before the terrain is built.
@@ -306,7 +306,7 @@ namespace kosmos::app
         vis.star_rays = make_star_rays();
         vis.star_limb = make_star_limb();
         vis.sky = make_sky_texture();
-        vis.nebula_atlas = sl::load_bitmap((sim.root() + "/data/open-game-art/textures/nebula/proc_sheet_nebula.jpg").c_str());
+        vis.nebula_atlas = sl::load_bitmap((sim.root() + "/data/textures/nebula/proc_sheet_nebula.jpg").c_str());
         if (vis.nebula_atlas)
         {
             vis.nebula_atlas->smooth = true;

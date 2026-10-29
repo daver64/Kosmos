@@ -180,7 +180,7 @@ namespace kosmos
             if (tried[i])
                 return loaded[i];
             tried[i] = true;
-            sl::Bitmap *bitmap = sl::load_bitmap((texture_root() + "/data/open-game-art/textures/random/" + names[i] + ".png").c_str());
+            sl::Bitmap *bitmap = sl::load_bitmap((texture_root() + "/data/textures/rocks/" + names[i] + ".png").c_str());
             if (!bitmap || bitmap->pixels.empty())
                 return nullptr;
             double sum = 0.0;

@@ -6,7 +6,7 @@ thrust and fuel in compiled code, so the meshes convert automatically but `ship.
 ## 1. Start with the helper
 
 ```
-python3 tools/orbiter_addon_import.py data/orbiter/CVELSoyuzTMA --id cvel-soyuz-tma --name "CVEL Soyuz TMA"
+python3 tools/orbiter_addon_import.py import/orbiter/CVELSoyuzTMA --id cvel-soyuz-tma --name "CVEL Soyuz TMA"
 ```
 
 It writes `addons/<id>/` with:
@@ -54,6 +54,6 @@ Search the draft for `TODO` and decide:
 build/kosmos --ship "CVEL Soyuz TMA" --orbit --selftest 5
 ```
 
-Add a scenario under `data/scenarios/` (see `data/scenarios/CVEL/`), then `scripts/make-thumbs.sh` for its launcher
+Add a scenario under `scenarios/` (see `scenarios/CVEL/`), then `scripts/make-thumbs.sh` for its launcher
 preview. Keep the original licence and credits: Orbiter add-ons often carry the LGPL or a request for credit, so put
 them in `addon.json` (`author`, `description`).

@@ -14,7 +14,7 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 cd "$(dirname "$KOSMOS")"
-find "$SRC/data/scenarios" "$SRC"/addons/*/scenarios -name '*.json' 2>/dev/null | sort | while read -r file; do
+find "$SRC/scenarios" "$SRC"/addons/*/scenarios -name '*.json' 2>/dev/null | sort | while read -r file; do
     id=$(basename "$file" .json)
     if [ $# -gt 0 ]; then
         case " $* " in *" $id "*) ;; *) continue ;; esac

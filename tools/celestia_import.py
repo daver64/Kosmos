@@ -6,7 +6,7 @@ one available, so a moon with only a 512 x 256 image still gets a texture. Bodie
 (earth.dds, moon.dds, ...) are left alone because the loader prefers .dds.
 
 Usage:
-    celestia_import.py [--src data/celestia] [--out data/textures] [--list]
+    celestia_import.py [--src import/celestia] [--out data/textures] [--list]
 """
 import argparse
 import os

@@ -11,7 +11,7 @@ Usage:
     ctx_import.py PATH/TO/name.ctx BODY [--max-width 16384] [--level N] [--out data/textures-hires] [--quality 92] [--list]
 
 Example:
-    ctx_import.py "data/celestia/hires/earth/JMII DDS.ctx" earth
+    ctx_import.py "import/celestia/hires/earth/JMII DDS.ctx" earth
 """
 import argparse
 import os

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Packs the hi-res textures (not in git) into one archive for other developers.
 # Usage: pack-hires.sh [--sources] [--no-procedural] [--xz] [OUTPUT]
-#   --sources        also include data/celestia/hires, the Celestia imagery the textures are built from (large)
+#   --sources        also include import/celestia/hires, the Celestia imagery the textures are built from (large)
 #   --no-procedural  leave out textures-hires/procedural, which tools/gen_textures.py can regenerate
 #   --xz             use xz instead of gzip (smaller, much slower)
 # Unpack from the Kosmos folder: tar -xf kosmos-hires.tar.gz
@@ -22,7 +22,7 @@ done
 cd "$SRC"
 [ -d data/textures-hires ] || { echo "data/textures-hires not found" >&2; exit 1; }
 set -- data/textures-hires data/CREDITS-textures.md
-[ $sources -eq 1 ] && [ -d data/celestia/hires ] && set -- "$@" data/celestia/hires
+[ $sources -eq 1 ] && [ -d import/celestia/hires ] && set -- "$@" import/celestia/hires
 
 if [ $procedural -eq 0 ]; then
     tar $flag -cf "$out" --exclude=data/textures-hires/procedural "$@"

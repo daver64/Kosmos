@@ -13,7 +13,7 @@ Kosmos is an Kerbal/Orbiter-style space flight sim in C++17, built on **simlib**
 - `src/ship.{h,cpp}`: ship specs (`ship.json` loader), thrusters, gear, cockpit config. `src/sim.cpp`: simulation, controls from properties.
 - `src/mfd.{h,cpp}`: MFD units and modes (Lua modes from addons). `src/menu.{h,cpp}`: imgui menu bar and windows.
 - `src/galaxy.cpp`: star catalogue and procedural systems (`data/systems/*.json` for hand-built ones). `src/planet_data.cpp`: planet imagery and elevation tiles.
-- `addons/<id>/`: ships and instruments (`addon.json`, `ship.json`, models, panels). `data/scenarios/`: scenarios.
+- `addons/<id>/`: ships and instruments (`addon.json`, `ship.json`, models, panels). `scenarios/`: the shipped scenarios.
 - simlib lives at `~/Documents/Projects/rsimlib`. The Orbiter source used for reference is at `~/Documents/Projects/orbiter-main`.
 
 ## Build and run

@@ -150,7 +150,7 @@ namespace kosmos
         }
         {
             std::vector<std::string> errors;
-            scenarios_ = load_scenarios_in((fs::path(root_) / "data" / "scenarios").string(), errors);
+            scenarios_ = load_scenarios_in((fs::path(root_) / "scenarios").string(), errors);
             for (const std::string &e : errors)
                 log("scenario " + e);
         }
@@ -294,7 +294,7 @@ namespace kosmos
     {
         namespace fs = std::filesystem;
         std::vector<std::string> errors;
-        scenarios_ = load_scenarios_in((fs::path(root_) / "data" / "scenarios").string(), errors);
+        scenarios_ = load_scenarios_in((fs::path(root_) / "scenarios").string(), errors);
         for (const Addon &addon : addons_)
             for (Scenario &sc : load_scenarios_in((fs::path(addon.directory) / "scenarios").string(), errors))
                 scenarios_.push_back(std::move(sc));

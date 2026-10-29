@@ -47,7 +47,7 @@ namespace kosmos
 
     /**
      * A starting situation, like an Orbiter scenario: which ships, where, and which one you fly.
-     * Files are JSON in data/scenarios/ or listed under "scenarios" in an addon.json.
+     * Files are JSON in scenarios/ or listed under "scenarios" in an addon.json.
      */
     struct Scenario
     {

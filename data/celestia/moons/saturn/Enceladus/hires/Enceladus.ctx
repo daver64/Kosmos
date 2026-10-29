@@ -1,7 +1,0 @@
-VirtualTexture
-{
-        ImageDirectory "Enceladus"
-        BaseSplit 0
-        TileSize 512
-        TileType "png"
-}

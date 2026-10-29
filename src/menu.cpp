@@ -169,12 +169,21 @@ namespace kosmos
         sc.id = slug(name);
         if (sim.system_index() != 0)
             sc.system = sim.galaxy.star(sim.system_index()).name;
-        sc.active = std::max(0, sim.props.get_int("/sim/active-ship"));
+        // Base buildings are respawned from the base data, so they are not saved. `index` maps a sim ship to its scenario entry.
+        std::vector<int> index(static_cast<std::size_t>(sim.ship_count()), -1);
+        int kept = 0;
+        for (int si = 0; si < sim.ship_count(); ++si)
+            if (!sim.ship(si)->spec().building())
+                index[static_cast<std::size_t>(si)] = kept++;
+        const int flown = sim.props.get_int("/sim/active-ship");
+        sc.active = flown >= 0 && flown < sim.ship_count() && index[static_cast<std::size_t>(flown)] >= 0 ? index[static_cast<std::size_t>(flown)] : 0;
         sc.target = sim.props.get_string("/sim/target");
         for (int i = 0; i < NavSystem::receivers; ++i)
             sc.nav.push_back(sim.props.get_double("/nav/nav[" + std::to_string(i) + "]/frequency"));
         for (int si = 0; si < sim.ship_count(); ++si)
         {
+            if (index[static_cast<std::size_t>(si)] < 0)
+                continue;
             Ship &ship = *sim.ship(si);
             const Telemetry &t = ship.telemetry();
             ScenarioShip s;
@@ -220,8 +229,11 @@ namespace kosmos
         // Docks are stored on the later ship of each pair, pointing at the earlier one.
         for (const std::array<int, 4> &l : sim.nav.dock_links())
         {
-            const bool swap = l[0] > l[2];
-            const int first = swap ? l[2] : l[0], second = swap ? l[0] : l[2];
+            if (l[0] >= sim.ship_count() || l[2] >= sim.ship_count() || index[static_cast<std::size_t>(l[0])] < 0 || index[static_cast<std::size_t>(l[2])] < 0)
+                continue;
+            const int ia = index[static_cast<std::size_t>(l[0])], ib = index[static_cast<std::size_t>(l[2])];
+            const bool swap = ia > ib;
+            const int first = swap ? ib : ia, second = swap ? ia : ib;
             ScenarioShip &follower = sc.ships[static_cast<std::size_t>(second)];
             if (follower.dock_to >= 0 || first == second)
                 continue;

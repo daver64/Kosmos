@@ -33,7 +33,7 @@ namespace kosmos::app
         const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
         loading.note("Building the terrain of " + b.name);
         const kosmos::SurfaceFrame frame{sim.universe.orientation(id)};
-        const std::string orbiter = sim.root() + "/data/orbiter";
+        const std::string orbiter = sim.root() + "/import/orbiter";
         sl::TerrainConfig config;
         config.shape = sl::TerrainShape::sphere;
         config.radius = b.radius;
@@ -75,7 +75,7 @@ namespace kosmos::app
         for (char &c : lower_name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         std::vector<std::shared_ptr<kosmos::CelestiaImagery>> surface_imagery;
-        const std::string celestia_tiles = find_tile_source(sim.root() + "/data/celestia/hires/" + lower_name);
+        const std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
         const bool generated_ground = b.style.has_ground() && !home;
@@ -205,7 +205,8 @@ namespace kosmos::app
             {
                 auto land = std::make_shared<kosmos::Landclass>();
                 std::string land_error;
-                if (land->open(land_dir, land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
+                // The raw rasters are developer data under import/; the shipped cache stays in data/.
+                if (land->open(sim.root() + "/import/landclass/sol/earth", land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
                 {
                     std::fprintf(stderr, "[kosmos] Earth land cover: %d x %d cells\n", land->width(), land->height());
                     result->landclass = std::move(land);

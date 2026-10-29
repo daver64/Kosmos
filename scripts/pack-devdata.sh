@@ -1,6 +1,6 @@
 #!/bin/sh
 # Packs the large source data that is not in git or in the game package, for other developers.
-# It holds the raw Earth land-cover rasters (data/landclass, the input for the land-cover cache) and, with
+# It holds the raw Earth land-cover rasters (import/landclass, the input for the land-cover cache) and, with
 # --hires, the hi-res textures from pack-hires.sh. Players do not need any of it.
 # Usage: pack-devdata.sh [--hires] [--xz] [OUTPUT]
 #   --hires  also include data/textures-hires and data/CREDITS-textures.md
@@ -20,13 +20,12 @@ done
 [ -n "$out" ] || out="$SRC/kosmos-devdata.tar.$ext"
 
 cd "$SRC"
-[ -d data/landclass ] || { echo "data/landclass not found" >&2; exit 1; }
-set -- data/landclass
+[ -d import/landclass ] || { echo "import/landclass not found" >&2; exit 1; }
+set -- import/landclass
 if [ $hires -eq 1 ]; then
     [ -d data/textures-hires ] || { echo "data/textures-hires not found" >&2; exit 1; }
     set -- "$@" data/textures-hires data/CREDITS-textures.md
 fi
-# The unpacked cache (380 MB) is rebuilt from the rasters, so it stays out.
-tar $flag -cf "$out" --exclude='*.kavlc' "$@"
+tar $flag -cf "$out" "$@"
 du -h "$out" | cut -f1 | sed "s|\$| $out|"
 echo "Unpack from the Kosmos folder with: tar -xf $(basename "$out")"

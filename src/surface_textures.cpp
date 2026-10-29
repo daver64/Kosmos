@@ -190,7 +190,7 @@ namespace kosmos::app
         const std::string override = find_texture_in_directory(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
         if (!override.empty())
             return override;
-        const std::string celestia = find_image_in_folder(root + "/data/celestia/hires/" + lower, lower);
+        const std::string celestia = find_image_in_folder(root + "/import/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;
         const std::string shipped = find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});

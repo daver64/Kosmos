@@ -33,7 +33,7 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
 
-`data/orbiter/` (your own Orbiter high-resolution tiles) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
+`import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
 
 ## Native addons
 
@@ -117,7 +117,7 @@ Press **N**, pick a star and press **Enter** to jump; a short hyperspace effect 
 
 Hand-authored systems live in `data/systems/<name>.json` (same format as `sol.json`; the file name is the star's name in lower case with dashes). Sirius (with its white dwarf companion), Proxima, TRAPPIST-1, Betelgeuse and Rigel ship this way; every other star uses the generator.
 
-Scenarios belong to a star system: a `"system": "Sirius"` entry in the scenario file (empty means Sol) makes starting it jump there first, and the scenario editor records the current system when it saves. `data/scenarios/Default/<Star>/` holds one Argo orbit scenario for each real star within quantum range of Sol (Alpha Centauri, Proxima, Barnard's Star, Wolf 359, Sirius, Lalande 21185, Procyon, Epsilon Eridani, Tau Ceti, TRAPPIST-1, Vega).
+Scenarios belong to a star system: a `"system": "Sirius"` entry in the scenario file (empty means Sol) makes starting it jump there first, and the scenario editor records the current system when it saves. `scenarios/Default/<Star>/` holds one Argo orbit scenario for each real star within quantum range of Sol (Alpha Centauri, Proxima, Barnard's Star, Wolf 359, Sirius, Lalande 21185, Procyon, Epsilon Eridani, Tau Ceti, TRAPPIST-1, Vega).
 
 ### Quantum jump drive
 
@@ -257,7 +257,7 @@ The window can be resized and the view follows. `--fullscreen` (or **Alt+Enter**
 
 ## Scenarios
 
-JSON files in `data/scenarios/` (and `scenarios/` inside any addon) describe a start state:
+JSON files in `scenarios/` (and `scenarios/` inside any addon) describe a start state:
 
 ```json
 {"name": "...", "description": "...", "active": 0,
@@ -266,7 +266,7 @@ JSON files in `data/scenarios/` (and `scenarios/` inside any addon) describe a s
 
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
-`data/scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
+`scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 
 A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead of `orbit`. Run with `--scenario NAME`, list with `--list-scenarios`, and press F10 to load the next one. The defaults cover Earth, Moon, Mars, Venus and Mercury, plus an orbit scenario (`23_phobos` to `43_proteus`) for every other moon, including Io and Titan.
 
@@ -325,7 +325,7 @@ Headless test: `--scenario 19_skylark_takeoff --selftest 60 --selftest-throttle 
 
 `--aircraft-autopilot-window`, `--spacecraft-autopilot-window`, `--settings-window`, `--property-window`, `--systems-window` (F1) and `--lua-window` open the F3/F4/F1/F11 windows at start; `--menu` pins the menu bar and `--scenario-editor` / `--base-editor` open the editors. `--check-data` loads every scenario and base, saves and reloads them, and reports any that do not round-trip. **Start date.** `--date "1969-07-16 13:32:00"` (GMT; also `T` separators, a trailing `Z`/`UTC` or an offset like `+01:00`) or `--mjd 40408.5648` starts the simulation on that date. With no date from the command line or the scenario, the simulation starts at the real current GMT date and time (the real sky and local daylight); give a scenario a `"date"` to fix it. The planets and Moon start where they really were (VSOP87 planets, Moon from its mean elements with node and perigee precession), and the home planet is turned so the Sun is at the right place for the time of day. A scenario can carry `"date"` or `"mjd"`; try `44_apollo11_launch` and `45_apollo11_tli`. Dates apply to any selected star system and when a dated scenario is loaded during a session; the Info line shows the current GMT date. The planets rotate: Earth, Mars and the Moon (locked to Earth) turn under you, so the Sun crosses the sky, landed ships and bases are carried round with the ground, and launches gain the real eastward speed. Earth and Mars have their real axial tilt (so seasons, and the Sun's height at the pole) and are turned for the date and time: Earth by Greenwich sidereal time, Mars by the IAU prime-meridian rate. A body's `pole` (J2000 RA/Dec) and `meridian` (w0, rate, node_ra) in `sol.json` set this. Limits: no precession of the poles, and the other worlds with terrain are not oriented by date.
 
-`--no-relief` disables normal-map relief on bodies; `--no-detail` disables the fine ground-detail texture (`data/textures/detail_dirt.jpg` on Earth; a body can name its own with `detail`, `detail_tile` and `detail_strength` in `sol.json`, as the Moon and Mars do) blended into terrain colour; `--no-tiles` disables streamed Earth textures. Source packs go under `data/orbiter/` and `data/celestia/`; installed runtime textures go under `data/textures/` and optional overrides under `data/textures-hires/`. Only low-resolution fallback maps are included; large Celestia and Orbiter source packs are not shipped. Sol now includes 17 more moons with Celestia textures (`tools/celestia_import.py`). Scenario `21_mars_high_orbit` puts a tug 9,000 km above Mars. Settings live under `/sim/settings/` (`labels`, `ship-labels`, `help-text`, `clock`, `orbit-line`, `sound`, `volume`).
+`--no-relief` disables normal-map relief on bodies; `--no-detail` disables the fine ground-detail texture (`data/textures/detail_dirt.jpg` on Earth; a body can name its own with `detail`, `detail_tile` and `detail_strength` in `sol.json`, as the Moon and Mars do) blended into terrain colour; `--no-tiles` disables streamed Earth textures. Source packs go under `import/orbiter/` and `import/celestia/`; installed runtime textures go under `data/textures/` and optional overrides under `data/textures-hires/`. Only low-resolution fallback maps are included; large Celestia and Orbiter source packs are not shipped. Sol now includes 17 more moons with Celestia textures (`tools/celestia_import.py`). Scenario `21_mars_high_orbit` puts a tug 9,000 km above Mars. Settings live under `/sim/settings/` (`labels`, `ship-labels`, `help-text`, `clock`, `orbit-line`, `sound`, `volume`).
 
 ### Multiplayer (F12)
 

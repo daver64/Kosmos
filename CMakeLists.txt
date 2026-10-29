@@ -237,8 +237,8 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
-set(KOSMOS_PACKAGE_EXCLUDE "/data/orbiter(/|$)" "/data/textures-hires(/|$)" "/data/celestia/hires(/|$)"
-    "/data/landclass/.*\\.tif$" "/data/landclass/.*\\.kavlc$")
+set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
+    "/data/landclass/.*\\.kavlc$")
 if(WIN32)
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin(/|$)")
 endif()
@@ -246,11 +246,11 @@ endif()
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-Linux.tar.gz        Windows: build/package/kosmos-beta-Windows.zip
-# Hi-res textures (data/textures-hires, data/celestia/hires) and the 54 GB Orbiter import are left out; scripts/pack-hires.sh
+# Hi-res textures (data/textures-hires, import/celestia/hires) and the 54 GB Orbiter import (import/) are left out; scripts/pack-hires.sh
 # builds the separate hi-res pack. The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
 # it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${CMAKE_SYSTEM_NAME}
-    ASSETS data addons assets
+    ASSETS data scenarios addons assets
     EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})

@@ -274,7 +274,7 @@ namespace kmap
         has_elevation = false;
         picture = Picture();
         source.clear();
-        const std::string folder = root + "/data/orbiter";
+        const std::string folder = root + "/import/orbiter";
         std::string error;
         const std::string tree = Tree::find_layer(folder, body, "Elev");
         if (!tree.empty() && elevation.open(tree, error))
@@ -285,7 +285,7 @@ namespace kmap
         else if (!error.empty())
             source = error;
         const std::string key = lower(body);
-        for (const char *dir : {"/data/textures/planets/", "/data/textures/", "/data/celestia/medres/", "/data/celestia/lores/"})
+        for (const char *dir : {"/data/textures/planets/", "/data/textures/", "/import/celestia/medres/", "/import/celestia/lores/"})
             for (const char *ext : {".jpg", ".png"})
             {
                 const std::string path = root + dir + key + ext;
