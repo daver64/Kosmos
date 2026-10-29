@@ -114,6 +114,8 @@ extern int screen_h;
         bool camera_editor = false;
         int user_camera = -1; // index into the Camera editor list to start in
         std::string view_base; // "base:index" to start looking through a base camera
+        bool interior_at = false;   // --interior-at X Z YAW PITCH: after walking into an interior, stand at this spot (metres, degrees)
+        double interior_pos[4] = {};
         std::string enter_building; // --enter-building TEXT: start inside the first building whose name contains TEXT
         std::string shot;
         double shot_at = 10.0;
@@ -124,6 +126,7 @@ extern int screen_h;
         double start_jd = 0.0;
         bool autopilot = false;
         bool orbit_start = false;
+        bool clean = false; // --clean: no HUD text, suit panel, prompts, messages or held item (promo shots); implies --hide-info
         bool hide_info = false, show_info = false, no_clouds = false, no_clutter = false, perf = false, eva = false, eva_walk = false;
         std::string hud;
         bool no_relief = false;

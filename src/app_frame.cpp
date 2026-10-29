@@ -135,12 +135,19 @@ namespace kosmos::app
                     ship = sim.active_ship();
                     cockpit_view = true;
                     cockpit3d = options.cockpit3d;
-                    if (options.eva && ship->spec().interior)
+                    if (ship->spec().interior)
                     {
-                        // Test aid: step out of the building and straight back in on foot.
+                        // A building with a walkable interior starts the player on foot inside it (step out and straight back in).
                         toggle_eva();
                         toggle_eva();
                         options.eva = false;
+                        cockpit_view = false;
+                        if (options.interior_at && eva.building >= 0)
+                        {
+                            walker.position = sl::dvec3(options.interior_pos[0], 0.0, options.interior_pos[1]);
+                            walker.yaw = glm::radians(options.interior_pos[2]);
+                            walker.pitch = glm::radians(options.interior_pos[3]);
+                        }
                     }
                     break;
                 }

@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Mare Frigoris quarters, on foot",
+ "description": "A walk through the Mare Frigoris quarters, a small lunar building you can enter in first person: lit rooms, sliding doors that open as you approach, windows onto the regolith, a wall control panel (face it and press Enter) and an airlock that depressurises before it lets you out. The HUD shows the room you are in and its air pressure.",
+ "active": 0,
+ "date": "2024-01-01 00:00:00",
+ "enter_building": "quarters",
+ "ships": [
+  {
+   "ship": "CVEL Deltaglider",
+   "body": "Moon",
+   "surface": {
+    "base": "luna_e3"
+   }
+  }
+ ]
+}

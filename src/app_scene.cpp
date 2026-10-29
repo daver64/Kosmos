@@ -912,7 +912,8 @@ namespace kosmos::app
             held_camera.far_plane = 50.0f;
             sl::set_camera_3d(held_camera);
             const glm::vec3 fwd = glm::vec3(eva.forward()), upv = glm::vec3(eva.view_up());
-            arsenal.draw_held(sim, glm::mat4(glm::mat3(glm::cross(fwd, upv), upv, -fwd)));
+            if (!options.clean)
+                arsenal.draw_held(sim, glm::mat4(glm::mat3(glm::cross(fwd, upv), upv, -fwd)));
         }
     }
 } // namespace kosmos::app

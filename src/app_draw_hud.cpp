@@ -84,7 +84,7 @@ namespace kosmos::app
             hud.draw(hs);
         }
 
-        if (in_eva)
+        if (in_eva && !options.clean)
         {
             double ship_distance = 0.0;
             const int near_ship = nearest_ship(ship_distance);
@@ -118,7 +118,8 @@ namespace kosmos::app
             }
             kosmos::draw_suit_hud(eva, universe, screen_w, screen_h, near_ship >= 0 ? ship_distance : -1.0, ship_speed, near_ship >= 0 ? sim.ship(near_ship)->name.c_str() : nullptr);
         }
-        arsenal.draw_hud(sim, eva, screen_w, screen_h, eye_world);
+        if (!options.clean)
+            arsenal.draw_hud(sim, eva, screen_w, screen_h, eye_world);
 
         // Labels for bodies too small on screen to recognise.
         const float focal = static_cast<float>(screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5)));
@@ -306,7 +307,7 @@ namespace kosmos::app
             }
         }
         const std::vector<std::string> &messages = sim.messages();
-        for (std::size_t i = 0; i < messages.size(); ++i)
+        for (std::size_t i = 0; i < messages.size() && !options.clean; ++i)
             sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
         const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
         const bool panel2d = dashboard && !ship->spec().cockpit.panels_2d().empty();

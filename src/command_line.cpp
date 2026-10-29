@@ -127,6 +127,8 @@ namespace kosmos::app
                 options.blender = argv[++i];
             else if (!std::strcmp(argv[i], "--part-editor"))
                 options.part_window = true;
+            else if (!std::strcmp(argv[i], "--clean"))
+                options.clean = options.hide_info = true;
             else if (!std::strcmp(argv[i], "--hide-info"))
                 options.hide_info = true;
             else if (!std::strcmp(argv[i], "--show-info"))
@@ -174,6 +176,12 @@ namespace kosmos::app
                 options.base_editor = true;
             else if (!std::strcmp(argv[i], "--property-window"))
                 options.property_window = true;
+            else if (!std::strcmp(argv[i], "--interior-at") && i + 4 < argc)
+            {
+                options.interior_at = true;
+                for (double &v : options.interior_pos)
+                    v = std::atof(argv[++i]);
+            }
             else if (!std::strcmp(argv[i], "--enter-building") && i + 1 < argc)
                 options.enter_building = argv[++i];
             else if (!std::strcmp(argv[i], "--base-cam") && i + 1 < argc)
