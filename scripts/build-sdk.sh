@@ -47,7 +47,7 @@ if command -v "$WINCXX" > /dev/null 2>&1 && [ -f "$WINZ/lib/libzs.a" ]; then
     WINTMP=$(mktemp -d)
     # At most 4 compiles at once.
     export WINCXX PB WINZ WINTMP VER FASTNOISE_DIR
-    printf '%s\n' main bake layers encode gui | xargs -P 4 -I{} sh -c \
+    printf '%s\n' main bake layers encode gui imageio pack settings fill edit | xargs -P 4 -I{} sh -c \
         '"$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/src/{}.cpp" -o "$WINTMP/{}.o"' 2> /dev/null || true
     "$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/gen/planet_gen.cpp" -o "$WINTMP/planet_gen.o" 2> /dev/null || true
     "$WINCXX" -static -o "$PB/bin/planetbake-windows-x86_64.exe" "$WINTMP"/*.o "$WINZ/lib/libzs.a" 2> /dev/null || echo "note: no Windows planetbake.exe in the SDK (mingw build failed)"

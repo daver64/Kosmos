@@ -11,6 +11,13 @@
 #include <mutex>
 #include <thread>
 
+#include <sys/stat.h>
+
+#include "edit.h"
+#include "fill.h"
+#include "pack.h"
+#include "settings.h"
+
 namespace
 {
     using namespace planetbake;
@@ -28,6 +35,16 @@ namespace
         GtkWidget *width_combo, *format_combo, *dds_combo, *tiles_check, *folder, *name;
 
         cairo_surface_t *surface[layer_count] = {};
+
+        Pack pack;
+        bool pack_open = false, has_sel = false;
+        TileRef sel;
+        GtkWidget *pack_label, *level_scale, *editor_entry, *edit_button, *import_button, *restore_button;
+        GtkWidget *lock_tile_button, *lock_layer_button, *lock_pack_button, *fill_button;
+        std::string start_pack;
+        guint watch = 0;
+        std::string watch_file;
+        time_t watch_mtime = 0, watch_imported_mtime = 0;
         guint debounce = 0;
         bool loading = false;
 
@@ -98,7 +115,7 @@ namespace
     gboolean show_preview(gpointer data)
     {
         std::unique_ptr<PreviewResult> result(static_cast<PreviewResult *>(data));
-        if (result->generation != ui->generation.load())
+        if (result->generation != ui->generation.load() || ui->pack_open)
             return G_SOURCE_REMOVE; // out of date; a newer one is on its way
         if (!result->ok)
         {
@@ -260,6 +277,16 @@ namespace
         cairo_set_source_surface(cr, s, 0, 0);
         cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BILINEAR);
         cairo_paint(cr);
+        if (ui->pack_open && ui->pack.tiled && ui->has_sel)
+        {
+            double u0, v0, u1, v1;
+            tile_bounds(ui->sel, u0, v0, u1, v1);
+            cairo_set_source_rgb(cr, 1, 0.2, 0.2);
+            cairo_set_line_width(cr, 2.0 / scale);
+            for (double shift : {0.0, -1.0}) // a tile across the map's edge is drawn in two halves
+                cairo_rectangle(cr, (u0 + shift) * preview_w, v0 * preview_h, (u1 - u0) * preview_w, (v1 - v0) * preview_h);
+            cairo_stroke(cr);
+        }
         return FALSE;
     }
 
@@ -362,6 +389,264 @@ namespace
         return c;
     }
 
+    // ---- opened packs: click a tile, edit it outside, lock, fill ----
+
+    void say(const std::string &text)
+    {
+        gtk_label_set_text(GTK_LABEL(ui->status), text.c_str());
+    }
+
+    void pump()
+    {
+        while (gtk_events_pending())
+            gtk_main_iteration_do(FALSE);
+    }
+
+    void refresh_selection()
+    {
+        const bool tiled = ui->pack_open && ui->pack.tiled;
+        const bool have = tiled && ui->has_sel;
+        std::string text = ui->pack_open ? ui->pack.dir : "No pack open";
+        if (have)
+        {
+            const TileRef &t = ui->sel;
+            text += "\nTile " + std::to_string(t.column) + "," + std::to_string(t.row) + " at level " + std::to_string(t.level);
+            if (is_edit_locked(ui->pack, ui->layer, t))
+                text += " (edited, locked)";
+            else if (is_locked(ui->pack, ui->layer, t))
+                text += " (locked)";
+        }
+        else if (ui->pack_open && !tiled)
+            text += "\nSingle images: whole layers only";
+        gtk_label_set_text(GTK_LABEL(ui->pack_label), text.c_str());
+        for (GtkWidget *w : {ui->edit_button, ui->import_button, ui->restore_button, ui->lock_tile_button})
+            gtk_widget_set_sensitive(w, have);
+        for (GtkWidget *w : {ui->lock_layer_button, ui->lock_pack_button, ui->fill_button})
+            gtk_widget_set_sensitive(w, ui->pack_open);
+        gtk_widget_queue_draw(ui->area);
+    }
+
+    void reload_pack_preview()
+    {
+        for (int i = 0; i < layer_count; ++i)
+        {
+            if (ui->surface[i])
+                cairo_surface_destroy(ui->surface[i]);
+            ui->surface[i] = nullptr;
+            bool shown = false;
+            if (ui->pack.layer[i].present)
+            {
+                Rendered r;
+                std::string error;
+                if (pack_preview(ui->pack, i, preview_w, preview_h, r, error))
+                {
+                    ui->surface[i] = make_surface(i, r);
+                    shown = true;
+                }
+                else
+                    say(error);
+            }
+            gtk_widget_set_sensitive(ui->layer_radio[i], shown);
+        }
+        if (!ui->surface[ui->layer])
+            for (int i = 0; i < layer_count; ++i)
+                if (ui->surface[i])
+                {
+                    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ui->layer_radio[i]), TRUE);
+                    break;
+                }
+    }
+
+    void open_pack_dir(const std::string &dir)
+    {
+        Pack pack;
+        std::string error;
+        if (!open_pack(dir, pack, error))
+        {
+            say("Could not open the pack: " + error);
+            return;
+        }
+        ui->pack = pack;
+        ui->pack_open = true;
+        ui->has_sel = false;
+        ui->generation.fetch_add(1); // drop any generator preview still on its way
+        say("Opened " + dir);
+        reload_pack_preview();
+        gtk_range_set_range(GTK_RANGE(ui->level_scale), 0, std::max(0, pack.max_level()));
+        gtk_range_set_value(GTK_RANGE(ui->level_scale), std::max(0, pack.max_level()));
+        refresh_selection();
+    }
+
+    void open_clicked(GtkWidget *, gpointer)
+    {
+        GtkWidget *dialog = gtk_file_chooser_dialog_new("Open a pack folder", GTK_WINDOW(ui->window), GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "Cancel",
+                                                       GTK_RESPONSE_CANCEL, "Open", GTK_RESPONSE_ACCEPT, nullptr);
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+        {
+            char *folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+            if (folder)
+            {
+                open_pack_dir(folder);
+                g_free(folder);
+            }
+        }
+        gtk_widget_destroy(dialog);
+    }
+
+    gboolean area_pressed(GtkWidget *widget, GdkEventButton *event, gpointer)
+    {
+        if (!ui->pack_open || !ui->pack.tiled || event->button != 1)
+            return FALSE;
+        const int w = gtk_widget_get_allocated_width(widget), h = gtk_widget_get_allocated_height(widget);
+        const double scale = std::min(static_cast<double>(w) / preview_w, static_cast<double>(h) / preview_h);
+        const double u = (event->x - (w - preview_w * scale) / 2) / (preview_w * scale);
+        const double v = (event->y - (h - preview_h * scale) / 2) / (preview_h * scale);
+        if (u < 0 || u >= 1 || v < 0 || v >= 1)
+            return FALSE;
+        ui->sel = tile_at(u, v, static_cast<int>(gtk_range_get_value(GTK_RANGE(ui->level_scale))));
+        ui->has_sel = true;
+        refresh_selection();
+        return TRUE;
+    }
+
+    void level_changed(GtkWidget *, gpointer)
+    {
+        if (ui->has_sel)
+        {
+            ui->has_sel = false;
+            refresh_selection();
+        }
+    }
+
+    bool import_now()
+    {
+        std::string error;
+        const std::string file = edit_work_path(ui->pack, ui->layer, ui->sel);
+        if (!import_edit(ui->pack, ui->layer, ui->sel, file, error))
+        {
+            say("Import failed: " + error);
+            return false;
+        }
+        say("Imported the edited tile; it is locked now");
+        reload_pack_preview();
+        refresh_selection();
+        return true;
+    }
+
+    void edit_clicked(GtkWidget *, gpointer)
+    {
+        std::string file, error;
+        if (!begin_edit(ui->pack, ui->layer, ui->sel, file, error))
+        {
+            say("Cannot edit: " + error);
+            return;
+        }
+        Settings settings = load_settings();
+        const char *typed = gtk_entry_get_text(GTK_ENTRY(ui->editor_entry));
+        if (typed && *typed && settings.editor != typed)
+        {
+            settings.editor = typed;
+            save_settings(settings, error);
+        }
+        if (!launch_editor(settings.editor, file, error))
+        {
+            say("Could not start the editor: " + error);
+            return;
+        }
+        struct stat st;
+        ui->watch_file = file;
+        ui->watch_mtime = ui->watch_imported_mtime = stat(file.c_str(), &st) == 0 ? st.st_mtime : 0;
+        if (!ui->watch)
+            ui->watch = g_timeout_add(1500, [](gpointer) -> gboolean {
+                struct stat s;
+                if (!ui->has_sel || stat(ui->watch_file.c_str(), &s) != 0)
+                    return G_SOURCE_CONTINUE;
+                if (s.st_mtime != ui->watch_imported_mtime && s.st_mtime == ui->watch_mtime)
+                {
+                    ui->watch_imported_mtime = s.st_mtime;
+                    import_now();
+                }
+                ui->watch_mtime = s.st_mtime;
+                return G_SOURCE_CONTINUE;
+            }, nullptr);
+        say("Opened in " + settings.editor + ". Save there; the tile is taken back automatically, or press Import edit.");
+    }
+
+    void import_clicked(GtkWidget *, gpointer)
+    {
+        import_now();
+    }
+
+    void restore_clicked(GtkWidget *, gpointer)
+    {
+        std::string error;
+        if (restore_original(ui->pack, ui->layer, ui->sel, error))
+        {
+            say("Restored the original tile");
+            reload_pack_preview();
+        }
+        else
+            say("Cannot restore: " + error);
+        refresh_selection();
+    }
+
+    void toggle_lock(LockScope scope)
+    {
+        std::string error;
+        const bool now = is_locked(ui->pack, scope, ui->layer, ui->sel);
+        if (!set_locked(ui->pack, scope, ui->layer, ui->sel, !now, error))
+            say("Cannot change the lock: " + error);
+        else
+            say(now ? "Unlocked" : "Locked");
+        refresh_selection();
+    }
+
+    void lock_tile_clicked(GtkWidget *, gpointer) { toggle_lock(LockScope::tile); }
+    void lock_layer_clicked(GtkWidget *, gpointer) { toggle_lock(LockScope::layer); }
+    void lock_pack_clicked(GtkWidget *, gpointer) { toggle_lock(LockScope::pack); }
+
+    void fill_clicked(GtkWidget *, gpointer)
+    {
+        GtkWidget *dialog = gtk_file_chooser_dialog_new("Take missing data from a picture or folder (Cancel to use the generator)", GTK_WINDOW(ui->window),
+                                                       GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "Generator only", GTK_RESPONSE_CANCEL, "Use folder", GTK_RESPONSE_ACCEPT, nullptr);
+        FillOptions options;
+        options.threads = max_threads;
+        std::string error;
+        const Progress progress = [](double fraction, const std::string &text) {
+            gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui->progress), fraction);
+            say(text);
+            pump();
+            return true;
+        };
+        if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT)
+        {
+            char *folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+            if (folder)
+            {
+                add_source(options.sources, folder, progress, error);
+                g_free(folder);
+            }
+        }
+        gtk_widget_destroy(dialog);
+        for (int i = 0; i < layer_count; ++i)
+            options.layers.on[i] = ui->pack.layer[i].present || !options.sources.layer[i].path.empty();
+        FillReport report;
+        if (!fill_pack(ui->pack, options, progress, report, error))
+            say("Fill failed: " + error);
+        else
+            say("Filled " + std::to_string(report.written()) + " missing tiles or images");
+        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(ui->progress), 0);
+        open_pack_dir(ui->pack.dir);
+    }
+
+    GtkWidget *pack_button(const char *label, GCallback callback, GtkWidget *grid, int column, int row)
+    {
+        GtkWidget *b = gtk_button_new_with_label(label);
+        g_signal_connect(b, "clicked", callback, nullptr);
+        gtk_grid_attach(GTK_GRID(grid), b, column, row, 1, 1);
+        return b;
+    }
+
     void activate(GtkApplication *app, gpointer)
     {
         const kosmos::PlanetStyle &s = ui->job.style;
@@ -380,6 +665,8 @@ namespace
         ui->area = gtk_drawing_area_new();
         gtk_widget_set_size_request(ui->area, 640, 320);
         g_signal_connect(ui->area, "draw", G_CALLBACK(draw_preview), nullptr);
+        gtk_widget_add_events(ui->area, GDK_BUTTON_PRESS_MASK);
+        g_signal_connect(ui->area, "button-press-event", G_CALLBACK(area_pressed), nullptr);
         gtk_box_pack_start(GTK_BOX(left), ui->area, TRUE, TRUE, 0);
         GtkWidget *layers = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         GtkWidget *group = nullptr;
@@ -404,6 +691,36 @@ namespace
         GtkWidget *right = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
         gtk_widget_set_size_request(right, 340, -1);
         gtk_box_pack_start(GTK_BOX(root), right, FALSE, FALSE, 0);
+
+        GtkWidget *pack_grid = gtk_grid_new();
+        gtk_grid_set_row_spacing(GTK_GRID(pack_grid), 4);
+        gtk_grid_set_column_spacing(GTK_GRID(pack_grid), 6);
+        gtk_grid_set_column_homogeneous(GTK_GRID(pack_grid), TRUE);
+        GtkWidget *pack_frame = gtk_frame_new("Open pack");
+        gtk_container_add(GTK_CONTAINER(pack_frame), pack_grid);
+        gtk_box_pack_start(GTK_BOX(right), pack_frame, FALSE, FALSE, 0);
+        GtkWidget *open_button = pack_button("Open pack...", G_CALLBACK(open_clicked), pack_grid, 0, 0);
+        (void)open_button;
+        ui->fill_button = pack_button("Fill missing...", G_CALLBACK(fill_clicked), pack_grid, 1, 0);
+        ui->pack_label = gtk_label_new("No pack open");
+        gtk_widget_set_halign(ui->pack_label, GTK_ALIGN_START);
+        gtk_label_set_ellipsize(GTK_LABEL(ui->pack_label), PANGO_ELLIPSIZE_START);
+        gtk_grid_attach(GTK_GRID(pack_grid), ui->pack_label, 0, 1, 2, 1);
+        ui->level_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 8, 1);
+        gtk_scale_set_digits(GTK_SCALE(ui->level_scale), 0);
+        gtk_widget_set_tooltip_text(ui->level_scale, "Tile level to pick (click the map)");
+        g_signal_connect(ui->level_scale, "value-changed", G_CALLBACK(level_changed), nullptr);
+        gtk_grid_attach(GTK_GRID(pack_grid), ui->level_scale, 0, 2, 2, 1);
+        ui->edit_button = pack_button("Edit tile", G_CALLBACK(edit_clicked), pack_grid, 0, 3);
+        ui->import_button = pack_button("Import edit", G_CALLBACK(import_clicked), pack_grid, 1, 3);
+        ui->restore_button = pack_button("Restore original", G_CALLBACK(restore_clicked), pack_grid, 0, 4);
+        ui->lock_tile_button = pack_button("Lock/unlock tile", G_CALLBACK(lock_tile_clicked), pack_grid, 1, 4);
+        ui->lock_layer_button = pack_button("Lock/unlock layer", G_CALLBACK(lock_layer_clicked), pack_grid, 0, 5);
+        ui->lock_pack_button = pack_button("Lock/unlock pack", G_CALLBACK(lock_pack_clicked), pack_grid, 1, 5);
+        ui->editor_entry = gtk_entry_new();
+        gtk_entry_set_text(GTK_ENTRY(ui->editor_entry), load_settings().editor.c_str());
+        gtk_entry_set_placeholder_text(GTK_ENTRY(ui->editor_entry), "graphics program, e.g. krita");
+        gtk_grid_attach(GTK_GRID(pack_grid), ui->editor_entry, 0, 6, 2, 1);
 
         GtkWidget *world = gtk_grid_new();
         gtk_grid_set_row_spacing(GTK_GRID(world), 4);
@@ -490,15 +807,20 @@ namespace
         ui->loading = false;
         gtk_widget_show_all(ui->window);
         update_estimate();
-        fire_preview(nullptr);
+        refresh_selection();
+        if (!ui->start_pack.empty())
+            open_pack_dir(ui->start_pack);
+        else
+            fire_preview(nullptr);
     }
 }
 
-int run_gui(const planetbake::Job &initial)
+int run_gui(const planetbake::Job &initial, const std::string &pack_dir)
 {
     Ui state;
     ui = &state;
     state.job = initial;
+    state.start_pack = pack_dir;
     state.worker = std::thread(preview_worker);
     GtkApplication *app = gtk_application_new("org.kosmos.planetbake", G_APPLICATION_NON_UNIQUE);
     g_signal_connect(app, "activate", G_CALLBACK(activate), nullptr);
@@ -524,7 +846,7 @@ int run_gui(const planetbake::Job &initial)
 
 #include <cstdio>
 
-int run_gui(const planetbake::Job &)
+int run_gui(const planetbake::Job &, const std::string &)
 {
     std::fprintf(stderr, "planetbake was built without the GTK preview window. Run it with options; see --help.\n");
     return 1;

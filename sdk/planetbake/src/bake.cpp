@@ -1,5 +1,7 @@
 #include "bake.h"
 
+#include "pack.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -279,6 +281,9 @@ namespace planetbake
                         fs::create_directories(fs::path(job.out) / layer_name(i) / ("level" + std::to_string(level)), ec);
             Rendered rendered;
             std::int64_t done = 0;
+            Pack lock_target;
+            lock_target.dir = job.out;
+            lock_target.tiled = true;
             for (int level = 0; level < levels; ++level)
             {
                 const int rows = 1 << level, cols = rows * 2;
@@ -287,7 +292,8 @@ namespace planetbake
                     {
                         LayerSet missing;
                         for (int i = 0; i < layer_count; ++i)
-                            missing.on[i] = layers.on[i] && !fs::exists(tile_path(job, i, level, column, row), ec);
+                            missing.on[i] = layers.on[i] && !fs::exists(tile_path(job, i, level, column, row), ec) &&
+                                            !is_locked(lock_target, i, TileRef{level, column, row});
                         if (missing.any())
                         {
                             // The reader counts longitude the other way round from the generator's maps: tile u runs as 0.5 - u.
@@ -404,7 +410,30 @@ namespace planetbake
             return false;
         }
         World world(job.style, job.radius, job.normal_strength, job.detail);
-        const LayerSet layers = usable_layers(job, world);
+        LayerSet layers = usable_layers(job, world);
+
+        // Locked parts of an existing pack are left alone.
+        Pack target;
+        target.dir = job.out;
+        target.tiled = job.tiles;
+        target.name = job.name.empty() ? std::string(kosmos::archetype_name(job.style.type)) + "-" + std::to_string(job.style.seed) : job.name;
+        if (is_locked(target, LockScope::pack, layer_colour, TileRef{}))
+        {
+            error = job.out + " is locked (delete its .locked file to bake into it)";
+            return false;
+        }
+        for (int i = 0; i < layer_count; ++i)
+            if (layers.on[i] && is_locked(target, LockScope::layer, i, TileRef{}))
+            {
+                layers.on[i] = false;
+                if (progress)
+                    progress(0.0, std::string("The ") + layer_name(i) + " layer is locked and is skipped");
+            }
+        if (!layers.any())
+        {
+            error = "every chosen layer is locked";
+            return false;
+        }
         return job.tiles ? run_tiles(job, world, layers, progress, error) : run_image(job, world, layers, progress, error);
     }
 

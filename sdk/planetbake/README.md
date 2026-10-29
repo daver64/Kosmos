@@ -37,6 +37,29 @@ With options it runs in the terminal:
 | `--estimate` | Print the size of the job and stop |
 | `--preview FILE`, `--layer NAME` | Write a 1024 x 512 PNG of one layer and stop |
 
+## Working on an existing pack
+
+planetbake can open any folder of planet textures: tile pyramids (`LAYER/levelN/tx_C_R.png|dds`) or single images (`NAME_colour.png`, ...). `planetbake --open DIR` opens the window on it (the window's **Open pack...** button does the same). The layer buttons then show the pack, with missing tiles grey. Click the map to pick a tile at the level set by the slider (it is outlined in red), then:
+
+- **Edit tile** copies the tile to a working PNG (`~/.cache/planetbake/edit/`), backs the original up to `PACK/.originals/` and opens it in your graphics program (default `krita`; change it in the window's entry or with `--set-editor "gimp"`, kept in `~/.config/planetbake/settings.json`). When you save, the tile is taken back automatically (or press **Import edit**), written in the tile's own format (an edited DDS tile is edited as PNG) and locked. The picture must keep its size. Other levels are not regenerated from an edited tile.
+- **Restore original** puts the backup back and unlocks the tile.
+- **Lock/unlock tile, layer or pack** writes `.locked` marker files. baking and filling skip locked tiles and layers and refuse a locked pack. Kosmos itself never writes into `data/textures-hires/`, so a pack a body names with `"tiles"` is not overwritten by the game's procedural generation.
+- **Fill missing...** fills what the pack lacks (missing tiles, levels or layers), in this order: a source picture or folder you give, the pack's own coarser level scaled up, then the generator (using the pack's `info.json`). Existing and locked tiles are never touched. Heights are converted into the pack's height range; the fill's own notes are written to `planetbake-fill.json`, not your `info.json`.
+
+On the command line:
+
+    planetbake --open DIR --info                                  # layers, levels, locks
+    planetbake --open DIR --fill --dry-run                        # count what would be filled
+    planetbake --open DIR --fill --source ~/celestia/textures     # a folder: files are matched to layers by name
+    planetbake --open DIR --fill --source colour=earth.png --source gebco
+    planetbake --open DIR --lock layer:height                     # or: pack, tile:colour:3:5:2
+    planetbake --open DIR --edit-tile colour:3:5:2                # NAME:LEVEL:COLUMN:ROW; --no-launch to only make the copy
+    planetbake --open DIR --import-tile colour:3:5:2 [--from FILE]
+    planetbake --open DIR --restore-tile colour:3:5:2
+    planetbake --list-sources                                     # public datasets planetbake can download
+
+`--source` takes `[LAYER=]PATH` (a picture, or a folder of pictures) or a catalogue name (`bluemarble`, `bluemarble-small`, `gebco`, `blackmarble`, plus any in `~/.config/planetbake/sources.json`), which is downloaded with curl into `~/.cache/planetbake/downloads` (NASA imagery, free to use with credit). `--no-generate` stops the fill at sources and coarser levels. Source pictures must be equirectangular (longitude -180 to 180, north up) and are not reprojected; JPEG and TIFF are converted with ImageMagick when it is installed. The GEBCO height range is approximate. The Windows program is command line only.
+
 ## What the layers are
 
 | Layer | Contents |

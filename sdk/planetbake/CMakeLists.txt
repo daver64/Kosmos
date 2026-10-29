@@ -37,7 +37,7 @@ endforeach()
 
 set(PLANETBAKE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin" CACHE PATH "Where the planetbake program is written")
 
-add_executable(planetbake src/main.cpp src/bake.cpp src/layers.cpp src/encode.cpp src/gui.cpp ${PB_GEN_DIR}/planet_gen.cpp)
+add_executable(planetbake src/main.cpp src/bake.cpp src/layers.cpp src/encode.cpp src/imageio.cpp src/pack.cpp src/settings.cpp src/fill.cpp src/edit.cpp src/gui.cpp ${PB_GEN_DIR}/planet_gen.cpp)
 target_compile_features(planetbake PRIVATE cxx_std_17)
 # The compat headers stand in for the few simlib types planet_gen uses; they must come before anything else.
 target_include_directories(planetbake PRIVATE compat src ${PB_GEN_DIR})

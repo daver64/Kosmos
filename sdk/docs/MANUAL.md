@@ -34,7 +34,7 @@ A connection goes: connect, send *hello* (addon id, name, version, the capabilit
 | `examples/` | `hello_props.c`, `speed_mfd.cpp`, `weather_mfd.cpp` (a weather page), and a pure-Python client with `speed_hold.py` and `nearest_runway.py`. |
 | `template/` | An addon folder to copy: `addon.json`, a CMake project and `src/main.cpp`. |
 | `kosmosmap/` | KosmosMap, a complete program: a GTK 3 moving map in C++ (about 1,600 lines, Linux) that reads ships and facilities over the link and shades Kosmos's terrain data. Built with the SDK when GTK 3 and zlib are installed; see the worked example below and its `README.md`. |
-| `planetbake/` | planetbake, a standalone tool (source and ready-made binaries in `planetbake/bin/`) that bakes Kosmos's generated worlds into colour, height, normal, specular, night-lights and cloud maps, as PNG or DDS, as images or tile pyramids, from a GTK 3 preview window or the command line. It uses at most 4 threads. Not a link program; see its `README.md`. |
+| `planetbake/` | planetbake, a standalone tool (source and ready-made binaries in `planetbake/bin/`) that bakes Kosmos's generated worlds into colour, height, normal, specular, night-lights and cloud maps, as PNG or DDS, as images or tile pyramids, from a GTK 3 preview window or the command line, and can open an existing pack to fill gaps, edit tiles in your graphics program and lock them. It uses at most 4 threads. Not a link program; see its `README.md`. |
 | `tools/kosmos_link_sim.py` | A mock Kosmos for developing without the game. |
 | `docs/PROTOCOL.md` | The wire protocol, for other languages. |
 
