@@ -263,8 +263,6 @@ namespace kosmos::app
         sl::destroy_bitmap(vis.puff_texture);
         sl::destroy_bitmap(vis.cloud_texture);
         sl::destroy_bitmap(vis.nebula_atlas);
-        if (vis.nebulae)
-            sl::destroy_mesh(vis.nebulae);
         sl::destroy_surface_3d(surface);
         sl::gamepad_shutdown();
         sl::shutdown();

@@ -374,12 +374,6 @@ namespace kosmos::app
         vis.star_rays = make_star_rays();
         vis.star_limb = make_star_limb();
         vis.sky = make_sky_texture();
-        vis.nebula_atlas = sl::load_bitmap((sim.root() + "/data/textures/nebula/proc_sheet_nebula.jpg").c_str());
-        if (vis.nebula_atlas)
-        {
-            vis.nebula_atlas->smooth = true;
-            vis.nebula_atlas->mipmaps = true;
-        }
         vis.puff_texture = make_puff_texture();
         vis.cloud_texture = fx::make_cloud_texture();
         vis.starfield = make_starfield();

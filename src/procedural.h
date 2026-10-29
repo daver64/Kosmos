@@ -13,7 +13,7 @@ namespace kosmos
     sl::Bitmap *make_star_limb(int size = 256);
     sl::Bitmap *make_puff_texture(int size = 64);
     sl::Mesh *make_starfield();
-    sl::Mesh *make_nebulae(int system);
+    sl::Bitmap *make_nebula_texture(int system, int width = 2048);
     sl::Bitmap *make_sky_texture(int width = 1024);
     sl::Mesh *make_limb_mesh();
     sl::Mesh *make_cloud_deck_mesh();

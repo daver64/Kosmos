@@ -217,21 +217,21 @@ namespace kosmos::app
                 sky.tint.alpha = stars.tint.alpha;
                 // Close enough that depth keeps its resolution against the far plane, and turned so the pinched pole triangles face an axis the camera rarely looks along.
                 sl::draw_mesh(vis.sphere, glm::rotate(glm::mat4(1.0f), 1.5708f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), sky);
-                // Nebulae only away from Sol, and behind the stars.
-                if (sim.system_index() != 0 && vis.nebula_atlas)
+                // Nebulae only away from Sol, and behind the stars. Always lit: they are far-off emission, whatever side of a planet you are on.
+                if (sim.system_index() != 0)
                 {
                     if (vis.nebulae_system != sim.system_index())
                     {
-                        if (vis.nebulae)
-                            sl::destroy_mesh(vis.nebulae);
-                        vis.nebulae = make_nebulae(sim.system_index());
+                        if (vis.nebula_atlas)
+                            sl::destroy_bitmap(vis.nebula_atlas);
+                        vis.nebula_atlas = make_nebula_texture(sim.system_index());
                         vis.nebulae_system = sim.system_index();
                     }
-                    if (vis.nebulae)
+                    if (vis.nebula_atlas)
                     {
                         sl::Material neb = sky;
                         neb.texture = vis.nebula_atlas;
-                        sl::draw_mesh(vis.nebulae, glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), neb);
+                        sl::draw_mesh(vis.sphere, glm::rotate(glm::mat4(1.0f), 1.5708f, glm::vec3(1, 0, 0)) * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop) * 0.999f)), neb);
                     }
                 }
                 sl::draw_mesh(vis.starfield, glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), stars);

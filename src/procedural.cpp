@@ -203,48 +203,55 @@ namespace kosmos
         return sl::create_mesh(vertices, indices);
     }
 
-    // A few nebulae from the 4x4 atlas as sprites on the unit sky sphere, picked by the star system so each one keeps its own.
-    sl::Mesh *make_nebulae(int system)
+    // Thin, wispy nebulae for one star system as an equirectangular map for the inside-out sky sphere (drawn additively, so dim): ridged
+    // filaments warped into tendrils, gathered into a few large drifts with clear sky between, in two or three hues the system picks.
+    sl::Bitmap *make_nebula_texture(int system, int width)
     {
+        const int height = width / 2;
+        sl::Bitmap *bitmap = sl::create_bitmap(width, height);
+        if (!bitmap)
+            return nullptr;
+        using fx::detail::sphere_fbm;
         std::mt19937 rng(0x9e3779b9u ^ (static_cast<std::uint32_t>(system) * 2654435761u));
-        auto uniform = [&](double lo, double hi) { return std::uniform_real_distribution<double>(lo, hi)(rng); };
-        std::vector<sl::Vertex3D> vertices;
-        std::vector<std::uint32_t> indices;
-        const int count = 3 + static_cast<int>(rng() % 4);
-        for (int n = 0; n < count; ++n)
+        auto uniform = [&](double lo, double hi) { return static_cast<float>(std::uniform_real_distribution<double>(lo, hi)(rng)); };
+        const std::uint32_t seed = static_cast<std::uint32_t>(rng() % 100000) + 300;
+        // Hue pairs: emission red and blue, teal and violet, amber and rose.
+        const glm::vec3 hues[4][2] = {{{0.95f, 0.32f, 0.42f}, {0.35f, 0.5f, 1.0f}}, {{0.25f, 0.8f, 0.75f}, {0.6f, 0.35f, 0.95f}},
+                                      {{1.0f, 0.62f, 0.3f}, {0.9f, 0.35f, 0.6f}}, {{0.4f, 0.55f, 1.0f}, {0.85f, 0.45f, 0.75f}}};
+        const glm::vec3 *pair = hues[rng() % 4];
+        const float drift_scale = uniform(1.1f, 1.8f); // fewer, larger drifts at a low value
+        for (int y = 0; y < height; ++y)
         {
-            const double z = uniform(-1.0, 1.0), a = uniform(0.0, 2.0 * pi), r = std::sqrt(1.0 - z * z);
-            const sl::dvec3 dir(r * std::cos(a), z, r * std::sin(a));
-            const sl::dvec3 helper = std::fabs(dir.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
-            sl::dvec3 u = glm::normalize(glm::cross(dir, helper)), v = glm::cross(dir, u);
-            const double roll = uniform(0.0, 2.0 * pi), cr = std::cos(roll), sr = std::sin(roll);
-            const sl::dvec3 ru = u * cr + v * sr, rv = v * cr - u * sr;
-            const double radius = uniform(0.35, 0.8);
-            const int tile = static_cast<int>(rng() % 16), col = tile % 4, row = tile / 4;
-            const float alpha = static_cast<float>(uniform(0.1, 0.22));
-            const float corner[4][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
-            const std::uint32_t base = static_cast<std::uint32_t>(vertices.size());
-            for (const auto &c : corner)
+            const double lat = 1.5707963 - (y + 0.5) / height * 3.1415927;
+            for (int x = 0; x < width; ++x)
             {
-                sl::Vertex3D vertex;
-                const sl::dvec3 p = glm::normalize(dir + ru * (c[0] * radius) + rv * (c[1] * radius));
-                for (int k = 0; k < 3; ++k)
+                const double lon = (x + 0.5) / width * 6.2831853;
+                const sl::dvec3 d(std::cos(lat) * std::cos(lon), std::sin(lat), std::cos(lat) * std::sin(lon));
+                // Where the nebula is at all: broad regions, soft at the edges.
+                const double region = fx::smoothstep(0.5, 0.8, sphere_fbm(d, drift_scale, 3, seed));
+                if (region <= 0.0)
                 {
-                    vertex.position[k] = static_cast<float>(p[k]);
-                    vertex.colour[k] = 1.0f;
+                    sl::putpixel(bitmap, x, y, {0, 0, 0, 255});
+                    continue;
                 }
-                vertex.colour[3] = alpha;
-                vertex.uv[0] = (col + 0.5f + 0.5f * c[0]) / 4.0f;
-                vertex.uv[1] = (row + 0.5f - 0.5f * c[1]) / 4.0f;
-                vertices.push_back(vertex);
+                // Warp the lookup so the filaments curl and trail instead of forming blobs.
+                const sl::dvec3 warp(sphere_fbm(d, 2.5, 3, seed + 1) - 0.5, sphere_fbm(d, 2.5, 3, seed + 2) - 0.5, sphere_fbm(d, 2.5, 3, seed + 3) - 0.5);
+                const sl::dvec3 q = glm::normalize(d + warp * 0.9);
+                const double ridge = 1.0 - std::fabs(2.0 * sphere_fbm(q, 3.0, 5, seed + 4) - 1.0);
+                const double fine = 1.0 - std::fabs(2.0 * sphere_fbm(q, 9.0, 3, seed + 5) - 1.0);
+                const double wisp = std::pow(ridge, 5.0) * (0.55 + 0.45 * std::pow(fine, 3.0));
+                const double tint = sphere_fbm(d, 2.0, 2, seed + 6);
+                const glm::vec3 hue = glm::mix(pair[0], pair[1], static_cast<float>(fx::smoothstep(0.35, 0.65, tint)));
+                glm::vec3 colour = hue * static_cast<float>(wisp * region * 0.5);
+                colour = glm::min(colour, glm::vec3(0.4f));
+                sl::putpixel(bitmap, x, y, {static_cast<std::uint8_t>(colour.r * 255.0f), static_cast<std::uint8_t>(colour.g * 255.0f), static_cast<std::uint8_t>(colour.b * 255.0f), 255});
             }
-            for (const std::uint32_t k : {0u, 1u, 2u, 0u, 2u, 3u})
-                indices.push_back(base + k);
         }
-        return sl::create_mesh(vertices, indices);
+        bitmap->smooth = true;
+        return bitmap;
     }
 
-    // The Milky Way band, dust lanes and a few faint nebulae as an equirectangular map for an inside-out sphere. Drawn additively, so
+    // The Milky Way band and faint dust lanes as an equirectangular map for an inside-out sphere. Drawn additively, so
     // every channel is capped low: it should be a dim backdrop that never competes with the stars or the Sun.
     sl::Bitmap *make_sky_texture(int width)
     {
@@ -255,17 +262,6 @@ namespace kosmos
         using fx::detail::sphere_fbm;
         const sl::dvec3 n = glm::normalize(sl::dvec3(0.35, 0.8, 0.5));
         const sl::dvec3 bu = glm::normalize(glm::cross(n, sl::dvec3(0, 0, 1))), bv = glm::cross(n, bu);
-        struct Nebula
-        {
-            sl::dvec3 centre;
-            glm::vec3 colour;
-            double size;
-            std::uint32_t seed;
-        };
-        const Nebula nebulae[] = {{glm::normalize(sl::dvec3(-0.7, 0.2, 0.6)), {0.85f, 0.3f, 0.45f}, 0.34, 201},
-                                  {glm::normalize(sl::dvec3(0.5, -0.3, -0.8)), {0.3f, 0.45f, 0.9f}, 0.4, 202},
-                                  {glm::normalize(sl::dvec3(0.2, 0.6, -0.7)), {0.5f, 0.3f, 0.8f}, 0.3, 203},
-                                  {glm::normalize(sl::dvec3(0.9, 0.1, 0.3)), {0.25f, 0.7f, 0.65f}, 0.36, 204}};
         for (int y = 0; y < height; ++y)
         {
             const double lat = 1.5707963 - (y + 0.5) / height * 3.1415927;
@@ -278,16 +274,10 @@ namespace kosmos
                 const double core = 0.5 + 0.5 * std::cos(a - 1.0);
                 const double band = std::exp(-(b * b) / (0.16 * 0.16)) * (0.3 + 0.7 * core) + 0.25 * std::exp(-(b * b) / (0.45 * 0.45));
                 const double clumps = sphere_fbm(d, 6.0, 5, 101);
-                const double lanes = fx::smoothstep(0.52, 0.68, sphere_fbm(d, 9.0, 4, 102));
-                const double lum = band * (0.35 + 0.9 * clumps) * (1.0 - 0.65 * lanes);
+                const double lanes = fx::smoothstep(0.55, 0.8, sphere_fbm(d, 9.0, 4, 102));
+                const double lum = band * (0.35 + 0.9 * clumps) * (1.0 - 0.35 * lanes);
                 const glm::vec3 tone = glm::mix(glm::vec3(0.55f, 0.62f, 0.9f), glm::vec3(0.95f, 0.78f, 0.6f), static_cast<float>(core));
                 glm::vec3 colour = tone * static_cast<float>(lum * 0.16);
-                for (const Nebula &neb : nebulae)
-                {
-                    const double angle = std::acos(std::clamp(glm::dot(d, neb.centre), -1.0, 1.0));
-                    const double cloud = fx::smoothstep(0.35, 0.75, sphere_fbm(d, 4.0, 5, neb.seed));
-                    colour += neb.colour * static_cast<float>(std::exp(-(angle * angle) / (neb.size * neb.size)) * cloud * 0.09);
-                }
                 colour = glm::min(colour, glm::vec3(0.22f));
                 sl::putpixel(bitmap, x, y, {static_cast<std::uint8_t>(colour.r * 255.0f), static_cast<std::uint8_t>(colour.g * 255.0f), static_cast<std::uint8_t>(colour.b * 255.0f), 255});
             }
