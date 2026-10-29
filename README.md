@@ -53,7 +53,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | Joystick | View > Joystick: bind axes and buttons separately for aircraft and spacecraft (saved in `joystick.json`) |
 | Space | Stage |
 | T | Cycle SAS hold mode |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent). The Autopilot menu has an Aircraft and a Spacecraft window |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Delta IV Heavy, Atlas III and Saturn V). The Autopilot menu has an Aircraft and a Spacecraft window |
 | `,` / `.` | Time warp down / up |
 | Tab | Orrery map (F: focus, `[` `]` zoom, right-drag rotate) |
 | **G** | Toggle landing gear (also **L**) |

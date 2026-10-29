@@ -344,6 +344,7 @@ namespace kosmos
                 stage.length = js.value("length", stage.length);
                 stage.radius = js.value("radius", stage.radius);
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
+                stage.separation_dir = vec3(js.value("separation_dir", nlohmann::json()), stage.separation_dir);
                 for (const nlohmann::json &je : js.value("engines", nlohmann::json::array()))
                 {
                     EngineSpec e;
@@ -1243,7 +1244,7 @@ namespace kosmos
         if (id >= 0)
         {
             sl::FlightBody &d = *universe_.world.body(id);
-            const sl::dvec3 tail = b.direction_to_world({0.0, 0.0, 1.0});
+            const sl::dvec3 tail = b.direction_to_world(glm::normalize(st.separation_dir));
             d.dry_mass = std::max(st.dry_mass + leftover, 1.0);
             const double transverse = d.dry_mass * (st.length * st.length / 12.0 + st.radius * st.radius / 4.0);
             d.dry_inertia = {transverse, transverse, d.dry_mass * st.radius * st.radius / 2.0};

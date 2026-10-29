@@ -428,7 +428,9 @@ namespace kosmos
         const Ship &ship = *ships_[static_cast<std::size_t>(index)];
         const ShipSpec &spec = ship.spec();
         flying_as_aircraft_ = ship.flies_as_aircraft();
-        const std::filesystem::path script = !spec.script.empty() ? std::filesystem::path(spec.directory) / spec.script
+        // A script name starting with "@" is one of the shared programs in data/autopilot.
+        const std::filesystem::path script = spec.script.rfind("@", 0) == 0 ? std::filesystem::path(root()) / "data/autopilot" / spec.script.substr(1)
+                                             : !spec.script.empty() ? std::filesystem::path(spec.directory) / spec.script
                                              : flying_as_aircraft_ ? std::filesystem::path(root()) / "data/autopilot/aircraft.lua"
                                                                    : std::filesystem::path();
         if (script.empty())

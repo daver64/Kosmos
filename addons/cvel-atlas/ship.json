@@ -1,6 +1,7 @@
 {
  "name": "CVEL Atlas III",
  "class": "launcher",
+ "script": "@launcher.lua",
  "torque_accel": 0.2,
  "max_rate": 0.3,
  "rcs_thrust": 0,

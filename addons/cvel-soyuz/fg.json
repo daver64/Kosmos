@@ -1,6 +1,7 @@
 {
  "name": "CVEL Soyuz-FG",
  "class": "launcher",
+ "script": "@launcher.lua",
  "torque_accel": 0.1,
  "max_rate": 0.25,
  "rcs_thrust": 280,
@@ -22,28 +23,31 @@
  "vessels": [
   { "name": "Cabin", "stage": "Soyuz TMA", "position": [0, 0, -31.5], "size": [2.2, 2.2, 2.0], "crew": 3 }
  ],
+ "animation_controls": [
+  {"name": "Panels and antennae", "property": "panels", "duration": 10}
+ ],
  "ports": [
   { "name": "Docking", "position": [0, 0, -34.1], "direction": [0, 0, -1], "up": [0, 1, 0] }
  ],
  "lights": [
   { "stage": 2, "position": [0, 0, -42.3], "colour": [255, 255, 255], "intensity": 3, "range": 50, "pattern": "strobe", "period": 1.6, "glow": 0.4 },
-  { "stage": 3, "position": [0, 1.4, -29.3], "colour": [255, 255, 255], "intensity": 3, "range": 40, "pattern": "strobe", "period": 1.6, "glow": 0.4 }
+  { "stage": 6, "position": [0, 1.4, -29.3], "colour": [255, 255, 255], "intensity": 3, "range": 40, "pattern": "strobe", "period": 1.6, "glow": 0.4 }
  ],
  "stages": [
   {
    "name": "Strap-on boosters",
    "dry_mass": 15240,
-   "propellant": 162360,
+   "propellant": 199360,
    "z": 0,
    "length": 20.1,
    "radius": 4.0,
    "separation_speed": 3.0,
    "engines": [
-    { "position": [3.2, 0, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 287, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
-    { "position": [-3.2, 0, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 287, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
-    { "position": [0, 3.2, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 287, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
-    { "position": [0, -3.2, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 287, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
-    { "position": [0, 0, 11], "direction": [0, 0, -1], "thrust": 1000000, "isp": 296, "plume": 34, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" }
+    { "position": [3.2, 0, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 310, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
+    { "position": [-3.2, 0, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 310, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
+    { "position": [0, 3.2, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 310, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
+    { "position": [0, -3.2, 10.5], "direction": [0, 0, -1], "thrust": 952174, "isp": 310, "plume": 32, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" },
+    { "position": [0, 0, 11], "direction": [0, 0, -1], "thrust": 1000000, "isp": 320, "plume": 34, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" }
    ],
    "gear": [[3.2, 0, 10.1], [-3.2, 0, 10.1], [0, 3.2, 10.1], [0, -3.2, 10.1]],
    "parts": [
@@ -56,21 +60,63 @@
   {
    "name": "Core stage",
    "dry_mass": 6875,
-   "propellant": 98525,
+   "propellant": 61525,
    "z": -4,
    "length": 27.8,
    "radius": 1.5,
    "separation_speed": 1.5,
    "engines": [
-    { "position": [0, 0, 11], "direction": [0, 0, -1], "thrust": 1000000, "isp": 296, "plume": 34, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" }
+    { "position": [0, 0, 11], "direction": [0, 0, -1], "thrust": 1000000, "isp": 320, "plume": 34, "plume_width": 1.4, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene" }
    ],
    "parts": [
     { "model": "models/r7blocka.obj", "offset": [0, 0, -4] }
    ]
   },
   {
-   "name": "Block I and fairing",
-   "dry_mass": 3855,
+   "name": "Escape tower",
+   "dry_mass": 800,
+   "propellant": 0,
+   "z": -38.5,
+   "length": 7,
+   "radius": 0.6,
+   "separation_speed": 4.0,
+   "separation_dir": [0, 0, -1],
+   "engines": [],
+   "parts": [
+    { "model": "models/r7tmaer.obj", "offset": [0, 0, -38.5] }
+   ]
+  },
+  {
+   "name": "Fairing half",
+   "dry_mass": 500,
+   "propellant": 0,
+   "z": -31.2,
+   "length": 9,
+   "radius": 1.7,
+   "separation_speed": 2.5,
+   "separation_dir": [0, 1, 0.2],
+   "engines": [],
+   "parts": [
+    { "model": "models/soyshrd1.obj", "offset": [0, 0.8, -31.2] }
+   ]
+  },
+  {
+   "name": "Fairing half 2",
+   "dry_mass": 500,
+   "propellant": 0,
+   "z": -31.2,
+   "length": 9,
+   "radius": 1.7,
+   "separation_speed": 2.5,
+   "separation_dir": [0, -1, 0.2],
+   "engines": [],
+   "parts": [
+    { "model": "models/soyshrd2.obj", "offset": [0, -0.8, -31.2] }
+   ]
+  },
+  {
+   "name": "Block I",
+   "dry_mass": 2055,
    "propellant": 22845,
    "z": -26,
    "length": 17,
@@ -83,10 +129,7 @@
     { "model": "models/r7blocki.obj", "offset": [0, 0, -22.2] },
     { "model": "models/r7skirt3p1.obj", "offset": [0.665, 0.33, -19.19] },
     { "model": "models/r7skirt3p2.obj", "offset": [-0.665, 0.33, -19.19] },
-    { "model": "models/r7skirt3p3.obj", "offset": [0, -1.05, -19.19] },
-    { "model": "models/soyshrd1.obj", "offset": [0, 0.8, -31.2] },
-    { "model": "models/soyshrd2.obj", "offset": [0, -0.8, -31.2] },
-    { "model": "models/r7tmaer.obj", "offset": [0, 0, -38.5] }
+    { "model": "models/r7skirt3p3.obj", "offset": [0, -1.05, -19.19] }
    ]
   },
   {
@@ -101,7 +144,7 @@
     { "position": [0, 0, -26.86], "direction": [0, 0, -1], "thrust": 3924, "isp": 305, "plume": 3, "plume_width": 0.5, "plume_glow": 0.8, "plume_density": 1, "type": "rocket", "fuel": "hypergolic" }
    ],
    "parts": [
-    { "model": "models/soyuz.obj", "offset": [0, 0, -29.5] }
+    { "model": "models/soyuz.obj", "offset": [0, 0, -29.5], "animations": "tma_animations.json" }
    ]
   }
  ]
