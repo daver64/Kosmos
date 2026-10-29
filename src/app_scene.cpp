@@ -292,6 +292,14 @@ namespace kosmos::app
             sl::draw_mesh(vis.quad, star_basis(sp, D, rays_half * 0.55, 0.7853982f), glow);
         }
 
+        // Far houses and trees are unlit billboards baked in daylight; dim them to the ground's own light so they are no brighter than it.
+        const auto impostor_light = [&](int body_index)
+        {
+            const sl::dvec3 from_centre = eye_world - universe.position(body_index);
+            const double sun_height = glm::dot(glm::normalize(from_centre), glm::normalize(universe.position(0) - eye_world));
+            const double lit = std::clamp(sun_height * 4.0, 0.0, 1.0);
+            return static_cast<float>(glm::mix(static_cast<double>(light.ambient), 1.0, lit));
+        };
         if (near_earth)
         {
             if (!earth_as_sphere)
@@ -305,7 +313,10 @@ namespace kosmos::app
                 }
                 terrain->draw(eye_from_earth, ground);
                 if (body_terrains[0]->clutter_live)
+                {
+                    body_terrains[0]->clutter->set_impostor_light(impostor_light(body_terrains[0]->body));
                     clutter_perf.draw_ms += time_ms([&] { body_terrains[0]->clutter->draw(eye_from_earth); });
+                }
             }
         }
 
@@ -315,7 +326,10 @@ namespace kosmos::app
                 sl::Material ground;
                 body_terrains[k]->terrain->draw(body_terrains[k]->eye_rel, ground);
                 if (body_terrains[k]->clutter_live)
+                {
+                    body_terrains[k]->clutter->set_impostor_light(impostor_light(body_terrains[k]->body));
                     clutter_perf.draw_ms += time_ms([&] { body_terrains[k]->clutter->draw(body_terrains[k]->eye_rel); });
+                }
             }
         {
             sl::Material props;
