@@ -87,9 +87,15 @@ namespace launcher
                 s.file = file;
                 const fs::path rel = fs::relative(file.parent_path(), dir);
                 s.category = rel == "." ? std::string() : (*rel.begin()).generic_string(); // top-level folder only
-                for (const nlohmann::json &ship : j["ships"])
+                // Only the vessel the player starts in is listed; docked pods and other payloads are left to the description.
+                const nlohmann::json &list = j["ships"];
+                const std::size_t active = j.contains("active") && j["active"].is_number_integer() && j["active"].get<int>() >= 0 && static_cast<std::size_t>(j["active"].get<int>()) < list.size()
+                                               ? static_cast<std::size_t>(j["active"].get<int>())
+                                               : 0;
+                for (std::size_t i = 0; i < list.size(); ++i)
                 {
-                    if (ship.is_object() && ship.contains("ship") && ship["ship"].is_string())
+                    const nlohmann::json &ship = list[i];
+                    if (i == active && ship.is_object() && ship.contains("ship") && ship["ship"].is_string())
                         s.ships.push_back(ship["ship"].get<std::string>());
                     if (s.body.empty())
                         s.body = str(ship, "body");

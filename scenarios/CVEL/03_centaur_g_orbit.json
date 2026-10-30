@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Centaur G, 400 km orbit",
+ "description": "CVEL Centaur G upper stage with its probe, coasting in a circular 400 km orbit over the sunlit Earth.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Centaur G",
+   "body": "Earth",
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 28.5,
+    "phase": 180
+   }
+  }
+ ]
+}
