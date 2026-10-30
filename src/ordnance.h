@@ -81,6 +81,9 @@ namespace kosmos
 
         // ---- The world
         /** Advance rounds, blast waves and effects by `dt` seconds of simulated time (`real_dt` for the visuals). */
+        void step_rounds(ArsenalContext &context, double dt);
+        void step_shocks(ArsenalContext &context, double dt);
+        void play_bangs(double dt);
         void update(ArsenalContext &context, double dt, double real_dt);
         std::size_t rounds_in_flight() const { return rounds_.size(); }
         std::size_t live_effects() const { return effects_.size(); }

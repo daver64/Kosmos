@@ -93,6 +93,189 @@ namespace kosmos
         return -1;
     }
 
+    void Universe::generate_belt(const nlohmann::json *belt, nlohmann::json &list)
+    {
+        // A procedural belt of small anonymous rocks: orbit shapes drawn from the given ranges.
+        std::mt19937 rng(belt->value("seed", 1));
+        auto uniform = [&](double lo, double hi) { return std::uniform_real_distribution<double>(lo, hi)(rng); };
+        for (int i = 0; i < belt->value("count", 0); ++i)
+        {
+            const double r = uniform(belt->value("radius_min", 3000.0), belt->value("radius_max", 40000.0));
+            const double grey = uniform(95.0, 150.0);
+            char label[32];
+            std::snprintf(label, sizeof label, "%s-%03d", belt->value("name", "Belt").c_str(), i + 1);
+            list.push_back({{"name", label}, {"kind", "asteroid"}, {"parent", belt->value("parent", "Sun")}, {"minor", true},
+                            {"gm", 4.0e-9 * r * r * r}, {"radius", r}, {"spin", uniform(-3e-4, 3e-4)},
+                            {"colour", {grey, grey * 0.95, grey * 0.9}},
+                            {"orbit", {{"a_au", uniform(belt->value("a_min", 2.1), belt->value("a_max", 3.3))}, {"e", uniform(0.0, belt->value("e_max", 0.2))},
+                                       {"i", uniform(0.0, belt->value("i_max", 15.0))}, {"raan", uniform(0.0, 360.0)},
+                                       {"argp", uniform(0.0, 360.0)}, {"m0", uniform(0.0, 360.0)}}}});
+        }
+    }
+
+    void Universe::read_body_fields(const nlohmann::json &entry, Body &body)
+    {
+        body.name = entry.value("name", "");
+        const std::string kind = entry.value("kind", "planet");
+        body.kind = kind == "star" ? BodyKind::star : kind == "moon" ? BodyKind::moon : kind == "asteroid" ? BodyKind::asteroid
+                    : kind == "comet" ? BodyKind::comet : BodyKind::planet;
+        body.gm = entry.value("gm", 0.0);
+        body.radius = entry.value("radius", 1000.0);
+        body.spin = entry.value("spin", 0.0);
+        body.terrain = entry.value("terrain", "");
+        if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
+        {
+            body.style.type = archetype_from_name(st->value("type", ""));
+            body.style.seed = st->value("seed", 1);
+            body.style.ocean = st->value("ocean", 0.6f);
+            body.style.ice = st->value("ice", 0.15f);
+            body.style.relief = st->value("relief", 1.0f);
+            body.style.bands = st->value("bands", 9);
+            body.style.contrast = st->value("contrast", 0.5f);
+            if (const auto tint = st->find("tint"); tint != st->end() && tint->is_array() && tint->size() >= 3)
+                for (int i = 0; i < 3; ++i)
+                    body.style.tint[i] = (*tint)[static_cast<std::size_t>(i)].get<float>();
+        }
+        body.detail = entry.value("detail", "");
+        body.detail_tile = entry.value("detail_tile", 128.0);
+        body.detail_strength = entry.value("detail_strength", 0.9);
+        body.texture = entry.value("texture", "");
+        body.tiles = entry.value("tiles", "");
+        body.imagery = entry.value("imagery", "");
+        body.fallback_texture = entry.value("fallback_texture", "");
+        body.real_world = entry.value("real_world", false);
+        body.mesh = entry.value("mesh", "");
+        body.minor = entry.value("minor", false);
+        body.tilt = entry.value("tilt", 0.0) * pi / 180.0;
+        if (const auto r = entry.find("epoch_rates"); r != entry.end())
+        {
+            body.has_rates = true;
+            body.raan_rate = r->value("raan", 0.0);
+            body.argp_rate = r->value("argp", 0.0);
+            body.mean_longitude_rate = r->value("mean_longitude", 0.0);
+        }
+        if (const auto r = entry.find("pole"); r != entry.end())
+        {
+            body.has_pole = true;
+            body.pole_ra = r->value("ra", 0.0);
+            body.pole_dec = r->value("dec", 90.0);
+            const sl::dvec3 pole = equatorial_to_world(body.pole_ra, body.pole_dec);
+            const sl::dvec3 axis = glm::cross(sl::dvec3(0.0, 1.0, 0.0), pole);
+            if (glm::length(axis) > 1.0e-12)
+                body.axis_tilt = glm::angleAxis(std::acos(std::clamp(pole.y, -1.0, 1.0)), glm::normalize(axis));
+        }
+        if (const auto r = entry.find("meridian"); r != entry.end())
+        {
+            body.has_meridian = true;
+            body.meridian_w0 = r->value("w0", 0.0);
+            body.meridian_rate = r->value("rate", 0.0);
+            body.meridian_node_ra = r->value("node_ra", 0.0);
+        }
+        if (const auto r = entry.find("rings"); r != entry.end())
+        {
+            body.ring_inner = r->value("inner", 0.0);
+            body.ring_outer = r->value("outer", 0.0);
+            if (r->contains("colour"))
+                for (int i = 0; i < 3; ++i)
+                    body.ring_colour[i] = (*r)["colour"][i].get<float>() / 255.0f;
+        }
+    }
+
+    void Universe::read_atmosphere(const nlohmann::json &entry, Body &body)
+    {
+        if (const auto a = entry.find("atmosphere"); a != entry.end())
+        {
+            body.atmosphere_density = a->value("density", 0.0);
+            body.atmosphere_scale_height = a->value("scale_height", 8500.0);
+            if (a->contains("colour"))
+                for (int i = 0; i < 3; ++i)
+                    body.atmosphere_colour[i] = (*a)["colour"][i].get<float>() / 255.0f;
+            if (const auto c = a->find("clouds"); c != a->end())
+            {
+                body.cloud_cover = c->value("cover", 0.0);
+                body.cloud_height = c->value("height", body.cloud_height);
+                if (c->contains("colour"))
+                    for (int i = 0; i < 3; ++i)
+                        body.cloud_colour[i] = (*c)["colour"][i].get<float>() / 255.0f;
+            }
+        }
+        if (entry.contains("colour"))
+            for (int i = 0; i < 3; ++i)
+                body.colour[i] = entry["colour"][i].get<float>() / 255.0f;
+    }
+
+    void Universe::place_body_orbit(const nlohmann::json &entry, Body &body, const std::string &file, double elapsed_days)
+    {
+        if (body.parent >= 0)
+        {
+            const nlohmann::json &o = entry.at("orbit");
+            body.orbit.semi_major_axis = o.contains("a_au") ? o["a_au"].get<double>() * au : o.value("a_km", 0.0) * 1000.0;
+            body.orbit.eccentricity = o.value("e", 0.0);
+            body.orbit.inclination = deg(o, "i");
+            body.orbit.raan = deg(o, "raan");
+            body.orbit.arg_periapsis = deg(o, "argp");
+            body.orbit.mean_anomaly = deg(o, "m0");
+            const Body &parent = bodies[static_cast<std::size_t>(body.parent)];
+            bool fitted_to_epoch = false;
+            // Planets with a VSOP87 file start from their true position at the epoch instead of the mean elements.
+            const std::string code = parent.kind == BodyKind::star ? Vsop87::code_for(body.name) : std::string();
+            if (!code.empty() && file.find('/') != std::string::npos)
+            {
+                Vsop87 series;
+                if (series.load(file.substr(0, file.rfind('/')) + "/vsop87/VSOP87A." + code))
+                {
+                    sl::dvec3 p, v;
+                    series.state(epoch_jd, p, v);
+                    sl::OrbitElements fitted;
+                    if (sl::orbit_from_state(parent.gm, p, v, fitted))
+                    {
+                        body.orbit = fitted;
+                        fitted_to_epoch = true;
+                    }
+                }
+            }
+            // Everything else carries its mean elements forward (or back) from the file's epoch to the start date.
+            if (!fitted_to_epoch && elapsed_days != 0.0)
+            {
+                const double to_rad = pi / 180.0;
+                if (body.has_rates)
+                {
+                    body.orbit.raan += body.raan_rate * elapsed_days * to_rad;
+                    body.orbit.arg_periapsis += body.argp_rate * elapsed_days * to_rad;
+                    body.orbit.mean_anomaly += (body.mean_longitude_rate - body.raan_rate - body.argp_rate) * elapsed_days * to_rad;
+                }
+                else
+                    body.orbit.mean_anomaly += body.orbit.mean_motion(parent.gm) * elapsed_days * 86400.0;
+                body.orbit.mean_anomaly = std::fmod(body.orbit.mean_anomaly, 2.0 * pi);
+            }
+            body.soi = body.orbit.semi_major_axis * std::pow(body.gm / parent.gm, 0.4);
+        }
+    }
+
+    void Universe::create_flight_body(const Body &body, int id)
+    {
+        sl::FlightBody *fb = world.body(id);
+        fb->gm = body.gm;
+        fb->radius = body.radius;
+        fb->spin_rate = body.spin;
+        fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
+        fb->atmosphere.surface_density = body.atmosphere_density;
+        fb->atmosphere.scale_height = body.atmosphere_scale_height;
+        if (body.parent < 0)
+            fb->mode = sl::FlightBodyMode::kinematic;
+        else
+        {
+            const sl::FlightBody *parent = world.body(body.parent);
+            const sl::OrbitState rel = sl::state_from_orbit(parent->gm, body.orbit);
+            fb->position = parent->position + rel.position;
+            fb->velocity = parent->velocity + rel.velocity;
+            fb->rails_orbit = body.orbit;
+            fb->rails_parent = body.parent;
+            fb->rails_epoch = 0.0;
+            fb->mode = sl::FlightBodyMode::rails;
+        }
+    }
+
     bool Universe::load_text(const std::string &text, const std::string &file, std::string &error)
     {
         nlohmann::json json;
@@ -115,87 +298,12 @@ namespace kosmos
         nlohmann::json list = json.value("bodies", nlohmann::json::array());
         if (const auto belt = json.find("belt"); belt != json.end())
         {
-            // A procedural belt of small anonymous rocks: orbit shapes drawn from the given ranges.
-            std::mt19937 rng(belt->value("seed", 1));
-            auto uniform = [&](double lo, double hi) { return std::uniform_real_distribution<double>(lo, hi)(rng); };
-            for (int i = 0; i < belt->value("count", 0); ++i)
-            {
-                const double r = uniform(belt->value("radius_min", 3000.0), belt->value("radius_max", 40000.0));
-                const double grey = uniform(95.0, 150.0);
-                char label[32];
-                std::snprintf(label, sizeof label, "%s-%03d", belt->value("name", "Belt").c_str(), i + 1);
-                list.push_back({{"name", label}, {"kind", "asteroid"}, {"parent", belt->value("parent", "Sun")}, {"minor", true},
-                                {"gm", 4.0e-9 * r * r * r}, {"radius", r}, {"spin", uniform(-3e-4, 3e-4)},
-                                {"colour", {grey, grey * 0.95, grey * 0.9}},
-                                {"orbit", {{"a_au", uniform(belt->value("a_min", 2.1), belt->value("a_max", 3.3))}, {"e", uniform(0.0, belt->value("e_max", 0.2))},
-                                           {"i", uniform(0.0, belt->value("i_max", 15.0))}, {"raan", uniform(0.0, 360.0)},
-                                           {"argp", uniform(0.0, 360.0)}, {"m0", uniform(0.0, 360.0)}}}});
-            }
+            generate_belt(&*belt, list);
         }
         for (const nlohmann::json &entry : list)
         {
             Body body;
-            body.name = entry.value("name", "");
-            const std::string kind = entry.value("kind", "planet");
-            body.kind = kind == "star" ? BodyKind::star : kind == "moon" ? BodyKind::moon : kind == "asteroid" ? BodyKind::asteroid
-                        : kind == "comet" ? BodyKind::comet : BodyKind::planet;
-            body.gm = entry.value("gm", 0.0);
-            body.radius = entry.value("radius", 1000.0);
-            body.spin = entry.value("spin", 0.0);
-            body.terrain = entry.value("terrain", "");
-            if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
-            {
-                body.style.type = archetype_from_name(st->value("type", ""));
-                body.style.seed = st->value("seed", 1);
-                body.style.ocean = st->value("ocean", 0.6f);
-                body.style.ice = st->value("ice", 0.15f);
-                body.style.relief = st->value("relief", 1.0f);
-                body.style.bands = st->value("bands", 9);
-                body.style.contrast = st->value("contrast", 0.5f);
-                if (const auto tint = st->find("tint"); tint != st->end() && tint->is_array() && tint->size() >= 3)
-                    for (int i = 0; i < 3; ++i)
-                        body.style.tint[i] = (*tint)[static_cast<std::size_t>(i)].get<float>();
-            }
-            body.detail = entry.value("detail", "");
-            body.detail_tile = entry.value("detail_tile", 128.0);
-            body.detail_strength = entry.value("detail_strength", 0.9);
-            body.texture = entry.value("texture", "");
-            body.tiles = entry.value("tiles", "");
-            body.mesh = entry.value("mesh", "");
-            body.minor = entry.value("minor", false);
-            body.tilt = entry.value("tilt", 0.0) * pi / 180.0;
-            if (const auto r = entry.find("epoch_rates"); r != entry.end())
-            {
-                body.has_rates = true;
-                body.raan_rate = r->value("raan", 0.0);
-                body.argp_rate = r->value("argp", 0.0);
-                body.mean_longitude_rate = r->value("mean_longitude", 0.0);
-            }
-            if (const auto r = entry.find("pole"); r != entry.end())
-            {
-                body.has_pole = true;
-                body.pole_ra = r->value("ra", 0.0);
-                body.pole_dec = r->value("dec", 90.0);
-                const sl::dvec3 pole = equatorial_to_world(body.pole_ra, body.pole_dec);
-                const sl::dvec3 axis = glm::cross(sl::dvec3(0.0, 1.0, 0.0), pole);
-                if (glm::length(axis) > 1.0e-12)
-                    body.axis_tilt = glm::angleAxis(std::acos(std::clamp(pole.y, -1.0, 1.0)), glm::normalize(axis));
-            }
-            if (const auto r = entry.find("meridian"); r != entry.end())
-            {
-                body.has_meridian = true;
-                body.meridian_w0 = r->value("w0", 0.0);
-                body.meridian_rate = r->value("rate", 0.0);
-                body.meridian_node_ra = r->value("node_ra", 0.0);
-            }
-            if (const auto r = entry.find("rings"); r != entry.end())
-            {
-                body.ring_inner = r->value("inner", 0.0);
-                body.ring_outer = r->value("outer", 0.0);
-                if (r->contains("colour"))
-                    for (int i = 0; i < 3; ++i)
-                        body.ring_colour[i] = (*r)["colour"][i].get<float>() / 255.0f;
-            }
+            read_body_fields(entry, body);
             body.parent = -1;
             if (entry.contains("parent"))
             {
@@ -206,70 +314,9 @@ namespace kosmos
                     return false;
                 }
             }
-            if (const auto a = entry.find("atmosphere"); a != entry.end())
-            {
-                body.atmosphere_density = a->value("density", 0.0);
-                body.atmosphere_scale_height = a->value("scale_height", 8500.0);
-                if (a->contains("colour"))
-                    for (int i = 0; i < 3; ++i)
-                        body.atmosphere_colour[i] = (*a)["colour"][i].get<float>() / 255.0f;
-                if (const auto c = a->find("clouds"); c != a->end())
-                {
-                    body.cloud_cover = c->value("cover", 0.0);
-                    body.cloud_height = c->value("height", body.cloud_height);
-                    if (c->contains("colour"))
-                        for (int i = 0; i < 3; ++i)
-                            body.cloud_colour[i] = (*c)["colour"][i].get<float>() / 255.0f;
-                }
-            }
-            if (entry.contains("colour"))
-                for (int i = 0; i < 3; ++i)
-                    body.colour[i] = entry["colour"][i].get<float>() / 255.0f;
+            read_atmosphere(entry, body);
 
-            if (body.parent >= 0)
-            {
-                const nlohmann::json &o = entry.at("orbit");
-                body.orbit.semi_major_axis = o.contains("a_au") ? o["a_au"].get<double>() * au : o.value("a_km", 0.0) * 1000.0;
-                body.orbit.eccentricity = o.value("e", 0.0);
-                body.orbit.inclination = deg(o, "i");
-                body.orbit.raan = deg(o, "raan");
-                body.orbit.arg_periapsis = deg(o, "argp");
-                body.orbit.mean_anomaly = deg(o, "m0");
-                const Body &parent = bodies[static_cast<std::size_t>(body.parent)];
-                bool fitted_to_epoch = false;
-                // Planets with a VSOP87 file start from their true position at the epoch instead of the mean elements.
-                const std::string code = parent.kind == BodyKind::star ? Vsop87::code_for(body.name) : std::string();
-                if (!code.empty() && file.find('/') != std::string::npos)
-                {
-                    Vsop87 series;
-                    if (series.load(file.substr(0, file.rfind('/')) + "/vsop87/VSOP87A." + code))
-                    {
-                        sl::dvec3 p, v;
-                        series.state(epoch_jd, p, v);
-                        sl::OrbitElements fitted;
-                        if (sl::orbit_from_state(parent.gm, p, v, fitted))
-                        {
-                            body.orbit = fitted;
-                            fitted_to_epoch = true;
-                        }
-                    }
-                }
-                // Everything else carries its mean elements forward (or back) from the file's epoch to the start date.
-                if (!fitted_to_epoch && elapsed_days != 0.0)
-                {
-                    const double to_rad = pi / 180.0;
-                    if (body.has_rates)
-                    {
-                        body.orbit.raan += body.raan_rate * elapsed_days * to_rad;
-                        body.orbit.arg_periapsis += body.argp_rate * elapsed_days * to_rad;
-                        body.orbit.mean_anomaly += (body.mean_longitude_rate - body.raan_rate - body.argp_rate) * elapsed_days * to_rad;
-                    }
-                    else
-                        body.orbit.mean_anomaly += body.orbit.mean_motion(parent.gm) * elapsed_days * 86400.0;
-                    body.orbit.mean_anomaly = std::fmod(body.orbit.mean_anomaly, 2.0 * pi);
-                }
-                body.soi = body.orbit.semi_major_axis * std::pow(body.gm / parent.gm, 0.4);
-            }
+            place_body_orbit(entry, body, file, elapsed_days);
             if (entry.value("synchronous", false) && body.parent >= 0)
                 body.spin = body.orbit.mean_motion(bodies[static_cast<std::size_t>(body.parent)].gm);
             // A spinning body started on another date has turned by that many rotations since the file's epoch.
@@ -282,26 +329,7 @@ namespace kosmos
                 error = "too many bodies";
                 return false;
             }
-            sl::FlightBody *fb = world.body(id);
-            fb->gm = body.gm;
-            fb->radius = body.radius;
-            fb->spin_rate = body.spin;
-            fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
-            fb->atmosphere.surface_density = body.atmosphere_density;
-            fb->atmosphere.scale_height = body.atmosphere_scale_height;
-            if (body.parent < 0)
-                fb->mode = sl::FlightBodyMode::kinematic;
-            else
-            {
-                const sl::FlightBody *parent = world.body(body.parent);
-                const sl::OrbitState rel = sl::state_from_orbit(parent->gm, body.orbit);
-                fb->position = parent->position + rel.position;
-                fb->velocity = parent->velocity + rel.velocity;
-                fb->rails_orbit = body.orbit;
-                fb->rails_parent = body.parent;
-                fb->rails_epoch = 0.0;
-                fb->mode = sl::FlightBodyMode::rails;
-            }
+            create_flight_body(body, id);
             bodies.push_back(body);
         }
         if (bodies.empty())

@@ -67,7 +67,7 @@ int main()
 
 
     // A procedural field: 64 stations, valid METARs, smooth sampling, deterministic.
-    BodyWeather earth = body_weather_for("Earth", 1.225, 288.0, "");
+    BodyWeather earth = body_weather_for("Earth", 1.225, 288.0, KOSMOS_ROOT);
     WeatherField field("Earth", earth, 5);
     assert(field.stations().size() == 64);
     field.update(1761587400.0);
@@ -106,11 +106,11 @@ int main()
     assert(!field.stations()[3].live);
 
     // Dry worlds do not rain; Mars gets dust, Venus is hot.
-    WeatherField mars("Mars", body_weather_for("Mars", 0.02, 210.0, ""), 9);
+    WeatherField mars("Mars", body_weather_for("Mars", 0.02, 210.0, KOSMOS_ROOT), 9);
     mars.update(1761587400.0);
     for (const WeatherStation &s : mars.stations())
         assert(s.now.rain == 0.0);
-    WeatherField venus("Venus", body_weather_for("Venus", 65.0, 735.0, ""), 9);
+    WeatherField venus("Venus", body_weather_for("Venus", 65.0, 735.0, KOSMOS_ROOT), 9);
     venus.update(1761587400.0);
     assert(venus.stations()[0].now.temperature > 90.0);
     assert(WeatherField::station_id("Mars", 0) == "MSAA" && WeatherField::station_id("Mars", 27) == "MSBB");

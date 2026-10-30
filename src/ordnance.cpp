@@ -364,7 +364,7 @@ namespace kosmos
             const char *kinds[] = {"basaltic regolith", "silicate sand", "iron-rich dust", "fractured bedrock", "carbonaceous clay", "ice-bonded gravel"};
             const std::size_t pick = static_cast<std::size_t>(std::fabs(std::floor(h * 0.07 + eva.position.x * 0.0005 + eva.position.z * 0.0007))) % 6;
             lines.push_back("GEOLOGY SAMPLE");
-            std::snprintf(line, sizeof line, "SURFACE   %s", rho > 0.5 && eva.body >= 0 && body.name == "Earth" ? "soil and rock" : kinds[pick]);
+            std::snprintf(line, sizeof line, "SURFACE   %s", rho > 0.5 && eva.body >= 0 && body.real_world ? "soil and rock" : kinds[pick]);
             lines.push_back(line);
             std::snprintf(line, sizeof line, "HEIGHT    %.1f m   SLOPE %.0f deg", h, slope);
             lines.push_back(line);
@@ -753,6 +753,181 @@ namespace kosmos
             damage_person(context, 2.0);
     }
 
+    void Arsenal::step_rounds(ArsenalContext &context, double dt)
+    {
+        Sim &sim = *context.sim;
+        Universe &universe = sim.universe;
+        std::vector<Round> detonating;
+        for (std::size_t i = 0; i < rounds_.size();)
+        {
+            Round &r = rounds_[i];
+            const EquipmentSpec &spec = *r.spec;
+            bool remove = false, boom = false;
+            sl::dvec3 boom_at = r.position;
+            const sl::FlightBody &pb = *universe.world.body(r.body);
+            const double gm = universe.bodies[static_cast<std::size_t>(r.body)].gm;
+            const sl::Terrain *terrain = context.terrain ? context.terrain(r.body) : nullptr;
+            const double body_radius = universe.bodies[static_cast<std::size_t>(r.body)].radius;
+            r.age += dt;
+            if (r.stuck)
+            {
+                r.fuse -= dt;
+                boom = r.fuse <= 0.0;
+                remove = boom;
+            }
+            else
+            {
+                const int n = std::clamp(static_cast<int>(std::ceil(glm::length(r.velocity) * dt / 3.0)), 1, 200);
+                const double h = dt / n;
+                for (int s = 0; s < n && !remove; ++s)
+                {
+                    const sl::dvec3 from = r.position;
+                    if (!r.bolt)
+                    {
+                        const double d = glm::length(r.position);
+                        r.velocity -= r.position / d * (gm / (d * d)) * h;
+                        const double rho = universe.world.air_density_at(pb.position + r.position);
+                        const sl::dvec3 air = r.velocity - glm::cross(pb.spin_axis * pb.spin_rate, r.position);
+                        const double v = glm::length(air);
+                        if (rho > 0.0 && v > 0.0 && spec.mass > 0.0)
+                            r.velocity -= air * (0.5 * rho * v * spec.drag_area / spec.mass * h);
+                        if (!spec.prop.empty() && glm::length(air) > 5.0)
+                        {
+                            const sl::dquat want = turn_to(sl::dvec3(0, 1, 0), unit(air, sl::dvec3(0, -1, 0)));
+                            r.orientation = glm::slerp(r.orientation, want, std::min(1.0, h * 3.0));
+                        }
+                    }
+                    r.position += r.velocity * h;
+                    const Hit hit = trace(context, r.body, from, r.position, r.age < owner_grace ? r.owner : nullptr);
+                    if (r.bolt)
+                    {
+                        if (hit.kind != Hit::none)
+                        {
+                            impact(context, spec, r.body, hit.point, hit, r.by_person);
+                            remove = true;
+                        }
+                        else if (r.age * spec.speed > spec.range)
+                            remove = true;
+                        else if (anchor_for(r.body, r.position))
+                        {
+                            sl::Particle3D p;
+                            p.position = to_f(r.position - anchor_);
+                            p.life = 0.35f;
+                            p.size_start = 0.35f;
+                            p.size_end = 0.05f;
+                            p.colour_start = {120, 255, 200, 200};
+                            p.colour_end = {20, 120, 255, 0};
+                            p.additive = true;
+                            particles_.spawn(p);
+                        }
+                        continue;
+                    }
+                    if (spec.fuse == "airburst")
+                    {
+                        const double gr = ground_radius(terrain, body_radius, r.position);
+                        if (glm::length(r.position) - gr <= spec.burst_height && r.age > 2.0)
+                        {
+                            boom = remove = true;
+                            boom_at = r.position;
+                            continue;
+                        }
+                    }
+                    if (hit.kind != Hit::none)
+                    {
+                        if (spec.fuse == "timer")
+                        {
+                            r.position = hit.point + unit(hit.point, sl::dvec3(0, 1, 0)) * 0.1;
+                            r.velocity = sl::dvec3(0.0);
+                            r.stuck = true;
+                            break;
+                        }
+                        boom = remove = true;
+                        boom_at = hit.point;
+                        if (hit.kind == Hit::ship && hit.target && spec.fuse != "timer")
+                            boom_at = hit.point;
+                        break;
+                    }
+                    if (spec.fuse == "timer")
+                    {
+                        r.fuse -= h;
+                        if (r.fuse <= 0.0)
+                            boom = remove = true;
+                    }
+                }
+            }
+            if (r.age > 900.0)
+                remove = true;
+            if (boom)
+                detonating.push_back(r), detonating.back().position = boom_at;
+            if (remove)
+                rounds_.erase(rounds_.begin() + static_cast<std::ptrdiff_t>(i));
+            else
+                ++i;
+        }
+        for (const Round &r : detonating)
+            detonate(context, r, r.position);
+    }
+
+    void Arsenal::step_shocks(ArsenalContext &context, double dt)
+    {
+        Sim &sim = *context.sim;
+        Universe &universe = sim.universe;
+        // Blast waves spread, damaging each thing once as they reach it.
+        for (Shock &s : shocks_)
+        {
+            s.radius += s.speed * dt;
+            const double reach = std::min(s.radius, s.spec->blast_radius);
+            for (int i = 0; i < sim.ship_count(); ++i)
+            {
+                Ship *ship = sim.ship(i);
+                if (ship->telemetry().soi != s.body || s.hit.count(ship))
+                    continue;
+                double z0, z1, rad;
+                ship_box(*ship, z0, z1, rad);
+                const double extent = std::max(0.5 * (z1 - z0), rad);
+                const double d = std::max(0.0, glm::length(ship_local_position(universe, *ship) - s.centre) - extent);
+                if (d <= reach)
+                {
+                    s.hit.insert(ship);
+                    ship->damage(s.spec->blast_damage * blast_fraction(d, s.spec->blast_radius));
+                }
+            }
+            Astronaut &eva = *context.eva;
+            if (eva.active && eva.body == s.body && !s.hit_person)
+            {
+                const double d = glm::length(eva.position + eva.local_up() - s.centre);
+                if (d <= reach)
+                {
+                    s.hit_person = true;
+                    damage_person(context, 2.0 * blast_fraction(d, s.spec->blast_radius));
+                }
+            }
+        }
+        shocks_.erase(std::remove_if(shocks_.begin(), shocks_.end(), [](const Shock &s) { return s.radius > s.spec->blast_radius; }), shocks_.end());
+    }
+
+    void Arsenal::play_bangs(double dt)
+    {
+        for (std::size_t i = 0; i < bangs_.size();)
+        {
+            bangs_[i].delay -= dt;
+            if (bangs_[i].delay > 0.0)
+            {
+                ++i;
+                continue;
+            }
+            sl::Sample *&sample = bangs_[i].kind == 1 && nuke_sample_ ? nuke_sample_ : bang_samples_[bangs_[i].kind];
+            if (!sample)
+            {
+                const std::vector<std::uint8_t> wav = make_blast_wav(bangs_[i].kind);
+                sample = sl::load_sample_from_memory(wav.data(), wav.size());
+            }
+            if (sample)
+                sl::play_sample(sample, static_cast<int>(255 * bangs_[i].volume), 128, 1000, 0);
+            bangs_.erase(bangs_.begin() + static_cast<std::ptrdiff_t>(i));
+        }
+    }
+
     void Arsenal::update(ArsenalContext &context, double dt, double real_dt)
     {
         Sim &sim = *context.sim;
@@ -804,167 +979,11 @@ namespace kosmos
 
         if (dt > 0.0)
         {
-            std::vector<Round> detonating;
-            for (std::size_t i = 0; i < rounds_.size();)
-            {
-                Round &r = rounds_[i];
-                const EquipmentSpec &spec = *r.spec;
-                bool remove = false, boom = false;
-                sl::dvec3 boom_at = r.position;
-                const sl::FlightBody &pb = *universe.world.body(r.body);
-                const double gm = universe.bodies[static_cast<std::size_t>(r.body)].gm;
-                const sl::Terrain *terrain = context.terrain ? context.terrain(r.body) : nullptr;
-                const double body_radius = universe.bodies[static_cast<std::size_t>(r.body)].radius;
-                r.age += dt;
-                if (r.stuck)
-                {
-                    r.fuse -= dt;
-                    boom = r.fuse <= 0.0;
-                    remove = boom;
-                }
-                else
-                {
-                    const int n = std::clamp(static_cast<int>(std::ceil(glm::length(r.velocity) * dt / 3.0)), 1, 200);
-                    const double h = dt / n;
-                    for (int s = 0; s < n && !remove; ++s)
-                    {
-                        const sl::dvec3 from = r.position;
-                        if (!r.bolt)
-                        {
-                            const double d = glm::length(r.position);
-                            r.velocity -= r.position / d * (gm / (d * d)) * h;
-                            const double rho = universe.world.air_density_at(pb.position + r.position);
-                            const sl::dvec3 air = r.velocity - glm::cross(pb.spin_axis * pb.spin_rate, r.position);
-                            const double v = glm::length(air);
-                            if (rho > 0.0 && v > 0.0 && spec.mass > 0.0)
-                                r.velocity -= air * (0.5 * rho * v * spec.drag_area / spec.mass * h);
-                            if (!spec.prop.empty() && glm::length(air) > 5.0)
-                            {
-                                const sl::dquat want = turn_to(sl::dvec3(0, 1, 0), unit(air, sl::dvec3(0, -1, 0)));
-                                r.orientation = glm::slerp(r.orientation, want, std::min(1.0, h * 3.0));
-                            }
-                        }
-                        r.position += r.velocity * h;
-                        const Hit hit = trace(context, r.body, from, r.position, r.age < owner_grace ? r.owner : nullptr);
-                        if (r.bolt)
-                        {
-                            if (hit.kind != Hit::none)
-                            {
-                                impact(context, spec, r.body, hit.point, hit, r.by_person);
-                                remove = true;
-                            }
-                            else if (r.age * spec.speed > spec.range)
-                                remove = true;
-                            else if (anchor_for(r.body, r.position))
-                            {
-                                sl::Particle3D p;
-                                p.position = to_f(r.position - anchor_);
-                                p.life = 0.35f;
-                                p.size_start = 0.35f;
-                                p.size_end = 0.05f;
-                                p.colour_start = {120, 255, 200, 200};
-                                p.colour_end = {20, 120, 255, 0};
-                                p.additive = true;
-                                particles_.spawn(p);
-                            }
-                            continue;
-                        }
-                        if (spec.fuse == "airburst")
-                        {
-                            const double gr = ground_radius(terrain, body_radius, r.position);
-                            if (glm::length(r.position) - gr <= spec.burst_height && r.age > 2.0)
-                            {
-                                boom = remove = true;
-                                boom_at = r.position;
-                                continue;
-                            }
-                        }
-                        if (hit.kind != Hit::none)
-                        {
-                            if (spec.fuse == "timer")
-                            {
-                                r.position = hit.point + unit(hit.point, sl::dvec3(0, 1, 0)) * 0.1;
-                                r.velocity = sl::dvec3(0.0);
-                                r.stuck = true;
-                                break;
-                            }
-                            boom = remove = true;
-                            boom_at = hit.point;
-                            if (hit.kind == Hit::ship && hit.target && spec.fuse != "timer")
-                                boom_at = hit.point;
-                            break;
-                        }
-                        if (spec.fuse == "timer")
-                        {
-                            r.fuse -= h;
-                            if (r.fuse <= 0.0)
-                                boom = remove = true;
-                        }
-                    }
-                }
-                if (r.age > 900.0)
-                    remove = true;
-                if (boom)
-                    detonating.push_back(r), detonating.back().position = boom_at;
-                if (remove)
-                    rounds_.erase(rounds_.begin() + static_cast<std::ptrdiff_t>(i));
-                else
-                    ++i;
-            }
-            for (const Round &r : detonating)
-                detonate(context, r, r.position);
+            step_rounds(context, dt);
 
-            // Blast waves spread, damaging each thing once as they reach it.
-            for (Shock &s : shocks_)
-            {
-                s.radius += s.speed * dt;
-                const double reach = std::min(s.radius, s.spec->blast_radius);
-                for (int i = 0; i < sim.ship_count(); ++i)
-                {
-                    Ship *ship = sim.ship(i);
-                    if (ship->telemetry().soi != s.body || s.hit.count(ship))
-                        continue;
-                    double z0, z1, rad;
-                    ship_box(*ship, z0, z1, rad);
-                    const double extent = std::max(0.5 * (z1 - z0), rad);
-                    const double d = std::max(0.0, glm::length(ship_local_position(universe, *ship) - s.centre) - extent);
-                    if (d <= reach)
-                    {
-                        s.hit.insert(ship);
-                        ship->damage(s.spec->blast_damage * blast_fraction(d, s.spec->blast_radius));
-                    }
-                }
-                Astronaut &eva = *context.eva;
-                if (eva.active && eva.body == s.body && !s.hit_person)
-                {
-                    const double d = glm::length(eva.position + eva.local_up() - s.centre);
-                    if (d <= reach)
-                    {
-                        s.hit_person = true;
-                        damage_person(context, 2.0 * blast_fraction(d, s.spec->blast_radius));
-                    }
-                }
-            }
-            shocks_.erase(std::remove_if(shocks_.begin(), shocks_.end(), [](const Shock &s) { return s.radius > s.spec->blast_radius; }), shocks_.end());
+            step_shocks(context, dt);
 
-            for (std::size_t i = 0; i < bangs_.size();)
-            {
-                bangs_[i].delay -= dt;
-                if (bangs_[i].delay > 0.0)
-                {
-                    ++i;
-                    continue;
-                }
-                sl::Sample *&sample = bangs_[i].kind == 1 && nuke_sample_ ? nuke_sample_ : bang_samples_[bangs_[i].kind];
-                if (!sample)
-                {
-                    const std::vector<std::uint8_t> wav = make_blast_wav(bangs_[i].kind);
-                    sample = sl::load_sample_from_memory(wav.data(), wav.size());
-                }
-                if (sample)
-                    sl::play_sample(sample, static_cast<int>(255 * bangs_[i].volume), 128, 1000, 0);
-                bangs_.erase(bangs_.begin() + static_cast<std::ptrdiff_t>(i));
-            }
+            play_bangs(dt);
 
             for (Active &a : effects_)
                 a.effect.update(particles_, static_cast<float>(dt));

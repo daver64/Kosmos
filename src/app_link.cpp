@@ -237,7 +237,7 @@ namespace kosmos::app
                     return "unknown body";
                 Ship &ship = *sim.ship(static_cast<int>(index));
                 const sl::dvec3 dir = direction_from_lat_lon(sim.universe, body, lat, lon);
-                const sl::Terrain *terrain = app_.terrain_of ? app_.terrain_of(body) : nullptr;
+                const sl::Terrain *terrain = app_.terrain_of(body);
                 const double ground = terrain ? terrain->height_at_direction(dir) : 0.0;
                 if (alt > 0.0)
                     ship.place_airborne(body, dir, heading, ground, alt, speed);
@@ -472,7 +472,7 @@ namespace kosmos::app
             const bool paused = props.get_bool("/sim/paused");
             const int warp = props.get_int("/sim/warp-index");
             const int count = sim.ship_count();
-            const std::string soi = active ? props.get_string("/ships/ship[" + std::to_string(sim.active_index()) + "]/soi", "") : std::string();
+            const std::string soi_name = active ? props.get_string("/ships/ship[" + std::to_string(sim.active_index()) + "]/soi_name", "") : std::string();
             const bool landed = active && props.get_bool("/ships/ship[" + std::to_string(sim.active_index()) + "]/landed"), crashed = active && active->crashed();
             if (w.primed)
             {
@@ -484,8 +484,8 @@ namespace kosmos::app
                     srv.broadcast_event("ships", std::to_string(count));
                 if (active == w.tracked)
                 {
-                    if (soi != w.soi)
-                        srv.broadcast_event("soi", soi);
+                    if (soi_name != w.soi)
+                        srv.broadcast_event("soi_name", soi_name);
                     if (landed && !w.landed)
                         srv.broadcast_event("touchdown", active->name);
                     if (crashed && !w.crashed)
@@ -496,7 +496,7 @@ namespace kosmos::app
             w.paused = paused;
             w.warp = warp;
             w.ships = count;
-            w.soi = soi;
+            w.soi = soi_name;
             w.landed = landed;
             w.crashed = crashed;
             w.tracked = active;
@@ -511,10 +511,10 @@ namespace kosmos::app
                     w.weather = key;
                 }
             }
-            const auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration<double>(now - w.tick).count() >= 1.0)
+            const auto tick = std::chrono::steady_clock::now();
+            if (std::chrono::duration<double>(tick - w.tick).count() >= 1.0)
             {
-                w.tick = now;
+                w.tick = tick;
                 srv.broadcast_event("tick", std::to_string(sim.universe.julian_date()));
             }
         }

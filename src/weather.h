@@ -112,6 +112,8 @@ namespace kosmos
         const std::vector<WeatherStation> &stations() const { return stations_; }
         const std::string &body() const { return body_; }
         const BodyWeather &params() const { return params_; }
+        /** True when the stations are real airfields (so live observations apply) rather than a procedural ring. */
+        bool real_stations() const { return real_; }
         /** Four-letter, NOAA-style identifier of procedural station `index` on `body`. */
         static std::string station_id(const std::string &body, int index);
 
@@ -123,6 +125,7 @@ namespace kosmos
         int seed_;
         std::vector<WeatherStation> stations_;
         std::vector<std::array<double, 3>> directions_;
+        bool real_ = false;
         long bucket_ = -1;
         double fraction_ = 1.0;
     };

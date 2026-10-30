@@ -233,9 +233,9 @@ namespace kosmos::app
         {
             kosmos::Scenario last = kosmos::capture_scenario(sim, "Last session");
             last.epoch_jd = sim.universe.julian_date();
-            std::string error;
-            if (!kosmos::save_scenario((std::filesystem::path(kosmos::Sim::user_dir()) / "scenarios" / "last_session.json").string(), last, error))
-                std::fprintf(stderr, "kosmos: %s\n", error.c_str());
+            std::string problem;
+            if (!kosmos::save_scenario((std::filesystem::path(kosmos::Sim::user_dir()) / "scenarios" / "last_session.json").string(), last, problem))
+                std::fprintf(stderr, "kosmos: %s\n", problem.c_str());
         }
         // A recorded run may force sound on (--set), which must not overwrite the player's own settings.
         if (options.record_seconds <= 0.0)

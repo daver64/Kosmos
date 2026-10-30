@@ -54,7 +54,7 @@ namespace kosmos
 
         Kind kind_of(const Body &b)
         {
-            if (b.name == "Earth")
+            if (b.real_world)
                 return Kind::earth;
             if (b.style.type == Archetype::earth || b.terrain == "earth")
                 return Kind::alien;
@@ -362,8 +362,8 @@ namespace kosmos
 
             // Only a handful of outposts, in a ring around each base just outside its levelled ground.
             const Rule settlement = [](const Ground &g, const sl::TerrainSample &s) {
-                const double d = g.nearest(s.position);
-                return smooth(-20.0, 40.0, d) * (1.0 - smooth(450.0, 650.0, d)) * (1.0 - smooth(4.0, 9.0, s.slope_degrees));
+                const double dist = g.nearest(s.position);
+                return smooth(-20.0, 40.0, dist) * (1.0 - smooth(450.0, 650.0, dist)) * (1.0 - smooth(4.0, 9.0, s.slope_degrees));
             };
             const sl::Colour hull = {226, 229, 234, 255};
             add(layer, ground, species(sl::make_pressure_dome_data(8.0f, hull), 0.0000020 * d, 8.0f, 600.0f, 4200.0f, 101u), settlement, -1.0e30f);

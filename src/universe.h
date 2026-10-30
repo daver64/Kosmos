@@ -52,6 +52,12 @@ namespace kosmos
         std::string texture;
         /** Optional planetbake tile pack folder (relative to data/textures-hires/) holding colour, specular and normal layers; used when this is the home body. */
         std::string tiles;
+        /** Optional legacy imagery layout under import/ ("celestia"), for a body whose tiles are not a planetbake pack. */
+        std::string imagery;
+        /** Name of a procedural surface texture drawn when the body has no image ("moon"); empty for the generic detail texture. */
+        std::string fallback_texture;
+        /** A real, authored world (Earth): its own land cover, airfield lights, soil, houses and the stock cloud layer. */
+        bool real_world = false;
         /** Optional glTF mesh relative to data/ drawn instead of the sphere; unit mean radius, scaled by `radius`. Physics stays a sphere. */
         std::string mesh;
         /** A procedurally generated rock: drawn but not labelled or listed on the map. */
@@ -139,6 +145,11 @@ namespace kosmos
         void publish(sl::PropertyTree &tree);
 
     private:
+        void generate_belt(const nlohmann::json *belt, nlohmann::json &list);
+        void read_body_fields(const nlohmann::json &entry, Body &body);
+        void read_atmosphere(const nlohmann::json &entry, Body &body);
+        void place_body_orbit(const nlohmann::json &entry, Body &body, const std::string &file, double elapsed_days);
+        void create_flight_body(const Body &body, int id);
         void orient_spinning_planets();
     };
 } // namespace kosmos

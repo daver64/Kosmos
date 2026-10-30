@@ -167,14 +167,14 @@ namespace kosmos::app
             if (!sp.valid || sp.angular < 2.0e-4)
                 return;
             const glm::mat4 at = glm::translate(glm::mat4(1.0f), sp.dir * static_cast<float>(sp.distance));
-            sl::Material surface;
-            surface.texture = vis.star_surface;
-            surface.lit = false;
-            surface.fog = false;
-            surface.blend = sl::MaterialBlend::alpha;
-            surface.tint = tint_of(sp.tint * 1.0f, 1.0f);
+            sl::Material surface_material;
+            surface_material.texture = vis.star_surface;
+            surface_material.lit = false;
+            surface_material.fog = false;
+            surface_material.blend = sl::MaterialBlend::alpha;
+            surface_material.tint = tint_of(sp.tint * 1.0f, 1.0f);
             sl::draw_mesh(vis.sphere, at * glm::rotate(glm::mat4(1.0f), static_cast<float>(clock * 0.015), glm::vec3(0, 1, 0)) *
-                                          glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(sp.radius))), surface);
+                                          glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(sp.radius))), surface_material);
             sl::Material bloom;
             bloom.texture = vis.star_surface;
             bloom.lit = false;
@@ -333,8 +333,8 @@ namespace kosmos::app
                 }
             }
         {
-            sl::Material props;
-            base_renderer.draw(universe, sim.bases, eye_world, 15000.0, props);
+            sl::Material prop_material;
+            base_renderer.draw(universe, sim.bases, eye_world, 15000.0, prop_material);
         }
 
         // A sunlit limb: a camera-facing disc whose opacity follows the atmosphere's thickness along each grazing ray.
@@ -363,6 +363,170 @@ namespace kosmos::app
         };
     }
 
+    void App::draw_comet(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const sl::Light3D &body_light)
+    {
+    kosmos::Universe &universe = *universe_ref;
+            // The tail streams away from the Sun and grows as the comet nears it.
+            const sl::dvec3 from_sun = universe.position(static_cast<int>(i)) - universe.position(0);
+            const double sun_au = glm::length(from_sun) / 1.495978707e11;
+            const double activity = fx::smoothstep(6.0, 0.6, sun_au);
+            if (activity > 0.01)
+            {
+                const glm::vec3 dir = glm::vec3(glm::normalize(from_sun));
+                const glm::vec3 x_axis = glm::normalize(glm::cross(std::fabs(dir.y) < 0.9f ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0), dir));
+                const glm::mat4 basis(glm::vec4(x_axis, 0.0f), glm::vec4(glm::cross(dir, x_axis), 0.0f), glm::vec4(dir, 0.0f), glm::vec4(0, 0, 0, 1));
+                sl::Material tail;
+                tail.lit = false;
+                tail.fog = false;
+                tail.cull = sl::CullMode::none;
+                tail.blend = sl::MaterialBlend::additive;
+                tail.tint.alpha = static_cast<std::uint8_t>(80.0 * activity);
+                const float length = static_cast<float>(1.0e6 + activity * 9.0e8);
+                for (const float width : {1.0f, 0.62f, 0.36f, 0.16f})
+                    sl::draw_mesh(vis.tail, glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * basis * glm::scale(glm::mat4(1.0f), glm::vec3(length * width, length * width, length)), tail);
+            }
+    }
+
+    void App::draw_body(std::size_t i, const sl::Light3D &body_light)
+    {
+    kosmos::Universe &universe = *universe_ref;
+        const kosmos::Body &b = universe.bodies[i];
+        if (b.kind == kosmos::BodyKind::star || (static_cast<int>(i) == earth_id && near_earth && !earth_as_sphere))
+            return;
+        bool terrain_drawn = false;
+        for (std::size_t k = 1; k < body_terrains.size(); ++k)
+            terrain_drawn = terrain_drawn || (body_terrains[k]->body == static_cast<int>(i) && body_terrains[k]->active);
+        if (terrain_drawn)
+        {
+            // The terrain stands in for the surface sphere, but the weather above it still has to be drawn.
+            if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i] && !options.no_clouds && gfx_clouds)
+            {
+                const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
+                const double distance = glm::length(rel);
+                if (distance - b.radius > b.cloud_height * 1.5)
+                {
+                    sl::Material weather;
+                    weather.texture = vis.body_cloud_textures[i];
+                    weather.blend = sl::MaterialBlend::alpha;
+                    weather.fog = false;
+                    weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
+                                    static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 255};
+                    // Terrain is coarse from afar, so the shell is lifted with the depth resolution, as Earth's is.
+                    const double altitude_now = distance - b.radius;
+                    const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
+                    double shell_height = std::clamp(2.0 * resolution, b.cloud_height, 600.0e3);
+                    if (layered)
+                        shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
+                    shell_height = std::max(shell_height, b.cloud_height);
+                    const float k = static_cast<float>((b.radius + shell_height) / (b.radius + b.cloud_height));
+                    const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
+                    sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
+                }
+            }
+            return;
+        }
+        const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
+        const double distance = glm::length(rel);
+        if (distance - b.radius > camera.far_plane * 0.95)
+            return;
+        // Earth's sphere image has to be turned half a revolution to put longitude 0 where the terrain and the bases have it.
+        const glm::dquat sphere_flip = static_cast<int>(i) == earth_id ? glm::angleAxis(pi, sl::dvec3(0.0, 1.0, 0.0)) : glm::dquat(1.0, 0.0, 0.0, 0.0);
+        sl::Material rock;
+        rock.texture = vis.body_textures[i];
+        rock.normal_map = vis.body_normals[i];
+        rock.fog = false;
+        const glm::mat4 body_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
+        const glm::mat4 model = body_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
+                                glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
+        if (static_cast<int>(i) == earth_id && vis.earth_tiles)
+        {
+            // The tile mesh already runs east the same way as the body body_frame, so only the half turn above is needed.
+            const glm::mat4 tile_model = model;
+            const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
+            const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
+            const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
+            vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, 300.0e3, glint_altitude)));
+            vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+            vis.earth_tiles->draw(tile_model, rock);
+        }
+        else
+        {
+            // The single-image sphere mesh runs east the other way, so mirror it (and swap the culling to match).
+            if (static_cast<int>(i) == earth_id)
+                rock.cull = sl::CullMode::front;
+            sl::draw_mesh(i < vis.body_meshes.size() && vis.body_meshes[i] ? vis.body_meshes[i]->parts[0].mesh : vis.sphere,
+                          static_cast<int>(i) == earth_id ? model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f)) : model, rock);
+        }
+        // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
+        // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
+        const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
+        auto lifted = [&](double fraction)
+        {
+            const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
+            return glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1)) *
+                   glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
+                   glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
+        };
+        if (static_cast<int>(i) == earth_id && vis.lights_texture)
+        {
+            // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
+            sl::Light3D night;
+            night.direction = to_sun;
+            night.ambient = 0.0f;
+            sl::set_light_3d(night);
+            sl::Material lights;
+            lights.texture = vis.lights_texture;
+            lights.fog = false;
+            lights.blend = sl::MaterialBlend::additive;
+            // Drawn on the same single-image sphere as the surface, so it takes the same mirroring.
+            lights.cull = sl::CullMode::front;
+            sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
+            sl::set_light_3d(body_light);
+        }
+        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
+        {
+            // Rayleigh scattering over the sunlit side: a faint, lit blue veil that lifts the oceans and hazes the land.
+            sl::Material veil;
+            veil.lit = true;
+            veil.fog = false;
+            veil.blend = sl::MaterialBlend::additive;
+            veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * 0.5f), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * 0.5f),
+                         static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * 0.5f), 255};
+            sl::draw_mesh(vis.sphere, lifted(0.5) * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
+        }
+        if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i])
+        {
+            sl::Material weather;
+            weather.texture = vis.body_cloud_textures[i];
+            weather.blend = sl::MaterialBlend::alpha;
+            weather.fog = false;
+            weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
+                            static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 200};
+            const float k = static_cast<float>(1.0 - depth_gap / distance);
+            const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
+            sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
+        }
+        draw_atmosphere_glow(rel, b);
+        if (vis.rings[i])
+        {
+            // Rings are lit from one side or the other; edge-on they thin to a line.
+            const glm::vec3 axis = glm::normalize(glm::vec3(body_frame * glm::vec4(0, 1, 0, 0)));
+            sl::Material ring;
+            ring.lit = false;
+            ring.fog = false;
+            ring.cull = sl::CullMode::none;
+            ring.blend = sl::MaterialBlend::alpha;
+            ring.tint.alpha = static_cast<std::uint8_t>(255.0f * (0.45f + 0.55f * std::fabs(glm::dot(axis, to_sun))));
+            sl::draw_mesh(vis.rings[i], body_frame * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.ring_outer))), ring);
+        }
+
+        if (b.kind == kosmos::BodyKind::comet)
+        {
+        draw_comet(i, b, rel, body_light);
+        }
+    }
+
     void App::scene_bodies()
     {
     kosmos::Universe &universe = *universe_ref;
@@ -373,159 +537,7 @@ namespace kosmos::app
         sl::set_light_3d(body_light);
         for (std::size_t i = 0; i < universe.bodies.size(); ++i)
         {
-            const kosmos::Body &b = universe.bodies[i];
-            if (b.kind == kosmos::BodyKind::star || (static_cast<int>(i) == earth_id && near_earth && !earth_as_sphere))
-                continue;
-            bool terrain_drawn = false;
-            for (std::size_t k = 1; k < body_terrains.size(); ++k)
-                terrain_drawn = terrain_drawn || (body_terrains[k]->body == static_cast<int>(i) && body_terrains[k]->active);
-            if (terrain_drawn)
-            {
-                // The terrain stands in for the surface sphere, but the weather above it still has to be drawn.
-                if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i] && !options.no_clouds && gfx_clouds)
-                {
-                    const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
-                    const double distance = glm::length(rel);
-                    if (distance - b.radius > b.cloud_height * 1.5)
-                    {
-                        sl::Material weather;
-                        weather.texture = vis.body_cloud_textures[i];
-                        weather.blend = sl::MaterialBlend::alpha;
-                        weather.fog = false;
-                        weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
-                                        static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 255};
-                        // Terrain is coarse from afar, so the shell is lifted with the depth resolution, as Earth's is.
-                        const double altitude_now = distance - b.radius;
-                        const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
-                        double shell_height = std::clamp(2.0 * resolution, b.cloud_height, 600.0e3);
-                        if (layered)
-                            shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
-                        shell_height = std::max(shell_height, b.cloud_height);
-                        const float k = static_cast<float>((b.radius + shell_height) / (b.radius + b.cloud_height));
-                        const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                        sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)))) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
-                    }
-                }
-                continue;
-            }
-            const sl::dvec3 rel = universe.position(static_cast<int>(i)) - eye_world;
-            const double distance = glm::length(rel);
-            if (distance - b.radius > camera.far_plane * 0.95)
-                continue;
-            // Earth's sphere image has to be turned half a revolution to put longitude 0 where the terrain and the bases have it.
-            const glm::dquat sphere_flip = static_cast<int>(i) == earth_id ? glm::angleAxis(pi, sl::dvec3(0.0, 1.0, 0.0)) : glm::dquat(1.0, 0.0, 0.0, 0.0);
-            sl::Material rock;
-            rock.texture = vis.body_textures[i];
-            rock.normal_map = vis.body_normals[i];
-            rock.fog = false;
-            const glm::mat4 frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-            const glm::mat4 model = frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
-                                    glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
-            if (static_cast<int>(i) == earth_id && vis.earth_tiles)
-            {
-                // The tile mesh already runs east the same way as the body frame, so only the half turn above is needed.
-                const glm::mat4 tile_model = model;
-                const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
-                const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-                // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
-                const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
-                vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, 300.0e3, glint_altitude)));
-                vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
-                vis.earth_tiles->draw(tile_model, rock);
-            }
-            else
-            {
-                // The single-image sphere mesh runs east the other way, so mirror it (and swap the culling to match).
-                if (static_cast<int>(i) == earth_id)
-                    rock.cull = sl::CullMode::front;
-                sl::draw_mesh(i < vis.body_meshes.size() && vis.body_meshes[i] ? vis.body_meshes[i]->parts[0].mesh : vis.sphere,
-                              static_cast<int>(i) == earth_id ? model * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, 1.0f, -1.0f)) : model, rock);
-            }
-            // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
-            // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
-            const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
-            auto lifted = [&](double fraction)
-            {
-                const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
-                return glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1)) *
-                       glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
-                       glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
-            };
-            if (static_cast<int>(i) == earth_id && vis.lights_texture)
-            {
-                // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
-                sl::Light3D night;
-                night.direction = to_sun;
-                night.ambient = 0.0f;
-                sl::set_light_3d(night);
-                sl::Material lights;
-                lights.texture = vis.lights_texture;
-                lights.fog = false;
-                lights.blend = sl::MaterialBlend::additive;
-                // Drawn on the same single-image sphere as the surface, so it takes the same mirroring.
-                lights.cull = sl::CullMode::front;
-                sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
-                sl::set_light_3d(body_light);
-            }
-            if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
-            {
-                // Rayleigh scattering over the sunlit side: a faint, lit blue veil that lifts the oceans and hazes the land.
-                sl::Material veil;
-                veil.lit = true;
-                veil.fog = false;
-                veil.blend = sl::MaterialBlend::additive;
-                veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * 0.5f), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * 0.5f),
-                             static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * 0.5f), 255};
-                sl::draw_mesh(vis.sphere, lifted(0.5) * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
-            }
-            if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i])
-            {
-                sl::Material weather;
-                weather.texture = vis.body_cloud_textures[i];
-                weather.blend = sl::MaterialBlend::alpha;
-                weather.fog = false;
-                weather.tint = {static_cast<std::uint8_t>(b.cloud_colour[0] * 255.0f), static_cast<std::uint8_t>(b.cloud_colour[1] * 255.0f),
-                                static_cast<std::uint8_t>(b.cloud_colour[2] * 255.0f), 200};
-                const float k = static_cast<float>(1.0 - depth_gap / distance);
-                const glm::mat4 shell_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * k) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
-                sl::draw_mesh(vis.body_cloud_meshes[i], shell_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) * glm::scale(glm::mat4(1.0f), glm::vec3(k)), weather);
-            }
-            draw_atmosphere_glow(rel, b);
-            if (vis.rings[i])
-            {
-                // Rings are lit from one side or the other; edge-on they thin to a line.
-                const glm::vec3 axis = glm::normalize(glm::vec3(frame * glm::vec4(0, 1, 0, 0)));
-                sl::Material ring;
-                ring.lit = false;
-                ring.fog = false;
-                ring.cull = sl::CullMode::none;
-                ring.blend = sl::MaterialBlend::alpha;
-                ring.tint.alpha = static_cast<std::uint8_t>(255.0f * (0.45f + 0.55f * std::fabs(glm::dot(axis, to_sun))));
-                sl::draw_mesh(vis.rings[i], frame * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.ring_outer))), ring);
-            }
-
-            if (b.kind == kosmos::BodyKind::comet)
-            {
-                // The tail streams away from the Sun and grows as the comet nears it.
-                const sl::dvec3 from_sun = universe.position(static_cast<int>(i)) - universe.position(0);
-                const double sun_au = glm::length(from_sun) / 1.495978707e11;
-                const double activity = fx::smoothstep(6.0, 0.6, sun_au);
-                if (activity > 0.01)
-                {
-                    const glm::vec3 dir = glm::vec3(glm::normalize(from_sun));
-                    const glm::vec3 x_axis = glm::normalize(glm::cross(std::fabs(dir.y) < 0.9f ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0), dir));
-                    const glm::mat4 basis(glm::vec4(x_axis, 0.0f), glm::vec4(glm::cross(dir, x_axis), 0.0f), glm::vec4(dir, 0.0f), glm::vec4(0, 0, 0, 1));
-                    sl::Material tail;
-                    tail.lit = false;
-                    tail.fog = false;
-                    tail.cull = sl::CullMode::none;
-                    tail.blend = sl::MaterialBlend::additive;
-                    tail.tint.alpha = static_cast<std::uint8_t>(80.0 * activity);
-                    const float length = static_cast<float>(1.0e6 + activity * 9.0e8);
-                    for (const float width : {1.0f, 0.62f, 0.36f, 0.16f})
-                        sl::draw_mesh(vis.tail, glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * basis * glm::scale(glm::mat4(1.0f), glm::vec3(length * width, length * width, length)), tail);
-                }
-            }
+            draw_body(i, body_light);
         }
 
         if (near_earth && !options.no_clouds && gfx_clouds)
@@ -560,18 +572,8 @@ namespace kosmos::app
         }
     }
 
-    void App::scene_ships()
+    void App::draw_ship_interior(int s, Ship &other, const sl::FlightBody &ob, const glm::mat4 &model)
     {
-    kosmos::Universe &universe = *universe_ref;
-        // Ships and their jettisoned stages.
-        for (int s = 0; s < sim.ship_count(); ++s)
-        {
-            Ship &other = *sim.ship(s);
-            const sl::FlightBody &ob = other.body();
-            const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
-                                    glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
-            if (other.spec().interior)
-            {
                 const Visuals::InteriorMeshes &rooms = vis.interior_meshes(*other.spec().interior);
                 const kosmos::Interior &shell_room = *other.spec().interior;
                 const bool inside_here = eva.active && eva.building == s;
@@ -671,22 +673,21 @@ namespace kosmos::app
                         sl::draw_mesh(vis.screen_quad, model * glm::translate(glm::mat4(1.0f), centre) * glm::mat4(basis) * glm::scale(glm::mat4(1.0f), glm::vec3(w, static_cast<float>(w * aspect), 1.0f)), board);
                     }
                 }
-            }
-            if (!((in_cockpit || in_interior) && &other == ship))
-                draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
-            else if (in_cockpit3d)
-            {
+    }
+
+    void App::draw_ship_cockpit3d(Ship &other, const sl::FlightBody &ob, const glm::mat4 &model)
+    {
                 const kosmos::Cockpit &cp = other.spec().cockpit;
                 const glm::mat3 basis = cockpit_screen_basis();
-                const glm::mat3 frame = interface_frame(other.spec());
+                const glm::mat3 iface = interface_frame(other.spec());
                 sl::Material console;
                 console.tint = {38, 40, 46, 255};
                 console.cull = sl::CullMode::none;
                 if (!cp.instruments.empty() || !cp.controls.empty())
                 {
-                    const glm::vec3 centre = glm::vec3(cp.eye) + frame * glm::vec3(cp.panel_pos);
+                    const glm::vec3 centre = glm::vec3(cp.eye) + iface * glm::vec3(cp.panel_pos);
                     const float pw = static_cast<float>(cp.panel_size), ph = pw * cp.panel_height / cp.panel_width;
-                    const glm::mat3 pb = frame * panel_basis(cp);
+                    const glm::mat3 pb = iface * panel_basis(cp);
                     // The console is a slab just behind the board.
                     sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
                     if (panel_target)
@@ -713,6 +714,27 @@ namespace kosmos::app
                     sl::draw_mesh(vis.screen_quad, model * glm::translate(glm::mat4(1.0f), cs.centre) * glm::mat4(basis) * glm::scale(glm::mat4(1.0f), glm::vec3(cs.width * 1.18f, cs.height * 1.13f, 1.0f)), screen);
                 }
                 }
+    }
+
+    void App::scene_ships()
+    {
+    kosmos::Universe &universe = *universe_ref;
+        // Ships and their jettisoned stages.
+        for (int s = 0; s < sim.ship_count(); ++s)
+        {
+            Ship &other = *sim.ship(s);
+            const sl::FlightBody &ob = other.body();
+            const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
+                                    glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
+            if (other.spec().interior)
+            {
+        draw_ship_interior(s, other, ob, model);
+            }
+            if (!((in_cockpit || in_interior) && &other == ship))
+                draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
+            else if (in_cockpit3d)
+            {
+        draw_ship_cockpit3d(other, ob, model);
             }
             for (const kosmos::Debris &d : other.debris())
             {
@@ -805,9 +827,9 @@ namespace kosmos::app
             const double cloud_agl = props.get_double("/environment/cloud-base", 1500.0);
             if (lt.soi >= 0 && lt.soi < static_cast<int>(universe.bodies.size()) && lt.altitude < cloud_agl && lt.altitude < 20.0e3)
             {
-                const sl::dvec3 up = glm::normalize(eye_world - universe.position(lt.soi));
-                const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), up));
-                const sl::dvec3 e2 = glm::cross(up, e1);
+                const sl::dvec3 local_up = glm::normalize(eye_world - universe.position(lt.soi));
+                const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(local_up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), local_up));
+                const sl::dvec3 e2 = glm::cross(local_up, e1);
                 std::vector<sl::Vertex3D> local(static_cast<std::size_t>(kosmos::Lightning::bolt_quads) * 4);
                 const int used = lightning.bolt_vertices(-lt.altitude, cloud_agl - lt.altitude, local.data(), kosmos::Lightning::bolt_quads);
                 if (used > 0)
@@ -823,11 +845,11 @@ namespace kosmos::app
                     }
                     for (std::size_t i = 0; i < local.size(); ++i)
                     {
-                        const glm::dvec3 p = e1 * static_cast<double>(local[i].position[0]) + e2 * static_cast<double>(local[i].position[1]) + up * static_cast<double>(local[i].position[2]);
+                        const glm::dvec3 p = e1 * static_cast<double>(local[i].position[0]) + e2 * static_cast<double>(local[i].position[1]) + local_up * static_cast<double>(local[i].position[2]);
                         for (int k = 0; k < 3; ++k)
                         {
                             local[i].position[k] = static_cast<float>(p[k]);
-                            local[i].normal[k] = static_cast<float>(up[k]);
+                            local[i].normal[k] = static_cast<float>(local_up[k]);
                         }
                     }
                     sl::update_mesh_vertices(vis.bolt_mesh, local);

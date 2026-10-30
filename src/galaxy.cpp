@@ -317,9 +317,179 @@ namespace kosmos
         return static_cast<int>(plan_planets(star(index), rng).size());
     }
 
+    using nlohmann::json;
+
+    static json colour(double r, double g, double b)
+    {
+        return json::array({std::round(r), std::round(g), std::round(b)});
+    }
+
+    static void orbit_angles(Rng &rng, json &o, double max_i)
+    {
+        o["i"] = rng.uniform(0.0, max_i);
+        o["raan"] = rng.uniform(0.0, 360.0);
+        o["argp"] = rng.uniform(0.0, 360.0);
+        o["m0"] = rng.uniform(0.0, 360.0);
+    }
+
+    static void roll_planet_type(const Plan &plan, const std::string &name, const Hz &hz, Rng &rng, json &planet, double &mass_e, double &radius_m, std::string &home_name)
+    {
+        switch (plan.kind)
+        {
+        case Kind::home:
+            mass_e = rng.uniform(0.6, 1.5);
+            radius_m = earth_radius * std::pow(mass_e, 0.27);
+            planet["terrain"] = "earth";
+            planet["colour"] = colour(60, 110, 170);
+            planet["atmosphere"] = {{"density", 1.225 * rng.uniform(0.8, 1.3)}, {"scale_height", 8500.0 * rng.uniform(0.85, 1.15)}, {"colour", colour(110, 160, 235)}};
+            planet["spin"] = rng.uniform(5.0e-5, 1.1e-4);
+            home_name = name;
+            break;
+        case Kind::gas:
+        {
+            mass_e = rng.log_uniform(15.0, 400.0);
+            radius_m = earth_radius * rng.uniform(8.0, 11.5);
+            const double warm = rng.uniform();
+            planet["colour"] = colour(200 + 40 * warm, 160 + 30 * warm, 110 + 70 * warm);
+            planet["atmosphere"] = {{"density", 0.2}, {"scale_height", 27000.0}, {"colour", colour(220, 190, 150)}};
+            planet["spin"] = rng.uniform(1.2e-4, 2.0e-4);
+            if (rng.chance(0.3))
+                planet["rings"] = {{"inner", radius_m * 1.3}, {"outer", radius_m * rng.uniform(1.9, 2.6)}, {"colour", colour(205, 190, 165)}};
+            break;
+        }
+        case Kind::ice:
+            mass_e = rng.log_uniform(8.0, 30.0);
+            radius_m = earth_radius * rng.uniform(3.4, 4.6);
+            planet["colour"] = colour(90, 160 + 40 * rng.uniform(), 210);
+            planet["atmosphere"] = {{"density", 0.15}, {"scale_height", 20000.0}, {"colour", colour(130, 200, 230)}};
+            planet["spin"] = rng.uniform(8.0e-5, 1.5e-4);
+            if (rng.chance(0.15))
+                planet["rings"] = {{"inner", radius_m * 1.4}, {"outer", radius_m * rng.uniform(1.7, 2.2)}, {"colour", colour(170, 200, 210)}};
+            break;
+        case Kind::rocky:
+        default:
+        {
+            mass_e = rng.log_uniform(0.05, 2.5);
+            radius_m = earth_radius * std::pow(mass_e, 0.27);
+            const double grey = rng.uniform(110.0, 170.0);
+            planet["colour"] = colour(grey + rng.uniform(0.0, 40.0), grey, grey - rng.uniform(0.0, 30.0));
+            const bool inner = plan.a_au < 0.85 * hz.centre;
+            if (inner && plan.a_au > 0.5 * hz.centre && rng.chance(0.5))
+            {
+                planet["colour"] = colour(225, 190, 120);
+                planet["atmosphere"] = {{"density", rng.uniform(5.0, 60.0)}, {"scale_height", 15000.0}, {"colour", colour(235, 200, 130)}};
+            }
+            else if (!inner && rng.chance(0.4))
+            {
+                planet["colour"] = colour(190, 105, 70);
+                planet["atmosphere"] = {{"density", rng.uniform(0.01, 0.05)}, {"scale_height", 11000.0}, {"colour", colour(210, 150, 110)}};
+            }
+            planet["spin"] = rng.uniform(-1.0e-4, 1.2e-4);
+            break;
+        }
+        }
+    }
+
+    static void style_planet(std::uint64_t seed, int index, std::size_t p, const Plan &plan, const Hz &hz, json &planet)
+    {
+        // The look has its own random stream so it never disturbs the orbits and masses drawn above.
+        Rng look(mix(seed, 0xA11CE000ull + static_cast<std::uint64_t>(index) * 64u + p));
+        auto channel = [&](int i) { return planet["colour"][i].get<double>() / 255.0; };
+        json style = {{"seed", look.integer(1, 1000000)}, {"tint", {channel(0), channel(1), channel(2)}}};
+        const bool has_air = planet.contains("atmosphere");
+        const double air = has_air ? planet["atmosphere"].value("density", 0.0) : 0.0;
+        switch (plan.kind)
+        {
+        case Kind::gas:
+            style["type"] = "gas";
+            style["bands"] = look.integer(6, 14);
+            style["contrast"] = look.uniform(0.35, 0.6);
+            break;
+        case Kind::ice:
+            style["type"] = "gas";
+            style["bands"] = look.integer(3, 6);
+            style["contrast"] = look.uniform(0.12, 0.25);
+            break;
+        case Kind::rocky:
+            if (air > 5.0)
+                style["type"] = "venus";
+            else if (has_air)
+                style["type"] = "mars";
+            else if (plan.a_au > 0.85 * hz.centre && plan.a_au < 1.3 * hz.centre && look.chance(0.45))
+            {
+                // A temperate rocky world that drew no atmosphere: give it air, oceans and weather.
+                style["type"] = "earth";
+                style["ocean"] = look.uniform(0.3, 0.8);
+                style["ice"] = look.uniform(0.05, 0.3);
+                planet["atmosphere"] = {{"density", look.uniform(0.6, 1.4)}, {"scale_height", 8500.0}, {"colour", colour(110, 160, 235)},
+                                        {"clouds", {{"cover", look.uniform(0.25, 0.6)}, {"height", 12000.0}, {"colour", colour(255, 255, 255)}}}};
+                planet["colour"] = colour(60, 110, 170);
+            }
+            else
+                style["type"] = "mercury";
+            if (style["type"] == "mars")
+                style["ice"] = look.uniform(0.1, 0.35);
+            style["relief"] = look.uniform(0.7, 1.4);
+            break;
+        default:
+            break;
+        }
+        if (style.contains("type"))
+            planet["style"] = style;
+    }
+
+    static void add_clouds(std::uint64_t seed, int index, std::size_t p, const Plan &plan, json &planet)
+    {
+        // Weather has its own random stream too, so adding it never moves the planets drawn after it.
+        Rng sky(mix(seed, 0xC10D0000ull + static_cast<std::uint64_t>(index) * 64u + p));
+        const std::string look_type = planet.contains("style") ? planet["style"].value("type", "") : std::string();
+        if (planet.contains("atmosphere") && !planet["atmosphere"].contains("clouds"))
+        {
+            if (plan.kind == Kind::home)
+                planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.25, 0.6)}, {"height", 12000.0}, {"colour", colour(255, 255, 255)}};
+            else if (look_type == "venus")
+                planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.6, 0.72)}, {"height", 25000.0}, {"colour", colour(240, 225, 185)}};
+            else if (look_type == "mars")
+                planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.05, 0.2)}, {"height", 18000.0}, {"colour", colour(235, 215, 200)}};
+        }
+    }
+
+    static void add_moons(std::uint64_t seed, int index, std::size_t p, const std::string &name, const Plan &plan, const Hz &hz, double star_gm_earth, double mass_e, double radius_m, Rng &rng, json &bodies)
+    {
+        int moons = plan.kind == Kind::home ? (rng.chance(0.7) ? 1 : 0) : plan.kind == Kind::rocky ? (rng.chance(0.3) ? 1 : 0)
+                    : plan.kind == Kind::gas ? rng.integer(2, 5) : rng.integer(1, 3);
+        // Moons stay well inside the planet's sphere of influence.
+        const double soi_m = plan.a_au * 1.495978707e11 * std::pow(mass_e / star_gm_earth, 0.4);
+        double a_km = radius_m * rng.uniform(2.6, 6.0) / 1000.0;
+        for (int m = 0; m < moons; ++m, a_km *= rng.uniform(1.5, 2.2))
+        {
+            if (a_km * 1000.0 > 0.25 * soi_m)
+                break;
+            const double r_moon = earth_radius * (plan.kind == Kind::home || plan.kind == Kind::rocky ? rng.uniform(0.08, 0.28) : rng.uniform(0.05, 0.4));
+            const double moon_mass_e = std::pow(r_moon / earth_radius, 3.0) * 0.6;
+            const double grey = rng.uniform(120.0, 185.0);
+            json moon = {{"name", name + " " + std::string(1, static_cast<char>('I' + m))},
+                         {"kind", "moon"},
+                         {"parent", name},
+                         {"gm", earth_gm * moon_mass_e},
+                         {"radius", r_moon},
+                         {"synchronous", true},
+                         {"colour", colour(grey, grey * rng.uniform(0.9, 1.0), grey * rng.uniform(0.8, 1.0))}};
+            json mo = {{"a_km", a_km}, {"e", rng.uniform(0.0, 0.03)}};
+            orbit_angles(rng, mo, 6.0);
+            moon["orbit"] = mo;
+            {
+                Rng look(mix(seed, 0xB10B0000ull + static_cast<std::uint64_t>(index) * 4096u + p * 16u + static_cast<std::uint64_t>(m)));
+                const bool frozen = plan.a_au > hz.frost;
+                moon["style"] = {{"type", "mercury"}, {"seed", look.integer(1, 1000000)}, {"ice", frozen ? look.uniform(0.2, 0.9) : 0.0},
+                                 {"relief", look.uniform(0.6, 1.2)}, {"tint", {grey / 255.0, grey * look.uniform(0.9, 1.0) / 255.0, grey * look.uniform(0.8, 1.0) / 255.0}}};
+            }
+            bodies.push_back(moon);
+        }
+    }
+
     std::string Galaxy::system_json(int index) const
     {
-        using nlohmann::json;
         if (std::string text = authored_json(index); !text.empty())
             return text;
         const Star &star_info = star(index);
@@ -327,15 +497,6 @@ namespace kosmos
         const std::vector<Plan> plans = plan_planets(star_info, rng);
         const Hz hz = habitable_zone(star_info);
         const double star_gm_earth = star_info.mass * sun_gm / earth_gm;
-
-        auto colour = [](double r, double g, double b) { return json::array({std::round(r), std::round(g), std::round(b)}); };
-        auto orbit_angles = [&](json &o, double max_i)
-        {
-            o["i"] = rng.uniform(0.0, max_i);
-            o["raan"] = rng.uniform(0.0, 360.0);
-            o["argp"] = rng.uniform(0.0, 360.0);
-            o["m0"] = rng.uniform(0.0, 360.0);
-        };
 
         json bodies = json::array();
         bodies.push_back({{"name", star_info.name},
@@ -352,158 +513,22 @@ namespace kosmos
             const std::string name = star_info.name + " " + letters[p];
             double mass_e, radius_m;
             json planet = {{"name", name}, {"kind", "planet"}, {"parent", star_info.name}};
-            switch (plan.kind)
-            {
-            case Kind::home:
-                mass_e = rng.uniform(0.6, 1.5);
-                radius_m = earth_radius * std::pow(mass_e, 0.27);
-                planet["terrain"] = "earth";
-                planet["colour"] = colour(60, 110, 170);
-                planet["atmosphere"] = {{"density", 1.225 * rng.uniform(0.8, 1.3)}, {"scale_height", 8500.0 * rng.uniform(0.85, 1.15)}, {"colour", colour(110, 160, 235)}};
-                planet["spin"] = rng.uniform(5.0e-5, 1.1e-4);
-                home_name = name;
-                break;
-            case Kind::gas:
-            {
-                mass_e = rng.log_uniform(15.0, 400.0);
-                radius_m = earth_radius * rng.uniform(8.0, 11.5);
-                const double warm = rng.uniform();
-                planet["colour"] = colour(200 + 40 * warm, 160 + 30 * warm, 110 + 70 * warm);
-                planet["atmosphere"] = {{"density", 0.2}, {"scale_height", 27000.0}, {"colour", colour(220, 190, 150)}};
-                planet["spin"] = rng.uniform(1.2e-4, 2.0e-4);
-                if (rng.chance(0.3))
-                    planet["rings"] = {{"inner", radius_m * 1.3}, {"outer", radius_m * rng.uniform(1.9, 2.6)}, {"colour", colour(205, 190, 165)}};
-                break;
-            }
-            case Kind::ice:
-                mass_e = rng.log_uniform(8.0, 30.0);
-                radius_m = earth_radius * rng.uniform(3.4, 4.6);
-                planet["colour"] = colour(90, 160 + 40 * rng.uniform(), 210);
-                planet["atmosphere"] = {{"density", 0.15}, {"scale_height", 20000.0}, {"colour", colour(130, 200, 230)}};
-                planet["spin"] = rng.uniform(8.0e-5, 1.5e-4);
-                if (rng.chance(0.15))
-                    planet["rings"] = {{"inner", radius_m * 1.4}, {"outer", radius_m * rng.uniform(1.7, 2.2)}, {"colour", colour(170, 200, 210)}};
-                break;
-            case Kind::rocky:
-            default:
-            {
-                mass_e = rng.log_uniform(0.05, 2.5);
-                radius_m = earth_radius * std::pow(mass_e, 0.27);
-                const double grey = rng.uniform(110.0, 170.0);
-                planet["colour"] = colour(grey + rng.uniform(0.0, 40.0), grey, grey - rng.uniform(0.0, 30.0));
-                const bool inner = plan.a_au < 0.85 * hz.centre;
-                if (inner && plan.a_au > 0.5 * hz.centre && rng.chance(0.5))
-                {
-                    planet["colour"] = colour(225, 190, 120);
-                    planet["atmosphere"] = {{"density", rng.uniform(5.0, 60.0)}, {"scale_height", 15000.0}, {"colour", colour(235, 200, 130)}};
-                }
-                else if (!inner && rng.chance(0.4))
-                {
-                    planet["colour"] = colour(190, 105, 70);
-                    planet["atmosphere"] = {{"density", rng.uniform(0.01, 0.05)}, {"scale_height", 11000.0}, {"colour", colour(210, 150, 110)}};
-                }
-                planet["spin"] = rng.uniform(-1.0e-4, 1.2e-4);
-                break;
-            }
-            }
+            roll_planet_type(plan, name, hz, rng, planet, mass_e, radius_m, home_name);
             planet["gm"] = earth_gm * mass_e;
             planet["radius"] = radius_m;
             planet["tilt"] = rng.uniform(0.0, 30.0);
             json orbit = {{"a_au", plan.a_au}, {"e", rng.uniform(0.0, plan.kind == Kind::rocky ? 0.15 : 0.08)}};
-            orbit_angles(orbit, 4.0);
+            orbit_angles(rng, orbit, 4.0);
             planet["orbit"] = orbit;
             {
-                // The look has its own random stream so it never disturbs the orbits and masses drawn above.
-                Rng look(mix(seed_, 0xA11CE000ull + static_cast<std::uint64_t>(index) * 64u + p));
-                auto channel = [&](int i) { return planet["colour"][i].get<double>() / 255.0; };
-                json style = {{"seed", look.integer(1, 1000000)}, {"tint", {channel(0), channel(1), channel(2)}}};
-                const bool has_air = planet.contains("atmosphere");
-                const double air = has_air ? planet["atmosphere"].value("density", 0.0) : 0.0;
-                switch (plan.kind)
-                {
-                case Kind::gas:
-                    style["type"] = "gas";
-                    style["bands"] = look.integer(6, 14);
-                    style["contrast"] = look.uniform(0.35, 0.6);
-                    break;
-                case Kind::ice:
-                    style["type"] = "gas";
-                    style["bands"] = look.integer(3, 6);
-                    style["contrast"] = look.uniform(0.12, 0.25);
-                    break;
-                case Kind::rocky:
-                    if (air > 5.0)
-                        style["type"] = "venus";
-                    else if (has_air)
-                        style["type"] = "mars";
-                    else if (plan.a_au > 0.85 * hz.centre && plan.a_au < 1.3 * hz.centre && look.chance(0.45))
-                    {
-                        // A temperate rocky world that drew no atmosphere: give it air, oceans and weather.
-                        style["type"] = "earth";
-                        style["ocean"] = look.uniform(0.3, 0.8);
-                        style["ice"] = look.uniform(0.05, 0.3);
-                        planet["atmosphere"] = {{"density", look.uniform(0.6, 1.4)}, {"scale_height", 8500.0}, {"colour", colour(110, 160, 235)},
-                                                {"clouds", {{"cover", look.uniform(0.25, 0.6)}, {"height", 12000.0}, {"colour", colour(255, 255, 255)}}}};
-                        planet["colour"] = colour(60, 110, 170);
-                    }
-                    else
-                        style["type"] = "mercury";
-                    if (style["type"] == "mars")
-                        style["ice"] = look.uniform(0.1, 0.35);
-                    style["relief"] = look.uniform(0.7, 1.4);
-                    break;
-                default:
-                    break;
-                }
-                if (style.contains("type"))
-                    planet["style"] = style;
+                style_planet(seed_, index, p, plan, hz, planet);
             }
             {
-                // Weather has its own random stream too, so adding it never moves the planets drawn after it.
-                Rng sky(mix(seed_, 0xC10D0000ull + static_cast<std::uint64_t>(index) * 64u + p));
-                const std::string look_type = planet.contains("style") ? planet["style"].value("type", "") : std::string();
-                if (planet.contains("atmosphere") && !planet["atmosphere"].contains("clouds"))
-                {
-                    if (plan.kind == Kind::home)
-                        planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.25, 0.6)}, {"height", 12000.0}, {"colour", colour(255, 255, 255)}};
-                    else if (look_type == "venus")
-                        planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.6, 0.72)}, {"height", 25000.0}, {"colour", colour(240, 225, 185)}};
-                    else if (look_type == "mars")
-                        planet["atmosphere"]["clouds"] = {{"cover", sky.uniform(0.05, 0.2)}, {"height", 18000.0}, {"colour", colour(235, 215, 200)}};
-                }
+                add_clouds(seed_, index, p, plan, planet);
             }
             bodies.push_back(planet);
 
-            int moons = plan.kind == Kind::home ? (rng.chance(0.7) ? 1 : 0) : plan.kind == Kind::rocky ? (rng.chance(0.3) ? 1 : 0)
-                        : plan.kind == Kind::gas ? rng.integer(2, 5) : rng.integer(1, 3);
-            // Moons stay well inside the planet's sphere of influence.
-            const double soi_m = plan.a_au * 1.495978707e11 * std::pow(mass_e / star_gm_earth, 0.4);
-            double a_km = radius_m * rng.uniform(2.6, 6.0) / 1000.0;
-            for (int m = 0; m < moons; ++m, a_km *= rng.uniform(1.5, 2.2))
-            {
-                if (a_km * 1000.0 > 0.25 * soi_m)
-                    break;
-                const double r_moon = earth_radius * (plan.kind == Kind::home || plan.kind == Kind::rocky ? rng.uniform(0.08, 0.28) : rng.uniform(0.05, 0.4));
-                const double moon_mass_e = std::pow(r_moon / earth_radius, 3.0) * 0.6;
-                const double grey = rng.uniform(120.0, 185.0);
-                json moon = {{"name", name + " " + std::string(1, static_cast<char>('I' + m))},
-                             {"kind", "moon"},
-                             {"parent", name},
-                             {"gm", earth_gm * moon_mass_e},
-                             {"radius", r_moon},
-                             {"synchronous", true},
-                             {"colour", colour(grey, grey * rng.uniform(0.9, 1.0), grey * rng.uniform(0.8, 1.0))}};
-                json mo = {{"a_km", a_km}, {"e", rng.uniform(0.0, 0.03)}};
-                orbit_angles(mo, 6.0);
-                moon["orbit"] = mo;
-                {
-                    Rng look(mix(seed_, 0xB10B0000ull + static_cast<std::uint64_t>(index) * 4096u + p * 16u + static_cast<std::uint64_t>(m)));
-                    const bool frozen = plan.a_au > hz.frost;
-                    moon["style"] = {{"type", "mercury"}, {"seed", look.integer(1, 1000000)}, {"ice", frozen ? look.uniform(0.2, 0.9) : 0.0},
-                                     {"relief", look.uniform(0.6, 1.2)}, {"tint", {grey / 255.0, grey * look.uniform(0.9, 1.0) / 255.0, grey * look.uniform(0.8, 1.0) / 255.0}}};
-                }
-                bodies.push_back(moon);
-            }
+            add_moons(seed_, index, p, name, plan, hz, star_gm_earth, mass_e, radius_m, rng, bodies);
         }
 
         if (rng.chance(0.5))
@@ -512,7 +537,7 @@ namespace kosmos
             json comet = {{"name", star_info.name + " Comet"}, {"kind", "comet"}, {"parent", star_info.name}, {"gm", 1.0e5}, {"radius", 4.0e3},
                           {"spin", 1.0e-4}, {"colour", colour(120, 120, 125)}};
             json o = {{"a_au", a}, {"e", rng.uniform(0.85, 0.97)}};
-            orbit_angles(o, 90.0);
+            orbit_angles(rng, o, 90.0);
             comet["orbit"] = o;
             bodies.push_back(comet);
         }

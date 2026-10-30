@@ -161,10 +161,10 @@ namespace kosmos::app
                 walker.step(room, in, g, frame, &bld.interior_state);
                 interior_panel = room.panel_in_view(walker.eye(), walker.forward(), 2.5);
                 {
-                    const int here = room.room_at(walker.position + sl::dvec3(0.0, 0.1, 0.0));
-                    room_kpa = kosmos::room_pressure_kpa(bld, here);
-                    room_label = here >= 0 ? room.room_name(here) : "";
-                    in_airlock = here >= 0 && !room.airlock_name().empty() && room.room_name(here) == room.airlock_name();
+                    const int inside_room = room.room_at(walker.position + sl::dvec3(0.0, 0.1, 0.0));
+                    room_kpa = kosmos::room_pressure_kpa(bld, inside_room);
+                    room_label = inside_room >= 0 ? room.room_name(inside_room) : "";
+                    in_airlock = inside_room >= 0 && !room.airlock_name().empty() && room.room_name(inside_room) == room.airlock_name();
                 }
                 // Mirror the walker into the astronaut so the camera, HUD and weapons work as outdoors.
                 const sl::FlightBody &pb = *sim.universe.world.body(eva.body);
@@ -172,8 +172,8 @@ namespace kosmos::app
                 eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(walker.position)) - pb.position;
                 eva.velocity = bld.body().velocity - pb.velocity;
                 const sl::dvec3 fwd = world_dir(walker.forward());
-                const sl::dvec3 up = world_dir(sl::dvec3(0.0, 1.0, 0.0));
-                const sl::dvec3 right = glm::normalize(glm::cross(fwd, up));
+                const sl::dvec3 local_up = world_dir(sl::dvec3(0.0, 1.0, 0.0));
+                const sl::dvec3 right = glm::normalize(glm::cross(fwd, local_up));
                 eva.orientation = glm::normalize(glm::quat_cast(sl::dmat3(right, glm::cross(right, fwd), -fwd)));
                 eva.grounded = true;
                 eva.upright = true;
@@ -460,12 +460,9 @@ namespace kosmos::app
         drive_camera_controls();
     }
 
-    // Where the camera is.
-    void App::place_camera()
+    void App::level_camera_frame()
     {
-    kosmos::Universe &universe = *universe_ref;
     const kosmos::Telemetry &tm = *tm_ref;
-    sl::FlightBody &fb = *fb_ref;
         // The camera orbits the ship in its local horizon frame, so the horizon stays level as the rocket pitches over.
         up = sl::dvec3();
         east = sl::dvec3();
@@ -488,6 +485,12 @@ namespace kosmos::app
             east = carried_east;
             north = glm::cross(up, east);
         }
+    }
+
+    void App::orbit_camera_eye()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::FlightBody &fb = *fb_ref;
         if (options.cam_spin != 0.0)
             cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
         if (options.cam_dolly != 0.0)
@@ -513,11 +516,11 @@ namespace kosmos::app
             const sl::dvec3 turned = glm::angleAxis(static_cast<double>(free_yaw), up) * (glm::angleAxis(static_cast<double>(free_pitch), right) * fwd);
             ship_rel = glm::vec3(turned * glm::length(sl::dvec3(ship_rel)));
         }
-        view_fov = options.cam_fov;
-        // The radius of a body an orbiting camera is on, so the near plane frames it rather than the flown ship.
-        user_extent = -1.0;
-        if (in_cockpit || in_interior)
-        {
+    }
+
+    void App::place_cockpit_camera()
+    {
+    sl::FlightBody &fb = *fb_ref;
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
             sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : eye_shift);
             double yaw = look_yaw, pitch = look_pitch;
@@ -548,16 +551,11 @@ namespace kosmos::app
             }
             ship_rel = glm::vec3(fb.direction_to_world(look) * 1000.0);
             up = fb.direction_to_world(view_up);
-        }
-        else if (in_eva)
-        {
-            eye_world = eva.eye_world(universe);
-            ship_rel = glm::vec3(eva.forward() * 1000.0);
-            up = eva.view_up();
-            view_fov = std::max(options.cam_fov, 60.0);
-        }
-        else if (in_user)
-        {
+    }
+
+    void App::place_user_camera()
+    {
+    kosmos::Universe &universe = *universe_ref;
             const kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
             // Where an attachment is, and the axes its camera offsets are in (a ship's own; for a body, east, up and south).
             struct Anchor
@@ -628,20 +626,11 @@ namespace kosmos::app
                     up = host.y;
                 }
             }
-        }
-        else if (in_base_cam)
-        {
-            const kosmos::Base &bs = sim.bases[static_cast<std::size_t>(base_view)];
-            const kosmos::BaseCamera &bc = bs.cameras[static_cast<std::size_t>(base_view_cam)];
-            sl::dvec3 look;
-            kosmos::base_camera_pose(universe, bs, bc, &fb.position, eye_world, look, up);
-            ship_rel = glm::vec3(look * 1000.0);
-            view_fov = bc.fov;
-        }
+    }
 
-        soi = tm.soi;
-        const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)]; soi_body_ref = &soi_body;
-        soi_pos = universe.position(soi);
+    void App::keep_eye_above_ground()
+    {
+        const kosmos::Body &soi_body = *soi_body_ref;
         // The chase camera may not dip below the ground.
         if (!in_cockpit && !in_cockpit3d && !in_interior && !in_base_cam && !in_eva)
         {
@@ -663,6 +652,11 @@ namespace kosmos::app
                 }
             }
         }
+    }
+
+    void App::set_terrain_view()
+    {
+    kosmos::Universe &universe = *universe_ref;
         home = soi == earth_id;
         earth_pos = universe.position(earth_id);
         eye_from_earth = eye_world - earth_pos;
@@ -677,6 +671,49 @@ namespace kosmos::app
         view.viewport_height = screen_h;
         view.far_distance = eye_earth_distance + earth_body->radius * 1.3;
         near_earth = eye_earth_distance < earth_body->radius + 2.0e7;
+    }
+
+    // Where the camera is.
+    void App::place_camera()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    const kosmos::Telemetry &tm = *tm_ref;
+    sl::FlightBody &fb = *fb_ref;
+        level_camera_frame();
+        orbit_camera_eye();
+        view_fov = options.cam_fov;
+        // The radius of a body an orbiting camera is on, so the near plane frames it rather than the flown ship.
+        user_extent = -1.0;
+        if (in_cockpit || in_interior)
+        {
+            place_cockpit_camera();
+        }
+        else if (in_eva)
+        {
+            eye_world = eva.eye_world(universe);
+            ship_rel = glm::vec3(eva.forward() * 1000.0);
+            up = eva.view_up();
+            view_fov = std::max(options.cam_fov, 60.0);
+        }
+        else if (in_user)
+        {
+            place_user_camera();
+        }
+        else if (in_base_cam)
+        {
+            const kosmos::Base &bs = sim.bases[static_cast<std::size_t>(base_view)];
+            const kosmos::BaseCamera &bc = bs.cameras[static_cast<std::size_t>(base_view_cam)];
+            sl::dvec3 look;
+            kosmos::base_camera_pose(universe, bs, bc, &fb.position, eye_world, look, up);
+            ship_rel = glm::vec3(look * 1000.0);
+            view_fov = bc.fov;
+        }
+
+        soi = tm.soi;
+        const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)]; soi_body_ref = &soi_body;
+        soi_pos = universe.position(soi);
+        keep_eye_above_ground();
+        set_terrain_view();
     }
 
     // Which terrain and sphere are drawn.

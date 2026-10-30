@@ -1160,7 +1160,7 @@ namespace kosmos
                 model[2] = glm::vec4(glm::vec3(pforward), 0.0f);
                 model[3] = glm::vec4(glm::vec3(position + pf.up * 0.25 - eye), 1.0f);
                 sl::draw_mesh(mesh, model, paved_.count(mesh) ? paved_material : material);
-                if (base.body == "Earth")
+                if (universe.bodies[static_cast<std::size_t>(body)].real_world)
                 {
                     // PAPI beside each landing threshold: four units that turn from white to red as the approach drops below the 3 degree slope.
                     sl::Mesh *&unit = meshes_["papi"];

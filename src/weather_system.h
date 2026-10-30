@@ -57,6 +57,10 @@ namespace kosmos
     private:
         WeatherField *ensure(const Universe &universe, int body);
 
+        void poll_live(WeatherField *field, sl::PropertyTree &props);
+        void update_forced(sl::PropertyTree &props);
+        void install_wind_field(Universe &universe, int body, const std::function<void(double, double, double, double &, double &)> &wind_at);
+        void publish_environment(sl::PropertyTree &props, const Conditions &c, double east, double north);
         std::string root_, live_cache_;
         std::map<int, std::unique_ptr<WeatherField>> fields_;
         LiveWeather live_;

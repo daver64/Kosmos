@@ -166,6 +166,99 @@ namespace kosmos
         }
     }
 
+    static void rasterise_tris(const std::vector<Tri> &tris, MeshGrid &out, double cu, double cv, double cell, std::vector<float> &rgb, bool &any_rgb)
+    {
+        for (const Tri &t : tris)
+        {
+            const double x0 = t.p[0][0], y0 = t.p[0][1], x1 = t.p[1][0], y1 = t.p[1][1], x2 = t.p[2][0], y2 = t.p[2][1];
+            const double det = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
+            if (std::abs(det) < 1e-12)
+                continue;
+            const int i0 = std::max(0, static_cast<int>(std::ceil((std::min({x0, x1, x2}) - cu) / cell - 1e-9)));
+            const int i1 = std::min(out.width - 1, static_cast<int>(std::floor((std::max({x0, x1, x2}) - cu) / cell + 1e-9)));
+            const int j0 = std::max(0, static_cast<int>(std::ceil((std::min({y0, y1, y2}) - cv) / cell - 1e-9)));
+            const int j1 = std::min(out.height - 1, static_cast<int>(std::floor((std::max({y0, y1, y2}) - cv) / cell + 1e-9)));
+            for (int j = j0; j <= j1; ++j)
+                for (int i = i0; i <= i1; ++i)
+                {
+                    const double px = cu + i * cell, py = cv + j * cell;
+                    const double a = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / det;
+                    const double b = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / det;
+                    const double c = 1.0 - a - b;
+                    constexpr double eps = -1e-7;
+                    if (a < eps || b < eps || c < eps)
+                        continue;
+                    const float h = static_cast<float>(a * t.p[0][2] + b * t.p[1][2] + c * t.p[2][2]);
+                    const std::size_t at = static_cast<std::size_t>(j) * out.width + i;
+                    if (!(std::isnan(out.heights[at])) && out.heights[at] >= h)
+                        continue;
+                    out.heights[at] = h;
+                    if (t.has_rgb)
+                    {
+                        any_rgb = true;
+                        for (int k = 0; k < 3; ++k)
+                            rgb[at * 3 + k] = static_cast<float>(a * t.rgb[0][k] + b * t.rgb[1][k] + c * t.rgb[2][k]);
+                    }
+                }
+        }
+    }
+
+    static void fill_holes(MeshGrid &out, std::vector<float> &rgb)
+    {
+        std::vector<float> filled = out.heights;
+        for (int j = 1; j + 1 < out.height; ++j)
+            for (int i = 1; i + 1 < out.width; ++i)
+            {
+                const std::size_t at = static_cast<std::size_t>(j) * out.width + i;
+                if (!std::isnan(out.heights[at]))
+                    continue;
+                double sum = 0.0, sum_rgb[3] = {0, 0, 0};
+                int valid = 0;
+                for (int dj = -1; dj <= 1; ++dj)
+                    for (int di = -1; di <= 1; ++di)
+                    {
+                        const std::size_t k = static_cast<std::size_t>(j + dj) * out.width + (i + di);
+                        if ((di || dj) && !std::isnan(out.heights[k]))
+                        {
+                            sum += out.heights[k];
+                            for (int c = 0; c < 3; ++c)
+                                sum_rgb[c] += rgb[k * 3 + c];
+                            ++valid;
+                        }
+                    }
+                if (valid >= 6)
+                {
+                    filled[at] = static_cast<float>(sum / valid);
+                    for (int c = 0; c < 3; ++c)
+                        rgb[at * 3 + c] = static_cast<float>(sum_rgb[c] / valid);
+                }
+            }
+        out.heights.swap(filled);
+    }
+
+    static bool drape_image(const std::string &image_path, MeshGrid &out, std::vector<float> &rgb, std::string &error)
+    {
+        sl::Bitmap *bitmap = sl::load_bitmap(image_path);
+        if (!has_pixels(bitmap))
+        {
+            if (bitmap)
+                sl::destroy_bitmap(bitmap);
+            error = "cannot read the image " + image_path;
+            return false;
+        }
+        for (int j = 0; j < out.height; ++j)
+            for (int i = 0; i < out.width; ++i)
+            {
+                float c[3];
+                // Seen from above: forward is up the picture.
+                sample_image(bitmap, static_cast<double>(i) / (out.width - 1), 1.0 - static_cast<double>(j) / (out.height - 1), c);
+                for (int k = 0; k < 3; ++k)
+                    rgb[(static_cast<std::size_t>(j) * out.width + i) * 3 + k] = c[k];
+            }
+        sl::destroy_bitmap(bitmap);
+        return true;
+    }
+
     bool load_mesh_grid(const TerrainMeshSpec &spec, const std::string &path, const std::string &image_path, MeshGrid &out, std::string &error)
     {
         std::string ext = std::filesystem::path(path).extension().string();
@@ -220,70 +313,11 @@ namespace kosmos
         // The grid is centred on the middle of the mesh's footprint.
         const double cu = 0.5 * (lo[0] + hi[0]) - 0.5 * (out.width - 1) * cell, cv = 0.5 * (lo[1] + hi[1]) - 0.5 * (out.height - 1) * cell;
 
-        for (const Tri &t : tris)
-        {
-            const double x0 = t.p[0][0], y0 = t.p[0][1], x1 = t.p[1][0], y1 = t.p[1][1], x2 = t.p[2][0], y2 = t.p[2][1];
-            const double det = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2);
-            if (std::abs(det) < 1e-12)
-                continue;
-            const int i0 = std::max(0, static_cast<int>(std::ceil((std::min({x0, x1, x2}) - cu) / cell - 1e-9)));
-            const int i1 = std::min(out.width - 1, static_cast<int>(std::floor((std::max({x0, x1, x2}) - cu) / cell + 1e-9)));
-            const int j0 = std::max(0, static_cast<int>(std::ceil((std::min({y0, y1, y2}) - cv) / cell - 1e-9)));
-            const int j1 = std::min(out.height - 1, static_cast<int>(std::floor((std::max({y0, y1, y2}) - cv) / cell + 1e-9)));
-            for (int j = j0; j <= j1; ++j)
-                for (int i = i0; i <= i1; ++i)
-                {
-                    const double px = cu + i * cell, py = cv + j * cell;
-                    const double a = ((y1 - y2) * (px - x2) + (x2 - x1) * (py - y2)) / det;
-                    const double b = ((y2 - y0) * (px - x2) + (x0 - x2) * (py - y2)) / det;
-                    const double c = 1.0 - a - b;
-                    constexpr double eps = -1e-7;
-                    if (a < eps || b < eps || c < eps)
-                        continue;
-                    const float h = static_cast<float>(a * t.p[0][2] + b * t.p[1][2] + c * t.p[2][2]);
-                    const std::size_t at = static_cast<std::size_t>(j) * out.width + i;
-                    if (!(std::isnan(out.heights[at])) && out.heights[at] >= h)
-                        continue;
-                    out.heights[at] = h;
-                    if (t.has_rgb)
-                    {
-                        any_rgb = true;
-                        for (int k = 0; k < 3; ++k)
-                            rgb[at * 3 + k] = static_cast<float>(a * t.rgb[0][k] + b * t.rgb[1][k] + c * t.rgb[2][k]);
-                    }
-                }
-        }
+        rasterise_tris(tris, out, cu, cv, cell, rgb, any_rgb);
+
 
         // Close the single-sample holes that slivers and exact edges leave.
-        std::vector<float> filled = out.heights;
-        for (int j = 1; j + 1 < out.height; ++j)
-            for (int i = 1; i + 1 < out.width; ++i)
-            {
-                const std::size_t at = static_cast<std::size_t>(j) * out.width + i;
-                if (!std::isnan(out.heights[at]))
-                    continue;
-                double sum = 0.0, sum_rgb[3] = {0, 0, 0};
-                int valid = 0;
-                for (int dj = -1; dj <= 1; ++dj)
-                    for (int di = -1; di <= 1; ++di)
-                    {
-                        const std::size_t k = static_cast<std::size_t>(j + dj) * out.width + (i + di);
-                        if ((di || dj) && !std::isnan(out.heights[k]))
-                        {
-                            sum += out.heights[k];
-                            for (int c = 0; c < 3; ++c)
-                                sum_rgb[c] += rgb[k * 3 + c];
-                            ++valid;
-                        }
-                    }
-                if (valid >= 6)
-                {
-                    filled[at] = static_cast<float>(sum / valid);
-                    for (int c = 0; c < 3; ++c)
-                        rgb[at * 3 + c] = static_cast<float>(sum_rgb[c] / valid);
-                }
-            }
-        out.heights.swap(filled);
+        fill_holes(out, rgb);
 
         float low = std::numeric_limits<float>::max(), high = std::numeric_limits<float>::lowest();
         for (float h : out.heights)
@@ -304,24 +338,8 @@ namespace kosmos
 
         if (!image_path.empty())
         {
-            sl::Bitmap *bitmap = sl::load_bitmap(image_path);
-            if (!has_pixels(bitmap))
-            {
-                if (bitmap)
-                    sl::destroy_bitmap(bitmap);
-                error = "cannot read the image " + image_path;
+            if (!drape_image(image_path, out, rgb, error))
                 return false;
-            }
-            for (int j = 0; j < out.height; ++j)
-                for (int i = 0; i < out.width; ++i)
-                {
-                    float c[3];
-                    // Seen from above: forward is up the picture.
-                    sample_image(bitmap, static_cast<double>(i) / (out.width - 1), 1.0 - static_cast<double>(j) / (out.height - 1), c);
-                    for (int k = 0; k < 3; ++k)
-                        rgb[(static_cast<std::size_t>(j) * out.width + i) * 3 + k] = c[k];
-                }
-            sl::destroy_bitmap(bitmap);
             any_rgb = true;
         }
         if (any_rgb)

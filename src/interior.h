@@ -6,6 +6,7 @@
 #include "json.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -126,6 +127,9 @@ namespace kosmos
     private:
         bool solid(int x, int y, int z) const;
         void classify();
+        void place_doors(int w, int d, const std::function<char(int, int, int)> &ch);
+        void read_extras(const nlohmann::json &json);
+        void find_entry(int w, int d, const std::function<char(int, int, int)> &ch);
         void find_rooms(const nlohmann::json &json, int plan_levels);
         static constexpr int door_cells = 4;
 

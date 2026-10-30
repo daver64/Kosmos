@@ -3,14 +3,10 @@
 namespace kosmos::app
 {
     // The orbit line, HUD and labels over the scene.
-    void App::draw_overlays()
+    void App::draw_orbit_line()
     {
-    kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
-    const kosmos::Telemetry &tm = *tm_ref;
-    sl::FlightBody &fb = *fb_ref;
-    const kosmos::Body &soi_body = *soi_body_ref;
-        // Orbit line about the sphere-of-influence body, hidden where the body covers it.
+        kosmos::Universe &universe = *universe_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
         sl::OrbitElements elements;
         const bool have_orbit = universe.world.orbit_of(ship->body_id(), soi, elements);
         if (have_orbit && show_orbit && !options.hide_info && !map_mode && view_distance > 2.0e3 && !ship->on_rails())
@@ -36,8 +32,15 @@ namespace kosmos::app
                 py = y;
             }
         }
+    }
 
-        // Head-up display.
+    void App::draw_head_up()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
+        const kosmos::Telemetry &tm = *tm_ref;
+        sl::FlightBody &fb = *fb_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
         if (hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes()) && (in_cockpit || in_interior) && !map_mode && !galaxy_mode)
         {
             sl::HudState hs;
@@ -83,8 +86,11 @@ namespace kosmos::app
             }
             hud.draw(hs);
         }
+    }
 
-        if (in_eva && !options.clean)
+    void App::draw_eva_overlay()
+    {
+        kosmos::Universe &universe = *universe_ref;
         {
             double ship_distance = 0.0;
             const int near_ship = nearest_ship(ship_distance);
@@ -118,10 +124,12 @@ namespace kosmos::app
             }
             kosmos::draw_suit_hud(eva, universe, screen_w, screen_h, near_ship >= 0 ? ship_distance : -1.0, ship_speed, near_ship >= 0 ? sim.ship(near_ship)->name.c_str() : nullptr);
         }
-        if (!options.clean)
-            arsenal.draw_hud(sim, eva, screen_w, screen_h, eye_world);
+    }
 
-        // Labels for bodies too small on screen to recognise.
+    void App::draw_body_labels()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
         const float focal = static_cast<float>(screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5)));
         const bool body_labels = props.get_bool("/sim/settings/labels");
         if (props.get_bool("/sim/settings/ship-labels") && !map_mode && !galaxy_mode)
@@ -166,6 +174,28 @@ namespace kosmos::app
             sl::circle(sl::screen, x, y, 6.0f, {200, 220, 255}, 1.0f);
             sl::gprintf(static_cast<int>(x) + 10, static_cast<int>(y) - 6, {200, 220, 255}, "%s", b.name.c_str());
         }
+    }
+
+    void App::draw_overlays()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
+    const kosmos::Telemetry &tm = *tm_ref;
+    sl::FlightBody &fb = *fb_ref;
+    const kosmos::Body &soi_body = *soi_body_ref;
+        // Orbit line about the sphere-of-influence body, hidden where the body covers it.
+        draw_orbit_line();
+
+        // Head-up display.
+        draw_head_up();
+
+        if (in_eva && !options.clean)
+            draw_eva_overlay();
+        if (!options.clean)
+            arsenal.draw_hud(sim, eva, screen_w, screen_h, eye_world);
+
+        // Labels for bodies too small on screen to recognise.
+        draw_body_labels();
     }
 
     // Engine and wind sound.
@@ -218,24 +248,12 @@ namespace kosmos::app
         }
     }
 
-    // The on-screen display, MFDs and messages.
-    void App::draw_hud()
+    void App::draw_flight_readout(const std::string &soi_name)
     {
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
     const kosmos::Telemetry &tm = *tm_ref;
     sl::FlightBody &fb = *fb_ref;
-    const kosmos::Body &soi_body = *soi_body_ref;
-        // HUD.
-        const std::string soi_name = soi_body.name;
-        if (show_info)
-            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
-        if (ship->crashed())
-            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press R to reset ***" : "*** VESSEL LOST - press R to reset ***");
-        else if (ship->systems() && !ship->systems()->alarms().empty() && ((sl::time_ms() / 450) % 4 != 0 || ship->systems()->mode() == kosmos::LifeSupportMode::off))
-            sl::gprintf_center(96, {255, 80, 70}, "!! %s !!", ship->systems()->alarm_text().c_str());
-        if (show_info)
-        {
             sl::gprintf(16, 34, {200, 220, 255}, "%s  Alt %s   Speed %.1f m/s   Vertical %.1f m/s   %.0f fps (%.1f ms)", soi_name.c_str(), format_distance(tm.altitude).c_str(), tm.surface_speed, tm.vertical_speed,
                         props.get_double("/sim/frame-rate"), props.get_double("/sim/frame-time") * 1000.0);
             if (ship->flies_as_aircraft())
@@ -302,15 +320,12 @@ namespace kosmos::app
                 sl::gprintf(16, hud_end_y + 24, {200, 210, 220}, "%s", "[Z/X] Throttle  [Shift/Ctrl] +/-  [Space] Stage  [WASDQE] Rotate  [Arrows] RCS  [T] Hold  [P] Autopilot");
                 sl::gprintf(16, hud_end_y + 42, {200, 210, 220}, "%s", "[,/.] Warp  [R-drag] Look  [ [ ] ] Zoom  [O] Orbit  [Tab] Map  [C] Cockpit/3D  [V] Ship  [F2] Cameras  [F3] Settings  [F4] Properties  [F11] Lua  [F12] Multiplayer  [J] Jump to player  [F5-F9] MFD  [F10] Scenario  [R] Reset");
             }
-        }
-        const std::vector<std::string> &messages = sim.messages();
-        for (std::size_t i = 0; i < messages.size() && !options.clean; ++i)
-            sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
-        const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
-        const bool panel2d = dashboard && !ship->spec().cockpit.panels_2d().empty();
-        const bool cockpit_mfd_overlay = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd != 0;
-        if (in_cockpit3d)
-        {
+    }
+
+    void App::draw_cockpit3d_overlay()
+    {
+    sl::PropertyTree &props = *props_ref;
+    sl::FlightBody &fb = *fb_ref;
             // Pick MFD buttons by casting the mouse ray at the two screen quads.
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
             if (down && !mfd_mouse_prev)
@@ -329,9 +344,9 @@ namespace kosmos::app
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
                 if (!cp.instruments.empty() || !cp.controls.empty())
                 {
-                    const glm::mat3 frame = interface_frame(ship->spec());
-                    const glm::mat3 pb = frame * panel_basis(cp);
-                    const glm::vec3 centre = glm::vec3(cp.eye) + frame * glm::vec3(cp.panel_pos);
+                    const glm::mat3 iface = interface_frame(ship->spec());
+                    const glm::mat3 pb = iface * panel_basis(cp);
+                    const glm::vec3 centre = glm::vec3(cp.eye) + iface * glm::vec3(cp.panel_pos);
                     const float denom = glm::dot(dir_local, pb[2]);
                     const float t = std::fabs(denom) < 1e-5f ? -1.0f : glm::dot(centre - origin_local, pb[2]) / denom;
                     if (t > 0.0f)
@@ -368,9 +383,11 @@ namespace kosmos::app
                 }
             }
             mfd_mouse_prev = down;
-        }
-        if (panel2d)
-        {
+    }
+
+    void App::draw_panel2d()
+    {
+    sl::PropertyTree &props = *props_ref;
             kosmos::Cockpit cp = ship->spec().cockpit;
             const auto panels = cp.panels_2d();
             const auto &shown = panels[static_cast<std::size_t>(std::clamp(panel_index, 0, static_cast<int>(panels.size()) - 1))];
@@ -396,6 +413,85 @@ namespace kosmos::app
                 panel_slider = -1;
             mfd_mouse_prev = down;
             draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
+    }
+
+    void App::draw_cockpit_hud_mfds(bool dashboard)
+    {
+    sl::PropertyTree &props = *props_ref;
+            const std::string root = "/ships/ship[" + std::to_string(props.get_int("/sim/active-ship")) + "]";
+            const std::vector<kosmos::Instrument> &panel = ship->spec().cockpit.panel;
+            const int cell = 150;
+            const int panel_y = dashboard ? static_cast<int>(screen_h - std::min(260.0f, screen_h * 0.3f) - 100.0f - 62.0f) : screen_h - 120;
+            const int left = screen_w / 2 - static_cast<int>(panel.size()) * cell / 2;
+            for (std::size_t i = 0; i < panel.size(); ++i)
+            {
+                std::string path = panel[i].property;
+                const std::size_t token = path.find("{ship}");
+                if (token != std::string::npos)
+                    path.replace(token, 6, root);
+                char value[64];
+                std::snprintf(value, sizeof value, panel[i].format.c_str(), props.get_double(path) * panel[i].scale);
+                const int x = left + static_cast<int>(i) * cell;
+                sl::rectfill(sl::screen, x, panel_y, x + cell - 6, panel_y + 42, {10, 24, 20});
+                sl::rect(sl::screen, x, panel_y, x + cell - 6, panel_y + 42, {60, 160, 110});
+                sl::gprintf(x + 6, panel_y + 4, {110, 200, 150}, "%s", panel[i].label.c_str());
+                sl::gprintf(x + 6, panel_y + 22, {200, 255, 220}, "%s", value);
+            }
+    }
+
+    void App::draw_mfd_overlay(bool dashboard, bool cockpit_mfd_overlay)
+    {
+            const bool show_hud = cockpit_mfd_overlay || mfd_display == 2;
+            const float size = show_hud ? 300.0f : std::min(320.0f, screen_h * 0.38f);
+            kosmos::MfdLayout left, right;
+            left.size = right.size = size;
+            left.hud = right.hud = show_hud;
+            left.y = right.y = show_hud ? 140.0f : screen_h - size - 90.0f;
+            left.x = show_hud ? 20.0f : screen_w / 2.0f - size - 70.0f;
+            right.x = show_hud ? screen_w - size - 20.0f : screen_w / 2.0f + 70.0f;
+            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
+            sim.mfd.update(frame);
+            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            if (!show_hud)
+                sim.mfd.handle_mouse(left, right, down && !mfd_mouse_prev, sl::mouse_x(), sl::mouse_y());
+            mfd_mouse_prev = down;
+            sim.mfd.draw(0, left);
+            sim.mfd.draw(1, right);
+    }
+
+    // The on-screen display, MFDs and messages.
+    void App::draw_hud()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
+    const kosmos::Telemetry &tm = *tm_ref;
+    sl::FlightBody &fb = *fb_ref;
+    const kosmos::Body &soi_body = *soi_body_ref;
+        // HUD.
+        const std::string soi_name = soi_body.name;
+        if (show_info)
+            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
+        if (ship->crashed())
+            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press R to reset ***" : "*** VESSEL LOST - press R to reset ***");
+        else if (ship->systems() && !ship->systems()->alarms().empty() && ((sl::time_ms() / 450) % 4 != 0 || ship->systems()->mode() == kosmos::LifeSupportMode::off))
+            sl::gprintf_center(96, {255, 80, 70}, "!! %s !!", ship->systems()->alarm_text().c_str());
+        if (show_info)
+        {
+        draw_flight_readout(soi_name);
+        }
+        const std::vector<std::string> &messages = sim.messages();
+        for (std::size_t i = 0; i < messages.size() && !options.clean; ++i)
+            sl::gprintf(16, screen_h - 60 - static_cast<int>(messages.size() - i) * 16, {255, 200, 120}, "%s", messages[i].c_str());
+        const bool dashboard = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd == 0;
+        const bool panel2d = dashboard && !ship->spec().cockpit.panels_2d().empty();
+        const bool cockpit_mfd_overlay = in_cockpit && !in_cockpit3d && ship->spec().cockpit.mfds && cockpit_mfd != 0;
+        if (in_cockpit3d)
+        {
+        draw_cockpit3d_overlay();
+        }
+        if (panel2d)
+        {
+        draw_panel2d();
         }
         else if (dashboard)
         {
@@ -418,44 +514,11 @@ namespace kosmos::app
         }
         if (in_cockpit && !in_cockpit3d && !panel2d)
         {
-            const std::string root = "/ships/ship[" + std::to_string(props.get_int("/sim/active-ship")) + "]";
-            const std::vector<kosmos::Instrument> &panel = ship->spec().cockpit.panel;
-            const int cell = 150;
-            const int panel_y = dashboard ? static_cast<int>(screen_h - std::min(260.0f, screen_h * 0.3f) - 100.0f - 62.0f) : screen_h - 120;
-            const int left = screen_w / 2 - static_cast<int>(panel.size()) * cell / 2;
-            for (std::size_t i = 0; i < panel.size(); ++i)
-            {
-                std::string path = panel[i].property;
-                const std::size_t token = path.find("{ship}");
-                if (token != std::string::npos)
-                    path.replace(token, 6, root);
-                char value[64];
-                std::snprintf(value, sizeof value, panel[i].format.c_str(), props.get_double(path) * panel[i].scale);
-                const int x = left + static_cast<int>(i) * cell;
-                sl::rectfill(sl::screen, x, panel_y, x + cell - 6, panel_y + 42, {10, 24, 20});
-                sl::rect(sl::screen, x, panel_y, x + cell - 6, panel_y + 42, {60, 160, 110});
-                sl::gprintf(x + 6, panel_y + 4, {110, 200, 150}, "%s", panel[i].label.c_str());
-                sl::gprintf(x + 6, panel_y + 22, {200, 255, 220}, "%s", value);
-            }
+        draw_cockpit_hud_mfds(dashboard);
         }
         if ((cockpit_mfd_overlay ? cockpit_mfd == 1 : mfd_display > 0) && !dashboard && !in_cockpit3d && !map_mode && !galaxy_mode)
         {
-            const bool hud = cockpit_mfd_overlay || mfd_display == 2;
-            const float size = hud ? 300.0f : std::min(320.0f, screen_h * 0.38f);
-            kosmos::MfdLayout left, right;
-            left.size = right.size = size;
-            left.hud = right.hud = hud;
-            left.y = right.y = hud ? 140.0f : screen_h - size - 90.0f;
-            left.x = hud ? 20.0f : screen_w / 2.0f - size - 70.0f;
-            right.x = hud ? screen_w - size - 20.0f : screen_w / 2.0f + 70.0f;
-            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
-            sim.mfd.update(frame);
-            const bool down = sl::mouse_button_down(sl::MouseButton::left);
-            if (!hud)
-                sim.mfd.handle_mouse(left, right, down && !mfd_mouse_prev, sl::mouse_x(), sl::mouse_y());
-            mfd_mouse_prev = down;
-            sim.mfd.draw(0, left);
-            sim.mfd.draw(1, right);
+        draw_mfd_overlay(dashboard, cockpit_mfd_overlay);
         }
         if (lightning_flash > 0.02 && !map_mode && !galaxy_mode)
         {

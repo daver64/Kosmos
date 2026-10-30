@@ -101,8 +101,8 @@ namespace kosmos::app
                 continue;
             std::stringstream text;
             text << in.rdbuf();
-            if (const std::string error = keys.add_from_json(text.str(), "addon " + addon.id + " keys.json"); !error.empty())
-                sim.log(error);
+            if (const std::string problem = keys.add_from_json(text.str(), "addon " + addon.id + " keys.json"); !problem.empty())
+                sim.log(problem);
         }
         keys.load();
         setup_link();
@@ -126,293 +126,231 @@ namespace kosmos::app
         menu_bar.spacecraft_autopilot_open = options.spacecraft_autopilot;
         menu_bar.base_editor_open = options.base_editor;
         menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Keyboard", "", &keys_window}, {"Native addons", "", &link_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
-        menu_actions.start_scenario = [&](const kosmos::Scenario &sc)
+        menu_actions.start_scenario = [this](const kosmos::Scenario &sc) { menu_start_scenario(sc); };
+        menu_actions.restart = [this]() { menu_restart(); };
+    return keep_going;
+    }
+
+    const sl::Terrain * App::terrain_of(int body)
+    {
+        for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+            if (bt->body == body)
+                return bt->terrain.get();
+        return nullptr;
+    }
+
+    // The ship nearest the astronaut's eye, by index, and how far away its origin is.
+    int App::nearest_ship(double &distance)
+    {
+        int best = -1;
+        distance = 1.0e30;
+        const sl::dvec3 eye = eva.eye_world(sim.universe);
+        for (int i = 0; i < sim.ship_count(); ++i)
         {
-            vis.clear_parts();
-            link_scenario = sc.id;
-            const int previous_system = sim.system_index();
-            bool world_rebuilt = false;
-            // A scenario belongs to one star system (Sol unless it names another): go there first.
+            if (sim.ship(i)->spec().building())
+                continue;
+            const double d = glm::length(sim.ship(i)->origin() - eye);
+            if (d < distance)
+                distance = d, best = i;
+        }
+        return best;
+    }
+
+    // The door of a building is a point in its frame; this is where it is in the world.
+    sl::dvec3 App::door_world(const Ship &building)
+    {
+        return building.origin() + building.body().direction_to_world(building.spec().door);
+    }
+
+    // A building whose door the astronaut stands at, or -1.
+    int App::building_at_door()
+    {
+        const sl::dvec3 eye = eva.eye_world(sim.universe);
+        for (int i = 0; i < sim.ship_count(); ++i)
+            if (sim.ship(i)->spec().building() && glm::length(door_world(*sim.ship(i)) - eye) <= sim.ship(i)->spec().door_radius + 1.7)
+                return i;
+        return -1;
+    }
+
+    void App::board_ship(bool force)
+    {
+        double distance = 0.0;
+        const int best = nearest_ship(distance);
+        if (best < 0 || (!force && distance > 30.0))
+        {
+            sim.log("Too far from a ship to board: go within 30 m");
+            return;
+        }
+        eva.active = false;
+        sim.activate(best);
+        ship = sim.active_ship();
+        cam_distance = ship->spec().camera_distance;
+        look_yaw = look_pitch = 0.0f;
+        sim.log("Back aboard " + ship->name);
+    }
+
+    void App::leave_eva()
+    {
+        const int door = building_at_door();
+        if (eva.building >= 0 && interior_panel >= 0)
+        {
+            // Use the panel: the building's own interface, with Enter to step back.
+            panel_return = eva.building;
+            eva.active = false;
+            sim.activate(eva.building);
+            ship = sim.active_ship();
+            cockpit_view = ship->spec().cockpit.present;
+            cockpit3d = false;
+            look_yaw = look_pitch = 0.0f;
+            return;
+        }
+        if (eva.building >= 0)
+        {
+            Ship *inside = sim.ship(eva.building);
+            if (door != eva.building)
             {
-                const int star = sc.system.empty() ? 0 : sim.galaxy.find(sc.system);
-                if (star >= 0 && star != sim.system_index())
-                {
-                    leave_system();
-                    std::string system_error;
-                    if (!sim.change_system(star, system_error) || !enter_system())
-                    {
-                        std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc.system.c_str(), system_error.c_str());
-                        ship = nullptr;
-                        running = false;
-                        return;
-                    }
-                    world_rebuilt = true;
-                    map.focus = -1;
-                    quantum_selected = -1;
-                    gview.refresh(sim.galaxy, sim.system_index());
-                }
+                sim.log("Go to the airlock hatch to leave");
+                return;
             }
-            // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
-            if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9)
+            if (!inside->spec().interior->airlock_name().empty())
             {
-                std::string epoch_error;
-                if (!change_date(sc.epoch_jd, epoch_error))
+                if (!in_airlock)
                 {
-                    std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
-                    ship = nullptr;
-                    running = false;
+                    sim.log("The way out is through the airlock");
                     return;
                 }
-                world_rebuilt = true;
+                if (room_kpa > kosmos::airlock_safe_kpa)
+                {
+                    inside->interior_state.airlock = kosmos::InteriorState::Airlock::venting;
+                    sim.log("Airlock depressurising: wait, then press Enter again");
+                    return;
+                }
+                inside->interior_state.airlock = kosmos::InteriorState::Airlock::vacuum;
             }
-            if (sc.fullscreen && !sl::is_fullscreen())
-                sl::set_fullscreen(true);
-            if (Ship *flown = apply_scenario(sim, sc, terrain_set))
-            {
-                ship = flown;
-                cam_distance = ship->spec().camera_distance;
-                cockpit_view = cockpit3d = false;
-                interior_cam = base_view = user_cam = -1;
-                look_yaw = look_pitch = 0.0f;
-            }
-            else if (world_rebuilt || sim.system_index() != previous_system)
-            {
-                ship = nullptr;
-                running = false;
-            }
-        };
-        menu_actions.restart = [&]()
+            const kosmos::Telemetry &bt = inside->telemetry();
+            const sl::dvec3 spot = door_world(*inside);
+            eva.building = -1;
+            eva.leave(sim.universe, bt.soi, spot, inside->body().velocity, inside->origin() - spot, terrain_of(bt.soi), true);
+            eva_look_yaw = eva_look_pitch = 0.0;
+            sim.log("Outside " + inside->name);
+            return;
+        }
+        if (door >= 0 && sim.ship(door)->spec().interior)
         {
-            vis.clear_parts();
-            ship = start_scenario(sim, options, terrain_set);
+            eva.building = door;
+            walker.place(*sim.ship(door)->spec().interior);
+            if (sim.ship(door)->interior_state.airlock == kosmos::InteriorState::Airlock::vacuum)
+            {
+                sim.ship(door)->interior_state.airlock = kosmos::InteriorState::Airlock::normal;
+                sim.log("Airlock repressurising");
+            }
+            eva_look_yaw = eva_look_pitch = 0.0;
+            sim.log("Inside " + sim.ship(door)->name + ": Enter at the airlock hatch to go out");
+            return;
+        }
+        if (door >= 0)
+        {
             eva.active = false;
-            arsenal.reset();
-            ship_weapons.reset();
-            cam_distance = ship->spec().camera_distance;
-        };
-    return keep_going;
+            sim.activate(door);
+            ship = sim.active_ship();
+            cockpit_view = ship->spec().cockpit.present;
+            cockpit3d = false;
+            look_yaw = look_pitch = 0.0f;
+            sim.log("Inside " + ship->name);
+            return;
+        }
+        board_ship(false);
+        return;
+    }
+
+    void App::toggle_eva()
+    {
+        if (eva.active)
+        {
+            leave_eva();
+            return;
+        }
+        Ship *flown = sim.active_ship();
+        if (!flown)
+            return;
+        if (flown->spec().building() && panel_return >= 0 && panel_return < sim.ship_count() && sim.ship(panel_return) == flown && flown->spec().interior)
+        {
+            eva.active = true;
+            eva.building = panel_return;
+            panel_return = -1;
+            cockpit_view = cockpit3d = false;
+            eva_look_yaw = eva_look_pitch = 0.0;
+            return;
+        }
+        panel_return = -1;
+        if (flown->spec().building())
+        {
+            const kosmos::Telemetry &bt = flown->telemetry();
+            if (bt.soi < 0)
+                return;
+            const sl::dvec3 spot = door_world(*flown);
+            eva.suit = kosmos::Suit();
+            eva.leave(sim.universe, bt.soi, spot, flown->body().velocity, flown->origin() - spot, terrain_of(bt.soi), true);
+            eva.home_ship = sim.props.get_int("/sim/active-ship");
+            arsenal.equip_person(sim, flown);
+            sim.props.set_bool("/autopilot/enabled", false);
+            cockpit_view = cockpit3d = false;
+            interior_cam = base_view = user_cam = -1;
+            eva_look_yaw = eva_look_pitch = 0.0;
+            sim.log("Outside " + flown->name + ": Enter at the door to go back in");
+            return;
+        }
+        const kosmos::Telemetry &t = flown->telemetry();
+        if (t.soi < 0 || t.soi >= static_cast<int>(sim.universe.bodies.size()))
+            return;
+        const sl::FlightBody &fb = flown->body();
+        if (!t.landed && sim.universe.world.air_density_at(fb.position) > 0.01)
+        {
+            sim.log("Land before leaving the ship");
+            return;
+        }
+        const sl::dvec3 origin = flown->origin();
+        const sl::dvec3 centre = sim.universe.position(t.soi);
+        const sl::dvec3 local_up = glm::normalize(origin - centre);
+        const double reach = std::clamp(flown->spec().camera_distance * 0.25, 4.0, 25.0);
+        sl::dvec3 side = fb.direction_to_world(sl::dvec3(-1.0, 0.0, 0.0));
+        sl::dvec3 spot;
+        if (t.landed)
+        {
+            side -= local_up * glm::dot(side, local_up);
+            side = glm::length(side) > 1e-6 ? glm::normalize(side) : glm::normalize(glm::cross(sim.universe.pole(t.soi), local_up));
+            spot = origin + side * reach;
+        }
+        else
+        {
+            side = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+            spot = origin + side * (reach * 0.5);
+        }
+        eva.suit = kosmos::Suit();
+        eva.leave(sim.universe, t.soi, spot, fb.velocity + side * (t.landed ? 0.0 : 0.3), origin - spot, terrain_of(t.soi), t.landed);
+        eva.home_ship = sim.props.get_int("/sim/active-ship");
+        arsenal.equip_person(sim, flown);
+        sim.props.set_bool("/autopilot/enabled", false);
+        sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_double("/controls/hover", 0.0);
+        cockpit_view = cockpit3d = false;
+        interior_cam = base_view = user_cam = -1;
+        eva_look_yaw = eva_look_pitch = 0.0;
+        sim.log("On foot: Enter near the ship to board");
     }
 
     // Helpers for boarding ships and walking.
     int App::init_helpers()
     {
-        terrain_of = [&](int body) -> const sl::Terrain *
-        {
-            for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
-                if (bt->body == body)
-                    return bt->terrain.get();
-            return nullptr;
-        };
-        // The ship nearest the astronaut's eye, by index, and how far away its origin is.
-        nearest_ship = [&](double &distance) -> int
-        {
-            int best = -1;
-            distance = 1.0e30;
-            const sl::dvec3 eye = eva.eye_world(sim.universe);
-            for (int i = 0; i < sim.ship_count(); ++i)
-            {
-                if (sim.ship(i)->spec().building())
-                    continue;
-                const double d = glm::length(sim.ship(i)->origin() - eye);
-                if (d < distance)
-                    distance = d, best = i;
-            }
-            return best;
-        };
-        // The door of a building is a point in its frame; this is where it is in the world.
-        door_world = [&](const Ship &building) { return building.origin() + building.body().direction_to_world(building.spec().door); };
-        // A building whose door the astronaut stands at, or -1.
-        building_at_door = [&]() -> int
-        {
-            const sl::dvec3 eye = eva.eye_world(sim.universe);
-            for (int i = 0; i < sim.ship_count(); ++i)
-                if (sim.ship(i)->spec().building() && glm::length(door_world(*sim.ship(i)) - eye) <= sim.ship(i)->spec().door_radius + 1.7)
-                    return i;
-            return -1;
-        };
         arsenal_ctx.sim = &sim;
         arsenal_ctx.eva = &eva;
-        arsenal_ctx.terrain = terrain_of;
-        board_ship = [&](bool force)
-        {
-            double distance = 0.0;
-            const int best = nearest_ship(distance);
-            if (best < 0 || (!force && distance > 30.0))
-            {
-                sim.log("Too far from a ship to board: go within 30 m");
-                return;
-            }
-            eva.active = false;
-            sim.activate(best);
-            ship = sim.active_ship();
-            cam_distance = ship->spec().camera_distance;
-            look_yaw = look_pitch = 0.0f;
-            sim.log("Back aboard " + ship->name);
-        };
-        toggle_eva = [&]()
-        {
-            if (eva.active)
-            {
-                const int door = building_at_door();
-                if (eva.building >= 0 && interior_panel >= 0)
-                {
-                    // Use the panel: the building's own interface, with Enter to step back.
-                    panel_return = eva.building;
-                    eva.active = false;
-                    sim.activate(eva.building);
-                    ship = sim.active_ship();
-                    cockpit_view = ship->spec().cockpit.present;
-                    cockpit3d = false;
-                    look_yaw = look_pitch = 0.0f;
-                    return;
-                }
-                if (eva.building >= 0)
-                {
-                    Ship *inside = sim.ship(eva.building);
-                    if (door != eva.building)
-                    {
-                        sim.log("Go to the airlock hatch to leave");
-                        return;
-                    }
-                    if (!inside->spec().interior->airlock_name().empty())
-                    {
-                        if (!in_airlock)
-                        {
-                            sim.log("The way out is through the airlock");
-                            return;
-                        }
-                        if (room_kpa > kosmos::airlock_safe_kpa)
-                        {
-                            inside->interior_state.airlock = kosmos::InteriorState::Airlock::venting;
-                            sim.log("Airlock depressurising: wait, then press Enter again");
-                            return;
-                        }
-                        inside->interior_state.airlock = kosmos::InteriorState::Airlock::vacuum;
-                    }
-                    const kosmos::Telemetry &bt = inside->telemetry();
-                    const sl::dvec3 spot = door_world(*inside);
-                    eva.building = -1;
-                    eva.leave(sim.universe, bt.soi, spot, inside->body().velocity, inside->origin() - spot, terrain_of(bt.soi), true);
-                    eva_look_yaw = eva_look_pitch = 0.0;
-                    sim.log("Outside " + inside->name);
-                    return;
-                }
-                if (door >= 0 && sim.ship(door)->spec().interior)
-                {
-                    eva.building = door;
-                    walker.place(*sim.ship(door)->spec().interior);
-                    if (sim.ship(door)->interior_state.airlock == kosmos::InteriorState::Airlock::vacuum)
-                    {
-                        sim.ship(door)->interior_state.airlock = kosmos::InteriorState::Airlock::normal;
-                        sim.log("Airlock repressurising");
-                    }
-                    eva_look_yaw = eva_look_pitch = 0.0;
-                    sim.log("Inside " + sim.ship(door)->name + ": Enter at the airlock hatch to go out");
-                    return;
-                }
-                if (door >= 0)
-                {
-                    eva.active = false;
-                    sim.activate(door);
-                    ship = sim.active_ship();
-                    cockpit_view = ship->spec().cockpit.present;
-                    cockpit3d = false;
-                    look_yaw = look_pitch = 0.0f;
-                    sim.log("Inside " + ship->name);
-                    return;
-                }
-                board_ship(false);
-                return;
-            }
-            Ship *flown = sim.active_ship();
-            if (!flown)
-                return;
-            if (flown->spec().building() && panel_return >= 0 && panel_return < sim.ship_count() && sim.ship(panel_return) == flown && flown->spec().interior)
-            {
-                eva.active = true;
-                eva.building = panel_return;
-                panel_return = -1;
-                cockpit_view = cockpit3d = false;
-                eva_look_yaw = eva_look_pitch = 0.0;
-                return;
-            }
-            panel_return = -1;
-            if (flown->spec().building())
-            {
-                const kosmos::Telemetry &bt = flown->telemetry();
-                if (bt.soi < 0)
-                    return;
-                const sl::dvec3 spot = door_world(*flown);
-                eva.suit = kosmos::Suit();
-                eva.leave(sim.universe, bt.soi, spot, flown->body().velocity, flown->origin() - spot, terrain_of(bt.soi), true);
-                eva.home_ship = sim.props.get_int("/sim/active-ship");
-                arsenal.equip_person(sim, flown);
-                sim.props.set_bool("/autopilot/enabled", false);
-                cockpit_view = cockpit3d = false;
-                interior_cam = base_view = user_cam = -1;
-                eva_look_yaw = eva_look_pitch = 0.0;
-                sim.log("Outside " + flown->name + ": Enter at the door to go back in");
-                return;
-            }
-            const kosmos::Telemetry &t = flown->telemetry();
-            if (t.soi < 0 || t.soi >= static_cast<int>(sim.universe.bodies.size()))
-                return;
-            const sl::FlightBody &fb = flown->body();
-            if (!t.landed && sim.universe.world.air_density_at(fb.position) > 0.01)
-            {
-                sim.log("Land before leaving the ship");
-                return;
-            }
-            const sl::dvec3 origin = flown->origin();
-            const sl::dvec3 centre = sim.universe.position(t.soi);
-            const sl::dvec3 up = glm::normalize(origin - centre);
-            const double reach = std::clamp(flown->spec().camera_distance * 0.25, 4.0, 25.0);
-            sl::dvec3 side = fb.direction_to_world(sl::dvec3(-1.0, 0.0, 0.0));
-            sl::dvec3 spot;
-            if (t.landed)
-            {
-                side -= up * glm::dot(side, up);
-                side = glm::length(side) > 1e-6 ? glm::normalize(side) : glm::normalize(glm::cross(sim.universe.pole(t.soi), up));
-                spot = origin + side * reach;
-            }
-            else
-            {
-                side = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
-                spot = origin + side * (reach * 0.5);
-            }
-            eva.suit = kosmos::Suit();
-            eva.leave(sim.universe, t.soi, spot, fb.velocity + side * (t.landed ? 0.0 : 0.3), origin - spot, terrain_of(t.soi), t.landed);
-            eva.home_ship = sim.props.get_int("/sim/active-ship");
-            arsenal.equip_person(sim, flown);
-            sim.props.set_bool("/autopilot/enabled", false);
-            sim.props.set_double("/controls/throttle", 0.0);
-            sim.props.set_double("/controls/hover", 0.0);
-            cockpit_view = cockpit3d = false;
-            interior_cam = base_view = user_cam = -1;
-            eva_look_yaw = eva_look_pitch = 0.0;
-            sim.log("On foot: Enter near the ship to board");
-        };
-        menu_actions.toggle_eva = toggle_eva;
+        arsenal_ctx.terrain = [this](int body) { return terrain_of(body); };
+        menu_actions.toggle_eva = [this]() { toggle_eva(); };
         menu_actions.key_label = [this](const char *id) { return keys.label_for(id); };
         refresh_menu_keys();
         menu_actions.on_foot = [&]() { return eva.active; };
         menu_actions.in_building = [&]() { return !eva.active && sim.active_ship() && sim.active_ship()->spec().building(); };
-        menu_actions.show_panel = [&](int index)
-        {
-            const auto panels = sim.active_ship()->spec().cockpit.panels_2d();
-            if (index < 0 || index >= static_cast<int>(panels.size()))
-                return;
-            panel_index = index;
-            sim.mfd.set_unit_count(static_cast<int>(panels[static_cast<std::size_t>(index)].instruments.size()));
-            for (std::size_t i = 0; i < panels[static_cast<std::size_t>(index)].instruments.size(); ++i)
-                sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(panels[static_cast<std::size_t>(index)].instruments[i].mode)));
-            cockpit_view = true;
-            cockpit3d = false;
-            cockpit_mfd = 0;
-            interior_cam = base_view = -1;
-            map_mode = galaxy_mode = false;
-            look_yaw = look_pitch = 0.0f;
-        };
+        menu_actions.show_panel = [this](int index) { menu_show_panel(index); };
         menu_actions.quit = [&]() { running = false; };
         menu_actions.screenshot = [&]() { screenshot_requested = true; screenshot_due_ms = sl::time_ms() + 300; };
     return keep_going;
@@ -429,84 +367,8 @@ namespace kosmos::app
         record_h = 0;
         record_rate = 48000;
         record_channels = 2;
-        flush_record_audio = [&]()
-        {
-            std::vector<std::int16_t> chunk;
-            {
-                std::lock_guard<std::mutex> lock(record_audio_mutex);
-                chunk.swap(record_audio);
-            }
-            if (record_pcm && !chunk.empty())
-                std::fwrite(chunk.data(), sizeof(std::int16_t), chunk.size(), record_pcm);
-        };
-        stop_recording = [&]()
-        {
-            if (!record_pipe)
-                return;
-            sl::audio_set_capture({});
-            pclose(record_pipe);
-            record_pipe = nullptr;
-            flush_record_audio();
-            bool audio = false;
-            if (record_pcm)
-            {
-                audio = std::ftell(record_pcm) > 0;
-                std::fclose(record_pcm);
-                record_pcm = nullptr;
-            }
-            bool ok = true;
-            if (audio)
-            {
-                const std::string mux = "ffmpeg -loglevel error -y -i \"" + record_video + "\" -f s16le -ar " + std::to_string(record_rate) +
-                                        " -ac " + std::to_string(record_channels) + " -i \"" + record_pcm_file +
-                                        "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + record_file + "\"";
-                ok = std::system(mux.c_str()) == 0;
-            }
-            if (!audio || !ok)
-                std::rename(record_video.c_str(), record_file.c_str());
-            else
-                std::remove(record_video.c_str());
-            std::remove(record_pcm_file.c_str());
-            sim.log("Saved " + record_file + " (" + std::to_string(record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
-        };
         menu_actions.recording = [&]() { return record_pipe != nullptr; };
-        menu_actions.toggle_recording = [&]()
-        {
-            if (record_pipe)
-            {
-                stop_recording();
-                return;
-            }
-            record_w = sl::screen->width & ~1;
-            record_h = sl::screen->height & ~1;
-            record_file = "kosmos-" + std::to_string(sl::time_ms()) + ".mp4";
-            record_video = record_file + ".video.mp4";
-            record_pcm_file = record_file + ".pcm";
-            const std::string command = "ffmpeg -loglevel error -y -use_wallclock_as_timestamps 1 -f rawvideo -pix_fmt rgba -s " +
-                                        std::to_string(sl::screen->width) + "x" + std::to_string(sl::screen->height) +
-                                        " -i - -vf \"crop=" + std::to_string(record_w) + ":" + std::to_string(record_h) +
-                                        ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + record_video + "\"";
-            record_pipe = popen(command.c_str(), "w");
-            record_frames = 0;
-            if (record_pipe)
-            {
-                record_pcm = std::fopen(record_pcm_file.c_str(), "wb");
-                if (record_pcm && !sl::audio_set_capture(
-                                      [&](const std::int16_t *samples, std::size_t frames)
-                                      {
-                                          std::lock_guard<std::mutex> lock(record_audio_mutex);
-                                          record_audio.insert(record_audio.end(), samples, samples + frames * static_cast<std::size_t>(record_channels));
-                                      },
-                                      &record_rate, &record_channels))
-                {
-                    std::fclose(record_pcm);
-                    record_pcm = nullptr;
-                }
-                sim.log("Recording " + record_file);
-            }
-            else
-                sim.log("Could not start ffmpeg");
-        };
+        menu_actions.toggle_recording = [this]() { menu_toggle_recording(); };
     return keep_going;
     }
 
@@ -522,4 +384,167 @@ namespace kosmos::app
         applied_fps = 0;
     return keep_going;
     }
+    void App::menu_start_scenario(const kosmos::Scenario &sc)
+    {
+        vis.clear_parts();
+        link_scenario = sc.id;
+        const int previous_system = sim.system_index();
+        bool world_rebuilt = false;
+        // A scenario belongs to one star system (Sol unless it names another): go there first.
+        {
+            const int star = sc.system.empty() ? 0 : sim.galaxy.find(sc.system);
+            if (star >= 0 && star != sim.system_index())
+            {
+                leave_system();
+                std::string system_error;
+                if (!sim.change_system(star, system_error) || !enter_system())
+                {
+                    std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc.system.c_str(), system_error.c_str());
+                    ship = nullptr;
+                    running = false;
+                    return;
+                }
+                world_rebuilt = true;
+                map.focus = -1;
+                quantum_selected = -1;
+                gview.refresh(sim.galaxy, sim.system_index());
+            }
+        }
+        // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
+        if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9)
+        {
+            std::string epoch_error;
+            if (!change_date(sc.epoch_jd, epoch_error))
+            {
+                std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
+                ship = nullptr;
+                running = false;
+                return;
+            }
+            world_rebuilt = true;
+        }
+        if (sc.fullscreen && !sl::is_fullscreen())
+            sl::set_fullscreen(true);
+        if (Ship *flown = apply_scenario(sim, sc, terrain_set))
+        {
+            ship = flown;
+            cam_distance = ship->spec().camera_distance;
+            cockpit_view = cockpit3d = false;
+            interior_cam = base_view = user_cam = -1;
+            look_yaw = look_pitch = 0.0f;
+        }
+        else if (world_rebuilt || sim.system_index() != previous_system)
+        {
+            ship = nullptr;
+            running = false;
+        }
+    }
+
+    void App::menu_restart()
+    {
+        vis.clear_parts();
+        ship = start_scenario(sim, options, terrain_set);
+        eva.active = false;
+        arsenal.reset();
+        ship_weapons.reset();
+        cam_distance = ship->spec().camera_distance;
+    }
+
+    void App::menu_show_panel(int index)
+    {
+        const auto panels = sim.active_ship()->spec().cockpit.panels_2d();
+        if (index < 0 || index >= static_cast<int>(panels.size()))
+            return;
+        panel_index = index;
+        sim.mfd.set_unit_count(static_cast<int>(panels[static_cast<std::size_t>(index)].instruments.size()));
+        for (std::size_t i = 0; i < panels[static_cast<std::size_t>(index)].instruments.size(); ++i)
+            sim.mfd.set_mode(static_cast<int>(i), std::max(0, sim.mfd.mode_by_id(panels[static_cast<std::size_t>(index)].instruments[i].mode)));
+        cockpit_view = true;
+        cockpit3d = false;
+        cockpit_mfd = 0;
+        interior_cam = base_view = -1;
+        map_mode = galaxy_mode = false;
+        look_yaw = look_pitch = 0.0f;
+    }
+
+    void App::flush_record_audio()
+    {
+        std::vector<std::int16_t> chunk;
+        {
+            std::lock_guard<std::mutex> lock(record_audio_mutex);
+            chunk.swap(record_audio);
+        }
+        if (record_pcm && !chunk.empty())
+            std::fwrite(chunk.data(), sizeof(std::int16_t), chunk.size(), record_pcm);
+    }
+
+    void App::stop_recording()
+    {
+        if (!record_pipe)
+            return;
+        sl::audio_set_capture({});
+        pclose(record_pipe);
+        record_pipe = nullptr;
+        flush_record_audio();
+        bool audio = false;
+        if (record_pcm)
+        {
+            audio = std::ftell(record_pcm) > 0;
+            std::fclose(record_pcm);
+            record_pcm = nullptr;
+        }
+        bool ok = true;
+        if (audio)
+        {
+            const std::string mux = "ffmpeg -loglevel error -y -i \"" + record_video + "\" -f s16le -ar " + std::to_string(record_rate) +
+                                    " -ac " + std::to_string(record_channels) + " -i \"" + record_pcm_file +
+                                    "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + record_file + "\"";
+            ok = std::system(mux.c_str()) == 0;
+        }
+        if (!audio || !ok)
+            std::rename(record_video.c_str(), record_file.c_str());
+        else
+            std::remove(record_video.c_str());
+        std::remove(record_pcm_file.c_str());
+        sim.log("Saved " + record_file + " (" + std::to_string(record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
+    }
+
+    void App::menu_toggle_recording()
+    {
+        if (record_pipe)
+        {
+            stop_recording();
+            return;
+        }
+        record_w = sl::screen->width & ~1;
+        record_h = sl::screen->height & ~1;
+        record_file = "kosmos-" + std::to_string(sl::time_ms()) + ".mp4";
+        record_video = record_file + ".video.mp4";
+        record_pcm_file = record_file + ".pcm";
+        const std::string command = "ffmpeg -loglevel error -y -use_wallclock_as_timestamps 1 -f rawvideo -pix_fmt rgba -s " +
+                                    std::to_string(sl::screen->width) + "x" + std::to_string(sl::screen->height) +
+                                    " -i - -vf \"crop=" + std::to_string(record_w) + ":" + std::to_string(record_h) +
+                                    ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + record_video + "\"";
+        record_pipe = popen(command.c_str(), "w");
+        record_frames = 0;
+        if (record_pipe)
+        {
+            record_pcm = std::fopen(record_pcm_file.c_str(), "wb");
+            if (record_pcm && !sl::audio_set_capture(
+                                  [&](const std::int16_t *samples, std::size_t frames)
+                                  {
+                                      std::lock_guard<std::mutex> lock(record_audio_mutex);
+                                      record_audio.insert(record_audio.end(), samples, samples + frames * static_cast<std::size_t>(record_channels));
+                                  },
+                                  &record_rate, &record_channels))
+            {
+                std::fclose(record_pcm);
+                record_pcm = nullptr;
+            }
+            sim.log("Recording " + record_file);
+        }
+        else
+            sim.log("Could not start ffmpeg");
+    }
+
 } // namespace kosmos::app

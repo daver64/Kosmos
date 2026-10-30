@@ -79,17 +79,8 @@ namespace kosmos
         }
     } // namespace
 
-    sl::dvec3 push_out_of_solids(const SolidScene &scene, const sl::dvec3 &from, const sl::dvec3 &to_in, double height)
+    static bool push_from_ships(const SolidScene &scene, const sl::dvec3 &centre, const sl::dvec3 &up, const sl::dvec3 &from, sl::dvec3 &to, double height)
     {
-        if (!scene.universe)
-            return to_in;
-        const Universe &universe = *scene.universe;
-        const sl::dvec3 centre = universe.position(scene.body);
-        const double radius = universe.bodies[static_cast<std::size_t>(scene.body)].radius;
-        sl::dvec3 to = to_in;
-        const sl::dvec3 up = normalised(to, sl::dvec3(0.0, 1.0, 0.0));
-
-        // Ships: the hull is a cylinder about the ship's own Z axis, one for each stage.
         for (Ship *ship : scene.ships)
         {
             const sl::FlightBody &b = ship->body();
@@ -106,7 +97,7 @@ namespace kosmos
                 auto feet = [&](const sl::dvec3 &p) { return room.from_ship(inverse * (p - origin)) + sl::dvec3(0.0, 0.3, 0.0); };
                 const double r = person_radius + margin;
                 if (room.blocked(feet(to), r, 1.4) && !room.blocked(feet(from), r, 1.4))
-                    return from;
+                    return true;
                 continue;
             }
             for (const double h : heights)
@@ -146,7 +137,7 @@ namespace kosmos
                             best = i;
                     // Standing on the roof or under the belly is not a way out sideways.
                     if (std::min(top + m - local.y, local.y - (bottom - m)) < pen[best] * 0.5)
-                        return from;
+                        return true;
                     to += normalised(horizontal(b.orientation * normals[best], up), sl::dvec3(1.0, 0.0, 0.0)) * pen[best];
                     continue;
                 }
@@ -184,13 +175,16 @@ namespace kosmos
                     const double fraction = d > 1e-9 ? glm::length(flat) / d : 0.0;
                     // Directly above or below the hull there is no sideways way out, so stay where you were.
                     if (fraction < 0.3)
-                        return from;
+                        return true;
                     to += normalised(flat, sl::dvec3(1.0, 0.0, 0.0)) * std::min((reach - d) / fraction, 1.0);
                 }
             }
         }
+            return false;
+    }
 
-        // Base objects, in each base's own frame.
+    static void push_from_bases(const SolidScene &scene, const Universe &universe, const sl::dvec3 &centre, double radius, const sl::dvec3 &up, sl::dvec3 &to, double height)
+    {
         if (scene.bases)
         {
             const std::string &body_name = universe.bodies[static_cast<std::size_t>(scene.body)].name;
@@ -244,8 +238,10 @@ namespace kosmos
                 }
             }
         }
+    }
 
-        // Trees, rocks, houses and outposts scattered over the ground.
+    static void push_from_clutter(const SolidScene &scene, const sl::dvec3 &up, const sl::dvec3 &from, sl::dvec3 &to, double height)
+    {
         if (scene.clutter)
         {
             std::vector<sl::ClutterObstacle> near;
@@ -277,6 +273,27 @@ namespace kosmos
                 }
             }
         }
+    }
+
+    sl::dvec3 push_out_of_solids(const SolidScene &scene, const sl::dvec3 &from, const sl::dvec3 &to_in, double height)
+    {
+        if (!scene.universe)
+            return to_in;
+        const Universe &universe = *scene.universe;
+        const sl::dvec3 centre = universe.position(scene.body);
+        const double radius = universe.bodies[static_cast<std::size_t>(scene.body)].radius;
+        sl::dvec3 to = to_in;
+        const sl::dvec3 up = normalised(to, sl::dvec3(0.0, 1.0, 0.0));
+
+        // Ships: the hull is a cylinder about the ship's own Z axis, one for each stage.
+        if (push_from_ships(scene, centre, up, from, to, height))
+            return from;
+
+        // Base objects, in each base's own frame.
+        push_from_bases(scene, universe, centre, radius, up, to, height);
+
+        // Trees, rocks, houses and outposts scattered over the ground.
+        push_from_clutter(scene, up, from, to, height);
         return to;
     }
 

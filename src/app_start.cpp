@@ -5,6 +5,198 @@
 
 namespace kosmos::app
 {
+    // The planetbake (SDK) command line that makes the same world, with every value in full so the maps match the game.
+    void print_planetbake(const kosmos::Body &b)
+    {
+        std::printf("for bigger maps, PNG/DDS and more layers use planetbake: planetbake --type %s --seed %d --ocean %.9g --ice %.9g --relief %.9g --tint %.9g,%.9g,%.9g --bands %d --contrast %.9g --radius-km %.9g --out DIR\n",
+                    kosmos::archetype_name(b.style.type), b.style.seed, b.style.ocean, b.style.ice, b.style.relief, b.style.tint[0], b.style.tint[1], b.style.tint[2],
+                    b.style.bands, b.style.contrast, b.radius / 1000.0);
+    }
+
+    int App::list_worlds()
+    {
+            // --list-worlds mercury|venus|earth|mars|gas [--system N]: worlds of that kind within quantum range, nearest first.
+            std::string want = options.list_worlds;
+            std::transform(want.begin(), want.end(), want.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (want == "jupiter" || want == "giant" || want == "neptune")
+                want = "gas";
+            if (want != "mercury" && want != "venus" && want != "earth" && want != "mars" && want != "gas")
+            {
+                std::fprintf(stderr, "kosmos: world types are mercury venus earth mars gas (jupiter)\n");
+                return 1;
+            }
+            const int here = sim.system_index();
+            std::vector<int> ids = sim.galaxy.nearest(here, sim.galaxy.size());
+            int found = 0;
+            for (const int id : ids)
+            {
+                const double d = sim.galaxy.distance_ly(here, id);
+                if (d > 50.0)
+                    break;
+                const nlohmann::json system = nlohmann::json::parse(sim.galaxy.system_json(id), nullptr, false);
+                if (!system.is_object() || !system.contains("bodies"))
+                    continue;
+                for (const nlohmann::json &b : system["bodies"])
+                {
+                    const std::string kind = b.value("kind", "");
+                    if ((kind != "planet" && kind != "moon") || !b.contains("style") || b["style"].value("type", "") != want)
+                        continue;
+                    std::printf("%5.1f ly  %-18s %-26s %s  %.2f R_earth\n", d, sim.galaxy.star(id).name.c_str(), b.value("name", "").c_str(),
+                                kind == "moon" ? "moon  " : "planet", b.value("radius", 0.0) / 6.371e6);
+                    ++found;
+                }
+            }
+            std::printf("%d %s worlds within 50 ly\n", found, want.c_str());
+            return 0;
+    }
+
+    int App::generate_world()
+    {
+            // Makes the far-view image of an invented world into the cache, within 4 threads and 4 GB:
+            // --system N --gen-world "Name" [--gen-width 16384] [--gen-threads 4] [--gen-memory MB]
+            const int id = sim.universe.find(options.gen_world);
+            if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.valid())
+            {
+                std::fprintf(stderr, "kosmos: no generated world '%s' in this system. Candidates:\n", options.gen_world.c_str());
+                for (const kosmos::Body &b : sim.universe.bodies)
+                    if (b.style.valid() && !b.minor)
+                        std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+                return 1;
+            }
+            const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
+            const int width = std::clamp(options.gen_width, 256, 16384) & ~1;
+            const std::uint64_t limit = static_cast<std::uint64_t>(options.gen_memory_mb) << 20;
+#ifdef __linux__
+            // A hard ceiling on address space, so a mistake fails the run rather than the machine.
+            struct rlimit cap = {limit + (512ull << 20), limit + (512ull << 20)};
+            setrlimit(RLIMIT_AS, &cap);
+#endif
+            const std::filesystem::path path = kosmos::far_image_path(b.style, width);
+            if (std::filesystem::exists(path))
+            {
+                std::printf("already there: %s\n", path.string().c_str());
+                return 0;
+            }
+            std::printf("%s (%s): %d x %d, %d threads, up to %d MB\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), width, width / 2,
+                        options.gen_threads, options.gen_memory_mb, path.string().c_str());
+            print_planetbake(b);
+            const kosmos::PlanetSurface planet_surface(b.style, b.radius);
+            std::string problem;
+            int last = -1;
+            const bool ok = kosmos::generate_far_image(planet_surface, width, static_cast<unsigned>(options.gen_threads), limit, [&](double fraction)
+            {
+                const int percent = static_cast<int>(fraction * 100.0);
+                if (percent != last)
+                {
+                    last = percent;
+                    std::printf("\r%3d%%", percent);
+                    std::fflush(stdout);
+                }
+            }, problem);
+            std::printf("\n%s\n", ok ? "done" : problem.c_str());
+            return ok ? 0 : 1;
+    }
+
+    int App::bake_world()
+    {
+            // Pre-generates the high-resolution tile set of an invented world: --system N --bake-planet "Name" [--bake-width 16384] [--bake-estimate | --bake-lazy]
+            const int id = sim.universe.find(options.bake_body);
+            if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.has_ground())
+            {
+                std::fprintf(stderr, "kosmos: no generated rocky body '%s' in this system. Candidates:\n", options.bake_body.c_str());
+                for (const kosmos::Body &b : sim.universe.bodies)
+                    if (b.style.has_ground())
+                        std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+                return 1;
+            }
+            const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
+            const kosmos::BakeEstimate estimate = kosmos::estimate_bake(options.bake_width);
+            const std::filesystem::path dir = kosmos::baked_tiles_dir(b.style, b.radius);
+            std::printf("%s (%s): %d x %d pixels, %lld tiles, about %s on disk\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), estimate.width,
+                        estimate.height, static_cast<long long>(estimate.tiles), kosmos::format_bytes(estimate.disk_bytes).c_str(), dir.string().c_str());
+            print_planetbake(b);
+            if (options.bake_estimate)
+                return 0;
+            if (options.bake_lazy)
+            {
+                if (!kosmos::write_lazy_marker(dir, options.bake_width))
+                {
+                    std::fprintf(stderr, "kosmos: cannot write into %s\n", dir.string().c_str());
+                    return 1;
+                }
+                std::printf("lazy: tiles up to that size are now made as you fly over them and kept there\n");
+                return 0;
+            }
+            const kosmos::PlanetSurface planet_surface(b.style, b.radius);
+            std::string bake_error;
+            int last = -1;
+            const bool ok = kosmos::bake_tiles(planet_surface, dir, options.bake_width, [&](double fraction)
+            {
+                const int percent = static_cast<int>(fraction * 100.0);
+                if (percent != last)
+                {
+                    last = percent;
+                    std::printf("\r%3d%%", percent);
+                    std::fflush(stdout);
+                }
+                return true;
+            }, bake_error);
+            std::printf("\n%s\n", ok ? "done" : bake_error.c_str());
+            return ok ? 0 : 1;
+    }
+
+    int App::export_base()
+    {
+            // Every built-in prop of a base, one scene object each, as a GLB (also a check of the Blender bake).
+            for (const kosmos::Base &base : sim.bases)
+                if (base.id == options.export_base)
+                {
+                    std::vector<kosmos::GlbNode> nodes;
+                    for (std::size_t i = 0; i < base.objects.size(); ++i)
+                    {
+                        kosmos::GlbNode node;
+                        node.name = std::to_string(i) + "_" + base.objects[i].type;
+                        if (kosmos::bake_base_object(base.objects[i], node.mesh))
+                            nodes.push_back(std::move(node));
+                    }
+                    std::string problem;
+                    const bool ok = kosmos::write_glb(nodes, options.export_file, problem);
+                    std::printf("%zu objects -> %s %s\n", nodes.size(), options.export_file.c_str(), ok ? "" : problem.c_str());
+                    return ok ? 0 : 1;
+                }
+            std::printf("no base %s\n", options.export_base.c_str());
+            return 1;
+    }
+
+    int App::check_data()
+    {
+            // Every scenario and base must survive the editors' save and load unchanged.
+            int bad = 0;
+            for (const kosmos::Scenario &sc : sim.scenarios())
+            {
+                kosmos::Scenario again;
+                std::string problem;
+                const std::string text = kosmos::scenario_to_json(sc);
+                if (!kosmos::parse_scenario(text, sc.path, again, problem) || kosmos::scenario_to_json(again) != text)
+                {
+                    std::printf("scenario %s does not round-trip %s\n", sc.id.c_str(), problem.c_str());
+                    ++bad;
+                }
+            }
+            {
+                std::vector<kosmos::Base> again;
+                std::string problem;
+                const std::string text = kosmos::bases_to_json(sim.bases);
+                if (!kosmos::parse_bases(text, "check", again, problem) || kosmos::bases_to_json(again) != text || again.size() != sim.bases.size())
+                {
+                    std::printf("bases do not round-trip %s\n", problem.c_str());
+                    ++bad;
+                }
+            }
+            std::printf("%zu scenarios, %zu bases, %d problems\n", sim.scenarios().size(), sim.bases.size(), bad);
+            return bad == 0 ? 0 : 1;
+    }
+
     // Command line, simulation and scenario choice.
     int App::init_sim(int argc, char **argv)
     {
@@ -57,41 +249,7 @@ namespace kosmos::app
                         std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc->system.c_str(), system_error.c_str());
                 }
         if (!options.list_worlds.empty())
-        {
-            // --list-worlds mercury|venus|earth|mars|gas [--system N]: worlds of that kind within quantum range, nearest first.
-            std::string want = options.list_worlds;
-            std::transform(want.begin(), want.end(), want.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            if (want == "jupiter" || want == "giant" || want == "neptune")
-                want = "gas";
-            if (want != "mercury" && want != "venus" && want != "earth" && want != "mars" && want != "gas")
-            {
-                std::fprintf(stderr, "kosmos: world types are mercury venus earth mars gas (jupiter)\n");
-                return 1;
-            }
-            const int here = sim.system_index();
-            std::vector<int> ids = sim.galaxy.nearest(here, sim.galaxy.size());
-            int found = 0;
-            for (const int id : ids)
-            {
-                const double d = sim.galaxy.distance_ly(here, id);
-                if (d > 50.0)
-                    break;
-                const nlohmann::json system = nlohmann::json::parse(sim.galaxy.system_json(id), nullptr, false);
-                if (!system.is_object() || !system.contains("bodies"))
-                    continue;
-                for (const nlohmann::json &b : system["bodies"])
-                {
-                    const std::string kind = b.value("kind", "");
-                    if ((kind != "planet" && kind != "moon") || !b.contains("style") || b["style"].value("type", "") != want)
-                        continue;
-                    std::printf("%5.1f ly  %-18s %-26s %s  %.2f R_earth\n", d, sim.galaxy.star(id).name.c_str(), b.value("name", "").c_str(),
-                                kind == "moon" ? "moon  " : "planet", b.value("radius", 0.0) / 6.371e6);
-                    ++found;
-                }
-            }
-            std::printf("%d %s worlds within 50 ly\n", found, want.c_str());
-            return 0;
-        }
+            return list_worlds();
         if (options.list_stars)
         {
             std::printf("%d stars; system %d %s (class %c)\n", sim.galaxy.size(), sim.system_index(), sim.galaxy.star(sim.system_index()).name.c_str(),
@@ -101,105 +259,10 @@ namespace kosmos::app
                             sim.galaxy.distance_ly(sim.system_index(), id), sim.galaxy.planet_count(id));
             return 0;
         }
-        // The planetbake (SDK) command line that makes the same world, with every value in full so the maps match the game.
-        auto print_planetbake = [](const kosmos::Body &b) {
-            std::printf("for bigger maps, PNG/DDS and more layers use planetbake: planetbake --type %s --seed %d --ocean %.9g --ice %.9g --relief %.9g --tint %.9g,%.9g,%.9g --bands %d --contrast %.9g --radius-km %.9g --out DIR\n",
-                        kosmos::archetype_name(b.style.type), b.style.seed, b.style.ocean, b.style.ice, b.style.relief, b.style.tint[0], b.style.tint[1], b.style.tint[2],
-                        b.style.bands, b.style.contrast, b.radius / 1000.0);
-        };
         if (!options.gen_world.empty())
-        {
-            // Makes the far-view image of an invented world into the cache, within 4 threads and 4 GB:
-            // --system N --gen-world "Name" [--gen-width 16384] [--gen-threads 4] [--gen-memory MB]
-            const int id = sim.universe.find(options.gen_world);
-            if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.valid())
-            {
-                std::fprintf(stderr, "kosmos: no generated world '%s' in this system. Candidates:\n", options.gen_world.c_str());
-                for (const kosmos::Body &b : sim.universe.bodies)
-                    if (b.style.valid() && !b.minor)
-                        std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
-                return 1;
-            }
-            const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
-            const int width = std::clamp(options.gen_width, 256, 16384) & ~1;
-            const std::uint64_t limit = static_cast<std::uint64_t>(options.gen_memory_mb) << 20;
-#ifdef __linux__
-            // A hard ceiling on address space, so a mistake fails the run rather than the machine.
-            struct rlimit cap = {limit + (512ull << 20), limit + (512ull << 20)};
-            setrlimit(RLIMIT_AS, &cap);
-#endif
-            const std::filesystem::path path = kosmos::far_image_path(b.style, width);
-            if (std::filesystem::exists(path))
-            {
-                std::printf("already there: %s\n", path.string().c_str());
-                return 0;
-            }
-            std::printf("%s (%s): %d x %d, %d threads, up to %d MB\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), width, width / 2,
-                        options.gen_threads, options.gen_memory_mb, path.string().c_str());
-            print_planetbake(b);
-            const kosmos::PlanetSurface surface(b.style, b.radius);
-            std::string error;
-            int last = -1;
-            const bool ok = kosmos::generate_far_image(surface, width, static_cast<unsigned>(options.gen_threads), limit, [&](double fraction)
-            {
-                const int percent = static_cast<int>(fraction * 100.0);
-                if (percent != last)
-                {
-                    last = percent;
-                    std::printf("\r%3d%%", percent);
-                    std::fflush(stdout);
-                }
-            }, error);
-            std::printf("\n%s\n", ok ? "done" : error.c_str());
-            return ok ? 0 : 1;
-        }
+            return generate_world();
         if (!options.bake_body.empty())
-        {
-            // Pre-generates the high-resolution tile set of an invented world: --system N --bake-planet "Name" [--bake-width 16384] [--bake-estimate | --bake-lazy]
-            const int id = sim.universe.find(options.bake_body);
-            if (id < 0 || !sim.universe.bodies[static_cast<std::size_t>(id)].style.has_ground())
-            {
-                std::fprintf(stderr, "kosmos: no generated rocky body '%s' in this system. Candidates:\n", options.bake_body.c_str());
-                for (const kosmos::Body &b : sim.universe.bodies)
-                    if (b.style.has_ground())
-                        std::fprintf(stderr, "  %s (%s)\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
-                return 1;
-            }
-            const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
-            const kosmos::BakeEstimate estimate = kosmos::estimate_bake(options.bake_width);
-            const std::filesystem::path dir = kosmos::baked_tiles_dir(b.style, b.radius);
-            std::printf("%s (%s): %d x %d pixels, %lld tiles, about %s on disk\ninto %s\n", b.name.c_str(), kosmos::archetype_name(b.style.type), estimate.width,
-                        estimate.height, static_cast<long long>(estimate.tiles), kosmos::format_bytes(estimate.disk_bytes).c_str(), dir.string().c_str());
-            print_planetbake(b);
-            if (options.bake_estimate)
-                return 0;
-            if (options.bake_lazy)
-            {
-                if (!kosmos::write_lazy_marker(dir, options.bake_width))
-                {
-                    std::fprintf(stderr, "kosmos: cannot write into %s\n", dir.string().c_str());
-                    return 1;
-                }
-                std::printf("lazy: tiles up to that size are now made as you fly over them and kept there\n");
-                return 0;
-            }
-            const kosmos::PlanetSurface surface(b.style, b.radius);
-            std::string bake_error;
-            int last = -1;
-            const bool ok = kosmos::bake_tiles(surface, dir, options.bake_width, [&](double fraction)
-            {
-                const int percent = static_cast<int>(fraction * 100.0);
-                if (percent != last)
-                {
-                    last = percent;
-                    std::printf("\r%3d%%", percent);
-                    std::fflush(stdout);
-                }
-                return true;
-            }, bake_error);
-            std::printf("\n%s\n", ok ? "done" : bake_error.c_str());
-            return ok ? 0 : 1;
-        }
+            return bake_world();
         if (options.list_scenarios)
         {
             for (const kosmos::Scenario &sc : sim.scenarios())
@@ -207,55 +270,9 @@ namespace kosmos::app
             return 0;
         }
         if (!options.export_base.empty())
-        {
-            // Every built-in prop of a base, one scene object each, as a GLB (also a check of the Blender bake).
-            for (const kosmos::Base &base : sim.bases)
-                if (base.id == options.export_base)
-                {
-                    std::vector<kosmos::GlbNode> nodes;
-                    for (std::size_t i = 0; i < base.objects.size(); ++i)
-                    {
-                        kosmos::GlbNode node;
-                        node.name = std::to_string(i) + "_" + base.objects[i].type;
-                        if (kosmos::bake_base_object(base.objects[i], node.mesh))
-                            nodes.push_back(std::move(node));
-                    }
-                    std::string error;
-                    const bool ok = kosmos::write_glb(nodes, options.export_file, error);
-                    std::printf("%zu objects -> %s %s\n", nodes.size(), options.export_file.c_str(), ok ? "" : error.c_str());
-                    return ok ? 0 : 1;
-                }
-            std::printf("no base %s\n", options.export_base.c_str());
-            return 1;
-        }
+            return export_base();
         if (options.check_data)
-        {
-            // Every scenario and base must survive the editors' save and load unchanged.
-            int bad = 0;
-            for (const kosmos::Scenario &sc : sim.scenarios())
-            {
-                kosmos::Scenario again;
-                std::string error;
-                const std::string text = kosmos::scenario_to_json(sc);
-                if (!kosmos::parse_scenario(text, sc.path, again, error) || kosmos::scenario_to_json(again) != text)
-                {
-                    std::printf("scenario %s does not round-trip %s\n", sc.id.c_str(), error.c_str());
-                    ++bad;
-                }
-            }
-            {
-                std::vector<kosmos::Base> again;
-                std::string error;
-                const std::string text = kosmos::bases_to_json(sim.bases);
-                if (!kosmos::parse_bases(text, "check", again, error) || kosmos::bases_to_json(again) != text || again.size() != sim.bases.size())
-                {
-                    std::printf("bases do not round-trip %s\n", error.c_str());
-                    ++bad;
-                }
-            }
-            std::printf("%zu scenarios, %zu bases, %d problems\n", sim.scenarios().size(), sim.bases.size(), bad);
-            return bad == 0 ? 0 : 1;
-        }
+            return check_data();
     return keep_going;
     }
 

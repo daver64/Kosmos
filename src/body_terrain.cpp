@@ -3,6 +3,9 @@
 #include "surface_textures.h"
 #include "terrain_mesh.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace kosmos::app
 {
     namespace
@@ -34,6 +37,197 @@ namespace kosmos::app
 
     bool detail_disabled = false;
     ClutterPerf clutter_perf;
+
+    // Meshes placed on the ground become its surface; the bases are then levelled into it.
+    static std::shared_ptr<kosmos::MeshSource> place_terrain_meshes(Sim &sim, const kosmos::Body &b, int id, sl::TerrainConfig &config, std::shared_ptr<sl::TerrainSource> &source)
+    {
+        std::shared_ptr<kosmos::MeshSource> meshes;
+        const auto find = [&](const kosmos::Base &base, const std::string &name) {
+            std::string found = kosmos::resolve_base_model(base, name);
+            std::error_code ec;
+            for (const char *folder : {"/", "/data/"})
+                if (found.empty() && std::filesystem::exists(sim.root() + folder + name, ec))
+                    found = sim.root() + folder + name;
+            return found;
+        };
+        std::vector<kosmos::MeshSource::Placed> placed;
+        for (const kosmos::Base &base : sim.bases)
+        {
+            if (sim.universe.find(base.body) != id)
+                continue;
+            for (const kosmos::TerrainMeshSpec &spec : base.terrain_meshes)
+            {
+                const std::string path = find(base, spec.file), image = spec.image.empty() ? std::string() : find(base, spec.image);
+                auto grid = std::make_shared<kosmos::MeshGrid>();
+                std::string error;
+                if (path.empty())
+                    error = "file not found";
+                else if (!spec.image.empty() && image.empty())
+                    error = "image not found";
+                else if (kosmos::load_mesh_grid(spec, path, image, *grid, error))
+                {
+                    std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %d x %d at %.2f m%s\n", base.id.c_str(), spec.file.c_str(), grid->width, grid->height, grid->cell, grid->colours.empty() ? "" : ", coloured");
+                    placed.push_back(kosmos::MeshSource::place(base, b.radius, spec, grid, base.height + spec.y));
+                    continue;
+                }
+                std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %s\n", base.id.c_str(), spec.file.c_str(), error.c_str());
+            }
+        }
+        if (!placed.empty())
+        {
+            meshes = std::make_shared<kosmos::MeshSource>(source, b.radius, std::move(placed));
+            source = meshes;
+            const auto inner = config.colour_function;
+            config.colour_function = [inner, meshes](const sl::TerrainSample &sample, float rgb[3])
+            {
+                float c[3] = {0.5f, 0.5f, 0.5f};
+                const bool base_colour = inner && inner(sample, c);
+                if (meshes->colour(sample.position, c))
+                {
+                    std::copy(c, c + 3, rgb);
+                    return true;
+                }
+                if (base_colour)
+                    std::copy(c, c + 3, rgb);
+                return base_colour;
+            };
+        }
+        return meshes;
+    }
+
+    static void level_ground_under_bases(Sim &sim, const kosmos::Body &b, int id, std::shared_ptr<sl::TerrainSource> &source)
+    {
+        // Level the ground under each base at the height of its centre (on a mesh, the mesh's height there).
+        std::vector<kosmos::FlattenSource::Site> sites;
+        for (kosmos::Base &base : sim.bases)
+        {
+            if (sim.universe.find(base.body) != id)
+                continue;
+            base.height = source->height_on_sphere(base.direction, b.radius);
+            for (const kosmos::FlattenSite &site : kosmos::flatten_sites(base, b.radius))
+                sites.push_back(site);
+        }
+        if (!sites.empty())
+            source = std::make_shared<kosmos::FlattenSource>(source, b.radius, std::move(sites));
+    }
+
+    static std::string lower_case(std::string text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return text;
+    }
+
+    // Land cover is optional per body: it lives in data/landclass/<system>/<body> (Sol's Earth ships one).
+    static void open_landclass(Sim &sim, const kosmos::Body &b, BodyTerrain &result)
+    {
+        const std::string where = lower_case(sim.universe.name) + "/" + lower_case(b.name);
+        const std::string land_dir = sim.root() + "/data/landclass/" + where;
+        std::error_code land_ec;
+        if (std::filesystem::exists(land_dir, land_ec))
+        {
+            auto land = std::make_shared<kosmos::Landclass>();
+            std::string land_error;
+            // The raw rasters are developer data under import/; the shipped cache stays in data/.
+            if (land->open(sim.root() + "/import/landclass/" + where, land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
+            {
+                std::fprintf(stderr, "[kosmos] %s land cover: %d x %d cells\n", b.name.c_str(), land->width(), land->height());
+                result.landclass = std::move(land);
+            }
+            else
+                std::fprintf(stderr, "[kosmos] %s land cover unavailable: %s\n", b.name.c_str(), land_error.c_str());
+        }
+    }
+
+    static void apply_detail_texture(Sim &sim, const kosmos::Body &b, const sl::TerrainConfig &config, BodyTerrain &result)
+    {
+        // A seamless map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
+        const std::string file = b.detail.empty() ? "detail_dirt.jpg" : b.detail;
+        auto found = detail_maps.find(file);
+        if (found == detail_maps.end())
+            found = detail_maps.emplace(file, sl::load_bitmap((sim.root() + "/data/textures/" + file).c_str())).first;
+        sl::Bitmap *detail = found->second;
+        if (detail)
+        {
+            sl::TerrainTextureOptions opts;
+            opts.colour_detail = true;
+            opts.macro_texture = detail;
+            opts.macro_tile_metres = b.detail_tile;
+            opts.macro_strength = b.detail_strength;
+            opts.fade_start = 400.0;
+            opts.fade_end = 4000.0;
+            opts.max_size = 2048;
+            std::fprintf(stderr, "[kosmos] %s detail texture: %s\n", b.name.c_str(), result.terrain->set_layer_textures(config.layers, opts) ? "on" : "unavailable");
+        }
+    }
+
+    static void imagery_colours(sl::TerrainConfig &config, const std::shared_ptr<kosmos::OrbiterImagery> &orbiter_imagery, const std::vector<std::shared_ptr<kosmos::CelestiaImagery>> &surface_imagery)
+    {
+        config.colour_function = [orbiter_imagery, surface_imagery](const sl::TerrainSample &sample, float rgb[3])
+        {
+            float orbiter_rgb[3], celestia_rgb[3];
+            double orbiter_resolution = std::numeric_limits<double>::infinity();
+            const bool has_orbiter = orbiter_imagery &&
+                                     orbiter_imagery->colour(sample.position, sample.cell_size, orbiter_rgb, orbiter_resolution);
+            bool has_celestia = false;
+            double celestia_resolution = std::numeric_limits<double>::infinity();
+            for (const auto &imagery : surface_imagery)
+            {
+                float candidate_rgb[3];
+                double candidate_resolution = std::numeric_limits<double>::infinity();
+                if (imagery->colour(sample.position, sample.cell_size, candidate_rgb, candidate_resolution) &&
+                    candidate_resolution < celestia_resolution)
+                {
+                    std::copy(std::begin(candidate_rgb), std::end(candidate_rgb), celestia_rgb);
+                    celestia_resolution = candidate_resolution;
+                    has_celestia = true;
+                }
+            }
+            if (has_celestia && (!has_orbiter || celestia_resolution < orbiter_resolution))
+                std::copy(std::begin(celestia_rgb), std::end(celestia_rgb), rgb);
+            else if (has_orbiter)
+                std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
+            else
+                return false;
+            return true;
+        };
+    }
+
+    static void make_generated_ground(sl::TerrainConfig &config, const kosmos::Body &b, const kosmos::SurfaceFrame &frame, std::shared_ptr<sl::TerrainSource> &source)
+    {
+        // An invented world: the same generator that painted its far-view image shapes and colours the ground.
+        const auto planet_surface = std::make_shared<kosmos::PlanetSurface>(b.style, b.radius);
+        source = planet_surface->make_source();
+        // A baked tile set (see --bake-planet) is used wherever it is at least as fine as the terrain cell; finer than that the generator takes over.
+        std::vector<std::shared_ptr<kosmos::CelestiaImagery>> baked;
+        const std::filesystem::path tiles = kosmos::baked_tiles_dir(b.style, b.radius);
+        std::error_code tiles_ec;
+        if (std::filesystem::exists(tiles / "tiles.ctx", tiles_ec))
+        {
+            auto imagery = std::make_shared<kosmos::CelestiaImagery>(tiles.string(), frame, b.radius);
+            if (imagery->ok())
+            {
+                baked.push_back(std::move(imagery));
+                std::fprintf(stderr, "[kosmos] %s baked tiles: %s\n", b.name.c_str(), tiles.string().c_str());
+            }
+        }
+        std::shared_ptr<kosmos::LazyTiles> lazy;
+        if (const int lazy_width = kosmos::read_lazy_width(tiles))
+        {
+            lazy = std::make_shared<kosmos::LazyTiles>(planet_surface, tiles, b.radius, lazy_width);
+            std::fprintf(stderr, "[kosmos] %s lazy tiles up to %d wide: %s\n", b.name.c_str(), kosmos::estimate_bake(lazy_width).width, tiles.string().c_str());
+        }
+        config.colour_function = [planet_surface, baked, lazy](const sl::TerrainSample &sample, float rgb[3])
+        {
+            if (lazy && lazy->colour(sample.position, sample.cell_size, rgb))
+                return true;
+            double resolution = 0.0;
+            if (!baked.empty() && baked.front()->colour(sample.position, sample.cell_size, rgb, resolution) && resolution <= std::max(sample.cell_size, 1.0))
+                return true;
+            planet_surface->colour(sample.position, sample.height, sample.slope_degrees, rgb);
+            return true;
+        };
+        std::fprintf(stderr, "[kosmos] %s generated %s terrain\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+    }
 
     std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home)
     {
@@ -103,75 +297,15 @@ namespace kosmos::app
             surface_imagery.push_back(std::move(imagery));
         }
         if (orbiter_imagery || !surface_imagery.empty())
-        {
-            config.colour_function = [orbiter_imagery, surface_imagery](const sl::TerrainSample &sample, float rgb[3])
-            {
-                float orbiter_rgb[3], celestia_rgb[3];
-                double orbiter_resolution = std::numeric_limits<double>::infinity();
-                const bool has_orbiter = orbiter_imagery &&
-                                         orbiter_imagery->colour(sample.position, sample.cell_size, orbiter_rgb, orbiter_resolution);
-                bool has_celestia = false;
-                double celestia_resolution = std::numeric_limits<double>::infinity();
-                for (const auto &imagery : surface_imagery)
-                {
-                    float candidate_rgb[3];
-                    double candidate_resolution = std::numeric_limits<double>::infinity();
-                    if (imagery->colour(sample.position, sample.cell_size, candidate_rgb, candidate_resolution) &&
-                        candidate_resolution < celestia_resolution)
-                    {
-                        std::copy(std::begin(candidate_rgb), std::end(candidate_rgb), celestia_rgb);
-                        celestia_resolution = candidate_resolution;
-                        has_celestia = true;
-                    }
-                }
-                if (has_celestia && (!has_orbiter || celestia_resolution < orbiter_resolution))
-                    std::copy(std::begin(celestia_rgb), std::end(celestia_rgb), rgb);
-                else if (has_orbiter)
-                    std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
-                else
-                    return false;
-                return true;
-            };
-        }
+        if (orbiter_imagery || !surface_imagery.empty())
+            imagery_colours(config, orbiter_imagery, surface_imagery);
         if (source)
         {
             std::fprintf(stderr, "[kosmos] %s terrain from Orbiter data\n", b.name.c_str());
         }
         else if (generated_ground)
         {
-            // An invented world: the same generator that painted its far-view image shapes and colours the ground.
-            const auto surface = std::make_shared<kosmos::PlanetSurface>(b.style, b.radius);
-            source = surface->make_source();
-            // A baked tile set (see --bake-planet) is used wherever it is at least as fine as the terrain cell; finer than that the generator takes over.
-            std::vector<std::shared_ptr<kosmos::CelestiaImagery>> baked;
-            const std::filesystem::path tiles = kosmos::baked_tiles_dir(b.style, b.radius);
-            std::error_code tiles_ec;
-            if (std::filesystem::exists(tiles / "tiles.ctx", tiles_ec))
-            {
-                auto imagery = std::make_shared<kosmos::CelestiaImagery>(tiles.string(), frame, b.radius);
-                if (imagery->ok())
-                {
-                    baked.push_back(std::move(imagery));
-                    std::fprintf(stderr, "[kosmos] %s baked tiles: %s\n", b.name.c_str(), tiles.string().c_str());
-                }
-            }
-            std::shared_ptr<kosmos::LazyTiles> lazy;
-            if (const int lazy_width = kosmos::read_lazy_width(tiles))
-            {
-                lazy = std::make_shared<kosmos::LazyTiles>(surface, tiles, b.radius, lazy_width);
-                std::fprintf(stderr, "[kosmos] %s lazy tiles up to %d wide: %s\n", b.name.c_str(), kosmos::estimate_bake(lazy_width).width, tiles.string().c_str());
-            }
-            config.colour_function = [surface, baked, lazy](const sl::TerrainSample &sample, float rgb[3])
-            {
-                if (lazy && lazy->colour(sample.position, sample.cell_size, rgb))
-                    return true;
-                double resolution = 0.0;
-                if (!baked.empty() && baked.front()->colour(sample.position, sample.cell_size, rgb, resolution) && resolution <= std::max(sample.cell_size, 1.0))
-                    return true;
-                surface->colour(sample.position, sample.height, sample.slope_degrees, rgb);
-                return true;
-            };
-            std::fprintf(stderr, "[kosmos] %s generated %s terrain\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
+            make_generated_ground(config, b, frame, source);
         }
         else if (home)
         {
@@ -188,74 +322,8 @@ namespace kosmos::app
         for (kosmos::Base &base : sim.bases)
             if (sim.universe.find(base.body) == id)
                 base.height = source->height_on_sphere(base.direction, b.radius);
-        std::shared_ptr<kosmos::MeshSource> meshes;
-        {
-            // Meshes placed on the ground become its surface; the bases are then levelled into it.
-            const auto find = [&](const kosmos::Base &base, const std::string &name) {
-                std::string found = kosmos::resolve_base_model(base, name);
-                std::error_code ec;
-                for (const char *folder : {"/", "/data/"})
-                    if (found.empty() && std::filesystem::exists(sim.root() + folder + name, ec))
-                        found = sim.root() + folder + name;
-                return found;
-            };
-            std::vector<kosmos::MeshSource::Placed> placed;
-            for (const kosmos::Base &base : sim.bases)
-            {
-                if (sim.universe.find(base.body) != id)
-                    continue;
-                for (const kosmos::TerrainMeshSpec &spec : base.terrain_meshes)
-                {
-                    const std::string path = find(base, spec.file), image = spec.image.empty() ? std::string() : find(base, spec.image);
-                    auto grid = std::make_shared<kosmos::MeshGrid>();
-                    std::string error;
-                    if (path.empty())
-                        error = "file not found";
-                    else if (!spec.image.empty() && image.empty())
-                        error = "image not found";
-                    else if (kosmos::load_mesh_grid(spec, path, image, *grid, error))
-                    {
-                        std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %d x %d at %.2f m%s\n", base.id.c_str(), spec.file.c_str(), grid->width, grid->height, grid->cell, grid->colours.empty() ? "" : ", coloured");
-                        placed.push_back(kosmos::MeshSource::place(base, b.radius, spec, grid, base.height + spec.y));
-                        continue;
-                    }
-                    std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %s\n", base.id.c_str(), spec.file.c_str(), error.c_str());
-                }
-            }
-            if (!placed.empty())
-            {
-                meshes = std::make_shared<kosmos::MeshSource>(source, b.radius, std::move(placed));
-                source = meshes;
-                const auto inner = config.colour_function;
-                config.colour_function = [inner, meshes](const sl::TerrainSample &sample, float rgb[3])
-                {
-                    float c[3] = {0.5f, 0.5f, 0.5f};
-                    const bool base_colour = inner && inner(sample, c);
-                    if (meshes->colour(sample.position, c))
-                    {
-                        std::copy(c, c + 3, rgb);
-                        return true;
-                    }
-                    if (base_colour)
-                        std::copy(c, c + 3, rgb);
-                    return base_colour;
-                };
-            }
-        }
-        {
-            // Level the ground under each base at the height of its centre (on a mesh, the mesh's height there).
-            std::vector<kosmos::FlattenSource::Site> sites;
-            for (kosmos::Base &base : sim.bases)
-            {
-                if (sim.universe.find(base.body) != id)
-                    continue;
-                base.height = source->height_on_sphere(base.direction, b.radius);
-                for (const kosmos::FlattenSite &site : kosmos::flatten_sites(base, b.radius))
-                    sites.push_back(site);
-            }
-            if (!sites.empty())
-                source = std::make_shared<kosmos::FlattenSource>(source, b.radius, std::move(sites));
-        }
+        const std::shared_ptr<kosmos::MeshSource> meshes = place_terrain_meshes(sim, b, id, config, source);
+        level_ground_under_bases(sim, b, id, source);
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
         result->terrain = std::make_unique<sl::Terrain>(config, source);
@@ -264,45 +332,9 @@ namespace kosmos::app
         if (meshes)
             for (const auto &footprint : meshes->footprints())
                 result->clutter_zones.push_back({footprint.first, footprint.first, footprint.second + 60.0});
-        if (b.name == "Earth")
-        {
-            const std::string land_dir = sim.root() + "/data/landclass/sol/earth";
-            std::error_code land_ec;
-            if (std::filesystem::exists(land_dir, land_ec))
-            {
-                auto land = std::make_shared<kosmos::Landclass>();
-                std::string land_error;
-                // The raw rasters are developer data under import/; the shipped cache stays in data/.
-                if (land->open(sim.root() + "/import/landclass/sol/earth", land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
-                {
-                    std::fprintf(stderr, "[kosmos] Earth land cover: %d x %d cells\n", land->width(), land->height());
-                    result->landclass = std::move(land);
-                }
-                else
-                    std::fprintf(stderr, "[kosmos] Earth land cover unavailable: %s\n", land_error.c_str());
-            }
-        }
+        open_landclass(sim, b, *result);
         if (!detail_disabled)
-        {
-            // A seamless map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
-            const std::string file = b.detail.empty() ? "detail_dirt.jpg" : b.detail;
-            auto found = detail_maps.find(file);
-            if (found == detail_maps.end())
-                found = detail_maps.emplace(file, sl::load_bitmap((sim.root() + "/data/textures/" + file).c_str())).first;
-            sl::Bitmap *detail = found->second;
-            if (detail)
-            {
-                sl::TerrainTextureOptions opts;
-                opts.colour_detail = true;
-                opts.macro_texture = detail;
-                opts.macro_tile_metres = b.detail_tile;
-                opts.macro_strength = b.detail_strength;
-                opts.fade_start = 400.0;
-                opts.fade_end = 4000.0;
-                opts.max_size = 2048;
-                std::fprintf(stderr, "[kosmos] %s detail texture: %s\n", b.name.c_str(), result->terrain->set_layer_textures(config.layers, opts) ? "on" : "unavailable");
-            }
-        }
+            apply_detail_texture(sim, b, config, *result);
         return result;
     }
 

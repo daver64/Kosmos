@@ -363,7 +363,7 @@ namespace kosmos
     }
 
     WeatherField::WeatherField(const std::string &body, const BodyWeather &params, int seed, std::vector<WeatherStation> stations)
-        : body_(body), params_(params), seed_(seed), stations_(std::move(stations))
+        : body_(body), params_(params), seed_(seed), stations_(std::move(stations)), real_(true)
     {
         for (const WeatherStation &s : stations_)
         {
@@ -427,7 +427,7 @@ namespace kosmos
             m.visibility_m = potential > 0.4 ? 600 : 2500;
         }
 
-        std::sort(m.clouds.begin(), m.clouds.end(), [](const MetarCloud &x, const MetarCloud &y) { return x.base_ft < y.base_ft; });
+        std::sort(m.clouds.begin(), m.clouds.end(), [](const MetarCloud &lhs, const MetarCloud &rhs) { return lhs.base_ft < rhs.base_ft; });
 
         const double temperature = params_.mean_temperature + params_.temperature_range * (0.5 - std::fabs(std::sin(la))) - 3.0 * cloud + 2.0 * n_pressure;
         m.temperature_c = static_cast<int>(std::lround(temperature));
@@ -597,57 +597,10 @@ namespace kosmos
         w.cloudiness = 0.3;
         w.rain_chance = 0.0;
         w.rain_is_precipitation = false;
-        if (body == "Earth")
-        {
-            w.mean_wind = 6.0;
-            w.wind_variation = 4.5;
-            w.cloudiness = 0.5;
-            w.rain_chance = 0.4;
-            w.rain_is_precipitation = true;
-            w.mean_temperature = 14.0;
-            w.temperature_range = 40.0;
-            w.pressure = 1013.0;
-            w.pressure_variation = 12.0;
-        }
-        else if (body == "Mars")
-        {
-            w.mean_wind = 7.0;
-            w.wind_variation = 6.0;
-            w.cloudiness = 0.1;
-            w.rain_chance = 0.25;
-            w.mean_temperature = -55.0;
-            w.temperature_range = 60.0;
-            w.cloud_base = 4000.0;
-        }
-        else if (body == "Venus")
-        {
-            w.mean_wind = 1.5;
-            w.wind_variation = 1.0;
-            w.cloudiness = 0.0;
-            w.mean_temperature = 462.0;
-            w.temperature_range = 4.0;
-            w.pressure = 92000.0;
-            w.pressure_variation = 300.0;
-        }
-        else if (body == "Titan")
-        {
-            w.mean_wind = 1.0;
-            w.wind_variation = 1.0;
-            w.cloudiness = 0.55;
-            w.rain_chance = 0.2;
-            w.rain_is_precipitation = true;
-            w.mean_temperature = -179.0;
-            w.temperature_range = 3.0;
-            w.pressure = 1467.0;
-            w.pressure_variation = 8.0;
-            w.cloud_base = 20000.0;
-        }
-        else
-        {
-            w.mean_wind = 12.0;
-            w.wind_variation = 10.0;
-            w.temperature_range = 10.0;
-        }
+        // Generic values for a world with no entry in data/weather/bodies.json, which holds the measured climates.
+        w.mean_wind = 12.0;
+        w.wind_variation = 10.0;
+        w.temperature_range = 10.0;
         std::ifstream file(data_root + "/data/weather/bodies.json");
         if (file)
         {

@@ -70,6 +70,9 @@ namespace kosmos
         bool redo();
 
     private:
+        void draw_toolbar(Sim &sim, FileDialog &dialog, const MenuActions &actions);
+        void draw_scenario_fields();
+        void draw_ship_fields(Sim &sim, ScenarioShip &s, const std::vector<std::string> &ships, const std::vector<std::string> &bodies);
         void snapshot_changes();
         Scenario scenario_;
         bool has_ = false;
@@ -88,6 +91,11 @@ namespace kosmos
 
     private:
         void snapshot_changes(Sim &sim);
+        void tab_site(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
+        void tab_objects(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
+        void tab_runways(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
+        void tab_navaids(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
+        void tab_cameras(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
         void restore(Sim &sim, const std::string &text);
         void tick_blender(Sim &sim);
         bool begin_blender(Sim &sim, Base &base, const std::vector<int> &indices);
@@ -115,6 +123,9 @@ namespace kosmos
     public:
         void draw(Sim &sim, std::vector<MenuWindow> &windows, const MenuActions &actions);
         /** Draw the editors and dialogs; call every frame, even while the bar is hidden. */
+        void menu_file(Sim &sim, const MenuActions &actions);
+        void menu_edit(Sim &sim, std::vector<MenuWindow> &windows, const MenuActions &actions);
+        void menu_view(Sim &sim, std::vector<MenuWindow> &windows, const MenuActions &actions);
         void draw_windows(Sim &sim, const MenuActions &actions);
         /** Escape: closes an open menu, the dialog, or the editor windows. Returns false when there was nothing to close. */
         bool dismiss(std::vector<MenuWindow> &windows);

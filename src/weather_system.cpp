@@ -3,6 +3,7 @@
 #include "json.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <fstream>
 #include <functional>
@@ -64,10 +65,12 @@ namespace kosmos
         const BodyWeather params = body_weather_for(b.name, b.atmosphere_density, 0.0, root_);
         const int seed = static_cast<int>(std::hash<std::string>{}(b.name) % 100000);
         std::unique_ptr<WeatherField> field;
-        if (b.name == "Earth")
         {
+            // A body with real stations ships them as data/weather/<body>_stations.json.
+            std::string lower = b.name;
+            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             std::vector<WeatherStation> stations;
-            std::ifstream file(root_ + "/data/weather/earth_stations.json");
+            std::ifstream file(root_ + "/data/weather/" + lower + "_stations.json");
             if (file)
             {
                 try
@@ -132,33 +135,9 @@ namespace kosmos
         return true;
     }
 
-    void Weather::step(Universe &universe, sl::PropertyTree &props, int body, double latitude, double longitude, double altitude, double dt)
+    void Weather::poll_live(WeatherField *field, sl::PropertyTree &props)
     {
-        // The wind a planet had last frame is dropped when the flown ship moves to another body or weather is off.
-        const auto clear_wind = [&] {
-            if (wind_body_ >= 0)
-                if (sl::FlightBody *fb = universe.world.body(wind_body_))
-                    fb->wind_field = nullptr;
-            wind_body_ = -1;
-        };
-        WeatherField *field = props.get_bool("/sim/settings/weather", true) ? ensure(universe, body) : nullptr;
-        if (!field)
-        {
-            clear_wind();
-            current_ = Conditions();
-            current_.visibility = 1.0e5;
-            wet_ = 0.0;
-            props.set_double("/environment/rain", 0.0);
-            props.set_double("/environment/cloud-cover", 0.0);
-            props.set_double("/environment/wind-speed", 0.0);
-            props.set_string("/environment/metar", "");
-            return;
-        }
-        unix_now_ = unix_from_julian(universe.julian_date());
-        field->update(unix_now_);
-
-        // Real observations for Earth when asked for and the simulated date is close to today's.
-        if (universe.bodies[static_cast<std::size_t>(body)].name == "Earth")
+        if (field->real_stations())
         {
             const bool want = props.get_string("/sim/settings/weather-source", "procedural") == "live" && http_available();
             const double real = real_unix_time();
@@ -189,7 +168,10 @@ namespace kosmos
                 field->update(unix_now_);
             }
         }
+    }
 
+    void Weather::update_forced(sl::PropertyTree &props)
+    {
         std::string forced = props.get_string("/sim/weather-force", "");
         if (forced.empty())
         {
@@ -210,6 +192,78 @@ namespace kosmos
             if (forced_valid_)
                 forced_ = conditions_from(m);
         }
+    }
+
+    void Weather::install_wind_field(Universe &universe, int body, const std::function<void(double, double, double, double &, double &)> &wind_at)
+    {
+        if (sl::FlightBody *fb = universe.world.body(body))
+        {
+            const auto orientation = universe.orientation(body);
+            const auto inverse = glm::inverse(orientation);
+            const double radius = fb->radius;
+            fb->wind_field = [wind_at, orientation, inverse, radius](const sl::dvec3 &offset) {
+                const double r = glm::length(offset);
+                if (r < 1.0)
+                    return sl::dvec3(0.0);
+                const sl::dvec3 b = inverse * (offset / r);
+                const double la = std::asin(std::clamp(b.y, -1.0, 1.0)), lo = std::atan2(-b.z, b.x);
+                double e = 0.0, n = 0.0;
+                wind_at(la / deg, lo / deg, r - radius, e, n);
+                const sl::dvec3 east_axis(-std::sin(lo), 0.0, -std::cos(lo));
+                const sl::dvec3 north_axis(-std::sin(la) * std::cos(lo), std::cos(la), std::sin(la) * std::sin(lo));
+                return orientation * (east_axis * e + north_axis * n);
+            };
+            wind_body_ = body;
+        }
+    }
+
+    void Weather::publish_environment(sl::PropertyTree &props, const Conditions &c, double east, double north)
+    {
+        props.set_double("/environment/wind-east", east);
+        props.set_double("/environment/wind-north", north);
+        const double now_speed = std::hypot(east, north);
+        props.set_double("/environment/wind-speed", now_speed);
+        props.set_double("/environment/wind-from", now_speed > 0.01 ? std::fmod(std::atan2(-east, -north) / deg + 360.0, 360.0) : 0.0);
+        props.set_double("/environment/thunder", current_.thunder);
+        props.set_double("/environment/rain", c.rain);
+        props.set_double("/environment/wetness", wet_);
+        props.set_double("/environment/cloud-cover", c.cloud_cover);
+        props.set_double("/environment/cloud-base", c.cloud_base);
+        props.set_double("/environment/cloud-top", c.cloud_top);
+        props.set_double("/environment/visibility", c.visibility);
+        props.set_double("/environment/temperature", c.temperature);
+        props.set_double("/environment/pressure", c.pressure);
+    }
+
+    void Weather::step(Universe &universe, sl::PropertyTree &props, int body, double latitude, double longitude, double altitude, double dt)
+    {
+        // The wind a planet had last frame is dropped when the flown ship moves to another body or weather is off.
+        const auto clear_wind = [&] {
+            if (wind_body_ >= 0)
+                if (sl::FlightBody *fb = universe.world.body(wind_body_))
+                    fb->wind_field = nullptr;
+            wind_body_ = -1;
+        };
+        WeatherField *field = props.get_bool("/sim/settings/weather", true) ? ensure(universe, body) : nullptr;
+        if (!field)
+        {
+            clear_wind();
+            current_ = Conditions();
+            current_.visibility = 1.0e5;
+            wet_ = 0.0;
+            props.set_double("/environment/rain", 0.0);
+            props.set_double("/environment/cloud-cover", 0.0);
+            props.set_double("/environment/wind-speed", 0.0);
+            props.set_string("/environment/metar", "");
+            return;
+        }
+        unix_now_ = unix_from_julian(universe.julian_date());
+        field->update(unix_now_);
+
+        // Real observations when the body has real stations, they are asked for and the simulated date is close to today's.
+        poll_live(field, props);
+
+        update_forced(props);
         Conditions c = forced_valid_ ? forced_ : field->sample(latitude, longitude);
         // Weather lives in the air: above the atmosphere (about ten scale heights) there is no rain, cloud or storm to report.
         const Body &weather_body = universe.bodies[static_cast<std::size_t>(body)];
@@ -249,25 +303,7 @@ namespace kosmos
         // Every ship on the planet feels the wind at its own position. Body frame has +Y up the spin axis; east is (-sin lon, 0, -cos lon).
         if (wind_body_ != body)
             clear_wind();
-        if (sl::FlightBody *fb = universe.world.body(body))
-        {
-            const auto orientation = universe.orientation(body);
-            const auto inverse = glm::inverse(orientation);
-            const double radius = fb->radius;
-            fb->wind_field = [wind_at, orientation, inverse, radius](const sl::dvec3 &offset) {
-                const double r = glm::length(offset);
-                if (r < 1.0)
-                    return sl::dvec3(0.0);
-                const sl::dvec3 b = inverse * (offset / r);
-                const double la = std::asin(std::clamp(b.y, -1.0, 1.0)), lo = std::atan2(-b.z, b.x);
-                double e = 0.0, n = 0.0;
-                wind_at(la / deg, lo / deg, r - radius, e, n);
-                const sl::dvec3 east_axis(-std::sin(lo), 0.0, -std::cos(lo));
-                const sl::dvec3 north_axis(-std::sin(la) * std::cos(lo), std::cos(la), std::sin(la) * std::sin(lo));
-                return orientation * (east_axis * e + north_axis * n);
-            };
-            wind_body_ = body;
-        }
+        install_wind_field(universe, body, wind_at);
 
         // Ground wetness: quick to soak, slow to dry (about half an hour of simulated time).
         const double target = std::clamp(c.rain * 1.6, 0.0, 1.0);
@@ -279,20 +315,7 @@ namespace kosmos
             wet_ = std::max(target, wet_ - dt / 1800.0);
         last_body_ = body;
 
-        props.set_double("/environment/wind-east", east);
-        props.set_double("/environment/wind-north", north);
-        const double now_speed = std::hypot(east, north);
-        props.set_double("/environment/wind-speed", now_speed);
-        props.set_double("/environment/wind-from", now_speed > 0.01 ? std::fmod(std::atan2(-east, -north) / deg + 360.0, 360.0) : 0.0);
-        props.set_double("/environment/thunder", current_.thunder);
-        props.set_double("/environment/rain", c.rain);
-        props.set_double("/environment/wetness", wet_);
-        props.set_double("/environment/cloud-cover", c.cloud_cover);
-        props.set_double("/environment/cloud-base", c.cloud_base);
-        props.set_double("/environment/cloud-top", c.cloud_top);
-        props.set_double("/environment/visibility", c.visibility);
-        props.set_double("/environment/temperature", c.temperature);
-        props.set_double("/environment/pressure", c.pressure);
+        publish_environment(props, c, east, north);
         double distance = 0.0;
         if (forced_valid_)
         {

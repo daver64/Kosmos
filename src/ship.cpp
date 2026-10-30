@@ -131,14 +131,14 @@ namespace kosmos
                 spec.cockpit.controls = read_controls(jc.value("controls", nlohmann::json::array()));
                 for (const nlohmann::json &ji : jc.value("instruments", nlohmann::json::array()))
                 {
-                    Cockpit::PanelInstrument pi;
-                    pi.mode = ji.value("mode", "");
-                    pi.x = ji.value("x", 0.0f);
-                    pi.y = ji.value("y", 0.0f);
-                    pi.size = ji.value("size", 200.0f);
-                    pi.frame = ji.value("frame", false);
-                    if (!pi.mode.empty())
-                        spec.cockpit.instruments.push_back(pi);
+                    Cockpit::PanelInstrument inst;
+                    inst.mode = ji.value("mode", "");
+                    inst.x = ji.value("x", 0.0f);
+                    inst.y = ji.value("y", 0.0f);
+                    inst.size = ji.value("size", 200.0f);
+                    inst.frame = ji.value("frame", false);
+                    if (!inst.mode.empty())
+                        spec.cockpit.instruments.push_back(inst);
                 }
                 for (const nlohmann::json &jp : jc.value("panels", nlohmann::json::array()))
                 {
@@ -149,14 +149,14 @@ namespace kosmos
                     extra.image = jp.value("image", "");
                     for (const nlohmann::json &ji : jp.value("instruments", nlohmann::json::array()))
                     {
-                        Cockpit::PanelInstrument pi;
-                        pi.mode = ji.value("mode", "");
-                        pi.x = ji.value("x", 0.0f);
-                        pi.y = ji.value("y", 0.0f);
-                        pi.size = ji.value("size", 200.0f);
-                        pi.frame = ji.value("frame", false);
-                        if (!pi.mode.empty())
-                            extra.instruments.push_back(pi);
+                        Cockpit::PanelInstrument inst;
+                        inst.mode = ji.value("mode", "");
+                        inst.x = ji.value("x", 0.0f);
+                        inst.y = ji.value("y", 0.0f);
+                        inst.size = ji.value("size", 200.0f);
+                        inst.frame = ji.value("frame", false);
+                        if (!inst.mode.empty())
+                            extra.instruments.push_back(inst);
                     }
                     extra.controls = read_controls(jp.value("controls", nlohmann::json::array()));
                     if (!extra.instruments.empty() || !extra.controls.empty() || !extra.image.empty())
@@ -1493,9 +1493,9 @@ namespace kosmos
         t.flight_path = t.surface_speed > 1.0 ? std::asin(std::clamp(t.vertical_speed / t.surface_speed, -1.0, 1.0)) * 180.0 / pi : 0.0;
 
         {
-            const sl::dvec3 b = glm::inverse(universe_.orientation(t.soi)) * r;
-            t.latitude = std::asin(std::clamp(b.y / glm::length(b), -1.0, 1.0)) * 180.0 / pi;
-            t.longitude = std::atan2(-b.z, b.x) * 180.0 / pi;
+            const sl::dvec3 local_pos = glm::inverse(universe_.orientation(t.soi)) * r;
+            t.latitude = std::asin(std::clamp(local_pos.y / glm::length(local_pos), -1.0, 1.0)) * 180.0 / pi;
+            t.longitude = std::atan2(-local_pos.z, local_pos.x) * 180.0 / pi;
             t.body_radius = planet.radius;
         }
 

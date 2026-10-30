@@ -179,6 +179,130 @@ namespace kosmos::app
         }
     }
 
+    void App::settings_graphics()
+    {
+        sl::PropertyTree &props = *props_ref;
+        auto flag = [&](const char *label, const char *path, const char *tip)
+        {
+            bool v = props.get_bool(path);
+            if (ImGui::Checkbox(label, &v))
+                props.set_bool(path, v);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tip);
+        };
+            static const char *styles[] = {"Normal", "Flat shaded", "Wireframe"};
+            int style = props.get_int("/sim/settings/gfx-style");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::Combo("Render style", &style, styles, 3))
+                props.set_int("/sim/settings/gfx-style", style);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
+            flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
+            flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
+            flag("Rain", "/sim/settings/weather-rain", "Draw falling rain");
+            {
+                const auto &presets = kosmos::Weather::presets();
+                const std::string cur = props.get_string("/sim/settings/weather-preset", "auto");
+                std::string label = cur == "auto" ? "Automatic" : cur == "custom" ? "Custom METAR" : cur;
+                for (const auto &p : presets)
+                    if (cur == p.id)
+                        label = p.label;
+                ImGui::SetNextItemWidth(160.0f);
+                if (ImGui::BeginCombo("Weather preset", label.c_str()))
+                {
+                    if (ImGui::Selectable("Automatic", cur == "auto"))
+                        props.set_string("/sim/settings/weather-preset", "auto");
+                    for (const auto &p : presets)
+                        if (ImGui::Selectable(p.label, cur == p.id))
+                            props.set_string("/sim/settings/weather-preset", p.id);
+                    if (ImGui::Selectable("Custom METAR", cur == "custom"))
+                        props.set_string("/sim/settings/weather-preset", "custom");
+                    ImGui::EndCombo();
+                }
+                if (cur == "custom")
+                {
+                    char (&metar)[256] = memory.metar;
+                    if (!memory.metar_loaded)
+                    {
+                        std::snprintf(metar, sizeof metar, "%s", props.get_string("/sim/settings/weather-metar", "").c_str());
+                        memory.metar_loaded = true;
+                    }
+                    ImGui::SetNextItemWidth(360.0f);
+                    if (ImGui::InputText("METAR", metar, sizeof metar))
+                        props.set_string("/sim/settings/weather-metar", metar);
+                    if (!props.get_bool("/environment/metar-valid", true))
+                        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "Not a valid METAR (needs station and time, e.g. KOSM 011200Z 27015G25KT 3SM TS BKN010)");
+                }
+            }
+            {
+                const bool live_now = props.get_string("/sim/settings/weather-source", "procedural") == "live";
+                if (ImGui::RadioButton("Procedural weather", !live_now))
+                    props.set_string("/sim/settings/weather-source", "procedural");
+                ImGui::SameLine();
+                if (ImGui::RadioButton("Live (Earth, NOAA)", live_now))
+                    props.set_string("/sim/settings/weather-source", "live");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Real METARs from aviationweather.gov, fetched at most hourly. Used only while the simulated date is within three hours of the real one.");
+                if (live_now)
+                    ImGui::TextDisabled("%s", sim.weather.live_status().c_str());
+            }
+            int fps = props.get_int("/sim/settings/gfx-max-fps");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Max frame rate", &fps, 10, 240))
+                props.set_int("/sim/settings/gfx-max-fps", fps);
+            int radius = props.get_int("/sim/settings/gfx-light-radius");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Base light radius (m)", &radius, 500, 20000))
+                props.set_int("/sim/settings/gfx-light-radius", radius);
+            int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Weapon lights", &weapon_lights, 0, 8))
+                props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
+            static const char *details[] = {"Ultra", "High", "Medium", "Low"};
+            int detail = props.get_int("/sim/settings/gfx-terrain-detail");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::Combo("Terrain detail", &detail, details, 4))
+                props.set_int("/sim/settings/gfx-terrain-detail", detail);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+            bool clutter_enabled = props.get_bool("/sim/settings/gfx-clutter", true);
+            if (ImGui::Checkbox("Trees, buildings and rocks", &clutter_enabled))
+                props.set_bool("/sim/settings/gfx-clutter", clutter_enabled);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Scatter over the ground near you: trees, shrubs and houses on Earth (from its land cover), boulders on rocky worlds, and outposts on airless ones.");
+            if (clutter_enabled)
+            {
+                int clutter_density = props.get_int("/sim/settings/gfx-clutter-density", 100);
+                ImGui::SetNextItemWidth(160.0f);
+                if (ui::slider_int("Scatter density (%)", &clutter_density, 10, 200))
+                    props.set_int("/sim/settings/gfx-clutter-density", clutter_density);
+            }
+            bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
+            if (ImGui::Checkbox("Earth relief from orbit", &relief))
+                props.set_bool("/sim/settings/gfx-earth-relief", relief);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
+    }
+
+    void App::settings_worlds()
+    {
+        sl::PropertyTree &props = *props_ref;
+            static const int widths[] = {0, 2048, 4096, 8192, 16384};
+            static const char *names[] = {"Automatic", "2048 (small)", "4096", "8192 (large)", "16384 (huge)"};
+            int current = 0;
+            const int saved = props.get_int("/sim/settings/world-texture");
+            for (int w = 0; w < 5; ++w)
+                if (widths[w] == saved)
+                    current = w;
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::Combo("World texture", &current, names, 5))
+            {
+                props.set_int("/sim/settings/world-texture", widths[current]);
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Detail of the far-view image of invented worlds, applied as soon as it is made.\nEach size is made once and kept on disk: 4096 is about 35 MB, 8192 about 135 MB, 16384 about 540 MB per world,\nand needs that much video memory to show.");
+    }
+
     void App::draw_settings_window()
     {
         sl::PropertyTree &props = *props_ref;
@@ -207,98 +331,7 @@ namespace kosmos::app
                 flag("Warp and time", "/sim/settings/clock", "Warp factor, date and elapsed time along the bottom of the screen");
                 ImGui::SeparatorText("Graphics");
                 {
-                    static const char *styles[] = {"Normal", "Flat shaded", "Wireframe"};
-                    int style = props.get_int("/sim/settings/gfx-style");
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::Combo("Render style", &style, styles, 3))
-                        props.set_int("/sim/settings/gfx-style", style);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
-                    flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
-                    flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
-                    flag("Rain", "/sim/settings/weather-rain", "Draw falling rain");
-                    {
-                        const auto &presets = kosmos::Weather::presets();
-                        const std::string cur = props.get_string("/sim/settings/weather-preset", "auto");
-                        std::string label = cur == "auto" ? "Automatic" : cur == "custom" ? "Custom METAR" : cur;
-                        for (const auto &p : presets)
-                            if (cur == p.id)
-                                label = p.label;
-                        ImGui::SetNextItemWidth(160.0f);
-                        if (ImGui::BeginCombo("Weather preset", label.c_str()))
-                        {
-                            if (ImGui::Selectable("Automatic", cur == "auto"))
-                                props.set_string("/sim/settings/weather-preset", "auto");
-                            for (const auto &p : presets)
-                                if (ImGui::Selectable(p.label, cur == p.id))
-                                    props.set_string("/sim/settings/weather-preset", p.id);
-                            if (ImGui::Selectable("Custom METAR", cur == "custom"))
-                                props.set_string("/sim/settings/weather-preset", "custom");
-                            ImGui::EndCombo();
-                        }
-                        if (cur == "custom")
-                        {
-                            char (&metar)[256] = memory.metar;
-                            if (!memory.metar_loaded)
-                            {
-                                std::snprintf(metar, sizeof metar, "%s", props.get_string("/sim/settings/weather-metar", "").c_str());
-                                memory.metar_loaded = true;
-                            }
-                            ImGui::SetNextItemWidth(360.0f);
-                            if (ImGui::InputText("METAR", metar, sizeof metar))
-                                props.set_string("/sim/settings/weather-metar", metar);
-                            if (!props.get_bool("/environment/metar-valid", true))
-                                ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.4f, 1.0f), "Not a valid METAR (needs station and time, e.g. KOSM 011200Z 27015G25KT 3SM TS BKN010)");
-                        }
-                    }
-                    {
-                        const bool live_now = props.get_string("/sim/settings/weather-source", "procedural") == "live";
-                        if (ImGui::RadioButton("Procedural weather", !live_now))
-                            props.set_string("/sim/settings/weather-source", "procedural");
-                        ImGui::SameLine();
-                        if (ImGui::RadioButton("Live (Earth, NOAA)", live_now))
-                            props.set_string("/sim/settings/weather-source", "live");
-                        if (ImGui::IsItemHovered())
-                            ImGui::SetTooltip("Real METARs from aviationweather.gov, fetched at most hourly. Used only while the simulated date is within three hours of the real one.");
-                        if (live_now)
-                            ImGui::TextDisabled("%s", sim.weather.live_status().c_str());
-                    }
-                    int fps = props.get_int("/sim/settings/gfx-max-fps");
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ui::slider_int("Max frame rate", &fps, 10, 240))
-                        props.set_int("/sim/settings/gfx-max-fps", fps);
-                    int radius = props.get_int("/sim/settings/gfx-light-radius");
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ui::slider_int("Base light radius (m)", &radius, 500, 20000))
-                        props.set_int("/sim/settings/gfx-light-radius", radius);
-                    int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ui::slider_int("Weapon lights", &weapon_lights, 0, 8))
-                        props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
-                    static const char *details[] = {"Ultra", "High", "Medium", "Low"};
-                    int detail = props.get_int("/sim/settings/gfx-terrain-detail");
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::Combo("Terrain detail", &detail, details, 4))
-                        props.set_int("/sim/settings/gfx-terrain-detail", detail);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
-                    bool clutter_enabled = props.get_bool("/sim/settings/gfx-clutter", true);
-                    if (ImGui::Checkbox("Trees, buildings and rocks", &clutter_enabled))
-                        props.set_bool("/sim/settings/gfx-clutter", clutter_enabled);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Scatter over the ground near you: trees, shrubs and houses on Earth (from its land cover), boulders on rocky worlds, and outposts on airless ones.");
-                    if (clutter_enabled)
-                    {
-                        int clutter_density = props.get_int("/sim/settings/gfx-clutter-density", 100);
-                        ImGui::SetNextItemWidth(160.0f);
-                        if (ui::slider_int("Scatter density (%)", &clutter_density, 10, 200))
-                            props.set_int("/sim/settings/gfx-clutter-density", clutter_density);
-                    }
-                    bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
-                    if (ImGui::Checkbox("Earth relief from orbit", &relief))
-                        props.set_bool("/sim/settings/gfx-earth-relief", relief);
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
+                settings_graphics();
                 }
                 ImGui::SeparatorText("Sound");
                 flag("Sound on", "/sim/settings/sound", "Engine sound (M)");
@@ -307,20 +340,7 @@ namespace kosmos::app
                     props.set_int("/sim/settings/volume", volume);
                 ImGui::SeparatorText("Generated worlds");
                 {
-                    static const int widths[] = {0, 2048, 4096, 8192, 16384};
-                    static const char *names[] = {"Automatic", "2048 (small)", "4096", "8192 (large)", "16384 (huge)"};
-                    int current = 0;
-                    const int saved = props.get_int("/sim/settings/world-texture");
-                    for (int w = 0; w < 5; ++w)
-                        if (widths[w] == saved)
-                            current = w;
-                    ImGui::SetNextItemWidth(160.0f);
-                    if (ImGui::Combo("World texture", &current, names, 5))
-                    {
-                        props.set_int("/sim/settings/world-texture", widths[current]);
-                    }
-                    if (ImGui::IsItemHovered())
-                        ImGui::SetTooltip("Detail of the far-view image of invented worlds, applied as soon as it is made.\nEach size is made once and kept on disk: 4096 is about 35 MB, 8192 about 135 MB, 16384 about 540 MB per world,\nand needs that much video memory to show.");
+                settings_worlds();
                 }
                 ImGui::SeparatorText("Simulation");
                 int warp = props.get_int("/sim/warp-index");
@@ -330,6 +350,146 @@ namespace kosmos::app
             }
             ImGui::End();
         }
+    }
+
+    void App::part_converted_mesh(kosmos::ShipSpec &fspec)
+    {
+        if (part_edit.converted && !part_edit.model.empty())
+        {
+            ImGui::Separator();
+            ImGui::Text("Converted: %s", part_edit.model.c_str());
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Use in ship.json"))
+            {
+                std::string problem;
+                part_status = kosmos::write_part_model(fspec.source_file, part_edit.stage, part_edit.index, part_edit.model, problem)
+                                  ? "ship.json now uses " + part_edit.model + " (original kept as ship.json.bak); effective on the next launch"
+                                  : "Not written: " + problem;
+            }
+            ImGui::Separator();
+        }
+    }
+
+    void App::part_paused_controls()
+    {
+        sl::PropertyTree &props = *props_ref;
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in Blender", part_edit.file.filename().string().c_str());
+        ImGui::TextWrapped("The simulation is paused. Save in Blender (Ctrl+S) to see the change here; closing Blender resumes.");
+        if (ImGui::Button("Resume, keep Blender open"))
+        {
+            edit_paused = false;
+            props.set_bool("/sim/blender-edit", false);
+            props.set_bool("/sim/paused", edit_was_paused);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel and restore"))
+        {
+            blender_edit.stop();
+            if (part_edit.converted && part_edit.part)
+                *part_edit.part = part_edit.original;
+            blender_edit.restore();
+            part_edit.model.clear();
+            part_edit.converted = false;
+            edit_paused = false;
+            props.set_bool("/sim/blender-edit", false);
+            props.set_bool("/sim/paused", edit_was_paused);
+            part_status = "Edit cancelled; the original was restored";
+        }
+    }
+
+    void App::part_live_controls(kosmos::Ship &flown, kosmos::ShipSpec &fspec)
+    {
+        sl::PropertyTree &props = *props_ref;
+        ImGui::SeparatorText("Meshes of the flown ship");
+        int stage_index = 0;
+        for (kosmos::StageSpec &stage : fspec.stages)
+        {
+            int part_index = 0;
+            for (kosmos::PartSpec &part : stage.parts)
+            {
+                ImGui::PushID(&part);
+                const bool is_model = !part.model.empty();
+                const std::string what = is_model ? std::filesystem::path(part.model).filename().string() : (part.prop.empty() ? std::string("profile") : part.prop);
+                ImGui::Text("%s: %s", stage.name.c_str(), what.c_str());
+                ImGui::SameLine(ImGui::GetWindowWidth() - 150.0f);
+                if (ImGui::SmallButton(is_model ? "Edit in Blender" : "Convert + edit") && !netplay.shared())
+                {
+                    std::filesystem::path file;
+                    std::string problem;
+                    bool ok = true;
+                    kosmos::PartSpec saved = part;
+                    if (is_model)
+                    {
+                        file = std::filesystem::path(fspec.directory) / part.model;
+                        std::string ext = file.extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                        if (ext != ".glb" && ext != ".gltf" && ext != ".obj")
+                        {
+                            problem = "Blender can edit .glb, .gltf and .obj parts; convert " + ext + " first";
+                            ok = false;
+                        }
+                    }
+                    else
+                    {
+                        sl::MeshData data;
+                        ok = part.prop.empty() ? (data = make_lathe_data(part), !data.indices.empty()) : make_prop_data(part, data);
+                        if (!ok)
+                            problem = "this part has no geometry to export";
+                        else
+                        {
+                            std::string slug = fspec.name + "_" + std::to_string(stage_index) + "_" + std::to_string(part_index);
+                            for (char &c : slug)
+                                if (!std::isalnum(static_cast<unsigned char>(c)))
+                                    c = '_';
+                            file = std::filesystem::path(fspec.directory) / "models" / (slug + ".glb");
+                            std::error_code ec;
+                            std::filesystem::create_directories(file.parent_path(), ec);
+                            // An earlier conversion may hold edits: use it rather than rebuild the shape.
+                            if (!std::filesystem::exists(file, ec))
+                                ok = kosmos::write_glb(data, file, problem);
+                            else
+                                part_status = "Reusing the existing " + file.filename().string();
+                        }
+                    }
+                    if (ok && props.get_bool("/sim/blender-edit"))
+                    {
+                        ok = false;
+                        part_status = "Another Blender edit is already running";
+                    }
+                    if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, problem))
+                    {
+                        part_edit.part = &part;
+                        part_edit.original = saved;
+                        part_edit.converted = !is_model;
+                        part_edit.file = file;
+                        part_edit.stage = stage_index;
+                        part_edit.index = part_index;
+                        part_edit.model.clear();
+                        if (!is_model)
+                        {
+                            part.model = std::filesystem::relative(file, fspec.directory).generic_string();
+                            part.prop.clear();
+                            part_edit.model = part.model;
+                            const std::string snippet = "{\"model\": \"" + part.model + "\", \"offset\": [" + std::to_string(part.offset.x) + ", " + std::to_string(part.offset.y) + ", " + std::to_string(part.offset.z) + "]}";
+                            ImGui::SetClipboardText(snippet.c_str());
+                            sim.log("Copied part entry for ship.json: " + snippet);
+                        }
+                        edit_was_paused = props.get_bool("/sim/paused");
+                        props.set_bool("/sim/paused", true);
+                        props.set_bool("/sim/blender-edit", true);
+                        edit_paused = true;
+                        part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; Blender started" : "Blender started";
+                    }
+                    else if (!problem.empty())
+                        part_status = problem;
+                }
+                ImGui::PopID();
+                ++part_index;
+            }
+            ++stage_index;
+        }
+        if (fspec.stages.empty())
+            ImGui::TextDisabled("This ship has no parts.");
     }
 
     void App::draw_part_window()
@@ -352,137 +512,14 @@ namespace kosmos::app
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
                 // Stays after Blender closes, so the converted mesh can still be written into the ship file.
-                if (part_edit.converted && !part_edit.model.empty())
-                {
-                    ImGui::Separator();
-                    ImGui::Text("Converted: %s", part_edit.model.c_str());
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton("Use in ship.json"))
-                    {
-                        std::string error;
-                        part_status = kosmos::write_part_model(fspec.source_file, part_edit.stage, part_edit.index, part_edit.model, error)
-                                          ? "ship.json now uses " + part_edit.model + " (original kept as ship.json.bak); effective on the next launch"
-                                          : "Not written: " + error;
-                    }
-                    ImGui::Separator();
-                }
+                part_converted_mesh(fspec);
                 if (edit_paused)
                 {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in Blender", part_edit.file.filename().string().c_str());
-                    ImGui::TextWrapped("The simulation is paused. Save in Blender (Ctrl+S) to see the change here; closing Blender resumes.");
-                    if (ImGui::Button("Resume, keep Blender open"))
-                    {
-                        edit_paused = false;
-                        props.set_bool("/sim/blender-edit", false);
-                        props.set_bool("/sim/paused", edit_was_paused);
-                    }
-                    ImGui::SameLine();
-                    if (ImGui::Button("Cancel and restore"))
-                    {
-                        blender_edit.stop();
-                        if (part_edit.converted && part_edit.part)
-                            *part_edit.part = part_edit.original;
-                        blender_edit.restore();
-                        part_edit.model.clear();
-                        part_edit.converted = false;
-                        edit_paused = false;
-                        props.set_bool("/sim/blender-edit", false);
-                        props.set_bool("/sim/paused", edit_was_paused);
-                        part_status = "Edit cancelled; the original was restored";
-                    }
+                    part_paused_controls();
                 }
                 else
                 {
-                    ImGui::SeparatorText("Meshes of the flown ship");
-                    int stage_index = 0;
-                    for (kosmos::StageSpec &stage : fspec.stages)
-                    {
-                        int part_index = 0;
-                        for (kosmos::PartSpec &part : stage.parts)
-                        {
-                            ImGui::PushID(&part);
-                            const bool is_model = !part.model.empty();
-                            const std::string what = is_model ? std::filesystem::path(part.model).filename().string() : (part.prop.empty() ? std::string("profile") : part.prop);
-                            ImGui::Text("%s: %s", stage.name.c_str(), what.c_str());
-                            ImGui::SameLine(ImGui::GetWindowWidth() - 150.0f);
-                            if (ImGui::SmallButton(is_model ? "Edit in Blender" : "Convert + edit") && !netplay.shared())
-                            {
-                                std::filesystem::path file;
-                                std::string error;
-                                bool ok = true;
-                                kosmos::PartSpec saved = part;
-                                if (is_model)
-                                {
-                                    file = std::filesystem::path(fspec.directory) / part.model;
-                                    std::string ext = file.extension().string();
-                                    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                                    if (ext != ".glb" && ext != ".gltf" && ext != ".obj")
-                                    {
-                                        error = "Blender can edit .glb, .gltf and .obj parts; convert " + ext + " first";
-                                        ok = false;
-                                    }
-                                }
-                                else
-                                {
-                                    sl::MeshData data;
-                                    ok = part.prop.empty() ? (data = make_lathe_data(part), !data.indices.empty()) : make_prop_data(part, data);
-                                    if (!ok)
-                                        error = "this part has no geometry to export";
-                                    else
-                                    {
-                                        std::string slug = fspec.name + "_" + std::to_string(stage_index) + "_" + std::to_string(part_index);
-                                        for (char &c : slug)
-                                            if (!std::isalnum(static_cast<unsigned char>(c)))
-                                                c = '_';
-                                        file = std::filesystem::path(fspec.directory) / "models" / (slug + ".glb");
-                                        std::error_code ec;
-                                        std::filesystem::create_directories(file.parent_path(), ec);
-                                        // An earlier conversion may hold edits: use it rather than rebuild the shape.
-                                        if (!std::filesystem::exists(file, ec))
-                                            ok = kosmos::write_glb(data, file, error);
-                                        else
-                                            part_status = "Reusing the existing " + file.filename().string();
-                                    }
-                                }
-                                if (ok && props.get_bool("/sim/blender-edit"))
-                                {
-                                    ok = false;
-                                    part_status = "Another Blender edit is already running";
-                                }
-                                if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
-                                {
-                                    part_edit.part = &part;
-                                    part_edit.original = saved;
-                                    part_edit.converted = !is_model;
-                                    part_edit.file = file;
-                                    part_edit.stage = stage_index;
-                                    part_edit.index = part_index;
-                                    part_edit.model.clear();
-                                    if (!is_model)
-                                    {
-                                        part.model = std::filesystem::relative(file, fspec.directory).generic_string();
-                                        part.prop.clear();
-                                        part_edit.model = part.model;
-                                        const std::string snippet = "{\"model\": \"" + part.model + "\", \"offset\": [" + std::to_string(part.offset.x) + ", " + std::to_string(part.offset.y) + ", " + std::to_string(part.offset.z) + "]}";
-                                        ImGui::SetClipboardText(snippet.c_str());
-                                        sim.log("Copied part entry for ship.json: " + snippet);
-                                    }
-                                    edit_was_paused = props.get_bool("/sim/paused");
-                                    props.set_bool("/sim/paused", true);
-                                    props.set_bool("/sim/blender-edit", true);
-                                    edit_paused = true;
-                                    part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; Blender started" : "Blender started";
-                                }
-                                else if (!error.empty())
-                                    part_status = error;
-                            }
-                            ImGui::PopID();
-                            ++part_index;
-                        }
-                        ++stage_index;
-                    }
-                    if (fspec.stages.empty())
-                        ImGui::TextDisabled("This ship has no parts.");
+                    part_live_controls(flown, fspec);
                 }
                 if (!part_status.empty())
                     ImGui::TextWrapped("%s", part_status.c_str());
@@ -690,6 +727,165 @@ namespace kosmos::app
         }
     }
 
+    void App::camera_editor_buttons(bool &changed, int count)
+    {
+    if (ImGui::Button("Add orbit"))
+    {
+        kosmos::UserCamera c;
+        c.name = "Orbit " + std::to_string(count + 1);
+        user_cams.push_back(c);
+        camera_editor_pick = count;
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Add mounted"))
+    {
+        kosmos::UserCamera c;
+        c.name = "Mounted " + std::to_string(count + 1);
+        c.orbit = false;
+        c.y = 2.0;
+        user_cams.push_back(c);
+        camera_editor_pick = count;
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Copy") && count > 0)
+    {
+        kosmos::UserCamera c = user_cams[static_cast<std::size_t>(camera_editor_pick)];
+        c.name += " copy";
+        user_cams.push_back(c);
+        camera_editor_pick = count;
+        changed = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete") && count > 0)
+    {
+        user_cams.erase(user_cams.begin() + camera_editor_pick);
+        if (user_cam == camera_editor_pick)
+            user_cam = -1;
+        else if (user_cam > camera_editor_pick)
+            --user_cam;
+        changed = true;
+    }
+    }
+
+    void App::camera_editor_list()
+    {
+    if (ImGui::BeginListBox("##cams", ImVec2(-FLT_MIN, 100.0f)))
+    {
+        for (int ui = 0; ui < static_cast<int>(user_cams.size()); ++ui)
+        {
+            ImGui::PushID(ui);
+            if (ImGui::Selectable((user_cams[static_cast<std::size_t>(ui)].name + (user_cam == ui ? "  (viewing)" : "")).c_str(), camera_editor_pick == ui))
+                camera_editor_pick = ui;
+            ImGui::PopID();
+        }
+        ImGui::EndListBox();
+    }
+    }
+
+    void App::camera_editor_fields(bool &changed)
+    {
+        kosmos::Universe &universe = *universe_ref;
+        const int ui = camera_editor_pick;
+        kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(ui)];
+        if (ImGui::Button(user_cam == ui ? "Back to the ship view" : "Look through"))
+        {
+            user_cam = user_cam == ui ? -1 : ui;
+            cockpit_view = cockpit3d = false;
+            interior_cam = base_view = -1;
+            map_mode = galaxy_mode = false;
+            look_yaw = look_pitch = 0.0f;
+        }
+        ImGui::Separator();
+        char name[64];
+        std::snprintf(name, sizeof(name), "%s", uc.name.c_str());
+        if (ImGui::InputText("Name", name, sizeof(name)))
+            uc.name = name, changed = true;
+        int type = uc.orbit ? 0 : 1;
+        if (ImGui::RadioButton("Orbits it, always looking at it", type == 0))
+            uc.orbit = true, changed = true;
+        if (ImGui::RadioButton("Mounted on it", type == 1))
+            uc.orbit = false, changed = true;
+
+        // A combo of the ships, or of the bodies, by name.
+        auto pick_name = [&](const char *label, int kind, std::string &value)
+        {
+            const bool bodies = kind == kosmos::UserCamera::body;
+            if (ImGui::BeginCombo(label, value.empty() ? "(choose)" : value.c_str()))
+            {
+                if (bodies)
+                    for (const kosmos::Body &b : universe.bodies)
+                    {
+                        if (b.minor)
+                            continue;
+                        if (ImGui::Selectable(b.name.c_str(), b.name == value))
+                            value = b.name, changed = true;
+                    }
+                else
+                    for (int si = 0; si < sim.ship_count(); ++si)
+                        if (ImGui::Selectable(sim.ship(si)->name.c_str(), sim.ship(si)->name == value))
+                            value = sim.ship(si)->name, changed = true;
+                ImGui::EndCombo();
+            }
+        };
+        ImGui::Separator();
+        ImGui::TextUnformatted("Attached to");
+        if (ImGui::RadioButton("The ship I fly", uc.attach == kosmos::UserCamera::flown_ship))
+            uc.attach = kosmos::UserCamera::flown_ship, changed = true;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("A ship", uc.attach == kosmos::UserCamera::other_ship))
+            uc.attach = kosmos::UserCamera::other_ship, changed = true;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("A body", uc.attach == kosmos::UserCamera::body))
+            uc.attach = kosmos::UserCamera::body, changed = true;
+        if (uc.attach != kosmos::UserCamera::flown_ship)
+            pick_name("##attach", uc.attach, uc.attach_name);
+        ImGui::Separator();
+        if (uc.orbit)
+        {
+            double d = uc.distance;
+            if (ImGui::InputDouble("Distance (m, 0 frames it)", &d, 0.0, 0.0, "%.0f"))
+                uc.distance = std::max(0.0, d), changed = true;
+            float f = static_cast<float>(uc.yaw);
+            if (ui::slider_float("Around", &f, -180.0f, 180.0f, "%.0f deg"))
+                uc.yaw = f, changed = true;
+            f = static_cast<float>(uc.pitch);
+            if (ui::slider_float("Above", &f, -89.0f, 89.0f, "%.0f deg"))
+                uc.pitch = f, changed = true;
+            f = static_cast<float>(uc.spin);
+            if (ui::slider_float("Spin", &f, -30.0f, 30.0f, "%.1f deg/s"))
+                uc.spin = f, changed = true;
+            ImGui::TextDisabled("Right-drag orbits, [ and ] zoom.");
+        }
+        else
+        {
+            float v[3] = {static_cast<float>(uc.x), static_cast<float>(uc.y), static_cast<float>(uc.z)};
+            if (ImGui::InputFloat3("Right, up, back (m)", v))
+                uc.x = v[0], uc.y = v[1], uc.z = v[2], changed = true;
+            ImGui::TextUnformatted("Looks");
+            const char *looks[] = {"The way the object faces", "At the ship I fly", "At a ship", "At a body"};
+            int look = uc.look_at;
+            if (ImGui::Combo("##look", &look, looks, 4))
+                uc.look_at = look, changed = true;
+            if (uc.look_at == kosmos::UserCamera::look_ahead)
+            {
+                float f = static_cast<float>(uc.look_yaw);
+                if (ui::slider_float("Turned", &f, -180.0f, 180.0f, "%.0f deg"))
+                    uc.look_yaw = f, changed = true;
+                f = static_cast<float>(uc.look_pitch);
+                if (ui::slider_float("Raised", &f, -89.0f, 89.0f, "%.0f deg"))
+                    uc.look_pitch = f, changed = true;
+            }
+            else if (uc.look_at != kosmos::UserCamera::look_flown_ship)
+                pick_name("##lookname", uc.look_at == kosmos::UserCamera::look_body ? kosmos::UserCamera::body : kosmos::UserCamera::other_ship, uc.look_name);
+            ImGui::TextDisabled("On a ship: x right, y up, z back. On a body: east, up, south. Right-drag peeks around.");
+        }
+        float fov = static_cast<float>(uc.fov);
+        if (ui::slider_float("Field of view", &fov, 10.0f, 110.0f, "%.0f deg"))
+            uc.fov = fov, changed = true;
+    }
+
     void App::draw_camera_editor_window()
     {
         kosmos::Universe &universe = *universe_ref;
@@ -703,155 +899,10 @@ namespace kosmos::app
                 bool changed = false;
                 const int count = static_cast<int>(user_cams.size());
                 camera_editor_pick = std::clamp(camera_editor_pick, 0, std::max(0, count - 1));
-                if (ImGui::Button("Add orbit"))
-                {
-                    kosmos::UserCamera c;
-                    c.name = "Orbit " + std::to_string(count + 1);
-                    user_cams.push_back(c);
-                    camera_editor_pick = count;
-                    changed = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Add mounted"))
-                {
-                    kosmos::UserCamera c;
-                    c.name = "Mounted " + std::to_string(count + 1);
-                    c.orbit = false;
-                    c.y = 2.0;
-                    user_cams.push_back(c);
-                    camera_editor_pick = count;
-                    changed = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Copy") && count > 0)
-                {
-                    kosmos::UserCamera c = user_cams[static_cast<std::size_t>(camera_editor_pick)];
-                    c.name += " copy";
-                    user_cams.push_back(c);
-                    camera_editor_pick = count;
-                    changed = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Delete") && count > 0)
-                {
-                    user_cams.erase(user_cams.begin() + camera_editor_pick);
-                    if (user_cam == camera_editor_pick)
-                        user_cam = -1;
-                    else if (user_cam > camera_editor_pick)
-                        --user_cam;
-                    changed = true;
-                }
-                if (ImGui::BeginListBox("##cams", ImVec2(-FLT_MIN, 100.0f)))
-                {
-                    for (int ui = 0; ui < static_cast<int>(user_cams.size()); ++ui)
-                    {
-                        ImGui::PushID(ui);
-                        if (ImGui::Selectable((user_cams[static_cast<std::size_t>(ui)].name + (user_cam == ui ? "  (viewing)" : "")).c_str(), camera_editor_pick == ui))
-                            camera_editor_pick = ui;
-                        ImGui::PopID();
-                    }
-                    ImGui::EndListBox();
-                }
+                camera_editor_buttons(changed, count);
+                camera_editor_list();
                 if (!user_cams.empty())
-                {
-                    const int ui = camera_editor_pick;
-                    kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(ui)];
-                    if (ImGui::Button(user_cam == ui ? "Back to the ship view" : "Look through"))
-                    {
-                        user_cam = user_cam == ui ? -1 : ui;
-                        cockpit_view = cockpit3d = false;
-                        interior_cam = base_view = -1;
-                        map_mode = galaxy_mode = false;
-                        look_yaw = look_pitch = 0.0f;
-                    }
-                    ImGui::Separator();
-                    char name[64];
-                    std::snprintf(name, sizeof(name), "%s", uc.name.c_str());
-                    if (ImGui::InputText("Name", name, sizeof(name)))
-                        uc.name = name, changed = true;
-                    int type = uc.orbit ? 0 : 1;
-                    if (ImGui::RadioButton("Orbits it, always looking at it", type == 0))
-                        uc.orbit = true, changed = true;
-                    if (ImGui::RadioButton("Mounted on it", type == 1))
-                        uc.orbit = false, changed = true;
-
-                    // A combo of the ships, or of the bodies, by name.
-                    auto pick_name = [&](const char *label, int kind, std::string &value)
-                    {
-                        const bool bodies = kind == kosmos::UserCamera::body;
-                        if (ImGui::BeginCombo(label, value.empty() ? "(choose)" : value.c_str()))
-                        {
-                            if (bodies)
-                                for (const kosmos::Body &b : universe.bodies)
-                                {
-                                    if (b.minor)
-                                        continue;
-                                    if (ImGui::Selectable(b.name.c_str(), b.name == value))
-                                        value = b.name, changed = true;
-                                }
-                            else
-                                for (int si = 0; si < sim.ship_count(); ++si)
-                                    if (ImGui::Selectable(sim.ship(si)->name.c_str(), sim.ship(si)->name == value))
-                                        value = sim.ship(si)->name, changed = true;
-                            ImGui::EndCombo();
-                        }
-                    };
-                    ImGui::Separator();
-                    ImGui::TextUnformatted("Attached to");
-                    if (ImGui::RadioButton("The ship I fly", uc.attach == kosmos::UserCamera::flown_ship))
-                        uc.attach = kosmos::UserCamera::flown_ship, changed = true;
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton("A ship", uc.attach == kosmos::UserCamera::other_ship))
-                        uc.attach = kosmos::UserCamera::other_ship, changed = true;
-                    ImGui::SameLine();
-                    if (ImGui::RadioButton("A body", uc.attach == kosmos::UserCamera::body))
-                        uc.attach = kosmos::UserCamera::body, changed = true;
-                    if (uc.attach != kosmos::UserCamera::flown_ship)
-                        pick_name("##attach", uc.attach, uc.attach_name);
-                    ImGui::Separator();
-                    if (uc.orbit)
-                    {
-                        double d = uc.distance;
-                        if (ImGui::InputDouble("Distance (m, 0 frames it)", &d, 0.0, 0.0, "%.0f"))
-                            uc.distance = std::max(0.0, d), changed = true;
-                        float f = static_cast<float>(uc.yaw);
-                        if (ui::slider_float("Around", &f, -180.0f, 180.0f, "%.0f deg"))
-                            uc.yaw = f, changed = true;
-                        f = static_cast<float>(uc.pitch);
-                        if (ui::slider_float("Above", &f, -89.0f, 89.0f, "%.0f deg"))
-                            uc.pitch = f, changed = true;
-                        f = static_cast<float>(uc.spin);
-                        if (ui::slider_float("Spin", &f, -30.0f, 30.0f, "%.1f deg/s"))
-                            uc.spin = f, changed = true;
-                        ImGui::TextDisabled("Right-drag orbits, [ and ] zoom.");
-                    }
-                    else
-                    {
-                        float v[3] = {static_cast<float>(uc.x), static_cast<float>(uc.y), static_cast<float>(uc.z)};
-                        if (ImGui::InputFloat3("Right, up, back (m)", v))
-                            uc.x = v[0], uc.y = v[1], uc.z = v[2], changed = true;
-                        ImGui::TextUnformatted("Looks");
-                        const char *looks[] = {"The way the object faces", "At the ship I fly", "At a ship", "At a body"};
-                        int look = uc.look_at;
-                        if (ImGui::Combo("##look", &look, looks, 4))
-                            uc.look_at = look, changed = true;
-                        if (uc.look_at == kosmos::UserCamera::look_ahead)
-                        {
-                            float f = static_cast<float>(uc.look_yaw);
-                            if (ui::slider_float("Turned", &f, -180.0f, 180.0f, "%.0f deg"))
-                                uc.look_yaw = f, changed = true;
-                            f = static_cast<float>(uc.look_pitch);
-                            if (ui::slider_float("Raised", &f, -89.0f, 89.0f, "%.0f deg"))
-                                uc.look_pitch = f, changed = true;
-                        }
-                        else if (uc.look_at != kosmos::UserCamera::look_flown_ship)
-                            pick_name("##lookname", uc.look_at == kosmos::UserCamera::look_body ? kosmos::UserCamera::body : kosmos::UserCamera::other_ship, uc.look_name);
-                        ImGui::TextDisabled("On a ship: x right, y up, z back. On a body: east, up, south. Right-drag peeks around.");
-                    }
-                    float fov = static_cast<float>(uc.fov);
-                    if (ui::slider_float("Field of view", &fov, 10.0f, 110.0f, "%.0f deg"))
-                        uc.fov = fov, changed = true;
-                }
+                    camera_editor_fields(changed);
                 ImGui::Separator();
                 ImGui::TextDisabled("C steps through these after the ship's own views.");
                 if (changed)

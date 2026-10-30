@@ -23,13 +23,13 @@ namespace kosmos::app
         return glm::mat3(glm::vec3(1.0f, 0.0f, 0.0f), up, normal);
     }
 
-    kosmos::MfdLayout panel_layout(const kosmos::Cockpit::PanelInstrument &pi, float ox, float oy, float scale)
+    kosmos::MfdLayout panel_layout(const kosmos::Cockpit::PanelInstrument &inst, float ox, float oy, float scale)
     {
         kosmos::MfdLayout layout;
-        layout.x = ox + pi.x * scale;
-        layout.y = oy + pi.y * scale;
-        layout.size = pi.size * scale;
-        layout.bare = !pi.frame;
+        layout.x = ox + inst.x * scale;
+        layout.y = oy + inst.y * scale;
+        layout.size = inst.size * scale;
+        layout.bare = !inst.frame;
         return layout;
     }
 

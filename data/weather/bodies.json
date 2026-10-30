@@ -1,0 +1,10 @@
+{
+  "Earth": {"mean_wind": 6.0, "wind_variation": 4.5, "cloudiness": 0.5, "rain_chance": 0.4, "rain": true,
+            "mean_temperature": 14.0, "temperature_range": 40.0, "pressure": 1013.0, "pressure_variation": 12.0},
+  "Mars": {"mean_wind": 7.0, "wind_variation": 6.0, "cloudiness": 0.1, "rain_chance": 0.25,
+           "mean_temperature": -55.0, "temperature_range": 60.0, "cloud_base": 4000.0},
+  "Venus": {"mean_wind": 1.5, "wind_variation": 1.0, "cloudiness": 0.0,
+            "mean_temperature": 462.0, "temperature_range": 4.0, "pressure": 92000.0, "pressure_variation": 300.0},
+  "Titan": {"mean_wind": 1.0, "wind_variation": 1.0, "cloudiness": 0.55, "rain_chance": 0.2, "rain": true,
+            "mean_temperature": -179.0, "temperature_range": 3.0, "pressure": 1467.0, "pressure_variation": 8.0, "cloud_base": 20000.0}
+}

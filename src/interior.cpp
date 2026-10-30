@@ -18,6 +18,86 @@ namespace kosmos
         }
     } // namespace
 
+    void Interior::place_doors(int w, int d, const std::function<char(int, int, int)> &ch)
+    {
+        // A door is the 'd' columns of the bottom level; each needs a floor cell on both sides.
+        door_at_.assign(static_cast<std::size_t>(w) * d, -1);
+        for (int z = 0; z < d; ++z)
+            for (int x = 0; x < w; ++x)
+            {
+                if (ch(0, x, z) != 'd')
+                    continue;
+                auto floor_at = [&](int fx, int fz) { const char f = ch(0, fx, fz); return f == '.' || f == 'D' || f == 'd'; };
+                Door door;
+                door.x = x;
+                door.z = z;
+                door.along_x = floor_at(x, z - 1) && floor_at(x, z + 1);
+                door.centre = sl::dvec3((x + 0.5) * cell_, 0.0, (z + 0.5) * cell_);
+                const int ax = door.along_x ? x : x - 1, az = door.along_x ? z - 1 : z;
+                const int bx = door.along_x ? x : x + 1, bz = door.along_x ? z + 1 : z;
+                door.room_a = room_at(sl::dvec3((ax + 0.5) * cell_, 0.1, (az + 0.5) * cell_));
+                door.room_b = room_at(sl::dvec3((bx + 0.5) * cell_, 0.1, (bz + 0.5) * cell_));
+                door_at_[static_cast<std::size_t>(z) * w + x] = static_cast<int>(doors_.size());
+                doors_.push_back(door);
+            }
+    }
+
+    void Interior::read_extras(const nlohmann::json &json)
+    {
+        if (json.contains("lights") && json["lights"].is_array())
+            for (const nlohmann::json &lj : json["lights"])
+                if (lj.contains("pos") && lj["pos"].is_array() && lj["pos"].size() >= 3)
+                {
+                    Light light;
+                    light.pos = sl::dvec3(lj["pos"][0].get<double>(), lj["pos"][1].get<double>(), lj["pos"][2].get<double>());
+                    if (lj.contains("colour") && lj["colour"].is_array() && lj["colour"].size() >= 3)
+                        light.colour = sl::dvec3(lj["colour"][0].get<double>(), lj["colour"][1].get<double>(), lj["colour"][2].get<double>());
+                    light.intensity = lj.value("intensity", light.intensity);
+                    light.range = lj.value("range", light.range);
+                    lights_.push_back(light);
+                }
+        if (json.contains("mesh") && json["mesh"].is_string())
+            mesh_path = json["mesh"].get<std::string>();
+
+        if (json.contains("panels") && json["panels"].is_array())
+            for (const nlohmann::json &pj : json["panels"])
+            {
+                Panel panel;
+                if (!pj.contains("pos") || !pj["pos"].is_array() || pj["pos"].size() < 3)
+                    continue;
+                panel.pos = sl::dvec3(pj["pos"][0].get<double>(), pj["pos"][1].get<double>(), pj["pos"][2].get<double>());
+                const std::string face = pj.value("facing", "+z");
+                panel.normal = face == "+x" ? sl::dvec3(1, 0, 0) : face == "-x" ? sl::dvec3(-1, 0, 0) : face == "-z" ? sl::dvec3(0, 0, -1) : sl::dvec3(0, 0, 1);
+                panel.width = pj.value("width", 1.2);
+                panels_.push_back(panel);
+            }
+    }
+
+    void Interior::find_entry(int w, int d, const std::function<char(int, int, int)> &ch)
+    {
+        const double c = cell_;
+        const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int z = 0; z < d && !has_door_; ++z)
+            for (int x = 0; x < w && !has_door_; ++x)
+            {
+                if (ch(0, x, z) != 'A')
+                    continue;
+                for (const auto &dir : dirs)
+                {
+                    const int fx = x + dir[0], fz = z + dir[1];
+                    if (fx < 0 || fz < 0 || fx >= w || fz >= d || ch(0, fx, fz) != '.')
+                        continue;
+                    outward_ = sl::dvec3(-dir[0], 0.0, -dir[1]);
+                    entry_ = sl::dvec3((fx + 0.5) * c, 0.0, (fz + 0.5) * c);
+                    entry_yaw_ = std::atan2(outward_.x, outward_.z);
+                    const sl::dvec3 hatch((x + 0.5) * c, 0.0, (z + 0.5) * c);
+                    door_ship_ = to_ship(hatch + outward_ * c * 1.5);
+                    has_door_ = true;
+                    break;
+                }
+            }
+    }
+
     std::shared_ptr<Interior> Interior::parse(const nlohmann::json &json, bool upright, double ground_z, std::string &error)
     {
         if (!json.is_object() || !json.contains("levels") || !json["levels"].is_array() || json["levels"].empty())
@@ -106,77 +186,9 @@ namespace kosmos
         in->classify();
         in->airlock_name_ = json.value("airlock", "");
         in->find_rooms(json, levels);
-        // A door is the 'd' columns of the bottom level; each needs a floor cell on both sides.
-        in->door_at_.assign(static_cast<std::size_t>(w) * d, -1);
-        for (int z = 0; z < d; ++z)
-            for (int x = 0; x < w; ++x)
-            {
-                if (ch(0, x, z) != 'd')
-                    continue;
-                auto floor_at = [&](int fx, int fz) { const char f = ch(0, fx, fz); return f == '.' || f == 'D' || f == 'd'; };
-                Door door;
-                door.x = x;
-                door.z = z;
-                door.along_x = floor_at(x, z - 1) && floor_at(x, z + 1);
-                door.centre = sl::dvec3((x + 0.5) * in->cell_, 0.0, (z + 0.5) * in->cell_);
-                const int ax = door.along_x ? x : x - 1, az = door.along_x ? z - 1 : z;
-                const int bx = door.along_x ? x : x + 1, bz = door.along_x ? z + 1 : z;
-                door.room_a = in->room_at(sl::dvec3((ax + 0.5) * in->cell_, 0.1, (az + 0.5) * in->cell_));
-                door.room_b = in->room_at(sl::dvec3((bx + 0.5) * in->cell_, 0.1, (bz + 0.5) * in->cell_));
-                in->door_at_[static_cast<std::size_t>(z) * w + x] = static_cast<int>(in->doors_.size());
-                in->doors_.push_back(door);
-            }
-
-        if (json.contains("lights") && json["lights"].is_array())
-            for (const nlohmann::json &lj : json["lights"])
-                if (lj.contains("pos") && lj["pos"].is_array() && lj["pos"].size() >= 3)
-                {
-                    Light light;
-                    light.pos = sl::dvec3(lj["pos"][0].get<double>(), lj["pos"][1].get<double>(), lj["pos"][2].get<double>());
-                    if (lj.contains("colour") && lj["colour"].is_array() && lj["colour"].size() >= 3)
-                        light.colour = sl::dvec3(lj["colour"][0].get<double>(), lj["colour"][1].get<double>(), lj["colour"][2].get<double>());
-                    light.intensity = lj.value("intensity", light.intensity);
-                    light.range = lj.value("range", light.range);
-                    in->lights_.push_back(light);
-                }
-        if (json.contains("mesh") && json["mesh"].is_string())
-            in->mesh_path = json["mesh"].get<std::string>();
-
-        if (json.contains("panels") && json["panels"].is_array())
-            for (const nlohmann::json &pj : json["panels"])
-            {
-                Panel panel;
-                if (!pj.contains("pos") || !pj["pos"].is_array() || pj["pos"].size() < 3)
-                    continue;
-                panel.pos = sl::dvec3(pj["pos"][0].get<double>(), pj["pos"][1].get<double>(), pj["pos"][2].get<double>());
-                const std::string face = pj.value("facing", "+z");
-                panel.normal = face == "+x" ? sl::dvec3(1, 0, 0) : face == "-x" ? sl::dvec3(-1, 0, 0) : face == "-z" ? sl::dvec3(0, 0, -1) : sl::dvec3(0, 0, 1);
-                panel.width = pj.value("width", 1.2);
-                in->panels_.push_back(panel);
-            }
-
-        // The way in is the first hatch on the bottom level, entered from an open floor cell beside it.
-        const double c = in->cell_;
-        const int dirs[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int z = 0; z < d && !in->has_door_; ++z)
-            for (int x = 0; x < w && !in->has_door_; ++x)
-            {
-                if (ch(0, x, z) != 'A')
-                    continue;
-                for (const auto &dir : dirs)
-                {
-                    const int fx = x + dir[0], fz = z + dir[1];
-                    if (fx < 0 || fz < 0 || fx >= w || fz >= d || ch(0, fx, fz) != '.')
-                        continue;
-                    in->outward_ = sl::dvec3(-dir[0], 0.0, -dir[1]);
-                    in->entry_ = sl::dvec3((fx + 0.5) * c, 0.0, (fz + 0.5) * c);
-                    in->entry_yaw_ = std::atan2(in->outward_.x, in->outward_.z);
-                    const sl::dvec3 hatch((x + 0.5) * c, 0.0, (z + 0.5) * c);
-                    in->door_ship_ = in->to_ship(hatch + in->outward_ * c * 1.5);
-                    in->has_door_ = true;
-                    break;
-                }
-            }
+        in->place_doors(w, d, ch);
+        in->read_extras(json);
+        in->find_entry(w, d, ch);
         if (!in->has_door_)
         {
             error = "interior has no airlock: put an 'A' next to a '.' floor cell on the first level";

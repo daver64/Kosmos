@@ -42,9 +42,9 @@ namespace kosmos::app
         environment.fog_density = near_earth ? 1.4e-4f : 0.0f;
         if (near_earth && props.get_bool("/sim/settings/weather", true))
         {
-            const double vis = props.get_double("/environment/visibility", 1.0e5);
-            if (vis > 50.0 && vis < 20000.0)
-                environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / vis));
+            const double visibility = props.get_double("/environment/visibility", 1.0e5);
+            if (visibility > 50.0 && visibility < 20000.0)
+                environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / visibility));
         }
 
         local_sky = !near_earth && !home && soi_body.kind != kosmos::BodyKind::star && soi_body.atmosphere_density > 0.001 &&
