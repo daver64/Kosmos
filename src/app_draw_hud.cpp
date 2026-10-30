@@ -385,6 +385,51 @@ namespace kosmos::app
             mfd_mouse_prev = down;
     }
 
+    // A press that lands on no control starts a drag; the offset follows the mouse until the button is released.
+    void App::ui_drag(int id, bool inside, bool down, bool pressed, bool consumed, float &offset_x, float &offset_y)
+    {
+        const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
+        if (pressed && !consumed && inside)
+        {
+            ui_drag_id = id;
+            ui_drag_last_x = mx;
+            ui_drag_last_y = my;
+        }
+        else if (ui_drag_id == id && down)
+        {
+            offset_x += mx - ui_drag_last_x;
+            offset_y += my - ui_drag_last_y;
+            ui_drag_last_x = mx;
+            ui_drag_last_y = my;
+        }
+        if (!down && ui_drag_id == id)
+            ui_drag_id = -1;
+    }
+
+    // Moves one MFD by its saved offset, keeping it on screen.
+    void App::place_mfd(int side, kosmos::MfdLayout &layout)
+    {
+        float *off = mfd_offset[side];
+        mfd_base[side][0] = layout.x;
+        mfd_base[side][1] = layout.y;
+        layout.x = std::clamp(layout.x + off[0], 0.0f, std::max(0.0f, screen_w - layout.size));
+        layout.y = std::clamp(layout.y + off[1], 0.0f, std::max(0.0f, screen_h - layout.size));
+        off[0] = layout.x - mfd_base[side][0];
+        off[1] = layout.y - mfd_base[side][1];
+    }
+
+    // An already placed MFD can be dragged by anything that is not a button.
+    void App::drag_mfd(int side, kosmos::MfdLayout &layout, bool down, bool pressed, bool consumed)
+    {
+        const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
+        const bool inside = mx >= layout.x && mx <= layout.x + layout.size && my >= layout.y && my <= layout.y + layout.size;
+        ui_drag(1 + side, inside, down, pressed, consumed, mfd_offset[side][0], mfd_offset[side][1]);
+        layout.x = std::clamp(mfd_base[side][0] + mfd_offset[side][0], 0.0f, std::max(0.0f, screen_w - layout.size));
+        layout.y = std::clamp(mfd_base[side][1] + mfd_offset[side][1], 0.0f, std::max(0.0f, screen_h - layout.size));
+        mfd_offset[side][0] = layout.x - mfd_base[side][0];
+        mfd_offset[side][1] = layout.y - mfd_base[side][1];
+    }
+
     void App::draw_panel2d()
     {
     sl::PropertyTree &props = *props_ref;
@@ -401,16 +446,25 @@ namespace kosmos::app
             cp.panel_height = shown.height;
             cp.panel_image = shown.image;
             const float scale = std::min(screen_w / cp.panel_width, screen_h * 0.55f / cp.panel_height);
-            const float ox = (screen_w - cp.panel_width * scale) * 0.5f, oy = screen_h - cp.panel_height * scale;
+            float ox = (screen_w - cp.panel_width * scale) * 0.5f + panel_offset[0], oy = screen_h - cp.panel_height * scale + panel_offset[1];
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
-            if (down && !mfd_mouse_prev)
-                panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
+            const bool pressed = down && !mfd_mouse_prev;
+            bool consumed = false;
+            if (pressed)
+                consumed = panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
             else if (down && panel_slider >= 0 && panel_slider < static_cast<int>(cp.controls.size()))
                 panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider)], oy, scale, static_cast<float>(sl::mouse_y()));
             if (!down)
                 panel_slider = -1;
+            const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
+            const bool inside = mx >= ox && mx <= ox + cp.panel_width * scale && my >= oy && my <= oy + cp.panel_height * scale;
+            ui_drag(0, inside, down, pressed, consumed, panel_offset[0], panel_offset[1]);
+            panel_offset[0] = std::clamp(panel_offset[0], -(screen_w - 40.0f), screen_w - 40.0f);
+            panel_offset[1] = std::clamp(panel_offset[1], -(screen_h - 40.0f), 0.0f);
+            if (panel_slider >= 0)
+                ui_drag_id = -1;
             mfd_mouse_prev = down;
             draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
     }
@@ -452,8 +506,15 @@ namespace kosmos::app
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            const bool pressed = down && !mfd_mouse_prev;
             if (!show_hud)
-                sim.mfd.handle_mouse(left, right, down && !mfd_mouse_prev, sl::mouse_x(), sl::mouse_y());
+            {
+                place_mfd(0, left);
+                place_mfd(1, right);
+                const bool consumed = sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
+                drag_mfd(0, left, down, pressed, consumed);
+                drag_mfd(1, right, down, pressed, consumed);
+            }
             mfd_mouse_prev = down;
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
@@ -507,7 +568,12 @@ namespace kosmos::app
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = sl::mouse_button_down(sl::MouseButton::left);
-            sim.mfd.handle_mouse(left, right, down && !mfd_mouse_prev, sl::mouse_x(), sl::mouse_y());
+            const bool pressed = down && !mfd_mouse_prev;
+            place_mfd(0, left);
+            place_mfd(1, right);
+            const bool consumed = sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
+            drag_mfd(0, left, down, pressed, consumed);
+            drag_mfd(1, right, down, pressed, consumed);
             mfd_mouse_prev = down;
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);

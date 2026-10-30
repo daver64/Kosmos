@@ -2,7 +2,7 @@
  "id": "cvel-icbm",
  "name": "CVEL Sentinel ICBM",
  "version": "0.1",
- "ships": ["ship.json"],
+ "ships": ["ship.json", "warhead.json"],
  "mfds": [
   { "id": "icbm-target", "script": "targeting.lua" }
  ]

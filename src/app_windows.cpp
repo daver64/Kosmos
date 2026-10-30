@@ -378,6 +378,83 @@ namespace kosmos::app
         }
     }
 
+    void App::draw_icbm_window()
+    {
+        if (!icbm_window)
+            return;
+        sl::PropertyTree &props = *props_ref;
+        ImGui::SetNextWindowPos(ImVec2(330.0f, 60.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowBgAlpha(0.9f);
+        if (ImGui::Begin("ICBM targeting", &icbm_window, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            if (!props.exists("/icbm/target/lat"))
+            {
+                ImGui::TextDisabled("Fly the CVEL Sentinel ICBM (scenario 21) to use this.");
+                ImGui::End();
+                return;
+            }
+            const std::string phase = props.get_string("/icbm/phase", "idle");
+            const bool armed = props.get_bool("/icbm/armed");
+            const bool locked = armed || phase != "idle";
+            const double range = props.get_double("/icbm/range-km");
+            const bool in_range = range >= 300.0 && range <= 4900.0;
+            ImGui::BeginDisabled(locked);
+            double lat = props.get_double("/icbm/target/lat");
+            double lon = props.get_double("/icbm/target/lon");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::InputDouble("Target latitude", &lat, 0.1, 1.0, "%.4f"))
+                props.set_double("/icbm/target/lat", std::max(-90.0, std::min(90.0, lat)));
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::InputDouble("Target longitude", &lon, 0.1, 1.0, "%.4f"))
+                props.set_double("/icbm/target/lon", std::fmod(lon + 540.0, 360.0) - 180.0);
+            bool air = props.get_string("/controls/ordnance/mode", "air") == "air";
+            if (ImGui::RadioButton("Airburst", air))
+                props.set_string("/controls/ordnance/mode", "air");
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Ground burst", !air))
+                props.set_string("/controls/ordnance/mode", "ground");
+            float height = (float)props.get_double("/controls/ordnance/burst-height", 500.0);
+            ImGui::BeginDisabled(!air);
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::SliderFloat("Burst height (m)", &height, 0.0f, 10000.0f, "%.0f"))
+                props.set_double("/controls/ordnance/burst-height", height);
+            ImGui::EndDisabled();
+            float kt = (float)props.get_double("/controls/ordnance/yield-kt", 20.0);
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::SliderFloat("Yield (kt)", &kt, 20.0f, 1000.0f, "%.0f", ImGuiSliderFlags_Logarithmic))
+                props.set_double("/controls/ordnance/yield-kt", kt);
+            ImGui::EndDisabled();
+            ImGui::Text("Range %.0f km (allowed 300 to 4900)%s", range, in_range ? "" : "  OUT OF RANGE");
+            ImGui::Text("Status: %s", props.get_string("/icbm/status", "Safe").c_str());
+            if (phase != "idle")
+                ImGui::Text("Phase: %s   predicted miss %.1f km", phase.c_str(), props.get_double("/icbm/miss-km"));
+            if (phase == "idle")
+            {
+                if (ImGui::Button(armed ? "Disarm" : "Arm"))
+                {
+                    if (armed)
+                    {
+                        props.set_bool("/icbm/armed", false);
+                        props.set_string("/icbm/status", "Safe");
+                    }
+                    else if (in_range)
+                    {
+                        props.set_bool("/icbm/armed", true);
+                        props.set_string("/icbm/status", "Armed - ready to launch");
+                    }
+                    else
+                        props.set_string("/icbm/status", "Target out of range");
+                }
+                ImGui::SameLine();
+                ImGui::BeginDisabled(!armed || !in_range);
+                if (ImGui::Button("LAUNCH"))
+                    props.set_bool("/icbm/launch", true);
+                ImGui::EndDisabled();
+            }
+        }
+        ImGui::End();
+    }
+
     void App::draw_performance_window()
     {
         if (!performance_window)

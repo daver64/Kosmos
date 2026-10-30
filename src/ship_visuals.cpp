@@ -17,6 +17,8 @@ namespace kosmos::app
             data = sl::make_rocket_fins_data(part.radius, part.span, part.length, part.count, body);
         else if (part.prop == "fairing")
             data = sl::make_payload_fairing_data(part.radius, part.length, body, accent);
+        else if (part.prop == "fatman")
+            data = sl::make_fatman_data(part.radius, part.length);
         else if (part.prop == "csm")
             data = sl::make_apollo_csm_data(part.radius, body);
         else if (part.prop == "aeroplane")

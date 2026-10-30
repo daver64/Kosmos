@@ -168,7 +168,7 @@ target_include_directories(weather_test PRIVATE src)
 target_compile_definitions(weather_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Equipment loader, blast falloff and the shipped equipment data: cmake --build build --target equipment_test && build/equipment_test
-add_executable(equipment_test EXCLUDE_FROM_ALL tests/equipment_test.cpp src/equipment.cpp)
+add_executable(equipment_test EXCLUDE_FROM_ALL tests/equipment_test.cpp src/equipment.cpp src/reentry.cpp)
 target_link_libraries(equipment_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(equipment_test PRIVATE src)
 target_compile_definitions(equipment_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

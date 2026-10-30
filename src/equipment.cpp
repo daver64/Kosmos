@@ -63,6 +63,7 @@ namespace kosmos
             e.thermal_radius = j.value("thermal_radius", e.thermal_radius);
             if (j.contains("thermal"))
                 read_thermal(j["thermal"], e.thermal);
+            e.ship = j.value("ship", e.ship);
             e.sensor = j.value("sensor", e.sensor);
             if (j.contains("shapes"))
                 for (const nlohmann::json &js : j["shapes"])

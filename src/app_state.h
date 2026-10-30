@@ -172,6 +172,12 @@ namespace kosmos::app
         bool first_ship_seen{};
         int panel_index{};
         bool mfd_mouse_prev{};
+        // Panels and MFDs can be dragged with the left button; ids: 0 the 2D panel, 1 and 2 the left and right MFD.
+        int ui_drag_id = -1;
+        float ui_drag_last_x{}, ui_drag_last_y{};
+        float panel_offset[2]{};
+        float mfd_offset[2][2]{};
+        float mfd_base[2][2]{};
         bool cockpit3d{};
         int interior_cam{};
         int base_view{};
@@ -185,6 +191,7 @@ namespace kosmos::app
         bool camera_window{};
         bool settings_window{};
         bool performance_window{};
+        bool icbm_window{};
         bool property_window{};
         bool lua_window{};
         bool net_window{};
@@ -444,6 +451,10 @@ namespace kosmos::app
     void settings_clutter();
     void settings_worlds();
     void draw_performance_window();
+    void draw_icbm_window();
+    void ui_drag(int id, bool inside, bool down, bool pressed, bool consumed, float &offset_x, float &offset_y);
+    void place_mfd(int side, kosmos::MfdLayout &layout);
+    void drag_mfd(int side, kosmos::MfdLayout &layout, bool down, bool pressed, bool consumed);
     void draw_settings_window();
     void part_converted_mesh(kosmos::ShipSpec &fspec);
     void part_paused_controls();

@@ -349,7 +349,7 @@ namespace kosmos::app
         last_mouse_y = my;
         {
             // On foot the mouse steers the view like a first-person game; the ` key, Alt, or any open window gives the pointer back.
-            const bool windows_open = camera_window || settings_window || performance_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
+            const bool windows_open = camera_window || settings_window || performance_window || icbm_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
             const bool free_pointer = windows_open || pointer_free || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
             const bool capture = in_eva && options.shot.empty() && !free_pointer;
             if (capture != mouse_captured)
@@ -504,8 +504,20 @@ namespace kosmos::app
         if (options.cam_antisun)
             offset_dir = glm::normalize(glm::normalize(fb.position - universe.position(0)) + east * std::sin(yaw_d) * 0.9 + up * std::sin(pitch_d) * 0.9);
         // A tall ship can name the point the external camera frames, such as the capsule at the top of a Saturn V.
-        const sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->camera_focus()) : fb.position;
-        eye_world = focus + offset_dir * cam_distance;
+        sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->camera_focus()) : fb.position;
+        // A released warhead takes the camera; the ship carries on its own way.
+        double seconds_to_burst = 1.0e9;
+        const bool following = !in_cockpit && !in_interior && !map_mode && arsenal.follow_target(universe, ship, focus, seconds_to_burst);
+        double distance = cam_distance;
+        if (following && seconds_to_burst < 5.0)
+        {
+            // Five seconds before the burst the camera eases out to 2 km, level with the warhead, to watch it from a safe distance.
+            const double t = std::clamp(1.0 - seconds_to_burst / 5.0, 0.0, 1.0), w = t * t * (3.0 - 2.0 * t);
+            const sl::dvec3 level = east * std::sin(yaw_d) + north * std::cos(yaw_d);
+            offset_dir = glm::normalize(offset_dir * (1.0 - w) + level * w);
+            distance = cam_distance + (2000.0 - cam_distance) * w;
+        }
+        eye_world = focus + offset_dir * distance;
         ship_rel = glm::vec3(focus - eye_world);
         if (options.cam_antisun)
             ship_rel = glm::vec3(glm::normalize(universe.position(0) - eye_world) * 1000.0);

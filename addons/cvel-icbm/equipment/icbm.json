@@ -6,6 +6,7 @@
    "description": "About 20 kt on a ballistic re-entry vehicle; the yield and burst are set on the targeting MFD",
    "kind": "ordnance",
    "prop": "fatman",
+   "ship": "CVEL Fat Man RV",
    "length": 3.3,
    "radius": 0.75,
    "mass": 5000,

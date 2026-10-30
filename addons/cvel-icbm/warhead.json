@@ -1,0 +1,23 @@
+{
+ "name": "CVEL Fat Man RV",
+ "class": "missile",
+ "torque_accel": 0.2,
+ "max_rate": 0.3,
+ "rcs_thrust": 0,
+ "drag_area": 0.5,
+ "camera_distance": 12,
+ "camera_target": [0, 0, 0],
+ "thermal": { "nose_radius": 0.3, "heat_area": 1.6, "heat_capacity": 4000, "shield_mass": 350, "ablation_heat": 2.5e7, "max_temp": 2500 },
+ "hypersonic": { "area": 1.8, "length": 3.3, "cd_max": 0.9, "axis": [0, 0, -1], "trim_dir": [0, 0, -1], "trim_deg": 0 },
+ "stages": [
+  {
+   "name": "Warhead",
+   "dry_mass": 5000,
+   "propellant": 0,
+   "z": 1.65,
+   "length": 3.3,
+   "radius": 0.75,
+   "parts": [ { "prop": "fatman", "radius": 0.75, "length": 3.3, "z": 3.3, "colour": [60, 64, 70] } ]
+  }
+ ]
+}

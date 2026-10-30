@@ -21,7 +21,7 @@
    "type": "translate",
    "property": "warhead",
    "axis": [0.0, 0.0, -1.0],
-   "interpolation": [[0, 0], [0.01, 0], [0.02, 5000], [1, 5000]],
+   "interpolation": [[0, 0], [0.02, 0], [0.0201, 5000], [1, 5000]],
    "objects": ["warhead"]
   }
  ]

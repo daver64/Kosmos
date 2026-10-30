@@ -15,7 +15,6 @@ namespace kosmos
     namespace
     {
         constexpr double pi = 3.14159265358979323846;
-        constexpr double owner_grace = 1.5;
         constexpr std::size_t max_scars = 50;
 
         double ground_radius(const sl::Terrain *terrain, double body_radius, const sl::dvec3 &position)
@@ -134,6 +133,7 @@ namespace kosmos
         selected_ = -1;
         cooldown_ = recoil_ = 0.0;
         rounds_.clear();
+        launched_.clear();
         bangs_.clear();
         shocks_.clear();
         effects_.clear();
@@ -511,6 +511,21 @@ namespace kosmos
         }
         r.fuse = spec->fuse_time;
         r.owner = &ship;
+        if (!spec->ship.empty())
+            if (const ShipSpec *vessel = context.sim->find_ship_spec(spec->ship))
+            {
+                Ship *w = context.sim->spawn(*vessel);
+                w->place_relative(soi, r.position, r.velocity, ship.body().orientation);
+                launched_.push_back({w, &ship, spec, r.scale, r.burst_height, 0.0, r.fuse_mode});
+                last_event_ = spec->name + " away";
+                last_event_time_ = 0.0;
+                return true;
+            }
+        if (hp.eject_speed > 0.0)
+        {
+            r.owner_grace = 30.0;
+            r.ejected = true;
+        }
         rounds_.push_back(r);
         last_event_ = spec->name + " away";
         last_event_time_ = 0.0;
@@ -770,6 +785,77 @@ namespace kosmos
             damage_person(context, 2.0);
     }
 
+    bool Arsenal::follow_target(const Universe &universe, const Ship *ship, sl::dvec3 &world, double &seconds_to_burst) const
+    {
+        (void)universe;
+        for (auto it = launched_.rbegin(); it != launched_.rend(); ++it)
+        {
+            if (it->owner != ship)
+                continue;
+            world = it->ship->body().position;
+            const bool airburst = it->fuse_mode < 0 ? it->spec->fuse == "airburst" : it->fuse_mode == 1;
+            const double burst = airburst ? (it->burst_height >= 0.0 ? it->burst_height : it->spec->burst_height) : 0.0;
+            const Telemetry &t = it->ship->telemetry();
+            const double fall = -t.vertical_speed;
+            seconds_to_burst = fall > 1.0 ? std::max(t.altitude - burst, 0.0) / fall : 1.0e9;
+            return true;
+        }
+        return false;
+    }
+
+    void Arsenal::step_launched(ArsenalContext &context, double dt)
+    {
+        Sim &sim = *context.sim;
+        for (std::size_t i = 0; i < launched_.size();)
+        {
+            Launched &l = launched_[i];
+            int index = -1;
+            for (int s = 0; s < sim.ship_count(); ++s)
+                if (sim.ship(s) == l.ship)
+                    index = s;
+            if (index < 0)
+            {
+                launched_.erase(launched_.begin() + static_cast<std::ptrdiff_t>(i));
+                continue;
+            }
+            l.age += dt;
+            const Telemetry &t = l.ship->telemetry();
+            const bool airburst = l.fuse_mode < 0 ? l.spec->fuse == "airburst" : l.fuse_mode == 1;
+            const double burst = airburst ? (l.burst_height >= 0.0 ? l.burst_height : l.spec->burst_height) : 0.0;
+            bool boom = false, lost = false;
+            if (l.ship->health() <= 0.0 && !l.ship->crashed())
+                lost = true;
+            else if (l.ship->crashed() || (airburst && t.altitude <= burst && l.age > 2.0))
+                boom = true;
+            if (!boom && !lost)
+            {
+                ++i;
+                continue;
+            }
+            if (boom)
+            {
+                Round r;
+                r.spec = l.spec;
+                r.body = t.soi;
+                r.position = l.ship->body().position - sim.universe.position(t.soi);
+                r.velocity = l.ship->body().velocity - sim.universe.world.body(t.soi)->velocity;
+                r.scale = l.scale;
+                r.fuse_mode = l.fuse_mode;
+                r.burst_height = l.burst_height;
+                r.age = l.age;
+                r.owner = l.owner;
+                detonate(context, r, r.position);
+            }
+            else
+            {
+                last_event_ = l.spec->name + " burned up on re-entry";
+                last_event_time_ = 0.0;
+            }
+            launched_.erase(launched_.begin() + static_cast<std::ptrdiff_t>(i));
+            sim.remove_ship(index);
+        }
+    }
+
     void Arsenal::step_rounds(ArsenalContext &context, double dt)
     {
         Sim &sim = *context.sim;
@@ -839,7 +925,7 @@ namespace kosmos
                         }
                     }
                     r.position += r.velocity * h;
-                    const Hit hit = trace(context, r.body, from, r.position, r.age < owner_grace ? r.owner : nullptr);
+                    const Hit hit = trace(context, r.body, from, r.position, r.age < r.owner_grace ? r.owner : nullptr);
                     if (r.bolt)
                     {
                         if (hit.kind != Hit::none)
@@ -1031,6 +1117,7 @@ namespace kosmos
         if (dt > 0.0)
         {
             step_rounds(context, dt);
+            step_launched(context, dt);
 
             step_shocks(context, dt);
 

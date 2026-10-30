@@ -71,17 +71,14 @@ local phase = "idle"
 local phase_time = 0.0
 local stage_sent = false
 local pitch_cmd = 90.0
-local release_sent = false
 local trim = 0.0
 
-local last_alt = 1e9
 local function status(text) props.set("/icbm/status", text) end
 
 local function set_phase(name, text)
   phase = name
   phase_time = 0.0
   stage_sent = false
-  print("PHASE " .. name)
   props.set("/icbm/phase", name)
   status(text)
 end
@@ -121,13 +118,18 @@ function update(dt)
       set_phase("liftoff", "Launch")
     else
       props.set("/icbm/launch", false)
+      local r = props.get("/icbm/range-km") or 0.0
+      if r < 300.0 or r > 4900.0 then
+        props.set("/icbm/armed", false)
+        status(r < 300.0 and "Target too close (min 300 km)" or "Target out of range (max 4900 km)")
+      elseif not props.get("/icbm/armed") then
+        status("Safe - target in range")
+      end
     end
     return
   end
 
   phase_time = phase_time + dt
-  if get("altitude") < 3000 and last_alt >= 3000 and get("vertical-speed") < 0 then print(string.format("IMPACT miss=%.1f km lat=%.2f lon=%.2f", distance(lat, lon, tlat, tlon, radius)/1000, lat, lon)) end
-  last_alt = get("altitude")
   local altitude = get("altitude")
   local vertical = get("vertical-speed")
   local stage = get("stage")
@@ -173,9 +175,8 @@ function update(dt)
         props.set("/icbm/miss-km", miss / 1000.0)
         local needed = distance(lat, lon, tlat, tlon + deg(OMEGA * t), radius)
         props.set("/icbm/predicted-range-km", travel / 1000.0)
-        if travel >= needed * 1.045 and altitude > 60000.0 then
+        if travel >= needed and altitude > 60000.0 then
           props.set("/controls/throttle", 0.0)
-          print(string.format("CUTOFF miss=%.1f cross=%.1f trim=%.2f", miss/1000, cross, trim))
           set_phase("cutoff", "Burnout")
         end
       end
@@ -216,14 +217,14 @@ function update(dt)
     end
 
   elseif phase == "release" then
-    if phase_time > 1.5 then
-      props.set("/controls/throttle", 1.0)
-      set_phase("retro", "Retro burn")  --TESTSKIP
+    if phase_time > 8.0 then
+      props.set("/controls/throttle", 0.12)
+      set_phase("retro", "Retro burn")
     end
 
   elseif phase == "retro" then
-    props.set("/controls/throttle", 0.0) --TESTSKIP
-    if phase_time > 12.0 or get("stage-fuel") < 1.0 then
+    props.set("/controls/throttle", 0.12)
+    if phase_time > 10.0 or get("stage-fuel") < 1.0 then
       props.set("/controls/throttle", 0.0)
       set_phase("done", "Warhead away - bus separated")
     end

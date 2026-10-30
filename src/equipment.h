@@ -89,6 +89,8 @@ namespace kosmos
         double thermal_radius = 0.0;
         /** Heating while falling through air (the "thermal" block); a round whose damage reaches 1 burns up without detonating. */
         ThermalSpec thermal;
+        /** A ship class released in its place: the item becomes a vessel stepped by the physics world, like a jettisoned stage. */
+        std::string ship;
 
         /** "tricorder", "geology" or "survey" for an instrument. */
         std::string sensor;

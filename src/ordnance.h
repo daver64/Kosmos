@@ -86,6 +86,9 @@ namespace kosmos
         void play_bangs(double dt);
         void update(ArsenalContext &context, double dt, double real_dt);
         std::size_t rounds_in_flight() const { return rounds_.size(); }
+        /** World position of the newest released warhead vessel that @p ship dropped, so the external camera can follow it.
+         *  @p seconds_to_burst estimates the time left before it bursts, or a large number while it is not falling. */
+        bool follow_target(const Universe &universe, const Ship *ship, sl::dvec3 &world, double &seconds_to_burst) const;
         std::size_t live_effects() const { return effects_.size(); }
         /** Whether blasts are heard (needs the audio device to be open). */
         void set_sound(bool on) { sound_on_ = on; }
@@ -118,6 +121,8 @@ namespace kosmos
             /** Fuse set at release: -1 the equipment's own, 0 on impact, 1 an airburst at `burst_height` (negative: the equipment's own). */
             int fuse_mode = -1;
             double burst_height = -1.0;
+            bool ejected = false;
+            double owner_grace = 1.5; // seconds the releasing ship cannot be hit; an ejected warhead needs longer to clear a long hull
             ThermalState heat;
             double heat_damage = 0.0;
         };
@@ -177,6 +182,17 @@ namespace kosmos
         int selected_ = -1;
         double cooldown_ = 0.0, recoil_ = 0.0;
         std::vector<Round> rounds_;
+        /** A released item that flies as a ship (equipment "ship"): the burst and burn-up checks stay here, the physics belong to the Sim. */
+        struct Launched
+        {
+            Ship *ship = nullptr;
+            const Ship *owner = nullptr;
+            const EquipmentSpec *spec = nullptr;
+            double scale = 1.0, burst_height = -1.0, age = 0.0;
+            int fuse_mode = -1;
+        };
+        std::vector<Launched> launched_;
+        void step_launched(ArsenalContext &context, double dt);
         std::vector<Shock> shocks_;
         std::vector<Active> effects_;
         std::vector<Scar> scars_;
