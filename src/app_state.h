@@ -225,6 +225,10 @@ namespace kosmos::app
         double eva_look_yaw{};
         double eva_look_pitch{};
         sl::dvec3 eye_shift;
+        kosmos::CameraDynamics cam_dyn; // the Dynamic Camera's head on its springs
+        sl::dvec3 dyn_velocity{0.0};
+        const kosmos::Ship *dyn_ship = nullptr;
+        bool dyn_valid = false;
         const Ship * eye_ship{};
         int sas_index{};
         double earth_sphere_switch_m{};
@@ -301,6 +305,7 @@ namespace kosmos::app
         sl::dvec3 eye_world;
         glm::vec3 ship_rel;
         double view_fov{};
+        double fov_user{}; // field of view set with X / Z; 0 keeps each view's own
         double user_extent{};
         int soi{};
         sl::dvec3 soi_pos;
@@ -353,6 +358,10 @@ namespace kosmos::app
         void drop_bomb(bool special);
         void next_scenario();
         void cycle_mfd_display();
+        void update_camera_dynamics(double sim_dt);
+        void draw_reentry_plasma();
+        kosmos::HeadMotion head_motion() const;
+        void step_fov(int direction);
         void cycle_camera();
         void switch_to_next_ship();
         void jump_to_player();

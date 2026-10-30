@@ -358,6 +358,8 @@ namespace kosmos::app
                 mouse_captured = capture;
             }
         }
+        if (!typing && (keys.down("fov_up") || keys.down("fov_down")))
+            fov_user = std::clamp((fov_user > 0.0 ? fov_user : view_fov) * std::exp((keys.down("fov_up") ? 0.6 : -0.6) * frame), 5.0, 120.0);
         const double zoom_in = keys.down("zoom_in") ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
         const double zoom_out = keys.down("zoom_out") ? 1.0 + 2.0 * frame : 1.0;
         if (galaxy_mode)
@@ -437,6 +439,51 @@ namespace kosmos::app
         }
     }
 
+    // The Dynamic Camera's settings (View > Camera) on top of the ship's own head_motion.
+    kosmos::HeadMotion App::head_motion() const
+    {
+        kosmos::HeadMotion hm = ship->spec().cockpit.head_motion;
+        const bool dynamic = sim.props.get_string("/sim/settings/camera-mode", "dynamic") == "dynamic";
+        hm.enabled = hm.enabled && dynamic;
+        hm.strength *= std::clamp(sim.props.get_int("/sim/settings/camera-strength", 100), 0, 200) / 100.0;
+        return hm;
+    }
+
+    // Works out the acceleration the pilot feels (everything but gravity) and moves the eye on its springs.
+    void App::update_camera_dynamics(double sim_dt)
+    {
+        kosmos::Universe &universe = *universe_ref;
+        const kosmos::HeadMotion hm = head_motion();
+        sl::FlightBody &b = ship->body();
+        const bool rails = sim.current_warp() > 4.0 || sim.props.get_bool("/sim/paused") || sim_dt <= 1.0e-6;
+        if (!hm.enabled || ship != dyn_ship)
+        {
+            cam_dyn.reset();
+            dyn_ship = ship;
+            dyn_valid = false;
+            dyn_velocity = b.velocity;
+            return;
+        }
+        if (rails)
+        {
+            cam_dyn.relax(frame, hm);
+            dyn_valid = false;
+            dyn_velocity = b.velocity;
+            return;
+        }
+        if (dyn_valid)
+        {
+            const sl::dvec3 felt = (b.velocity - dyn_velocity) / sim_dt - universe.world.gravity_at(b.position);
+            // A jump this big is a teleport, a docking or a staging, not something a pilot feels.
+            if (glm::length(felt) > 500.0)
+                cam_dyn.reset();
+            else
+                cam_dyn.step(frame, b.direction_to_local(glm::length(felt) > 60.0 ? felt * (60.0 / glm::length(felt)) : felt), hm);
+        }
+        dyn_velocity = b.velocity;
+        dyn_valid = true;
+    }
+
     // Time warp, the simulation step and the ship events that follow.
     void App::advance_time()
     {
@@ -445,6 +492,7 @@ namespace kosmos::app
         govern_time_warp();
         poll_blender_edit();
         const double time_before_step = step_simulation();
+        update_camera_dynamics(universe.time() - time_before_step);
         collide_ground_vehicles();
         for (int i = 0; i < sim.ship_count(); ++i)
             if (sim.ship(i)->spec().interior)
@@ -534,7 +582,7 @@ namespace kosmos::app
     {
     sl::FlightBody &fb = *fb_ref;
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
-            sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : eye_shift);
+            sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : eye_shift + cam_dyn.offset(head_motion()));
             double yaw = look_yaw, pitch = look_pitch;
             if (!in_interior)
             {
@@ -721,6 +769,8 @@ namespace kosmos::app
             view_fov = bc.fov;
         }
 
+        if (fov_user > 0.0)
+            view_fov = fov_user;
         soi = tm.soi;
         const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)]; soi_body_ref = &soi_body;
         soi_pos = universe.position(soi);

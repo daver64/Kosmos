@@ -90,6 +90,16 @@ namespace kosmos
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 spec.cockpit.mfd_filter = jc.value("mfd_filter", spec.cockpit.mfd_filter);
                 spec.cockpit.hud_modes = jc.value("hud_modes", spec.cockpit.hud_modes);
+                if (jc.contains("head_motion") && jc["head_motion"].is_object())
+                {
+                    const nlohmann::json &jh = jc["head_motion"];
+                    HeadMotion &hm = spec.cockpit.head_motion;
+                    hm.enabled = jh.value("enabled", hm.enabled);
+                    hm.strength = std::clamp(jh.value("strength", hm.strength), 0.0, 4.0);
+                    hm.frequency = std::clamp(jh.value("frequency", hm.frequency), 0.5, 10.0);
+                    hm.damping = std::clamp(jh.value("damping", hm.damping), 0.05, 2.0);
+                    hm.max_offset = std::clamp(jh.value("max", hm.max_offset), 0.0, 0.6);
+                }
                 for (const nlohmann::json &ji : jc.value("panel", nlohmann::json::array()))
                     spec.cockpit.panel.push_back({ji.value("label", ""), ji.value("property", ""), ji.value("scale", 1.0), ji.value("format", "%.1f")});
                 if (jc.contains("layout"))

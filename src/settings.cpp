@@ -71,6 +71,8 @@ namespace kosmos
         props.set_int("/sim/settings/gfx-clutter-density", 100);
         props.set_int("/sim/settings/gfx-clutter-radius", 100);
         props.set_int("/sim/settings/max-texture", 0);
+        props.set_string("/sim/settings/camera-mode", "dynamic");
+        props.set_int("/sim/settings/camera-strength", 100);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -101,6 +103,9 @@ namespace kosmos
         load_int("gfx-clutter-density", 10, 200);
         load_int("gfx-clutter-radius", 25, 200);
         load_int("max-texture", 0, 16384);
+        load_int("camera-strength", 0, 200);
+        if (j.contains("camera-mode") && j["camera-mode"].is_string())
+            props.set_string("/sim/settings/camera-mode", j["camera-mode"].get<std::string>() == "standard" ? "standard" : "dynamic");
         if (j.contains("gfx-clutter") && j["gfx-clutter"].is_boolean())
             props.set_bool("/sim/settings/gfx-clutter", j["gfx-clutter"].get<bool>());
         if (j.contains("gfx-earth-relief") && j["gfx-earth-relief"].is_boolean())
@@ -155,6 +160,8 @@ namespace kosmos
         j["gfx-clutter"] = props.get_bool("/sim/settings/gfx-clutter", true);
         j["gfx-clutter-density"] = props.get_int("/sim/settings/gfx-clutter-density", 100);
         j["gfx-clutter-radius"] = props.get_int("/sim/settings/gfx-clutter-radius", 100);
+        j["camera-mode"] = props.get_string("/sim/settings/camera-mode", "dynamic");
+        j["camera-strength"] = props.get_int("/sim/settings/camera-strength", 100);
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);

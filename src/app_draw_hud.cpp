@@ -317,8 +317,8 @@ namespace kosmos::app
             }
             if (!map_mode && props.get_bool("/sim/settings/help-text"))
             {
-                sl::gprintf(16, hud_end_y + 24, {200, 210, 220}, "%s", "[Z/X] Throttle  [Shift/Ctrl] +/-  [Space] Stage  [WASDQE] Rotate  [Arrows] RCS  [T] Hold  [P] Autopilot");
-                sl::gprintf(16, hud_end_y + 42, {200, 210, 220}, "%s", "[,/.] Warp  [R-drag] Look  [ [ ] ] Zoom  [O] Orbit  [Tab] Map  [C] Cockpit/3D  [V] Ship  [F2] Cameras  [F3] Settings  [F4] Properties  [F11] Lua  [F12] Multiplayer  [J] Jump to player  [F5-F9] MFD  [F10] Scenario  [R] Reset");
+                sl::gprintf(16, hud_end_y + 24, {200, 210, 220}, "%s", "[Num+/Num*] Throttle  [Ctrl+Num+/-] +/-  [Space] Stage  [Num 2 8 1 3 4 6] Rotate  [Arrows] RCS  [Num5 [ ] ; '] Hold  [P] Autopilot");
+                sl::gprintf(16, hud_end_y + 42, {200, 210, 220}, "%s", "[R/T] Warp  [R-drag] Look  [- =] Zoom  [X/Z] FOV  [O] Orbit  [Ctrl+M] Map  [C] Cockpit/3D  [V] Ship  [F2] Cameras  [F3] Settings  [F4] Properties  [F11] Lua  [F12] Multiplayer  [J] Jump to player  [F5-F9] MFD  [F10] Scenario  [Shift+R] Reset");
             }
     }
 
@@ -545,7 +545,7 @@ namespace kosmos::app
         if (show_info)
             sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
         if (ship->crashed())
-            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press R to reset ***" : "*** VESSEL LOST - press R to reset ***");
+            sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press Shift+R to reset ***" : "*** VESSEL LOST - press Shift+R to reset ***");
         else if (ship->systems() && !ship->systems()->alarms().empty() && ((sl::time_ms() / 450) % 4 != 0 || ship->systems()->mode() == kosmos::LifeSupportMode::off))
             sl::gprintf_center(96, {255, 80, 70}, "!! %s !!", ship->systems()->alarm_text().c_str());
         if (show_info)

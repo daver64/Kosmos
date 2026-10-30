@@ -63,16 +63,22 @@ namespace kosmos
             const KeyName *n = name_of(c.key);
             if (!n)
                 return "";
-            return std::string(c.shift ? "shift+" : "") + n->id;
+            return std::string(c.ctrl ? "ctrl+" : "") + (c.alt ? "alt+" : "") + (c.shift ? "shift+" : "") + n->id;
         }
 
         KeyChord chord_from_text(std::string text)
         {
             KeyChord c;
-            if (text.rfind("shift+", 0) == 0)
+            for (bool more = true; more;)
             {
-                c.shift = true;
-                text = text.substr(6);
+                more = false;
+                for (const auto &[prefix, flag] : {std::pair<const char *, bool KeyChord::*>{"shift+", &KeyChord::shift}, {"ctrl+", &KeyChord::ctrl}, {"alt+", &KeyChord::alt}})
+                    if (text.rfind(prefix, 0) == 0)
+                    {
+                        c.*flag = true;
+                        text = text.substr(std::string(prefix).size());
+                        more = true;
+                    }
             }
             for (const KeyName &n : key_names)
                 if (text == n.id)
@@ -80,9 +86,14 @@ namespace kosmos
                     c.key = n.key;
                     return c;
                 }
-            c.shift = false;
-            return c;
+            return KeyChord();
         }
+
+        bool ctrl_down() { return sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control); }
+        bool alt_down() { return sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt); }
+
+        // A held chord with Ctrl or Alt needs them down; other held chords ignore modifiers.
+        bool chord_mods_held(const KeyChord &c) { return (!c.ctrl || ctrl_down()) && (!c.alt || alt_down()); }
 
         bool contexts_clash(KeyContext a, KeyContext b) { return a == KeyContext::anywhere || b == KeyContext::anywhere || a == b; }
 
@@ -128,49 +139,60 @@ namespace kosmos
         add("next_scenario", "Next scenario", win, any, false, {K::f10});
 
         add("free_pointer", "Free the mouse pointer", gen, any, false, {K::backquote});
-        add("restart", "Restart the scenario", gen, any, false, {K::letter_r});
-        add("map", "System map", gen, any, false, {K::tab});
+        add("restart", "Restart the scenario", gen, any, false, {K::letter_r, true});
+        add("map", "System map", gen, any, false, {K::letter_m, false, true}, {K::tab});
         add("galaxy_map", "Galaxy map", gen, any, false, {K::letter_n});
         add("cycle_camera", "Cycle cameras / cockpit views", gen, any, false, {K::letter_c});
         add("next_ship", "Switch to the next ship", gen, any, false, {K::letter_v});
         add("jump_player", "Jump to the nearest other player", gen, any, false, {K::letter_j});
-        add("info", "Info overlay", gen, any, false, {K::letter_i});
+        add("info", "Info overlay", gen, any, false, {K::letter_i, false, true});
         add("sound", "Sound on / off", gen, any, false, {K::letter_m});
+        add("pause", "Pause / resume", gen, any, false, {K::letter_p, false, true});
+        add("record", "Start / stop video recording", gen, any, false, {K::letter_c, false, true});
+        add("quit", "Quit", gen, any, false, {K::letter_q, false, true});
+        add("fov_up", "Widen field of view", gen, any, true, {K::letter_x});
+        add("fov_down", "Narrow field of view", gen, any, true, {K::letter_z});
+        add("fov_step_up", "Widen field of view by a step", gen, any, false, {K::letter_x, false, true});
+        add("fov_step_down", "Narrow field of view by a step", gen, any, false, {K::letter_z, false, true});
         add("orbit_line", "Orbit line on / off", gen, any, false, {K::letter_o});
-        add("warp_up", "Faster time warp", gen, any, false, {K::period});
-        add("warp_down", "Slower time warp", gen, any, false, {K::comma});
+        add("warp_up", "Faster time warp", gen, any, false, {K::letter_t});
+        add("warp_down", "Slower time warp", gen, any, false, {K::letter_r});
         add("enter_exit", "Leave / board ship, enter building", gen, any, false, {K::return_key}, {K::keypad_enter});
-        add("zoom_in", "Zoom in", gen, any, true, {K::left_bracket});
-        add("zoom_out", "Zoom out", gen, any, true, {K::right_bracket});
+        add("zoom_in", "Zoom in", gen, any, true, {K::equals});
+        add("zoom_out", "Zoom out", gen, any, true, {K::minus});
 
-        add("throttle_full", "Full throttle", ship, fly, false, {K::letter_z});
-        add("throttle_zero", "Cut throttle", ship, fly, false, {K::letter_x});
+        add("throttle_full", "Full throttle", ship, fly, false, {K::keypad_plus});
+        add("throttle_zero", "Cut throttle", ship, fly, false, {K::keypad_multiply});
         add("stage", "Stage", ship, fly, false, {K::space});
         add("chute_deploy", "Deploy parachute", ship, fly, false, {K::delete_key});
         add("chute_cut", "Cut parachutes away", ship, fly, false, {K::delete_key, true});
         add("autopilot", "Autopilot on / off", ship, fly, false, {K::letter_p});
-        add("sas", "Next SAS mode", ship, fly, false, {K::letter_t});
-        add("gear", "Landing gear up / down", ship, fly, false, {K::letter_g}, {K::letter_l});
+        add("sas", "SAS: kill rotation", ship, fly, false, {K::keypad_5});
+        add("sas_prograde", "SAS: hold prograde", ship, fly, false, {K::left_bracket});
+        add("sas_retrograde", "SAS: hold retrograde", ship, fly, false, {K::right_bracket});
+        add("sas_normal", "SAS: hold normal", ship, fly, false, {K::semicolon});
+        add("sas_antinormal", "SAS: hold anti-normal", ship, fly, false, {K::quote});
+        add("gear", "Landing gear up / down", ship, fly, false, {K::letter_g});
         add("flaps", "Flaps (map: focus; on foot: pack)", ship, any, false, {K::letter_f});
-        add("undock", "Undock", ship, fly, false, {K::letter_u});
-        add("hover_on", "Hover engines full", ship, fly, false, {K::keypad_0});
-        add("hover_off", "Hover engines off", ship, fly, false, {K::keypad_period});
+        add("undock", "Undock", ship, fly, false, {K::letter_d, false, true});
+        add("hover_on", "Hover engines full", ship, fly, false, {K::home});
+        add("hover_off", "Hover engines off", ship, fly, false, {K::end});
         add("hud_mode", "Next HUD mode", ship, any, false, {K::letter_h});
-        add("hud_colour", "Next HUD colour", ship, any, false, {K::letter_h, true});
+        add("hud_colour", "Next HUD colour", ship, any, false, {K::letter_h, false, false, true});
 
-        add("fire_primary", "Fire primary weapons", hold, fly, true, {K::keypad_1});
+        add("fire_primary", "Fire primary weapons", hold, fly, true, {K::keypad_divide});
         add("fire_secondary", "Fire secondary weapons", hold, fly, true, {K::keypad_7});
-        add("throttle_up", "Throttle up", hold, fly, true, {K::left_shift});
-        add("throttle_down", "Throttle down", hold, fly, true, {K::left_control});
-        add("hover_up", "Hover thrust up", hold, fly, true, {K::keypad_plus});
-        add("hover_down", "Hover thrust down", hold, fly, true, {K::keypad_minus});
-        add("pitch_up", "Pitch up", hold, fly, true, {K::letter_s});
-        add("pitch_down", "Pitch down", hold, fly, true, {K::letter_w});
-        add("yaw_left", "Yaw left", hold, fly, true, {K::letter_a});
-        add("yaw_right", "Yaw right", hold, fly, true, {K::letter_d});
-        add("roll_left", "Roll left", hold, fly, true, {K::letter_q});
-        add("roll_right", "Roll right", hold, fly, true, {K::letter_e});
-        add("brake", "Wheel brakes", hold, fly, true, {K::letter_b});
+        add("throttle_up", "Throttle up", hold, fly, true, {K::keypad_plus, false, true});
+        add("throttle_down", "Throttle down", hold, fly, true, {K::keypad_minus, false, true});
+        add("hover_up", "Hover thrust up", hold, fly, true, {K::keypad_0});
+        add("hover_down", "Hover thrust down", hold, fly, true, {K::keypad_period});
+        add("pitch_up", "Pitch up", hold, fly, true, {K::keypad_2});
+        add("pitch_down", "Pitch down", hold, fly, true, {K::keypad_8});
+        add("yaw_left", "Yaw left", hold, fly, true, {K::keypad_1});
+        add("yaw_right", "Yaw right", hold, fly, true, {K::keypad_3});
+        add("roll_left", "Roll left", hold, fly, true, {K::keypad_4});
+        add("roll_right", "Roll right", hold, fly, true, {K::keypad_6});
+        add("brake", "Wheel brakes", hold, fly, true, {K::comma});
         add("rcs_left", "Translate left (cockpit: head left)", hold, fly, true, {K::arrow_left});
         add("rcs_right", "Translate right (cockpit: head right)", hold, fly, true, {K::arrow_right});
         add("rcs_up", "Translate up (cockpit: head forward)", hold, fly, true, {K::arrow_up});
@@ -178,13 +200,13 @@ namespace kosmos
         add("head_up", "Cockpit head up", hold, fly, true, {K::page_up});
         add("head_down", "Cockpit head down", hold, fly, true, {K::page_down});
 
-        add("pod_thrust_up", "Pod thrust up", pods, fly, true, {K::keypad_9});
-        add("pod_thrust_down", "Pod thrust down", pods, fly, true, {K::keypad_3});
-        add("pod_tilt_up", "Pods tilt forward", pods, fly, true, {K::keypad_8});
-        add("pod_tilt_down", "Pods tilt back", pods, fly, true, {K::keypad_2});
-        add("pod_retro", "Pods to retro", pods, fly, true, {K::keypad_4});
-        add("pod_hover", "Pods to hover", pods, fly, true, {K::keypad_5});
-        add("pod_forward", "Pods to forward", pods, fly, true, {K::keypad_6});
+        add("pod_thrust_up", "Pod thrust up", pods, fly, true, {K::digit_9});
+        add("pod_thrust_down", "Pod thrust down", pods, fly, true, {K::digit_3});
+        add("pod_tilt_up", "Pods tilt forward", pods, fly, true, {K::digit_8});
+        add("pod_tilt_down", "Pods tilt back", pods, fly, true, {K::digit_2});
+        add("pod_retro", "Pods to retro", pods, fly, true, {K::digit_4});
+        add("pod_hover", "Pods to hover", pods, fly, true, {K::digit_5});
+        add("pod_forward", "Pods to forward", pods, fly, true, {K::digit_6});
 
         add("nav_lights", "Navigation lights and strobes", gear, any, false, {K::letter_y});
         add("lamps", "Landing and nose lights", gear, any, false, {K::letter_y, true});
@@ -222,16 +244,16 @@ namespace kosmos
         return nullptr;
     }
 
-    bool KeyBindings::pressed(const char *id, sl::Key key, bool shift) const
+    bool KeyBindings::pressed(const char *id, sl::Key key, KeyMods mods) const
     {
         const KeyAction *action = find(id);
         if (!action)
             return false;
         for (const KeyChord &c : action->chord)
         {
-            if (c.empty() || c.key != key)
+            if (c.empty() || c.key != key || c.ctrl != mods.ctrl || c.alt != mods.alt)
                 continue;
-            if (c.shift == shift)
+            if (c.shift == mods.shift)
                 return true;
             // A plain binding still fires with Shift held unless another action claims Shift+that key.
             if (!c.shift)
@@ -239,7 +261,7 @@ namespace kosmos
                 bool claimed = false;
                 for (const KeyAction &other : actions_)
                     for (const KeyChord &oc : other.chord)
-                        claimed = claimed || (oc.key == key && oc.shift && !other.held);
+                        claimed = claimed || (oc.key == key && oc.shift && oc.ctrl == mods.ctrl && oc.alt == mods.alt && !other.held);
                 if (!claimed)
                     return true;
             }
@@ -253,12 +275,12 @@ namespace kosmos
         if (!action)
             return false;
         for (const KeyChord &c : action->chord)
-            if (!c.empty() && key_held(c.key))
+            if (!c.empty() && key_held(c.key) && chord_mods_held(c))
                 return true;
         return false;
     }
 
-    bool KeyBindings::press_custom(sl::PropertyTree &props, sl::Key key, bool shift) const
+    bool KeyBindings::press_custom(sl::PropertyTree &props, sl::Key key, KeyMods mods) const
     {
         bool fired = false;
         for (const KeyAction &a : actions_)
@@ -266,7 +288,7 @@ namespace kosmos
             if (a.custom != CustomMode::toggle)
                 continue;
             for (const KeyChord &c : a.chord)
-                if (!c.empty() && c.key == key && c.shift == shift)
+                if (!c.empty() && c.key == key && c.shift == mods.shift && c.ctrl == mods.ctrl && c.alt == mods.alt)
                 {
                     props.set_bool(a.property, !props.get_bool(a.property));
                     fired = true;
@@ -282,7 +304,7 @@ namespace kosmos
             {
                 bool on = false;
                 for (const KeyChord &c : a.chord)
-                    on = on || (!typing && !c.empty() && key_held(c.key));
+                    on = on || (!typing && !c.empty() && key_held(c.key) && chord_mods_held(c));
                 if (props.get_bool(a.property) != on)
                     props.set_bool(a.property, on);
             }
@@ -307,6 +329,8 @@ namespace kosmos
                 a.held = a.custom == CustomMode::hold;
                 KeyChord c = chord_from_text(ja.value("key", ""));
                 c.shift = c.shift || ja.value("shift", false);
+                c.ctrl = c.ctrl || ja.value("ctrl", false);
+                c.alt = c.alt || ja.value("alt", false);
                 a.defaults[0] = a.chord[0] = c;
                 actions_.push_back(std::move(a));
             }
@@ -334,7 +358,7 @@ namespace kosmos
                     if (&other == target && s == slot)
                         continue;
                     KeyChord &oc = other.chord[s];
-                    if (!oc.empty() && oc.key == chord.key && (oc.shift == chord.shift || other.held || target->held) && contexts_clash(other.context, target->context))
+                    if (!oc.empty() && oc.key == chord.key && oc.ctrl == chord.ctrl && oc.alt == chord.alt && (oc.shift == chord.shift || other.held || target->held) && contexts_clash(other.context, target->context))
                     {
                         oc = KeyChord();
                         if (&other != target)
@@ -372,7 +396,7 @@ namespace kosmos
         learn_slot_ = slot;
     }
 
-    std::string KeyBindings::learn_key(sl::Key key, bool shift, bool &done)
+    std::string KeyBindings::learn_key(sl::Key key, KeyMods mods, bool &done)
     {
         done = false;
         if (!learning())
@@ -388,7 +412,8 @@ namespace kosmos
         if (!a || (is_modifier(key) && !a->held))
             return "";
         done = true;
-        KeyChord chord{key, shift && !is_modifier(key)};
+        const bool bare = is_modifier(key);
+        KeyChord chord{key, mods.shift && !bare, mods.ctrl && !bare, mods.alt && !bare};
         const std::string taken = assign(learn_id_, learn_slot_, chord);
         cancel_learn();
         return taken;
@@ -399,7 +424,7 @@ namespace kosmos
         const KeyName *n = name_of(chord.key);
         if (!n)
             return "-";
-        return std::string(chord.shift ? "Shift+" : "") + n->display;
+        return std::string(chord.ctrl ? "Ctrl+" : "") + (chord.alt ? "Alt+" : "") + (chord.shift ? "Shift+" : "") + n->display;
     }
 
     std::string KeyBindings::label_for(const std::string &id) const

@@ -64,6 +64,7 @@ add_executable(kosmos
     src/ship.cpp
     src/equipment.cpp
     src/ordnance.cpp
+    src/camera_dynamics.cpp
     src/weapon_specs.cpp
     src/ship_weapons.cpp
     src/blast_sound.cpp
@@ -161,6 +162,16 @@ add_executable(reentry_test EXCLUDE_FROM_ALL tests/reentry_test.cpp src/reentry.
 target_link_libraries(reentry_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(reentry_test PRIVATE src)
 target_compile_definitions(reentry_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Re-entry plasma look: cmake --build build --target plasma_look_test && build/plasma_look_test
+add_executable(plasma_look_test EXCLUDE_FROM_ALL tests/plasma_look_test.cpp)
+target_include_directories(plasma_look_test PRIVATE src)
+
+# The Dynamic Camera's spring model: cmake --build build --target camera_dynamics_test && build/camera_dynamics_test
+add_executable(camera_dynamics_test EXCLUDE_FROM_ALL tests/camera_dynamics_test.cpp src/camera_dynamics.cpp)
+target_link_libraries(camera_dynamics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(camera_dynamics_test PRIVATE src)
+target_compile_definitions(camera_dynamics_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

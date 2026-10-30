@@ -1,5 +1,6 @@
 #pragma once
 
+#include "camera_dynamics.h"
 #include "interior.h"
 #include "lights.h"
 #include "reentry.h"
@@ -170,6 +171,8 @@ namespace kosmos
         std::string mfd_filter = "auto";
         /** HUD modes the H key cycles ("orbit", "surface", "docking"); empty means the class default (see ShipSpec::hud_modes). */
         std::vector<std::string> hud_modes;
+        /** How the Dynamic Camera moves the eye on its springs. */
+        HeadMotion head_motion;
 
         /** One instrument on the cockpit panel: an MFD mode drawn in a square at (x, y) in panel units, with its buttons if `frame`. */
         struct PanelInstrument

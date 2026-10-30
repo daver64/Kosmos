@@ -7,13 +7,19 @@
 
 namespace kosmos
 {
-    /** A key, optionally with Shift held. Held (continuous) actions ignore the Shift flag. */
+    /** The modifiers held with a key press. */
+    struct KeyMods
+    {
+        bool shift = false, ctrl = false, alt = false;
+    };
+
+    /** A key with optional Shift, Ctrl and Alt. Held (continuous) actions ignore Shift but honour Ctrl and Alt. */
     struct KeyChord
     {
         sl::Key key = sl::Key::unknown;
-        bool shift = false;
+        bool shift = false, ctrl = false, alt = false;
         bool empty() const { return key == sl::Key::unknown; }
-        bool operator==(const KeyChord &o) const { return key == o.key && shift == o.shift; }
+        bool operator==(const KeyChord &o) const { return key == o.key && shift == o.shift && ctrl == o.ctrl && alt == o.alt; }
     };
 
     /** Where an action applies: two actions may share a chord when their contexts differ. */
@@ -55,13 +61,13 @@ namespace kosmos
         const std::vector<KeyAction> &actions() const { return actions_; }
         const KeyAction *find(const std::string &id) const;
 
-        /** True when @p key (with @p shift held) was just pressed and is bound to @p id. */
-        bool pressed(const char *id, sl::Key key, bool shift) const;
+        /** True when @p key (with @p mods held) was just pressed and is bound to @p id. */
+        bool pressed(const char *id, sl::Key key, KeyMods mods) const;
         /** True while any key bound to @p id is held. */
         bool down(const char *id) const;
 
         /** Addon actions pressed by this key; sets or toggles their properties. Returns true when one fired. */
-        bool press_custom(sl::PropertyTree &props, sl::Key key, bool shift) const;
+        bool press_custom(sl::PropertyTree &props, sl::Key key, KeyMods mods) const;
         /** Writes held addon actions' properties for this frame. */
         void update_custom(sl::PropertyTree &props, bool typing) const;
 
@@ -82,9 +88,9 @@ namespace kosmos
         const std::string &learn_id() const { return learn_id_; }
         int learn_slot() const { return learn_slot_; }
         /** Feed a key press while learning. Returns the name of an action the chord was taken from (or empty); sets @p done when finished. */
-        std::string learn_key(sl::Key key, bool shift, bool &done);
+        std::string learn_key(sl::Key key, KeyMods mods, bool &done);
 
-        /** "Shift+K", "Keypad 9", or "-" when empty. */
+        /** "Ctrl+Shift+K", "Keypad 9", or "-" when empty. */
         static std::string chord_name(const KeyChord &chord);
         /** Display names of an action's chords joined with " / ". */
         std::string label_for(const std::string &id) const;

@@ -1195,25 +1195,26 @@ namespace kosmos
     namespace
     {
         const char *control_help = "Flight\n"
-                                   "  Z / X            full / zero throttle\n"
-                                   "  Shift / Ctrl     throttle up / down\n"
+                                   "  Keypad + / *     full / zero throttle\n"
+                                   "  Ctrl+Keypad + -  throttle up / down\n"
                                    "  Space            stage\n"
-                                   "  W A S D Q E      rotate (pitch, yaw, roll)\n"
+                                   "  Keypad 2 8 1 3 4 6  pitch, yaw, roll as in Orbiter\n"
                                    "  Arrows           RCS translation\n"
-                                   "  Keypad 9/3 8/2   engine pods (Shuttle-A): thrust, swing; 4/5/6 retro/hover/fwd\n"
-                                   "  T                cycle attitude hold\n"
+                                   "  9/3 8/2 (digits) engine pods (Shuttle-A): thrust, swing; 4/5/6 retro/hover/fwd\n"
+                                   "  Keypad 5         SAS kill rotation   [ ] ; '  prograde / retrograde / normal / anti-normal\n"
                                    "  P                autopilot (Autopilot menu for modes)\n"
-                                   "  U                undock\n"
-                                   "  R                restart scenario\n"
+                                   "  Ctrl+D           undock\n"
+                                   "  R / T            time warp down / up\n"
+                                   "  Shift+R          restart scenario\n"
                                    "View\n"
                                    "  C                chase / cockpit / 3D cockpit\n"
                                    "  V                switch ship\n"
                                    "  Right-drag       look around\n"
-                                   "  [ ]              zoom\n"
+                                   "  - =              zoom   X / Z  field of view (Ctrl: steps)\n"
                                    "  O                orbit line\n"
-                                   "  Tab / N          map / galaxy map\n"
+                                   "  Ctrl+M / N       map / galaxy map   Ctrl+I  on-screen text\n"
                                    "Time\n"
-                                   "  , .              slower / faster time warp\n"
+                                   "  Ctrl+P           pause   Ctrl+C  record video   Ctrl+Q  quit\n"
                                    "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door; inside, face a wall panel and Enter to use it, and leave through the airlock hatch)\n"
                                    "  W A S D          walk / strafe       Shift   boost\n"
                                    "  Space jump  Ctrl crouch              Mouse or arrows   look (` or Alt frees the mouse)\n"
@@ -1592,6 +1593,24 @@ namespace kosmos
                 base_editor.redo(sim);
             else
                 scenario_editor.redo();
+        }
+        ImGui::Separator();
+        if (ImGui::BeginMenu("Camera"))
+        {
+            const std::string mode = sim.props.get_string("/sim/settings/camera-mode", "dynamic");
+            if (ImGui::MenuItem("Standard Camera", nullptr, mode == "standard"))
+                sim.props.set_string("/sim/settings/camera-mode", "standard");
+            if (ImGui::MenuItem("Dynamic Camera", nullptr, mode == "dynamic"))
+                sim.props.set_string("/sim/settings/camera-mode", "dynamic");
+            if (mode == "dynamic")
+            {
+                int strength = sim.props.get_int("/sim/settings/camera-strength", 100);
+                ImGui::SetNextItemWidth(160.0f);
+                if (ImGui::SliderInt("Strength", &strength, 0, 200, "%d%%"))
+                    sim.props.set_int("/sim/settings/camera-strength", strength);
+            }
+            ImGui::TextDisabled("Dynamic: the cockpit eye sways with acceleration.");
+            ImGui::EndMenu();
         }
         ImGui::Separator();
         for (MenuWindow &w : windows)

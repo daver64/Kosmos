@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "plasma_look.h"
 
 namespace kosmos::app
 {
@@ -931,6 +932,82 @@ namespace kosmos::app
         }
     }
 
+    // The plasma sheath and wake of a ship falling fast through air, sized by the shape of the vehicle (see plasma_look).
+    void App::draw_reentry_plasma()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::Material glow;
+        glow.lit = false;
+        glow.fog = false;
+        glow.blend = sl::MaterialBlend::additive;
+        glow.cull = sl::CullMode::none;
+        const float flicker = 0.9f + 0.1f * std::sin(static_cast<float>(sl::time_ms() % 100000) * 0.037f);
+        for (int s = 0; s < sim.ship_count(); ++s)
+        {
+            Ship &other = *sim.ship(s);
+            const sl::FlightBody &ob = other.body();
+            if (other.on_rails() || other.crashed() || ob.mode != sl::FlightBodyMode::dynamic || other.telemetry().soi < 0)
+                continue;
+            const double rho = universe.world.air_density_at(ob.position);
+            const sl::dvec3 air = ob.velocity - universe.world.air_velocity_at(ob.position);
+            const double speed = glm::length(air);
+            if (rho < 1.0e-8 || speed < 1500.0)
+                continue;
+            const kosmos::ShipSpec &spec = other.spec();
+            double radius = 0.5;
+            for (std::size_t i = static_cast<std::size_t>(std::max(other.active_stage(), 0)); i < spec.stages.size(); ++i)
+                radius = std::max(radius, spec.stages[i].radius);
+            const double nose = spec.thermal.enabled ? spec.thermal.nose_radius : radius * 0.6;
+            const kosmos::PlasmaLook look = kosmos::plasma_look(kosmos::stagnation_flux(rho, speed, nose), radius, nose);
+            if (look.brilliance <= 0.0f)
+                continue;
+            const bool aboard = &other == ship && (in_cockpit || in_interior);
+            const float k = look.brilliance * flicker * (aboard ? 0.35f : 1.0f);
+
+            // The frame trails the flow: +Z points back along the airstream.
+            const glm::vec3 back = glm::vec3(-air / speed);
+            const glm::vec3 side = std::fabs(back.y) < 0.95f ? glm::normalize(glm::cross(glm::vec3(0, 1, 0), back)) : glm::vec3(1, 0, 0);
+            const glm::vec3 up_axis = glm::cross(back, side);
+            const glm::mat4 basis(glm::vec4(side, 0.0f), glm::vec4(up_axis, 0.0f), glm::vec4(back, 0.0f), glm::vec4(0, 0, 0, 1));
+            const glm::mat4 at = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) * basis;
+
+            // Hot colour runs from orange to a white tinged with violet; the outer haze is redder.
+            const float h = look.heat;
+            const auto mix8 = [](float a, float b, float t) { return static_cast<std::uint8_t>(std::clamp(a + (b - a) * t, 0.0f, 255.0f)); };
+            const sl::Colour haze{mix8(255, 130, h), mix8(40, 90, h), mix8(15, 255, h), 255};
+            const sl::Colour body{255, mix8(70, 190, h), mix8(25, 235, h), 255};
+            const sl::Colour core{255, mix8(150, 245, h), mix8(80, 255, h), 255};
+            const auto layer = [&](const sl::Colour &c, float alpha, const glm::vec3 &centre, const glm::vec3 &radii)
+            {
+                glow.tint = c;
+                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
+                sl::draw_mesh(vis.glow, at * glm::translate(glm::mat4(1.0f), centre) * glm::scale(glm::mat4(1.0f), radii), glow);
+            };
+            // Many faint nested layers so no single outline shows.
+            constexpr int layers = 28;
+            for (int i = 0; i < layers; ++i)
+            {
+                const float t = static_cast<float>(i) / (layers - 1);
+                const float grow = 1.0f + 1.2f * t;
+                layer(haze, 0.016f * k * (1.0f - 0.5f * t), glm::vec3(0, 0, look.length * 0.45f * grow),
+                      glm::vec3(look.width * grow * 0.9f, look.width * grow * 0.9f, look.length * 0.55f * grow));
+            }
+            for (int i = 0; i < layers; ++i)
+            {
+                const float t = static_cast<float>(i) / (layers - 1);
+                layer(body, 0.024f * k, glm::vec3(0, 0, look.length * 0.25f * (1.0f - t * 0.5f)),
+                      glm::vec3(look.width * (1.0f - 0.7f * t), look.width * (1.0f - 0.7f * t), look.length * 0.4f * (1.0f - 0.6f * t)));
+            }
+            // The shock cap ahead of the nose.
+            for (int i = 0; i < layers; ++i)
+            {
+                const float t = static_cast<float>(i) / (layers - 1);
+                const float r = look.cap * (1.2f - 0.9f * t);
+                layer(i < layers / 2 ? body : core, 0.028f * k, glm::vec3(0, 0, -look.cap * 0.5f), glm::vec3(r, r, r * 0.7f));
+            }
+        }
+    }
+
     void App::scene_exhaust_and_held()
     {
     kosmos::Universe &universe = *universe_ref;
@@ -946,6 +1023,7 @@ namespace kosmos::app
             exhaust_fx.update(*ship, vacuum, static_cast<float>(frame), !ship->on_rails() && sim.current_warp() < 4.5, com_altitude < 150.0 && !ship->on_rails(), static_cast<float>(com_altitude), local_up);
             exhaust_fx.draw(vis.glow, hull);
         }
+        draw_reentry_plasma();
         arsenal.draw_world(universe, eye_world, vis.glow);
         // Beams run for kilometres, and the ship camera's near plane is centimetres, which leaves no depth precision at that range
         // and cuts a beam off a couple of hundred metres out. Shots get a fresh depth buffer and a camera suited to their range.

@@ -1,13 +1,40 @@
 #include "app_state.h"
 
+#include <cstring>
+
 namespace kosmos::app
 {
+    // Orbiter's stepped field of view: the next preset wider or narrower than the current one.
+    void App::step_fov(int direction)
+    {
+        static const double presets[] = {10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0};
+        double next = view_fov;
+        if (direction > 0)
+        {
+            next = presets[8];
+            for (int i = 8; i >= 0; --i)
+                if (presets[i] > view_fov + 0.5)
+                    next = presets[i];
+        }
+        else
+        {
+            next = presets[0];
+            for (double p : presets)
+                if (p < view_fov - 0.5)
+                    next = p;
+        }
+        fov_user = next;
+        sim.log("Field of view " + std::to_string(static_cast<int>(next + 0.5)) + " deg");
+    }
+
     void App::restart_scenario()
     {
         vis.clear_parts();
         ship = start_scenario(sim, options, terrain_set);
         eva.active = false;
         arsenal.reset();
+        cam_dyn.reset();
+        dyn_valid = false;
         cam_distance = ship->spec().camera_distance;
     }
 
@@ -132,19 +159,21 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
         const auto key = event.key();
-        const bool shift = sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift);
-        auto hit = [&](const char *id) { return keys.pressed(id, key, shift); };
+        const kosmos::KeyMods mods{sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift),
+                                   sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control),
+                                   sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)};
+        auto hit = [&](const char *id) { return keys.pressed(id, key, mods); };
         if (keys.learning())
         {
             bool done = false;
-            const std::string taken = keys.learn_key(key, shift, done);
+            const std::string taken = keys.learn_key(key, mods, done);
             if (done)
             {
                 keys_status = taken.empty() ? "" : "Taken from: " + taken;
                 keys.save();
             }
         }
-        else if (keys.press_custom(props, key, shift))
+        else if (keys.press_custom(props, key, mods))
         {
         }
         else if (hit("window_cameras"))
@@ -216,12 +245,24 @@ namespace kosmos::app
             if (!enable)
                 props.set_string("/autopilot/status", "");
         }
-        else if (hit("sas"))
+        else if (hit("sas") || hit("sas_prograde") || hit("sas_retrograde") || hit("sas_normal") || hit("sas_antinormal"))
         {
+            const char *mode = hit("sas_prograde") ? "prograde" : hit("sas_retrograde") ? "retrograde" : hit("sas_normal") ? "normal" : hit("sas_antinormal") ? "antinormal" : "stability";
             props.set_bool("/autopilot/enabled", false);
-            sas_index = (sas_index + 1) % sas_mode_count;
-            props.set_string("/controls/sas", sas_modes[sas_index]);
+            for (int m = 0; m < sas_mode_count; ++m)
+                if (!std::strcmp(sas_modes[m], mode))
+                    sas_index = m;
+            props.set_string("/controls/sas", mode);
+            sim.log(std::string("SAS: ") + mode);
         }
+        else if (hit("pause"))
+            props.set_bool("/sim/paused", !props.get_bool("/sim/paused"));
+        else if (hit("record"))
+            menu_toggle_recording();
+        else if (hit("quit"))
+            running = false;
+        else if (hit("fov_step_up") || hit("fov_step_down"))
+            step_fov(hit("fov_step_up") ? 1 : -1);
         else if (hit("next_scenario") && !sim.scenarios().empty())
         {
         next_scenario();

@@ -47,17 +47,22 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 
 | Key | Action |
 |---|---|
-| Z / X, Shift / Ctrl | Throttle |
-| W A S D Q E | Rotate |
+| Keypad + / Keypad * | Full throttle / cut throttle |
+| Ctrl+Keypad + / Ctrl+Keypad - | Ramp the throttle up / down while held |
+| Keypad 2 8 / 1 3 / 4 6 | Pitch / yaw / roll, as in Orbiter |
 | Arrow keys | RCS translation |
 | Joystick | View > Joystick: bind axes and buttons separately for aircraft and spacecraft (saved in `joystick.json`) |
 | Space | Stage |
-| T | Cycle SAS hold mode |
+| Keypad 5 / `[` / `]` / `;` / `'` | SAS: kill rotation / prograde / retrograde / normal / anti-normal (as Orbiter's navigation modes) |
+| View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
+| X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
+| Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
 | P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Delta IV Heavy, Atlas III and Saturn V). The Autopilot menu has an Aircraft and a Spacecraft window |
-| `,` / `.` | Time warp down / up |
-| Tab | Orrery map (F: focus, `[` `]` zoom, right-drag rotate) |
+| R / T | Time warp down / up (Shift+R restarts the scenario) |
+| `,` | Wheel brakes (also B) |
+| Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
 | **G** | Toggle landing gear (also **L**) |
-| **N** | **Galaxy map** (Left/Right choose star, `[` `]` zoom, **Enter** jump) |
+| **N** | **Galaxy map** (Left/Right choose star, `-` `=` zoom, **Enter** jump) |
 | Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
 | **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (press ` or hold Alt to free the pointer for the menus), arrows also look, F manoeuvring pack, Q/E roll when floating |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
@@ -67,8 +72,10 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | **F11** | **Lua console** (like FlightGear's Nasal console): edit scripts with syntax highlighting, **Run** (Ctrl+Enter), **Save** (Ctrl+S, to `~/.config/kosmos/scripts/`). Choose the event that runs a script: manual, scenario load / ship change, every frame, timer, or when a property changes, and tick **Armed**. Scripts see `props` plus `event`, `dt`, `event_path`, `event_value`; `print` and errors go to the output pane. Examples live in `data/scripts/` |
 | **F12** | **Multiplayer** window: host or join a game, browse the IRC lobby, chat |
 | **Menu bar** | A **File / Edit / View / Tools / Help** bar is pinned along the top (untick View > *Keep menu bar visible* and it slides in only when the mouse touches the top edge). **File**: open a scenario (built-in list or a `.json` file), *Save scenario* (captures every ship's live position; orbits are saved as circular), restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, *Start/Stop recording video* (H.264 + AAC sound, `kosmos-<time>.mp4` in the working directory, needs `ffmpeg` on the path), reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
-| B / F | Wheel brakes / cycle flaps (aircraft) |
-| L | Landing gear up / down (retractable gear) |
+| , / F | Wheel brakes / cycle flaps (aircraft) |
+| G | Landing gear up / down (retractable gear) |
+| Ctrl+D | Undock |
+| Ctrl+I | Show or hide all on-screen text |
 | Left mouse drag | On a 2D cockpit panel or an MFD, hold the left button on anything that is not a control and move the mouse to reposition it |
 | Delete / Shift+Delete | Deploy / cut parachutes (ships with a `parachutes` block) |
 | Y / Shift+Y | Navigation lights / landing and nose lights on or off (also under View) |
@@ -118,7 +125,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--console` | Windows only: open a console window for the output when Kosmos was not started from a terminal (it is a GUI program and shows none by default) |
 | `--hide-info` | Hide the on-screen text and the orbit line and let the menu bar slide away (for screenshots); overrides `--show-info` |
 | `--life-support off\|warn\|fatal` | What failing life support does to a crew: nothing, alarms only (default), or the crew dies and the flight ends. A scenario's `life_support` key overrides it |
-| `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Shift+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
+| `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Alt+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
 | `--version` | Print the Kosmos version and exit |
 
 ## Versions
@@ -225,7 +232,7 @@ Each engine in a stage has a `type` and, for rockets, a `fuel`; together they de
 
 A ship's `camera_target` (`[x, y, z]` in the ship frame, nose along -Z) is the point the external camera orbits and looks at instead of the centre of mass, with `camera_distance` as the range; use it on a tall ship. `"horizontal": true` makes a non-aircraft ship (a rocket-class vessel such as the Shuttle-A) rest level on its `gear` (roof +Y, nose along the base heading) instead of standing nose-up; put the gear at negative Y.
 
-An engine with `"group": "hover"` is driven by a separate hover throttle (`/controls/hover`) instead of the main throttle: Keypad + / − raise and lower it, Keypad 0 is full hover and Keypad . cuts it; the HUD shows `Hover %` on ships that have such engines. An engine with `"group": "pod"` is a swivelling engine pod (the Shuttle-A's two aux pods, on the left and right of the hull, chosen by the sign of `position.x`): `/controls/pod-left` and `pod-right` set their thrust and `/controls/pod-tilt-left` and `pod-tilt-right` (0 aft/retro, 0.5 up/hover, 1 forward) where they point; the pods swing at `pod_turn_rate` rad/s (default 0.2, as in Orbiter) and the live angle is `{ship}/pod-angle-left` and `-right`. Keys on a ship with pods: Keypad 9/3 pod thrust, Keypad 8/2 swing the pods forward/back, Keypad 4/5/6 jump to retro/hover/forward. Model animations can read `pod-left` and `pod-right` (0 to 1). An engine with `"group": "rcs"` is a reaction-control thruster fired by the control groups in its `"rcs_groups"` list (`left`, `right`, `up`, `down`, `forward`, `back`, `pitch-up`, `pitch-down`, `yaw-left`, `yaw-right`, `bank-left`, `bank-right`): it burns its own propellant and makes its own force and torque, and a ship with any such engine does not use the generic `rcs_thrust` jets. The CVEL Dragonfly's 13 hydrogen thrusters work this way. A ship file with `"rcs_modes": true` gets an RCS mode switch, `/controls/rcs-mode`: `rot` (normal), `lin` (W/S, A/D and Q/E translate instead of rotating) or `off`. An aircraft-class ship with `"hybrid": true` (the Deltaglider) flies as a spaceship, with RCS, SAS and the spacecraft autopilots, wherever the air is thinner than a tenth of Earth's sea-level density or the ship is above the atmosphere, and as an aircraft otherwise; crossing the boundary disengages the autopilot. An aircraft-class ship with hover thrust holds itself level with RCS (SAS not off), since its control surfaces have no airflow to work with. A ship file's `animation_controls` list (`name`, `property`, `duration` seconds, optional `initial`) adds player-triggered animations, such as the Deltaglider's nose hatch: each is listed under View > Animations, set by `/controls/anim/<property>` (0 or 1), eased at the given duration, and read by model animations through the same `property` (0 to 1). A panel `toggle` control on that property gives it a button.
+An engine with `"group": "hover"` is driven by a separate hover throttle (`/controls/hover`) instead of the main throttle: Keypad 0 / Keypad . raise and lower it, Home is full hover and End cuts it; the HUD shows `Hover %` on ships that have such engines. An engine with `"group": "pod"` is a swivelling engine pod (the Shuttle-A's two aux pods, on the left and right of the hull, chosen by the sign of `position.x`): `/controls/pod-left` and `pod-right` set their thrust and `/controls/pod-tilt-left` and `pod-tilt-right` (0 aft/retro, 0.5 up/hover, 1 forward) where they point; the pods swing at `pod_turn_rate` rad/s (default 0.2, as in Orbiter) and the live angle is `{ship}/pod-angle-left` and `-right`. Keys on a ship with pods: Keypad 9/3 pod thrust, Keypad 8/2 swing the pods forward/back, Keypad 4/5/6 jump to retro/hover/forward. Model animations can read `pod-left` and `pod-right` (0 to 1). An engine with `"group": "rcs"` is a reaction-control thruster fired by the control groups in its `"rcs_groups"` list (`left`, `right`, `up`, `down`, `forward`, `back`, `pitch-up`, `pitch-down`, `yaw-left`, `yaw-right`, `bank-left`, `bank-right`): it burns its own propellant and makes its own force and torque, and a ship with any such engine does not use the generic `rcs_thrust` jets. The CVEL Dragonfly's 13 hydrogen thrusters work this way. A ship file with `"rcs_modes": true` gets an RCS mode switch, `/controls/rcs-mode`: `rot` (normal), `lin` (W/S, A/D and Q/E translate instead of rotating) or `off`. An aircraft-class ship with `"hybrid": true` (the Deltaglider) flies as a spaceship, with RCS, SAS and the spacecraft autopilots, wherever the air is thinner than a tenth of Earth's sea-level density or the ship is above the atmosphere, and as an aircraft otherwise; crossing the boundary disengages the autopilot. An aircraft-class ship with hover thrust holds itself level with RCS (SAS not off), since its control surfaces have no airflow to work with. A ship file's `animation_controls` list (`name`, `property`, `duration` seconds, optional `initial`) adds player-triggered animations, such as the Deltaglider's nose hatch: each is listed under View > Animations, set by `/controls/anim/<property>` (0 or 1), eased at the given duration, and read by model animations through the same `property` (0 to 1). A panel `toggle` control on that property gives it a button.
 
 `plume` is the plume length in metres; `plume_width` and `plume_glow` (default 1) scale its width and brightness, for a very big engine. `plume_density` (default 1) scales how many particles it spawns, so a big plume looks smooth rather than dotty. `plume_billow` (0 to 1, default 0) keeps a hydrogen plume full and soft in vacuum instead of going tight and clean; the shock diamonds stay.
 
@@ -341,7 +348,7 @@ A scenario stands a ship on a base with `"surface": {"base": "mysite"}`, optiona
 Every ship feels atmospheric drag (`drag_area`) and wind; weapons hit a ship's bounding box, or a ball of the stage radius with `"hit_sphere": true`; a ship with `"class": "aircraft"` also flies on simlib's aerodynamic model of lifting surfaces. Besides `stages` and `engines` (give a jet `"type": "jet"` so thrust fades with air density), it describes:
 
 - `surfaces`: lifting surfaces in the ship frame (nose is -Z, roof +Y). Each has `position`, `area`, `cl0`, `cl_alpha`, `cd0`, `induced_drag`, `stall_deg`, optional `forward`/`up` (a fin has `up: [1,0,0]`), and a `control` of `elevator` (pitch), `aileron` (roll), `rudder` (yaw) or `flaps`, with `gain_deg` the angle change at full deflection. W/S, Q/E and A/D drive the surfaces; with SAS on, a rate damper (`damping`) steadies them.
-- `wheels`: contact points (`position`, optional `steer_deg` for the nose wheel, `rolling_resistance`, and `drive` for a driven wheel of a ground vehicle). B brakes; a parked aircraft holds its brakes.
+- `wheels`: contact points (`position`, optional `steer_deg` for the nose wheel, `rolling_resistance`, and `drive` for a driven wheel of a ground vehicle). `,` brakes; a parked aircraft holds its brakes.
 - **Ground vehicles.** `"class": "ground"` makes a wheeled vehicle (it rests level on its wheels, like an aircraft, and shows surface instruments only). Its `wheels` carry the drive: `"ground": { "drive_force": N, "max_speed": m/s }` is the total force shared by the `drive` wheels, fading to nothing at `max_speed`, limited by the wheels' grip. The throttle (Shift and Ctrl; Ctrl continues below zero) goes from -1 (reverse) to 1, A/D steer wheels that have `steer_deg` (negative for rear wheels that turn the other way), and the vehicle parks on its brakes when the throttle is zero. A `"prop": "lunar_rover"` part draws the six-wheeled rover. See `addons/cvel-lunar-rover`.
 - `inertia` (optional): moments about X, Y, Z in kg m^2.
 - `cameras` (optional, any ship): extra interior viewpoints with `name`, `position`, `yaw`, `pitch`, `fov`, listed in the F2 window.
