@@ -1,5 +1,6 @@
 #pragma once
 
+#include "reentry.h"
 #include "universe.h"
 
 #include <algorithm>
@@ -86,6 +87,8 @@ namespace kosmos
         double yield = 1.0;
         /** Radius, in metres, within which the flash of a nuclear burst blinds and the thermal pulse burns. */
         double thermal_radius = 0.0;
+        /** Heating while falling through air (the "thermal" block); a round whose damage reaches 1 burns up without detonating. */
+        ThermalSpec thermal;
 
         /** "tricorder", "geology" or "survey" for an instrument. */
         std::string sensor;

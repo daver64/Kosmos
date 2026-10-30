@@ -1,0 +1,28 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "fairing",
+   "axis": [0.0, 0.0, 1.0],
+   "center": [0.0, -1.2, 0.0],
+   "interpolation": [[0, 0], [1, -115]],
+   "objects": ["fairing_r"]
+  },
+  {
+   "type": "rotate",
+   "property": "fairing",
+   "axis": [0.0, 0.0, 1.0],
+   "center": [0.0, -1.2, 0.0],
+   "interpolation": [[0, 0], [1, 115]],
+   "objects": ["fairing_l"]
+  },
+  {
+   "type": "translate",
+   "property": "warhead",
+   "axis": [0.0, 0.0, -1.0],
+   "interpolation": [[0, 0], [0.01, 0], [0.02, 5000], [1, 5000]],
+   "objects": ["warhead"]
+  }
+ ]
+}

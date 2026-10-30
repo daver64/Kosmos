@@ -2,6 +2,7 @@
 
 #include "interior.h"
 #include "lights.h"
+#include "reentry.h"
 #include "systems.h"
 #include "universe.h"
 
@@ -258,6 +259,10 @@ namespace kosmos
         double rcs_thrust = 0.0;
         /** Cd * A for the whole stack in m^2. */
         double drag_area = 10.0;
+        /** Re-entry heating, hypersonic aerodynamics and parachutes; all off unless the ship file asks for them. */
+        ThermalSpec thermal;
+        HypersonicSpec hypersonic;
+        std::vector<ParachuteSpec> parachutes;
         bool hit_sphere = false; // weapons hit a sphere of the stage radius instead of the bounding box
         /** Camera distance that frames the ship. */
         double camera_distance = 60.0;
@@ -294,6 +299,9 @@ namespace kosmos
             std::string name, equipment;
             sl::dvec3 position{0.0};
             int count = 1;
+            /** Ship-frame direction and speed (m/s) a released item leaves in; the default drops it. */
+            sl::dvec3 eject{0.0, -1.0, 0.0};
+            double eject_speed = 1.5;
         };
         std::vector<Hardpoint> hardpoints;
         /**
@@ -404,6 +412,8 @@ namespace kosmos
         std::string sas = "stability";
         double target_pitch = 90.0, target_heading = 90.0;
         bool stage = false;
+        /** 1 deploys the next parachute, -1 cuts every open one. */
+        int parachute = 0;
         /** Wheel brakes, 0 to 1. */
         double brake = 0.0;
         /** Flaps, 0 (up) to 1 (full). */
@@ -541,6 +551,12 @@ namespace kosmos
         void apply_controls(const Controls &controls, double dt);
         /** Refresh telemetry and handle impacts and debris after the world has stepped. */
         void after_step(double dt);
+        /** Re-entry heat of the vehicle (see ThermalState); the spec's `thermal` block must be on. */
+        const ThermalState &thermal() const { return thermal_; }
+        const std::vector<ChuteRuntime> &chutes() const { return chutes_; }
+        /** Deploy the next parachute that is still stowed. Returns false when there is none. */
+        bool deploy_parachute();
+        void cut_parachutes();
 
         /** Free the ship from rails and back to full dynamics. */
         void go_dynamic();
@@ -593,6 +609,13 @@ namespace kosmos
         void pin_to_ground();
         void hold_pinned();
         void step_systems(double dt);
+        void step_reentry(double dt);
+        void step_parachutes(double dt, const sl::dvec3 &air_velocity, double rho);
+        ThermalState thermal_;
+        std::vector<ChuteRuntime> chutes_;
+        double base_drag_area_ = 0.0;
+        std::vector<double> base_surface_area_;
+        bool aero_scaled_ = false;
         void apply_rcs_mode(Controls &c) const;
         void animate_mechanisms(const Controls &c, double dt);
         void set_thruster_levels(const Controls &c);

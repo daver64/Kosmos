@@ -192,6 +192,10 @@ namespace kosmos::app
             props.set_double("/controls/hover", 0.0);
         else if (hit("stage"))
             props.set_bool("/controls/stage", true);
+        else if (hit("chute_deploy"))
+            props.set_int("/controls/parachute", 1);
+        else if (hit("chute_cut"))
+            props.set_int("/controls/parachute", -1);
         else if (hit("autopilot"))
         {
             const bool enable = !props.get_bool("/autopilot/enabled");

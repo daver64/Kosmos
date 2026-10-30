@@ -113,13 +113,20 @@ namespace kosmos
             bool bolt = false, stuck = false;
             const Ship *owner = nullptr;
             bool by_person = false;
+            /** Blast radii and the mushroom grow with the cube root of the yield set at release; 1 is the equipment's own yield. */
+            double scale = 1.0;
+            /** Fuse set at release: -1 the equipment's own, 0 on impact, 1 an airburst at `burst_height` (negative: the equipment's own). */
+            int fuse_mode = -1;
+            double burst_height = -1.0;
+            ThermalState heat;
+            double heat_damage = 0.0;
         };
         struct Shock
         {
             const EquipmentSpec *spec = nullptr;
             int body = -1;
             sl::dvec3 centre{0.0};
-            double radius = 0.0, speed = 340.0;
+            double radius = 0.0, speed = 340.0, scale = 1.0;
             std::set<const Ship *> hit;
             bool hit_person = false;
         };

@@ -487,13 +487,28 @@ namespace kosmos
         const Universe &universe = context.sim->universe;
         const int soi = ship.telemetry().soi;
         const sl::dvec3 world = ship.origin() + ship.body().direction_to_world(hp.position);
-        const sl::dvec3 down = ship.body().direction_to_world(sl::dvec3(0.0, -1.0, 0.0));
+        const sl::dvec3 down = ship.body().direction_to_world(hp.eject);
         Round r;
         r.spec = spec;
         r.body = soi;
         r.position = world - universe.position(soi);
-        r.velocity = ship.point_velocity(world) - universe.world.body(soi)->velocity + down * 1.5;
+        r.velocity = ship.point_velocity(world) - universe.world.body(soi)->velocity + down * hp.eject_speed;
         r.orientation = turn_to(sl::dvec3(0, 1, 0), unit(r.velocity, down));
+        // The flown ship's yield and fuse dials (a targeting panel or script sets them) override the equipment's own.
+        if (&ship == context.sim->active_ship())
+        {
+            sl::PropertyTree &props = context.sim->props;
+            const double kt = props.get_double("/controls/ordnance/yield-kt");
+            if (kt > 0.0)
+                r.scale = std::cbrt(std::clamp(kt, 1.0, 20000.0) / 20.0);
+            const std::string mode = props.get_string("/controls/ordnance/mode", "");
+            if (mode == "air")
+                r.fuse_mode = 1;
+            else if (mode == "ground")
+                r.fuse_mode = 0;
+            if (props.exists("/controls/ordnance/burst-height"))
+                r.burst_height = std::max(0.0, props.get_double("/controls/ordnance/burst-height"));
+        }
         r.fuse = spec->fuse_time;
         r.owner = &ship;
         rounds_.push_back(r);
@@ -709,6 +724,7 @@ namespace kosmos
         const EquipmentSpec &spec = *round.spec;
         const Universe &universe = context.sim->universe;
         const bool nuclear = spec.blast_effect == "mushroom";
+        const double blast_radius = spec.blast_radius * round.scale;
         ++detonations_;
         if (sound_on_)
         {
@@ -716,7 +732,7 @@ namespace kosmos
             Bang bang;
             bang.kind = nuclear ? 1 : 0;
             bang.delay = nuclear && nuke_sample_ ? 0.0 : d / 340.0;
-            const double reach = nuclear ? 80000.0 : std::max(4000.0, spec.blast_radius * 60.0);
+            const double reach = nuclear ? 80000.0 * round.scale : std::max(4000.0, blast_radius * 60.0);
             bang.volume = nuclear && nuke_sample_ ? 1.0 : std::clamp(1.0 / (1.0 + d / reach), 0.0, 1.0);
             if (bang.volume > 0.02)
                 bangs_.push_back(bang);
@@ -729,27 +745,28 @@ namespace kosmos
         const sl::dvec3 base = up * ground;
 
         if (nuclear)
-            add_effect(universe, sl::Effect3DKind::mushroom, round.body, height > 5.0 ? base : point, spec.yield);
+            add_effect(universe, sl::Effect3DKind::mushroom, round.body, height > 5.0 ? base : point, spec.yield * round.scale);
         else
-            add_effect(universe, sl::Effect3DKind::explosion, round.body, point, std::max(2.0, spec.blast_radius * 0.25));
+            add_effect(universe, sl::Effect3DKind::explosion, round.body, point, std::max(2.0, blast_radius * 0.25));
 
         Shock shock;
         shock.spec = &spec;
         shock.body = round.body;
         shock.centre = point;
+        shock.scale = round.scale;
         shock.speed = nuclear ? 600.0 : 340.0;
         shocks_.push_back(shock);
 
-        if (height < spec.blast_radius + 30.0 || nuclear)
+        if (height < blast_radius + 30.0 || nuclear)
         {
-            const double r = nuclear ? std::min(spec.blast_radius * 0.25, 600.0) : std::max(2.0, spec.blast_radius * 0.15);
+            const double r = nuclear ? std::min(blast_radius * 0.25, 600.0) : std::max(2.0, blast_radius * 0.15);
             scars_.push_back({round.body, base, r});
             if (scars_.size() > max_scars)
                 scars_.erase(scars_.begin());
         }
 
         Astronaut &eva = *context.eva;
-        if (nuclear && spec.thermal_radius > 0.0 && eva.active && eva.body == round.body && glm::length(eva.position - point) < spec.thermal_radius)
+        if (nuclear && spec.thermal_radius > 0.0 && eva.active && eva.body == round.body && glm::length(eva.position - point) < spec.thermal_radius * round.scale)
             damage_person(context, 2.0);
     }
 
@@ -791,6 +808,30 @@ namespace kosmos
                         const double v = glm::length(air);
                         if (rho > 0.0 && v > 0.0 && spec.mass > 0.0)
                             r.velocity -= air * (0.5 * rho * v * spec.drag_area / spec.mass * h);
+                        if (spec.thermal.enabled && rho > 0.0)
+                        {
+                            r.heat_damage += step_thermal(spec.thermal, r.heat, rho, v, 1.0, 250.0, h) * h;
+                            if (r.heat_damage >= 1.0)
+                            {
+                                add_effect(universe, sl::Effect3DKind::plasma, r.body, r.position, 3.0, unit(r.position, sl::dvec3(0, 1, 0)));
+                                last_event_ = spec.name + " burned up on re-entry";
+                                last_event_time_ = 0.0;
+                                remove = true;
+                                break;
+                            }
+                            if (r.heat.flux > 2e5 && anchor_for(r.body, r.position))
+                            {
+                                sl::Particle3D p;
+                                p.position = to_f(r.position - anchor_);
+                                p.life = 1.5f;
+                                p.size_start = 2.0f;
+                                p.size_end = 0.5f;
+                                p.colour_start = {255, 190, 110, 220};
+                                p.colour_end = {255, 60, 20, 0};
+                                p.additive = true;
+                                particles_.spawn(p);
+                            }
+                        }
                         if (!spec.prop.empty() && glm::length(air) > 5.0)
                         {
                             const sl::dquat want = turn_to(sl::dvec3(0, 1, 0), unit(air, sl::dvec3(0, -1, 0)));
@@ -822,10 +863,11 @@ namespace kosmos
                         }
                         continue;
                     }
-                    if (spec.fuse == "airburst")
+                    const bool airburst = r.fuse_mode < 0 ? spec.fuse == "airburst" : r.fuse_mode == 1;
+                    if (airburst)
                     {
                         const double gr = ground_radius(terrain, body_radius, r.position);
-                        if (glm::length(r.position) - gr <= spec.burst_height && r.age > 2.0)
+                        if (glm::length(r.position) - gr <= (r.burst_height >= 0.0 ? r.burst_height : spec.burst_height) && r.age > 2.0)
                         {
                             boom = remove = true;
                             boom_at = r.position;
@@ -855,7 +897,7 @@ namespace kosmos
                     }
                 }
             }
-            if (r.age > 900.0)
+            if (r.age > 7200.0)
                 remove = true;
             if (boom)
                 detonating.push_back(r), detonating.back().position = boom_at;
@@ -876,7 +918,8 @@ namespace kosmos
         for (Shock &s : shocks_)
         {
             s.radius += s.speed * dt;
-            const double reach = std::min(s.radius, s.spec->blast_radius);
+            const double blast_radius = s.spec->blast_radius * s.scale;
+            const double reach = std::min(s.radius, blast_radius);
             for (int i = 0; i < sim.ship_count(); ++i)
             {
                 Ship *ship = sim.ship(i);
@@ -889,7 +932,7 @@ namespace kosmos
                 if (d <= reach)
                 {
                     s.hit.insert(ship);
-                    ship->damage(s.spec->blast_damage * blast_fraction(d, s.spec->blast_radius));
+                    ship->damage(s.spec->blast_damage * blast_fraction(d, blast_radius));
                 }
             }
             Astronaut &eva = *context.eva;
@@ -899,11 +942,11 @@ namespace kosmos
                 if (d <= reach)
                 {
                     s.hit_person = true;
-                    damage_person(context, 2.0 * blast_fraction(d, s.spec->blast_radius));
+                    damage_person(context, 2.0 * blast_fraction(d, blast_radius));
                 }
             }
         }
-        shocks_.erase(std::remove_if(shocks_.begin(), shocks_.end(), [](const Shock &s) { return s.radius > s.spec->blast_radius; }), shocks_.end());
+        shocks_.erase(std::remove_if(shocks_.begin(), shocks_.end(), [](const Shock &s) { return s.radius > s.spec->blast_radius * s.scale; }), shocks_.end());
     }
 
     void Arsenal::play_bangs(double dt)
@@ -950,6 +993,14 @@ namespace kosmos
         for (int i = 0; i < sim.ship_count(); ++i)
             if (!sim.ship(i)->spec().hardpoints.empty())
                 sync_payload(sim, *sim.ship(i), rack_of(*sim.ship(i)));
+        // A script or panel releases the flown ship's next item by setting /controls/ordnance/release.
+        if (sim.props.get_bool("/controls/ordnance/release"))
+        {
+            sim.props.set_bool("/controls/ordnance/release", false);
+            if (Ship *flown = sim.active_ship())
+                if (!release(context, *flown))
+                    sim.log("Nothing to release");
+        }
 
         // Things fixed to the ground (burst clouds, scorch marks, blast centres, charges at rest) turn with the planet.
         if (dt > 0.0)

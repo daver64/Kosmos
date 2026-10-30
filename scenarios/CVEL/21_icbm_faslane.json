@@ -1,0 +1,15 @@
+{
+ "name": "CVEL: Sentinel ICBM test shot from Faslane",
+ "description": "A two-stage CVEL Sentinel ICBM on its pad at Faslane in Scotland, loaded with a 20 kt Fat Man re-entry vehicle. Open an MFD (F5) and choose ICBM Targeting: enter the target's latitude and longitude, choose air or ground burst, the burst height and a yield from 20 kt to 1 Mt, then ARM and LAUNCH. The default target is a test point in the Atlantic about 4,800 km (3,000 miles) away.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Sentinel ICBM",
+   "body": "Earth",
+   "surface": {
+    "base": "faslane"
+   }
+  }
+ ],
+ "date": "2024-06-21 12:00:00"
+}

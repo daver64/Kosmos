@@ -6,6 +6,8 @@
  "max_rate": 0.6,
  "rcs_thrust": 10000,
  "drag_area": 1.5,
+ "thermal": {"nose_radius": 0.5, "heat_area": 45, "max_temp": 1900},
+ "hypersonic": {"area": 70, "length": 19, "cd_max": 1.6, "trim_deg": 50},
  "weapons": [
   {"name": "Nose beam", "weapon": "beam-yellow", "group": "primary", "position": [0, -0.3, -9.5], "direction": [0, 0, -1]},
   {"name": "Sparkle port", "weapon": "spark-green", "group": "secondary", "position": [-8.9, 2.3, 4.6], "direction": [0, 0, -1]},

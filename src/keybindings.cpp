@@ -146,6 +146,8 @@ namespace kosmos
         add("throttle_full", "Full throttle", ship, fly, false, {K::letter_z});
         add("throttle_zero", "Cut throttle", ship, fly, false, {K::letter_x});
         add("stage", "Stage", ship, fly, false, {K::space});
+        add("chute_deploy", "Deploy parachute", ship, fly, false, {K::delete_key});
+        add("chute_cut", "Cut parachutes away", ship, fly, false, {K::delete_key, true});
         add("autopilot", "Autopilot on / off", ship, fly, false, {K::letter_p});
         add("sas", "Next SAS mode", ship, fly, false, {K::letter_t});
         add("gear", "Landing gear up / down", ship, fly, false, {K::letter_g}, {K::letter_l});

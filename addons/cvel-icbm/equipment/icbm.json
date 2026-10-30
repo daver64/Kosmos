@@ -1,0 +1,30 @@
+{
+ "equipment": [
+  {
+   "id": "fatman-rv",
+   "name": "Fat Man in a re-entry aeroshell",
+   "description": "About 20 kt on a ballistic re-entry vehicle; the yield and burst are set on the targeting MFD",
+   "kind": "ordnance",
+   "prop": "fatman",
+   "length": 3.3,
+   "radius": 0.75,
+   "mass": 5000,
+   "drag_area": 0.5,
+   "fuse": "airburst",
+   "burst_height": 500,
+   "blast_radius": 2500,
+   "blast_damage": 3.0,
+   "blast_effect": "mushroom",
+   "yield": 1.0,
+   "thermal_radius": 1800,
+   "thermal": {
+    "nose_radius": 0.3,
+    "heat_area": 1.6,
+    "heat_capacity": 4000,
+    "shield_mass": 350,
+    "ablation_heat": 2.5e7,
+    "max_temp": 2500
+   }
+  }
+ ]
+}

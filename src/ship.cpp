@@ -2,6 +2,7 @@
 
 #include "json.hpp"
 #include "part_kit.h"
+#include "reentry_json.h"
 
 #include <algorithm>
 #include <cmath>
@@ -183,6 +184,9 @@ namespace kosmos
             spec.max_rate = json.value("max_rate", spec.max_rate);
             spec.rcs_thrust = json.value("rcs_thrust", 0.0);
             spec.drag_area = json.value("drag_area", spec.drag_area);
+            read_thermal(json.value("thermal", nlohmann::json()), spec.thermal);
+            read_hypersonic(json.value("hypersonic", nlohmann::json()), spec.hypersonic);
+            read_parachutes(json.value("parachutes", nlohmann::json()), spec.parachutes);
             spec.hit_sphere = json.value("hit_sphere", spec.hit_sphere);
             spec.inertia = vec3(json.value("inertia", nlohmann::json()), spec.inertia);
             spec.damping = vec3(json.value("damping", nlohmann::json()), spec.damping);
@@ -283,6 +287,8 @@ namespace kosmos
                     h.count = std::max(0, jh.value("count", 1));
                     if (jh.contains("position"))
                         h.position = vec3(jh["position"]);
+                    h.eject = glm::normalize(vec3(jh.value("eject", nlohmann::json()), h.eject));
+                    h.eject_speed = jh.value("eject_speed", h.eject_speed);
                     if (!h.equipment.empty())
                         spec.hardpoints.push_back(h);
                 }
@@ -1167,6 +1173,10 @@ namespace kosmos
             return;
         apply_rcs_mode(c);
         animate_mechanisms(c, dt);
+        if (c.parachute > 0)
+            deploy_parachute();
+        else if (c.parachute < 0)
+            cut_parachutes();
         if (spec_.ground())
         {
             apply_ground_controls(c);
@@ -1470,6 +1480,120 @@ namespace kosmos
         return {};
     }
 
+    bool Ship::deploy_parachute()
+    {
+        if (chutes_.size() != spec_.parachutes.size())
+            chutes_.assign(spec_.parachutes.size(), ChuteRuntime());
+        for (ChuteRuntime &c : chutes_)
+            if (c.state == ChuteState::stowed)
+            {
+                c.state = ChuteState::reefed;
+                c.time = 0.0;
+                std::fprintf(stderr, "[kosmos] %s: parachute deployed\n", name.c_str());
+                return true;
+            }
+        return false;
+    }
+
+    void Ship::cut_parachutes()
+    {
+        for (ChuteRuntime &c : chutes_)
+            if (c.state != ChuteState::stowed && c.state != ChuteState::gone)
+                c.state = ChuteState::gone;
+    }
+
+    void Ship::step_parachutes(double dt, const sl::dvec3 &air, double rho)
+    {
+        if (spec_.parachutes.empty())
+            return;
+        if (chutes_.size() != spec_.parachutes.size())
+            chutes_.assign(spec_.parachutes.size(), ChuteRuntime());
+        sl::FlightBody &b = body();
+        const double speed = glm::length(air);
+        const double q = 0.5 * rho * speed * speed;
+        for (std::size_t i = 0; i < chutes_.size(); ++i)
+        {
+            const ParachuteSpec &spec = spec_.parachutes[i];
+            ChuteRuntime &c = chutes_[i];
+            if (c.state == ChuteState::stowed && spec.auto_altitude > 0.0 && telemetry_.altitude < spec.auto_altitude &&
+                (spec.auto_speed <= 0.0 || speed < spec.auto_speed))
+                deploy_parachute();
+            if (c.state == ChuteState::stowed || c.state == ChuteState::gone)
+                continue;
+            if (q > spec.max_q * (c.state == ChuteState::reefed ? 1.5 : 1.0))
+            {
+                c.state = ChuteState::gone;
+                std::fprintf(stderr, "[kosmos] %s: %s torn away at %.0f Pa\n", name.c_str(), spec.name.c_str(), q);
+                continue;
+            }
+            if (spec.cut_on_landing && (telemetry_.landed || telemetry_.altitude < 1.0))
+            {
+                c.state = ChuteState::gone;
+                continue;
+            }
+            c.time += dt;
+            if (c.state == ChuteState::reefed && c.time >= spec.reef_time)
+            {
+                c.state = ChuteState::opening;
+                c.fill = 0.0;
+            }
+            if (c.state == ChuteState::opening)
+            {
+                c.fill += dt / std::max(spec.inflation_time, 0.1);
+                if (c.fill >= 1.0)
+                    c.state = ChuteState::open;
+            }
+            const double area = chute_drag_area(spec, c);
+            if (area <= 0.0 || speed < 0.5)
+                continue;
+            const sl::dvec3 pull = -air / speed * (q * area);
+            universe_.world.apply_force_at(body_, pull, b.position + b.direction_to_world(spec.position - com_));
+        }
+    }
+
+    void Ship::step_reentry(double dt)
+    {
+        const bool wanted = spec_.thermal.enabled || spec_.hypersonic.enabled || !spec_.parachutes.empty();
+        if (!wanted || dt <= 0.0 || crashed_ || pinned_ || on_rails() || telemetry_.soi < 0)
+            return;
+        sl::FlightBody &b = body();
+        if (b.mode != sl::FlightBodyMode::dynamic)
+            return;
+        const double rho = universe_.world.air_density_at(b.position);
+        const sl::dvec3 air = b.velocity - universe_.world.air_velocity_at(b.position);
+        const double speed = glm::length(air);
+        const sl::dvec3 local = b.direction_to_local(air);
+
+        if (spec_.hypersonic.enabled)
+        {
+            if (!aero_scaled_)
+            {
+                aero_scaled_ = true;
+                base_drag_area_ = b.drag_area;
+                base_surface_area_.clear();
+                for (const sl::LiftingSurface &s : b.surfaces)
+                    base_surface_area_.push_back(s.area);
+            }
+            const AeroResult aero = hypersonic_aero(spec_.hypersonic, local, rho, b.angular_velocity);
+            b.drag_area = base_drag_area_ * (1.0 - aero.blend);
+            for (std::size_t i = 0; i < b.surfaces.size() && i < base_surface_area_.size(); ++i)
+                b.surfaces[i].area = base_surface_area_[i] * (1.0 - aero.blend);
+            if (aero.blend > 0.0)
+            {
+                universe_.world.apply_force(body_, b.direction_to_world(aero.force));
+                universe_.world.apply_torque(body_, b.direction_to_world(aero.torque));
+            }
+        }
+        if (spec_.thermal.enabled)
+        {
+            const double windward = speed > 1.0 ? glm::dot(spec_.thermal.shield_axis, local / speed) : 1.0;
+            const double rate = step_thermal(spec_.thermal, thermal_, rho, speed, windward, 288.0, dt);
+            if (rate > 0.0)
+                damage(rate * dt);
+        }
+        step_parachutes(dt, air, rho);
+    }
+
     void Ship::update_telemetry()
     {
         Telemetry &t = telemetry_;
@@ -1650,6 +1774,7 @@ namespace kosmos
                 hold_pinned();
             return;
         }
+        step_reentry(dt);
         resolve_landing();
         expire_debris(dt);
     }
@@ -1801,6 +1926,24 @@ namespace kosmos
         tree.node(base + "/gear-position")->tie_double([this] { return gear_position_; });
         tree.node(base + "/shield")->tie_double([this] { return spec_.shield.capacity > 0.0 ? shield_ / spec_.shield.capacity : 0.0; });
         tree.node(base + "/health")->tie_double([this] { return health_; });
+        tree.node(base + "/thermal/temp")->tie_double([this] { return thermal_.temp; });
+        tree.node(base + "/thermal/flux")->tie_double([this] { return thermal_.flux; });
+        tree.node(base + "/thermal/peak-flux")->tie_double([this] { return thermal_.peak_flux; });
+        tree.node(base + "/thermal/peak-temp")->tie_double([this] { return thermal_.peak_temp; });
+        tree.node(base + "/thermal/shield")->tie_double([this] { return std::max(thermal_.shield, 0.0); });
+        tree.node(base + "/thermal/blackout")->tie_bool([this] { return thermal_.blackout; });
+        tree.node(base + "/chutes/open")->tie_int([this] {
+            int n = 0;
+            for (const ChuteRuntime &c : chutes_)
+                n += c.state != ChuteState::stowed && c.state != ChuteState::gone ? 1 : 0;
+            return n;
+        });
+        tree.node(base + "/chutes/stowed")->tie_int([this] {
+            int n = 0;
+            for (const ChuteRuntime &c : chutes_)
+                n += c.state == ChuteState::stowed ? 1 : 0;
+            return chutes_.empty() ? static_cast<int>(spec_.parachutes.size()) : n;
+        });
         for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
             tree.node(base + "/anim/" + spec_.animation_controls[i].property)->tie_double([this, i] { return animation_position(i); });
         tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });

@@ -1,6 +1,7 @@
 #include "equipment.h"
 
 #include "json.hpp"
+#include "reentry_json.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -60,6 +61,8 @@ namespace kosmos
             e.blast_effect = j.value("blast_effect", e.blast_effect);
             e.yield = j.value("yield", e.yield);
             e.thermal_radius = j.value("thermal_radius", e.thermal_radius);
+            if (j.contains("thermal"))
+                read_thermal(j["thermal"], e.thermal);
             e.sensor = j.value("sensor", e.sensor);
             if (j.contains("shapes"))
                 for (const nlohmann::json &js : j["shapes"])

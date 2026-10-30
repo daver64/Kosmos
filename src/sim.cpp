@@ -494,6 +494,9 @@ namespace kosmos
         c.sas = props.get_string(path_of("sas"), "stability");
         c.target_pitch = props.get_double(path_of("target-pitch"));
         c.target_heading = props.get_double(path_of("target-heading"));
+        c.parachute = props.get_int(path_of("parachute"));
+        if (c.parachute != 0)
+            props.set_int(path_of("parachute"), 0);
         c.stage = props.get_bool(path_of("stage"));
         if (c.stage)
             props.set_bool(path_of("stage"), false);

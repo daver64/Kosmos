@@ -1,0 +1,9 @@
+{
+ "id": "cvel-icbm",
+ "name": "CVEL Sentinel ICBM",
+ "version": "0.1",
+ "ships": ["ship.json"],
+ "mfds": [
+  { "id": "icbm-target", "script": "targeting.lua" }
+ ]
+}

@@ -93,6 +93,7 @@ add_executable(kosmos
     src/terrain_mesh.cpp
     src/loading_screen.cpp
     src/surface_textures.cpp
+    src/reentry.cpp
     src/scenario_start.cpp
     src/procedural.cpp
     src/selftest.cpp
@@ -149,11 +150,17 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 file(WRITE "${CMAKE_BINARY_DIR}/VERSION.txt" "${KOSMOS_VERSION}\n")
 
 # Ship systems (power, consumables, pressure vessels) tests: cmake --build build --target systems_test && build/systems_test
-add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/interior.cpp src/part_kit.cpp src/universe.cpp
+add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/reentry.cpp src/interior.cpp src/part_kit.cpp src/universe.cpp
     src/vsop87.cpp src/planet_data.cpp src/planet_gen.cpp src/planet_bake.cpp)
 target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Re-entry heating, hypersonic aerodynamics and parachute drag: cmake --build build --target reentry_test && build/reentry_test
+add_executable(reentry_test EXCLUDE_FROM_ALL tests/reentry_test.cpp src/reentry.cpp)
+target_link_libraries(reentry_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(reentry_test PRIVATE src)
+target_compile_definitions(reentry_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
