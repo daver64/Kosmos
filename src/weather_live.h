@@ -48,7 +48,7 @@ namespace kosmos
         std::atomic<bool> busy_{false};
         std::atomic<double> fetched_{0.0};
         double last_attempt_ = 0.0;
-        bool failed_ = false;
+        std::atomic<bool> failed_{false};
         mutable std::mutex mutex_;
         std::vector<std::string> pending_;
     };

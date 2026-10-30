@@ -39,7 +39,7 @@ namespace kosmos
         bool glow = false;
     };
 
-    /** What a piece of equipment is and does, from an addon's equipment/*.json. */
+    /** What a piece of equipment is and does, from an addon's equipment/NAME.json. */
     struct EquipmentSpec
     {
         std::string id, name, description;
@@ -95,7 +95,7 @@ namespace kosmos
     class EquipmentLibrary
     {
     public:
-        /** Read every `<addon>/equipment/*.json`; each file holds one object or a list under "equipment". */
+        /** Read every `<addon>/equipment/NAME.json`; each file holds one object or a list under "equipment". */
         void load(const std::vector<std::string> &addon_directories, std::vector<std::string> &problems);
         const EquipmentSpec *find(const std::string &id) const;
         const std::vector<EquipmentSpec> &all() const { return items_; }

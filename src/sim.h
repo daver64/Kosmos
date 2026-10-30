@@ -123,7 +123,7 @@ namespace kosmos
         void scan_addons();
         void publish_galaxy();
         Controls read_controls(const std::string &prefix = "/controls", const Ship *ship = nullptr);
-        /** Publish /target/* relative to the ship named by /sim/target (a ship or a body). */
+        /** Publish /target/... relative to the ship named by /sim/target (a ship or a body). */
         void update_target();
 
         std::string root_;

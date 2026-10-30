@@ -22,7 +22,7 @@ namespace kosmos
     };
 
     /**
-     * A weapon a ship can mount (see `weapons` in ship.json), read from `<addon>/weapons/*.json`.
+     * A weapon a ship can mount (see `weapons` in ship.json), read from `<addon>/weapons/NAME.json`.
      * `fire` is "pulse" (an instant ray drawn as a short-lived streak), "beam" (a ray that flares and fades out, then recharges), "bolt" (a glowing projectile)
      * or "flak" (a burst of small bolts that scatter sparks where they end)
      * or "volley" (`count` bolts fired one after another from a single trigger pull).
@@ -58,7 +58,7 @@ namespace kosmos
     class WeaponLibrary
     {
     public:
-        /** Read every `<addon>/weapons/*.json`; each file holds one object or a list under "weapons". */
+        /** Read every `<addon>/weapons/NAME.json`; each file holds one object or a list under "weapons". */
         void load(const std::vector<std::string> &addon_directories, std::vector<std::string> &problems);
         const WeaponSpec *find(const std::string &id) const;
         const std::vector<WeaponSpec> &all() const { return items_; }
