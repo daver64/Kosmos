@@ -135,6 +135,9 @@ else()
         target_compile_definitions(kosmos PRIVATE KOSMOS_HAVE_CURL=1)
     endif()
 endif()
+if(WIN32)
+    set_target_properties(kosmos PROPERTIES WIN32_EXECUTABLE ON) # no console window; see connect_console() in src/kosmos.cpp
+endif()
 target_include_directories(kosmos PRIVATE src)
 # A development build finds its data in the source tree; a packaged build looks beside the executable first.
 target_compile_definitions(kosmos PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

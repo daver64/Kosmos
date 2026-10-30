@@ -132,6 +132,10 @@ namespace kosmos::app
                 options.clean = options.hide_info = true;
             else if (!std::strcmp(argv[i], "--hide-info"))
                 options.hide_info = true;
+            else if (!std::strcmp(argv[i], "--console"))
+            {
+                // handled by main() before the window opens (Windows only)
+            }
             else if (!std::strcmp(argv[i], "--show-info"))
                 options.show_info = true;
             else if (!std::strcmp(argv[i], "--systems-window"))

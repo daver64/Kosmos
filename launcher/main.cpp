@@ -1142,7 +1142,7 @@ namespace
             run_ = new Run(this);
             run_->on_end = [this](int code) { Ended(code); };
             started_ = wxDateTime::Now();
-            const long pid = wxExecute("\"" + Wp(exe) + "\"" + W(args), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, run_, &env);
+            const long pid = wxExecute("\"" + Wp(exe) + "\"" + W(args), wxEXEC_ASYNC | wxEXEC_SHOW_CONSOLE, run_, &env);
             if (!pid)
             {
                 delete run_;
