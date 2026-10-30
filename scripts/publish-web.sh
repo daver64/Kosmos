@@ -79,5 +79,11 @@ ls "$DOWNLOAD"/notes/*.md | sed -E 's|.*/([0-9.]+)\.md$|\1|' | sort -t. -k1,1nr 
 # The SDK is versioned with the game and published alongside it
 "$SRC/scripts/build-sdk.sh" --publish
 stamp "$VER"
+# The download page lists each archive's size
+for f in "$@"; do
+    name=$(basename "$f")
+    mb=$(( ($(stat -c %s "$f") + 524288) / 1048576 ))
+    sed -i -E "s#(>$name</a></td><td>)[0-9]+ MB#\1$mb MB#" "$WEB_ROOT/kosmos/download.html"
+done
 echo "$MAJOR.$((BUILD + 1))" > "$VERSION_FILE"
 echo "$APP: published $VER; the next build will be $MAJOR.$((BUILD + 1))"
