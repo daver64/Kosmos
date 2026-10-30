@@ -6,6 +6,7 @@
 
 #include "clutter.h"
 #include "terrain.h"
+#include "terrain_mesh.h"
 
 #include "model3d.h"
 
@@ -103,6 +104,8 @@ namespace kosmos
         std::vector<BaseObject> objects;
         std::vector<LightSpec> lights;
         std::vector<BaseCamera> cameras;
+        /** Meshes whose surface becomes the ground (STL, OBJ or glTF), placed in the base frame. */
+        std::vector<TerrainMeshSpec> terrain_meshes;
 
         // Filled in once the terrain exists.
         sl::dvec3 direction{0.0, 1.0, 0.0};

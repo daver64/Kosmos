@@ -6,7 +6,7 @@
 # 1. runs the tests (scripts/run-tests.sh)
 # 2. builds the Linux and Windows packages and publishes them to this machine's web site (scripts/release.sh: stamps the version, notes, SDK)
 # 3. installs the KosmosAV server here (scripts/deploy-kav.sh)
-# 4. asks you to check the local site, then copies the site (/var/www/html/kosmos) to the public host with rsync
+# 4. asks you to check the local site, then copies the site (/var/www/html/kosmos and the landing page index.html) to the public host with rsync
 # 5. installs the KosmosAV server on the public host (scripts/deploy-kav.sh HOST)
 #
 # --yes          do not stop for the "local site looks right" question
@@ -64,8 +64,12 @@ if [ $yes -eq 0 ]; then
 fi
 
 step "Copy the site to $HOST"
-# The version, downloads, notes and SDK are all under kosmos/; the rest of the web root is left alone.
-rsync -rlt --partial --info=progress2 $del "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
+# The downloads, notes and SDK are all under kosmos/; of the rest of the web root only index.html (below) is copied.
+# kav/ is root-owned (the KosmosAV install writes it with sudo), so it is left to deploy-kav.sh.
+rsync -rlt --omit-dir-times --exclude=/kav/ --partial --info=progress2 $del "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
+
+# The landing page one level up shows the version too, and publish-web.sh stamps it.
+rsync -t "$WEB_ROOT/index.html" "$HOST:$WEB_ROOT/index.html"
 
 if [ $kav -eq 1 ]; then
     step "KosmosAV server on $HOST"

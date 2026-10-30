@@ -349,7 +349,11 @@ namespace
             {
                 labels[i]->SetLabel(scenario_text_[i]);
                 labels[i]->Wrap(width);
+                // The sizer keeps the height of the previous text unless told, which let a wrapped ship list run into the description.
+                labels[i]->InvalidateBestSize();
+                labels[i]->SetMinSize(labels[i]->GetBestSize());
             }
+            blurb_->GetContainingSizer()->Layout();
         }
 
         const ScenarioInfo *SelectedScenario() const

@@ -48,6 +48,30 @@ namespace kosmos::app
                 environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / vis));
         }
 
+        local_sky = !near_earth && !home && soi_body.kind != kosmos::BodyKind::star && soi_body.atmosphere_density > 0.001 &&
+                    eye_soi_altitude < soi_body.atmosphere_scale_height * 14.0;
+        if (local_sky)
+        {
+            // The sky takes the colour the body's atmosphere is given: thin dusty air scatters the whole spectrum, tinted towards that colour.
+            const sl::dvec3 from_centre = eye_world - universe.position(tm.soi);
+            const double density = soi_body.atmosphere_density;
+            const float strength = static_cast<float>(std::clamp(std::pow(density, 0.35), 0.15, 3.0));
+            const glm::vec3 tint(soi_body.atmosphere_colour[0], soi_body.atmosphere_colour[1], soi_body.atmosphere_colour[2]);
+            environment.planet = true;
+            environment.planet_radius = static_cast<float>(soi_body.radius);
+            environment.atmosphere_height = static_cast<float>(soi_body.atmosphere_scale_height * 14.0);
+            environment.rayleigh = tint * tint * 1.6e-4f * strength;
+            environment.rayleigh_scale_height = static_cast<float>(soi_body.atmosphere_scale_height);
+            environment.mie = 3.0e-5f * strength;
+            environment.mie_scale_height = static_cast<float>(soi_body.atmosphere_scale_height * 0.2);
+            environment.up = glm::vec3(glm::normalize(from_centre));
+            environment.camera_altitude = static_cast<float>(eye_soi_altitude);
+            environment.camera_position = from_centre;
+            environment.ground_albedo = tint * 0.3f;
+            environment.fog_enabled = true;
+            environment.fog_density = 1.0e-4f * strength;
+        }
+
         if (in_eva && eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior &&
             !sim.ship(eva.building)->spec().interior->panels().empty() && !sim.ship(eva.building)->spec().cockpit.controls.empty())
         {

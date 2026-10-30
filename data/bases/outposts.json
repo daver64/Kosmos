@@ -68,6 +68,9 @@
       "heading": 90,
       "flat_radius": 160,
       "blend": 120,
+      "terrain_meshes": [
+        { "file": "import/nasa/Gale Crater.stl", "x": 1160, "z": -560, "scale": 40, "vscale": 1.5, "y": -100, "blend": 300 }
+      ],
       "cameras": [
         { "name": "Habitat", "x": -48, "y": 3, "z": -2, "fov": 60, "track": false, "yaw": 0, "pitch": 5 }
       ],

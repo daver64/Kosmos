@@ -1,6 +1,7 @@
 #include "body_terrain.h"
 #include "loading_screen.h"
 #include "surface_textures.h"
+#include "terrain_mesh.h"
 
 namespace kosmos::app
 {
@@ -178,8 +179,64 @@ namespace kosmos::app
         }
         else
             return nullptr;
+        for (kosmos::Base &base : sim.bases)
+            if (sim.universe.find(base.body) == id)
+                base.height = source->height_on_sphere(base.direction, b.radius);
+        std::shared_ptr<kosmos::MeshSource> meshes;
         {
-            // Level the ground under each base at the height of its centre.
+            // Meshes placed on the ground become its surface; the bases are then levelled into it.
+            const auto find = [&](const kosmos::Base &base, const std::string &name) {
+                std::string found = kosmos::resolve_base_model(base, name);
+                std::error_code ec;
+                if (found.empty() && std::filesystem::exists(sim.root() + "/" + name, ec))
+                    found = sim.root() + "/" + name;
+                return found;
+            };
+            std::vector<kosmos::MeshSource::Placed> placed;
+            for (const kosmos::Base &base : sim.bases)
+            {
+                if (sim.universe.find(base.body) != id)
+                    continue;
+                for (const kosmos::TerrainMeshSpec &spec : base.terrain_meshes)
+                {
+                    const std::string path = find(base, spec.file), image = spec.image.empty() ? std::string() : find(base, spec.image);
+                    auto grid = std::make_shared<kosmos::MeshGrid>();
+                    std::string error;
+                    if (path.empty())
+                        error = "file not found";
+                    else if (!spec.image.empty() && image.empty())
+                        error = "image not found";
+                    else if (kosmos::load_mesh_grid(spec, path, image, *grid, error))
+                    {
+                        std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %d x %d at %.2f m%s\n", base.id.c_str(), spec.file.c_str(), grid->width, grid->height, grid->cell, grid->colours.empty() ? "" : ", coloured");
+                        placed.push_back(kosmos::MeshSource::place(base, b.radius, spec, grid, base.height + spec.y));
+                        continue;
+                    }
+                    std::fprintf(stderr, "[kosmos] %s terrain mesh %s: %s\n", base.id.c_str(), spec.file.c_str(), error.c_str());
+                }
+            }
+            if (!placed.empty())
+            {
+                meshes = std::make_shared<kosmos::MeshSource>(source, b.radius, std::move(placed));
+                source = meshes;
+                const auto inner = config.colour_function;
+                config.colour_function = [inner, meshes](const sl::TerrainSample &sample, float rgb[3])
+                {
+                    float c[3] = {0.5f, 0.5f, 0.5f};
+                    const bool base_colour = inner && inner(sample, c);
+                    if (meshes->colour(sample.position, c))
+                    {
+                        std::copy(c, c + 3, rgb);
+                        return true;
+                    }
+                    if (base_colour)
+                        std::copy(c, c + 3, rgb);
+                    return base_colour;
+                };
+            }
+        }
+        {
+            // Level the ground under each base at the height of its centre (on a mesh, the mesh's height there).
             std::vector<kosmos::FlattenSource::Site> sites;
             for (kosmos::Base &base : sim.bases)
             {
@@ -197,6 +254,9 @@ namespace kosmos::app
         result->terrain = std::make_unique<sl::Terrain>(config, source);
         result->frame = frame;
         result->clutter_zones = kosmos::clutter_zones(sim.bases, sim.universe, id, b.radius);
+        if (meshes)
+            for (const auto &footprint : meshes->footprints())
+                result->clutter_zones.push_back({footprint.first, footprint.first, footprint.second + 60.0});
         if (b.name == "Earth")
         {
             const std::string land_dir = sim.root() + "/data/landclass/sol/earth";

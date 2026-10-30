@@ -353,6 +353,22 @@ namespace kosmos
                 b.flat_radius = j.value("flat_radius", 300.0);
                 b.blend = j.value("blend", 200.0);
                 b.elevation = j.value("elevation", 0.0);
+                for (const nlohmann::json &m : j.value("terrain_meshes", nlohmann::json::array()))
+                {
+                    TerrainMeshSpec t;
+                    t.file = m.at("file").get<std::string>();
+                    t.x = m.value("x", 0.0);
+                    t.z = m.value("z", 0.0);
+                    t.heading = m.value("heading", 0.0);
+                    t.scale = m.value("scale", 1.0);
+                    t.vscale = m.value("vscale", 1.0);
+                    t.y = m.value("y", 0.0);
+                    t.blend = m.value("blend", 20.0);
+                    t.up = m.value("up", "");
+                    t.texture = m.value("texture", "auto");
+                    t.image = m.value("image", "");
+                    b.terrain_meshes.push_back(t);
+                }
                 for (const nlohmann::json &n : j.value("navaids", nlohmann::json::array()))
                 {
                     BaseNavaid nv;
@@ -592,6 +608,17 @@ namespace kosmos
             j["blend"] = b.blend;
             if (b.elevation != 0.0)
                 j["elevation"] = b.elevation;
+            if (!b.terrain_meshes.empty())
+                j["terrain_meshes"] = json::array();
+            for (const TerrainMeshSpec &t : b.terrain_meshes)
+            {
+                json jt = {{"file", t.file}, {"x", t.x}, {"z", t.z}, {"heading", t.heading}, {"scale", t.scale}, {"vscale", t.vscale}, {"y", t.y}, {"blend", t.blend}, {"texture", t.texture}};
+                if (!t.up.empty())
+                    jt["up"] = t.up;
+                if (!t.image.empty())
+                    jt["image"] = t.image;
+                j["terrain_meshes"].push_back(jt);
+            }
             j["pad"] = {{"x", b.pad_x}, {"z", b.pad_z}, {"heading", b.pad_heading}};
             if (!b.runways.empty())
                 j["runways"] = json::array();

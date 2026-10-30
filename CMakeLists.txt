@@ -90,6 +90,7 @@ add_executable(kosmos
     src/cockpit_panels.cpp
     src/ship_visuals.cpp
     src/body_terrain.cpp
+    src/terrain_mesh.cpp
     src/loading_screen.cpp
     src/surface_textures.cpp
     src/scenario_start.cpp

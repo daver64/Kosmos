@@ -6,12 +6,12 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
     const kosmos::Telemetry &tm = *tm_ref;
-        if (near_earth && gfx_style == 0)
+        if ((near_earth || local_sky) && gfx_style == 0)
             sl::draw_sky_3d();
         light = sl::Light3D();
         light.direction = environment.sun_direction;
         // Above the atmosphere the Sun is not reddened by it, even when it sits on the horizon below.
-        light.colour = near_earth && eye_earth_distance < earth_body->radius + 1.0e6 ? sl::atmosphere_sun_colour(environment) : glm::vec3(1.0f);
+        light.colour = (local_sky || (near_earth && eye_earth_distance < earth_body->radius + 1.0e6)) ? sl::atmosphere_sun_colour(environment) : glm::vec3(1.0f);
         light.ambient = options.ambient;
         // Near a surface the sky's fill light drops away after dusk, which is when lamps matter.
         {
@@ -197,7 +197,7 @@ namespace kosmos::app
         // the opaque scene drawn afterwards then covers them wherever it is in front.
         // Stars fade in as the sky darkens.
         {
-            const double altitude = home ? tm.altitude : 1.0e6;
+            const double altitude = home ? tm.altitude : local_sky ? eye_soi_altitude * 8500.0 / universe.bodies[static_cast<std::size_t>(tm.soi)].atmosphere_scale_height : 1.0e6;
             const float star_alpha = static_cast<float>(fx::smoothstep(30.0e3, 110.0e3, altitude));
             if (star_alpha > 0.0f)
             {

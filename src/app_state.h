@@ -267,6 +267,8 @@ namespace kosmos::app
         double eye_earth_distance{};
         sl::TerrainView view;
         bool near_earth{};
+        /** Low over another world that has air (Mars, Venus, Titan): its own tinted sky and haze take the place of the home world's. */
+        bool local_sky{};
         bool earth_as_sphere{};
         glm::vec3 to_sun;
         sl::Camera camera;
