@@ -12,5 +12,6 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
 - **Props:** Astronaut, launch gantry, habitat units 1 and 2, NASA Headquarters, Mission Control, radome, Space Exploration
   Vehicle, Vehicle Assembly Building.
 - **Asteroid shape:** Vesta (shape model from the Dawn mission).
+- **Terrain:** Gale Crater (`terrain/gale-crater.stl`, a scan of the crater and Mount Sharp from NASA's 3D Resources).
 
 Masses, engines and sizes in the `part.json` files are approximate and are Kosmos's own.

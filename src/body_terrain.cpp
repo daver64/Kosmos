@@ -188,8 +188,9 @@ namespace kosmos::app
             const auto find = [&](const kosmos::Base &base, const std::string &name) {
                 std::string found = kosmos::resolve_base_model(base, name);
                 std::error_code ec;
-                if (found.empty() && std::filesystem::exists(sim.root() + "/" + name, ec))
-                    found = sim.root() + "/" + name;
+                for (const char *folder : {"/", "/data/"})
+                    if (found.empty() && std::filesystem::exists(sim.root() + folder + name, ec))
+                        found = sim.root() + folder + name;
                 return found;
             };
             std::vector<kosmos::MeshSource::Placed> placed;

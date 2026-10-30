@@ -1,6 +1,6 @@
 {
  "name": "CVEL: Lunar Rover, Gale Crater",
- "description": "The CVEL Lunar Rover on Mars at Gale Crater base, where the ground is a scanned model of the crater and its central mound (import/nasa/Gale Crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes.",
+ "description": "The CVEL Lunar Rover on Mars at Gale Crater base, where the ground is a scanned model of the crater and its central mound (terrain/gale-crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes.",
  "active": 0,
  "ships": [
   {
