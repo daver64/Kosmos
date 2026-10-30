@@ -16,7 +16,9 @@ namespace kosmos::app
     struct Visuals
     {
         std::vector<sl::Mesh *> limb_pool;
-        sl::Mesh *bolt_mesh = nullptr; // the lightning bolt, rebuilt each frame it shows
+        sl::Mesh *bolt_meshes[kosmos::Lightning::max_bolts] = {}; // one lightning bolt each, rebuilt each frame it shows
+        sl::Bitmap *bolt_bitmaps[kosmos::Lightning::bolt_textures] = {};
+        bool bolt_bitmaps_tried = false;
         sl::Mesh *rain_mesh = nullptr; // falling rain: camera-facing streaks in the space around the eye
         sl::dvec3 rain_offset{0.0};
         sl::Mesh *local_cloud = nullptr; // the weather cloud deck below 100 km, rebuilt every frame

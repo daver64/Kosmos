@@ -572,9 +572,8 @@ namespace kosmos::app
             const double altitude_now = eye_earth_distance - earth_body->radius;
             const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
             double shell_height = earth_as_sphere ? home_cloud_height : std::clamp(2.0 * resolution, home_cloud_height, 600.0e3);
-            // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it beyond that plane.
-            if (layered)
-                shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.05 * near_plane));
+            // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it well beyond that plane, as the plane also cuts off-axis parts of a wide view.
+            shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - 1.8 * near_plane));
             const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
             sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
         }
@@ -850,18 +849,28 @@ namespace kosmos::app
                 const sl::dvec3 local_up = glm::normalize(eye_world - universe.position(lt.soi));
                 const sl::dvec3 e1 = glm::normalize(glm::cross(std::fabs(local_up.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0), local_up));
                 const sl::dvec3 e2 = glm::cross(local_up, e1);
-                std::vector<sl::Vertex3D> local(static_cast<std::size_t>(kosmos::Lightning::bolt_quads) * 4);
-                const int used = lightning.bolt_vertices(-lt.altitude, cloud_agl - lt.altitude, local.data(), kosmos::Lightning::bolt_quads);
-                if (used > 0)
+                if (!vis.bolt_bitmaps_tried)
                 {
-                    if (!vis.bolt_mesh)
+                    vis.bolt_bitmaps_tried = true;
+                    static const char *files[] = {"lightning", "lightning_1", "lightning_2", "lightning3"};
+                    for (int i = 0; i < kosmos::Lightning::bolt_textures; ++i)
+                        vis.bolt_bitmaps[i] = sl::load_bitmap((sim.root() + "/data/textures/lightning/" + files[i] + ".png").c_str());
+                }
+                for (int strike = 0; strike < std::min(lightning.strike_count(), kosmos::Lightning::max_bolts); ++strike)
+                {
+                    std::vector<sl::Vertex3D> local(static_cast<std::size_t>(kosmos::Lightning::bolt_quads) * 4);
+                    const int used = lightning.bolt_vertices(strike, -lt.altitude, cloud_agl - lt.altitude, local.data(), kosmos::Lightning::bolt_quads);
+                    if (used <= 0)
+                        continue;
+                    sl::Mesh *&mesh = vis.bolt_meshes[strike];
+                    if (!mesh)
                     {
                         std::vector<sl::Vertex3D> blank(local.size());
                         std::vector<std::uint32_t> indices;
                         for (int i = 0; i < kosmos::Lightning::bolt_quads; ++i)
                             for (const std::uint32_t k : {0u, 1u, 2u, 2u, 1u, 3u})
                                 indices.push_back(static_cast<std::uint32_t>(i * 4) + k);
-                        vis.bolt_mesh = sl::create_mesh(blank, indices);
+                        mesh = sl::create_mesh(blank, indices);
                     }
                     for (std::size_t i = 0; i < local.size(); ++i)
                     {
@@ -872,13 +881,14 @@ namespace kosmos::app
                             local[i].normal[k] = static_cast<float>(local_up[k]);
                         }
                     }
-                    sl::update_mesh_vertices(vis.bolt_mesh, local);
+                    sl::update_mesh_vertices(mesh, local);
                     sl::Material bolt;
+                    bolt.texture = vis.bolt_bitmaps[lightning.strike_texture(strike)];
                     bolt.lit = false;
                     bolt.fog = false;
                     bolt.cull = sl::CullMode::none;
                     bolt.blend = sl::MaterialBlend::additive;
-                    sl::draw_mesh(vis.bolt_mesh, glm::mat4(1.0f), bolt);
+                    sl::draw_mesh(mesh, glm::mat4(1.0f), bolt);
                 }
             }
         }

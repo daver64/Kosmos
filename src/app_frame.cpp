@@ -249,8 +249,12 @@ namespace kosmos::app
             sl::destroy_mesh(vis.local_cloud);
         if (vis.rain_mesh)
             sl::destroy_mesh(vis.rain_mesh);
-        if (vis.bolt_mesh)
-            sl::destroy_mesh(vis.bolt_mesh);
+        for (sl::Mesh *&m : vis.bolt_meshes)
+            if (m)
+                sl::destroy_mesh(m);
+        for (sl::Bitmap *&b : vis.bolt_bitmaps)
+            if (b)
+                sl::destroy_bitmap(b);
         for (sl::Mesh *m : vis.limb_pool)
             sl::destroy_mesh(m);
         for (sl::Mesh *m : {vis.sphere, vis.glow, vis.quad, vis.starfield, vis.tail})

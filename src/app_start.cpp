@@ -392,6 +392,7 @@ namespace kosmos::app
         vis.star_limb = make_star_limb();
         vis.sky = make_sky_texture();
         vis.puff_texture = make_puff_texture();
+        lightning.set_sound_file(sim.root() + "/data/sounds/lightning.wav");
         vis.cloud_texture = fx::make_cloud_texture();
         vis.starfield = make_starfield();
         vis.tail = make_tail_mesh();

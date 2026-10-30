@@ -59,8 +59,11 @@ namespace kosmos::app
             double nearest_surface = 1.0e30;
             for (std::size_t bi = 0; bi < universe.bodies.size(); ++bi)
                 nearest_surface = std::min(nearest_surface, glm::length(universe.position(static_cast<int>(bi)) - eye_world) - universe.bodies[bi].radius);
+            // Cloud decks and layers sit well above the surface and the near plane cuts across the view, so off-axis cloud would be
+            // clipped if the plane sat at the ground distance; leave room for the clouds and a wide view.
+            const double cloud_room = near_earth ? 12.0e3 : 0.0;
             // Capped so a star-sized distance cannot push the near plane past the far one.
-            near_plane = std::max(ship_near, std::min(0.8 * nearest_surface, 1.0e8));
+            near_plane = std::max(ship_near, std::min(0.6 * (nearest_surface - cloud_room), 1.0e8));
         }
         camera.near_plane = static_cast<float>(near_plane);
         camera.far_plane = static_cast<float>(layered || view_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));

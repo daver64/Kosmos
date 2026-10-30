@@ -874,7 +874,7 @@ namespace kosmos::app
                 extent = std::max(extent, offset + std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
         }
         eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
-        const double nearest_ground = std::max(1.0, 0.9 * (eye_soi_altitude - 10.0e3));
+        const double nearest_ground = std::max(1.0, 0.5 * (eye_soi_altitude - 10.0e3));
         view_distance = in_user && user_cams[static_cast<std::size_t>(user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : cam_distance;
         in_user_mounted = in_user && !user_cams[static_cast<std::size_t>(user_cam)].orbit;
         ship_near = in_eva && eva.building >= 0 ? 0.1 : in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (user_extent >= 0.0 ? user_extent : extent), nearest_ground));

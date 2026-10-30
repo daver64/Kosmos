@@ -4,6 +4,7 @@
 #include "audio.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace kosmos
@@ -21,19 +22,29 @@ namespace kosmos
         /** Advance by `dt` real seconds. `thunder` is 0 to 1 (0 stops new strikes); `sound_volume` is 0 to 1. */
         void update(double dt, double thunder, double sound_volume);
 
+        /** Where to find lightning.wav (a recording used for every strike; the built-in synthesised thunder is the fallback). */
+        void set_sound_file(const std::string &path) { sound_file_ = path; }
+
         /** Sky flash from 0 to 1. */
         double flash() const { return flash_; }
 
+        int strike_count() const { return static_cast<int>(strikes_.size()); }
+        /** Which of the `bolt_textures` images strike `index` is drawn with. */
+        int strike_texture(int index) const;
+
         /**
-         * The bolt as camera-facing quads in local coordinates (empty when none is showing). `ground_z` and `cloud_z` are the heights of the
-         * ground and cloud base relative to the camera. Returns the vertex count (four per quad), at most `max_quads * 4`.
+         * One strike's bolt as camera-facing quads in local coordinates, with UVs along the bolt for a lightning texture (empty when not
+         * showing). `ground_z` and `cloud_z` are the heights of the ground and cloud base relative to the camera. Returns the vertex count
+         * (four per quad), at most `max_quads * 4`.
          */
-        int bolt_vertices(double ground_z, double cloud_z, sl::Vertex3D *out, int max_quads) const;
+        int bolt_vertices(int index, double ground_z, double cloud_z, sl::Vertex3D *out, int max_quads) const;
 
         /** Free the thunder samples (before audio shuts down). */
         void release();
 
-        static constexpr int bolt_quads = 160;
+        static constexpr int bolt_quads = 40;
+        static constexpr int max_bolts = 3;
+        static constexpr int bolt_textures = 4;
 
     private:
         struct Strike
@@ -49,6 +60,10 @@ namespace kosmos
         std::uint32_t rng_ = 0x9e3779b9u;
         double volume_ = 1.0;
         sl::Sample *samples_[3] = {nullptr, nullptr, nullptr};
+        sl::Sample *recording_ = nullptr;
+        bool recording_tried_ = false;
+        std::string sound_file_;
+        double busy_until_ = 0.0;
         double random();
     };
 }

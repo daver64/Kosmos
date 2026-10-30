@@ -105,6 +105,13 @@ namespace kosmos
 
     sl::Sample *Lightning::thunder_sample(int kind)
     {
+        if (!recording_tried_ && !sound_file_.empty())
+        {
+            recording_tried_ = true;
+            recording_ = sl::load_sample(sound_file_);
+        }
+        if (recording_)
+            return recording_;
         if (!samples_[kind])
         {
             const std::vector<std::uint8_t> wav = make_thunder_wav(kind);
@@ -121,7 +128,18 @@ namespace kosmos
                 sl::destroy_sample(s);
                 s = nullptr;
             }
+        if (recording_)
+        {
+            sl::destroy_sample(recording_);
+            recording_ = nullptr;
+        }
+        recording_tried_ = false;
         strikes_.clear();
+    }
+
+    int Lightning::strike_texture(int index) const
+    {
+        return index >= 0 && index < strike_count() ? static_cast<int>(strikes_[static_cast<std::size_t>(index)].seed) % bolt_textures : 0;
     }
 
     void Lightning::update(double dt, double thunder, double sound_volume)
@@ -138,7 +156,7 @@ namespace kosmos
                 s.distance = 500.0 + 6500.0 * random() * random();
                 s.seed = 1.0 + std::floor(random() * 1000.0);
                 strikes_.push_back(s);
-                countdown_ = (3.0 + 10.0 * random()) / std::max(0.3, thunder);
+                countdown_ = (12.0 + 30.0 * random()) / std::max(0.3, thunder);
             }
         }
         else
@@ -157,11 +175,16 @@ namespace kosmos
             {
                 s.thunder_pending = false;
                 const int kind = s.distance < 1500.0 ? 0 : (s.distance < 4000.0 ? 1 : 2);
-                if (volume_ > 0.0)
+                // Near strikes crack loud and sharp; far ones are quiet and pitched down so the rumble drags on.
+                const double nearness = std::clamp(1.0 - s.distance / 7000.0, 0.0, 1.0);
+                const double loud = (0.12 + 0.88 * nearness * nearness) * volume_;
+                // The recording runs for many seconds, so a quiet strike is left silent while the last thunder is still rolling.
+                if (volume_ > 0.0 && (clock_ >= busy_until_ || nearness > 0.5))
                     if (sl::Sample *sample = thunder_sample(kind))
                     {
-                        const double loud = std::clamp(1.1 - s.distance / 9000.0, 0.25, 1.0) * volume_;
-                        sl::play_sample(sample, static_cast<int>(255.0 * loud), 128 + static_cast<int>(60.0 * std::sin(s.bearing)), 900 + static_cast<int>(200.0 * random()), 0);
+                        const int pitch = static_cast<int>((780.0 + 260.0 * nearness) * (0.95 + 0.1 * random()));
+                        sl::play_sample(sample, static_cast<int>(255.0 * loud), 128 + static_cast<int>(60.0 * std::sin(s.bearing)), pitch, 0);
+                        busy_until_ = std::max(busy_until_, clock_ + 8.0);
                     }
             }
         }
@@ -169,67 +192,70 @@ namespace kosmos
         strikes_.erase(std::remove_if(strikes_.begin(), strikes_.end(), [](const Strike &s) { return !s.thunder_pending && s.age > bolt_life; }), strikes_.end());
     }
 
-    int Lightning::bolt_vertices(double ground_z, double cloud_z, sl::Vertex3D *out, int max_quads) const
+    int Lightning::bolt_vertices(int index, double ground_z, double cloud_z, sl::Vertex3D *out, int max_quads) const
     {
         int quads = 0;
-        for (const Strike &s : strikes_)
+        if (index < 0 || index >= strike_count())
+            return 0;
+        const Strike &s = strikes_[static_cast<std::size_t>(index)];
+        if (s.age > bolt_life || cloud_z - ground_z < 80.0)
+            return 0;
+        // Flickers through its strokes.
+        const double flicker = (s.age < 0.07 ? 1.0 : (s.age < 0.11 ? 0.2 : (s.age < 0.2 ? 0.9 : (s.age < 0.26 ? 0.3 : std::exp(-(s.age - 0.26) * 12.0)))));
+        const double alpha = std::clamp(flicker, 0.0, 1.0);
+        if (alpha < 0.03)
+            return 0;
+        const Point top{std::cos(s.bearing) * s.distance, std::sin(s.bearing) * s.distance, cloud_z};
+        const Point bottom{top.x + (s.seed - 500.0) * 0.1, top.y, ground_z};
+        double state = s.seed;
+        std::vector<std::pair<Point, Point>> segments, branches;
+        jag(top, bottom, (cloud_z - ground_z) * 0.1, 3, state, segments);
+        for (std::size_t i = 1; i < segments.size() - 1 && branches.size() < 3; i += 2)
         {
-            if (s.age > bolt_life || cloud_z - ground_z < 80.0)
-                continue;
-            // Flickers through its strokes.
-            const double flicker = (s.age < 0.07 ? 1.0 : (s.age < 0.11 ? 0.2 : (s.age < 0.2 ? 0.9 : (s.age < 0.26 ? 0.3 : std::exp(-(s.age - 0.26) * 12.0)))));
-            const double alpha = std::clamp(flicker, 0.0, 1.0);
-            if (alpha < 0.03)
-                continue;
-            const Point top{std::cos(s.bearing) * s.distance, std::sin(s.bearing) * s.distance, cloud_z};
-            const Point bottom{top.x + (s.seed - 500.0) * 0.1, top.y, ground_z};
-            double state = s.seed;
-            std::vector<std::pair<Point, Point>> segments, branches;
-            jag(top, bottom, (cloud_z - ground_z) * 0.12, 5, state, segments);
-            for (std::size_t i = 4; i < segments.size(); i += 7)
-            {
-                const Point &from = segments[i].first;
-                const double spread = 120.0 + 120.0 * (state / 233280.0);
-                const Point end{from.x + (std::fmod(state * 3.1, 2.0) - 1.0) * 450.0, from.y + (std::fmod(state * 1.7, 2.0) - 1.0) * 450.0, from.z - spread * 4.0};
-                jag(from, end, 80.0, 3, state, branches);
-                state = std::fmod(state * 9301.0 + 49297.0, 233280.0);
-            }
-            const auto emit = [&](const std::pair<Point, Point> &seg, double width, double gain) {
-                if (quads >= max_quads)
-                    return;
-                const Point mid{(seg.first.x + seg.second.x) / 2, (seg.first.y + seg.second.y) / 2, (seg.first.z + seg.second.z) / 2};
-                const double dx = seg.second.x - seg.first.x, dy = seg.second.y - seg.first.y, dz = seg.second.z - seg.first.z;
-                // Perpendicular to both the segment and the line of sight, so the strip always faces the camera.
-                double sx = dy * mid.z - dz * mid.y, sy = dz * mid.x - dx * mid.z, sz = dx * mid.y - dy * mid.x;
-                const double length = std::sqrt(sx * sx + sy * sy + sz * sz);
-                if (length < 1.0e-9)
-                    return;
-                const double w = width / length;
-                sx *= w;
-                sy *= w;
-                sz *= w;
-                const Point c[4] = {{seg.first.x - sx, seg.first.y - sy, seg.first.z - sz}, {seg.first.x + sx, seg.first.y + sy, seg.first.z + sz},
-                                    {seg.second.x - sx, seg.second.y - sy, seg.second.z - sz}, {seg.second.x + sx, seg.second.y + sy, seg.second.z + sz}};
-                for (int k = 0; k < 4; ++k)
-                {
-                    sl::Vertex3D &v = out[quads * 4 + k];
-                    v = sl::Vertex3D();
-                    v.position[0] = static_cast<float>(c[k].x);
-                    v.position[1] = static_cast<float>(c[k].y);
-                    v.position[2] = static_cast<float>(c[k].z);
-                    v.colour[0] = 0.8f;
-                    v.colour[1] = 0.86f;
-                    v.colour[2] = 1.0f;
-                    v.colour[3] = static_cast<float>(alpha * gain);
-                }
-                ++quads;
-            };
-            const double base_width = std::max(0.9, s.distance * 0.0028);
-            for (const auto &seg : segments)
-                emit(seg, base_width, 1.0);
-            for (const auto &seg : branches)
-                emit(seg, base_width * 0.45, 0.6);
+            const Point &from = segments[i].first;
+            const double drop = (cloud_z - ground_z) * (0.15 + 0.15 * (state / 233280.0));
+            branches.emplace_back(from, Point{from.x + (std::fmod(state * 3.1, 2.0) - 1.0) * drop, from.y + (std::fmod(state * 1.7, 2.0) - 1.0) * drop, from.z - drop});
+            state = std::fmod(state * 9301.0 + 49297.0, 233280.0);
         }
+        // Each strip is a lightning image (a wavy bright line across the middle) stretched along its segment.
+        const double reach = std::max(1.0, s.distance / 1500.0);
+        const auto emit = [&](const std::pair<Point, Point> &seg, double half_ratio, double gain) {
+            if (quads >= max_quads)
+                return;
+            const Point mid{(seg.first.x + seg.second.x) / 2, (seg.first.y + seg.second.y) / 2, (seg.first.z + seg.second.z) / 2};
+            const double dx = seg.second.x - seg.first.x, dy = seg.second.y - seg.first.y, dz = seg.second.z - seg.first.z;
+            // Perpendicular to both the segment and the line of sight, so the strip always faces the camera.
+            double sx = dy * mid.z - dz * mid.y, sy = dz * mid.x - dx * mid.z, sz = dx * mid.y - dy * mid.x;
+            const double length = std::sqrt(sx * sx + sy * sy + sz * sz);
+            if (length < 1.0e-9)
+                return;
+            const double w = std::sqrt(dx * dx + dy * dy + dz * dz) * half_ratio * reach / length;
+            sx *= w;
+            sy *= w;
+            sz *= w;
+            const Point c[4] = {{seg.first.x - sx, seg.first.y - sy, seg.first.z - sz}, {seg.first.x + sx, seg.first.y + sy, seg.first.z + sz},
+                                {seg.second.x - sx, seg.second.y - sy, seg.second.z - sz}, {seg.second.x + sx, seg.second.y + sy, seg.second.z + sz}};
+            const float u[4] = {0.0f, 0.0f, 1.0f, 1.0f}, v[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+            for (int k = 0; k < 4; ++k)
+            {
+                sl::Vertex3D &vert = out[quads * 4 + k];
+                vert = sl::Vertex3D();
+                vert.position[0] = static_cast<float>(c[k].x);
+                vert.position[1] = static_cast<float>(c[k].y);
+                vert.position[2] = static_cast<float>(c[k].z);
+                vert.uv[0] = u[k];
+                vert.uv[1] = v[k];
+                vert.colour[0] = 0.9f;
+                vert.colour[1] = 0.95f;
+                vert.colour[2] = 1.0f;
+                vert.colour[3] = static_cast<float>(alpha * gain);
+            }
+            ++quads;
+        };
+        for (const auto &seg : segments)
+            emit(seg, 0.12, 1.0);
+        for (const auto &seg : branches)
+            emit(seg, 0.1, 0.6);
         return quads * 4;
     }
 }
