@@ -93,6 +93,16 @@ namespace
             Start(url, false);
         }
 
+        // Posts a JSON body; the reply is delivered like Fetch's.
+        void PostJson(const std::string &url, const std::string &json, std::function<void(bool, const std::string &)> done)
+        {
+            on_text = std::move(done);
+            text_.clear();
+            file_.reset();
+            post_body_ = json;
+            Start(url, false);
+        }
+
         void Download(const std::string &url, const fs::path &part, std::function<void(long long, long long)> progress, std::function<void(bool, const std::string &)> done)
         {
             on_progress = std::move(progress);
@@ -119,6 +129,12 @@ namespace
             {
                 Finish(false, "Cannot create a web request");
                 return;
+            }
+            if (!post_body_.empty())
+            {
+                request_.SetData(W(post_body_), "application/json");
+                request_.SetHeader("Accept", "application/json");
+                post_body_.clear();
             }
             if (to_file && resume_from_ > 0)
                 request_.SetHeader("Range", wxString::Format("bytes=%lld-", resume_from_));
@@ -196,7 +212,7 @@ namespace
         fs::path part_path() const { return part_; }
 
         wxWebRequest request_;
-        std::string text_;
+        std::string text_, post_body_;
         std::unique_ptr<std::ofstream> file_;
         fs::path part_;
         long long resume_from_ = 0, received_ = 0;
@@ -957,8 +973,10 @@ namespace
             auto *copy = new wxButton(page, wxID_ANY, "Copy to clipboard");
             retry_ = new wxButton(page, wxID_ANY, "Retry with another backend");
             retry_->Hide();
+            report_ = new wxButton(page, wxID_ANY, "Report this log...");
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(copy, 0, wxALL, 8);
+            buttons->Add(report_, 0, wxALL, 8);
             buttons->Add(retry_, 0, wxALL, 8);
             col->Add(log_choice_, 0, wxEXPAND | wxALL, 8);
             col->Add(log_text_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
@@ -974,6 +992,7 @@ namespace
                                wxTheClipboard->Close();
                            }
                        });
+            report_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { ReportLog(); });
             retry_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
                          {
                              profile_.backend = profile_.backend == "vulkan" ? "gl" : profile_.backend == "gl" ? "vulkan" : "gl";
@@ -985,6 +1004,82 @@ namespace
         }
 
         fs::path log_dir() const { return user_dir() / "logs"; }
+
+        // Shows what would be sent (home paths removed) and posts it to the server when the user agrees.
+        void ReportLog()
+        {
+            const int i = log_choice_->GetSelection();
+            if (i == wxNOT_FOUND)
+            {
+                wxMessageBox("There is no log to report yet. Run Kosmos first.", "Report", wxICON_INFORMATION);
+                return;
+            }
+            const std::string home = U(wxGetHomeDir());
+            const std::string raw = read_text(log_files_[i]);
+            ReportContent content;
+            content.log = log_tail(scrub_paths(raw, home), 400000);
+            content.exit_code = log_exit_code(raw);
+            content.kosmos = installed_version(root_);
+            content.launcher = content.kosmos;
+            content.scenario = log_files_[i].stem().string();
+            content.info = U(wxGetOsDescription()) + "\n" + U(wxPlatformInfo::Get().GetBitnessName()) + "\nbackend setting: " + profile_.backend;
+            std::string options = "Command line options: ";
+            for (const std::string &a : build_arguments(profile_, ""))
+                options += a + " ";
+            content.options = scrub_paths(options, home);
+
+            wxDialog dlg(this, wxID_ANY, "Report this log", wxDefaultPosition, wxSize(720, 640), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+            auto *col = new wxBoxSizer(wxVERTICAL);
+            col->Add(new wxStaticText(&dlg, wxID_ANY, "This is what will be sent to the developer. Check it for anything you do not want shared."), 0, wxALL, 8);
+            auto *preview = new wxTextCtrl(&dlg, wxID_ANY, W(content.log), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL);
+            preview->SetFont(wxFont(wxFontInfo(9).Family(wxFONTFAMILY_TELETYPE)));
+            col->Add(preview, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
+            auto *with_info = new wxCheckBox(&dlg, wxID_ANY, "Include system details (" + W(content.info.substr(0, content.info.find('\n'))) + ")");
+            with_info->SetValue(true);
+            auto *with_options = new wxCheckBox(&dlg, wxID_ANY, "Include the launch options");
+            with_options->SetValue(true);
+            col->Add(with_info, 0, wxALL, 6);
+            col->Add(with_options, 0, wxLEFT | wxRIGHT, 6);
+            col->Add(new wxStaticText(&dlg, wxID_ANY, "What were you doing? (optional)"), 0, wxLEFT | wxTOP, 8);
+            auto *note = new wxTextCtrl(&dlg, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 70), wxTE_MULTILINE);
+            col->Add(note, 0, wxEXPAND | wxALL, 8);
+            col->Add(new wxStaticText(&dlg, wxID_ANY, "Email, if you want a reply (optional)"), 0, wxLEFT, 8);
+            auto *contact = new wxTextCtrl(&dlg, wxID_ANY);
+            col->Add(contact, 0, wxEXPAND | wxALL, 8);
+            col->Add(dlg.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
+            if (auto *ok = dlg.FindWindow(wxID_OK))
+                static_cast<wxButton *>(ok)->SetLabel("Send");
+            dlg.SetSizer(col);
+            if (dlg.ShowModal() != wxID_OK)
+                return;
+
+            if (!with_info->GetValue())
+                content.info.clear();
+            if (!with_options->GetValue())
+                content.options.clear();
+            content.note = scrub_paths(U(note->GetValue()), home);
+            content.contact = U(contact->GetValue());
+            report_->Disable();
+            SetStatusText("Sending the report...");
+            report_http_.PostJson(report_url(profile_.server), report_payload(content), [this](bool ok, const std::string &reply)
+                                  {
+                                      report_->Enable();
+                                      if (ok)
+                                      {
+                                          std::string id;
+                                          const size_t at = reply.find("\"id\":\"");
+                                          if (at != std::string::npos)
+                                              id = reply.substr(at + 6, reply.find('"', at + 6) - at - 6);
+                                          SetStatusText("Report sent.");
+                                          wxMessageBox("Thank you, the report was sent." + (id.empty() ? wxString() : "\nReference: " + W(id)), "Report", wxICON_INFORMATION);
+                                      }
+                                      else
+                                      {
+                                          SetStatusText("The report could not be sent.");
+                                          wxMessageBox("The report could not be sent (" + W(reply) + ").\n\nYou can use \"Copy to clipboard\" and paste the log into\n" + W(report_page_url(profile_.server)), "Report", wxICON_WARNING);
+                                      }
+                                  });
+        }
 
         void RefreshLogList()
         {
@@ -1081,6 +1176,7 @@ namespace
             ShowScenario();
             RefreshLogList();
             retry_->Show(failed);
+            report_->SetLabel(failed ? "Report this problem..." : "Report this log...");
             log_text_->GetParent()->Layout();
             SetStatusText(failed ? "Kosmos ended unexpectedly; see the Logs page." : "Kosmos closed.");
             if (failed)
@@ -1131,7 +1227,8 @@ namespace
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
-        wxButton *launch_ = nullptr, *resume_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr;
+        wxButton *launch_ = nullptr, *resume_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
+        Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;
         wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
         wxListBox *pack_list_ = nullptr;

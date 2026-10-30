@@ -22,7 +22,7 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 ## Launcher
 
-`kosmos-launcher` (wxWidgets; on Linux install `libwxgtk3.2`) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them. `scripts/make-packs-json.sh` writes the pack list the launcher downloads from.
+`kosmos-launcher` (wxWidgets; on Linux install `libwxgtk3.2`) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs, with a "Report this log" button that posts a log (home paths removed, after a preview) to the server's `report/submit.php`. The server side is `report/` (PHP: submit, password-protected `admin.php`, public form), installed once with `scripts/setup-reports.sh [HOST]`; reports are kept in `/var/lib/kosmos-reports`, outside the web root. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them. `scripts/make-packs-json.sh` writes the pack list the launcher downloads from.
 
 ## Distributions
 

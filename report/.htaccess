@@ -1,0 +1,8 @@
+# Reports are read through admin.php only; the helper has no business being fetched directly.
+<Files "common.php">
+    Require all denied
+</Files>
+<FilesMatch "\.(log|json)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes

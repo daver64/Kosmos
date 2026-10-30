@@ -564,4 +564,90 @@ namespace launcher
         out << j.dump(1) << "\n";
         return true;
     }
+
+    namespace
+    {
+        void replace_all(std::string &text, const std::string &from, const std::string &to)
+        {
+            if (from.empty())
+                return;
+            for (size_t at = text.find(from); at != std::string::npos; at = text.find(from, at + to.size()))
+                text.replace(at, from.size(), to);
+        }
+
+        // "/home/alice" or "C:\Users\alice" -> the part after the last separator.
+        std::string account_name(const std::string &home)
+        {
+            const size_t cut = home.find_last_of("/\\");
+            return cut == std::string::npos ? home : home.substr(cut + 1);
+        }
+
+        std::string server_base(const std::string &server)
+        {
+            std::string base = server;
+            while (!base.empty() && base.back() == '/')
+                base.pop_back();
+            const std::string tail = "/download";
+            if (base.size() >= tail.size() && base.compare(base.size() - tail.size(), tail.size(), tail) == 0)
+                base.resize(base.size() - tail.size());
+            return base;
+        }
+    } // namespace
+
+    std::string scrub_paths(const std::string &text, const std::string &home)
+    {
+        std::string out = text;
+        if (home.size() < 3)
+            return out;
+        replace_all(out, home, "~");
+        std::string slashed = home;
+        std::replace(slashed.begin(), slashed.end(), '\\', '/');
+        replace_all(out, slashed, "~");
+        const std::string name = account_name(home);
+        if (name.size() >= 3)
+        {
+            replace_all(out, "/home/" + name, "~");
+            replace_all(out, "\\Users\\" + name, "\\Users\\user");
+            replace_all(out, "/Users/" + name, "/Users/user");
+        }
+        return out;
+    }
+
+    std::string log_tail(const std::string &text, size_t limit)
+    {
+        if (text.size() <= limit)
+            return text;
+        size_t start = text.size() - limit;
+        while (start < text.size() && (static_cast<unsigned char>(text[start]) & 0xC0) == 0x80)
+            ++start; // do not begin in the middle of a UTF-8 sequence
+        return "[earlier output cut]\n" + text.substr(start);
+    }
+
+    std::string report_url(const std::string &server) { return server_base(server) + "/report/submit.php"; }
+
+    std::string report_page_url(const std::string &server) { return server_base(server) + "/report/"; }
+
+    std::string report_payload(const ReportContent &r)
+    {
+        nlohmann::json j;
+        j["log"] = r.log;
+        j["info"] = r.info;
+        j["options"] = r.options;
+        j["note"] = r.note;
+        j["contact"] = r.contact;
+        j["kosmos"] = r.kosmos;
+        j["launcher"] = r.launcher;
+        j["exit_code"] = r.exit_code;
+        j["scenario"] = r.scenario;
+        return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+
+    std::string log_exit_code(const std::string &log)
+    {
+        const std::string tag = "Exit code ";
+        if (log.compare(0, tag.size(), tag) != 0)
+            return "";
+        const size_t end = log.find('\n');
+        return log.substr(tag.size(), (end == std::string::npos ? log.size() : end) - tag.size());
+    }
 } // namespace launcher

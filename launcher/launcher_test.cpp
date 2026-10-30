@@ -92,6 +92,25 @@ int main()
         launcher::fs::remove_all(tmp.parent_path());
     }
 
+    {
+        CHECK(scrub_paths("open /home/alice/x and C:\\Users\\alice\\y", "/home/alice") == "open ~/x and C:\\Users\\user\\y");
+        CHECK(scrub_paths("C:\\Users\\bob\\kosmos C:/Users/bob/z", "C:\\Users\\bob") == "~\\kosmos ~/z");
+        CHECK(scrub_paths("keep", "") == "keep");
+        CHECK(log_tail("short", 100) == "short");
+        const std::string cut = log_tail(std::string(50, 'a') + "END", 10);
+        CHECK(cut.rfind("[earlier output cut]\n", 0) == 0 && cut.size() == 21 + 10 && cut.substr(cut.size() - 3) == "END");
+        CHECK(report_url("https://x.net/kosmos/download") == "https://x.net/kosmos/report/submit.php");
+        CHECK(report_url("https://x.net/kosmos/download/") == "https://x.net/kosmos/report/submit.php");
+        CHECK(report_page_url("https://x.net/kosmos/download") == "https://x.net/kosmos/report/");
+        ReportContent r;
+        r.log = "bad \xff byte";
+        r.note = "n";
+        const std::string body = report_payload(r);
+        CHECK(body.find("\"note\":\"n\"") != std::string::npos && body.find("\"log\"") != std::string::npos);
+        CHECK(log_exit_code("Exit code 3\nCommand: kosmos") == "3");
+        CHECK(log_exit_code("nothing").empty());
+    }
+
     std::printf(failures ? "%d failure(s)\n" : "launcher_test: all passed\n", failures);
     return failures ? 1 : 0;
 }

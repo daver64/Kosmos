@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report a Kosmos problem</title>
+<link rel="stylesheet" href="../css/site.css?v=10">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="../index.html">KOS<span>M</span>OS</a>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="../gallery.html">Gallery</a>
+    <a href="../manual.html">Flight manual</a>
+    <a href="../modding.html">Modders manual</a>
+    <a href="../sdk.html">SDK manual</a>
+    <a href="../developers.html">Developers manual</a>
+    <a href="../download.html">Download</a>
+    <a href="../kav/index.html">KosmosAV</a>
+  </nav>
+</header>
+<main class="wrap" style="max-width:760px;margin:40px auto;padding:0 24px">
+<h1>Report a problem</h1>
+<p>If Kosmos crashed or misbehaved, send the log so it can be looked at. The easiest way is the <strong>Logs</strong> page of the Kosmos launcher, which has a <em>Report this log</em> button and fills in the system details for you. This page is for when you cannot use the launcher.</p>
+<p>Logs are saved by the launcher in <code>%APPDATA%\kosmos\logs</code> on Windows and <code>~/.config/kosmos/logs</code> on Linux. You can also paste whatever Kosmos printed in its console.</p>
+<p><strong>Privacy:</strong> what you send is stored on the server and read only by the developer. A log can contain file paths, your graphics card and driver, and your computer name; look it over first. Nothing is sent until you press the button. Your address is kept to limit abuse.</p>
+
+<form method="post" action="submit.php" enctype="multipart/form-data">
+  <p><label>Log file <input type="file" name="logfile" accept=".log,.txt,text/plain"></label></p>
+  <p><label>or paste the log text<br><textarea name="log" rows="12" style="width:100%;font-family:monospace"></textarea></label></p>
+  <p><label>Kosmos version <input name="kosmos" maxlength="40" size="10"></label>
+     <label>Your system (OS, graphics card) <input name="info" maxlength="300" size="40"></label></p>
+  <p><label>What were you doing?<br><textarea name="note" rows="4" maxlength="4000" style="width:100%"></textarea></label></p>
+  <p><label>Email, if you would like a reply (optional) <input name="contact" maxlength="200" size="32"></label></p>
+  <p style="position:absolute;left:-9999px" aria-hidden="true"><label>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label></p>
+  <p><button class="btn primary" type="submit">Send report</button></p>
+</form>
+</main>
+</body>
+</html>

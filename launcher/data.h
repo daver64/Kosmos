@@ -84,4 +84,22 @@ namespace launcher
     std::string read_text(const fs::path &file);
     // Lower-case hex SHA-256 of a file, or an empty string if it cannot be read.
     std::string sha256_file(const fs::path &file);
+
+    // ---- Run-log reports ----
+    // Replaces the user's home directory (and the account name in Windows and Linux home paths) with "~".
+    std::string scrub_paths(const std::string &text, const std::string &home);
+    // The last `limit` bytes of a log, marked when earlier output was cut.
+    std::string log_tail(const std::string &text, size_t limit);
+    // Where reports are posted, derived from the download server URL (".../kosmos/download" -> ".../kosmos/report/submit.php").
+    std::string report_url(const std::string &server);
+    // The address of the web page for sending a report by hand.
+    std::string report_page_url(const std::string &server);
+    struct ReportContent
+    {
+        std::string log, info, options, note, contact, kosmos, launcher, exit_code, scenario;
+    };
+    // The JSON body for submit.php.
+    std::string report_payload(const ReportContent &report);
+    // Reads "Exit code N" from the first line of a launcher log, or an empty string.
+    std::string log_exit_code(const std::string &log);
 }
