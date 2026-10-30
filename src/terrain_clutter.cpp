@@ -164,18 +164,19 @@ namespace kosmos
         }
 
         // Detail textures for rocks, loaded once and normalised to an even tone so the vertex colours still set the shade.
-        std::string &texture_root()
-        {
-            static std::string root;
-            return root;
-        }
+        std::string rock_texture_root;
+        sl::Bitmap *rock_loaded[10] = {};
+        bool rock_tried[10] = {};
+
+        std::string &texture_root() { return rock_texture_root; }
 
         sl::Bitmap *rock_texture(int index)
         {
             static const char *const names[] = {"Rock1", "Rock3", "Rock4", "Rock5", "Rock6", "Rock7", "Rock9", "SpeckledStone", "PebbledWall", "SmallRocks"};
             constexpr int count = static_cast<int>(sizeof names / sizeof *names);
-            static sl::Bitmap *loaded[count] = {};
-            static bool tried[count] = {};
+            static_assert(count == 10, "rock_loaded and rock_tried are sized for ten textures");
+            sl::Bitmap **loaded = rock_loaded;
+            bool *tried = rock_tried;
             const int i = ((index % count) + count) % count;
             if (tried[i])
                 return loaded[i];

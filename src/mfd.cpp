@@ -15,13 +15,14 @@ namespace kosmos
     {
         constexpr float pi_f = 3.14159265f;
 
+        std::map<int, sl::Font *> mfd_fonts;
+
         sl::Font *font_for(int point)
         {
-            static std::map<int, sl::Font *> fonts;
             point = std::max(8, point);
-            auto it = fonts.find(point);
-            if (it == fonts.end())
-                it = fonts.emplace(point, sl::open_monospace_font(point)).first;
+            auto it = mfd_fonts.find(point);
+            if (it == mfd_fonts.end())
+                it = mfd_fonts.emplace(point, sl::open_monospace_font(point)).first;
             return it->second;
         }
 

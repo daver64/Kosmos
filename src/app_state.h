@@ -74,8 +74,38 @@ namespace kosmos::app
         double distance = 0.0, radius = 0.0, angular = 0.0;
     };
 
+    /** Opt-in link events: what each was last told, so only changes are broadcast. */
+    struct LinkWatch
+    {
+        bool primed = false, paused = false, landed = false, crashed = false;
+        int warp = 0, ships = 0;
+        std::string soi, weather;
+        const Ship *tracked = nullptr;
+        std::chrono::steady_clock::time_point tick{};
+    };
+
+    /** What the per-frame phases remember from one frame to the next (edge detection, timers, window fields). */
+    struct FrameMemory
+    {
+        double eva_report_at = 0.0;
+        bool trigger_was_down = false, primary_was = false, secondary_was = false;
+        sl::dvec3 carried_east{0.0};
+        int carried_soi = -1;
+        double tilt_clock = 0.0;
+        bool cues_seen = false, was_landed = false, was_crashed = false, was_docked = false, was_alarm = false;
+        int was_stage = 0;
+        double alarm_next = 0.0;
+        std::string weather_seen;
+        std::chrono::steady_clock::time_point weather_until{};
+        int selected_vessel = 0, slice_y = 5, slice_gas = 0;
+        char metar[256] = "";
+        bool metar_loaded = false;
+        LinkWatch link_watch;
+    };
+
     struct App
     {
+        FrameMemory memory;
         kosmos::Universe *universe_ref{};
         sl::PropertyTree *props_ref{};
         const kosmos::Telemetry *tm_ref{};
@@ -298,6 +328,16 @@ namespace kosmos::app
         void poll_events();
         void follow_window();
         void keyboard();
+        void govern_time_warp();
+        void poll_blender_edit();
+        double step_simulation();
+        void collide_ground_vehicles();
+        void update_eva();
+        void update_weapons(double time_before_step);
+        void select_default_instruments();
+        void publish_netplay_state();
+        void update_view_flags();
+        void drive_camera_controls();
         void advance_time();
         void place_camera();
         void prepare_scene();

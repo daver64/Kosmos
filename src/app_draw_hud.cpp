@@ -191,33 +191,30 @@ namespace kosmos::app
         sound.set(sound_on ? rocket_level * (0.35 + 0.65 * air) : 0.0, sound_on ? rcs_level : 0.0, sound_on ? wind_level : 0.0);
         {
             // Event cues: one-shots on the edge of a state change. The first frame only records the state.
-            static bool seen = false, was_landed = false, was_crashed = false, was_docked = false, was_alarm = false;
-            static int was_stage = 0;
-            static double alarm_next = 0.0;
             const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = props.get_bool("/dock/docked");
             const bool alarm_now = ship->systems() && !ship->systems()->alarms().empty();
-            if (seen && sound_on)
+            if (memory.cues_seen && sound_on)
             {
-                if (crashed_now && !was_crashed)
+                if (crashed_now && !memory.was_crashed)
                     sound.play("crash", 255);
-                else if (landed_now && !was_landed && !crashed_now)
+                else if (landed_now && !memory.was_landed && !crashed_now)
                     sound.play("touchdown", 220);
-                if (docked_now != was_docked)
+                if (docked_now != memory.was_docked)
                     sound.play(docked_now ? "docking" : "undocking", 200);
-                if (ship->active_stage() != was_stage)
+                if (ship->active_stage() != memory.was_stage)
                     sound.play("thump", 230);
-                if (alarm_now && (!was_alarm || sl::time_ms() / 1000.0 > alarm_next))
+                if (alarm_now && (!memory.was_alarm || sl::time_ms() / 1000.0 > memory.alarm_next))
                 {
                     sound.play("warning_beep", 160);
-                    alarm_next = sl::time_ms() / 1000.0 + 4.0;
+                    memory.alarm_next = sl::time_ms() / 1000.0 + 4.0;
                 }
             }
-            seen = true;
-            was_landed = landed_now;
-            was_crashed = crashed_now;
-            was_docked = docked_now;
-            was_alarm = alarm_now;
-            was_stage = ship->active_stage();
+            memory.cues_seen = true;
+            memory.was_landed = landed_now;
+            memory.was_crashed = crashed_now;
+            memory.was_docked = docked_now;
+            memory.was_alarm = alarm_now;
+            memory.was_stage = ship->active_stage();
         }
     }
 
@@ -468,17 +465,15 @@ namespace kosmos::app
             sl::set_blend_mode(sl::BlendMode::normal);
         }
         // The weather line is a notice: it shows for a few seconds when the METAR (or station) changes.
-        static std::string weather_seen;
-        static auto weather_until = std::chrono::steady_clock::time_point{};
         {
             const std::string key = props.get_string("/environment/station") + "|" + props.get_string("/environment/metar");
-            if (key != weather_seen)
+            if (key != memory.weather_seen)
             {
-                weather_seen = key;
-                weather_until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+                memory.weather_seen = key;
+                memory.weather_until = std::chrono::steady_clock::now() + std::chrono::seconds(8);
             }
         }
-        if (!options.hide_info && std::chrono::steady_clock::now() < weather_until && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
+        if (!options.hide_info && std::chrono::steady_clock::now() < memory.weather_until && props.get_bool("/sim/settings/weather", true) && !props.get_string("/environment/station").empty())
             sl::gprintf_center(screen_h - 40, {170, 205, 235}, "Wind %03.0f/%.0f m/s  rain %.0f%%  cloud %.0f%%  vis %.1f km   %s%s",
                                props.get_double("/environment/wind-from"), props.get_double("/environment/wind-speed"), props.get_double("/environment/rain") * 100.0,
                                props.get_double("/environment/cloud-cover") * 100.0, props.get_double("/environment/visibility") / 1000.0,

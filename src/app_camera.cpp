@@ -2,8 +2,7 @@
 
 namespace kosmos::app
 {
-    // Time warp, the simulation step and the ship events that follow.
-    void App::advance_time()
+    void App::govern_time_warp()
     {
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
@@ -20,6 +19,11 @@ namespace kosmos::app
         else if (eva.active && (eva_moving || !eva.grounded || eva.speed > 0.3) && props.get_int("/sim/warp-index") > 0)
             props.set_int("/sim/warp-index", 0);
 
+    }
+
+    void App::poll_blender_edit()
+    {
+    sl::PropertyTree &props = *props_ref;
         if (edit_paused && !blender_edit.active())
         {
             edit_paused = false;
@@ -34,6 +38,12 @@ namespace kosmos::app
             if (vis.reload_models() > 0 && edit_paused)
                 part_status = "Reloaded the edited mesh";
         }
+    }
+
+    double App::step_simulation()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
         const double time_before_step = universe.time();
         double step_dt = frame;
         bool lockstepped = false;
@@ -60,6 +70,11 @@ namespace kosmos::app
         }
         lua_console.tick(frame);
         ship = sim.active_ship();
+        return time_before_step;
+    }
+
+    void App::collide_ground_vehicles()
+    {
         for (int i = 0; i < sim.ship_count(); ++i)
         {
             kosmos::Ship *vehicle = sim.ship(i);
@@ -77,9 +92,10 @@ namespace kosmos::app
                     scene.clutter = bt->clutter.get();
             kosmos::collide_ground_vehicle(scene, *vehicle);
         }
-        for (int i = 0; i < sim.ship_count(); ++i)
-            if (sim.ship(i)->spec().interior)
-                kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walker.position : nullptr, frame);
+    }
+
+    void App::update_eva()
+    {
         if (eva.active)
         {
             kosmos::EvaInput in;
@@ -105,10 +121,9 @@ namespace kosmos::app
                 in.forward = 1.0;
                 in.run = true;
                 in.jump = std::fmod(clock, 3.0) < 0.15;
-                static double next_report = 0.0;
-                if (clock > next_report)
+                if (clock > memory.eva_report_at)
                 {
-                    next_report = clock + 1.0;
+                    memory.eva_report_at = clock + 1.0;
                     std::fprintf(stderr, "[eva] t=%.1f height=%.2f speed=%.2f grounded=%d upright=%d\n", clock, eva.height, eva.speed, eva.grounded, eva.upright);
                 }
             }
@@ -181,10 +196,9 @@ namespace kosmos::app
             if ((near_ship >= 0 && ship_distance < 30.0) || at_base)
                 eva.recharge(frame * std::max(1.0, warp_now));
             {
-                static bool trigger_was_down = false;
                 const bool trigger = !typing && mouse_captured && sl::mouse_button_down(sl::MouseButton::left);
-                arsenal.use_held(arsenal_ctx, trigger && !trigger_was_down, trigger);
-                trigger_was_down = trigger;
+                arsenal.use_held(arsenal_ctx, trigger && !memory.trigger_was_down, trigger);
+                memory.trigger_was_down = trigger;
             }
             if (eva.suit.health <= 0.0)
             {
@@ -200,6 +214,12 @@ namespace kosmos::app
                 ship = sim.active_ship();
             }
         }
+    }
+
+    void App::update_weapons(double time_before_step)
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
         if (options.selftest_drop >= 0.0 && clock >= options.selftest_drop && ship)
         {
             options.selftest_drop = -1.0;
@@ -211,14 +231,13 @@ namespace kosmos::app
         if (!typing)
         {
             // Only touch the properties on a key change, so scripts and link programs can set them too.
-            static bool primary_was = false, secondary_was = false;
             const bool primary = keys.down("fire_primary"), secondary = keys.down("fire_secondary");
-            if (primary != primary_was)
+            if (primary != memory.primary_was)
                 props.set_double("/controls/weapons/primary/fire", primary ? 1.0 : 0.0);
-            if (secondary != secondary_was)
+            if (secondary != memory.secondary_was)
                 props.set_double("/controls/weapons/secondary/fire", secondary ? 1.0 : 0.0);
-            primary_was = primary;
-            secondary_was = secondary;
+            memory.primary_was = primary;
+            memory.secondary_was = secondary;
         }
         // Ships move in whole physics steps, so bolts advance by the simulated time that really passed; otherwise they drift against the muzzle by the orbital speed times the rounding.
         const double simulated = universe.time() - time_before_step;
@@ -242,6 +261,11 @@ namespace kosmos::app
             }
             ship_weapons.update_ghosts(arsenal_ctx, arsenal, shooters, frame * std::min(sim.current_warp(), 4.0));
         }
+    }
+
+    void App::select_default_instruments()
+    {
+    sl::PropertyTree &props = *props_ref;
         if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.
@@ -274,7 +298,13 @@ namespace kosmos::app
                 }
             }
         }
-        const kosmos::Telemetry &tm = ship->telemetry(); tm_ref = &tm;
+    }
+
+    void App::publish_netplay_state()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
+        const kosmos::Telemetry &tm = ship->telemetry();
         if (netplay.joined())
         {
             kosmos::GhostState mine;
@@ -290,8 +320,10 @@ namespace kosmos::app
             mine.orientation = nb.orientation;
             netplay.publish(mine);
         }
-        sl::FlightBody &fb = ship->body(); fb_ref = &fb;
+    }
 
+    void App::update_view_flags()
+    {
         if (interior_cam >= static_cast<int>(ship->spec().cameras.size()))
             interior_cam = -1;
         if (base_view >= static_cast<int>(sim.bases.size()) || (base_view >= 0 && base_view_cam >= static_cast<int>(sim.bases[static_cast<std::size_t>(base_view)].cameras.size())))
@@ -304,6 +336,11 @@ namespace kosmos::app
         in_interior = interior_cam >= 0 && !map_mode && !in_base_cam && !in_user && !in_eva;
         in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user && !in_eva;
         in_cockpit3d = in_cockpit && cockpit3d && ship->spec().cockpit.mfds;
+    }
+
+    void App::drive_camera_controls()
+    {
+    kosmos::Universe &universe = *universe_ref;
         const int mx = sl::mouse_x(), my = sl::mouse_y();
         const int flip_x = sim.props.get_bool("/sim/settings/mouse-invert-x") ? -1 : 1, flip_y = sim.props.get_bool("/sim/settings/mouse-invert-y") ? -1 : 1;
         const int dx = (mx - last_mouse_x) * flip_x, dy = (my - last_mouse_y) * flip_y;
@@ -400,6 +437,29 @@ namespace kosmos::app
         }
     }
 
+    // Time warp, the simulation step and the ship events that follow.
+    void App::advance_time()
+    {
+    kosmos::Universe &universe = *universe_ref;
+    sl::PropertyTree &props = *props_ref;
+        govern_time_warp();
+        poll_blender_edit();
+        const double time_before_step = step_simulation();
+        collide_ground_vehicles();
+        for (int i = 0; i < sim.ship_count(); ++i)
+            if (sim.ship(i)->spec().interior)
+                kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walker.position : nullptr, frame);
+        update_eva();
+        update_weapons(time_before_step);
+        select_default_instruments();
+        const kosmos::Telemetry &tm = ship->telemetry(); tm_ref = &tm;
+        publish_netplay_state();
+        sl::FlightBody &fb = ship->body(); fb_ref = &fb;
+
+        update_view_flags();
+        drive_camera_controls();
+    }
+
     // Where the camera is.
     void App::place_camera()
     {
@@ -414,8 +474,8 @@ namespace kosmos::app
         {
             // True east reverses over a pole, which would swing the camera to the far side. Carry the previous east along the surface
             // instead, and ease back to the compass east only where it is well defined.
-            static sl::dvec3 carried_east(0.0);
-            static int carried_soi = -1;
+            sl::dvec3 &carried_east = memory.carried_east;
+            int &carried_soi = memory.carried_soi;
             if (carried_soi != tm.soi || glm::length(carried_east) < 0.5)
                 carried_east = east;
             carried_soi = tm.soi;
@@ -432,9 +492,8 @@ namespace kosmos::app
             cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
         if (options.cam_dolly != 0.0)
             cam_distance = std::clamp(cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
-        static double tilt_clock = 0.0;
-        tilt_clock += frame;
-        const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(tilt_clock * 0.5);
+        memory.tilt_clock += frame;
+        const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(memory.tilt_clock * 0.5);
         const double yaw_d = cam_yaw, pitch_d = cam_pitch + tilt;
         sl::dvec3 offset_dir = (east * std::sin(yaw_d) + north * std::cos(yaw_d)) * std::cos(pitch_d) + up * std::sin(pitch_d);
         if (options.cam_sunward)

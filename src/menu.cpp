@@ -884,8 +884,10 @@ namespace kosmos
                         return std::string(buf) + (o.count > 1 ? std::to_string(o.count) : std::string());
                     }, fresh);
                     {
-                        static std::vector<std::string> stock = stock_base_models();
-                        static int stock_pick = 0;
+                        if (stock_models_.empty())
+                            stock_models_ = stock_base_models();
+                        std::vector<std::string> &stock = stock_models_;
+                        int &stock_pick = stock_pick_;
                         if (!stock.empty())
                         {
                             combo("Stock model", stock_pick, stock);

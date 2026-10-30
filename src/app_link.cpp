@@ -446,15 +446,7 @@ namespace kosmos::app
         }
 
         // Opt-in events: each is worked out only while some client has asked for it.
-        struct Watch
-        {
-            bool primed = false, paused = false, landed = false, crashed = false;
-            int warp = 0, ships = 0;
-            std::string soi, weather;
-            const Ship *tracked = nullptr;
-            std::chrono::steady_clock::time_point tick{};
-        };
-        static Watch w;
+        LinkWatch &w = memory.link_watch;
         link::LinkServer &srv = *link_server;
         auto &props = sim.props;
         {

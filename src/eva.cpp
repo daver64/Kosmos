@@ -12,6 +12,11 @@ namespace kosmos
 {
     namespace
     {
+        sl::Font *hud_font = nullptr, *hud_font_small = nullptr;
+    }
+
+    namespace
+    {
         constexpr double walk_speed = 3.5, run_speed = 9.0, crouch_speed = 1.5, ground_accel = 40.0, jump_speed = 4.4;
         constexpr double pack_accel = 2.0, pack_burn = 1.0 / 250.0;
         // Air in this range of density (kg/m^3) is breathable without a suit's help.
@@ -269,8 +274,13 @@ namespace kosmos
 
     void draw_suit_hud(const Astronaut &a, const Universe &universe, int screen_w, int screen_h, double ship_distance, double ship_speed, const char *ship_name)
     {
-        static sl::Font *font = sl::open_sans_font(20);
-        static sl::Font *small = sl::open_sans_font(15);
+        // Fonts need the window, so they are opened on the first frame the suit HUD is drawn.
+        if (!hud_font)
+        {
+            hud_font = sl::open_sans_font(20);
+            hud_font_small = sl::open_sans_font(15);
+        }
+        sl::Font *font = hud_font, *small = hud_font_small;
         const sl::Colour green{90, 255, 150, 255}, amber{255, 200, 70, 255}, red{255, 80, 70, 255}, dim{40, 90, 60, 200};
         const Suit &s = a.suit;
         const int margin = 24, bar_w = 150, bar_h = 12;

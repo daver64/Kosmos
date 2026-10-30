@@ -21,14 +21,15 @@ namespace kosmos
             bool solid = false;
         };
 
+        std::unordered_map<std::string, Footprint> footprint_cache;
+
         // The footprint of a base object's mesh in its own frame, kept so the mesh is built once per kind of object.
         const Footprint &footprint(const BaseObject &o)
         {
-            static std::unordered_map<std::string, Footprint> cache;
             const std::string key = o.type + "|" + std::to_string(o.size) + "|" + std::to_string(o.width) + "|" + std::to_string(o.depth) + "|" + std::to_string(o.height) + "|" +
                                     std::to_string(o.length) + "|" + std::to_string(o.radius) + "|" + std::to_string(o.number) + "|" + std::to_string(o.seed);
-            const auto found = cache.find(key);
-            if (found != cache.end())
+            const auto found = footprint_cache.find(key);
+            if (found != footprint_cache.end())
                 return found->second;
             Footprint f;
             // Flat things you walk on, and models whose shape is unknown, are not solid.
@@ -50,7 +51,7 @@ namespace kosmos
                     f.solid = f.top > step_height;
                 }
             }
-            return cache.emplace(key, f).first->second;
+            return footprint_cache.emplace(key, f).first->second;
         }
 
         sl::dvec3 horizontal(const sl::dvec3 &v, const sl::dvec3 &up)

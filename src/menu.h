@@ -98,6 +98,8 @@ namespace kosmos
         std::vector<BaseObject> blender_saved_;
         std::vector<char> picked_;
         std::string blender_status_;
+        std::vector<std::string> stock_models_; // listed once, the first time the base editor shows its stock models
+        int stock_pick_ = 0;
         int base_ = 0, object_ = 0, runway_ = 0, navaid_ = 0, camera_ = 0;
         std::string status_, committed_;
         int committed_base_ = -1;

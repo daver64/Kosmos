@@ -479,17 +479,10 @@ namespace kosmos
 
     namespace
     {
-        std::string &model_folder()
-        {
-            static std::string folder;
-            return folder;
-        }
+        std::string model_folder_path, stock_folder_path;
 
-        std::string &stock_folder()
-        {
-            static std::string folder;
-            return folder;
-        }
+        std::string &model_folder() { return model_folder_path; }
+        std::string &stock_folder() { return stock_folder_path; }
     }
 
     void set_base_model_folder(const std::string &folder)

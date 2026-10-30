@@ -44,7 +44,7 @@ namespace kosmos::app
                         else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && c.enabled)
                             ImGui::TextColored(c.powered ? ImVec4(0.7f, 1.0f, 0.7f, 1.0f) : ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "%s  %.0f W %s", c.name.c_str(), c.watts, c.powered ? "" : "(shed)");
                     }
-                    static int selected_vessel = 0, slice_y = 5, slice_gas = 0;
+                    int &selected_vessel = memory.selected_vessel, &slice_y = memory.slice_y, &slice_gas = memory.slice_gas;
                     for (int vi = 0; vi < sys->vessel_count(); ++vi)
                     {
                         const kosmos::Systems::Vessel &v = sys->vessels()[static_cast<std::size_t>(vi)];
@@ -238,12 +238,11 @@ namespace kosmos::app
                         }
                         if (cur == "custom")
                         {
-                            static char metar[256] = "";
-                            static bool loaded = false;
-                            if (!loaded)
+                            char (&metar)[256] = memory.metar;
+                            if (!memory.metar_loaded)
                             {
                                 std::snprintf(metar, sizeof metar, "%s", props.get_string("/sim/settings/weather-metar", "").c_str());
-                                loaded = true;
+                                memory.metar_loaded = true;
                             }
                             ImGui::SetNextItemWidth(360.0f);
                             if (ImGui::InputText("METAR", metar, sizeof metar))

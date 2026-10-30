@@ -189,47 +189,586 @@ namespace kosmos::link
         return "";
     }
 
+    void LinkServer::reject(Client &c, const Frame &f)
+    {
+        reply_error(c, f.request, err_bad_request, "malformed message");
+    }
+
+    bool LinkServer::allowed(Client &c, const Frame &f, std::uint32_t cap, const char *what)
+    {
+        if (c.granted & cap)
+            return true;
+        reply_error(c, f.request, err_denied, std::string("not allowed: ") + what + " (the player can allow this addon in View > Native addons)");
+        return false;
+    }
+
+    void LinkServer::on_hello(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint16_t version = r.u16();
+        c.addon = r.str();
+        c.name = r.str();
+        c.version = r.str();
+        c.token = r.str();
+        c.requested = r.u32() & cap_all;
+        if (!r.ok() || c.hello)
+            return reject(c, f);
+        if (version < min_protocol_version || version > protocol_version)
+        {
+            reply_error(c, f.request, err_version, "protocol version " + std::to_string(version) + " is not supported; Kosmos speaks " + std::to_string(protocol_version));
+            c.dead = true;
+            return;
+        }
+        if (!id_ok(c.addon))
+        {
+            reply_error(c, f.request, err_bad_request, "the addon id must be letters, digits, '-' and '_'");
+            c.dead = true;
+            return;
+        }
+        c.hello = true;
+        c.proto = version;
+        if (policy_)
+            policy_->seen(c.addon, c.name.empty() ? c.addon : c.name, c.requested);
+        c.granted = policy_ ? (policy_->granted(c.addon, c.token, c.requested) & c.requested) : c.requested;
+        Writer w(msg_welcome, f.request);
+        w.u16(protocol_version).str(host_.sim_version()).u32(c.granted);
+        send(c, w.finish());
+        return;
+    }
+
+    void LinkServer::on_ping(Client &c, const Frame &f, Reader &r)
+    {
+        send(c, Writer(msg_pong, f.request).finish());
+    }
+
+    void LinkServer::on_log(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string text = r.str();
+        if (!r.ok())
+            return reject(c, f);
+        host_.log(c.addon, text);
+    }
+
+    void LinkServer::on_get(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string path = r.str();
+        if (!r.ok() || !path_ok(path))
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "reading properties"))
+            return;
+        Writer w(msg_value, f.request);
+        w.str(path).value(read(path));
+        send(c, w.finish());
+    }
+
+    void LinkServer::on_subscribe(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string path = r.str();
+        const std::uint16_t hz = r.u16();
+        if (!r.ok() || !path_ok(path))
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "reading properties"))
+            return;
+        for (Client::Subscription &s : c.subscriptions)
+            if (s.path == path)
+            {
+                s.interval = hz ? 1.0 / hz : 0.0;
+                s.sent = false;
+                return;
+            }
+        if (c.subscriptions.size() >= max_subscriptions)
+            return reply_error(c, f.request, err_failed, "too many subscriptions");
+        Client::Subscription s;
+        s.path = path;
+        s.interval = hz ? 1.0 / hz : 0.0;
+        c.subscriptions.push_back(std::move(s));
+    }
+
+    void LinkServer::on_unsubscribe(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string path = r.str();
+        if (!r.ok())
+            return reject(c, f);
+        c.subscriptions.erase(std::remove_if(c.subscriptions.begin(), c.subscriptions.end(), [&](const Client::Subscription &s) { return s.path == path; }), c.subscriptions.end());
+    }
+
+    void LinkServer::on_set(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string path = r.str();
+        const Value v = r.value();
+        if (!r.ok())
+            return reject(c, f);
+        const std::string error = write(c, path, v);
+        if (!error.empty())
+            reply_error(c, f.request, error.find("may not") != std::string::npos ? err_denied : err_failed, error);
+        else if (f.request)
+            reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_define_key(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str(), label = r.str(), group = r.str(), key = r.str();
+        const bool shift = r.u8() != 0;
+        const std::uint8_t mode = r.u8();
+        if (!r.ok() || !id_ok(id))
+            return reject(c, f);
+        if (!allowed(c, f, cap_keys, "defining keys"))
+            return;
+        const std::string full = c.addon + "." + id;
+        const std::string property = "/addons/" + c.addon + "/keys/" + id;
+        const std::string doc = "{\"actions\":[{\"id\":" + json_text(full) + ",\"label\":" + json_text(label.empty() ? id : label) + ",\"group\":" + json_text(group.empty() ? c.name : group) + ",\"key\":" + json_text(key) +
+                                ",\"shift\":" + (shift ? "true" : "false") + ",\"mode\":\"" + (mode == 2 ? "hold" : "toggle") + "\",\"property\":" + json_text(property) + "}]}";
+        const bool again = std::find(c.keys_defined.begin(), c.keys_defined.end(), id) != c.keys_defined.end();
+        const std::string error = again ? "" : host_.define_keys(doc);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        c.keys_defined.push_back(id);
+        if (!props_.exists(property))
+            props_.set_bool(property, false);
+        reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_spawn_ship(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string name = r.str();
+        const double x = r.f64(), y = r.f64(), z = r.f64();
+        if (!r.ok())
+            return reject(c, f);
+        if (!allowed(c, f, cap_spawn, "spawning ships"))
+            return;
+        std::uint32_t handle = 0;
+        const std::string error = host_.spawn_ship(name, x, y, z, handle);
+        error.empty() ? reply_ok(c, f.request, handle) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_release(Client &c, const Frame &f, Reader &r)
+    {
+        const int hardpoint = static_cast<std::int32_t>(r.u32());
+        if (!r.ok())
+            return reject(c, f);
+        if (!allowed(c, f, cap_spawn, "releasing ordnance"))
+            return;
+        const std::string error = host_.release_ordnance(hardpoint);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_fire(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        const std::string group = r.str();
+        const bool on = r.u8() != 0;
+        if (!r.ok() || group.empty() || group.size() > 32 || group.find_first_of("/[]") != std::string::npos)
+            return reject(c, f);
+        if (!allowed(c, f, cap_spawn, "firing weapons"))
+            return;
+        const std::string error = host_.fire_weapons(index, group, on);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_give(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str();
+        const int count = static_cast<std::int32_t>(r.u32());
+        if (!r.ok() || count < 1 || count > 1000)
+            return reject(c, f);
+        if (!allowed(c, f, cap_spawn, "giving equipment"))
+            return;
+        const std::string error = host_.give_equipment(id, count);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_define_mfd(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str(), title = r.str();
+        if (!r.ok() || !id_ok(id))
+            return reject(c, f);
+        if (!allowed(c, f, cap_draw, "drawing on MFDs"))
+            return;
+        const std::string key = c.addon + "." + id;
+        if (!pages_.count(key))
+        {
+            const std::string error = host_.define_mfd(c.addon, id, title.empty() ? id : title);
+            if (!error.empty())
+                return reply_error(c, f.request, err_failed, error);
+            Page &p = pages_[key];
+            p.addon = c.addon;
+            p.id = key;
+        }
+        reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_draw(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str();
+        const std::uint16_t count = r.u16();
+        if (!r.ok() || count > max_draw_commands)
+            return reject(c, f);
+        if (!(c.granted & cap_draw))
+            return;
+        auto page = pages_.find(c.addon + "." + id);
+        if (page == pages_.end())
+            return reply_error(c, f.request, err_unknown, "define the MFD page first");
+        std::vector<DrawCommand> commands;
+        commands.reserve(count);
+        for (int n = 0; n < count && r.ok(); ++n)
+        {
+            DrawCommand d;
+            d.kind = r.u8();
+            d.a = r.f32();
+            d.b = r.f32();
+            d.c = r.f32();
+            d.d = r.f32();
+            d.e = r.f32();
+            d.f = r.f32();
+            d.r = r.u8();
+            d.g = r.u8();
+            d.bl = r.u8();
+            d.align = r.u8();
+            d.text = r.str();
+            commands.push_back(std::move(d));
+        }
+        if (!r.ok())
+            return reject(c, f);
+        page->second.commands = std::move(commands);
+        page->second.drawn = true;
+    }
+
+    void LinkServer::on_weather_at(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string body = r.str();
+        const double lat = r.f64(), lon = r.f64(), alt = r.f64();
+        if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || std::fabs(lat) > 90.0)
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "reading the weather"))
+            return;
+        WeatherInfo info;
+        std::string station, metar;
+        const std::string error = host_.weather_at(body, lat, lon, alt, info, station, metar);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        Writer w(msg_weather, f.request);
+        w.f64(info.wind_east).f64(info.wind_north).f64(info.wind_speed).f64(info.wind_from).f64(info.gust).f64(info.rain).f64(info.thunder);
+        w.f64(info.cloud_cover).f64(info.cloud_base).f64(info.cloud_top).f64(info.visibility).f64(info.temperature).f64(info.pressure);
+        w.str(station).str(metar);
+        send(c, w.finish());
+    }
+
+    void LinkServer::on_set_weather(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string mode = r.str(), arg = r.str();
+        if (!r.ok() || (mode != "metar" && mode != "preset" && mode != "auto") || arg.size() > 512)
+            return reject(c, f);
+        if (!allowed(c, f, cap_world, "changing the weather"))
+            return;
+        const std::string error = host_.set_weather(mode, arg);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_event_subscription(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string name = r.str();
+        if (!r.ok() || !opt_in(name))
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "receiving events"))
+            return;
+        auto it = std::find(c.events.begin(), c.events.end(), name);
+        if (f.type == msg_subscribe_event && it == c.events.end())
+            c.events.push_back(name);
+        else if (f.type == msg_unsubscribe_event && it != c.events.end())
+            c.events.erase(it);
+        reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_list_ships(Client &c, const Frame &f, Reader &r)
+    {
+        const double radius = r.f64();
+        const std::uint8_t flags = r.u8();
+        if (!r.ok() || !std::isfinite(radius) || radius < 0.0)
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "listing ships"))
+            return;
+        std::vector<ShipInfo> ships;
+        const std::string error = host_.list_ships(radius, (flags & 1) != 0, ships);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        if (ships.size() > 2000)
+            ships.resize(2000);
+        Writer w(msg_ship_list, f.request);
+        w.u32(static_cast<std::uint32_t>(ships.size()));
+        for (const ShipInfo &s : ships)
+        {
+            w.u32(s.index).str(s.name).str(s.body).f64(s.latitude).f64(s.longitude).f64(s.altitude).f64(s.heading).f64(s.speed).f64(s.vertical_speed).f64(s.distance).u8(s.flags);
+        }
+        send(c, w.finish());
+    }
+
+    void LinkServer::on_remove_ship(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        if (!r.ok())
+            return reject(c, f);
+        if (!allowed(c, f, cap_world, "removing ships"))
+            return;
+        const std::string error = host_.remove_ship(index);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_place_ship(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        const std::string body = r.str();
+        const double lat = r.f64(), lon = r.f64(), alt = r.f64(), heading = r.f64(), speed = r.f64();
+        if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || !std::isfinite(heading) || !std::isfinite(speed) || std::fabs(lat) > 90.0 || speed < 0.0)
+            return reject(c, f);
+        if (!allowed(c, f, cap_world, "placing ships"))
+            return;
+        const std::string error = host_.place_ship(index, body, lat, lon, alt, heading, speed);
+        error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_list_facilities(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string kind = r.str(), body = r.str();
+        const double lat = r.f64(), lon = r.f64(), radius = r.f64();
+        const std::uint16_t max = r.u16();
+        if (!r.ok() || kind.size() > 32 || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(radius))
+            return reject(c, f);
+        if (!allowed(c, f, cap_read, "listing facilities"))
+            return;
+        std::vector<Facility> found;
+        const std::size_t limit = std::clamp<std::size_t>(max ? max : 100, 1, 200);
+        const std::string error = host_.list_facilities(kind, body, lat, lon, radius, limit, found);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        if (found.size() > limit)
+            found.resize(limit);
+        Writer w(msg_facility_list, f.request);
+        w.u32(static_cast<std::uint32_t>(found.size()));
+        for (const Facility &b : found)
+        {
+            w.str(b.id).str(b.name).str(b.icao).str(b.body).f64(b.latitude).f64(b.longitude).f64(b.elevation).f64(b.heading).f64(b.distance);
+            const std::size_t nr = std::min<std::size_t>(b.runways.size(), 32), nn = std::min<std::size_t>(b.navaids.size(), 64);
+            w.u16(static_cast<std::uint16_t>(nr));
+            for (std::size_t i = 0; i < nr; ++i)
+            {
+                const FacilityRunway &rw = b.runways[i];
+                w.str(rw.name).f64(rw.latitude).f64(rw.longitude).f64(rw.heading).f64(rw.length).f64(rw.width);
+                const std::size_t ni = std::min<std::size_t>(rw.ils.size(), 4);
+                w.u8(static_cast<std::uint8_t>(ni));
+                for (std::size_t k = 0; k < ni; ++k)
+                    w.f64(rw.ils[k]);
+            }
+            w.u16(static_cast<std::uint16_t>(nn));
+            for (std::size_t i = 0; i < nn; ++i)
+            {
+                const FacilityNavaid &n = b.navaids[i];
+                w.str(n.type).str(n.id).str(n.name).f64(n.latitude).f64(n.longitude).f64(n.frequency).f64(n.range);
+            }
+        }
+        send(c, w.finish());
+    }
+
+    void LinkServer::on_ui_window(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str(), title = r.str();
+        const std::uint16_t count = r.u16();
+        if (!r.ok() || !id_ok(id) || title.size() > 128 || count > max_ui_widgets)
+            return reject(c, f);
+        if (!allowed(c, f, cap_ui, "showing windows"))
+            return;
+        std::vector<UiWidget> widgets;
+        for (int n = 0; n < count && r.ok(); ++n)
+        {
+            UiWidget w;
+            w.kind = r.u8();
+            w.id = r.str();
+            w.label = r.str();
+            w.text = r.str();
+            w.value = r.f64();
+            w.low = r.f64();
+            w.high = r.f64();
+            if (w.kind > 5 || w.id.size() > 48 || w.label.size() > 200 || w.text.size() > 200 || !std::isfinite(w.value) || !std::isfinite(w.low) || !std::isfinite(w.high))
+                return reject(c, f);
+            widgets.push_back(std::move(w));
+        }
+        if (!r.ok())
+            return reject(c, f);
+        const std::string key = c.addon + "." + id;
+        if (!windows_.count(key) && std::count_if(windows_.begin(), windows_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_windows_per_client))
+            return reply_error(c, f.request, err_failed, "too many windows");
+        UiWindow &win = windows_[key];
+        win.addon = c.addon;
+        win.id = id;
+        win.title = title.empty() ? id : title;
+        win.widgets = std::move(widgets);
+        win.owner = c.id;
+    }
+
+    void LinkServer::on_ui_close(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str();
+        if (!r.ok())
+            return reject(c, f);
+        auto it = windows_.find(c.addon + "." + id);
+        if (it != windows_.end() && it->second.owner == c.id)
+            windows_.erase(it);
+    }
+
+    void LinkServer::on_ui_notify(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string text = r.str();
+        const double seconds = r.f64();
+        if (!r.ok() || text.size() > 200 || !std::isfinite(seconds))
+            return reject(c, f);
+        if (!allowed(c, f, cap_ui, "showing notices"))
+            return;
+        host_.notify(c.name.empty() ? text : c.name + ": " + text, std::clamp(seconds, 1.0, 30.0));
+    }
+
+    void LinkServer::on_lockstep(Client &c, const Frame &f, Reader &r)
+    {
+        const bool on = r.u8() != 0;
+        const std::uint32_t wait_ms = r.u32();
+        const double dt = r.f64();
+        if (!r.ok() || !std::isfinite(dt) || (dt != 0.0 && (dt < 0.001 || dt > 0.1)))
+            return reject(c, f);
+        if (!allowed(c, f, cap_controls, "lockstep"))
+            return;
+        if (on)
+        {
+            if (lockstep_owner_ && lockstep_owner_ != c.id)
+                return reply_error(c, f.request, err_failed, "another program already holds lockstep");
+            lockstep_owner_ = c.id;
+            lockstep_wait_ = std::clamp<double>(wait_ms ? wait_ms : 100, 1.0, 1000.0) / 1000.0;
+            lockstep_dt_ = dt;
+            step_acked_ = step_frame_;
+            missed_ = 0;
+        }
+        else if (lockstep_owner_ == c.id)
+            lockstep_owner_ = 0;
+        if (f.request)
+            reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_step_done(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t frame = r.u32();
+        if (r.ok() && c.id == lockstep_owner_)
+            step_acked_ = std::max(step_acked_, frame);
+    }
+
+    void LinkServer::on_claim_ship(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        const bool passthrough = r.u8() != 0;
+        if (!r.ok())
+            return reject(c, f);
+        if (!allowed(c, f, cap_vessel, "owning a ship"))
+            return;
+        const std::string error = host_.claim_ship(c.id, c.addon, index, passthrough);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_release_ship(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        if (!r.ok())
+            return reject(c, f);
+        if (!allowed(c, f, cap_vessel, "owning a ship"))
+            return;
+        const std::string error = host_.release_ship(c.id, index);
+        if (!error.empty())
+            return reply_error(c, f.request, err_failed, error);
+        reply_ok(c, f.request, 0);
+    }
+
+    void LinkServer::on_ship_value(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        const std::string name = r.str();
+        const double value = r.f64();
+        if (!r.ok() || name.empty() || name.size() > 64 || !path_ok("/" + name) || !std::isfinite(value))
+            return reject(c, f);
+        if (!allowed(c, f, cap_vessel, "owning a ship"))
+            return;
+        const std::string error = host_.ship_value(c.id, index, name, value);
+        if (!error.empty())
+            reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_ship_force(Client &c, const Frame &f, Reader &r)
+    {
+        const std::uint32_t index = r.u32();
+        double force[3], torque[3];
+        for (double &v : force)
+            v = r.f64();
+        for (double &v : torque)
+            v = r.f64();
+        if (!r.ok() || !std::all_of(force, force + 3, [](double v) { return std::isfinite(v); }) || !std::all_of(torque, torque + 3, [](double v) { return std::isfinite(v); }))
+            return reject(c, f);
+        if (!allowed(c, f, cap_vessel, "owning a ship"))
+            return;
+        const std::string error = host_.ship_force(c.id, index, force, torque);
+        if (!error.empty())
+            reply_error(c, f.request, err_failed, error);
+    }
+
+    void LinkServer::on_draw3d(Client &c, const Frame &f, Reader &r)
+    {
+        const std::string id = r.str();
+        const std::uint16_t count = r.u16();
+        if (!r.ok() || !id_ok(id) || count > max_primitives)
+            return reject(c, f);
+        if (!allowed(c, f, cap_draw3d, "drawing in the 3D view"))
+            return;
+        std::vector<Primitive3> items;
+        items.reserve(count);
+        for (int n = 0; n < count && r.ok(); ++n)
+        {
+            Primitive3 p;
+            p.kind = r.u8();
+            p.frame = r.u8();
+            p.ship = r.u32();
+            for (double &v : p.a)
+                v = r.f64();
+            for (double &v : p.b)
+                v = r.f64();
+            p.size = r.f64();
+            p.r = r.u8();
+            p.g = r.u8();
+            p.bl = r.u8();
+            p.alpha = r.u8();
+            p.depth = r.u8();
+            p.text = r.str();
+            const bool finite = std::all_of(p.a, p.a + 3, [](double v) { return std::isfinite(v); }) && std::all_of(p.b, p.b + 3, [](double v) { return std::isfinite(v); }) && std::isfinite(p.size);
+            if (p.kind > 4 || p.frame > 2 || p.text.size() > 120 || !finite)
+                return reject(c, f);
+            items.push_back(std::move(p));
+        }
+        if (!r.ok())
+            return reject(c, f);
+        const std::string key = c.addon + "." + id;
+        if (items.empty())
+        {
+            layers_.erase(key);
+            return;
+        }
+        if (!layers_.count(key) && std::count_if(layers_.begin(), layers_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_layers_per_client))
+            return reply_error(c, f.request, err_failed, "too many layers");
+        Layer3 &layer = layers_[key];
+        layer.addon = c.addon;
+        layer.id = id;
+        layer.owner = c.id;
+        layer.items = std::move(items);
+    }
+
     void LinkServer::handle(Client &c, const Frame &f)
     {
         Reader r(f.payload.data(), f.payload.size());
-        auto bad = [&] { reply_error(c, f.request, err_bad_request, "malformed message"); };
-        auto need = [&](std::uint32_t cap, const char *what) {
-            if (c.granted & cap)
-                return true;
-            reply_error(c, f.request, err_denied, std::string("not allowed: ") + what + " (the player can allow this addon in View > Native addons)");
-            return false;
-        };
-
         if (f.type == msg_hello)
         {
-            const std::uint16_t version = r.u16();
-            c.addon = r.str();
-            c.name = r.str();
-            c.version = r.str();
-            c.token = r.str();
-            c.requested = r.u32() & cap_all;
-            if (!r.ok() || c.hello)
-                return bad();
-            if (version < min_protocol_version || version > protocol_version)
-            {
-                reply_error(c, f.request, err_version, "protocol version " + std::to_string(version) + " is not supported; Kosmos speaks " + std::to_string(protocol_version));
-                c.dead = true;
-                return;
-            }
-            if (!id_ok(c.addon))
-            {
-                reply_error(c, f.request, err_bad_request, "the addon id must be letters, digits, '-' and '_'");
-                c.dead = true;
-                return;
-            }
-            c.hello = true;
-            c.proto = version;
-            if (policy_)
-                policy_->seen(c.addon, c.name.empty() ? c.addon : c.name, c.requested);
-            c.granted = policy_ ? (policy_->granted(c.addon, c.token, c.requested) & c.requested) : c.requested;
-            Writer w(msg_welcome, f.request);
-            w.u16(protocol_version).str(host_.sim_version()).u32(c.granted);
-            send(c, w.finish());
+            on_hello(c, f, r);
             return;
         }
         if (!c.hello)
@@ -242,532 +781,96 @@ namespace kosmos::link
         switch (f.type)
         {
         case msg_ping:
-            send(c, Writer(msg_pong, f.request).finish());
+            on_ping(c, f, r);
             break;
         case msg_log:
-        {
-            const std::string text = r.str();
-            if (!r.ok())
-                return bad();
-            host_.log(c.addon, text);
+            on_log(c, f, r);
             break;
-        }
         case msg_get:
-        {
-            const std::string path = r.str();
-            if (!r.ok() || !path_ok(path))
-                return bad();
-            if (!need(cap_read, "reading properties"))
-                return;
-            Writer w(msg_value, f.request);
-            w.str(path).value(read(path));
-            send(c, w.finish());
+            on_get(c, f, r);
             break;
-        }
         case msg_subscribe:
-        {
-            const std::string path = r.str();
-            const std::uint16_t hz = r.u16();
-            if (!r.ok() || !path_ok(path))
-                return bad();
-            if (!need(cap_read, "reading properties"))
-                return;
-            for (Client::Subscription &s : c.subscriptions)
-                if (s.path == path)
-                {
-                    s.interval = hz ? 1.0 / hz : 0.0;
-                    s.sent = false;
-                    return;
-                }
-            if (c.subscriptions.size() >= max_subscriptions)
-                return reply_error(c, f.request, err_failed, "too many subscriptions");
-            Client::Subscription s;
-            s.path = path;
-            s.interval = hz ? 1.0 / hz : 0.0;
-            c.subscriptions.push_back(std::move(s));
+            on_subscribe(c, f, r);
             break;
-        }
         case msg_unsubscribe:
-        {
-            const std::string path = r.str();
-            if (!r.ok())
-                return bad();
-            c.subscriptions.erase(std::remove_if(c.subscriptions.begin(), c.subscriptions.end(), [&](const Client::Subscription &s) { return s.path == path; }), c.subscriptions.end());
+            on_unsubscribe(c, f, r);
             break;
-        }
         case msg_set:
-        {
-            const std::string path = r.str();
-            const Value v = r.value();
-            if (!r.ok())
-                return bad();
-            const std::string error = write(c, path, v);
-            if (!error.empty())
-                reply_error(c, f.request, error.find("may not") != std::string::npos ? err_denied : err_failed, error);
-            else if (f.request)
-                reply_ok(c, f.request, 0);
+            on_set(c, f, r);
             break;
-        }
         case msg_define_key:
-        {
-            const std::string id = r.str(), label = r.str(), group = r.str(), key = r.str();
-            const bool shift = r.u8() != 0;
-            const std::uint8_t mode = r.u8();
-            if (!r.ok() || !id_ok(id))
-                return bad();
-            if (!need(cap_keys, "defining keys"))
-                return;
-            const std::string full = c.addon + "." + id;
-            const std::string property = "/addons/" + c.addon + "/keys/" + id;
-            const std::string doc = "{\"actions\":[{\"id\":" + json_text(full) + ",\"label\":" + json_text(label.empty() ? id : label) + ",\"group\":" + json_text(group.empty() ? c.name : group) + ",\"key\":" + json_text(key) +
-                                    ",\"shift\":" + (shift ? "true" : "false") + ",\"mode\":\"" + (mode == 2 ? "hold" : "toggle") + "\",\"property\":" + json_text(property) + "}]}";
-            const bool again = std::find(c.keys_defined.begin(), c.keys_defined.end(), id) != c.keys_defined.end();
-            const std::string error = again ? "" : host_.define_keys(doc);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            c.keys_defined.push_back(id);
-            if (!props_.exists(property))
-                props_.set_bool(property, false);
-            reply_ok(c, f.request, 0);
+            on_define_key(c, f, r);
             break;
-        }
         case msg_spawn_ship:
-        {
-            const std::string name = r.str();
-            const double x = r.f64(), y = r.f64(), z = r.f64();
-            if (!r.ok())
-                return bad();
-            if (!need(cap_spawn, "spawning ships"))
-                return;
-            std::uint32_t handle = 0;
-            const std::string error = host_.spawn_ship(name, x, y, z, handle);
-            error.empty() ? reply_ok(c, f.request, handle) : reply_error(c, f.request, err_failed, error);
+            on_spawn_ship(c, f, r);
             break;
-        }
         case msg_release:
-        {
-            const int hardpoint = static_cast<std::int32_t>(r.u32());
-            if (!r.ok())
-                return bad();
-            if (!need(cap_spawn, "releasing ordnance"))
-                return;
-            const std::string error = host_.release_ordnance(hardpoint);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_release(c, f, r);
             break;
-        }
         case msg_fire:
-        {
-            const std::uint32_t index = r.u32();
-            const std::string group = r.str();
-            const bool on = r.u8() != 0;
-            if (!r.ok() || group.empty() || group.size() > 32 || group.find_first_of("/[]") != std::string::npos)
-                return bad();
-            if (!need(cap_spawn, "firing weapons"))
-                return;
-            const std::string error = host_.fire_weapons(index, group, on);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_fire(c, f, r);
             break;
-        }
         case msg_give:
-        {
-            const std::string id = r.str();
-            const int count = static_cast<std::int32_t>(r.u32());
-            if (!r.ok() || count < 1 || count > 1000)
-                return bad();
-            if (!need(cap_spawn, "giving equipment"))
-                return;
-            const std::string error = host_.give_equipment(id, count);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_give(c, f, r);
             break;
-        }
         case msg_define_mfd:
-        {
-            const std::string id = r.str(), title = r.str();
-            if (!r.ok() || !id_ok(id))
-                return bad();
-            if (!need(cap_draw, "drawing on MFDs"))
-                return;
-            const std::string key = c.addon + "." + id;
-            if (!pages_.count(key))
-            {
-                const std::string error = host_.define_mfd(c.addon, id, title.empty() ? id : title);
-                if (!error.empty())
-                    return reply_error(c, f.request, err_failed, error);
-                Page &p = pages_[key];
-                p.addon = c.addon;
-                p.id = key;
-            }
-            reply_ok(c, f.request, 0);
+            on_define_mfd(c, f, r);
             break;
-        }
         case msg_draw:
-        {
-            const std::string id = r.str();
-            const std::uint16_t count = r.u16();
-            if (!r.ok() || count > max_draw_commands)
-                return bad();
-            if (!(c.granted & cap_draw))
-                return;
-            auto page = pages_.find(c.addon + "." + id);
-            if (page == pages_.end())
-                return reply_error(c, f.request, err_unknown, "define the MFD page first");
-            std::vector<DrawCommand> commands;
-            commands.reserve(count);
-            for (int n = 0; n < count && r.ok(); ++n)
-            {
-                DrawCommand d;
-                d.kind = r.u8();
-                d.a = r.f32();
-                d.b = r.f32();
-                d.c = r.f32();
-                d.d = r.f32();
-                d.e = r.f32();
-                d.f = r.f32();
-                d.r = r.u8();
-                d.g = r.u8();
-                d.bl = r.u8();
-                d.align = r.u8();
-                d.text = r.str();
-                commands.push_back(std::move(d));
-            }
-            if (!r.ok())
-                return bad();
-            page->second.commands = std::move(commands);
-            page->second.drawn = true;
+            on_draw(c, f, r);
             break;
-        }
         case msg_weather_at:
-        {
-            const std::string body = r.str();
-            const double lat = r.f64(), lon = r.f64(), alt = r.f64();
-            if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || std::fabs(lat) > 90.0)
-                return bad();
-            if (!need(cap_read, "reading the weather"))
-                return;
-            WeatherInfo info;
-            std::string station, metar;
-            const std::string error = host_.weather_at(body, lat, lon, alt, info, station, metar);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            Writer w(msg_weather, f.request);
-            w.f64(info.wind_east).f64(info.wind_north).f64(info.wind_speed).f64(info.wind_from).f64(info.gust).f64(info.rain).f64(info.thunder);
-            w.f64(info.cloud_cover).f64(info.cloud_base).f64(info.cloud_top).f64(info.visibility).f64(info.temperature).f64(info.pressure);
-            w.str(station).str(metar);
-            send(c, w.finish());
+            on_weather_at(c, f, r);
             break;
-        }
         case msg_set_weather:
-        {
-            const std::string mode = r.str(), arg = r.str();
-            if (!r.ok() || (mode != "metar" && mode != "preset" && mode != "auto") || arg.size() > 512)
-                return bad();
-            if (!need(cap_world, "changing the weather"))
-                return;
-            const std::string error = host_.set_weather(mode, arg);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_set_weather(c, f, r);
             break;
-        }
         case msg_subscribe_event:
         case msg_unsubscribe_event:
-        {
-            const std::string name = r.str();
-            if (!r.ok() || !opt_in(name))
-                return bad();
-            if (!need(cap_read, "receiving events"))
-                return;
-            auto it = std::find(c.events.begin(), c.events.end(), name);
-            if (f.type == msg_subscribe_event && it == c.events.end())
-                c.events.push_back(name);
-            else if (f.type == msg_unsubscribe_event && it != c.events.end())
-                c.events.erase(it);
-            reply_ok(c, f.request, 0);
+            on_event_subscription(c, f, r);
             break;
-        }
         case msg_list_ships:
-        {
-            const double radius = r.f64();
-            const std::uint8_t flags = r.u8();
-            if (!r.ok() || !std::isfinite(radius) || radius < 0.0)
-                return bad();
-            if (!need(cap_read, "listing ships"))
-                return;
-            std::vector<ShipInfo> ships;
-            const std::string error = host_.list_ships(radius, (flags & 1) != 0, ships);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            if (ships.size() > 2000)
-                ships.resize(2000);
-            Writer w(msg_ship_list, f.request);
-            w.u32(static_cast<std::uint32_t>(ships.size()));
-            for (const ShipInfo &s : ships)
-            {
-                w.u32(s.index).str(s.name).str(s.body).f64(s.latitude).f64(s.longitude).f64(s.altitude).f64(s.heading).f64(s.speed).f64(s.vertical_speed).f64(s.distance).u8(s.flags);
-            }
-            send(c, w.finish());
+            on_list_ships(c, f, r);
             break;
-        }
         case msg_remove_ship:
-        {
-            const std::uint32_t index = r.u32();
-            if (!r.ok())
-                return bad();
-            if (!need(cap_world, "removing ships"))
-                return;
-            const std::string error = host_.remove_ship(index);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_remove_ship(c, f, r);
             break;
-        }
         case msg_place_ship:
-        {
-            const std::uint32_t index = r.u32();
-            const std::string body = r.str();
-            const double lat = r.f64(), lon = r.f64(), alt = r.f64(), heading = r.f64(), speed = r.f64();
-            if (!r.ok() || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(alt) || !std::isfinite(heading) || !std::isfinite(speed) || std::fabs(lat) > 90.0 || speed < 0.0)
-                return bad();
-            if (!need(cap_world, "placing ships"))
-                return;
-            const std::string error = host_.place_ship(index, body, lat, lon, alt, heading, speed);
-            error.empty() ? reply_ok(c, f.request, 0) : reply_error(c, f.request, err_failed, error);
+            on_place_ship(c, f, r);
             break;
-        }
         case msg_list_facilities:
-        {
-            const std::string kind = r.str(), body = r.str();
-            const double lat = r.f64(), lon = r.f64(), radius = r.f64();
-            const std::uint16_t max = r.u16();
-            if (!r.ok() || kind.size() > 32 || body.size() > 64 || !std::isfinite(lat) || !std::isfinite(lon) || !std::isfinite(radius))
-                return bad();
-            if (!need(cap_read, "listing facilities"))
-                return;
-            std::vector<Facility> found;
-            const std::size_t limit = std::clamp<std::size_t>(max ? max : 100, 1, 200);
-            const std::string error = host_.list_facilities(kind, body, lat, lon, radius, limit, found);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            if (found.size() > limit)
-                found.resize(limit);
-            Writer w(msg_facility_list, f.request);
-            w.u32(static_cast<std::uint32_t>(found.size()));
-            for (const Facility &b : found)
-            {
-                w.str(b.id).str(b.name).str(b.icao).str(b.body).f64(b.latitude).f64(b.longitude).f64(b.elevation).f64(b.heading).f64(b.distance);
-                const std::size_t nr = std::min<std::size_t>(b.runways.size(), 32), nn = std::min<std::size_t>(b.navaids.size(), 64);
-                w.u16(static_cast<std::uint16_t>(nr));
-                for (std::size_t i = 0; i < nr; ++i)
-                {
-                    const FacilityRunway &rw = b.runways[i];
-                    w.str(rw.name).f64(rw.latitude).f64(rw.longitude).f64(rw.heading).f64(rw.length).f64(rw.width);
-                    const std::size_t ni = std::min<std::size_t>(rw.ils.size(), 4);
-                    w.u8(static_cast<std::uint8_t>(ni));
-                    for (std::size_t k = 0; k < ni; ++k)
-                        w.f64(rw.ils[k]);
-                }
-                w.u16(static_cast<std::uint16_t>(nn));
-                for (std::size_t i = 0; i < nn; ++i)
-                {
-                    const FacilityNavaid &n = b.navaids[i];
-                    w.str(n.type).str(n.id).str(n.name).f64(n.latitude).f64(n.longitude).f64(n.frequency).f64(n.range);
-                }
-            }
-            send(c, w.finish());
+            on_list_facilities(c, f, r);
             break;
-        }
         case msg_ui_window:
-        {
-            const std::string id = r.str(), title = r.str();
-            const std::uint16_t count = r.u16();
-            if (!r.ok() || !id_ok(id) || title.size() > 128 || count > max_ui_widgets)
-                return bad();
-            if (!need(cap_ui, "showing windows"))
-                return;
-            std::vector<UiWidget> widgets;
-            for (int n = 0; n < count && r.ok(); ++n)
-            {
-                UiWidget w;
-                w.kind = r.u8();
-                w.id = r.str();
-                w.label = r.str();
-                w.text = r.str();
-                w.value = r.f64();
-                w.low = r.f64();
-                w.high = r.f64();
-                if (w.kind > 5 || w.id.size() > 48 || w.label.size() > 200 || w.text.size() > 200 || !std::isfinite(w.value) || !std::isfinite(w.low) || !std::isfinite(w.high))
-                    return bad();
-                widgets.push_back(std::move(w));
-            }
-            if (!r.ok())
-                return bad();
-            const std::string key = c.addon + "." + id;
-            if (!windows_.count(key) && std::count_if(windows_.begin(), windows_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_windows_per_client))
-                return reply_error(c, f.request, err_failed, "too many windows");
-            UiWindow &win = windows_[key];
-            win.addon = c.addon;
-            win.id = id;
-            win.title = title.empty() ? id : title;
-            win.widgets = std::move(widgets);
-            win.owner = c.id;
+            on_ui_window(c, f, r);
             break;
-        }
         case msg_ui_close:
-        {
-            const std::string id = r.str();
-            if (!r.ok())
-                return bad();
-            auto it = windows_.find(c.addon + "." + id);
-            if (it != windows_.end() && it->second.owner == c.id)
-                windows_.erase(it);
+            on_ui_close(c, f, r);
             break;
-        }
         case msg_ui_notify:
-        {
-            const std::string text = r.str();
-            const double seconds = r.f64();
-            if (!r.ok() || text.size() > 200 || !std::isfinite(seconds))
-                return bad();
-            if (!need(cap_ui, "showing notices"))
-                return;
-            host_.notify(c.name.empty() ? text : c.name + ": " + text, std::clamp(seconds, 1.0, 30.0));
+            on_ui_notify(c, f, r);
             break;
-        }
         case msg_lockstep:
-        {
-            const bool on = r.u8() != 0;
-            const std::uint32_t wait_ms = r.u32();
-            const double dt = r.f64();
-            if (!r.ok() || !std::isfinite(dt) || (dt != 0.0 && (dt < 0.001 || dt > 0.1)))
-                return bad();
-            if (!need(cap_controls, "lockstep"))
-                return;
-            if (on)
-            {
-                if (lockstep_owner_ && lockstep_owner_ != c.id)
-                    return reply_error(c, f.request, err_failed, "another program already holds lockstep");
-                lockstep_owner_ = c.id;
-                lockstep_wait_ = std::clamp<double>(wait_ms ? wait_ms : 100, 1.0, 1000.0) / 1000.0;
-                lockstep_dt_ = dt;
-                step_acked_ = step_frame_;
-                missed_ = 0;
-            }
-            else if (lockstep_owner_ == c.id)
-                lockstep_owner_ = 0;
-            if (f.request)
-                reply_ok(c, f.request, 0);
+            on_lockstep(c, f, r);
             break;
-        }
         case msg_step_done:
-        {
-            const std::uint32_t frame = r.u32();
-            if (r.ok() && c.id == lockstep_owner_)
-                step_acked_ = std::max(step_acked_, frame);
+            on_step_done(c, f, r);
             break;
-        }
         case msg_claim_ship:
-        {
-            const std::uint32_t index = r.u32();
-            const bool passthrough = r.u8() != 0;
-            if (!r.ok())
-                return bad();
-            if (!need(cap_vessel, "owning a ship"))
-                return;
-            const std::string error = host_.claim_ship(c.id, c.addon, index, passthrough);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            reply_ok(c, f.request, 0);
+            on_claim_ship(c, f, r);
             break;
-        }
         case msg_release_ship:
-        {
-            const std::uint32_t index = r.u32();
-            if (!r.ok())
-                return bad();
-            if (!need(cap_vessel, "owning a ship"))
-                return;
-            const std::string error = host_.release_ship(c.id, index);
-            if (!error.empty())
-                return reply_error(c, f.request, err_failed, error);
-            reply_ok(c, f.request, 0);
+            on_release_ship(c, f, r);
             break;
-        }
         case msg_ship_value:
-        {
-            const std::uint32_t index = r.u32();
-            const std::string name = r.str();
-            const double value = r.f64();
-            if (!r.ok() || name.empty() || name.size() > 64 || !path_ok("/" + name) || !std::isfinite(value))
-                return bad();
-            if (!need(cap_vessel, "owning a ship"))
-                return;
-            const std::string error = host_.ship_value(c.id, index, name, value);
-            if (!error.empty())
-                reply_error(c, f.request, err_failed, error);
+            on_ship_value(c, f, r);
             break;
-        }
         case msg_ship_force:
-        {
-            const std::uint32_t index = r.u32();
-            double force[3], torque[3];
-            for (double &v : force)
-                v = r.f64();
-            for (double &v : torque)
-                v = r.f64();
-            if (!r.ok() || !std::all_of(force, force + 3, [](double v) { return std::isfinite(v); }) || !std::all_of(torque, torque + 3, [](double v) { return std::isfinite(v); }))
-                return bad();
-            if (!need(cap_vessel, "owning a ship"))
-                return;
-            const std::string error = host_.ship_force(c.id, index, force, torque);
-            if (!error.empty())
-                reply_error(c, f.request, err_failed, error);
+            on_ship_force(c, f, r);
             break;
-        }
         case msg_draw3d:
-        {
-            const std::string id = r.str();
-            const std::uint16_t count = r.u16();
-            if (!r.ok() || !id_ok(id) || count > max_primitives)
-                return bad();
-            if (!need(cap_draw3d, "drawing in the 3D view"))
-                return;
-            std::vector<Primitive3> items;
-            items.reserve(count);
-            for (int n = 0; n < count && r.ok(); ++n)
-            {
-                Primitive3 p;
-                p.kind = r.u8();
-                p.frame = r.u8();
-                p.ship = r.u32();
-                for (double &v : p.a)
-                    v = r.f64();
-                for (double &v : p.b)
-                    v = r.f64();
-                p.size = r.f64();
-                p.r = r.u8();
-                p.g = r.u8();
-                p.bl = r.u8();
-                p.alpha = r.u8();
-                p.depth = r.u8();
-                p.text = r.str();
-                const bool finite = std::all_of(p.a, p.a + 3, [](double v) { return std::isfinite(v); }) && std::all_of(p.b, p.b + 3, [](double v) { return std::isfinite(v); }) && std::isfinite(p.size);
-                if (p.kind > 4 || p.frame > 2 || p.text.size() > 120 || !finite)
-                    return bad();
-                items.push_back(std::move(p));
-            }
-            if (!r.ok())
-                return bad();
-            const std::string key = c.addon + "." + id;
-            if (items.empty())
-            {
-                layers_.erase(key);
-                break;
-            }
-            if (!layers_.count(key) && std::count_if(layers_.begin(), layers_.end(), [&](const auto &e) { return e.second.owner == c.id; }) >= static_cast<long>(max_layers_per_client))
-                return reply_error(c, f.request, err_failed, "too many layers");
-            Layer3 &layer = layers_[key];
-            layer.addon = c.addon;
-            layer.id = id;
-            layer.owner = c.id;
-            layer.items = std::move(items);
+            on_draw3d(c, f, r);
             break;
-        }
         default:
             break; // unknown messages are ignored so newer addons still run
         }

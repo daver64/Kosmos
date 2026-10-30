@@ -63,40 +63,10 @@ namespace kosmos
         return fallback;
     }
 
-    bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error)
+    namespace
     {
-        std::ifstream in(file);
-        if (!in)
+        void read_module(const nlohmann::json &json, ShipSpec &spec)
         {
-            error = "cannot open " + file;
-            return false;
-        }
-        nlohmann::json json;
-        try
-        {
-            in >> json;
-            if (!expand_part_kits(json, std::filesystem::path(file).parent_path(), error))
-            {
-                error = file + ": " + error;
-                return false;
-            }
-            spec = ShipSpec();
-            spec.source_file = file;
-            spec.name = json.value("name", "Ship");
-            spec.kind = json.value("class", "ship");
-            spec.pad_turn = json.value("pad_turn", 0.0);
-            spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station" || spec.kind == "probe");
-            spec.crash_speed = json.value("crash_speed", 5.0);
-            if (spec.building())
-            {
-                spec.orbital_only = false;
-                spec.door = vec3(json.value("door", nlohmann::json()), spec.door);
-                spec.door_radius = json.value("door_radius", 4.0);
-                spec.grid = json.value("grid", "");
-            }
-            spec.script = json.value("script", "");
-            // A building's cockpit is its interface: either key works there.
-            const char *cockpit_key = json.contains("cockpit") || !spec.building() ? "cockpit" : "interface";
             if (json.contains("module") && json["module"].is_object())
             {
                 const nlohmann::json &jm = json["module"];
@@ -104,9 +74,10 @@ namespace kosmos
                 spec.module_max_force = jm.value("max_force", 0.0);
                 spec.module_max_torque = jm.value("max_torque", 0.0);
             }
-            if (json.contains(cockpit_key))
-            {
-                const nlohmann::json &jc = json[cockpit_key];
+        }
+
+        void read_cockpit(const nlohmann::json &jc, ShipSpec &spec)
+        {
                 spec.cockpit.present = true;
                 spec.cockpit.eye_set = jc.contains("eye");
                 spec.cockpit.eye = vec3(jc.value("eye", nlohmann::json()));
@@ -191,7 +162,10 @@ namespace kosmos
                     if (!extra.instruments.empty() || !extra.controls.empty() || !extra.image.empty())
                         spec.cockpit.extra_panels.push_back(extra);
                 }
-            }
+        }
+
+        void read_attachments(const nlohmann::json &json, ShipSpec &spec)
+        {
             spec.transponder = json.value("transponder", 0.0);
             for (const nlohmann::json &jd : json.value("ports", nlohmann::json::array()))
             {
@@ -254,6 +228,10 @@ namespace kosmos
                 w.rolling_resistance = jw.value("rolling_resistance", w.rolling_resistance);
                 spec.wheels.push_back(w);
             }
+        }
+
+        void read_ship_options(const nlohmann::json &json, ShipSpec &spec)
+        {
             spec.camera_distance = json.value("camera_distance", spec.camera_distance);
             if (json.contains("camera_target"))
             {
@@ -271,11 +249,11 @@ namespace kosmos
                 std::string error;
                 std::shared_ptr<Interior> parsed = Interior::parse(json["interior"], !spec.horizontal, spec.door.z, error);
                 if (!parsed)
-                    std::fprintf(stderr, "[kosmos] %s: %s\n", file.c_str(), error.c_str());
+                    std::fprintf(stderr, "[kosmos] %s: %s\n", spec.source_file.c_str(), error.c_str());
                 else
                 {
                     if (!parsed->mesh_path.empty())
-                        parsed->mesh_path = (std::filesystem::path(file).parent_path() / parsed->mesh_path).string();
+                        parsed->mesh_path = (std::filesystem::path(spec.source_file).parent_path() / parsed->mesh_path).string();
                     if (!json.contains("door"))
                         spec.door = parsed->door_ship();
                     spec.interior = parsed;
@@ -340,8 +318,10 @@ namespace kosmos
                 spec.locker = json["locker"].get<std::vector<std::string>>();
             spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
-            for (const nlohmann::json &js : json.at("stages"))
-            {
+        }
+
+        StageSpec read_stage(const nlohmann::json &js)
+        {
                 StageSpec stage;
                 stage.name = js.value("name", "Stage");
                 stage.dry_mass = js.value("dry_mass", stage.dry_mass);
@@ -409,7 +389,87 @@ namespace kosmos
                     part.rotate = vec3(jp.value("rotate", nlohmann::json()), part.rotate);
                     stage.parts.push_back(std::move(part));
                 }
-                spec.stages.push_back(std::move(stage));
+            return stage;
+        }
+
+        void finish_ship_spec(ShipSpec &spec)
+        {
+            // Every ship has a cockpit camera: by default at the front centre of the hull, looking along the nose.
+            if (!spec.cockpit.present)
+            {
+                spec.cockpit.present = true;
+                spec.cockpit.mfds = false;
+            }
+            if (!spec.cockpit.eye_set)
+            {
+                const StageSpec *front = &spec.stages.front();
+                for (const StageSpec &st : spec.stages)
+                    if (st.z - st.length * 0.5 < front->z - front->length * 0.5)
+                        front = &st;
+                spec.cockpit.eye = sl::dvec3(0.0, front->radius * 0.3, front->z - front->length * 0.5);
+            }
+            // A light with no stage of its own belongs to the stage it sits on, and goes when that stage does.
+            for (LightSpec &light : spec.lights)
+            {
+                if (light.stage >= 0)
+                    continue;
+                double best = 1.0e30;
+                for (std::size_t s = 0; s < spec.stages.size(); ++s)
+                {
+                    const StageSpec &st = spec.stages[s];
+                    const double gap = std::max({0.0, light.z - (st.z + st.length * 0.5), (st.z - st.length * 0.5) - light.z});
+                    if (gap < best - 1.0e-9)
+                    {
+                        best = gap;
+                        light.stage = static_cast<int>(s);
+                    }
+                }
+            }
+        }
+    }
+
+    bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error)
+    {
+        std::ifstream in(file);
+        if (!in)
+        {
+            error = "cannot open " + file;
+            return false;
+        }
+        nlohmann::json json;
+        try
+        {
+            in >> json;
+            if (!expand_part_kits(json, std::filesystem::path(file).parent_path(), error))
+            {
+                error = file + ": " + error;
+                return false;
+            }
+            spec = ShipSpec();
+            spec.source_file = file;
+            spec.name = json.value("name", "Ship");
+            spec.kind = json.value("class", "ship");
+            spec.pad_turn = json.value("pad_turn", 0.0);
+            spec.orbital_only = json.value("orbital_only", spec.kind == "transfer" || spec.kind == "tug" || spec.kind == "station" || spec.kind == "probe");
+            spec.crash_speed = json.value("crash_speed", 5.0);
+            if (spec.building())
+            {
+                spec.orbital_only = false;
+                spec.door = vec3(json.value("door", nlohmann::json()), spec.door);
+                spec.door_radius = json.value("door_radius", 4.0);
+                spec.grid = json.value("grid", "");
+            }
+            spec.script = json.value("script", "");
+            // A building's cockpit is its interface: either key works there.
+            const char *cockpit_key = json.contains("cockpit") || !spec.building() ? "cockpit" : "interface";
+            read_module(json, spec);
+            if (json.contains(cockpit_key))
+                read_cockpit(json[cockpit_key], spec);
+            read_attachments(json, spec);
+            read_ship_options(json, spec);
+            for (const nlohmann::json &js : json.at("stages"))
+            {
+                spec.stages.push_back(read_stage(js));
             }
             std::vector<std::string> stage_names;
             for (const StageSpec &st : spec.stages)
@@ -429,37 +489,7 @@ namespace kosmos
             error = file + ": a ship needs at least one stage";
             return false;
         }
-        // Every ship has a cockpit camera: by default at the front centre of the hull, looking along the nose.
-        if (!spec.cockpit.present)
-        {
-            spec.cockpit.present = true;
-            spec.cockpit.mfds = false;
-        }
-        if (!spec.cockpit.eye_set)
-        {
-            const StageSpec *front = &spec.stages.front();
-            for (const StageSpec &st : spec.stages)
-                if (st.z - st.length * 0.5 < front->z - front->length * 0.5)
-                    front = &st;
-            spec.cockpit.eye = sl::dvec3(0.0, front->radius * 0.3, front->z - front->length * 0.5);
-        }
-        // A light with no stage of its own belongs to the stage it sits on, and goes when that stage does.
-        for (LightSpec &light : spec.lights)
-        {
-            if (light.stage >= 0)
-                continue;
-            double best = 1.0e30;
-            for (std::size_t s = 0; s < spec.stages.size(); ++s)
-            {
-                const StageSpec &st = spec.stages[s];
-                const double gap = std::max({0.0, light.z - (st.z + st.length * 0.5), (st.z - st.length * 0.5) - light.z});
-                if (gap < best - 1.0e-9)
-                {
-                    best = gap;
-                    light.stage = static_cast<int>(s);
-                }
-            }
-        }
+        finish_ship_spec(spec);
         return true;
     }
 

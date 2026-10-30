@@ -5,6 +5,12 @@
 
 namespace kosmos::app
 {
+    namespace
+    {
+        // Detail maps are shared by every body that names the same file, so each is loaded once.
+        std::map<std::string, sl::Bitmap *> detail_maps;
+    }
+
     std::vector<sl::TerrainLayer> planet_layers()
     {
         std::vector<sl::TerrainLayer> layers(4);
@@ -279,7 +285,6 @@ namespace kosmos::app
         if (!detail_disabled)
         {
             // A seamless map modulates the imagery's brightness near the ground so flat ground is not a smooth smear.
-            static std::map<std::string, sl::Bitmap *> detail_maps;
             const std::string file = b.detail.empty() ? "detail_dirt.jpg" : b.detail;
             auto found = detail_maps.find(file);
             if (found == detail_maps.end())
