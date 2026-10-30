@@ -327,7 +327,7 @@ namespace kosmos::app
     sl::PropertyTree &props = *props_ref;
     sl::FlightBody &fb = *fb_ref;
             // Pick MFD buttons by casting the mouse ray at the two screen quads.
-            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            const bool down = ui_mouse_down();
             if (down && !mfd_mouse_prev)
             {
                 const kosmos::Cockpit cp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
@@ -383,6 +383,16 @@ namespace kosmos::app
                 }
             }
             mfd_mouse_prev = down;
+    }
+
+    // The left button as the panels and MFDs see it: a press that lands on an imgui window belongs to that window.
+    bool App::ui_mouse_down() const
+    {
+        if (!sl::mouse_button_down(sl::MouseButton::left))
+            return false;
+        if (ui_drag_id < 0 && !mfd_mouse_prev && sl::gui_available() && ImGui::GetIO().WantCaptureMouse)
+            return false;
+        return true;
     }
 
     // A press that lands on no control starts a drag; the offset follows the mouse until the button is released.
@@ -449,7 +459,7 @@ namespace kosmos::app
             float ox = (screen_w - cp.panel_width * scale) * 0.5f + panel_offset[0], oy = screen_h - cp.panel_height * scale + panel_offset[1];
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
-            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            const bool down = ui_mouse_down();
             const bool pressed = down && !mfd_mouse_prev;
             bool consumed = false;
             if (pressed)
@@ -505,19 +515,21 @@ namespace kosmos::app
             right.x = show_hud ? screen_w - size - 20.0f : screen_w / 2.0f + 70.0f;
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
-            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            const bool down = ui_mouse_down();
             const bool pressed = down && !mfd_mouse_prev;
-            if (!show_hud)
-            {
-                place_mfd(0, left);
-                place_mfd(1, right);
-                const bool consumed = sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
+            place_mfd(0, left);
+            place_mfd(1, right);
+            // See-through HUD displays have no buttons, so any press on one is a drag.
+            const bool consumed = !show_hud && sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
+            if (!show_hud || (hud_sides & 1))
                 drag_mfd(0, left, down, pressed, consumed);
+            if (!show_hud || (hud_sides & 2))
                 drag_mfd(1, right, down, pressed, consumed);
-            }
             mfd_mouse_prev = down;
-            sim.mfd.draw(0, left);
-            sim.mfd.draw(1, right);
+            if (!show_hud || (hud_sides & 1))
+                sim.mfd.draw(0, left);
+            if (!show_hud || (hud_sides & 2))
+                sim.mfd.draw(1, right);
     }
 
     // The on-screen display, MFDs and messages.
@@ -567,7 +579,7 @@ namespace kosmos::app
             right.x = screen_w / 2.0f + 70.0f;
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
-            const bool down = sl::mouse_button_down(sl::MouseButton::left);
+            const bool down = ui_mouse_down();
             const bool pressed = down && !mfd_mouse_prev;
             place_mfd(0, left);
             place_mfd(1, right);

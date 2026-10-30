@@ -41,6 +41,19 @@ namespace kosmos::app
     {
         const bool on_dashboard = cockpit_view && !cockpit3d && ship->spec().cockpit.present && ship->spec().cockpit.mfds &&
                                   !map_mode && interior_cam < 0 && base_view < 0;
+        // The see-through HUD steps through both displays, the left one and the right one before moving on.
+        const bool in_hud = on_dashboard ? cockpit_mfd == 1 : mfd_display == 2;
+        if (in_hud && hud_sides == 3)
+        {
+            hud_sides = 1;
+            return;
+        }
+        if (in_hud && hud_sides == 1)
+        {
+            hud_sides = 2;
+            return;
+        }
+        hud_sides = 3;
         if (on_dashboard)
             cockpit_mfd = (cockpit_mfd + 1) % 3;
         else

@@ -169,6 +169,7 @@ namespace kosmos::app
         bool pointer_free{};
         int mfd_display{};
         int cockpit_mfd{};
+        int hud_sides = 3; // bit 0 left, bit 1 right: which see-through MFDs are shown
         bool first_ship_seen{};
         int panel_index{};
         bool mfd_mouse_prev{};
@@ -452,7 +453,8 @@ namespace kosmos::app
     void settings_worlds();
     void draw_performance_window();
     void draw_icbm_window();
-    void ui_drag(int id, bool inside, bool down, bool pressed, bool consumed, float &offset_x, float &offset_y);
+    bool ui_mouse_down() const;
+        void ui_drag(int id, bool inside, bool down, bool pressed, bool consumed, float &offset_x, float &offset_y);
     void place_mfd(int side, kosmos::MfdLayout &layout);
     void drag_mfd(int side, kosmos::MfdLayout &layout, bool down, bool pressed, bool consumed);
     void draw_settings_window();

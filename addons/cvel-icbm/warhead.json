@@ -7,7 +7,7 @@
  "drag_area": 0.5,
  "camera_distance": 12,
  "camera_target": [0, 0, 0],
- "thermal": { "nose_radius": 0.3, "heat_area": 1.6, "heat_capacity": 4000, "shield_mass": 350, "ablation_heat": 2.5e7, "max_temp": 2500 },
+ "thermal": { "nose_radius": 0.3, "heat_area": 1.6, "heat_capacity": 4000, "shield_mass": 350, "ablation_heat": 2.5e7, "max_temp": 2500, "shield_axis": [0, 0, -1] },
  "hypersonic": { "area": 1.8, "length": 3.3, "cd_max": 0.9, "axis": [0, 0, -1], "trim_dir": [0, 0, -1], "trim_deg": 0 },
  "stages": [
   {
