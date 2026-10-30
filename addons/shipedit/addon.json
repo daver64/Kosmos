@@ -1,0 +1,13 @@
+{
+  "id": "shipedit",
+  "name": "ShipEdit",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/shipedit"
+    },
+    "capabilities": [],
+    "autostart": false,
+    "restart": false
+  }
+}

@@ -969,14 +969,35 @@ namespace kosmos::app
             const glm::vec3 side = std::fabs(back.y) < 0.95f ? glm::normalize(glm::cross(glm::vec3(0, 1, 0), back)) : glm::vec3(1, 0, 0);
             const glm::vec3 up_axis = glm::cross(back, side);
             const glm::mat4 basis(glm::vec4(side, 0.0f), glm::vec4(up_axis, 0.0f), glm::vec4(back, 0.0f), glm::vec4(0, 0, 0, 1));
-            const glm::mat4 at = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) * basis;
+            // The sheath starts at the part of the hull that leads into the flow and trails behind the whole vehicle.
+            const glm::vec3 flow_local = glm::vec3(glm::normalize(ob.direction_to_local(air)));
+            float lead = -1.0e9f, trail = 1.0e9f;
+            glm::vec3 lead_point(0.0f);
+            const glm::vec3 lateral = std::fabs(flow_local.x) + std::fabs(flow_local.y) > 1.0e-3f ? glm::normalize(glm::vec3(flow_local.x, flow_local.y, 0.0f)) : glm::vec3(1, 0, 0);
+            for (std::size_t i = static_cast<std::size_t>(std::max(other.active_stage(), 0)); i < spec.stages.size(); ++i)
+            {
+                const kosmos::StageSpec &st = spec.stages[i];
+                for (const float dz : {-0.5f, 0.5f})
+                    for (const float sgn : {-1.0f, 1.0f})
+                    {
+                        const glm::vec3 p = glm::vec3(0.0f, 0.0f, static_cast<float>(st.z + dz * st.length)) + lateral * static_cast<float>(st.radius) * sgn;
+                        const float d = glm::dot(p, flow_local);
+                        if (d > lead)
+                            lead = d, lead_point = p;
+                        trail = std::min(trail, d);
+                    }
+            }
+            const float depth = lead > trail ? lead - trail : 0.0f;
+            const glm::mat4 at = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(ob.orientation))) *
+                                 glm::translate(glm::mat4(1.0f), lead_point) * glm::mat4(glm::mat3(glm::inverse(glm::mat3_cast(glm::quat(ob.orientation)))) * glm::mat3(basis));
+            const float wake = look.length + depth * 0.8f;
 
-            // Hot colour runs from orange to a white tinged with violet; the outer haze is redder.
+            // The glow stays orange-red and only turns yellow-white at the very hottest.
             const float h = look.heat;
             const auto mix8 = [](float a, float b, float t) { return static_cast<std::uint8_t>(std::clamp(a + (b - a) * t, 0.0f, 255.0f)); };
-            const sl::Colour haze{mix8(255, 130, h), mix8(40, 90, h), mix8(15, 255, h), 255};
-            const sl::Colour body{255, mix8(70, 190, h), mix8(25, 235, h), 255};
-            const sl::Colour core{255, mix8(150, 245, h), mix8(80, 255, h), 255};
+            const sl::Colour haze{235, mix8(32, 60, h), 5, 255};
+            const sl::Colour body{255, mix8(55, 125, h), mix8(10, 45, h), 255};
+            const sl::Colour core{255, mix8(110, 190, h), mix8(30, 110, h), 255};
             const auto layer = [&](const sl::Colour &c, float alpha, const glm::vec3 &centre, const glm::vec3 &radii)
             {
                 glow.tint = c;
@@ -989,14 +1010,14 @@ namespace kosmos::app
             {
                 const float t = static_cast<float>(i) / (layers - 1);
                 const float grow = 1.0f + 1.2f * t;
-                layer(haze, 0.016f * k * (1.0f - 0.5f * t), glm::vec3(0, 0, look.length * 0.45f * grow),
-                      glm::vec3(look.width * grow * 0.9f, look.width * grow * 0.9f, look.length * 0.55f * grow));
+                layer(haze, 0.016f * k * (1.0f - 0.5f * t), glm::vec3(0, 0, wake * 0.45f * grow),
+                      glm::vec3(look.width * grow * 0.9f, look.width * grow * 0.9f, wake * 0.55f * grow));
             }
             for (int i = 0; i < layers; ++i)
             {
                 const float t = static_cast<float>(i) / (layers - 1);
-                layer(body, 0.024f * k, glm::vec3(0, 0, look.length * 0.25f * (1.0f - t * 0.5f)),
-                      glm::vec3(look.width * (1.0f - 0.7f * t), look.width * (1.0f - 0.7f * t), look.length * 0.4f * (1.0f - 0.6f * t)));
+                layer(body, 0.024f * k, glm::vec3(0, 0, wake * 0.25f * (1.0f - t * 0.5f)),
+                      glm::vec3(look.width * (1.0f - 0.7f * t), look.width * (1.0f - 0.7f * t), wake * 0.4f * (1.0f - 0.6f * t)));
             }
             // The shock cap ahead of the nose.
             for (int i = 0; i < layers; ++i)

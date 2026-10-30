@@ -255,6 +255,13 @@ namespace kosmos::app
             props.set_string("/controls/sas", mode);
             sim.log(std::string("SAS: ") + mode);
         }
+        else if (hit("rcs_mode") || hit("rcs_off"))
+        {
+            const std::string was = props.get_string("/controls/rcs-mode", "rot");
+            const std::string now = hit("rcs_off") ? (was == "off" ? "rot" : "off") : (was == "lin" ? "rot" : "lin");
+            props.set_string("/controls/rcs-mode", now);
+            sim.log(now == "off" ? "RCS: off" : now == "lin" ? "RCS: linear" : "RCS: rotation");
+        }
         else if (hit("pause"))
             props.set_bool("/sim/paused", !props.get_bool("/sim/paused"));
         else if (hit("record"))
@@ -594,9 +601,19 @@ namespace kosmos::app
         pod_keys(on_foot);
         run_scripted_options();
         auto axis = [this, on_foot](const char *plus, const char *minus) { return typing || on_foot ? 0.0 : (keys.down(plus) ? 1.0 : 0.0) - (keys.down(minus) ? 1.0 : 0.0); };
-        props.set_double("/controls/pitch", axis("pitch_up", "pitch_down"));
-        props.set_double("/controls/yaw", axis("yaw_left", "yaw_right"));
-        props.set_double("/controls/roll", axis("roll_left", "roll_right"));
+        // Keypad RCS as in Orbiter: rotation, linear (2/8 up/down, 1/3 left/right, 6/9 forward/back) or off; Ctrl gives a tenth of the power.
+        const std::string rcs_mode = props.get_string("/controls/rcs-mode", "rot");
+        const bool rcs_off = rcs_mode == "off", rcs_lin = rcs_mode == "lin";
+        const double fine = sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control) ? 0.1 : 1.0;
+        const double rot_scale = rcs_off || rcs_lin ? 0.0 : fine;
+        props.set_double("/controls/pitch", axis("pitch_up", "pitch_down") * rot_scale);
+        props.set_double("/controls/yaw", axis("yaw_left", "yaw_right") * rot_scale);
+        props.set_double("/controls/roll", axis("roll_left", "roll_right") * rot_scale);
+        const double lin_scale = rcs_lin ? fine : 0.0;
+        const double lin_x = axis("yaw_right", "yaw_left") * lin_scale;
+        const double lin_y = axis("pitch_up", "pitch_down") * lin_scale;
+        const double lin_z = axis("roll_right", "rcs_back") * lin_scale;
+        props.set_double("/controls/rcs-z", lin_z);
         props.set_double("/controls/brake", !typing && !on_foot && keys.down("brake") ? 1.0 : 0.0);
         // In the cockpit the arrow keys move the head instead of firing RCS translation.
         const bool head_keys = !typing && !on_foot && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
@@ -620,8 +637,10 @@ namespace kosmos::app
                 hud.set_mode(requested);
             props.set_string("/sim/hud-request", "");
         }
-        props.set_double("/controls/rcs-x", head_keys ? 0.0 : axis("rcs_right", "rcs_left"));
-        props.set_double("/controls/rcs-y", head_keys ? 0.0 : axis("rcs_up", "rcs_down"));
+        const double arrows_x = head_keys || rcs_off ? 0.0 : axis("rcs_right", "rcs_left");
+        const double arrows_y = head_keys || rcs_off ? 0.0 : axis("rcs_up", "rcs_down");
+        props.set_double("/controls/rcs-x", std::clamp(arrows_x + lin_x, -1.0, 1.0));
+        props.set_double("/controls/rcs-y", std::clamp(arrows_y + lin_y, -1.0, 1.0));
         for (const auto &[name, value] : held_axes)
             props.set_double("/controls/" + name, value);
         read_joystick(on_foot);

@@ -41,6 +41,8 @@ Native addons: programs that connect over KosmosLink (loopback only) and are all
 
 **KosmosMap (Linux and Windows).** Tick it in View > Native addons to open a map window: relief or imagery of the body you are at, your ship (yellow), other ships (blue), your track, airports with runways and navaids, and a read-out of position, altitude, heading, speed and the height under the pointer. Drag pans, the wheel and +/- zoom, F follows the ship, C clears the track. It also runs on its own: `kosmosmap --body Moon --lat 10 --lon 20 --ppd 12` (`--imagery`, `--root DIR`, `--no-link`, `--shot FILE.png [--size WxH]`). Usage and internals: `sdk/kosmosmap/README.md`.
 
+**ShipEdit (Linux; `sdk/shipedit`, launcher `addons/shipedit`).** A GTK 3 editor for ships and rocket stacks, started from the Native addons list or as `addons/shipedit/bin/shipedit`. Pick an addon and ship and load it; the tree shows Ship > Stage > parts, engines and gear. Add, delete, duplicate and reorder stages; choose the mesh (OBJ or GLB) or generated prop of each part; edit stage mass, propellant, Z, length and radius, engine thrust, Isp and placement (Offset, Rotate and Position fields have nudge sliders; one drag is one undo step), and the ship's class, drag and gear; every node also has a raw JSON box, and any key the editor does not know (cockpit, systems, animations, scripts) is written back untouched. A live preview (software drawn with cairo, no OpenGL) shows the stack: drag to orbit, middle or right drag (or Shift+drag) to pan, wheel to zoom at the pointer, with Front, Back, Left, Right, Top, Bottom and Iso view buttons and Fit, and a table gives each stage's mass, thrust, Isp, delta-v and thrust-to-weight, with a problems list (missing models, engines outside their stage, duplicate ship name). **Save** writes the ship back into the addon it came from, after copying the whole addon to `shipedit-backups/<id>-<time>/` beside the addons folder. **Save as new addon** instead writes a new addon folder (a copy of the source with the edited ship, a new id and name, and any model files you pulled in) and leaves the source alone. `shipedit --addon ID --shot FILE.png` draws the preview without a window.
+
 ## Controls
 
 The keys below are the defaults. View > Keyboard rebinds any of them (saved in `keys.json` in the config folder); addons can add bindable actions with a `keys.json` of their own, see the modders manual.
@@ -53,6 +55,8 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | Arrow keys | RCS translation |
 | Joystick | View > Joystick: bind axes and buttons separately for aircraft and spacecraft (saved in `joystick.json`) |
 | Space | Stage |
+| Keypad / , Ctrl+Keypad / | RCS rotation / linear mode, RCS off (linear: Keypad 2 8 up/down, 1 3 left/right, 6 9 forward/back; Ctrl for fine) |
+| Keypad 7 / Insert | Fire primary / secondary weapons |
 | Keypad 5 / `[` / `]` / `;` / `'` | SAS: kill rotation / prograde / retrograde / normal / anti-normal (as Orbiter's navigation modes) |
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |

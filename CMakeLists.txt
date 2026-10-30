@@ -167,6 +167,13 @@ target_compile_definitions(reentry_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAI
 add_executable(plasma_look_test EXCLUDE_FROM_ALL tests/plasma_look_test.cpp)
 target_include_directories(plasma_look_test PRIVATE src)
 
+# ShipEdit's document model (no GTK): cmake --build build --target shipedit_model_test && build/shipedit_model_test
+add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/mesh.cpp)
+target_include_directories(shipedit_model_test PRIVATE sdk/shipedit/src)
+target_link_libraries(shipedit_model_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_compile_features(shipedit_model_test PRIVATE cxx_std_17)
+target_compile_definitions(shipedit_model_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
 # The Dynamic Camera's spring model: cmake --build build --target camera_dynamics_test && build/camera_dynamics_test
 add_executable(camera_dynamics_test EXCLUDE_FROM_ALL tests/camera_dynamics_test.cpp src/camera_dynamics.cpp)
 target_link_libraries(camera_dynamics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
@@ -264,6 +271,13 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
+# ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
+if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
+    set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)
+    set(SHIPEDIT_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
+    add_subdirectory(sdk/shipedit)
+    list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS shipedit)
+endif()
 # KosmosAV, the pilot's program for the KosmosAV freight network (kav/client), is a GTK 3 program too and also needs libcurl (the Windows program is built by scripts/build-win-tools.sh with WinHTTP).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     find_package(CURL QUIET)
@@ -293,10 +307,10 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/planetbake/bin/planetbake$")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/planetbake/bin/planetbake$")
 else()
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
-        "/addons/(planetbake|kosmosmap|kosmosav)/share(/|$)")
+        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit)/share(/|$)")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------

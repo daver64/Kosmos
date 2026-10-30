@@ -39,7 +39,7 @@ namespace kosmos
         look.brilliance = static_cast<float>(std::clamp(glow * (0.2 + 0.8 * mass * mass), 0.0, 1.0));
         look.heat = static_cast<float>(std::clamp(0.15 + 0.85 * glow, 0.0, 1.0));
         look.width = static_cast<float>(radius * (0.9 + 1.0 * mass));
-        look.length = static_cast<float>(radius * (4.0 + 12.0 * (1.0 - mass)) * (0.5 + 0.5 * glow));
+        look.length = static_cast<float>(radius * (8.0 + 22.0 * (1.0 - mass)) * (0.5 + 0.5 * glow));
         look.cap = static_cast<float>(radius * (0.6 + 0.9 * mass) * (0.5 + 0.5 * glow));
         return look;
     }

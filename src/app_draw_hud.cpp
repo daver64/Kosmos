@@ -269,7 +269,8 @@ namespace kosmos::app
                 sl::gprintf(16, 106, {255, 220, 150}, "Hover %3.0f%%", props.get_double("/controls/hover") * 100.0);
             sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
                         tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
-            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   Warp x%g%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(), sim.current_warp(),
+            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   RCS: %s   Warp x%g%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(),
+                        props.get_string("/controls/rcs-mode", "rot") == "lin" ? "LIN" : props.get_string("/controls/rcs-mode", "rot") == "off" ? "OFF" : "ROT", sim.current_warp(),
                         ship->on_rails() ? " (rails)" : "");
             const std::string status = props.get_string("/autopilot/status");
             if (props.get_bool("/autopilot/enabled") || !status.empty())

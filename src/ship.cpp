@@ -1218,9 +1218,9 @@ namespace kosmos
             else if (c.rcs_mode == "lin")
             {
                 // The rotation keys push instead: W/S forward and back, A/D left and right, Q/E up and down.
-                c.rcs_z = -c.pitch;
-                c.rcs_x = -c.yaw;
-                c.rcs_y = c.roll;
+                c.rcs_z = std::clamp(c.rcs_z - c.pitch, -1.0, 1.0);
+                c.rcs_x = std::clamp(c.rcs_x - c.yaw, -1.0, 1.0);
+                c.rcs_y = std::clamp(c.rcs_y + c.roll, -1.0, 1.0);
                 c.pitch = c.yaw = c.roll = 0.0;
             }
         }
