@@ -1,5 +1,7 @@
 #include "cockpit_panels.h"
 
+#include <map>
+
 namespace kosmos::app
 {
     kosmos::MfdLayout mfd_target_layout()
@@ -48,12 +50,102 @@ namespace kosmos::app
             return sim.props.get_string("/controls/sas") == "attitude" && std::fabs(sim.props.get_double("/controls/target-pitch")) < 0.5;
         if (control_is_numeric(c.value))
             return std::fabs(sim.props.get_double(c.property == "/controls/pod-tilt" ? "/controls/pod-tilt-left" : c.property) - std::atof(c.value.c_str())) < 0.01;
+        if (c.property == "/controls/rcs-mode")
+            return sim.props.get_string(c.property, "rot") == c.value;
         return sim.props.get_string(c.property) == c.value;
     }
 
     // Lamps, slider handles and the like are drawn over the panel bitmap, which carries the artwork.
+    // Knobs and switch levers are baked into the artwork at one setting, so they are covered first and redrawn to match the property.
+    void draw_panel_cover(const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
+    {
+        if (c.type != "button")
+            return;
+        if (c.style == "knob")
+            sl::circlefill(sl::screen, ox + c.cx * scale, oy + c.cy * scale, (c.r + 2.0f) * scale, {20, 21, 25, 255});
+        else if (c.style == "lever")
+            sl::rectfill(sl::screen, ox + c.x * scale, oy + c.y * scale, ox + (c.x + c.w) * scale, oy + (c.y + c.h) * scale, {33, 24, 24, 255});
+    }
+
+    void draw_panel_pointer(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
+    {
+        if (!control_lit(sim, c))
+            return;
+        if (c.style == "knob")
+        {
+            const float cx = ox + c.cx * scale, cy = oy + c.cy * scale, a = c.angle * 3.14159265f / 180.0f;
+            sl::circle(sl::screen, cx, cy, c.r * scale, {60, 62, 70, 255}, 1.0f);
+            sl::line(sl::screen, cx, cy, cx + std::sin(a) * c.r * scale * 0.95f, cy - std::cos(a) * c.r * scale * 0.95f, {240, 240, 240, 255}, std::max(2.0f, 3.0f * scale));
+        }
+        else
+        {
+            const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
+            sl::rectfill(sl::screen, x, y, x + w, y + h, {206, 52, 52, 255});
+            const float mid = y + h * 0.5f;
+            sl::rectfill(sl::screen, x, mid - 1.5f * scale, x + w, mid + 1.5f * scale, {255, 82, 74, 255});
+        }
+    }
+
+    // Needles, bars and numbers drawn over a panel's dials; the artwork has only the scales.
+    bool draw_panel_overlay(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
+    {
+        if (c.type == "needle")
+        {
+            const float v = c.max != 0.0f ? static_cast<float>(std::clamp(sim.props.get_double(c.property) * c.scale / c.max, 0.0, 1.0)) : 0.0f;
+            const float a = (c.a0 + (c.a1 - c.a0) * v) * 3.14159265f / 180.0f;
+            const float cx = ox + c.cx * scale, cy = oy + c.cy * scale, len = c.r * scale;
+            sl::line(sl::screen, cx - std::sin(a) * len * 0.15f, cy + std::cos(a) * len * 0.15f, cx + std::sin(a) * len, cy - std::cos(a) * len, {255, 200, 60, 255}, std::max(2.0f, 2.5f * scale));
+            sl::circlefill(sl::screen, cx, cy, std::max(2.0f, 3.0f * scale), {255, 200, 60, 255});
+            return true;
+        }
+        if (c.type == "bar")
+        {
+            const float v = c.max != c.min ? static_cast<float>(std::clamp((sim.props.get_double(c.property) * c.scale - c.min) / (c.max - c.min), 0.0, 1.0)) : 0.0f;
+            const sl::Colour col = c.alarm && v < 0.1f ? sl::Colour{255, 90, 70, 255} : sl::Colour{70, 255, 110, 255};
+            const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
+            if (v > 0.0f && h > w)
+                sl::rectfill(sl::screen, x, y + h * (1.0f - v), x + w, y + h, col);
+            else if (v > 0.0f)
+                sl::rectfill(sl::screen, x, y, x + w * v, y + h, col);
+            return true;
+        }
+        if (c.type == "number")
+        {
+            char text[48];
+            std::snprintf(text, sizeof text, c.format.c_str(), std::clamp(sim.props.get_double(c.property) * c.scale + c.offset, static_cast<double>(c.lo), static_cast<double>(c.hi)));
+            static std::map<int, sl::Font *> fonts;
+            const int point = std::max(6, static_cast<int>(std::round(c.h > 0.0f && c.h < 40.0f ? c.h * scale * 0.9f : 12.0f * scale)));
+            auto font = fonts.find(point);
+            if (font == fonts.end())
+                font = fonts.emplace(point, sl::open_monospace_font(point)).first;
+            const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale;
+            // Numbers sit on the panel artwork, so the translucent text backing is switched off for them.
+            const sl::TextPanelStyle backing = sl::text_panel_style();
+            sl::TextPanelStyle bare = backing;
+            bare.enabled = false;
+            sl::set_text_panel_style(bare);
+            sl::textout(font->second, static_cast<int>(x + (w - sl::text_length(font->second, text)) * 0.5f), static_cast<int>(y), {110, 255, 140, 255}, text);
+            sl::set_text_panel_style(backing);
+            return true;
+        }
+        return false;
+    }
+
     void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
     {
+        if (!c.gate_property.empty())
+        {
+            const double g = sim.props.get_double(c.gate_property);
+            if (g < c.gate_min || g > c.gate_max)
+                return;
+        }
+        if (draw_panel_overlay(sim, c, ox, oy, scale))
+            return;
+        if (c.type == "button" && (c.style == "knob" || c.style == "lever"))
+        {
+            draw_panel_pointer(sim, c, ox, oy, scale);
+            return;
+        }
         const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
         if (c.type == "slider")
         {
@@ -179,6 +271,8 @@ namespace kosmos::app
             if (sim.mfd.allowed(cp.instruments[i].mode))
                 sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
+            draw_panel_cover(c, ox, oy, scale);
+        for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_control(sim, c, ox, oy, scale);
     }
 
@@ -188,7 +282,7 @@ namespace kosmos::app
     {
         for (const auto &c : cp.controls)
         {
-            if (c.type == "slider" || c.type == "label" || c.type == "readout" || c.type == "gauge" || c.type == "lamp" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
+            if (c.type == "slider" || c.type == "label" || c.type == "readout" || c.type == "gauge" || c.type == "lamp" || c.type == "needle" || c.type == "bar" || c.type == "number" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
                 continue;
             panel_control_press(sim, c);
             return true;
@@ -237,6 +331,10 @@ namespace kosmos::app
         for (kosmos::Cockpit::PanelControl &pc : out.controls)
             if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
                 pc.property.replace(token, 6, root);
+        for (kosmos::Cockpit::Panel2D &panel : out.extra_panels)
+            for (kosmos::Cockpit::PanelControl &pc : panel.controls)
+                if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
+                    pc.property.replace(token, 6, root);
         return out;
     }
 

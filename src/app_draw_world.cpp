@@ -35,7 +35,7 @@ namespace kosmos::app
         sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
         sim.mfd.update(frame);
         const kosmos::Cockpit pcp = resolved_cockpit(ship->spec().cockpit, props_ref->get_int("/sim/active-ship"));
-        if (pcp.instruments.empty() && pcp.controls.empty())
+        if ((pcp.instruments.empty() && pcp.controls.empty()) || !pcp.vc_model.empty())
         {
             for (int side = 0; side < 2; ++side)
                 sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());

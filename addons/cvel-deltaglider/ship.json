@@ -5,6 +5,7 @@
  "torque_accel": 0.8,
  "max_rate": 0.6,
  "rcs_thrust": 10000,
+ "rcs_propellant": 600,
  "drag_area": 1.5,
  "thermal": {"nose_radius": 0.5, "heat_area": 45, "max_temp": 1900},
  "hypersonic": {"area": 70, "length": 19, "cd_max": 1.6, "trim_deg": 50},
@@ -286,6 +287,8 @@
   }
  ],
  "cockpit": {
+  "vc_model": "models/deltaglider_vc.obj",
+  "pitch": -25,
   "eye": [
    0,
    1.4,
@@ -356,18 +359,6 @@
     "x": 414,
     "y": 405,
     "size": 41
-   },
-   {
-    "mode": "dg_propellant",
-    "x": 27,
-    "y": 81,
-    "size": 117
-   },
-   {
-    "mode": "dg_status",
-    "x": 1000,
-    "y": 90,
-    "size": 112
    }
   ],
   "controls": [
@@ -743,9 +734,22 @@
     "w": 30,
     "h": 122
    },
-   {"type": "button", "property": "/controls/rcs-mode", "value": "off", "x": 92, "y": 196, "w": 24, "h": 18},
-   {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 113, "y": 182, "w": 24, "h": 14},
-   {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 138, "y": 196, "w": 24, "h": 18}
+   {"type": "button", "property": "/controls/rcs-mode", "value": "off", "x": 92, "y": 196, "w": 24, "h": 18, "style": "knob", "cx": 127.5, "cy": 216.5, "r": 17, "angle": -45},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 113, "y": 182, "w": 24, "h": 14, "style": "knob", "cx": 127.5, "cy": 216.5, "r": 17, "angle": 0},
+   {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 138, "y": 196, "w": 24, "h": 18, "style": "knob", "cx": 127.5, "cy": 216.5, "r": 17, "angle": 45},
+   {"type": "bar", "property": "{ship}/stage-fuel-percent", "max": 100, "x": 43, "y": 81, "w": 101, "h": 7},
+   {"type": "bar", "property": "{ship}/rcs-fuel-percent", "max": 100, "x": 43, "y": 89, "w": 101, "h": 7},
+   {"type": "number", "h": 12, "property": "{ship}/stage-fuel-percent", "format": "%.0f", "x": 29, "y": 102, "w": 42},
+   {"type": "number", "h": 12, "property": "{ship}/stage-fuel", "format": "%.0f", "x": 29, "y": 124, "w": 42},
+   {"type": "number", "h": 12, "property": "{ship}/fuel-flow", "format": "%.2f", "x": 29, "y": 146, "w": 42},
+   {"type": "number", "h": 12, "property": "{ship}/rcs-fuel-percent", "format": "%.0f", "x": 101, "y": 102, "w": 42},
+   {"type": "number", "h": 12, "property": "{ship}/rcs-fuel", "format": "%.0f", "x": 101, "y": 124, "w": 42},
+   {"type": "number", "h": 12, "property": "{ship}/rcs-flow", "format": "%.2f", "x": 101, "y": 146, "w": 42},
+   {"type": "bar", "property": "/controls/throttle", "x": 1027, "y": 90, "w": 8, "h": 80},
+   {"type": "bar", "property": "/controls/hover", "x": 1077, "y": 90, "w": 8, "h": 100},
+   {"type": "number", "h": 12, "property": "/controls/throttle", "scale": 100, "format": "%.0f", "x": 1002, "y": 199, "w": 36},
+   {"type": "number", "h": 12, "property": "{ship}/thrust", "scale": 0.001, "format": "%.0f", "x": 1002, "y": 220, "w": 36},
+   {"type": "number", "h": 12, "property": "{ship}/acceleration-g", "scale": 9.81, "format": "%.1f", "x": 1002, "y": 241, "w": 36}
   ]
  },
  "lights": [

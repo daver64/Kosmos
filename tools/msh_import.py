@@ -180,13 +180,16 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None):
     mtl_lines = []
 
     def material_for(g):
-        key = (g.material, g.texture)
+        screen = g.label if re.search(r"DISPLAY$|DISP$", g.label or "") else ""
+        key = (g.material, g.texture, screen)
         if key in mtl_names:
             return mtl_names[key]
         mat = mesh.materials[g.material - 1] if 0 < g.material <= len(mesh.materials) else None
         tex = mesh.textures[g.texture - 1] if 0 < g.texture <= len(mesh.textures) else None
         base = re.sub(r"[^A-Za-z0-9_]+", "_", (mat[0] if mat else "default").strip("- ") or "default")
         name = base + ("_" + re.sub(r"[^A-Za-z0-9_]+", "_", os.path.splitext(tex)[0]) if tex else "")
+        if screen:
+            name += "_" + screen # a display group keeps its own material so the game can draw into it
         n, k = name, 2
         while n in mtl_names.values():
             n, k = f"{name}_{k}", k + 1
@@ -221,8 +224,10 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None):
             obj.append("v %.5f %.5f %.5f" % (v[0] * scale, v[1] * scale, -v[2] * scale))
         for v in g.vertices:
             obj.append("vn %.4f %.4f %.4f" % (v[3], v[4], -v[5]))
+        # A render target is stored bottom-up, so display groups keep Orbiter's V instead of flipping it.
+        is_display = bool(re.search(r"DISPLAY$|DISP$", g.label or ""))
         for v in g.vertices:
-            obj.append("vt %.5f %.5f" % (v[6], 1.0 - v[7]))
+            obj.append("vt %.5f %.5f" % (v[6], v[7] if is_display else 1.0 - v[7]))
         for a, b, c in g.triangles:
             a, b, c = (x + base_index for x in (a, b, c))
             obj.append(f"f {a}/{a}/{a} {b}/{b}/{b} {c}/{c}/{c}")

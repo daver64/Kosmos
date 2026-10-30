@@ -79,6 +79,21 @@ namespace kosmos::app
                 made.inside = sl::create_mesh(inside.vertices, inside.indices);
             return interiors[&interior] = made;
         }
+        std::map<const kosmos::Cockpit *, sl::Model *> vc_models;
+        sl::Model *vc_model(const kosmos::Cockpit &cockpit, const std::string &directory)
+        {
+            auto found = vc_models.find(&cockpit);
+            if (found != vc_models.end())
+                return found->second;
+            const std::string path = (std::filesystem::path(directory) / cockpit.vc_model).string();
+            sl::Model *model = sl::load_model(path);
+            if (!model)
+                std::fprintf(stderr, "[kosmos] cannot load cockpit model %s: %s\n", path.c_str(), sl::last_error().c_str());
+            else
+                for (sl::ModelPart &mp : model->parts)
+                    mp.material.cull = sl::CullMode::none;
+            return vc_models[&cockpit] = model;
+        }
         struct LoadedModel
         {
             sl::Model *model = nullptr;

@@ -710,13 +710,34 @@ namespace kosmos::app
                 sl::Material console;
                 console.tint = {38, 40, 46, 255};
                 console.cull = sl::CullMode::none;
+                const bool has_vc = !cp.vc_model.empty();
+                if (has_vc)
+                {
+                    if (sl::Model *vc = vis.vc_model(cp, other.spec().directory))
+                    {
+                        for (sl::ModelPart &mp : vc->parts)
+                        {
+                            const bool left = mp.name.find("LMFD_DISPLAY") != std::string::npos;
+                            if (left || mp.name.find("RMFD_DISPLAY") != std::string::npos)
+                            {
+                                mp.material.texture = mfd_target[left ? 0 : 1];
+                                mp.material.tint = {255, 255, 255, 255};
+                                mp.material.lit = false;
+                                mp.material.fog = false;
+                            }
+                        }
+                        sl::draw_model(vc, model);
+                    }
+                    return;
+                }
                 if (!cp.instruments.empty() || !cp.controls.empty())
                 {
                     const glm::vec3 centre = glm::vec3(cp.eye) + iface * glm::vec3(cp.panel_pos);
                     const float pw = static_cast<float>(cp.panel_size), ph = pw * cp.panel_height / cp.panel_width;
                     const glm::mat3 pb = iface * panel_basis(cp);
                     // The console is a slab just behind the board.
-                    sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
+                    if (!has_vc)
+                        sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
                     if (panel_target)
                     {
                         sl::Material board;

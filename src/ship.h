@@ -169,6 +169,8 @@ namespace kosmos
         /** Draw the dashboard with two MFDs (default modes orbit and surface) below the instrument row. */
         bool mfds = true;
         std::string mfd_left = "orbit", mfd_right = "surface";
+        /** A virtual cockpit mesh (OBJ, relative to the ship file) drawn around the eye in the 3D cockpit, in the hull's frame. */
+        std::string vc_model;
         /** Which MFD modes the ship offers: "auto" (aircraft get no orbital modes, everything else no airspeed-style flight gauges), "atmosphere", "space", or "none" to offer all. */
         std::string mfd_filter = "auto";
         /** HUD modes the H key cycles ("orbit", "surface", "docking"); empty means the class default (see ShipSpec::hud_modes). */
@@ -205,6 +207,16 @@ namespace kosmos
             bool alarm = false;
             float x = 0, y = 0, w = 20, h = 20;
             int unit = 0, button = 0;
+            /** Drawn over the artwork: "knob" (a dial pointing at `angle` when the button is selected) or "lever" (a switch segment); for "needle" and "knob", the pivot and length. */
+            std::string style;
+            float cx = 0, cy = 0, r = 0, angle = 0;
+            /** Needle sweep in degrees clockwise from straight up, for 0 and for full scale (`max`). */
+            float a0 = -135.0f, a1 = 135.0f;
+            /** "bar" runs from `min` to `max`; "number" is value * scale + `offset` limited to `lo`..`hi`. */
+            float min = 0.0f, offset = 0.0f, lo = -1e30f, hi = 1e30f;
+            /** Drawn only while this property lies between gate_min and gate_max (any control type). */
+            std::string gate_property;
+            float gate_min = -1e30f, gate_max = 1e30f;
         };
         std::vector<PanelControl> controls;
         float panel_width = 1400.0f, panel_height = 500.0f;
@@ -282,6 +294,10 @@ namespace kosmos
         bool rcs_modes = false;
         /** Draw the generic cold-gas puffs at the ends of the stage envelope when the RCS fires (ships without RCS thrusters of their own). */
         bool rcs_effects = true;
+        /** Kilograms of RCS propellant (0 for an unlimited supply). The generic RCS stops when it runs out. */
+        double rcs_propellant = 0.0;
+        /** Specific impulse of the RCS in seconds, which sets how fast it uses propellant. */
+        double rcs_isp = 280.0;
         /** An aircraft that flies as a spaceship (RCS, SAS, orbital autopilots) wherever the air is thinner than a tenth of Earth's at sea level, as the Deltaglider does. */
         bool hybrid = false;
         /** How fast an engine pod swings, in radians per second. */
@@ -591,6 +607,8 @@ namespace kosmos
         void build_body();
         void refresh_mass_properties();
         void update_telemetry();
+        /** Re-predicts the ground track and impact point by integrating the orbit about the sphere-of-influence body. */
+        void update_ground_track();
         sl::dvec3 target_direction(const Controls &controls, bool &valid) const;
         void apply_attitude(const Controls &controls, double dt);
         void apply_flight_controls(const Controls &controls);
@@ -606,6 +624,19 @@ namespace kosmos
         sl::dvec3 com_{0.0};
         bool crashed_ = false;
         double health_ = 1.0;
+        double rcs_fuel_ = 0.0, rcs_flow_ = 0.0, fuel_flow_ = 0.0;
+    public:
+        static constexpr int track_points = 160;
+    private:
+        struct GroundTrack
+        {
+            double stamp = -1e30;
+            int soi = -1;
+            int count = 0;
+            double lat[track_points + 1] = {}, lon[track_points + 1] = {};
+            bool impact = false;
+            double impact_lat = 0.0, impact_lon = 0.0, impact_time = 0.0;
+        } track_;
         double shield_ = 0.0, shield_quiet_ = 0.0;
         double payload_mass_ = 0.0;
         // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
@@ -628,6 +659,10 @@ namespace kosmos
         void set_thruster_levels(const Controls &c);
         void hold_hover_attitude(const Controls &c);
         void apply_rcs(const Controls &c);
+        bool rcs_dry() const;
+        void use_rcs_propellant(double dt);
+        /** Thrust (newtons), level (0 to 1) or propellant flow (kg/s) of the engines of the active stage in one role: "main-left", "main-right", "hover-front", "hover-aft", "pod-left" or "pod-right". */
+        double engine_value(const std::string &role, const std::string &what) const;
         void resolve_landing();
         void expire_debris(double dt);
         bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface

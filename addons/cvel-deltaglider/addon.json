@@ -17,14 +17,6 @@
     {
       "id": "dg_slope",
       "script": "dg_slope.lua"
-    },
-    {
-      "id": "dg_propellant",
-      "script": "dg_propellant.lua"
-    },
-    {
-      "id": "dg_status",
-      "script": "dg_status.lua"
     }
   ]
 }

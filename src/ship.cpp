@@ -86,6 +86,7 @@ namespace kosmos
                 spec.cockpit.pitch = jc.value("pitch", 0.0);
                 spec.cockpit.fov = jc.value("fov", 0.0);
                 spec.cockpit.mfds = jc.value("mfds", true);
+                spec.cockpit.vc_model = jc.value("vc_model", "");
                 spec.cockpit.mfd_left = jc.value("mfd_left", spec.cockpit.mfd_left);
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 spec.cockpit.mfd_filter = jc.value("mfd_filter", spec.cockpit.mfd_filter);
@@ -135,6 +136,20 @@ namespace kosmos
                         pc.h = jk.value("h", 20.0f);
                         pc.unit = jk.value("unit", 0);
                         pc.button = jk.value("button", 0);
+                        pc.style = jk.value("style", "");
+                        pc.cx = jk.value("cx", 0.0f);
+                        pc.cy = jk.value("cy", 0.0f);
+                        pc.r = jk.value("r", 0.0f);
+                        pc.angle = jk.value("angle", 0.0f);
+                        pc.a0 = jk.value("a0", pc.a0);
+                        pc.a1 = jk.value("a1", pc.a1);
+                        pc.min = jk.value("min", pc.min);
+                        pc.offset = jk.value("offset", pc.offset);
+                        pc.lo = jk.value("lo", pc.lo);
+                        pc.hi = jk.value("hi", pc.hi);
+                        pc.gate_property = jk.value("gate_property", "");
+                        pc.gate_min = jk.value("gate_min", pc.gate_min);
+                        pc.gate_max = jk.value("gate_max", pc.gate_max);
                         out.push_back(pc);
                     }
                     return out;
@@ -276,6 +291,8 @@ namespace kosmos
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
             spec.rcs_effects = json.value("rcs_effects", true);
+            spec.rcs_propellant = json.value("rcs_propellant", 0.0);
+            spec.rcs_isp = json.value("rcs_isp", 280.0);
             spec.hybrid = json.value("hybrid", false);
             spec.pod_turn_rate = json.value("pod_turn_rate", spec.pod_turn_rate);
             if (json.contains("animation_controls"))
@@ -514,6 +531,7 @@ namespace kosmos
     Ship::Ship(Universe &universe, ShipSpec spec) : name(spec.name), universe_(universe), spec_(std::move(spec))
     {
         build_body();
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         if (!spec_.systems.empty())
             systems_ = std::make_unique<Systems>(spec_.systems, life_support_);
@@ -796,6 +814,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
@@ -820,6 +839,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
@@ -844,6 +864,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
@@ -889,6 +910,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
@@ -1016,6 +1038,7 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;
+        rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = false;
         update_telemetry();
@@ -1083,6 +1106,8 @@ namespace kosmos
 
     void Ship::apply_attitude(const Controls &c, double dt)
     {
+        if (rcs_dry())
+            return;
         sl::FlightBody &b = body();
         const sl::dvec3 w = b.angular_velocity;
         sl::dvec3 desired(0.0);
@@ -1208,7 +1233,56 @@ namespace kosmos
         {
             apply_attitude(c, dt);
             apply_rcs(c);
+            use_rcs_propellant(dt);
         }
+    }
+
+    double Ship::engine_value(const std::string &role, const std::string &what) const
+    {
+        const sl::FlightBody &b = body();
+        if (b.thrusters.empty() || stage_first_thruster_.size() < static_cast<std::size_t>(active_stage_) + 2)
+            return 0.0;
+        double sum = 0.0, level = 0.0;
+        int count = 0;
+        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+        {
+            const sl::Thruster &t = b.thrusters[static_cast<std::size_t>(i)];
+            const std::size_t k = static_cast<std::size_t>(i);
+            if (thruster_rcs_[k])
+                continue;
+            std::string mine;
+            if (thruster_pod_[k] >= 0)
+                mine = t.position.x < 0.0 ? "pod-left" : "pod-right";
+            else if (thruster_hover_[k])
+                mine = t.position.z < 0.0 ? "hover-front" : "hover-aft";
+            else
+                mine = t.position.x < 0.0 ? "main-left" : "main-right";
+            if (mine != role)
+                continue;
+            const bool fed = t.tank < 0 || b.tanks[static_cast<std::size_t>(t.tank)].mass > 0.0;
+            const double lvl = fed ? t.level : 0.0;
+            level += lvl;
+            ++count;
+            sum += (what == "thrust" || what == "accel") ? lvl * t.max_thrust : t.isp > 0.0 ? lvl * t.max_thrust / (t.isp * g0) : 0.0;
+        }
+        if (what == "accel")
+            return b.mass() > 0.0 ? sum / b.mass() : 0.0;
+        return what == "level" ? (count ? level / count : 0.0) : sum;
+    }
+
+    bool Ship::rcs_dry() const
+    {
+        return spec_.rcs_propellant > 0.0 && rcs_fuel_ <= 0.0;
+    }
+
+    void Ship::use_rcs_propellant(double dt)
+    {
+        rcs_flow_ = 0.0;
+        if (spec_.rcs_propellant <= 0.0 || dt <= 0.0)
+            return;
+        const double activity = std::min(1.0, 0.3 * (std::fabs(rcs_torque_.x) + std::fabs(rcs_torque_.y) + std::fabs(rcs_torque_.z))) + glm::length(rcs_push_);
+        rcs_flow_ = activity * std::max(spec_.rcs_thrust, 1000.0) / (spec_.rcs_isp * g0);
+        rcs_fuel_ = std::max(0.0, rcs_fuel_ - rcs_flow_ * dt);
     }
 
     void Ship::apply_rcs_mode(Controls &c) const
@@ -1312,6 +1386,8 @@ namespace kosmos
 
     void Ship::apply_rcs(const Controls &c)
     {
+        if (rcs_dry())
+            return;
         sl::FlightBody &b = body();
         rcs_push_ = sl::dvec3(0.0);
         if (explicit_rcs_)
@@ -1606,6 +1682,70 @@ namespace kosmos
         step_parachutes(dt, air, rho);
     }
 
+    void Ship::update_ground_track()
+    {
+        const Telemetry &t = telemetry_;
+        const double now = universe_.time();
+        if (t.soi == track_.soi && std::fabs(now - track_.stamp) < 2.0)
+            return;
+        track_.stamp = now;
+        track_.soi = t.soi;
+        track_.count = 0;
+        track_.impact = false;
+        const Body &planet = universe_.bodies[static_cast<std::size_t>(t.soi)];
+        const sl::FlightBody &pb = *universe_.world.body(t.soi);
+        const sl::FlightBody &b = body();
+        if (planet.gm <= 0.0)
+            return;
+        sl::dvec3 r = b.position - pb.position, v = b.velocity - pb.velocity;
+        const double mu = planet.gm;
+        const double rmag0 = glm::length(r);
+        const double energy = 0.5 * glm::dot(v, v) - mu / rmag0;
+        // One orbit when bound, otherwise a stretch of the escape trajectory.
+        double span = energy < 0.0 ? 2.0 * pi * std::sqrt(std::pow(-mu / (2.0 * energy), 3.0) / mu) : 2.0 * 3600.0;
+        span = std::min(span, 40.0 * 86400.0);
+        const double step = std::min(span / 2000.0, 0.02 * std::sqrt(rmag0 * rmag0 * rmag0 / mu));
+        const sl::dquat tilt_inv = glm::inverse(planet.axis_tilt);
+        const double angle0 = universe_.rotation_angle(t.soi);
+        const auto accel = [&](const sl::dvec3 &p) { return p * (-mu / std::pow(glm::length(p), 3.0)); };
+        const auto record = [&](const sl::dvec3 &p, double dt, double &lat, double &lon)
+        {
+            const sl::dvec3 local = glm::inverse(glm::angleAxis(angle0 + planet.spin * dt, sl::dvec3(0.0, 1.0, 0.0))) * (tilt_inv * p);
+            lat = std::asin(std::clamp(local.y / glm::length(local), -1.0, 1.0)) * 180.0 / pi;
+            lon = std::atan2(-local.z, local.x) * 180.0 / pi;
+        };
+        record(r, 0.0, track_.lat[0], track_.lon[0]);
+        track_.count = 1;
+        const double sample = span / track_points;
+        double elapsed = 0.0, next = sample;
+        const long max_steps = 4000;
+        for (long n = 0; n < max_steps && track_.count <= track_points; ++n)
+        {
+            const sl::dvec3 k1v = accel(r), k1r = v;
+            const sl::dvec3 k2v = accel(r + k1r * (step * 0.5)), k2r = v + k1v * (step * 0.5);
+            const sl::dvec3 k3v = accel(r + k2r * (step * 0.5)), k3r = v + k2v * (step * 0.5);
+            const sl::dvec3 k4v = accel(r + k3r * step), k4r = v + k3v * step;
+            r += (k1r + 2.0 * k2r + 2.0 * k3r + k4r) * (step / 6.0);
+            v += (k1v + 2.0 * k2v + 2.0 * k3v + k4v) * (step / 6.0);
+            elapsed += step;
+            if (glm::length(r) <= planet.radius)
+            {
+                track_.impact = true;
+                track_.impact_time = elapsed;
+                record(r, elapsed, track_.impact_lat, track_.impact_lon);
+                record(r, elapsed, track_.lat[track_.count], track_.lon[track_.count]);
+                ++track_.count;
+                break;
+            }
+            if (elapsed >= next)
+            {
+                record(r, elapsed, track_.lat[track_.count], track_.lon[track_.count]);
+                ++track_.count;
+                next += sample;
+            }
+        }
+    }
+
     void Ship::update_telemetry()
     {
         Telemetry &t = telemetry_;
@@ -1660,6 +1800,7 @@ namespace kosmos
             t.longitude = std::atan2(-local_pos.z, local_pos.x) * 180.0 / pi;
             t.body_radius = planet.radius;
         }
+        update_ground_track();
 
         sl::OrbitElements el;
         t.bound = false;
@@ -1725,6 +1866,10 @@ namespace kosmos
         t.twr = b.mass() > 0.0 ? t.max_thrust / (b.mass() * g_local) : 0.0;
         t.acceleration_g = t.thrust / (b.mass() * g0);
         t.stage_fuel = b.tanks[static_cast<std::size_t>(active_stage_)].mass;
+        fuel_flow_ = 0.0;
+        for (const sl::Thruster &th : b.thrusters)
+            if (th.level > 0.0 && th.tank == active_stage_ && th.isp > 0.0 && b.tanks[static_cast<std::size_t>(th.tank)].mass > 0.0)
+                fuel_flow_ += th.level * th.max_thrust / (th.isp * g0);
         t.total_fuel = 0.0;
         for (const sl::PropellantTank &tank : b.tanks)
             t.total_fuel += tank.mass;
@@ -1993,12 +2138,37 @@ namespace kosmos
         num("max-thrust", [this] { return telemetry_.max_thrust; });
         num("acceleration-g", [this] { return telemetry_.acceleration_g; });
         num("stage-fuel", [this] { return telemetry_.stage_fuel; });
+        num("stage-fuel-capacity", [this] { return active_stage_ < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(active_stage_)].propellant : 0.0; });
+        num("stage-fuel-percent", [this] {
+            const double cap = active_stage_ < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(active_stage_)].propellant : 0.0;
+            return cap > 0.0 ? 100.0 * telemetry_.stage_fuel / cap : 0.0;
+        });
+        num("rcs-fuel-percent", [this] { return spec_.rcs_propellant > 0.0 ? 100.0 * rcs_fuel_ / spec_.rcs_propellant : 0.0; });
+        num("fuel-flow", [this] { return fuel_flow_; });
+        num("rcs-fuel", [this] { return rcs_fuel_; });
+        num("rcs-fuel-capacity", [this] { return spec_.rcs_propellant; });
+        for (const char *role : {"main-left", "main-right", "hover-front", "hover-aft", "pod-left", "pod-right"})
+            for (const char *what : {"thrust", "level", "flow", "accel"})
+                tree.node(base + "/engine/" + role + "/" + what)->tie_double([this, role = std::string(role), what = std::string(what)] { return engine_value(role, what); });
+        num("rcs-flow", [this] { return rcs_flow_; });
         num("total-fuel", [this] { return telemetry_.total_fuel; });
         num("orbit/apoapsis", [this] { return telemetry_.apoapsis; });
         num("orbit/periapsis", [this] { return telemetry_.periapsis; });
         num("orbit/eccentricity", [this] { return telemetry_.eccentricity; });
         num("orbit/inclination", [this] { return telemetry_.inclination; });
         num("latitude", [this] { return telemetry_.latitude; });
+        num("map/points", [this] { return static_cast<double>(track_.count); });
+        num("map/impact", [this] { return track_.impact ? 1.0 : 0.0; });
+        num("map/impact-latitude", [this] { return track_.impact_lat; });
+        num("map/impact-longitude", [this] { return track_.impact_lon; });
+        num("map/impact-time", [this] { return track_.impact_time; });
+        num("map/body-spin", [this] { return universe_.bodies[static_cast<std::size_t>(telemetry_.soi)].spin; });
+        for (int i = 0; i <= track_points; ++i)
+        {
+            const std::string at = "map/point[" + std::to_string(i) + "]/";
+            num((at + "lat").c_str(), [this, i] { return track_.lat[i]; });
+            num((at + "lon").c_str(), [this, i] { return track_.lon[i]; });
+        }
         num("longitude", [this] { return telemetry_.longitude; });
         num("body-radius", [this] { return telemetry_.body_radius; });
         num("orbit/semi-major-axis", [this] { return telemetry_.semi_major_axis; });

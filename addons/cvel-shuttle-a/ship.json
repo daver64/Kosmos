@@ -1,7 +1,10 @@
 {
  "name": "CVEL Shuttle-A",
  "class": "transfer",
- "locker": ["plasma_rifle", "frag_charge"],
+ "locker": [
+  "plasma_rifle",
+  "frag_charge"
+ ],
  "torque_accel": 0.15,
  "max_rate": 0.35,
  "rcs_thrust": 18000,
@@ -254,8 +257,16 @@
      "group": "hover"
     },
     {
-     "position": [-6.97215, 0, 0],
-     "direction": [0, 0, 1],
+     "position": [
+      -6.97215,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
      "thrust": 770000,
      "isp": 3364,
      "isp_sl": 3058,
@@ -268,8 +279,16 @@
      "group": "pod"
     },
     {
-     "position": [6.97215, 0, 0],
-     "direction": [0, 0, 1],
+     "position": [
+      6.97215,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      0,
+      1
+     ],
      "thrust": 770000,
      "isp": 3364,
      "isp_sl": 3058,
@@ -307,7 +326,7 @@
    "parts": [
     {
      "model": "models/shuttlea.obj",
-    "animations": "pods.json"
+     "animations": "pods.json"
     }
    ]
   }
@@ -322,8 +341,8 @@
  "cockpit": {
   "eye": [
    -0.575,
-   2.4,
-   -15.9
+   2.45,
+   -15.5
   ],
   "mfds": true,
   "mfd_left": "orbit",
@@ -363,6 +382,113 @@
       "y": 126,
       "w": 30,
       "h": 38
+     },
+     {
+      "type": "bar",
+      "property": "{ship}/rcs-fuel-percent",
+      "max": 100,
+      "x": 182,
+      "y": 44,
+      "w": 28,
+      "h": 25
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/rcs-fuel",
+      "format": "%.0f",
+      "x": 186,
+      "y": 50,
+      "w": 22
+     },
+     {
+      "type": "bar",
+      "property": "{ship}/stage-fuel-percent",
+      "min": 20,
+      "max": 100,
+      "x": 233,
+      "y": 44,
+      "w": 29,
+      "h": 50,
+      "gate_property": "{ship}/stage-fuel-percent",
+      "gate_min": 20
+     },
+     {
+      "type": "bar",
+      "property": "{ship}/stage-fuel-percent",
+      "min": 20,
+      "max": 100,
+      "x": 271,
+      "y": 44,
+      "w": 29,
+      "h": 50,
+      "gate_property": "{ship}/stage-fuel-percent",
+      "gate_min": 20
+     },
+     {
+      "type": "bar",
+      "property": "{ship}/stage-fuel-percent",
+      "max": 20,
+      "x": 266,
+      "y": 230,
+      "w": 29,
+      "h": 39,
+      "gate_property": "{ship}/stage-fuel-percent",
+      "gate_max": 20
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/hover-front/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 102,
+      "w": 18
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/hover-aft/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 132,
+      "w": 18
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/pod-right/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 161,
+      "w": 18
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/pod-left/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 190,
+      "w": 18
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/main-left/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 218,
+      "w": 18
+     },
+     {
+      "type": "number",
+      "h": 8,
+      "property": "{ship}/engine/main-right/flow",
+      "format": "%.1f",
+      "x": 189,
+      "y": 248,
+      "w": 18
      }
     ]
    }
@@ -746,17 +872,272 @@
     "w": 80,
     "h": 183
    },
-   {"type": "slider", "property": "/controls/pod-left", "x": 423, "y": 258, "w": 17, "h": 92},
-   {"type": "slider", "property": "/controls/pod-right", "x": 441, "y": 258, "w": 17, "h": 92},
-   {"type": "slider", "property": "/controls/pod-tilt-left", "x": 522, "y": 267, "w": 19, "h": 36},
-   {"type": "slider", "property": "/controls/pod-tilt-right", "x": 552, "y": 267, "w": 19, "h": 36},
-   {"type": "button", "property": "/controls/pod-tilt", "value": "1", "x": 605, "y": 253, "w": 42, "h": 15},
-   {"type": "button", "property": "/controls/pod-tilt", "value": "0.5", "x": 605, "y": 271, "w": 42, "h": 15},
-   {"type": "button", "property": "/controls/pod-tilt", "value": "0", "x": 605, "y": 289, "w": 42, "h": 14},
-   {"type": "button", "property": "/controls/rcs-mode", "value": "lin", "x": 719, "y": 62, "w": 21, "h": 14},
-   {"type": "button", "property": "/controls/rcs-mode", "value": "rot", "x": 719, "y": 76, "w": 21, "h": 12},
-   {"type": "button", "property": "/controls/rcs-mode", "value": "off", "x": 719, "y": 88, "w": 21, "h": 14}
-  ]
+   {
+    "type": "slider",
+    "property": "/controls/pod-left",
+    "x": 423,
+    "y": 258,
+    "w": 17,
+    "h": 92
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-right",
+    "x": 441,
+    "y": 258,
+    "w": 17,
+    "h": 92
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-tilt-left",
+    "x": 522,
+    "y": 267,
+    "w": 19,
+    "h": 36
+   },
+   {
+    "type": "slider",
+    "property": "/controls/pod-tilt-right",
+    "x": 552,
+    "y": 267,
+    "w": 19,
+    "h": 36
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "1",
+    "x": 605,
+    "y": 253,
+    "w": 42,
+    "h": 15
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "0.5",
+    "x": 605,
+    "y": 271,
+    "w": 42,
+    "h": 15
+   },
+   {
+    "type": "button",
+    "property": "/controls/pod-tilt",
+    "value": "0",
+    "x": 605,
+    "y": 289,
+    "w": 42,
+    "h": 14
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/main-left/level",
+    "max": 1,
+    "cx": 613,
+    "cy": 76,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/main-left/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 582,
+    "y": 88,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/main-left/accel",
+    "format": "%.1f",
+    "x": 582,
+    "y": 98,
+    "w": 19
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/main-right/level",
+    "max": 1,
+    "cx": 679,
+    "cy": 76,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/main-right/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 648,
+    "y": 88,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/main-right/accel",
+    "format": "%.1f",
+    "x": 648,
+    "y": 98,
+    "w": 19
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/hover-front/level",
+    "max": 1,
+    "cx": 613,
+    "cy": 143,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/hover-front/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 582,
+    "y": 155,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/hover-front/accel",
+    "format": "%.1f",
+    "x": 582,
+    "y": 165,
+    "w": 19
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/hover-aft/level",
+    "max": 1,
+    "cx": 679,
+    "cy": 143,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/hover-aft/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 648,
+    "y": 155,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/hover-aft/accel",
+    "format": "%.1f",
+    "x": 648,
+    "y": 165,
+    "w": 19
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/pod-left/level",
+    "max": 1,
+    "cx": 613,
+    "cy": 210,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/pod-left/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 582,
+    "y": 222,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/pod-left/accel",
+    "format": "%.1f",
+    "x": 582,
+    "y": 232,
+    "w": 19
+   },
+   {
+    "type": "needle",
+    "property": "{ship}/engine/pod-right/level",
+    "max": 1,
+    "cx": 679,
+    "cy": 210,
+    "r": 27,
+    "a0": -90,
+    "a1": 180
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/pod-right/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 648,
+    "y": 222,
+    "w": 19
+   },
+   {
+    "type": "number",
+    "h": 8,
+    "property": "{ship}/engine/pod-right/accel",
+    "format": "%.1f",
+    "x": 648,
+    "y": 232,
+    "w": 19
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "lin",
+    "style": "lever",
+    "x": 719,
+    "y": 62,
+    "w": 21,
+    "h": 14
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "rot",
+    "style": "lever",
+    "x": 719,
+    "y": 76,
+    "w": 21,
+    "h": 12
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "off",
+    "style": "lever",
+    "x": 719,
+    "y": 88,
+    "w": 21,
+    "h": 14
+   }
+  ],
+  "vc_model": "../cvel-shuttle-a/models/shuttlea_vc.obj",
+  "pitch": -20
  },
  "cameras": [
   {
@@ -867,5 +1248,6 @@
    "period": 1.6,
    "phase": 0.5
   }
- ]
+ ],
+ "rcs_propellant": 2700
 }

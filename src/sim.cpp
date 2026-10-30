@@ -338,6 +338,16 @@ namespace kosmos
         }
         for (const std::string &e : errors)
             log("user " + e);
+        props.set_int("/sim/bases/count", static_cast<int>(bases.size()));
+        for (std::size_t i = 0; i < bases.size(); ++i)
+        {
+            const std::string at = "/sim/bases/base[" + std::to_string(i) + "]/";
+            props.set_string(at + "id", bases[i].id);
+            props.set_string(at + "name", bases[i].name);
+            props.set_string(at + "body", bases[i].body);
+            props.set_double(at + "latitude", bases[i].latitude);
+            props.set_double(at + "longitude", bases[i].longitude);
+        }
     }
 
     void Sim::add_scenario(Scenario scenario)
