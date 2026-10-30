@@ -1,0 +1,15 @@
+{
+ "name": "CVEL: Lunar Rover, Tranquility",
+ "description": "The CVEL Lunar Rover, a six-wheeled pressurised rover, parked at the Tranquility outpost. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer the front and rear wheels, B brakes. It parks itself on its brakes when the throttle is at zero.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Lunar Rover",
+   "body": "Moon",
+   "surface": {
+    "base": "tranquility"
+   }
+  }
+ ],
+ "date": "2024-01-01 00:00:00"
+}

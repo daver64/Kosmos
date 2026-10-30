@@ -321,7 +321,8 @@ namespace kosmos::app
         if (!typing && !on_foot && keys.down("throttle_down"))
         {
             props.set_bool("/autopilot/enabled", false);
-            props.set_double("/controls/throttle", std::max(0.0, throttle - throttle_rate));
+            // A wheeled vehicle's throttle goes below zero to reverse.
+            props.set_double("/controls/throttle", std::max(ship->spec().ground() ? -1.0 : 0.0, throttle - throttle_rate));
         }
         const double hover = props.get_double("/controls/hover");
         if (!typing && !on_foot && keys.down("hover_up"))

@@ -28,6 +28,16 @@ namespace kosmos::app
             sl::transform_mesh_data(data, turn);
             return true;
         }
+        else if (part.prop == "lunar_rover")
+        {
+            // The prop faces +Z with its wheels on y = 0; turn it to face the ship's -Z and lower the origin to the centre of mass,
+            // about 0.8 m up on a 3.5 m rover.
+            data = sl::make_lunar_rover_data(part.length, body);
+            glm::mat4 turn = glm::rotate(glm::mat4(1.0f), 3.14159265f, glm::vec3(0.0f, 1.0f, 0.0f));
+            turn[3] = glm::vec4(0.0f, -0.8f * part.length / 3.5f, part.z, 1.0f);
+            sl::transform_mesh_data(data, turn);
+            return true;
+        }
         else
         {
             std::fprintf(stderr, "[kosmos] unknown prop part '%s'\n", part.prop.c_str());

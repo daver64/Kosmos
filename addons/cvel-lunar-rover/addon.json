@@ -1,0 +1,6 @@
+{
+  "id": "cvel-lunar-rover",
+  "name": "CVEL Lunar Rover",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

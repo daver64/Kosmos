@@ -1,0 +1,41 @@
+{
+ "name": "CVEL Lunar Rover",
+ "class": "ground",
+ "torque_accel": 0.0,
+ "drag_area": 2.0,
+ "camera_distance": 12,
+ "camera_target": [0, 0.5, 0],
+ "inertia": [3600, 4200, 1700],
+ "ground": { "drive_force": 6000, "max_speed": 12 },
+ "cockpit": { "eye": [0, 0.55, -1.0], "yaw": 0, "pitch": 0 },
+ "lights": [
+  { "position": [0.5, 0.2, -1.6], "colour": [255, 250, 230], "intensity": 2.5, "range": 60, "glow": 0.3 },
+  { "position": [-0.5, 0.2, -1.6], "colour": [255, 250, 230], "intensity": 2.5, "range": 60, "glow": 0.3 }
+ ],
+ "wheels": [
+  { "position": [1.05, -0.8, -1.2], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.05, -0.8, -1.2], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.05, -0.8, 0], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.05, -0.8, 0], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.05, -0.8, 1.2], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.05, -0.8, 1.2], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 }
+ ],
+ "stages": [
+  {
+   "name": "Rover",
+   "dry_mass": 3000,
+   "propellant": 0,
+   "z": 0,
+   "length": 3.5,
+   "radius": 1.2,
+   "parts": [
+    { "prop": "lunar_rover", "length": 3.5, "z": 0 }
+   ]
+  }
+ ],
+ "systems": [
+  { "type": "battery", "name": "Battery", "capacity_wh": 8000, "max_w": 3000 },
+  { "type": "solar", "name": "Solar panel", "area_m2": 2, "efficiency": 0.28, "facing": [0, 1, 0] },
+  { "type": "load", "name": "Avionics", "watts": 60, "priority": 0 }
+ ]
+}

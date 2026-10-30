@@ -250,6 +250,7 @@ namespace kosmos
                 WheelSpec w;
                 w.position = vec3(jw.value("position", nlohmann::json()), w.position);
                 w.steer = jw.value("steer_deg", 0.0) * pi / 180.0;
+                w.drive = jw.value("drive", false);
                 w.rolling_resistance = jw.value("rolling_resistance", w.rolling_resistance);
                 spec.wheels.push_back(w);
             }
@@ -259,7 +260,12 @@ namespace kosmos
                 spec.has_camera_target = true;
                 spec.camera_target = vec3(json["camera_target"], spec.camera_target);
             }
-            spec.horizontal = json.value("horizontal", false);
+            spec.horizontal = json.value("horizontal", spec.ground());
+            if (json.contains("ground") && json["ground"].is_object())
+            {
+                spec.ground_force = json["ground"].value("drive_force", spec.ground_force);
+                spec.ground_max_speed = json["ground"].value("max_speed", spec.ground_max_speed);
+            }
             if (spec.building() && json.contains("interior"))
             {
                 std::string error;
@@ -725,7 +731,7 @@ namespace kosmos
                 height += std::fabs(g.position.z) / gear_count;
                 spread += (g.position.x * g.position.x + g.position.y * g.position.y) / gear_count;
             }
-            gear_k_ = mass * surface_gravity / ((spec_.aircraft() ? 0.12 : 0.3) * gear_count);
+            gear_k_ = mass * surface_gravity / ((spec_.aircraft() || spec_.ground() ? 0.12 : 0.3) * gear_count);
             if (spread > 1e-6 && !level)
                 gear_k_ = std::max(gear_k_, 6.0 * mass * surface_gravity * height / (gear_count * spread));
             compression = mass * surface_gravity / (gear_count * gear_k_);
@@ -1090,6 +1096,39 @@ namespace kosmos
         }
     }
 
+    void Ship::apply_ground_controls(const Controls &c)
+    {
+        sl::FlightBody &b = body();
+        const sl::FlightBody *planet = telemetry_.soi >= 0 ? universe_.world.body(telemetry_.soi) : nullptr;
+        double forward_speed = 0.0;
+        if (planet)
+        {
+            const sl::dvec3 ground_velocity = planet->velocity + glm::cross(planet->spin_axis * planet->spin_rate, b.position - planet->position);
+            forward_speed = glm::dot(b.velocity - ground_velocity, b.direction_to_world({0.0, 0.0, -1.0}));
+        }
+        const double throttle = std::clamp(c.throttle, -1.0, 1.0);
+        int driven = 0;
+        for (const WheelSpec &w : spec_.wheels)
+            driven += w.drive ? 1 : 0;
+        // The drive fades as the vehicle nears its top speed in the direction it is being driven.
+        const double taper = std::clamp(1.0 - forward_speed * (throttle < 0.0 ? -1.0 : 1.0) / std::max(spec_.ground_max_speed, 0.1), 0.0, 1.0);
+        const double per_wheel = driven > 0 ? throttle * spec_.ground_force * taper / driven : 0.0;
+        // Steering is eased off with speed so the vehicle does not roll over in a turn.
+        const double lock = std::clamp(1.0 - 0.6 * std::fabs(forward_speed) / std::max(spec_.ground_max_speed, 0.1), 0.4, 1.0);
+        const std::size_t first = b.gear.size() - spec_.wheels.size();
+        for (std::size_t i = 0; i < spec_.wheels.size(); ++i)
+        {
+            const double angle = spec_.wheels[i].steer * lock * std::clamp(c.yaw, -1.0, 1.0);
+            b.gear[first + i].forward = {-std::sin(angle), 0.0, -std::cos(angle)};
+            b.gear[first + i].drive_force = spec_.wheels[i].drive ? per_wheel : 0.0;
+        }
+        for (sl::Thruster &t : b.thrusters)
+            t.level = 0.0;
+        // Parked on its brakes when idle and nearly still; otherwise only the pedal brakes.
+        const bool parked = std::fabs(throttle) < 0.02 && std::fabs(forward_speed) < 1.0;
+        universe_.world.set_brakes(body_, std::max(c.brake, parked ? 1.0 : 0.0));
+    }
+
     void Ship::apply_controls(const Controls &input, double dt)
     {
         Controls c = input;
@@ -1138,6 +1177,11 @@ namespace kosmos
                 g.enabled = locked;
         }
 
+        if (spec_.ground())
+        {
+            apply_ground_controls(c);
+            return;
+        }
         if (c.stage)
             stage_once();
         const double throttle = std::clamp(c.throttle, 0.0, 1.0);

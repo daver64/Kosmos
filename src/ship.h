@@ -86,6 +86,8 @@ namespace kosmos
         sl::dvec3 position{0.0};
         double steer = 0.0;
         double rolling_resistance = 0.02;
+        /** A driven wheel shares the vehicle's drive force (ground vehicles only). */
+        bool drive = false;
     };
 
     /** A solid of revolution about the Z axis, from (z, radius) points, drawn in a flat colour. */
@@ -343,6 +345,10 @@ namespace kosmos
         /** Buildings with the same grid name at a base share one power bus. */
         std::string grid;
         bool aircraft() const { return kind == "aircraft"; }
+        /** A wheeled vehicle: it drives on its wheels with throttle from -1 (reverse) to 1, and has no SAS or orbital instruments. */
+        bool ground() const { return kind == "ground"; }
+        /** Ground vehicles: total drive force in N over the driven wheels, and the speed in m/s where it fades to nothing. */
+        double ground_force = 0.0, ground_max_speed = 15.0;
         bool has_pods() const
         {
             for (const StageSpec &st : stages)
@@ -364,7 +370,7 @@ namespace kosmos
         {
             if (!cockpit.hud_modes.empty())
                 return cockpit.hud_modes;
-            if (aircraft())
+            if (aircraft() || ground())
                 return {"surface"};
             return {"orbit", "surface", "docking"};
         }
@@ -374,7 +380,7 @@ namespace kosmos
             const std::string &f = cockpit.mfd_filter;
             if (f == "atmosphere" || f == "space")
                 return f;
-            return f == "none" ? "any" : aircraft() ? "atmosphere" : "space";
+            return f == "none" ? "any" : aircraft() || ground() ? "atmosphere" : "space";
         }
     };
 
@@ -563,6 +569,7 @@ namespace kosmos
         sl::dvec3 target_direction(const Controls &controls, bool &valid) const;
         void apply_attitude(const Controls &controls, double dt);
         void apply_flight_controls(const Controls &controls);
+        void apply_ground_controls(const Controls &controls);
         void drop_stage(int index);
         /** Moves the body's centre of mass to that of the stages left, keeping every point of the ship where it was. */
         void recentre();
