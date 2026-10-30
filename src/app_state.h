@@ -184,6 +184,7 @@ namespace kosmos::app
         bool systems_window{};
         bool camera_window{};
         bool settings_window{};
+        bool performance_window{};
         bool property_window{};
         bool lua_window{};
         bool net_window{};
@@ -376,6 +377,12 @@ namespace kosmos::app
         void update_clutter();
         void report_clutter_perf();
         void draw_world();
+        void setup_depth_layers();
+        void setup_environment();
+        void setup_local_sky();
+        void draw_building_panel_target();
+        void render_panel_target(const kosmos::Cockpit &pcp, const std::string &directory);
+        void draw_cockpit_targets();
         void draw_orbit_line();
         void draw_head_up();
         void draw_eva_overlay();
@@ -407,6 +414,10 @@ namespace kosmos::app
         void scene_star_glare();
         void draw_comet(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const sl::Light3D &body_light);
         void draw_body(std::size_t i, const sl::Light3D &body_light);
+        void draw_terrain_body_weather(std::size_t i, const kosmos::Body &b);
+        void draw_body_surface(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const glm::mat4 &model, sl::Material &rock);
+        void draw_body_layers(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, double distance, const glm::dquat &sphere_flip, const sl::Light3D &body_light);
+        void draw_body_rings(std::size_t i, const kosmos::Body &b, const glm::mat4 &body_frame);
         void scene_bodies();
         void draw_ship_interior(int s, Ship &other, const sl::FlightBody &ob, const glm::mat4 &model);
         void draw_ship_cockpit3d(Ship &other, const sl::FlightBody &ob, const glm::mat4 &model);
@@ -427,7 +438,10 @@ namespace kosmos::app
     void shutdown_link();
     void refresh_menu_keys();
     void settings_graphics();
+    void settings_weather();
+    void settings_clutter();
     void settings_worlds();
+    void draw_performance_window();
     void draw_settings_window();
     void part_converted_mesh(kosmos::ShipSpec &fspec);
     void part_paused_controls();

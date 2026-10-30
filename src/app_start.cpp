@@ -401,6 +401,15 @@ namespace kosmos::app
             sl::shutdown();
             return -1;
         }
+        settings_defaults(sim.props);
+        settings_load(sim.props);
+        if (options.world_texture >= 0)
+            sim.props.set_int("/sim/settings/world-texture", options.world_texture);
+        if (options.max_texture < 0)
+        {
+            const int saved = sim.props.get_int("/sim/settings/max-texture");
+            options.max_texture = saved > 0 ? saved : 16384;
+        }
         loading.note("Loading Earth's clouds and night lights");
         // Orbiter's Earth cloud and night-light layers, when imported with tools/orbiter_import.py.
         if (sl::Bitmap *clouds = load_optional_texture(find_texture_file(sim.root(), "earth_clouds", {".dds"}), options.max_texture))

@@ -156,6 +156,8 @@ namespace kosmos::app
                 options.spacecraft_autopilot = true;
             else if (!std::strcmp(argv[i], "--settings-window"))
                 options.settings_window = true;
+            else if (!std::strcmp(argv[i], "--performance-window"))
+                options.performance_window = true;
             else if (!std::strcmp(argv[i], "--keys-window"))
                 options.keys_window = true;
             else if (!std::strcmp(argv[i], "--link-window"))

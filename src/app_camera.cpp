@@ -349,7 +349,7 @@ namespace kosmos::app
         last_mouse_y = my;
         {
             // On foot the mouse steers the view like a first-person game; the ` key, Alt, or any open window gives the pointer back.
-            const bool windows_open = camera_window || settings_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
+            const bool windows_open = camera_window || settings_window || performance_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
             const bool free_pointer = windows_open || pointer_free || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
             const bool capture = in_eva && options.shot.empty() && !free_pointer;
             if (capture != mouse_captured)
@@ -723,6 +723,7 @@ namespace kosmos::app
         sl::PropertyTree &props = *props_ref;
         const bool clutter_on = props.get_bool("/sim/settings/gfx-clutter", true) && !options.no_clutter;
         const double clutter_density = std::clamp(props.get_int("/sim/settings/gfx-clutter-density", 100), 10, 200) / 100.0;
+        const double clutter_range = std::clamp(props.get_int("/sim/settings/gfx-clutter-radius", 100), 25, 200) / 100.0;
         for (std::size_t k = 0; k < body_terrains.size(); ++k)
         {
             BodyTerrain &bt = *body_terrains[k];
@@ -747,7 +748,7 @@ namespace kosmos::app
             }
             if (!bt.clutter_live)
                 continue;
-            if (bt.clutter && bt.clutter_density != clutter_density)
+            if (bt.clutter && (bt.clutter_density != clutter_density || bt.clutter_range != clutter_range))
                 bt.clutter.reset();
             if (!bt.clutter)
             {
@@ -757,10 +758,12 @@ namespace kosmos::app
                 world.zones = bt.clutter_zones;
                 world.land = bt.landclass;
                 world.density = clutter_density;
+                world.range = clutter_range;
                 world.near_direction = glm::normalize(glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis())) * eye_rel);
                 world.root = sim.root();
                 bt.clutter = kosmos::make_clutter(*bt.terrain, world);
                 bt.clutter_density = clutter_density;
+                bt.clutter_range = clutter_range;
             }
             if (!bt.clutter)
             {

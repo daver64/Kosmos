@@ -2,13 +2,54 @@
 
 namespace kosmos::app
 {
-    // The 3D scene.
-    void App::draw_world()
+    // Wall panels in a building the astronaut is inside show its interface, drawn live into a texture.
+    void App::draw_building_panel_target()
     {
-    kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
-    const kosmos::Telemetry &tm = *tm_ref;
-    const kosmos::Body &soi_body = *soi_body_ref;
+        if (!(in_eva && eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior &&
+              !sim.ship(eva.building)->spec().interior->panels().empty() && !sim.ship(eva.building)->spec().cockpit.controls.empty()))
+            return;
+        const Ship &bld = *sim.ship(eva.building);
+        render_panel_target(resolved_cockpit(bld.spec().cockpit, eva.building), bld.spec().directory);
+    }
+
+    void App::render_panel_target(const kosmos::Cockpit &pcp, const std::string &directory)
+    {
+        const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
+        if (!panel_target || wanted != panel_target_height)
+            panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
+        if (panel_target)
+            panel_target->smooth = true;
+        if (panel_target && sl::begin_render_target(panel_target))
+        {
+            sl::clear_render_target({18, 20, 26, 255});
+            draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(directory) / pcp.panel_image).string(), 0.0f, 0.0f,
+                       static_cast<float>(panel_target_width) / pcp.panel_width);
+            sl::end_render_target();
+        }
+    }
+
+    void App::draw_cockpit_targets()
+    {
+        if (!in_cockpit3d)
+            return;
+        sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
+        sim.mfd.update(frame);
+        const kosmos::Cockpit pcp = resolved_cockpit(ship->spec().cockpit, props_ref->get_int("/sim/active-ship"));
+        if (pcp.instruments.empty() && pcp.controls.empty())
+        {
+            for (int side = 0; side < 2; ++side)
+                sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+        }
+        else
+            render_panel_target(pcp, ship->spec().directory);
+    }
+
+
+    // Out in space the planets and the ships are drawn with separate near planes; this picks them.
+    void App::setup_depth_layers()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
         // As Orbiter does: out in space the planets are drawn first with a near plane set by the nearest body, then the depth buffer
         // is cleared and the ships go over them with their own near plane, so neither range has to share one depth buffer.
         layered = depth_layers_work && !in_interior && !in_base_cam && !in_user_mounted && eye_soi_altitude > 20.0e3;
@@ -26,7 +67,14 @@ namespace kosmos::app
         ship_camera = camera;
         ship_camera.near_plane = static_cast<float>(ship_near);
         ship_camera.far_plane = 1.0e8f;
+    }
 
+    void App::setup_environment()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
+        const kosmos::Telemetry &tm = *tm_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
         environment = sl::Environment3D();
         environment.sun_direction = -to_sun;
         environment.up = glm::vec3(glm::normalize(eye_from_earth));
@@ -47,6 +95,14 @@ namespace kosmos::app
                 environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / visibility));
         }
 
+        setup_local_sky();
+    }
+
+    void App::setup_local_sky()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        const kosmos::Telemetry &tm = *tm_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
         local_sky = !near_earth && !home && soi_body.kind != kosmos::BodyKind::star && soi_body.atmosphere_density > 0.001 &&
                     eye_soi_altitude < soi_body.atmosphere_scale_height * 14.0;
         if (local_sky)
@@ -70,52 +126,15 @@ namespace kosmos::app
             environment.fog_enabled = true;
             environment.fog_density = 1.0e-4f * strength;
         }
+    }
 
-        if (in_eva && eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().interior &&
-            !sim.ship(eva.building)->spec().interior->panels().empty() && !sim.ship(eva.building)->spec().cockpit.controls.empty())
-        {
-            // Wall panels show the building's interface, drawn live into a texture.
-            const Ship &bld = *sim.ship(eva.building);
-            const kosmos::Cockpit pcp = resolved_cockpit(bld.spec().cockpit, eva.building);
-            const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
-            if (!panel_target || wanted != panel_target_height)
-                panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
-            if (panel_target)
-                panel_target->smooth = true;
-            if (panel_target && sl::begin_render_target(panel_target))
-            {
-                sl::clear_render_target({18, 20, 26, 255});
-                draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(bld.spec().directory) / pcp.panel_image).string(),
-                           0.0f, 0.0f, static_cast<float>(panel_target_width) / pcp.panel_width);
-                sl::end_render_target();
-            }
-        }
-        if (in_cockpit3d)
-        {
-            sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
-            sim.mfd.update(frame);
-            const kosmos::Cockpit pcp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
-            if (pcp.instruments.empty() && pcp.controls.empty())
-            {
-                for (int side = 0; side < 2; ++side)
-                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
-            }
-            else
-            {
-                const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
-                if (!panel_target || wanted != panel_target_height)
-                    panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
-                if (panel_target)
-                    panel_target->smooth = true;
-                if (panel_target && sl::begin_render_target(panel_target))
-                {
-                    sl::clear_render_target({18, 20, 26, 255});
-                    draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / pcp.panel_image).string(),
-                               0.0f, 0.0f, static_cast<float>(panel_target_width) / pcp.panel_width);
-                    sl::end_render_target();
-                }
-            }
-        }
+    // The 3D scene.
+    void App::draw_world()
+    {
+        setup_depth_layers();
+        setup_environment();
+        draw_building_panel_target();
+        draw_cockpit_targets();
         if (sl::begin_surface_3d(surface, camera))
         {
             sl::clear_surface_3d({0, 0, 0, 255});
@@ -134,7 +153,7 @@ namespace kosmos::app
         sl::clear_to_colour(sl::screen, {0, 0, 0});
         sl::draw_sprite(sl::surface_3d_bitmap(surface), 0, 0);
         if (map_mode)
-            map.draw(universe, *ship, tm);
+            map.draw(*universe_ref, *ship, *tm_ref);
 
         view_proj = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix();
     }

@@ -93,31 +93,153 @@ namespace kosmos::app
         }
     }
 
+    namespace
+    {
+        // False (with a message on stderr) if a ship's escape target is not a sibling of the body it starts from.
+        bool escape_targets_valid(Sim &sim, const kosmos::Scenario &sc)
+        {
+            for (const kosmos::ScenarioShip &entry : sc.ships)
+            {
+                if (entry.landed || entry.escape_to.empty())
+                    continue;
+                const int origin = sim.universe.find(entry.body);
+                if (origin < 0)
+                    continue;
+                const int target = sim.universe.find(entry.escape_to);
+                const int parent = sim.universe.bodies[static_cast<std::size_t>(origin)].parent;
+                if (target < 0 || target == origin || parent < 0 ||
+                    sim.universe.bodies[static_cast<std::size_t>(target)].parent != parent)
+                {
+                    std::fprintf(stderr, "kosmos: scenario %s: invalid escape target \"%s\" from %s; target must orbit the same body\n",
+                                 sc.id.c_str(), entry.escape_to.c_str(), entry.body.c_str());
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        void apply_ship_systems(Ship &ship, const kosmos::ScenarioShip &entry)
+        {
+            kosmos::Systems *systems = ship.systems();
+            if (!systems)
+                return;
+            for (const auto &tank : entry.tanks)
+                systems->set_tank_fraction(tank.first, tank.second);
+            if (entry.battery >= 0.0)
+                systems->set_battery_fraction(entry.battery);
+            if (entry.leak_cm2 > 0.0)
+                systems->breach(0, entry.leak_cm2);
+        }
+
+        void place_in_space(Sim &sim, Ship &ship, const kosmos::ScenarioShip &entry, int body)
+        {
+            if (!entry.escape_to.empty())
+                ship.place_on_escape(body, entry.altitude_km * km, entry.phase, sim.universe.find(entry.escape_to), entry.escape_days);
+            else if (entry.apoapsis_km > 0.0)
+                ship.place_on_ellipse(body, entry.altitude_km * km, entry.apoapsis_km * km, entry.phase, entry.toward.empty() ? -1 : sim.universe.find(entry.toward));
+            else
+                ship.place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
+            if (entry.has_state)
+            {
+                const auto &r = entry.state_position;
+                const auto &v = entry.state_velocity;
+                const auto &q = entry.state_orientation;
+                ship.place_relative(body, sl::dvec3(r[0], r[1], r[2]), sl::dvec3(v[0], v[1], v[2]), sl::dquat(q[0], q[1], q[2], q[3]));
+            }
+        }
+
+        void place_at_base(Sim &sim, Ship &ship, const kosmos::ScenarioShip &entry, const kosmos::Base &base, int body)
+        {
+            sl::dvec3 dir;
+            double heading = 0.0;
+            const double radius = sim.universe.bodies[static_cast<std::size_t>(body)].radius;
+            if (entry.runway >= 0 && entry.runway < static_cast<int>(base.runways.size()))
+                kosmos::base_runway_start(base, base.runways[static_cast<std::size_t>(entry.runway)], entry.reverse, radius, dir, heading, entry.along);
+            else
+                kosmos::base_pad(base, radius, dir, heading), heading += ship.spec().pad_turn;
+            double height = base.height;
+            if (entry.runway < 0 || entry.runway >= static_cast<int>(base.runways.size()))
+                height += kosmos::base_pad_deck(base);
+            if (entry.altitude > 0.0)
+                ship.place_airborne(body, dir, heading, height, entry.altitude, entry.speed);
+            else
+                ship.place_on_surface(body, dir, heading, height);
+        }
+
+        void place_on_ground(Sim &sim, const std::string &scenario_id, Ship &ship, const kosmos::ScenarioShip &entry, int body, const sl::Terrain *terrain)
+        {
+            const kosmos::Base *base = nullptr;
+            for (const kosmos::Base &candidate : sim.bases)
+                if (!entry.base.empty() && candidate.id == entry.base && sim.universe.find(candidate.body) == body)
+                    base = &candidate;
+            if (!entry.base.empty() && !base)
+                std::fprintf(stderr, "kosmos: scenario %s: unknown base \"%s\" on %s\n", scenario_id.c_str(), entry.base.c_str(), entry.body.c_str());
+            if (base)
+            {
+                place_at_base(sim, ship, entry, *base, body);
+                return;
+            }
+            double height = 0.0;
+            sl::dvec3 dir;
+            const int home = sim.universe.home_id();
+            if (entry.pad && body == home && terrain)
+            {
+                dir = choose_pad(*terrain, height, glm::normalize(-sim.universe.position(home)));
+                register_pad_beacons(sim, home, dir);
+            }
+            else
+            {
+                dir = direction_from_lat_lon(sim.universe, body, entry.latitude, entry.longitude);
+                if (terrain)
+                    height = terrain->height_at_direction(dir);
+            }
+            if (entry.altitude > 0.0)
+                ship.place_airborne(body, dir, entry.heading, height, entry.altitude, entry.speed);
+            else
+                ship.place_on_surface(body, dir, entry.heading, height);
+        }
+
+        void link_docked_ships(Sim &sim, const kosmos::Scenario &sc, const std::vector<int> &spawned)
+        {
+            for (std::size_t i = 0; i < sc.ships.size(); ++i)
+            {
+                const kosmos::ScenarioShip &entry = sc.ships[i];
+                if (entry.dock_to < 0 || entry.dock_to >= static_cast<int>(i) || spawned[i] < 0 || spawned[static_cast<std::size_t>(entry.dock_to)] < 0)
+                    continue;
+                const int leader = spawned[static_cast<std::size_t>(entry.dock_to)];
+                if (entry.dock_port < static_cast<int>(sim.ship(leader)->spec().ports.size()) && entry.own_port < static_cast<int>(sim.ship(spawned[i])->spec().ports.size()))
+                    sim.nav.link(leader, entry.dock_port, spawned[i], entry.own_port);
+            }
+        }
+
+        void apply_scenario_settings(Sim &sim, const kosmos::Scenario &sc)
+        {
+            sim.props.set_string("/sim/target", sc.target);
+            for (int i = 0; i < kosmos::NavSystem::receivers; ++i)
+                sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
+            sim.props.set_double("/controls/throttle", sc.throttle);
+            const std::size_t flown_entry = static_cast<std::size_t>(std::min<int>(sc.active, static_cast<int>(sc.ships.size()) - 1));
+            sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude <= 0.0 ? 1.0 : 0.0);
+            sim.props.set_double("/controls/hover", 0.0);
+            sim.props.set_string("/controls/sas", "stability");
+            sim.props.set_bool("/autopilot/enabled", sc.autopilot);
+            sim.props.set_string("/sim/scenario-mfd-left", sc.mfd_left);
+            sim.props.set_string("/sim/enter-building", sc.enter_building);
+            sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
+            sim.props.set_int("/sim/warp-index", 0);
+            apply_sets(sim.props, sc.sets);
+        }
+    } // namespace
+
     // Returns the ship to fly, or nullptr (with a message on stderr) if the scenario cannot be built.
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
-        for (const kosmos::ScenarioShip &entry : sc.ships)
-        {
-            if (entry.landed || entry.escape_to.empty())
-                continue;
-            const int origin = sim.universe.find(entry.body);
-            if (origin < 0)
-                continue;
-            const int target = sim.universe.find(entry.escape_to);
-            const int parent = sim.universe.bodies[static_cast<std::size_t>(origin)].parent;
-            if (target < 0 || target == origin || parent < 0 ||
-                sim.universe.bodies[static_cast<std::size_t>(target)].parent != parent)
-            {
-                std::fprintf(stderr, "kosmos: scenario %s: invalid escape target \"%s\" from %s; target must orbit the same body\n",
-                             sc.id.c_str(), entry.escape_to.c_str(), entry.body.c_str());
-                return nullptr;
-            }
-        }
+        if (!escape_targets_valid(sim, sc))
+            return nullptr;
         sim.clear_ships();
         sim.props.set_string("/sim/weather-force", sc.weather);
         if (!sc.life_support.empty())
             sim.life_support = kosmos::parse_life_support(sc.life_support, sim.life_support);
-        const int home = sim.universe.home_id();
         std::vector<int> spawned(sc.ships.size(), -1);
         for (std::size_t entry_index = 0; entry_index < sc.ships.size(); ++entry_index)
         {
@@ -129,109 +251,24 @@ namespace kosmos::app
                 std::fprintf(stderr, "kosmos: scenario %s: unknown %s \"%s\"\n", sc.id.c_str(), spec ? "body" : "ship", spec ? entry.body.c_str() : entry.ship.c_str());
                 continue;
             }
-            const sl::Terrain *terrain = terrains.find(body);
             Ship *ship = sim.spawn(*spec);
             spawned[entry_index] = sim.ship_count() - 1;
             if (!entry.label.empty())
                 ship->name = entry.label;
-            if (kosmos::Systems *systems = ship->systems())
-            {
-                for (const auto &tank : entry.tanks)
-                    systems->set_tank_fraction(tank.first, tank.second);
-                if (entry.battery >= 0.0)
-                    systems->set_battery_fraction(entry.battery);
-                if (entry.leak_cm2 > 0.0)
-                    systems->breach(0, entry.leak_cm2);
-            }
+            apply_ship_systems(*ship, entry);
             if (!entry.landed || entry.altitude > 0.0)
                 ship->set_gear_position(0.0);
             if (!entry.landed)
-            {
-                if (!entry.escape_to.empty())
-                    ship->place_on_escape(body, entry.altitude_km * km, entry.phase, sim.universe.find(entry.escape_to), entry.escape_days);
-                else if (entry.apoapsis_km > 0.0)
-                    ship->place_on_ellipse(body, entry.altitude_km * km, entry.apoapsis_km * km, entry.phase, entry.toward.empty() ? -1 : sim.universe.find(entry.toward));
-                else
-                    ship->place_in_orbit(body, entry.altitude_km * km, entry.inclination, entry.phase);
-                if (entry.has_state)
-                {
-                    const auto &r = entry.state_position;
-                    const auto &v = entry.state_velocity;
-                    const auto &q = entry.state_orientation;
-                    ship->place_relative(body, sl::dvec3(r[0], r[1], r[2]), sl::dvec3(v[0], v[1], v[2]), sl::dquat(q[0], q[1], q[2], q[3]));
-                }
-            }
+                place_in_space(sim, *ship, entry, body);
             else
-            {
-                double height = 0.0;
-                sl::dvec3 dir;
-                const kosmos::Base *base = nullptr;
-                for (const kosmos::Base &candidate : sim.bases)
-                    if (!entry.base.empty() && candidate.id == entry.base && sim.universe.find(candidate.body) == body)
-                        base = &candidate;
-                if (!entry.base.empty() && !base)
-                    std::fprintf(stderr, "kosmos: scenario %s: unknown base \"%s\" on %s\n", sc.id.c_str(), entry.base.c_str(), entry.body.c_str());
-                if (base)
-                {
-                    double heading = 0.0;
-                    const double radius = sim.universe.bodies[static_cast<std::size_t>(body)].radius;
-                    if (entry.runway >= 0 && entry.runway < static_cast<int>(base->runways.size()))
-                        kosmos::base_runway_start(*base, base->runways[static_cast<std::size_t>(entry.runway)], entry.reverse, radius, dir, heading, entry.along);
-                    else
-                        kosmos::base_pad(*base, radius, dir, heading), heading += ship->spec().pad_turn;
-                    height = base->height;
-                    if (entry.runway < 0 || entry.runway >= static_cast<int>(base->runways.size()))
-                        height += kosmos::base_pad_deck(*base);
-                    if (entry.altitude > 0.0)
-                        ship->place_airborne(body, dir, heading, height, entry.altitude, entry.speed);
-                    else
-                        ship->place_on_surface(body, dir, heading, height);
-                    continue;
-                }
-                if (entry.pad && body == home && terrain)
-                {
-                    dir = choose_pad(*terrain, height, glm::normalize(-sim.universe.position(home)));
-                    register_pad_beacons(sim, home, dir);
-                }
-                else
-                {
-                    dir = direction_from_lat_lon(sim.universe, body, entry.latitude, entry.longitude);
-                    if (terrain)
-                        height = terrain->height_at_direction(dir);
-                }
-                if (entry.altitude > 0.0)
-                    ship->place_airborne(body, dir, entry.heading, height, entry.altitude, entry.speed);
-                else
-                    ship->place_on_surface(body, dir, entry.heading, height);
-            }
+                place_on_ground(sim, sc.id, *ship, entry, body, terrains.find(body));
         }
-        for (std::size_t i = 0; i < sc.ships.size(); ++i)
-        {
-            const kosmos::ScenarioShip &entry = sc.ships[i];
-            if (entry.dock_to < 0 || entry.dock_to >= static_cast<int>(i) || spawned[i] < 0 || spawned[static_cast<std::size_t>(entry.dock_to)] < 0)
-                continue;
-            const int leader = spawned[static_cast<std::size_t>(entry.dock_to)];
-            if (entry.dock_port < static_cast<int>(sim.ship(leader)->spec().ports.size()) && entry.own_port < static_cast<int>(sim.ship(spawned[i])->spec().ports.size()))
-                sim.nav.link(leader, entry.dock_port, spawned[i], entry.own_port);
-        }
+        link_docked_ships(sim, sc, spawned);
         if (sim.ship_count() == 0)
             return nullptr;
         sim.activate(std::min(sc.active, sim.ship_count() - 1));
         spawn_buildings(sim);
-        sim.props.set_string("/sim/target", sc.target);
-        for (int i = 0; i < kosmos::NavSystem::receivers; ++i)
-            sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
-        sim.props.set_double("/controls/throttle", sc.throttle);
-        const std::size_t flown_entry = static_cast<std::size_t>(std::min<int>(sc.active, static_cast<int>(sc.ships.size()) - 1));
-        sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude <= 0.0 ? 1.0 : 0.0);
-        sim.props.set_double("/controls/hover", 0.0);
-        sim.props.set_string("/controls/sas", "stability");
-        sim.props.set_bool("/autopilot/enabled", sc.autopilot);
-        sim.props.set_string("/sim/scenario-mfd-left", sc.mfd_left);
-        sim.props.set_string("/sim/enter-building", sc.enter_building);
-        sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
-        sim.props.set_int("/sim/warp-index", 0);
-        apply_sets(sim.props, sc.sets);
+        apply_scenario_settings(sim, sc);
         return sim.active_ship();
     }
 

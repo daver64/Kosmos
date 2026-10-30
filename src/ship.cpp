@@ -1165,6 +1165,32 @@ namespace kosmos
         rcs_torque_ = rcs_push_ = sl::dvec3(0.0);
         if (crashed_ || health_ <= 0.0)
             return;
+        apply_rcs_mode(c);
+        animate_mechanisms(c, dt);
+        if (spec_.ground())
+        {
+            apply_ground_controls(c);
+            return;
+        }
+        if (c.stage)
+            stage_once();
+        sl::FlightBody &b = body();
+        set_thruster_levels(c);
+        if (flies_as_aircraft())
+        {
+            apply_flight_controls(c);
+            hold_hover_attitude(c);
+            return;
+        }
+        if (b.mode == sl::FlightBodyMode::dynamic)
+        {
+            apply_attitude(c, dt);
+            apply_rcs(c);
+        }
+    }
+
+    void Ship::apply_rcs_mode(Controls &c) const
+    {
         if (spec_.rcs_modes)
         {
             if (c.rcs_mode == "off")
@@ -1178,6 +1204,10 @@ namespace kosmos
                 c.pitch = c.yaw = c.roll = 0.0;
             }
         }
+    }
+
+    void Ship::animate_mechanisms(const Controls &c, double dt)
+    {
         for (int side = 0; side < 2; ++side)
         {
             const double target = std::clamp(side == 0 ? c.pod_tilt_left : c.pod_tilt_right, 0.0, 1.0) * 3.14159265358979;
@@ -1206,14 +1236,11 @@ namespace kosmos
             for (sl::GearContact &g : b.gear)
                 g.enabled = locked;
         }
+    }
 
-        if (spec_.ground())
-        {
-            apply_ground_controls(c);
-            return;
-        }
-        if (c.stage)
-            stage_once();
+    void Ship::set_thruster_levels(const Controls &c)
+    {
+        sl::FlightBody &b = body();
         const double throttle = std::clamp(c.throttle, 0.0, 1.0);
         for (std::size_t i = 0; i < b.thrusters.size(); ++i)
             b.thrusters[i].level = 0.0;
@@ -1239,60 +1266,59 @@ namespace kosmos
         }
         else
             universe_.world.set_brakes(body_, throttle < 0.02 ? 1.0 : 0.0);
+    }
 
-        if (flies_as_aircraft())
+    // On hover thrust there is no airflow over the surfaces, so the RCS thrusters hold attitude.
+    void Ship::hold_hover_attitude(const Controls &c)
+    {
+        sl::FlightBody &b = body();
+        if (c.hover > 0.02 && b.mode == sl::FlightBodyMode::dynamic && c.sas != "off")
         {
-            apply_flight_controls(c);
-            // On hover thrust there is no airflow over the surfaces, so the RCS thrusters hold attitude.
-            if (c.hover > 0.02 && b.mode == sl::FlightBodyMode::dynamic && c.sas != "off")
-            {
-                sl::dvec3 up, east, north;
-                local_frame(up, east, north);
-                const sl::dvec3 ub = b.direction_to_local(up);
-                const sl::dvec3 w = b.angular_velocity;
-                const sl::dvec3 desired(std::clamp(ub.z * 1.5, -0.6, 0.6), 0.0, std::clamp(-ub.x * 1.5, -0.6, 0.6));
-                sl::dvec3 command(0.0);
-                command.x = std::clamp((desired.x - w.x) * 3.0, -1.0, 1.0);
-                command.z = std::clamp((desired.z - w.z) * 3.0, -1.0, 1.0);
-                command.y = std::clamp(-w.y * 3.0, -1.0, 1.0);
-                rcs_torque_ = command;
-                universe_.world.apply_torque(body_, b.direction_to_world(command * spec_.torque_accel * b.inertia()));
-            }
-            return;
+            sl::dvec3 up, east, north;
+            local_frame(up, east, north);
+            const sl::dvec3 ub = b.direction_to_local(up);
+            const sl::dvec3 w = b.angular_velocity;
+            const sl::dvec3 desired(std::clamp(ub.z * 1.5, -0.6, 0.6), 0.0, std::clamp(-ub.x * 1.5, -0.6, 0.6));
+            sl::dvec3 command(0.0);
+            command.x = std::clamp((desired.x - w.x) * 3.0, -1.0, 1.0);
+            command.z = std::clamp((desired.z - w.z) * 3.0, -1.0, 1.0);
+            command.y = std::clamp(-w.y * 3.0, -1.0, 1.0);
+            rcs_torque_ = command;
+            universe_.world.apply_torque(body_, b.direction_to_world(command * spec_.torque_accel * b.inertia()));
         }
+    }
 
-        if (b.mode == sl::FlightBodyMode::dynamic)
+    void Ship::apply_rcs(const Controls &c)
+    {
+        sl::FlightBody &b = body();
+        rcs_push_ = sl::dvec3(0.0);
+        if (explicit_rcs_)
         {
-            apply_attitude(c, dt);
-            rcs_push_ = sl::dvec3(0.0);
-            if (explicit_rcs_)
+            // The thrusters themselves make the force and torque; each fires in proportion to its strongest group.
+            const double lin[6] = {-c.rcs_x, c.rcs_x, c.rcs_y, -c.rcs_y, c.rcs_z, -c.rcs_z};
+            const double rot[6] = {rcs_torque_.x, -rcs_torque_.x, rcs_torque_.y, -rcs_torque_.y, rcs_torque_.z, -rcs_torque_.z};
+            for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
+                 i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
             {
-                // The thrusters themselves make the force and torque; each fires in proportion to its strongest group.
-                const double lin[6] = {-c.rcs_x, c.rcs_x, c.rcs_y, -c.rcs_y, c.rcs_z, -c.rcs_z};
-                const double rot[6] = {rcs_torque_.x, -rcs_torque_.x, rcs_torque_.y, -rcs_torque_.y, rcs_torque_.z, -rcs_torque_.z};
-                for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
-                     i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+                const unsigned mask = thruster_rcs_[static_cast<std::size_t>(i)];
+                double level = 0.0;
+                for (int k = 0; k < 6; ++k)
                 {
-                    const unsigned mask = thruster_rcs_[static_cast<std::size_t>(i)];
-                    double level = 0.0;
-                    for (int k = 0; k < 6; ++k)
-                    {
-                        if (mask & (1u << k))
-                            level = std::max(level, lin[k]);
-                        if (mask & (1u << (k + 6)))
-                            level = std::max(level, rot[k]);
-                    }
-                    b.thrusters[static_cast<std::size_t>(i)].level = std::clamp(level, 0.0, 1.0);
+                    if (mask & (1u << k))
+                        level = std::max(level, lin[k]);
+                    if (mask & (1u << (k + 6)))
+                        level = std::max(level, rot[k]);
                 }
-                rcs_torque_ = sl::dvec3(0.0);
+                b.thrusters[static_cast<std::size_t>(i)].level = std::clamp(level, 0.0, 1.0);
             }
-            else if (spec_.rcs_thrust > 0.0)
-            {
-                const sl::dvec3 push(c.rcs_x, c.rcs_y, -c.rcs_z);
-                rcs_push_ = glm::length(push) > 0.0 ? glm::normalize(push) : push;
-                if (glm::length(push) > 0.0)
-                    universe_.world.apply_force(body_, b.direction_to_world(glm::normalize(push) * spec_.rcs_thrust));
-            }
+            rcs_torque_ = sl::dvec3(0.0);
+        }
+        else if (spec_.rcs_thrust > 0.0)
+        {
+            const sl::dvec3 push(c.rcs_x, c.rcs_y, -c.rcs_z);
+            rcs_push_ = glm::length(push) > 0.0 ? glm::normalize(push) : push;
+            if (glm::length(push) > 0.0)
+                universe_.world.apply_force(body_, b.direction_to_world(glm::normalize(push) * spec_.rcs_thrust));
         }
     }
 

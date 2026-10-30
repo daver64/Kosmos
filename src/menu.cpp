@@ -1594,7 +1594,7 @@ namespace kosmos
         }
         ImGui::Separator();
         for (MenuWindow &w : windows)
-            if ((w.label == "Settings" || w.label == "Properties") && w.open && ImGui::MenuItem((w.label + "...").c_str()))
+            if ((w.label == "Settings" || w.label == "Performance settings" || w.label == "Properties") && w.open && ImGui::MenuItem((w.label + "...").c_str()))
                 *w.open = true;
         ImGui::EndMenu();
     }

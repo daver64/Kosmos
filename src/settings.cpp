@@ -68,6 +68,8 @@ namespace kosmos
         props.set_bool("/sim/settings/gfx-earth-relief", false);
         props.set_bool("/sim/settings/gfx-clutter", true);
         props.set_int("/sim/settings/gfx-clutter-density", 100);
+        props.set_int("/sim/settings/gfx-clutter-radius", 100);
+        props.set_int("/sim/settings/max-texture", 0);
     }
 
     void settings_load(sl::PropertyTree &props)
@@ -96,6 +98,8 @@ namespace kosmos
         load_int("gfx-max-fps", 10, 240);
         load_int("gfx-terrain-detail", 0, 3);
         load_int("gfx-clutter-density", 10, 200);
+        load_int("gfx-clutter-radius", 25, 200);
+        load_int("max-texture", 0, 16384);
         if (j.contains("gfx-clutter") && j["gfx-clutter"].is_boolean())
             props.set_bool("/sim/settings/gfx-clutter", j["gfx-clutter"].get<bool>());
         if (j.contains("gfx-earth-relief") && j["gfx-earth-relief"].is_boolean())
@@ -132,6 +136,7 @@ namespace kosmos
         j["volume"] = props.get_int("/sim/settings/volume");
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
         j["world-texture"] = props.get_int("/sim/settings/world-texture");
+        j["max-texture"] = props.get_int("/sim/settings/max-texture");
         for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-terrain-detail"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
@@ -146,6 +151,7 @@ namespace kosmos
         j["gfx-earth-relief"] = props.get_bool("/sim/settings/gfx-earth-relief");
         j["gfx-clutter"] = props.get_bool("/sim/settings/gfx-clutter", true);
         j["gfx-clutter-density"] = props.get_int("/sim/settings/gfx-clutter-density", 100);
+        j["gfx-clutter-radius"] = props.get_int("/sim/settings/gfx-clutter-radius", 100);
         std::error_code ec;
         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
         std::ofstream out(path);

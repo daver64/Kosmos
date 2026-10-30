@@ -150,14 +150,17 @@ namespace kosmos
             return {b(c[0]), b(c[1]), b(c[2]), 255};
         }
 
+        // Set by make_clutter for the layer being built; scales every species' draw distances.
+        double draw_range_scale = 1.0;
+
         sl::ClutterSpecies species(sl::MeshData mesh, double density, float max_slope, float near_distance, float far_distance, std::uint32_t seed)
         {
             sl::ClutterSpecies s;
             s.mesh = std::move(mesh);
             s.density = static_cast<float>(density);
             s.max_slope = max_slope;
-            s.near_distance = near_distance;
-            s.far_distance = far_distance;
+            s.near_distance = near_distance * static_cast<float>(draw_range_scale);
+            s.far_distance = far_distance * static_cast<float>(draw_range_scale);
             s.seed = seed;
             s.tint_variation = 0.18f;
             return s;
@@ -664,7 +667,8 @@ namespace kosmos
         constexpr float cell = 192.0f;
         sl::ClutterConfig config;
         config.cell_size = cell;
-        config.max_cached_cells = 900;
+        draw_range_scale = std::clamp(world.range, 0.25, 2.0);
+        config.max_cached_cells = std::max(300, static_cast<int>(900 * draw_range_scale * draw_range_scale));
         config.time_budget_ms = 3.0;
         auto layer = std::make_unique<sl::ClutterLayer>(terrain, config);
         if (kind == Kind::earth)

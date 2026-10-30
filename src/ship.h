@@ -593,6 +593,11 @@ namespace kosmos
         void pin_to_ground();
         void hold_pinned();
         void step_systems(double dt);
+        void apply_rcs_mode(Controls &c) const;
+        void animate_mechanisms(const Controls &c, double dt);
+        void set_thruster_levels(const Controls &c);
+        void hold_hover_attitude(const Controls &c);
+        void apply_rcs(const Controls &c);
         void resolve_landing();
         void expire_debris(double dt);
         bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface

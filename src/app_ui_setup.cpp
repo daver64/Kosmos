@@ -24,6 +24,7 @@ namespace kosmos::app
         systems_window = options.systems_window;
         camera_window = options.camera_window;
         settings_window = options.settings_window;
+        performance_window = options.performance_window;
         property_window = options.property_window;
         lua_window = options.lua_window;
         net_window = options.net_window;
@@ -125,7 +126,7 @@ namespace kosmos::app
         menu_bar.aircraft_autopilot_open = options.aircraft_autopilot;
         menu_bar.spacecraft_autopilot_open = options.spacecraft_autopilot;
         menu_bar.base_editor_open = options.base_editor;
-        menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Joystick", "", &joystick_window}, {"Keyboard", "", &keys_window}, {"Native addons", "", &link_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+        menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Performance settings", "", &performance_window}, {"Joystick", "", &joystick_window}, {"Keyboard", "", &keys_window}, {"Native addons", "", &link_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
         menu_actions.start_scenario = [this](const kosmos::Scenario &sc) { menu_start_scenario(sc); };
         menu_actions.restart = [this]() { menu_restart(); };
     return keep_going;

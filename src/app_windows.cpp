@@ -198,6 +198,43 @@ namespace kosmos::app
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
             flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
+            int fps = props.get_int("/sim/settings/gfx-max-fps");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Max frame rate", &fps, 10, 240))
+                props.set_int("/sim/settings/gfx-max-fps", fps);
+            int radius = props.get_int("/sim/settings/gfx-light-radius");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Base light radius (m)", &radius, 500, 20000))
+                props.set_int("/sim/settings/gfx-light-radius", radius);
+            int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_int("Weapon lights", &weapon_lights, 0, 8))
+                props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
+            static const char *details[] = {"Ultra", "High", "Medium", "Low"};
+            int detail = props.get_int("/sim/settings/gfx-terrain-detail");
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::Combo("Terrain detail", &detail, details, 4))
+                props.set_int("/sim/settings/gfx-terrain-detail", detail);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+            bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
+            if (ImGui::Checkbox("Earth relief from orbit", &relief))
+                props.set_bool("/sim/settings/gfx-earth-relief", relief);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
+    }
+
+    void App::settings_weather()
+    {
+        sl::PropertyTree &props = *props_ref;
+        auto flag = [&](const char *label, const char *path, const char *tip)
+        {
+            bool v = props.get_bool(path);
+            if (ImGui::Checkbox(label, &v))
+                props.set_bool(path, v);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tip);
+        };
             flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
             flag("Rain", "/sim/settings/weather-rain", "Draw falling rain");
             {
@@ -246,25 +283,11 @@ namespace kosmos::app
                 if (live_now)
                     ImGui::TextDisabled("%s", sim.weather.live_status().c_str());
             }
-            int fps = props.get_int("/sim/settings/gfx-max-fps");
-            ImGui::SetNextItemWidth(160.0f);
-            if (ui::slider_int("Max frame rate", &fps, 10, 240))
-                props.set_int("/sim/settings/gfx-max-fps", fps);
-            int radius = props.get_int("/sim/settings/gfx-light-radius");
-            ImGui::SetNextItemWidth(160.0f);
-            if (ui::slider_int("Base light radius (m)", &radius, 500, 20000))
-                props.set_int("/sim/settings/gfx-light-radius", radius);
-            int weapon_lights = props.get_int("/sim/settings/gfx-weapon-lights");
-            ImGui::SetNextItemWidth(160.0f);
-            if (ui::slider_int("Weapon lights", &weapon_lights, 0, 8))
-                props.set_int("/sim/settings/gfx-weapon-lights", weapon_lights);
-            static const char *details[] = {"Ultra", "High", "Medium", "Low"};
-            int detail = props.get_int("/sim/settings/gfx-terrain-detail");
-            ImGui::SetNextItemWidth(160.0f);
-            if (ImGui::Combo("Terrain detail", &detail, details, 4))
-                props.set_int("/sim/settings/gfx-terrain-detail", detail);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Applies the next time a world's terrain is built (restart).");
+    }
+
+    void App::settings_clutter()
+    {
+        sl::PropertyTree &props = *props_ref;
             bool clutter_enabled = props.get_bool("/sim/settings/gfx-clutter", true);
             if (ImGui::Checkbox("Trees, buildings and rocks", &clutter_enabled))
                 props.set_bool("/sim/settings/gfx-clutter", clutter_enabled);
@@ -276,12 +299,13 @@ namespace kosmos::app
                 ImGui::SetNextItemWidth(160.0f);
                 if (ui::slider_int("Scatter density (%)", &clutter_density, 10, 200))
                     props.set_int("/sim/settings/gfx-clutter-density", clutter_density);
+                int clutter_radius = props.get_int("/sim/settings/gfx-clutter-radius", 100);
+                ImGui::SetNextItemWidth(160.0f);
+                if (ui::slider_int("Draw distance (%)", &clutter_radius, 25, 200))
+                    props.set_int("/sim/settings/gfx-clutter-radius", clutter_radius);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("How far away scenery is drawn, as a share of the default (mesh out to 150 m, billboards to 900 m for trees). Lower is faster.");
             }
-            bool relief = props.get_bool("/sim/settings/gfx-earth-relief");
-            if (ImGui::Checkbox("Earth relief from orbit", &relief))
-                props.set_bool("/sim/settings/gfx-earth-relief", relief);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
     }
 
     void App::settings_worlds()
@@ -329,27 +353,54 @@ namespace kosmos::app
                 flag("Orbit line", "/sim/settings/orbit-line", "Draw the flown ship's orbit (O)");
                 flag("Key help text", "/sim/settings/help-text", "The key reminder lines under the info text");
                 flag("Warp and time", "/sim/settings/clock", "Warp factor, date and elapsed time along the bottom of the screen");
-                ImGui::SeparatorText("Graphics");
-                {
-                settings_graphics();
-                }
                 ImGui::SeparatorText("Sound");
                 flag("Sound on", "/sim/settings/sound", "Engine sound (M)");
                 int volume = props.get_int("/sim/settings/volume");
                 if (ui::slider_int("Volume", &volume, 0, 100, "%d%%"))
                     props.set_int("/sim/settings/volume", volume);
-                ImGui::SeparatorText("Generated worlds");
-                {
-                settings_worlds();
-                }
                 ImGui::SeparatorText("Simulation");
                 int warp = props.get_int("/sim/warp-index");
                 if (ui::slider_int("Time warp", &warp, 0, Sim::warp_levels - 1))
                     props.set_int("/sim/warp-index", warp);
                 ImGui::TextDisabled("Settings are saved when you exit.");
+                ImGui::TextDisabled("Graphics, weather, scenery and texture options are under Edit > Performance settings.");
             }
             ImGui::End();
         }
+    }
+
+    void App::draw_performance_window()
+    {
+        if (!performance_window)
+            return;
+        sl::PropertyTree &props = *props_ref;
+        ImGui::SetNextWindowPos(ImVec2(330.0f, 12.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowBgAlpha(0.9f);
+        if (ImGui::Begin("Performance settings", &performance_window, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::SeparatorText("Graphics");
+            settings_graphics();
+            ImGui::SeparatorText("Weather");
+            settings_weather();
+            ImGui::SeparatorText("Scenery");
+            settings_clutter();
+            ImGui::SeparatorText("Textures");
+            static const int sizes[] = {0, 2048, 4096, 8192, 16384};
+            static const char *size_names[] = {"Default (16384)", "2048", "4096", "8192", "16384"};
+            int largest = 0;
+            const int saved = props.get_int("/sim/settings/max-texture");
+            for (int i = 0; i < 5; ++i)
+                if (sizes[i] == saved)
+                    largest = i;
+            ImGui::SetNextItemWidth(160.0f);
+            if (ImGui::Combo("Largest texture", &largest, size_names, 5))
+                props.set_int("/sim/settings/max-texture", sizes[largest]);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Hi-res planet images and clouds are scaled down to this width. Smaller needs less video memory.\nApplies the next time Kosmos starts (the launcher's --max-texture overrides it).");
+            settings_worlds();
+            ImGui::TextDisabled("Saved when you exit. The launcher's Graphics page sets the same options.");
+        }
+        ImGui::End();
     }
 
     void App::part_converted_mesh(kosmos::ShipSpec &fspec)

@@ -371,10 +371,6 @@ namespace kosmos::app
     // The star system: terrain, bodies, bases, and the functions that enter and leave a system.
     int App::init_systems()
     {
-        settings_defaults(sim.props);
-        settings_load(sim.props);
-        if (options.world_texture >= 0)
-            sim.props.set_int("/sim/settings/world-texture", options.world_texture);
         generated_texture_width = sim.props.get_int("/sim/settings/world-texture");
         if (!enter_system())
         {

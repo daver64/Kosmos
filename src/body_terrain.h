@@ -37,6 +37,7 @@ extern bool detail_disabled;
         std::shared_ptr<const kosmos::Landclass> landclass;
         std::unique_ptr<sl::ClutterLayer> clutter;
         double clutter_density = 0.0;
+        double clutter_range = 0.0;
         bool clutter_live = false;
     };
 

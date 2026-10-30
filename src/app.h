@@ -82,7 +82,7 @@ extern int screen_h;
         std::string life_support;
         bool systems_window = false;
         double selftest = 0.0;
-        int max_texture = 16384;
+        int max_texture = -1; // --max-texture W: largest texture width to load; -1 uses the saved setting (0 there means 16384)
         int world_texture = -1; // --world-texture W: far-view image width for invented worlds (0 = automatic); -1 uses the saved setting
         int render_style = -1; // --render-style normal|flat|wireframe; -1 uses the saved setting
         double selftest_warp = 0.0;
@@ -104,6 +104,7 @@ extern int screen_h;
         bool no_tiles = false;
         bool camera_window = false;
         bool settings_window = false;
+        bool performance_window = false;
         bool keys_window = false;
         bool link_window = false;
         /** KosmosLink: --link listens for outside programs from the start, --link-port moves it off the default 9420. */
