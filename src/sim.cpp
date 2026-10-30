@@ -564,9 +564,18 @@ namespace kosmos
         idle.sas = "off";
 
         int index = std::clamp(props.get_int("/sim/warp-index"), 0, warp_levels - 1);
-        if (warp_factor(index) > max_physics_warp)
+        // Everything sitting still on the ground can be warped in physics up to ground_warp.
+        bool ground_hold = !ships_.empty();
+        for (const std::unique_ptr<Ship> &ship : ships_)
         {
-            bool all_ok = !ships_.empty();
+            const Telemetry &t = ship->telemetry();
+            if (!ship->spec().building() && (ship->on_rails() || !t.landed || t.surface_speed > 0.5 || t.thrust > 0.0))
+                ground_hold = false;
+        }
+        const double phys_limit = ground_hold ? ground_warp : max_physics_warp;
+        if (warp_factor(index) > phys_limit)
+        {
+            bool all_ok = !ships_.empty() && !ground_hold;
             std::string why;
             for (std::size_t i = 0; i < ships_.size(); ++i)
                 if (!ships_[i]->on_rails() && !ships_[i]->spec().building())
@@ -582,8 +591,8 @@ namespace kosmos
             if (!all_ok)
             {
                 if (!why.empty())
-                    log("Time warp held at " + std::to_string(static_cast<int>(max_physics_warp)) + "x: " + why);
-                while (index > 0 && warp_factor(index) > max_physics_warp)
+                    log("Time warp held at " + std::to_string(static_cast<int>(phys_limit)) + "x: " + why);
+                while (index > 0 && warp_factor(index) > phys_limit)
                     --index;
                 props.set_int("/sim/warp-index", index);
             }
@@ -596,7 +605,7 @@ namespace kosmos
             Ship &ship = *ships_[i];
             if (ship.spec().building())
                 ship.go_dynamic();
-            else if (warp > max_physics_warp)
+            else if (warp > phys_limit)
                 ship.go_rails();
             else
                 ship.go_dynamic();
@@ -613,7 +622,7 @@ namespace kosmos
             }
             else
                 ship.apply_controls(static_cast<int>(i) == active_ ? controls : held, frame * warp);
-            if (claim != link_claims.end() && warp <= max_physics_warp)
+            if (claim != link_claims.end() && warp <= phys_limit)
             {
                 const double limit_force = ship.spec().module_max_force > 0.0 ? ship.spec().module_max_force : ship.telemetry().mass * 20.0;
                 const double limit_torque = ship.spec().module_max_torque > 0.0 ? ship.spec().module_max_torque : ship.telemetry().mass * 20.0;
@@ -637,7 +646,7 @@ namespace kosmos
             if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
                 ship->set_surface_grip(grip);
         // On rails everything is analytic, so big substeps lose nothing and keep a 100000x frame cheap.
-        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > max_physics_warp ? 1.0e12 : 0.1);
+        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? fixed_step : 0.1));
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 
@@ -648,9 +657,9 @@ namespace kosmos
             {
                 ship->go_dynamic();
                 ship->after_step(0.0);
-                if (warp > max_physics_warp && ship->can_rails(idle))
+                if (warp > phys_limit && ship->can_rails(idle))
                     ship->go_rails();
-                else if (warp > max_physics_warp)
+                else if (warp > phys_limit)
                     props.set_int("/sim/warp-index", 0);
             }
         }

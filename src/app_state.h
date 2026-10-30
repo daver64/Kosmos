@@ -210,6 +210,7 @@ namespace kosmos::app
         PropertyBrowser property_browser;
         int applied_volume{};
         sl::Bitmap * mfd_target[2]{};
+        sl::Bitmap * hud_target = nullptr;
         sl::Bitmap * panel_target{};
         int panel_target_height{};
         const Ship * mfd_ship{};
@@ -404,6 +405,8 @@ namespace kosmos::app
         void draw_cockpit_targets();
         void draw_orbit_line();
         void draw_head_up();
+        void render_vc_hud_target();
+        void fill_hud_state(sl::HudState &hs);
         void draw_eva_overlay();
         void draw_body_labels();
         void draw_overlays();

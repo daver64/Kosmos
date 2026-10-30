@@ -39,6 +39,8 @@ namespace kosmos::app
         {
             for (int side = 0; side < 2; ++side)
                 sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+            if (!pcp.vc_model.empty())
+                render_vc_hud_target();
         }
         else
             render_panel_target(pcp, ship->spec().directory);

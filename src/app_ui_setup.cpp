@@ -70,6 +70,9 @@ namespace kosmos::app
         sl::gui_init();
         mfd_target[0] = sl::create_render_target(mfd_target_size, mfd_target_size);
         mfd_target[1] = sl::create_render_target(mfd_target_size, mfd_target_size);
+        hud_target = sl::create_render_target(mfd_target_size, mfd_target_size);
+        if (hud_target)
+            hud_target->smooth = true;
         // The boards are minified on screen; nearest sampling made thin lines shimmer as the ship rocked.
         for (sl::Bitmap *t : mfd_target)
             if (t)

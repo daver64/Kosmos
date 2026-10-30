@@ -36,12 +36,8 @@ namespace kosmos::app
 
     void App::draw_head_up()
     {
-        kosmos::Universe &universe = *universe_ref;
-        sl::PropertyTree &props = *props_ref;
-        const kosmos::Telemetry &tm = *tm_ref;
         sl::FlightBody &fb = *fb_ref;
-        const kosmos::Body &soi_body = *soi_body_ref;
-        if (hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes()) && (in_cockpit || in_interior) && !map_mode && !galaxy_mode)
+        if (hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes()) && (in_cockpit || in_interior) && !map_mode && !galaxy_mode && !(in_cockpit3d && !ship->spec().cockpit.vc_model.empty()))
         {
             sl::HudState hs;
             const glm::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));
@@ -53,6 +49,46 @@ namespace kosmos::app
             hs.camera.height = screen_h;
             hs.nose = fb.direction_to_world(sl::dvec3(0.0, 0.0, -1.0));
             hs.roof = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+            fill_hud_state(hs);
+            hud.draw(hs);
+        }
+    }
+
+    // The HUD of a virtual cockpit is drawn onto a texture for the HUD glass, looking along the nose.
+    void App::render_vc_hud_target()
+    {
+        if (!hud_target)
+            return;
+        const bool active = hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes());
+        sl::FlightBody &fb = *fb_ref;
+        sl::HudState hs;
+        hs.nose = fb.direction_to_world(sl::dvec3(0.0, 0.0, -1.0));
+        hs.roof = fb.direction_to_world(sl::dvec3(0.0, 1.0, 0.0));
+        hs.camera.forward = hs.nose;
+        hs.camera.up = hs.roof;
+        hs.camera.right = glm::normalize(glm::cross(hs.nose, hs.roof));
+        // The HUD plate is 0.15 m wide, 0.31 m from the pilot's eye.
+        hs.camera.focal = mfd_target_size * 0.5 / (0.075 / 0.308);
+        hs.camera.width = mfd_target_size;
+        hs.camera.height = mfd_target_size;
+        if (active)
+            fill_hud_state(hs);
+        if (!sl::begin_render_target(hud_target))
+            return;
+        sl::clear_render_target({0, 0, 0, 0});
+        if (active)
+            hud.draw(hs);
+        sl::end_render_target();
+    }
+
+    void App::fill_hud_state(sl::HudState &hs)
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
+        const kosmos::Telemetry &tm = *tm_ref;
+        sl::FlightBody &fb = *fb_ref;
+        const kosmos::Body &soi_body = *soi_body_ref;
+        {
             const sl::FlightBody &soi_fb = *universe.world.body(soi);
             const sl::dvec3 from_soi = fb.position - soi_fb.position;
             hs.orbit.valid = true;
@@ -84,7 +120,6 @@ namespace kosmos::app
                 hs.docking.port_direction = vec("direction");
                 hs.docking.port_up = vec("up");
             }
-            hud.draw(hs);
         }
     }
 
