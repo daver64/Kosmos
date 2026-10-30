@@ -178,7 +178,7 @@ namespace kosmos::app
             for (const kosmos::Base &b : sim.bases)
                 if (b.body == eva_body.name && eva.grounded)
                     at_base = at_base || std::acos(std::clamp(glm::dot(kosmos::base_direction(sim.universe, eva.body, b), eva.local_up()), -1.0, 1.0)) * eva_body.radius < 150.0;
-            if (near_ship >= 0 && ship_distance < 30.0 || at_base)
+            if ((near_ship >= 0 && ship_distance < 30.0) || at_base)
                 eva.recharge(frame * std::max(1.0, warp_now));
             {
                 static bool trigger_was_down = false;

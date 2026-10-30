@@ -919,7 +919,6 @@ namespace kosmos
             {
                 s.radius += s.speed * dt;
                 const double reach = std::min(s.radius, s.spec->blast_radius);
-                const sl::dvec3 planet = universe.position(s.body);
                 for (int i = 0; i < sim.ship_count(); ++i)
                 {
                     Ship *ship = sim.ship(i);

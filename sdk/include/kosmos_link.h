@@ -1,5 +1,5 @@
 /*
- * KosmosLink client library, protocol version 2.
+ * KosmosLink client library, protocol version 3.
  *
  * Talks to a running Kosmos over a loopback socket so that a native program (an autopilot, a hardware bridge, a custom
  * instrument) can read and write the simulator's properties, define keys, spawn things and draw on an MFD page.

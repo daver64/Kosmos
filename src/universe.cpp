@@ -110,7 +110,6 @@ namespace kosmos
         const double file_epoch = json.value("epoch_jd", 2451545.0);
         epoch_jd = epoch_override > 0.0 ? epoch_override : file_epoch;
         const double elapsed_days = epoch_jd - file_epoch;
-        bool vsop_loaded = false;
         name = json.value("name", "System");
         home = json.value("home", "Earth");
         nlohmann::json list = json.value("bodies", nlohmann::json::array());
@@ -252,7 +251,6 @@ namespace kosmos
                         {
                             body.orbit = fitted;
                             fitted_to_epoch = true;
-                            vsop_loaded = true;
                         }
                     }
                 }

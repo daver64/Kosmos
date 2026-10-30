@@ -8,7 +8,6 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
     const kosmos::Telemetry &tm = *tm_ref;
-    sl::FlightBody &fb = *fb_ref;
     const kosmos::Body &soi_body = *soi_body_ref;
         // As Orbiter does: out in space the planets are drawn first with a near plane set by the nearest body, then the depth buffer
         // is cleared and the ships go over them with their own near plane, so neither range has to share one depth buffer.
