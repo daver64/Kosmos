@@ -58,11 +58,98 @@
  ],
  "name": "Ares Spider",
  "lights": [
-  { "position": [-4.45, 0, -0.7], "colour": [255, 40, 30], "intensity": 0.8, "range": 20, "glow": 0.12 },
-  { "position": [4.45, 0, -0.7], "colour": [40, 255, 70], "intensity": 0.8, "range": 20, "glow": 0.12 },
-  { "position": [0, 0, -5.45], "colour": [255, 255, 255], "intensity": 2, "range": 40, "pattern": "strobe", "period": 1.6, "phase": 0.0, "glow": 0.18 },
-  { "position": [2.4, 0, 1.15], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 3, "range": 120, "inner": 15, "outer": 40, "glow": 0.1 },
-  { "position": [-2.4, 0, 1.15], "direction": [0, 0, 1], "colour": [255, 248, 235], "intensity": 3, "range": 120, "inner": 15, "outer": 40, "glow": 0.1 }
+  {
+   "position": [
+    -4.45,
+    0,
+    -0.7
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 0.8,
+   "range": 20,
+   "glow": 0.12
+  },
+  {
+   "position": [
+    4.45,
+    0,
+    -0.7
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 0.8,
+   "range": 20,
+   "glow": 0.12
+  },
+  {
+   "position": [
+    0,
+    0,
+    -5.45
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2,
+   "range": 40,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.0,
+   "glow": 0.18
+  },
+  {
+   "position": [
+    2.4,
+    0,
+    1.15
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "colour": [
+    255,
+    248,
+    235
+   ],
+   "intensity": 3,
+   "range": 120,
+   "inner": 15,
+   "outer": 40,
+   "glow": 0.1
+  },
+  {
+   "position": [
+    -2.4,
+    0,
+    1.15
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "colour": [
+    255,
+    248,
+    235
+   ],
+   "intensity": 3,
+   "range": 120,
+   "inner": 15,
+   "outer": 40,
+   "glow": 0.1
+  }
  ],
  "class": "lander",
  "torque_accel": 0.5,
@@ -74,26 +161,87 @@
   {
    "name": "Spider",
    "dry_mass": 6000,
-   "propellant": 4000,
+   "propellant": 24000.0,
    "z": 0,
    "length": 10.6,
    "radius": 4.9,
    "engines": [
     {
      "position": [
-      0,
-      0,
-      0.4
+      -2.0,
+      -2.0,
+      0.6
      ],
      "direction": [
-      0,
-      0,
-      -1
+      0.0,
+      0.0,
+      -1.0
      ],
-     "thrust": 60000,
-     "isp": 440,
-     "plume": 6,
-     "type": "rocket", "fuel": "hydrogen"
+     "thrust": 80000.0,
+     "isp": 300.0,
+     "plume": 3.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover",
+     "plume_width": 0.2,
+     "propellant": 32000.0
+    },
+    {
+     "position": [
+      -2.0,
+      2.0,
+      0.6
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "thrust": 80000.0,
+     "isp": 300.0,
+     "plume": 3.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover",
+     "plume_width": 0.2
+    },
+    {
+     "position": [
+      2.0,
+      2.0,
+      0.6
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "thrust": 80000.0,
+     "isp": 300.0,
+     "plume": 3.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover",
+     "plume_width": 0.2
+    },
+    {
+     "position": [
+      2.0,
+      -2.0,
+      0.6
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "thrust": 80000.0,
+     "isp": 300.0,
+     "plume": 3.0,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover",
+     "plume_width": 0.2
     }
    ],
    "gear": [
@@ -144,5 +292,6 @@
     0
    ]
   }
- ]
+ ],
+ "rcs_effects": false
 }

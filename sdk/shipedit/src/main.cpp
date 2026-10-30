@@ -438,7 +438,40 @@ namespace
                                       return FALSE;
                                   }),
                                   new std::function<void()>(apply), [](gpointer d, GClosure *) { delete static_cast<std::function<void()> *>(d); }, static_cast<GConnectFlags>(0));
-            gtk_grid_attach(GTK_GRID(grid), e, 1, row, 1, 1);
+            if (key == "fuel_start" || key == "propellant")
+            {
+                // A fuel slider: starting fill is 0 to 1 of the tank, propellant runs to twice its current mass.
+                const bool fill = key == "fuel_start";
+                const double now = cv && cv->is_number() ? cv->get<double>() : (fill ? 1.0 : 0.0);
+                const double hi = fill ? 1.0 : std::max(1000.0, std::ceil(now * 2.0));
+                GtkWidget *cell = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+                gtk_box_pack_start(GTK_BOX(cell), e, FALSE, FALSE, 0);
+                GtkWidget *sc = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0.0, hi, fill ? 0.01 : 1.0);
+                gtk_scale_set_digits(GTK_SCALE(sc), fill ? 2 : 0);
+                gtk_scale_set_value_pos(GTK_SCALE(sc), GTK_POS_RIGHT);
+                gtk_range_set_value(GTK_RANGE(sc), now);
+                for (const char *sig : {"button-press-event", "key-press-event"})
+                    g_signal_connect_data(sc, sig, CB(+[](GtkWidget *, GdkEvent *, gpointer) -> gboolean {
+                                              app->doc.checkpoint();
+                                              return FALSE;
+                                          }),
+                                          nullptr, nullptr, static_cast<GConnectFlags>(0));
+                on_signal(sc, "value-changed", [sc, e, key, fill] {
+                    json *n = cur();
+                    if (!n)
+                        return;
+                    const double v = fill ? std::round(gtk_range_get_value(GTK_RANGE(sc)) * 100.0) / 100.0 : std::round(gtk_range_get_value(GTK_RANGE(sc)));
+                    if (n->contains(key) && (*n)[key] == v)
+                        return;
+                    (*n)[key] = v;
+                    gtk_entry_set_text(GTK_ENTRY(e), fmt(v).c_str());
+                    value_changed();
+                });
+                gtk_box_pack_start(GTK_BOX(cell), sc, FALSE, FALSE, 0);
+                gtk_grid_attach(GTK_GRID(grid), cell, 1, row, 1, 1);
+            }
+            else
+                gtk_grid_attach(GTK_GRID(grid), e, 1, row, 1, 1);
             if (f.kind == Field::Text && key == "model")
             {
                 GtkWidget *b = gtk_button_new_with_label("...");
@@ -505,7 +538,7 @@ namespace
             break;
         case Selection::stage_node:
             title = "Stage";
-            fields = {{Field::Text, "name", "Name"},       {Field::Num, "dry_mass", "Dry mass kg"},   {Field::Num, "propellant", "Propellant kg"}, {Field::Num, "z", "Z position m"},
+            fields = {{Field::Text, "name", "Name"},       {Field::Num, "dry_mass", "Dry mass kg"},   {Field::Num, "propellant", "Propellant kg"}, {Field::Num, "fuel_start", "Starting fuel (0-1)"}, {Field::Num, "z", "Z position m"},
                       {Field::Num, "length", "Length m"},  {Field::Num, "radius", "Radius m"},        {Field::Num, "separation_speed", "Separation speed"},
                       {Field::Vec3, "separation_dir", "Separation dir"}};
             break;

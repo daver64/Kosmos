@@ -124,6 +124,8 @@ namespace kosmos
         std::string name;
         double dry_mass = 1000.0;
         double propellant = 0.0;
+        /** Fraction of the propellant loaded at the start (0 to 1). */
+        double fuel_start = 1.0;
         /** Centre, length and radius for the inertia estimate and for debris. */
         double z = 0.0, length = 1.0, radius = 1.0;
         std::vector<EngineSpec> engines;
@@ -278,6 +280,8 @@ namespace kosmos
         bool retractable_gear = false;
         /** An RCS mode switch (/controls/rcs-mode: "rot", "lin" or "off"), as on the Shuttle-A. */
         bool rcs_modes = false;
+        /** Draw the generic cold-gas puffs at the ends of the stage envelope when the RCS fires (ships without RCS thrusters of their own). */
+        bool rcs_effects = true;
         /** An aircraft that flies as a spaceship (RCS, SAS, orbital autopilots) wherever the air is thinner than a tenth of Earth's at sea level, as the Deltaglider does. */
         bool hybrid = false;
         /** How fast an engine pod swings, in radians per second. */

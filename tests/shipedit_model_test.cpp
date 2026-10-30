@@ -1,3 +1,5 @@
+#include <chrono>
+#include <fstream>
 // ShipEdit's document model: every shipped ship must round-trip untouched, edits must behave, save-as must produce a loadable copy.
 #include "model.h"
 
@@ -144,6 +146,14 @@ int main()
     check(after.load(reread[0], "ship.json", error) && after.name() == "Test Stack 2", "the addon now holds the edit");
     check(old.load(backed, "ship.json", error) && old.name() == "Test Stack", "the backup keeps the previous version");
     check(fs::exists(backup / "icbm.lua"), "the backup is a whole copy");
+    // Another program rewriting the ship file after it was loaded blocks a plain Save.
+    {
+        std::ofstream touch(reread[0].dir / "ship.json", std::ios::app);
+        touch << " ";
+    }
+    fs::last_write_time(reread[0].dir / "ship.json", fs::file_time_type::clock::now() + std::chrono::seconds(5));
+    check(back.changed_on_disk() && !back.save_in_place(backups, backup, error), "a stale document is not saved over a newer file");
+    check(back.save_in_place(backups, backup, error, true), "a forced save goes through: " + error);
     Document loose;
     loose.make_blank("Loose");
     check(!loose.save_in_place(backups, backup, error), "a ship with no addon cannot be saved in place");

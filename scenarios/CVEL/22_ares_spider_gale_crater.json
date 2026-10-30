@@ -1,0 +1,15 @@
+{
+ "name": "CVEL: Ares Spider, Gale Crater",
+ "description": "The Ares Spider Mars lander on the pad at Gale Crater base, with the crater and its central mound (terrain/gale-crater.stl) around it. Keypad 0 raises the four hover motors (Home is full hover, End cuts them) and the ship holds itself level on RCS while they burn.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Ares Spider",
+   "body": "Mars",
+   "surface": {
+    "base": "gale"
+   }
+  }
+ ],
+ "date": "2024-01-01 10:00:00"
+}

@@ -186,6 +186,10 @@ namespace shipedit
         source_ship_file_ = ship_file;
         source_addon_id_ = addon.id;
         source_ship_name_ = root_.value("name", std::string());
+        {
+            std::error_code ec;
+            loaded_time_ = fs::last_write_time(addon.dir / ship_file, ec);
+        }
         pending_.clear();
         undo_.clear();
         redo_.clear();
@@ -577,12 +581,26 @@ namespace shipedit
         return true;
     }
 
-    bool Document::save_in_place(const fs::path &backup_root, fs::path &backup_dir, std::string &error)
+    bool Document::changed_on_disk() const
+    {
+        std::error_code ec;
+        if (!has_source())
+            return false;
+        const auto now = fs::last_write_time(source_dir_ / (source_ship_file_.empty() ? "ship.json" : source_ship_file_), ec);
+        return !ec && now != loaded_time_;
+    }
+
+    bool Document::save_in_place(const fs::path &backup_root, fs::path &backup_dir, std::string &error, bool force)
     {
         std::error_code ec;
         if (!has_source())
         {
             error = "This ship was not loaded from an addon; use Save as new addon.";
+            return false;
+        }
+        if (!force && changed_on_disk())
+        {
+            error = "The ship file was changed outside ShipEdit after it was loaded. Saving now would overwrite that change; Load it again (or save as a new addon).";
             return false;
         }
         const fs::path source = fs::weakly_canonical(source_dir_, ec);
@@ -636,6 +654,8 @@ namespace shipedit
             return false;
         }
         ship_out << root_.dump(1) << "\n";
+        ship_out.close();
+        loaded_time_ = fs::last_write_time(source_dir_ / ship_file, ec);
         return true;
     }
 } // namespace shipedit

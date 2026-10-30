@@ -275,6 +275,7 @@ namespace kosmos
             }
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
+            spec.rcs_effects = json.value("rcs_effects", true);
             spec.hybrid = json.value("hybrid", false);
             spec.pod_turn_rate = json.value("pod_turn_rate", spec.pod_turn_rate);
             if (json.contains("animation_controls"))
@@ -342,6 +343,7 @@ namespace kosmos
                 stage.name = js.value("name", "Stage");
                 stage.dry_mass = js.value("dry_mass", stage.dry_mass);
                 stage.propellant = js.value("propellant", 0.0);
+                stage.fuel_start = std::clamp(js.value("fuel_start", 1.0), 0.0, 1.0);
                 stage.z = js.value("z", 0.0);
                 stage.length = js.value("length", stage.length);
                 stage.radius = js.value("radius", stage.radius);
@@ -563,7 +565,7 @@ namespace kosmos
         for (std::size_t s = 0; s < spec_.stages.size(); ++s)
         {
             const StageSpec &stage = spec_.stages[s];
-            b.tanks.push_back({stage.propellant, stage.propellant});
+            b.tanks.push_back({stage.propellant, stage.propellant * stage.fuel_start});
             stage_first_thruster_.push_back(static_cast<int>(b.thrusters.size()));
             for (const EngineSpec &e : stage.engines)
             {

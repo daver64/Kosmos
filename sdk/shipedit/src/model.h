@@ -102,13 +102,16 @@ namespace shipedit
 
         /** Writes the edited ship back into the addon it was loaded from, after copying the whole addon folder to `backup_root/<id>-<timestamp>`
          *  (which must lie outside the addon). addon.json and every other file are left as they were; queued models are copied in. */
-        bool save_in_place(const fs::path &backup_root, fs::path &backup_dir, std::string &error);
+        bool save_in_place(const fs::path &backup_root, fs::path &backup_dir, std::string &error, bool force = false);
+        /** True when the ship file on disk has changed since it was loaded (something else edited it). */
+        bool changed_on_disk() const;
 
     private:
         json root_;
         fs::path source_dir_;
         std::string source_ship_file_, source_addon_id_, source_ship_name_;
         std::map<std::string, fs::path> pending_;
+        fs::file_time_type loaded_time_{};
         std::vector<json> undo_, redo_;
         bool dirty_ = false;
     };

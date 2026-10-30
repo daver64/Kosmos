@@ -1,0 +1,8 @@
+{
+  "id": "ares-spider-mod",
+  "name": "Ares Spider (modified)",
+  "version": "0.1",
+  "ships": [
+    "ship.json"
+  ]
+}

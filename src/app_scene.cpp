@@ -95,6 +95,13 @@ namespace kosmos::app
                             p.far_size = 0.0012f;
                             p.glow_strength *= 1.0f - 0.5f * std::clamp(static_cast<float>(distance) / 600.0f, 0.0f, 1.0f);
                         }
+                        else if (spec.outer > 0.0f)
+                        {
+                            // A spotlight's glow is a lens seen down the beam: it fades off-axis and stays small from far away.
+                            const float to_eye = glm::dot(p.light.direction, -glm::normalize(p.light.position));
+                            p.glow_strength *= std::clamp((to_eye - std::cos(glm::radians(spec.outer))) / 0.3f, 0.0f, 1.0f);
+                            p.far_size = 0.0015f;
+                        }
                         p.distance = static_cast<float>(distance);
                         lamps.push_back(p);
                     }

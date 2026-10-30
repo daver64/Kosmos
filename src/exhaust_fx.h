@@ -238,10 +238,12 @@ namespace kosmos::app
                     particles.push_back(p);
                 }
             };
+            // The jets sit at the ends of the stage envelope; a ship whose hull does not reach there turns them off with "rcs_effects": false.
+            const bool puffs = ship.spec().rcs_effects;
             const glm::vec3 shove = glm::vec3(ship.rcs_push());
-            if (glm::length(shove) > 0.01f)
+            if (puffs && glm::length(shove) > 0.01f)
                 jet(glm::vec3(0.0f, 0.0f, centre) - shove * static_cast<float>(radius), shove, 1.0f);
-            const glm::vec3 torque = glm::vec3(ship.rcs_torque());
+            const glm::vec3 torque = puffs ? glm::vec3(ship.rcs_torque()) : glm::vec3(0.0f);
             const glm::vec3 arms[3][2] = {{{0, 0, centre + arm}, {0, 0, centre - arm}}, {{0, 0, centre + arm}, {0, 0, centre - arm}}, {{static_cast<float>(radius), 0, centre}, {-static_cast<float>(radius), 0, centre}}};
             for (int axis = 0; axis < 3; ++axis)
             {
