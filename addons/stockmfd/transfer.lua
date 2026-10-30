@@ -72,7 +72,7 @@ return {
     local phase = math.rad(props.get("/target/phase-angle"))
     local wait = nil
     if math.abs(ns - nt) > 1e-12 then
-      wait = ((phase - lead) / (nt - ns)) % (2 * math.pi / math.abs(ns - nt))
+      wait = ((lead - phase) / (nt - ns)) % (2 * math.pi / math.abs(ns - nt))
     end
 
     g:text(30, 70, string.format("Burn 1   %+8.1f m/s", dv1), 0)

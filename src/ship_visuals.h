@@ -2,6 +2,10 @@
 
 #include "app.h"
 
+#include <array>
+#include <fstream>
+#include <sstream>
+
 namespace kosmos::app
 {
     // A props-library part moved into the ship frame: the prop's +Y becomes the nose direction (-Z) and its +Z umbilical faces +Y.
@@ -80,6 +84,80 @@ namespace kosmos::app
             return interiors[&interior] = made;
         }
         std::map<const kosmos::Cockpit *, sl::Model *> vc_models;
+        // The MFD screen triangles of a virtual cockpit (ship frame, with the OBJ texture coordinates), for picking buttons.
+        struct VcTri
+        {
+            glm::vec3 p[3];
+            glm::vec2 uv[3];
+        };
+        std::map<const kosmos::Cockpit *, std::array<std::vector<VcTri>, 2>> vc_screens;
+        const std::array<std::vector<VcTri>, 2> &vc_screen_tris(const kosmos::Cockpit &cockpit, const std::string &directory)
+        {
+            vc_model(cockpit, directory);
+            return vc_screens[&cockpit];
+        }
+        static std::array<std::vector<VcTri>, 2> parse_vc_screens(const std::string &path)
+        {
+            std::array<std::vector<VcTri>, 2> out;
+            std::ifstream in(path);
+            std::vector<glm::vec3> pos;
+            std::vector<glm::vec2> tex;
+            int side = -1;
+            for (std::string line; std::getline(in, line);)
+            {
+                std::istringstream ls(line);
+                std::string tag;
+                ls >> tag;
+                if (tag == "v")
+                {
+                    glm::vec3 v;
+                    ls >> v.x >> v.y >> v.z;
+                    pos.push_back(v);
+                }
+                else if (tag == "vt")
+                {
+                    glm::vec2 v;
+                    ls >> v.x >> v.y;
+                    tex.push_back(v);
+                }
+                else if (tag == "usemtl")
+                {
+                    std::string name;
+                    ls >> name;
+                    side = name.find("LMFD_DISPLAY") != std::string::npos ? 0 : name.find("RMFD_DISPLAY") != std::string::npos ? 1 : -1;
+                }
+                else if (tag == "f" && side >= 0)
+                {
+                    std::vector<std::pair<int, int>> corner;
+                    for (std::string c; ls >> c;)
+                    {
+                        const std::size_t a = c.find('/'), b = c.find('/', a + 1);
+                        const int vi = std::atoi(c.c_str()) - 1;
+                        const int ti = a == std::string::npos ? -1 : std::atoi(c.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1).c_str()) - 1;
+                        corner.push_back({vi, ti});
+                    }
+                    for (std::size_t k = 2; k < corner.size(); ++k)
+                    {
+                        const std::pair<int, int> *tri[3] = {&corner[0], &corner[k - 1], &corner[k]};
+                        VcTri t;
+                        bool ok = true;
+                        for (int i = 0; i < 3; ++i)
+                        {
+                            if (tri[i]->first < 0 || tri[i]->first >= static_cast<int>(pos.size()) || tri[i]->second < 0 || tri[i]->second >= static_cast<int>(tex.size()))
+                            {
+                                ok = false;
+                                break;
+                            }
+                            t.p[i] = pos[tri[i]->first];
+                            t.uv[i] = tex[tri[i]->second];
+                        }
+                        if (ok)
+                            out[side].push_back(t);
+                    }
+                }
+            }
+            return out;
+        }
         sl::Model *vc_model(const kosmos::Cockpit &cockpit, const std::string &directory)
         {
             auto found = vc_models.find(&cockpit);
@@ -90,8 +168,11 @@ namespace kosmos::app
             if (!model)
                 std::fprintf(stderr, "[kosmos] cannot load cockpit model %s: %s\n", path.c_str(), sl::last_error().c_str());
             else
+            {
                 for (sl::ModelPart &mp : model->parts)
                     mp.material.cull = sl::CullMode::none;
+                vc_screens[&cockpit] = parse_vc_screens(path);
+            }
             return vc_models[&cockpit] = model;
         }
         struct LoadedModel

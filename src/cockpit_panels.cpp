@@ -323,18 +323,23 @@ namespace kosmos::app
         return glm::mat3(1.0f);
     }
 
+    void resolve_ship_token(kosmos::Cockpit::PanelControl &pc, const std::string &root)
+    {
+        for (std::string *path : {&pc.property, &pc.gate_property})
+            if (const std::size_t token = path->find("{ship}"); token != std::string::npos)
+                path->replace(token, 6, root);
+    }
+
     // The cockpit with "{ship}" in its control properties replaced by the ship's property path.
     kosmos::Cockpit resolved_cockpit(const kosmos::Cockpit &cp, int ship_index)
     {
         kosmos::Cockpit out = cp;
         const std::string root = "/ships/ship[" + std::to_string(ship_index) + "]";
         for (kosmos::Cockpit::PanelControl &pc : out.controls)
-            if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
-                pc.property.replace(token, 6, root);
+            resolve_ship_token(pc, root);
         for (kosmos::Cockpit::Panel2D &panel : out.extra_panels)
             for (kosmos::Cockpit::PanelControl &pc : panel.controls)
-                if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
-                    pc.property.replace(token, 6, root);
+                resolve_ship_token(pc, root);
         return out;
     }
 

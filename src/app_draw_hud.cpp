@@ -343,7 +343,40 @@ namespace kosmos::app
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
-                if (!cp.instruments.empty() || !cp.controls.empty())
+                if (!cp.vc_model.empty())
+                {
+                    // Ray-cast the MFD screen triangles of the virtual cockpit and press the button under the hit.
+                    const auto &screens = vis.vc_screen_tris(ship->spec().cockpit, ship->spec().directory);
+                    float best = 1e30f;
+                    int best_side = -1;
+                    glm::vec2 best_uv{0.0f};
+                    for (int side = 0; side < 2; ++side)
+                        for (const Visuals::VcTri &tri : screens[side])
+                        {
+                            const glm::vec3 e1 = tri.p[1] - tri.p[0], e2 = tri.p[2] - tri.p[0];
+                            const glm::vec3 pv = glm::cross(dir_local, e2);
+                            const float det = glm::dot(e1, pv);
+                            if (std::fabs(det) < 1e-9f)
+                                continue;
+                            const glm::vec3 tv = origin_local - tri.p[0];
+                            const float bu = glm::dot(tv, pv) / det;
+                            const glm::vec3 qv = glm::cross(tv, e1);
+                            const float bv = glm::dot(dir_local, qv) / det;
+                            const float t = glm::dot(e2, qv) / det;
+                            if (bu < 0.0f || bv < 0.0f || bu + bv > 1.0f || t <= 0.0f || t >= best)
+                                continue;
+                            best = t;
+                            best_side = side;
+                            best_uv = tri.uv[0] * (1.0f - bu - bv) + tri.uv[1] * bu + tri.uv[2] * bv;
+                        }
+                    if (best_side >= 0)
+                    {
+                        const int button = sim.mfd.hit_test(best_side, mfd_target_layout(), best_uv.x * mfd_target_size, best_uv.y * mfd_target_size);
+                        if (button >= 0)
+                            sim.mfd.press(best_side, button);
+                    }
+                }
+                else if (!cp.instruments.empty() || !cp.controls.empty())
                 {
                     const glm::mat3 iface = interface_frame(ship->spec());
                     const glm::mat3 pb = iface * panel_basis(cp);
@@ -451,8 +484,9 @@ namespace kosmos::app
             cp.controls = shown.controls;
             const std::string panel_root = "/ships/ship[" + std::to_string(props.get_int("/sim/active-ship")) + "]";
             for (kosmos::Cockpit::PanelControl &pc : cp.controls)
-                if (const std::size_t token = pc.property.find("{ship}"); token != std::string::npos)
-                    pc.property.replace(token, 6, panel_root);
+                for (std::string *path : {&pc.property, &pc.gate_property})
+                    if (const std::size_t token = path->find("{ship}"); token != std::string::npos)
+                        path->replace(token, 6, panel_root);
             cp.panel_width = shown.width;
             cp.panel_height = shown.height;
             cp.panel_image = shown.image;

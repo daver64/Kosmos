@@ -366,14 +366,7 @@
     "width": 1152,
     "height": 300,
     "image": "panel/panel2.png",
-    "instruments": [
-     {
-      "mode": "engine",
-      "x": 62,
-      "y": 22,
-      "size": 262
-     }
-    ],
+    "instruments": [],
     "controls": [
      {
       "type": "toggle",

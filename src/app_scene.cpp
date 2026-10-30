@@ -725,6 +725,19 @@ namespace kosmos::app
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                             }
+                            else
+                            {
+                                // Orbiter cockpits are ambient lit, so the sun-facing shading would leave the interior black.
+                                mp.material.lit = false;
+                                mp.material.fog = false;
+                                const bool glass = mp.name.find("glass") != std::string::npos || mp.name.find("visor") != std::string::npos;
+                                const bool hidden = mp.name.find("HUDDISP") != std::string::npos;
+                                // The loader drops Kd, so plain materials would come out white.
+                                const Uint8 level = mp.material.texture ? 217 : 100;
+                                mp.material.tint = {level, level, level, static_cast<Uint8>(hidden ? 0 : glass ? 60 : 255)};
+                                if (glass || hidden)
+                                    mp.material.blend = sl::MaterialBlend::alpha;
+                            }
                         }
                         sl::draw_model(vc, model);
                     }
