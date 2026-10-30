@@ -11,6 +11,7 @@ namespace kosmos
     {
         std::string cover;
         int base_ft = 0;
+        int tower = 0; // 1 for TCU (towering cumulus), 2 for CB (cumulonimbus)
     };
 
     /** The parts of a METAR observation the simulation uses. Wind speeds are in knots, visibility in metres. */
@@ -38,6 +39,14 @@ namespace kosmos
      */
     bool decode_metar(const std::string &line, Metar &out);
 
+    /** One cloud layer of the weather at a place. `type` is an sl::CloudType (cumulus 0, stratocumulus 1, stratus 2, altocumulus 3, cirrus 4, cumulonimbus 5). */
+    struct CloudLayerInfo
+    {
+        double base = 0.0, top = 0.0; // metres above the ground
+        double cover = 0.0;           // 0 to 1
+        int type = 0;
+    };
+
     /** What the simulation needs at a place: wind in m/s, rain and cloud, surface wetness. */
     struct Conditions
     {
@@ -48,12 +57,18 @@ namespace kosmos
         double cloud_cover = 0.0;                 // 0 clear to 1 overcast
         double cloud_base = 3000.0;               // metres above the ground
         double cloud_top = 4000.0;
+        // The METAR's layers, lowest first (cloud_cover, cloud_base and cloud_top above summarise them for the rest of the simulation).
+        static constexpr int max_cloud_layers = 4;
+        CloudLayerInfo layers[max_cloud_layers];
+        int layer_count = 0;
         double visibility = 10000.0;              // metres
         double temperature = 15.0;                // Celsius
         double pressure = 1013.0;                 // hectopascals at the surface
     };
 
     Conditions conditions_from(const Metar &m);
+    /** The top of the highest cloud layer, which for a storm is far above the lowest base. */
+    double highest_cloud_top(const Conditions &c);
     Conditions blend(const Conditions &a, const Conditions &b, double t);
 
     /** Seconds since 1970 of a METAR day, hour and minute nearest to `reference` (the month is taken from it). */

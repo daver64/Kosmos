@@ -53,6 +53,7 @@ namespace kosmos
         props.set_int("/sim/settings/world-texture", 0);
         props.set_int("/sim/settings/gfx-style", 0);
         props.set_bool("/sim/settings/gfx-clouds", true);
+        props.set_int("/sim/settings/gfx-cloud-style", 0);
         props.set_bool("/sim/settings/link-listen", false);
         props.set_bool("/sim/settings/mouse-invert-x", false);
         props.set_bool("/sim/settings/mouse-invert-y", false);
@@ -114,6 +115,8 @@ namespace kosmos
             props.set_string("/sim/settings/weather-metar", j["weather-metar"].get<std::string>());
         if (j.contains("weather-source") && j["weather-source"].is_string())
             props.set_string("/sim/settings/weather-source", j["weather-source"].get<std::string>() == "live" ? "live" : "procedural");
+        if (j.contains("gfx-cloud-style") && j["gfx-cloud-style"].is_number_integer())
+            props.set_int("/sim/settings/gfx-cloud-style", std::clamp(j["gfx-cloud-style"].get<int>(), 0, 2));
         if (j.contains("gfx-clouds") && j["gfx-clouds"].is_boolean())
             props.set_bool("/sim/settings/gfx-clouds", j["gfx-clouds"].get<bool>());
         for (const char *name : {"mouse-invert-x", "mouse-invert-y"})
@@ -137,7 +140,7 @@ namespace kosmos
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
         j["world-texture"] = props.get_int("/sim/settings/world-texture");
         j["max-texture"] = props.get_int("/sim/settings/max-texture");
-        for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-terrain-detail"})
+        for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-terrain-detail", "gfx-cloud-style"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
         j["mouse-invert-x"] = props.get_bool("/sim/settings/mouse-invert-x");

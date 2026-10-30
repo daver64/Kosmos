@@ -274,6 +274,7 @@ namespace kosmos::app
         sl::Event event_discard;
         double clock{};
         double lightning_flash{};
+        double cloud_veil{};
         std::uint32_t last_time{};
         int applied_fps{};
         int gfx_style{};
@@ -380,6 +381,7 @@ namespace kosmos::app
         void setup_depth_layers();
         void setup_environment();
         void setup_local_sky();
+        void setup_cloud_layers();
         void draw_building_panel_target();
         void render_panel_target(const kosmos::Cockpit &pcp, const std::string &directory);
         void draw_cockpit_targets();

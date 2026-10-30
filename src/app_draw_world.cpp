@@ -95,7 +95,42 @@ namespace kosmos::app
                 environment.fog_density = std::max(environment.fog_density, static_cast<float>(3.0 / visibility));
         }
 
+        setup_cloud_layers();
         setup_local_sky();
+    }
+
+    // Flat or volumetric cloud layers in the sky from the weather's layers; cloud_veil is how far the eye is inside thick cloud.
+    void App::setup_cloud_layers()
+    {
+        sl::PropertyTree &props = *props_ref;
+        cloud_veil = 0.0;
+        const int style = props.get_int("/sim/settings/gfx-cloud-style");
+        if (!near_earth || style == 0 || !gfx_clouds || options.no_clouds || !props.get_bool("/sim/settings/weather", true))
+            return;
+        const int count = std::min(props.get_int("/environment/cloud-layer-count"), 4);
+        const double agl = ship->telemetry().altitude;
+        const double ground = environment.camera_altitude - agl;
+        const double wind_e = props.get_double("/environment/wind-east");
+        const double wind_n = props.get_double("/environment/wind-north");
+        for (int i = 0; i < count; ++i)
+        {
+            const std::string p = "/environment/cloud-layer-" + std::to_string(i) + "/";
+            const double base = props.get_double(p + "base"), top = props.get_double(p + "top"), cover = props.get_double(p + "cover");
+            const int type = std::clamp(props.get_int(p + "type"), 0, 5);
+            sl::CloudLayer layer = sl::cloud_layer(static_cast<sl::CloudType>(type));
+            layer.enabled = cover > 0.04;
+            layer.altitude = static_cast<float>(ground + base);
+            layer.thickness = static_cast<float>(std::max(100.0, top - base));
+            layer.coverage = static_cast<float>(std::clamp(cover, 0.0, 1.0));
+            layer.wind = glm::vec2(static_cast<float>(wind_e), static_cast<float>(wind_n));
+            layer.volumetric = style == 2 && (type == 0 || type == 1 || type == 5);
+            (i == 0 ? environment.clouds : environment.more_clouds[i - 1]) = layer;
+            if (layer.enabled && agl > base - 100.0 && agl < top + 100.0)
+            {
+                const double edge = std::min({1.0, (agl - base + 100.0) / 200.0, (top + 100.0 - agl) / 200.0});
+                cloud_veil = std::max(cloud_veil, edge * std::clamp(cover * 1.2, 0.0, 1.0) * (type == 5 ? 1.0 : 0.7));
+            }
+        }
     }
 
     void App::setup_local_sky()

@@ -238,6 +238,15 @@ namespace kosmos::app
             flag("Weather", "/sim/settings/weather", "Wind, rain, cloud and visibility on planets with an atmosphere");
             flag("Rain", "/sim/settings/weather-rain", "Draw falling rain");
             {
+                static const char *styles[] = {"Simple (one deck)", "Layers (up to 4)", "Volumetric"};
+                int style = std::clamp(props.get_int("/sim/settings/gfx-cloud-style"), 0, 2);
+                ImGui::SetNextItemWidth(160.0f);
+                if (ImGui::Combo("Cloud style", &style, styles, 3))
+                    props.set_int("/sim/settings/gfx-cloud-style", style);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Simple: one cloud deck at the lowest base.\nLayers: every reported layer, up to four, with fog inside thick cloud.\nVolumetric: Layers with ray-marched 3D towers; heavy on the GPU.");
+            }
+            {
                 const auto &presets = kosmos::Weather::presets();
                 const std::string cur = props.get_string("/sim/settings/weather-preset", "auto");
                 std::string label = cur == "auto" ? "Automatic" : cur == "custom" ? "Custom METAR" : cur;

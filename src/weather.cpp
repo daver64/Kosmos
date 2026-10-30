@@ -121,7 +121,7 @@ namespace kosmos
     bool decode_metar(const std::string &line, Metar &out)
     {
         static const std::regex station_re("^[A-Z][A-Z0-9]{3}$"), time_re("^(\\d\\d)(\\d\\d)(\\d\\d)Z$"), wind_re("^(\\d{3}|VRB)(\\d{2,3})(?:G(\\d{2,3}))?(KT|MPS)$"),
-            cloud_re("^(FEW|SCT|BKN|OVC)(\\d{3})(?:CB|TCU)?$"), vv_re("^VV(\\d{3})$"), temp_re("^(M?\\d{2,3})/(M?\\d{2,3})?$"), q_re("^Q(\\d{4,6})$"),
+            cloud_re("^(FEW|SCT|BKN|OVC)(\\d{3})(CB|TCU)?$"), vv_re("^VV(\\d{3})$"), temp_re("^(M?\\d{2,3})/(M?\\d{2,3})?$"), q_re("^Q(\\d{4,6})$"),
             a_re("^A(\\d{4})$"), vis_sm_re("^M?(\\d+)(?:/(\\d+))?SM$");
         Metar m;
         std::istringstream in(line);
@@ -184,7 +184,7 @@ namespace kosmos
                 have_vis = true;
             }
             else if (std::regex_match(t, match, cloud_re))
-                m.clouds.push_back({match[1], std::stoi(match[2]) * 100});
+                m.clouds.push_back({match[1], std::stoi(match[2]) * 100, match[3] == "CB" ? 2 : (match[3] == "TCU" ? 1 : 0)});
             else if (std::regex_match(t, match, vv_re))
                 m.clouds.push_back({"OVC", std::stoi(match[1]) * 100});
             else if (t == "SKC" || t == "CLR" || t == "NSC" || t == "NCD")
@@ -205,6 +205,65 @@ namespace kosmos
         m.valid = true;
         out = m;
         return true;
+    }
+
+    namespace
+    {
+        // Keeps the lowest few layers of a METAR with a kind and thickness guessed from the base height, cover and any CB or TCU.
+        void fill_cloud_layers(const Metar &m, Conditions &c)
+        {
+            for (const MetarCloud &layer : m.clouds)
+            {
+                if (c.layer_count >= Conditions::max_cloud_layers)
+                    break;
+                const double cover = cover_fraction(layer.cover);
+                if (cover <= 0.0)
+                    continue;
+                CloudLayerInfo &out = c.layers[c.layer_count++];
+                out.base = std::max(layer.base_ft * feet, 30.0);
+                out.cover = cover;
+                double thickness;
+                if (layer.tower == 2)
+                {
+                    out.type = 5;
+                    thickness = 7000.0;
+                }
+                else if (layer.tower == 1)
+                {
+                    out.type = 0;
+                    thickness = 3000.0;
+                }
+                else if (out.base < 600.0 && cover >= 0.7)
+                {
+                    out.type = 2;
+                    thickness = 400.0;
+                }
+                else if (out.base < 2000.0)
+                {
+                    out.type = cover > 0.5 ? 1 : 0;
+                    thickness = 500.0 + 1000.0 * cover;
+                }
+                else if (out.base < 6000.0)
+                {
+                    out.type = 3;
+                    thickness = 500.0;
+                }
+                else
+                {
+                    out.type = 4;
+                    thickness = 300.0;
+                }
+                out.top = out.base + thickness;
+            }
+        }
+    } // namespace
+
+    double highest_cloud_top(const Conditions &c)
+    {
+        double top = c.cloud_top;
+        for (int i = 0; i < c.layer_count; ++i)
+            top = std::max(top, c.layers[i].top);
+        return top;
     }
 
     Conditions conditions_from(const Metar &m)
@@ -260,6 +319,7 @@ namespace kosmos
             lowest = m.clouds.front().base_ft * feet;
         c.cloud_base = have_base || !m.clouds.empty() ? std::max(lowest, 30.0) : 3000.0;
         c.cloud_top = c.cloud_base + 600.0 + 2000.0 * c.cloud_cover;
+        fill_cloud_layers(m, c);
         c.temperature = m.temperature_c;
         c.pressure = m.qnh_hpa;
         return c;
@@ -277,6 +337,18 @@ namespace kosmos
         c.cloud_cover = mix(a.cloud_cover, b.cloud_cover);
         c.cloud_base = mix(a.cloud_base, b.cloud_base);
         c.cloud_top = mix(a.cloud_top, b.cloud_top);
+        // Layers fade from one set to the next when the counts differ, so the nearer set is used outright.
+        const Conditions &pick = t < 0.5 ? a : b;
+        c.layer_count = pick.layer_count;
+        for (int i = 0; i < pick.layer_count; ++i)
+            c.layers[i] = pick.layers[i];
+        if (a.layer_count == b.layer_count)
+            for (int i = 0; i < a.layer_count; ++i)
+            {
+                c.layers[i].base = mix(a.layers[i].base, b.layers[i].base);
+                c.layers[i].top = mix(a.layers[i].top, b.layers[i].top);
+                c.layers[i].cover = mix(a.layers[i].cover, b.layers[i].cover);
+            }
         c.visibility = mix(a.visibility, b.visibility);
         c.temperature = mix(a.temperature, b.temperature);
         c.pressure = mix(a.pressure, b.pressure);
@@ -570,6 +642,12 @@ namespace kosmos
             sum.visibility += w * c.visibility;
             sum.temperature += w * c.temperature;
             sum.pressure += w * c.pressure;
+            if (k == 0)
+            {
+                out.layer_count = c.layer_count;
+                for (int i = 0; i < c.layer_count; ++i)
+                    out.layers[i] = c.layers[i];
+            }
             total += w;
         }
         if (total <= 0.0)

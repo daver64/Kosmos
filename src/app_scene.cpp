@@ -784,7 +784,7 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
         // Weather clouds: a layer at the reported cloud base over the flown ship, below 100 km only.
-        if (props.get_bool("/sim/settings/weather", true) && props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0 && !map_mode)
+        if (props.get_bool("/sim/settings/weather", true) && props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0 && !map_mode && props.get_int("/sim/settings/gfx-cloud-style") == 0)
         {
             const kosmos::Telemetry &wt = ship->telemetry();
             const double cover = props.get_double("/environment/cloud-cover");

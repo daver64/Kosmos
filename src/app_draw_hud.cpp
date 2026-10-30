@@ -520,6 +520,12 @@ namespace kosmos::app
         {
         draw_mfd_overlay(dashboard, cockpit_mfd_overlay);
         }
+        if (cloud_veil > 0.02 && !map_mode && !galaxy_mode)
+        {
+            sl::set_blend_mode(sl::BlendMode::normal);
+            sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
+                         {112, 118, 128, static_cast<std::uint8_t>(cloud_veil * 190.0)});
+        }
         if (lightning_flash > 0.02 && !map_mode && !galaxy_mode)
         {
             sl::set_blend_mode(sl::BlendMode::additive);

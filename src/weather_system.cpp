@@ -17,6 +17,7 @@ namespace kosmos
         constexpr double unix_of_julian_zero = 2440587.5;
         // Real reports are only used when the simulated date is within this many seconds of the real one.
         constexpr double live_window = 3.0 * 3600.0;
+        constexpr double storm_clearance = 3000.0; // metres above the highest cloud top where thunder stops
 
         double unix_from_julian(double jd) { return (jd - unix_of_julian_zero) * 86400.0; }
 
@@ -123,6 +124,7 @@ namespace kosmos
         if (altitude >= std::max(b.atmosphere_scale_height * 12.0, 30.0e3))
         {
             c.rain = c.thunder = c.cloud_cover = c.gust = c.wind_east = c.wind_north = 0.0;
+            c.layer_count = 0;
             c.visibility = 1.0e5;
         }
         else
@@ -131,6 +133,8 @@ namespace kosmos
             c.wind_east *= lift;
             c.wind_north *= lift;
         }
+        if (c.thunder > 0.0 && altitude > highest_cloud_top(c) + storm_clearance)
+            c.thunder = 0.0;
         out = c;
         return true;
     }
@@ -230,6 +234,16 @@ namespace kosmos
         props.set_double("/environment/cloud-cover", c.cloud_cover);
         props.set_double("/environment/cloud-base", c.cloud_base);
         props.set_double("/environment/cloud-top", c.cloud_top);
+        props.set_int("/environment/cloud-layer-count", c.layer_count);
+        for (int i = 0; i < Conditions::max_cloud_layers; ++i)
+        {
+            const std::string path = "/environment/cloud-layer-" + std::to_string(i) + "/";
+            const CloudLayerInfo layer = i < c.layer_count ? c.layers[i] : CloudLayerInfo();
+            props.set_double(path + "base", layer.base);
+            props.set_double(path + "top", layer.top);
+            props.set_double(path + "cover", layer.cover);
+            props.set_int(path + "type", layer.type);
+        }
         props.set_double("/environment/visibility", c.visibility);
         props.set_double("/environment/temperature", c.temperature);
         props.set_double("/environment/pressure", c.pressure);
@@ -271,10 +285,14 @@ namespace kosmos
         if (!in_air)
         {
             c.rain = c.thunder = c.cloud_cover = 0.0;
+            c.layer_count = 0;
             c.gust = 0.0;
             c.wind_east = c.wind_north = 0.0;
             c.visibility = 1.0e5;
         }
+        // A storm's lightning belongs to its cloud: well above the tops there is none.
+        if (c.thunder > 0.0 && altitude > highest_cloud_top(c) + storm_clearance)
+            c.thunder = 0.0;
         const double t = unix_now_;
         clock_ += dt;
         // Wind at a place and height: grows with height above the ground, doubling by three kilometres, with gusts that come and go.
