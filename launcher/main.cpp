@@ -68,12 +68,12 @@ namespace
         explicit IdData(std::string i) : id(std::move(i)) {}
     };
 
-    const char *platform_archive()
+    std::string platform_archive(const std::string &version)
     {
 #ifdef _WIN32
-        return "kosmos-beta-Windows.zip";
+        return "kosmos-beta-" + version + "-Windows.zip";
 #else
-        return "kosmos-beta-Linux.tar.gz";
+        return "kosmos-beta-" + version + "-Linux.tar.gz";
 #endif
     }
 
@@ -947,7 +947,7 @@ namespace
             // Unpack beside the current install so the running copy is never overwritten.
             const fs::path dest = root_.parent_path() / ("kosmos-" + latest_);
             update_button_->Disable();
-            DownloadArchive(platform_archive(), "", dest, update_gauge_, [this, dest](bool ok, const std::string &msg)
+            DownloadArchive(platform_archive(latest_), "", dest, update_gauge_, [this, dest](bool ok, const std::string &msg)
                             {
                                 if (ok)
                                 {

@@ -17,7 +17,8 @@ WEB_ROOT=${WEB_ROOT:-/var/www/html}
 
 stamp() {
     find "$WEB_ROOT" -maxdepth 2 -name '*.html' -print0 |
-        xargs -0 sed -i -E "s|(class=\"ver\" data-ver=\"kosmos\">)[^<]*|\1$1|g"
+        xargs -0 sed -i -E -e "s|(class=\"ver\" data-ver=\"kosmos\">)[^<]*|\1$1|g" \
+            -e "s#kosmos-beta-([0-9]+\.[0-9]+-)?(Linux|Windows)#kosmos-beta-$1-\2#g"
 }
 
 if [ "$1" = "--stamp" ]; then
@@ -57,6 +58,16 @@ for f in "$@"; do
     sums=$(grep -s -v "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" || true)
     { [ -z "$sums" ] || echo "$sums"; sha256sum "$f" | sed "s|  .*|  $name|"; } | sort -k2 > "$DOWNLOAD/SHA256SUMS.txt.new"
     mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
+    # Launchers before 0.32 download the unversioned name, so it stays as a link to the latest archive.
+    plain=$(echo "$name" | sed -E "s|kosmos-beta-$VER-|kosmos-beta-|")
+    if [ "$plain" != "$name" ]; then
+        ln -sf "$name" "$DOWNLOAD/$plain"
+        sed -i "s|^\(.*\)  $name\$|\1  $name\n\1  $plain|" "$DOWNLOAD/SHA256SUMS.txt"
+        sort -k2 -u "$DOWNLOAD/SHA256SUMS.txt" > "$DOWNLOAD/SHA256SUMS.txt.new" && mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
+        for old in "$DOWNLOAD"/kosmos-beta-*-"${name##*-}"; do
+            [ "$old" = "$DOWNLOAD/$name" ] || { rm -f "$old"; sed -i "\|  $(basename "$old")\$|d" "$DOWNLOAD/SHA256SUMS.txt"; }
+        done
+    fi
 done
 echo "$VER" > "$DOWNLOAD/VERSION.txt"
 # RELEASE_NOTES.md on the site is every version's notes, newest first

@@ -25,14 +25,15 @@ done
 case $JOBS in ''|*[!0-9]*|0) echo "jobs must be a positive number" >&2; exit 1 ;; esac
 if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 export JOBS
+VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
 archives=
 if [ $linux -eq 1 ]; then
     env -u OUT "$SRC/scripts/build-linux.sh"
-    archives="$archives $SRC/build/package/kosmos-beta-Linux.tar.gz"
+    archives="$archives $SRC/build/package/kosmos-beta-$VER-Linux.tar.gz"
 fi
 if [ $windows -eq 1 ]; then
     env -u OUT "$SRC/scripts/build-windows.sh"
-    archives="$archives $SRC/build-win/package/kosmos-beta-Windows.zip"
+    archives="$archives $SRC/build-win/package/kosmos-beta-$VER-Windows.zip"
 fi
 
 if [ $publish -eq 1 ]; then

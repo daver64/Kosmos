@@ -26,8 +26,8 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 ## Distributions
 
-    scripts/build-linux.sh                          # build/package/kosmos-beta-Linux.tar.gz
-    scripts/build-windows.sh                        # build-win/package/kosmos-beta-Windows.zip (mingw-w64 + vcpkg cross-build) (both do a clean rebuild; INCREMENTAL=1 skips the clean)
+    scripts/build-linux.sh                          # build/package/kosmos-beta-<version>-Linux.tar.gz
+    scripts/build-windows.sh                        # build-win/package/kosmos-beta-<version>-Windows.zip (mingw-w64 + vcpkg cross-build) (both do a clean rebuild; INCREMENTAL=1 skips the clean)
     scripts/release.sh                              # both builds, then publish to the web site (--no-publish, --linux-only, --windows-only, -j N)
     # builds run at most 4 compile or link jobs at once, even a bare `ninja` (a Ninja job pool); use -j N or JOBS=N with the scripts, or -DKOSMOS_BUILD_JOBS=N with cmake, to change that
 
@@ -120,9 +120,9 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 
 ## Versions
 
-Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the number the next published build will carry, so a fresh binary already shows it in **Help > About**, in `--version`, and on the web pages. `scripts/publish-web.sh ARCHIVE...` copies built archives to the web site; if their SHA-256 differs from the published one it updates `SHA256SUMS.txt`, stamps the version on the landing page, download pages and docs, and then bumps `VERSION` to the next build. If the checksums are unchanged nothing happens.
+Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the number the next published build will carry, so a fresh binary already shows it in **Help > About**, in `--version`, and on the web pages. `scripts/publish-web.sh ARCHIVE...` copies built archives to the web site; if their SHA-256 differs from the published one it updates `SHA256SUMS.txt`, stamps the version on the landing page, download pages and docs, and then bumps `VERSION` to the next build. If the checksums are unchanged nothing happens. Archives carry the version in their name (`kosmos-beta-0.32-Linux.tar.gz`); the publisher also keeps `kosmos-beta-Linux.tar.gz` and `kosmos-beta-Windows.zip` as links to the latest, which launchers older than 0.32 still download, and removes older versioned archives.
 
-    scripts/publish-web.sh build/package/kosmos-beta-Linux.tar.gz build-win/package/kosmos-beta-Windows.zip
+    scripts/publish-web.sh build/package/kosmos-beta-$(cat VERSION)-Linux.tar.gz build-win/package/kosmos-beta-$(cat VERSION)-Windows.zip
 
 ## Galaxy
 

@@ -20,7 +20,7 @@ Kosmos is an Kerbal/Orbiter-style space flight sim in C++17, built on **simlib**
 ## Build and run
 - Dev build: `cmake --build build -j8` (the `build/` tree is already configured).
 - Linux package: `cmake --build build --target kosmos_package`. Windows package: `sh scripts/build-windows.sh` (clean rebuild, about 5 minutes).
-- Publish: `sh scripts/publish-web.sh build/package/kosmos-beta-Linux.tar.gz build-win/package/kosmos-beta-Windows.zip`. It needs `docs/release-notes/<VERSION>.md`, copies to `/var/www/html/kosmos/download/`, stamps versions and bumps `VERSION`. It does nothing if the checksums match.
+- Publish: `sh scripts/publish-web.sh build/package/kosmos-beta-$(cat VERSION)-Linux.tar.gz build-win/package/kosmos-beta-$(cat VERSION)-Windows.zip`. It needs `docs/release-notes/<VERSION>.md`, copies to `/var/www/html/kosmos/download/`, stamps versions and bumps `VERSION`. It does nothing if the checksums match.
 - Run from `build/`. Useful options: `--ship NAME`, `--orbit`, `--cockpit`, `--cockpit3d`, `--set /path=VALUE`, `--hide-info`, `--selftest SECS` (with `--selftest-throttle`, `--selftest-gear-up`), `--test-jump N`, `--system N`, `--orbit-body auto`.
 - Screenshot: `DISPLAY=:0 ./kosmos --hide-info --ship "CVEL Deltaglider" --orbit --cam-yaw 70 --cam-pitch 10 --cam-distance 20 --shot FILE.png --shot-at SECS`.
 - Tests: `build/systems_test`.

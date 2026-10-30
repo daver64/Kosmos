@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the Linux package.
 # Usage: build-linux.sh [-j N] [target ...]   (default: kosmos_package)
-# Output: build/package/kosmos-beta-Linux.tar.gz
+# Output: build/package/kosmos-beta-<version>-Linux.tar.gz
 # Always a clean rebuild (every object recompiled); set INCREMENTAL=1 to reuse the existing build tree.
 # Needs simlib installed (cmake --install) under SIMLIB_PREFIX.
 # Overrides (env): OUT, JOBS (default 4; -j N overrides), INCREMENTAL, SIMLIB_PREFIX (default ~/opt), KOSMOS_SIMLIB_DIR (build against a simlib source tree instead)
