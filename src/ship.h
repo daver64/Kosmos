@@ -592,6 +592,9 @@ namespace kosmos
         sl::dquat pin_attitude_{1.0, 0.0, 0.0, 0.0};
         void pin_to_ground();
         void hold_pinned();
+        void step_systems(double dt);
+        void resolve_landing();
+        void expire_debris(double dt);
         bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface
         double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;

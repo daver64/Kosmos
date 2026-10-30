@@ -662,114 +662,24 @@ namespace kosmos::app
         }
     }
 
-    // Lines, markers and labels the programs place in the world, projected with the same view as the orbit line.
-    void App::draw_link_3d()
+    namespace
     {
-        if (!link_server || !link_server->running() || map_mode || galaxy_mode)
-            return;
-        const std::vector<const link::Layer3 *> layers = link_server->layers();
-        if (layers.empty() || !universe_ref)
-            return;
-        kosmos::Universe &universe = sim.universe;
-        const sl::FlightBody *body_fb = universe.world.body(soi);
-        if (!body_fb)
-            return;
-        const double radius = universe.bodies[static_cast<std::size_t>(soi)].radius;
-        const sl::dquat orient = universe.orientation(soi);
-        const sl::dvec3 body_rel = body_fb->position - eye_world;
-
-        struct Point
+        // Places and draws the primitives a program asked for, with the same view as the orbit line.
+        class Link3dPainter
         {
-            sl::dvec3 rel, up;
-            bool ok = true;
-        };
-        auto locate = [&](const link::Primitive3 &p, const double v[3]) {
-            Point pt;
-            if (p.frame == 0)
+        public:
+            Link3dPainter(App &app, const sl::FlightBody &body_fb) : app_(app), universe_(app.sim.universe), soi_(app.soi), body_rel_(body_fb.position - app.eye_world)
             {
-                const sl::dvec3 dir = direction_from_lat_lon(universe, soi, v[0], v[1]);
-                pt.rel = body_rel + dir * (radius + v[2]);
-                pt.up = dir;
+                radius_ = universe_.bodies[static_cast<std::size_t>(soi_)].radius;
+                orient_ = universe_.orientation(soi_);
+                eye_body_ = app.eye_world - universe_.position(soi_);
             }
-            else if (p.frame == 1)
-            {
-                const sl::dvec3 local = orient * sl::dvec3(v[0], v[1], v[2]);
-                pt.rel = body_rel + local;
-                pt.up = glm::length(local) > 0.0 ? glm::normalize(local) : sl::dvec3(0, 1, 0);
-            }
-            else if (p.ship < static_cast<std::uint32_t>(sim.ship_count()))
-            {
-                const sl::FlightBody &fb = sim.ship(static_cast<int>(p.ship))->body();
-                pt.rel = fb.position - eye_world + fb.direction_to_world(sl::dvec3(v[0], v[1], v[2]));
-                pt.up = fb.direction_to_world(sl::dvec3(0, 1, 0));
-            }
-            else
-                pt.ok = false;
-            return pt;
-        };
-        // The planet hides things analytically; ships and terrain relief are tested with the arsenal's ray code, within a per-frame budget.
-        const sl::dvec3 eye_body = eye_world - universe.position(soi);
-        int rays_left = 6000;
-        auto hidden = [&](const sl::dvec3 &rel) {
-            const double length = glm::length(rel);
-            if (length < 1.0)
-                return false;
-            const sl::dvec3 dir = rel / length;
-            const double along = glm::dot(body_rel, dir);
-            if (along > 0.0 && along < length && glm::length(body_rel - dir * along) < radius * 0.999)
-                return true;
-            if (rays_left <= 0)
-                return false;
-            --rays_left;
-            return arsenal.blocked(arsenal_ctx, soi, eye_body, eye_body + rel);
-        };
-        auto segment = [&](const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p) {
-            const int pieces = p.depth ? std::clamp(static_cast<int>(glm::length(b - a) / 40.0) + 1, 1, 32) : 1;
-            // Each vertex is tested once; a piece shows when both its ends are in view.
-            bool last_visible = true;
-            sl::dvec3 last = a;
-            for (int i = 0; i <= pieces; ++i)
-            {
-                const sl::dvec3 at = a + (b - a) * (static_cast<double>(i) / pieces);
-                const bool visible = !p.depth || !hidden(at);
-                if (i > 0 && visible && last_visible)
-                {
-                    glm::vec4 ca = view_proj * glm::vec4(glm::vec3(last), 1.0f), cb = view_proj * glm::vec4(glm::vec3(at), 1.0f);
-                    const float near_w = 0.05f;
-                    if (ca.w >= near_w || cb.w >= near_w)
-                    {
-                        if (ca.w < near_w)
-                            ca += (cb - ca) * ((near_w - ca.w) / (cb.w - ca.w));
-                        else if (cb.w < near_w)
-                            cb += (ca - cb) * ((near_w - cb.w) / (ca.w - cb.w));
-                        const float x1 = (ca.x / ca.w * 0.5f + 0.5f) * static_cast<float>(screen_w), y1 = (1.0f - (ca.y / ca.w * 0.5f + 0.5f)) * static_cast<float>(screen_h);
-                        const float x2 = (cb.x / cb.w * 0.5f + 0.5f) * static_cast<float>(screen_w), y2 = (1.0f - (cb.y / cb.w * 0.5f + 0.5f)) * static_cast<float>(screen_h);
-                        if (std::fabs(x1) < 1.0e5f && std::fabs(y1) < 1.0e5f && std::fabs(x2) < 1.0e5f && std::fabs(y2) < 1.0e5f)
-                            sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
-                    }
-                }
-                last = at;
-                last_visible = visible;
-            }
-        };
-        auto ring = [&](const sl::dvec3 &centre, const sl::dvec3 &normal, double r, const link::Primitive3 &p) {
-            const sl::dvec3 helper = std::fabs(normal.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
-            const sl::dvec3 e1 = glm::normalize(glm::cross(normal, helper)), e2 = glm::cross(normal, e1);
-            sl::dvec3 last = centre + e1 * r;
-            for (int i = 1; i <= 40; ++i)
-            {
-                const double t = i * 6.283185307179586 / 40.0;
-                const sl::dvec3 next = centre + (e1 * std::cos(t) + e2 * std::sin(t)) * r;
-                segment(last, next, p);
-                last = next;
-            }
-        };
-        for (const link::Layer3 *layer : layers)
-            for (const link::Primitive3 &p : layer->items)
+
+            void draw(const link::Primitive3 &p)
             {
                 const Point a = locate(p, p.a);
                 if (!a.ok)
-                    continue;
+                    return;
                 switch (p.kind)
                 {
                 case 0:
@@ -781,19 +691,8 @@ namespace kosmos::app
                 }
                 case 1:
                 case 2:
-                {
-                    if (hidden(a.rel) && p.depth)
-                        break;
-                    float x = 0.0f, y = 0.0f;
-                    if (glm::length(a.rel) < 1.0 || !project(view_proj, glm::vec3(a.rel), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
-                        break;
-                    const sl::Colour colour{p.r, p.g, p.bl, p.alpha};
-                    if (p.kind == 1)
-                        sl::circle(sl::screen, x, y, static_cast<float>(std::clamp(p.size, 2.0, 40.0)), colour, 1.0f);
-                    else
-                        sl::gprintf(static_cast<int>(x) + 8, static_cast<int>(y) - 6, colour, "%s", p.text.c_str());
+                    marker(a, p);
                     break;
-                }
                 case 3:
                     ring(a.rel, a.up, p.size, p);
                     break;
@@ -807,5 +706,142 @@ namespace kosmos::app
                 }
                 }
             }
+
+        private:
+            struct Point
+            {
+                sl::dvec3 rel, up;
+                bool ok = true;
+            };
+
+            Point locate(const link::Primitive3 &p, const double v[3])
+            {
+                Point pt;
+                if (p.frame == 0)
+                {
+                    const sl::dvec3 dir = direction_from_lat_lon(universe_, soi_, v[0], v[1]);
+                    pt.rel = body_rel_ + dir * (radius_ + v[2]);
+                    pt.up = dir;
+                }
+                else if (p.frame == 1)
+                {
+                    const sl::dvec3 local = orient_ * sl::dvec3(v[0], v[1], v[2]);
+                    pt.rel = body_rel_ + local;
+                    pt.up = glm::length(local) > 0.0 ? glm::normalize(local) : sl::dvec3(0, 1, 0);
+                }
+                else if (p.ship < static_cast<std::uint32_t>(app_.sim.ship_count()))
+                {
+                    const sl::FlightBody &fb = app_.sim.ship(static_cast<int>(p.ship))->body();
+                    pt.rel = fb.position - app_.eye_world + fb.direction_to_world(sl::dvec3(v[0], v[1], v[2]));
+                    pt.up = fb.direction_to_world(sl::dvec3(0, 1, 0));
+                }
+                else
+                    pt.ok = false;
+                return pt;
+            }
+
+            // The planet hides things analytically; ships and terrain relief are tested with the arsenal's ray code, within a per-frame budget.
+            bool hidden(const sl::dvec3 &rel)
+            {
+                const double length = glm::length(rel);
+                if (length < 1.0)
+                    return false;
+                const sl::dvec3 dir = rel / length;
+                const double along = glm::dot(body_rel_, dir);
+                if (along > 0.0 && along < length && glm::length(body_rel_ - dir * along) < radius_ * 0.999)
+                    return true;
+                if (rays_left_ <= 0)
+                    return false;
+                --rays_left_;
+                return app_.arsenal.blocked(app_.arsenal_ctx, soi_, eye_body_, eye_body_ + rel);
+            }
+
+            void screen_line(const sl::dvec3 &from, const sl::dvec3 &to, const link::Primitive3 &p)
+            {
+                glm::vec4 ca = app_.view_proj * glm::vec4(glm::vec3(from), 1.0f), cb = app_.view_proj * glm::vec4(glm::vec3(to), 1.0f);
+                const float near_w = 0.05f;
+                if (ca.w < near_w && cb.w < near_w)
+                    return;
+                if (ca.w < near_w)
+                    ca += (cb - ca) * ((near_w - ca.w) / (cb.w - ca.w));
+                else if (cb.w < near_w)
+                    cb += (ca - cb) * ((near_w - cb.w) / (ca.w - cb.w));
+                const float sw = static_cast<float>(screen_w), sh = static_cast<float>(screen_h);
+                const float x1 = (ca.x / ca.w * 0.5f + 0.5f) * sw, y1 = (1.0f - (ca.y / ca.w * 0.5f + 0.5f)) * sh;
+                const float x2 = (cb.x / cb.w * 0.5f + 0.5f) * sw, y2 = (1.0f - (cb.y / cb.w * 0.5f + 0.5f)) * sh;
+                if (std::fabs(x1) < 1.0e5f && std::fabs(y1) < 1.0e5f && std::fabs(x2) < 1.0e5f && std::fabs(y2) < 1.0e5f)
+                    sl::line(sl::screen, x1, y1, x2, y2, {p.r, p.g, p.bl, p.alpha});
+            }
+
+            void segment(const sl::dvec3 &a, const sl::dvec3 &b, const link::Primitive3 &p)
+            {
+                const int pieces = p.depth ? std::clamp(static_cast<int>(glm::length(b - a) / 40.0) + 1, 1, 32) : 1;
+                // Each vertex is tested once; a piece shows when both its ends are in view.
+                bool last_visible = true;
+                sl::dvec3 last = a;
+                for (int i = 0; i <= pieces; ++i)
+                {
+                    const sl::dvec3 at = a + (b - a) * (static_cast<double>(i) / pieces);
+                    const bool visible = !p.depth || !hidden(at);
+                    if (i > 0 && visible && last_visible)
+                        screen_line(last, at, p);
+                    last = at;
+                    last_visible = visible;
+                }
+            }
+
+            void ring(const sl::dvec3 &centre, const sl::dvec3 &normal, double r, const link::Primitive3 &p)
+            {
+                const sl::dvec3 helper = std::fabs(normal.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+                const sl::dvec3 e1 = glm::normalize(glm::cross(normal, helper)), e2 = glm::cross(normal, e1);
+                sl::dvec3 last = centre + e1 * r;
+                for (int i = 1; i <= 40; ++i)
+                {
+                    const double t = i * 6.283185307179586 / 40.0;
+                    const sl::dvec3 next = centre + (e1 * std::cos(t) + e2 * std::sin(t)) * r;
+                    segment(last, next, p);
+                    last = next;
+                }
+            }
+
+            void marker(const Point &a, const link::Primitive3 &p)
+            {
+                if (hidden(a.rel) && p.depth)
+                    return;
+                float x = 0.0f, y = 0.0f;
+                if (glm::length(a.rel) < 1.0 || !project(app_.view_proj, glm::vec3(a.rel), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
+                    return;
+                const sl::Colour colour{p.r, p.g, p.bl, p.alpha};
+                if (p.kind == 1)
+                    sl::circle(sl::screen, x, y, static_cast<float>(std::clamp(p.size, 2.0, 40.0)), colour, 1.0f);
+                else
+                    sl::gprintf(static_cast<int>(x) + 8, static_cast<int>(y) - 6, colour, "%s", p.text.c_str());
+            }
+
+            App &app_;
+            kosmos::Universe &universe_;
+            int soi_;
+            sl::dvec3 body_rel_, eye_body_;
+            double radius_ = 0.0;
+            sl::dquat orient_;
+            int rays_left_ = 6000;
+        };
+    } // namespace
+
+    // Lines, markers and labels the programs place in the world, projected with the same view as the orbit line.
+    void App::draw_link_3d()
+    {
+        if (!link_server || !link_server->running() || map_mode || galaxy_mode)
+            return;
+        const std::vector<const link::Layer3 *> layers = link_server->layers();
+        if (layers.empty() || !universe_ref)
+            return;
+        const sl::FlightBody *body_fb = sim.universe.world.body(soi);
+        if (!body_fb)
+            return;
+        Link3dPainter painter(*this, *body_fb);
+        for (const link::Layer3 *layer : layers)
+            for (const link::Primitive3 &p : layer->items)
+                painter.draw(p);
     }
 } // namespace kosmos::app

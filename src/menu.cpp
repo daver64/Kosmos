@@ -787,6 +787,144 @@ namespace kosmos
         ImGui::EndTabItem();
     }
 
+    void BaseEditor::stock_model_row(Base &b)
+    {
+        if (stock_models_.empty())
+            stock_models_ = stock_base_models();
+        std::vector<std::string> &stock = stock_models_;
+        int &stock_pick = stock_pick_;
+        if (!stock.empty())
+        {
+            combo("Stock model", stock_pick, stock);
+            ImGui::SameLine();
+            if (ImGui::Button("Add##stock"))
+            {
+                BaseObject model;
+                model.type = "model";
+                model.model = stock[static_cast<std::size_t>(std::clamp(stock_pick, 0, static_cast<int>(stock.size()) - 1))];
+                b.objects.push_back(model);
+                object_ = static_cast<int>(b.objects.size()) - 1;
+            }
+        }
+    }
+
+    void BaseEditor::blender_controls(Sim &sim, Base &b, const BaseObject &o)
+    {
+    ImGui::SeparatorText("Edit in Blender");
+    picked_.resize(b.objects.size(), 0);
+    if (ImGui::TreeNode("Pick objects to join"))
+    {
+        for (std::size_t i = 0; i < b.objects.size(); ++i)
+        {
+            bool on = picked_[i] != 0;
+            const std::string label = std::to_string(i) + "  " + b.objects[i].type + "##pick" + std::to_string(i);
+            if (ImGui::Checkbox(label.c_str(), &on))
+                picked_[i] = on ? 1 : 0;
+        }
+        ImGui::TreePop();
+    }
+    if (blender_paused_)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Paused; editing in Blender");
+        ImGui::TextWrapped("Save in Blender (Ctrl+S) to see it here; closing Blender resumes.");
+        if (ImGui::Button("Resume, keep Blender open"))
+        {
+            blender_paused_ = false;
+            sim.props.set_bool("/sim/paused", blender_was_paused_);
+            sim.props.set_bool("/sim/blender-edit", false);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel and restore"))
+        {
+            blender_.stop();
+            blender_.restore();
+            if (blender_base_ == base_)
+                b.objects = blender_saved_;
+            end_blender(sim);
+            blender_status_ = "Edit cancelled; the objects and the model file were restored";
+        }
+    }
+    else
+    {
+        const bool is_model = o.type == "model";
+        if (ImGui::Button(is_model ? "Edit this model in Blender" : "Convert this object + edit"))
+            begin_blender(sim, b, {object_});
+        std::vector<int> chosen;
+        for (std::size_t i = 0; i < picked_.size() && i < b.objects.size(); ++i)
+            if (picked_[i] && b.objects[i].type != "model")
+                chosen.push_back(static_cast<int>(i));
+        ImGui::BeginDisabled(chosen.size() < 2);
+        ImGui::SameLine();
+        if (ImGui::Button("Join picked + edit"))
+        {
+            if (begin_blender(sim, b, chosen))
+                picked_.assign(b.objects.size(), 0);
+        }
+        ImGui::EndDisabled();
+    }
+    if (!blender_status_.empty())
+        ImGui::TextWrapped("%s", blender_status_.c_str());
+    }
+
+    void BaseEditor::object_fields(BaseObject &o, const std::function<void(double &, double &)> &ship_xz)
+    {
+    if (o.type == "model")
+    {
+        text("Model file", o.model);
+        dbl("x (right)", o.x, 0.5f);
+        dbl("z (forward)", o.z, 0.5f);
+        dbl("Lift y", o.y, 0.1f);
+        dbl("Heading", o.heading, 1.0f, -360.0, 360.0, "%.0f deg");
+        dbl("Scale", o.scale, 0.01f, 0.05, 50.0, "%.2f");
+        ImGui::TextDisabled("Models are not repeated; add another object for another copy.");
+    }
+    else
+    {
+        const std::vector<std::string> &types = base_object_types();
+        int ti = index_of(types, o.type);
+        if (combo("Type", ti, types) && ti >= 0)
+            o.type = types[static_cast<std::size_t>(ti)];
+        dbl("x (right)", o.x, 0.5f);
+        dbl("z (forward)", o.z, 0.5f);
+        dbl("Lift y", o.y, 0.1f);
+        dbl("Heading", o.heading, 1.0f, -360.0, 360.0, "%.0f deg");
+        dbl("Scale", o.scale, 0.01f, 0.05, 50.0, "%.2f");
+        if (ImGui::Button("Place at flown ship"))
+            ship_xz(o.x, o.z);
+        ImGui::SeparatorText("Row");
+        ui::slider_int("Copies", &o.count, 1, 200);
+        dbl("Step x", o.step_x, 0.5f);
+        dbl("Step z", o.step_z, 0.5f);
+        ImGui::SeparatorText("Size (0 keeps the default)");
+        dbl("Size", o.size, 0.1f, 0.0, 1000.0, "%.2f");
+        dbl("Width", o.width, 0.1f, 0.0, 1000.0, "%.2f");
+        dbl("Depth", o.depth, 0.1f, 0.0, 1000.0, "%.2f");
+        dbl("Height", o.height, 0.1f, 0.0, 1000.0, "%.2f");
+        dbl("Length", o.length, 0.1f, 0.0, 1000.0, "%.2f");
+        dbl("Radius", o.radius, 0.1f, 0.0, 1000.0, "%.2f");
+        ui::slider_int("Number", &o.number, 0, 100);
+        int seed = static_cast<int>(o.seed);
+        if (ImGui::InputInt("Seed", &seed))
+            o.seed = static_cast<unsigned>(std::max(0, seed));
+        float c1[3] = {o.colour.red / 255.0f, o.colour.green / 255.0f, o.colour.blue / 255.0f};
+        float c2[3] = {o.colour2.red / 255.0f, o.colour2.green / 255.0f, o.colour2.blue / 255.0f};
+        ImGui::Checkbox("##c1", &o.has_colour);
+        ImGui::SameLine();
+        if (ImGui::ColorEdit3("Colour", c1))
+        {
+            o.has_colour = true;
+            o.colour = {static_cast<std::uint8_t>(c1[0] * 255.0f + 0.5f), static_cast<std::uint8_t>(c1[1] * 255.0f + 0.5f), static_cast<std::uint8_t>(c1[2] * 255.0f + 0.5f), 255};
+        }
+        ImGui::Checkbox("##c2", &o.has_colour2);
+        ImGui::SameLine();
+        if (ImGui::ColorEdit3("Colour 2", c2))
+        {
+            o.has_colour2 = true;
+            o.colour2 = {static_cast<std::uint8_t>(c2[0] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[1] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[2] * 255.0f + 0.5f), 255};
+        }
+    }
+    }
+
     void BaseEditor::tab_objects(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz)
     {
         BaseObject fresh;
@@ -796,140 +934,15 @@ namespace kosmos
             std::snprintf(buf, sizeof buf, "%s  (%.0f, %.0f)%s", o.type.c_str(), o.x, o.z, o.count > 1 ? "  x" : "");
             return std::string(buf) + (o.count > 1 ? std::to_string(o.count) : std::string());
         }, fresh);
-        {
-            if (stock_models_.empty())
-                stock_models_ = stock_base_models();
-            std::vector<std::string> &stock = stock_models_;
-            int &stock_pick = stock_pick_;
-            if (!stock.empty())
-            {
-                combo("Stock model", stock_pick, stock);
-                ImGui::SameLine();
-                if (ImGui::Button("Add##stock"))
-                {
-                    BaseObject model;
-                    model.type = "model";
-                    model.model = stock[static_cast<std::size_t>(std::clamp(stock_pick, 0, static_cast<int>(stock.size()) - 1))];
-                    b.objects.push_back(model);
-                    object_ = static_cast<int>(b.objects.size()) - 1;
-                }
-            }
-        }
+        stock_model_row(b);
         if (!b.objects.empty())
         {
             object_ = std::clamp(object_, 0, static_cast<int>(b.objects.size()) - 1);
             BaseObject &o = b.objects[static_cast<std::size_t>(object_)];
             ImGui::Separator();
-            ImGui::SeparatorText("Edit in Blender");
-            picked_.resize(b.objects.size(), 0);
-            if (ImGui::TreeNode("Pick objects to join"))
-            {
-                for (std::size_t i = 0; i < b.objects.size(); ++i)
-                {
-                    bool on = picked_[i] != 0;
-                    const std::string label = std::to_string(i) + "  " + b.objects[i].type + "##pick" + std::to_string(i);
-                    if (ImGui::Checkbox(label.c_str(), &on))
-                        picked_[i] = on ? 1 : 0;
-                }
-                ImGui::TreePop();
-            }
-            if (blender_paused_)
-            {
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Paused; editing in Blender");
-                ImGui::TextWrapped("Save in Blender (Ctrl+S) to see it here; closing Blender resumes.");
-                if (ImGui::Button("Resume, keep Blender open"))
-                {
-                    blender_paused_ = false;
-                    sim.props.set_bool("/sim/paused", blender_was_paused_);
-                    sim.props.set_bool("/sim/blender-edit", false);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Cancel and restore"))
-                {
-                    blender_.stop();
-                    blender_.restore();
-                    if (blender_base_ == base_)
-                        b.objects = blender_saved_;
-                    end_blender(sim);
-                    blender_status_ = "Edit cancelled; the objects and the model file were restored";
-                }
-            }
-            else
-            {
-                const bool is_model = o.type == "model";
-                if (ImGui::Button(is_model ? "Edit this model in Blender" : "Convert this object + edit"))
-                    begin_blender(sim, b, {object_});
-                std::vector<int> chosen;
-                for (std::size_t i = 0; i < picked_.size() && i < b.objects.size(); ++i)
-                    if (picked_[i] && b.objects[i].type != "model")
-                        chosen.push_back(static_cast<int>(i));
-                ImGui::BeginDisabled(chosen.size() < 2);
-                ImGui::SameLine();
-                if (ImGui::Button("Join picked + edit"))
-                {
-                    if (begin_blender(sim, b, chosen))
-                        picked_.assign(b.objects.size(), 0);
-                }
-                ImGui::EndDisabled();
-            }
-            if (!blender_status_.empty())
-                ImGui::TextWrapped("%s", blender_status_.c_str());
+            blender_controls(sim, b, o);
             ImGui::Separator();
-            if (o.type == "model")
-            {
-                text("Model file", o.model);
-                dbl("x (right)", o.x, 0.5f);
-                dbl("z (forward)", o.z, 0.5f);
-                dbl("Lift y", o.y, 0.1f);
-                dbl("Heading", o.heading, 1.0f, -360.0, 360.0, "%.0f deg");
-                dbl("Scale", o.scale, 0.01f, 0.05, 50.0, "%.2f");
-                ImGui::TextDisabled("Models are not repeated; add another object for another copy.");
-            }
-            else
-            {
-            const std::vector<std::string> &types = base_object_types();
-            int ti = index_of(types, o.type);
-            if (combo("Type", ti, types) && ti >= 0)
-                o.type = types[static_cast<std::size_t>(ti)];
-            dbl("x (right)", o.x, 0.5f);
-            dbl("z (forward)", o.z, 0.5f);
-            dbl("Lift y", o.y, 0.1f);
-            dbl("Heading", o.heading, 1.0f, -360.0, 360.0, "%.0f deg");
-            dbl("Scale", o.scale, 0.01f, 0.05, 50.0, "%.2f");
-            if (ImGui::Button("Place at flown ship"))
-                ship_xz(o.x, o.z);
-            ImGui::SeparatorText("Row");
-            ui::slider_int("Copies", &o.count, 1, 200);
-            dbl("Step x", o.step_x, 0.5f);
-            dbl("Step z", o.step_z, 0.5f);
-            ImGui::SeparatorText("Size (0 keeps the default)");
-            dbl("Size", o.size, 0.1f, 0.0, 1000.0, "%.2f");
-            dbl("Width", o.width, 0.1f, 0.0, 1000.0, "%.2f");
-            dbl("Depth", o.depth, 0.1f, 0.0, 1000.0, "%.2f");
-            dbl("Height", o.height, 0.1f, 0.0, 1000.0, "%.2f");
-            dbl("Length", o.length, 0.1f, 0.0, 1000.0, "%.2f");
-            dbl("Radius", o.radius, 0.1f, 0.0, 1000.0, "%.2f");
-            ui::slider_int("Number", &o.number, 0, 100);
-            int seed = static_cast<int>(o.seed);
-            if (ImGui::InputInt("Seed", &seed))
-                o.seed = static_cast<unsigned>(std::max(0, seed));
-            float c1[3] = {o.colour.red / 255.0f, o.colour.green / 255.0f, o.colour.blue / 255.0f};
-            float c2[3] = {o.colour2.red / 255.0f, o.colour2.green / 255.0f, o.colour2.blue / 255.0f};
-            ImGui::Checkbox("##c1", &o.has_colour);
-            ImGui::SameLine();
-            if (ImGui::ColorEdit3("Colour", c1))
-            {
-                o.has_colour = true;
-                o.colour = {static_cast<std::uint8_t>(c1[0] * 255.0f + 0.5f), static_cast<std::uint8_t>(c1[1] * 255.0f + 0.5f), static_cast<std::uint8_t>(c1[2] * 255.0f + 0.5f), 255};
-            }
-            ImGui::Checkbox("##c2", &o.has_colour2);
-            ImGui::SameLine();
-            if (ImGui::ColorEdit3("Colour 2", c2))
-            {
-                o.has_colour2 = true;
-                o.colour2 = {static_cast<std::uint8_t>(c2[0] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[1] * 255.0f + 0.5f), static_cast<std::uint8_t>(c2[2] * 255.0f + 0.5f), 255};
-            }
-            }
+            object_fields(o, ship_xz);
         }
         ImGui::EndTabItem();
     }

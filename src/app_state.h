@@ -372,6 +372,9 @@ namespace kosmos::app
         void set_terrain_view();
         void place_camera();
         void prepare_scene();
+        void update_terrains();
+        void update_clutter();
+        void report_clutter_perf();
         void draw_world();
         void draw_orbit_line();
         void draw_head_up();

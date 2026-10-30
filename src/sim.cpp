@@ -136,6 +136,109 @@ namespace kosmos
         props.set_int("/galaxy/nearest/count", static_cast<int>(near.size()));
     }
 
+    // The launcher writes <user dir>/addons.json as {"disabled": ["addon-id", ...]}.
+    std::vector<std::string> Sim::disabled_addon_ids()
+    {
+        namespace fs = std::filesystem;
+        std::vector<std::string> disabled;
+        const std::string user = user_dir();
+        std::ifstream list(user.empty() ? fs::path() : fs::path(user) / "addons.json");
+        if (list)
+        {
+            try
+            {
+                nlohmann::json j;
+                list >> j;
+                disabled = j.value("disabled", std::vector<std::string>());
+            }
+            catch (const std::exception &e)
+            {
+                log(std::string("addons.json: ") + e.what());
+            }
+        }
+        return disabled;
+    }
+
+    void Sim::load_addon(const std::string &folder_path, const std::vector<std::string> &disabled_addons, std::vector<Transmitter> &beacons)
+    {
+        namespace fs = std::filesystem;
+        const fs::path folder(folder_path);
+        std::ifstream in(folder / "addon.json");
+        nlohmann::json json;
+        try
+        {
+            in >> json;
+        }
+        catch (const std::exception &e)
+        {
+            log("addon " + folder.filename().string() + ": " + e.what());
+            return;
+        }
+        Addon addon;
+        addon.directory = folder.string();
+        addon.id = json.value("id", folder.filename().string());
+        if (std::find(disabled_addons.begin(), disabled_addons.end(), addon.id) != disabled_addons.end())
+        {
+            log("addon " + addon.id + " is disabled");
+            return;
+        }
+        addon.name = json.value("name", addon.id);
+        addon.version = json.value("version", "0");
+        for (const nlohmann::json &file : json.value("ships", nlohmann::json::array()))
+        {
+            ShipSpec spec;
+            std::string error;
+            if (load_ship_spec((folder / file.get<std::string>()).string(), spec, error))
+            {
+                spec.directory = folder.string();
+                addon.ships.push_back(std::move(spec));
+            }
+            else
+                log("addon " + addon.id + ": " + error);
+        }
+        for (const nlohmann::json &file : json.value("buildings", nlohmann::json::array()))
+        {
+            ShipSpec spec;
+            std::string error;
+            if (load_ship_spec((folder / file.get<std::string>()).string(), spec, error))
+            {
+                spec.directory = folder.string();
+                spec.kind = "building";
+                addon.buildings.push_back(std::move(spec));
+            }
+            else
+                log("addon " + addon.id + ": " + error);
+        }
+        for (const nlohmann::json &entry : json.value("mfds", nlohmann::json::array()))
+        {
+            std::string error;
+            const std::string id = entry.value("id", "");
+            if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any")))
+                log("addon " + addon.id + ": " + error);
+        }
+        for (const nlohmann::json &file : json.value("navaids", nlohmann::json::array()))
+        {
+            std::string error;
+            if (!load_navaids((folder / file.get<std::string>()).string(), beacons, error))
+                log("addon " + addon.id + ": " + error);
+        }
+        {
+            std::vector<std::string> errors;
+            for (Scenario &sc : load_scenarios_in((folder / "scenarios").string(), errors))
+                scenarios_.push_back(std::move(sc));
+            for (const std::string &e : errors)
+                log("addon " + addon.id + ": scenario " + e);
+        }
+        {
+            std::vector<std::string> errors;
+            for (Base &b : load_bases_in((folder / "bases").string(), errors))
+                bases.push_back(std::move(b));
+            for (const std::string &e : errors)
+                log("addon " + addon.id + ": base " + e);
+        }
+        addons_.push_back(std::move(addon));
+    }
+
     void Sim::scan_addons()
     {
         namespace fs = std::filesystem;
@@ -172,102 +275,9 @@ namespace kosmos
             if (entry.is_directory() && fs::exists(entry.path() / "addon.json"))
                 folders.push_back(entry.path());
         std::sort(folders.begin(), folders.end());
-        // The launcher writes <user dir>/addons.json as {"disabled": ["addon-id", ...]}.
-        std::vector<std::string> disabled_addons;
-        {
-            const std::string user = user_dir();
-            std::ifstream list(user.empty() ? fs::path() : fs::path(user) / "addons.json");
-            if (list)
-            {
-                try
-                {
-                    nlohmann::json j;
-                    list >> j;
-                    disabled_addons = j.value("disabled", std::vector<std::string>());
-                }
-                catch (const std::exception &e)
-                {
-                    log(std::string("addons.json: ") + e.what());
-                }
-            }
-        }
+        const std::vector<std::string> disabled_addons = disabled_addon_ids();
         for (const fs::path &folder : folders)
-        {
-            std::ifstream in(folder / "addon.json");
-            nlohmann::json json;
-            try
-            {
-                in >> json;
-            }
-            catch (const std::exception &e)
-            {
-                log("addon " + folder.filename().string() + ": " + e.what());
-                continue;
-            }
-            Addon addon;
-            addon.directory = folder.string();
-            addon.id = json.value("id", folder.filename().string());
-            if (std::find(disabled_addons.begin(), disabled_addons.end(), addon.id) != disabled_addons.end())
-            {
-                log("addon " + addon.id + " is disabled");
-                continue;
-            }
-            addon.name = json.value("name", addon.id);
-            addon.version = json.value("version", "0");
-            for (const nlohmann::json &file : json.value("ships", nlohmann::json::array()))
-            {
-                ShipSpec spec;
-                std::string error;
-                if (load_ship_spec((folder / file.get<std::string>()).string(), spec, error))
-                {
-                    spec.directory = folder.string();
-                    addon.ships.push_back(std::move(spec));
-                }
-                else
-                    log("addon " + addon.id + ": " + error);
-            }
-            for (const nlohmann::json &file : json.value("buildings", nlohmann::json::array()))
-            {
-                ShipSpec spec;
-                std::string error;
-                if (load_ship_spec((folder / file.get<std::string>()).string(), spec, error))
-                {
-                    spec.directory = folder.string();
-                    spec.kind = "building";
-                    addon.buildings.push_back(std::move(spec));
-                }
-                else
-                    log("addon " + addon.id + ": " + error);
-            }
-            for (const nlohmann::json &entry : json.value("mfds", nlohmann::json::array()))
-            {
-                std::string error;
-                const std::string id = entry.value("id", "");
-                if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any")))
-                    log("addon " + addon.id + ": " + error);
-            }
-            for (const nlohmann::json &file : json.value("navaids", nlohmann::json::array()))
-            {
-                std::string error;
-                if (!load_navaids((folder / file.get<std::string>()).string(), beacons, error))
-                    log("addon " + addon.id + ": " + error);
-            }
-            {
-                std::vector<std::string> errors;
-                for (Scenario &sc : load_scenarios_in((folder / "scenarios").string(), errors))
-                    scenarios_.push_back(std::move(sc));
-                for (const std::string &e : errors)
-                    log("addon " + addon.id + ": scenario " + e);
-            }
-            {
-                std::vector<std::string> errors;
-                for (Base &b : load_bases_in((folder / "bases").string(), errors))
-                    bases.push_back(std::move(b));
-                for (const std::string &e : errors)
-                    log("addon " + addon.id + ": base " + e);
-            }
-            addons_.push_back(std::move(addon));
-        }
+            load_addon(folder.string(), disabled_addons, beacons);
         load_user_content();
         nav.set_beacons(std::move(beacons));
         {

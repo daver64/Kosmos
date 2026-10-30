@@ -121,6 +121,8 @@ namespace kosmos
 
     private:
         void scan_addons();
+        std::vector<std::string> disabled_addon_ids();
+        void load_addon(const std::string &folder, const std::vector<std::string> &disabled_addons, std::vector<Transmitter> &beacons);
         void publish_galaxy();
         Controls read_controls(const std::string &prefix = "/controls", const Ship *ship = nullptr);
         /** Publish /target/... relative to the ship named by /sim/target (a ship or a body). */

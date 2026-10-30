@@ -381,7 +381,7 @@ namespace kosmos
         return sl::gas_vessel_cell(vessels_[static_cast<std::size_t>(vessel)].grid, x, y, z, static_cast<sl::VesselGas>(gas));
     }
 
-    void Systems::solve_bus(double dt, const SystemsContext &ctx)
+    double Systems::update_fixed_sources(const SystemsContext &ctx)
     {
         const double sun_len = std::sqrt(ctx.sun_dir.x * ctx.sun_dir.x + ctx.sun_dir.y * ctx.sun_dir.y + ctx.sun_dir.z * ctx.sun_dir.z);
         const sl::dvec3 sun = sun_len > 0.0 ? ctx.sun_dir / sun_len : sl::dvec3(0.0, 1.0, 0.0);
@@ -406,7 +406,11 @@ namespace kosmos
             }
             fixed += c.output_w;
         }
+        return fixed;
+    }
 
+    void Systems::wear_components(double dt)
+    {
         // Wear accrues while a component runs; a worn-out one drops off the bus until repaired.
         for (SystemComponent &c : components_)
         {
@@ -415,6 +419,12 @@ namespace kosmos
             if (c.wear >= 1.0)
                 c.powered = false;
         }
+    }
+
+    void Systems::solve_bus(double dt, const SystemsContext &ctx)
+    {
+        const double fixed = update_fixed_sources(ctx);
+        wear_components(dt);
 
         // Loads, in priority order.
         std::vector<SystemComponent *> loads;
@@ -455,7 +465,13 @@ namespace kosmos
         bus_powered_ = !shed;
         instruments_powered_ = budget > 1e-9 || loads.empty();
 
-        double need = used - fixed;
+        balance_supply(used - fixed, discharge_capacity, charge_room, dt);
+        run_processors(loads, dt);
+    }
+
+    // Generators and batteries cover a shortfall (need > 0); surplus power charges the batteries.
+    void Systems::balance_supply(double need, double discharge_capacity, double charge_room, double dt)
+    {
         if (need > 0.0)
         {
             for (SystemComponent &c : components_)
@@ -508,7 +524,10 @@ namespace kosmos
                     c.amount = std::min(c.capacity, c.amount + put * (room / charge_room) * dt / 3600.0);
                 }
         }
+    }
 
+    void Systems::run_processors(const std::vector<SystemComponent *> &loads, double dt)
+    {
         // Regolith processing: water into the tank.
         for (SystemComponent *c : loads)
             if (c->type == "isru" && c->powered)
@@ -754,7 +773,7 @@ namespace kosmos
         }
     } // namespace
 
-    void find_tagged_vessels(ShipSpec &spec)
+    namespace
     {
         struct Tag
         {
@@ -762,122 +781,133 @@ namespace kosmos
             glm::dvec3 lo, hi;
             int stage = 0;
         };
-        std::vector<Tag> boxes, vents, seats;
-        for (std::size_t s = 0; s < spec.stages.size(); ++s)
-            for (const PartSpec &part : spec.stages[s].parts)
+
+        struct Box
+        {
+            std::string name;
+            glm::vec3 lo{1e30f}, hi{-1e30f};
+        };
+
+        // Parsed directly so discovery needs no graphics context; OBJ parts are the usemtl groups.
+        std::vector<Box> obj_boxes(const std::filesystem::path &file)
+        {
+            std::ifstream in(file);
+            std::vector<glm::vec3> verts;
+            std::string line;
+            Box *current = nullptr;
+            std::vector<Box> groups;
+            while (std::getline(in, line))
             {
-                if (part.model.empty())
-                    continue;
-                struct Box
+                std::istringstream words(line);
+                std::string key;
+                words >> key;
+                if (key == "v")
+                {
+                    glm::vec3 p;
+                    if (words >> p.x >> p.y >> p.z)
+                        verts.push_back(p);
+                }
+                else if (key == "usemtl")
                 {
                     std::string name;
-                    glm::vec3 lo{1e30f}, hi{-1e30f};
-                };
-                std::vector<Box> found;
-                const std::filesystem::path file = std::filesystem::path(spec.directory) / part.model;
-                std::string ext = file.extension().string();
-                for (char &ch : ext)
-                    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-                if (ext == ".obj")
+                    words >> name;
+                    std::size_t at = 0;
+                    while (at < groups.size() && groups[at].name != name)
+                        ++at;
+                    if (at == groups.size())
+                        groups.push_back(Box{name, glm::vec3(1e30f), glm::vec3(-1e30f)});
+                    current = &groups[at];
+                }
+                else if (key == "f" && current)
                 {
-                    // Parsed directly so discovery needs no graphics context; OBJ parts are the usemtl groups.
-                    std::ifstream in(file);
-                    std::vector<glm::vec3> verts;
-                    std::string line;
-                    Box *current = nullptr;
-                    std::vector<Box> groups;
-                    std::vector<std::vector<int>> used;
-                    while (std::getline(in, line))
+                    std::string tok;
+                    while (words >> tok)
                     {
-                        std::istringstream words(line);
-                        std::string key;
-                        words >> key;
-                        if (key == "v")
+                        int idx = std::atoi(tok.c_str());
+                        idx = idx < 0 ? static_cast<int>(verts.size()) + idx : idx - 1;
+                        if (idx >= 0 && idx < static_cast<int>(verts.size()))
                         {
-                            glm::vec3 p;
-                            if (words >> p.x >> p.y >> p.z)
-                                verts.push_back(p);
-                        }
-                        else if (key == "usemtl")
-                        {
-                            std::string name;
-                            words >> name;
-                            std::size_t at = 0;
-                            while (at < groups.size() && groups[at].name != name)
-                                ++at;
-                            if (at == groups.size())
-                            {
-                                groups.push_back(Box{name, glm::vec3(1e30f), glm::vec3(-1e30f)});
-                            }
-                            current = nullptr;
-                            current = &groups[at];
-                        }
-                        else if (key == "f" && current)
-                        {
-                            std::string tok;
-                            while (words >> tok)
-                            {
-                                int idx = std::atoi(tok.c_str());
-                                idx = idx < 0 ? static_cast<int>(verts.size()) + idx : idx - 1;
-                                if (idx >= 0 && idx < static_cast<int>(verts.size()))
-                                {
-                                    current->lo = glm::min(current->lo, verts[idx]);
-                                    current->hi = glm::max(current->hi, verts[idx]);
-                                }
-                            }
+                            current->lo = glm::min(current->lo, verts[idx]);
+                            current->hi = glm::max(current->hi, verts[idx]);
                         }
                     }
-                    found = groups;
-                }
-                else if (sl::Model *model = sl::load_model(file.string()))
-                {
-                    for (const sl::ModelPart &mp : model->parts)
-                        if (mp.has_bounds)
-                            found.push_back(Box{mp.name, mp.bounds_min, mp.bounds_max});
-                    sl::destroy_model(model);
-                }
-                glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(part.offset));
-                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.z)), glm::vec3(0.0f, 0.0f, 1.0f));
-                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.y)), glm::vec3(0.0f, 1.0f, 0.0f));
-                place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.x)), glm::vec3(1.0f, 0.0f, 0.0f));
-                place = glm::scale(place, glm::vec3(part.scale));
-                for (const Box &b : found)
-                {
-                    const bool vessel = starts_with(b.name, "vessel"), vent = starts_with(b.name, "vent"), crew = starts_with(b.name, "crew");
-                    if (!(vessel || vent || crew) || b.lo.x > b.hi.x)
-                        continue;
-                    glm::dvec3 lo(1e30), hi(-1e30);
-                    for (int c = 0; c < 8; ++c)
-                    {
-                        const glm::vec3 corner((c & 1) ? b.hi.x : b.lo.x, (c & 2) ? b.hi.y : b.lo.y, (c & 4) ? b.hi.z : b.lo.z);
-                        const glm::dvec3 p = glm::dvec3(place * glm::vec4(corner, 1.0f));
-                        lo = glm::min(lo, p);
-                        hi = glm::max(hi, p);
-                    }
-                    Tag tag{vessel ? tag_name(b.name, "vessel") : vent ? tag_name(b.name, "vent") : tag_name(b.name, "crew"), lo, hi,
-                            static_cast<int>(s)};
-                    if (vessel && tag.name.empty())
-                        tag.name = "Cabin";
-                    (vessel ? boxes : vent ? vents : seats).push_back(tag);
                 }
             }
+            return groups;
+        }
 
-        for (const Tag &box : boxes)
+        std::vector<Box> part_boxes(const std::filesystem::path &file)
         {
-            VesselSpec *target = nullptr;
-            for (VesselSpec &v : spec.systems.vessels)
-                if (v.name == box.name)
-                    target = &v;
-            if (!target)
+            std::string ext = file.extension().string();
+            for (char &ch : ext)
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (ext == ".obj")
+                return obj_boxes(file);
+            std::vector<Box> found;
+            if (sl::Model *model = sl::load_model(file.string()))
             {
-                spec.systems.vessels.emplace_back();
-                target = &spec.systems.vessels.back();
-                target->name = box.name;
-                target->stage = box.stage;
+                for (const sl::ModelPart &mp : model->parts)
+                    if (mp.has_bounds)
+                        found.push_back(Box{mp.name, mp.bounds_min, mp.bounds_max});
+                sl::destroy_model(model);
             }
-            target->centre = (box.lo + box.hi) * 0.5;
-            target->size = glm::max(box.hi - box.lo, glm::dvec3(0.05));
-            target->from_mesh = true;
+            return found;
+        }
+
+        glm::mat4 part_placement(const PartSpec &part)
+        {
+            glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(part.offset));
+            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.z)), glm::vec3(0.0f, 0.0f, 1.0f));
+            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.y)), glm::vec3(0.0f, 1.0f, 0.0f));
+            place = glm::rotate(place, glm::radians(static_cast<float>(part.rotate.x)), glm::vec3(1.0f, 0.0f, 0.0f));
+            return glm::scale(place, glm::vec3(part.scale));
+        }
+
+        struct TaggedBoxes
+        {
+            std::vector<Tag> boxes, vents, seats;
+        };
+
+        void add_part_tags(const Box &b, const glm::mat4 &place, int stage, TaggedBoxes &out)
+        {
+            const bool vessel = starts_with(b.name, "vessel"), vent = starts_with(b.name, "vent"), crew = starts_with(b.name, "crew");
+            if (!(vessel || vent || crew) || b.lo.x > b.hi.x)
+                return;
+            glm::dvec3 lo(1e30), hi(-1e30);
+            for (int c = 0; c < 8; ++c)
+            {
+                const glm::vec3 corner((c & 1) ? b.hi.x : b.lo.x, (c & 2) ? b.hi.y : b.lo.y, (c & 4) ? b.hi.z : b.lo.z);
+                const glm::dvec3 p = glm::dvec3(place * glm::vec4(corner, 1.0f));
+                lo = glm::min(lo, p);
+                hi = glm::max(hi, p);
+            }
+            Tag tag{vessel ? tag_name(b.name, "vessel") : vent ? tag_name(b.name, "vent") : tag_name(b.name, "crew"), lo, hi, stage};
+            if (vessel && tag.name.empty())
+                tag.name = "Cabin";
+            (vessel ? out.boxes : vent ? out.vents : out.seats).push_back(tag);
+        }
+
+        TaggedBoxes collect_tags(const ShipSpec &spec)
+        {
+            TaggedBoxes out;
+            for (std::size_t s = 0; s < spec.stages.size(); ++s)
+                for (const PartSpec &part : spec.stages[s].parts)
+                {
+                    if (part.model.empty())
+                        continue;
+                    const std::vector<Box> found = part_boxes(std::filesystem::path(spec.directory) / part.model);
+                    const glm::mat4 place = part_placement(part);
+                    for (const Box &b : found)
+                        add_part_tags(b, place, static_cast<int>(s), out);
+                }
+            return out;
+        }
+
+        void fill_vessel(VesselSpec &target, const Tag &box, const std::vector<Tag> &vents, const std::vector<Tag> &seats)
+        {
+            target.centre = (box.lo + box.hi) * 0.5;
+            target.size = glm::max(box.hi - box.lo, glm::dvec3(0.05));
+            target.from_mesh = true;
             const auto unit = [&](const Tag &t) {
                 const glm::dvec3 c = (t.lo + t.hi) * 0.5 - box.lo;
                 const glm::dvec3 size = box.hi - box.lo;
@@ -894,13 +924,33 @@ namespace kosmos
                     // Tagged vents start closed; they mark where a breach() or hatch leak will show.
                     VesselSpec::Vent vent;
                     vent.at = unit(t);
-                    target->vents.push_back(vent);
+                    target.vents.push_back(vent);
                 }
             for (const Tag &t : seats)
                 if (inside(t))
-                    target->crew_at.push_back(unit(t));
-            if (!target->crew_at.empty() && target->crew == 0)
-                target->crew = static_cast<int>(target->crew_at.size());
+                    target.crew_at.push_back(unit(t));
+            if (!target.crew_at.empty() && target.crew == 0)
+                target.crew = static_cast<int>(target.crew_at.size());
+        }
+    } // namespace
+
+    void find_tagged_vessels(ShipSpec &spec)
+    {
+        const TaggedBoxes tags = collect_tags(spec);
+        for (const Tag &box : tags.boxes)
+        {
+            VesselSpec *target = nullptr;
+            for (VesselSpec &v : spec.systems.vessels)
+                if (v.name == box.name)
+                    target = &v;
+            if (!target)
+            {
+                spec.systems.vessels.emplace_back();
+                target = &spec.systems.vessels.back();
+                target->name = box.name;
+                target->stage = box.stage;
+            }
+            fill_vessel(*target, box, tags.vents, tags.seats);
         }
     }
 } // namespace kosmos

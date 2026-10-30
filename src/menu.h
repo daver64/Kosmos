@@ -93,6 +93,9 @@ namespace kosmos
         void snapshot_changes(Sim &sim);
         void tab_site(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
         void tab_objects(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
+        void stock_model_row(Base &b);
+        void blender_controls(Sim &sim, Base &b, const BaseObject &o);
+        void object_fields(BaseObject &o, const std::function<void(double &, double &)> &ship_xz);
         void tab_runways(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
         void tab_navaids(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);
         void tab_cameras(Sim &sim, Base &b, const std::function<void(double &, double &)> &ship_xz);

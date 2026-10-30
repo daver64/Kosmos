@@ -172,6 +172,11 @@ namespace kosmos
 
     private:
         void solve_bus(double dt, const SystemsContext &ctx);
+        /** Zeroes and recomputes solar and RTG output; returns the total fixed supply in watts. */
+        double update_fixed_sources(const SystemsContext &ctx);
+        void wear_components(double dt);
+        void balance_supply(double need, double discharge_capacity, double charge_room, double dt);
+        void run_processors(const std::vector<SystemComponent *> &loads, double dt);
         void step_vessels(double dt, const SystemsContext &ctx);
         void step_links(double dt);
         SystemComponent *find_tank(const std::string &gas);

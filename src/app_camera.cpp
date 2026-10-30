@@ -716,12 +716,84 @@ namespace kosmos::app
         set_terrain_view();
     }
 
-    // Which terrain and sphere are drawn.
-    void App::prepare_scene()
+    // Trees, houses, rocks and outposts exist only near the ground; build them lazily, outside begin_surface_3d().
+    void App::update_clutter()
     {
-    kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
-    const kosmos::Body &soi_body = *soi_body_ref;
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
+        const bool clutter_on = props.get_bool("/sim/settings/gfx-clutter", true) && !options.no_clutter;
+        const double clutter_density = std::clamp(props.get_int("/sim/settings/gfx-clutter-density", 100), 10, 200) / 100.0;
+        for (std::size_t k = 0; k < body_terrains.size(); ++k)
+        {
+            BodyTerrain &bt = *body_terrains[k];
+            const kosmos::Body &b = universe.bodies[static_cast<std::size_t>(bt.body)];
+            const bool drawn = k == 0 ? near_earth && !earth_as_sphere : bt.active;
+            const sl::dvec3 &eye_rel = k == 0 ? eye_from_earth : bt.eye_rel;
+            bt.clutter_live = clutter_on && drawn && glm::length(eye_rel) - b.radius < 6000.0 && kosmos::has_clutter(b);
+            if (bt.clutter_live)
+            {
+                // Scatter only where it can matter: within 50 km of a base, or of a ship flying below 5 km.
+                const glm::dquat unturn = glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis()));
+                const sl::dvec3 eye_dir = glm::normalize(unturn * eye_rel);
+                constexpr double clutter_range = 50.0e3;
+                bool near = kosmos::distance_to_zones(bt.clutter_zones, eye_dir, b.radius) < clutter_range;
+                const kosmos::Telemetry &tel = ship->telemetry();
+                if (!near && tel.soi == bt.body && tel.altitude < 5000.0)
+                {
+                    const sl::dvec3 ship_dir = glm::normalize(unturn * (ship->origin() - universe.position(bt.body)));
+                    near = std::acos(std::clamp(glm::dot(eye_dir, ship_dir), -1.0, 1.0)) * b.radius < clutter_range;
+                }
+                bt.clutter_live = near;
+            }
+            if (!bt.clutter_live)
+                continue;
+            if (bt.clutter && bt.clutter_density != clutter_density)
+                bt.clutter.reset();
+            if (!bt.clutter)
+            {
+                kosmos::ClutterWorld world;
+                world.body = &b;
+                world.frame = bt.frame;
+                world.zones = bt.clutter_zones;
+                world.land = bt.landclass;
+                world.density = clutter_density;
+                world.near_direction = glm::normalize(glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis())) * eye_rel);
+                world.root = sim.root();
+                bt.clutter = kosmos::make_clutter(*bt.terrain, world);
+                bt.clutter_density = clutter_density;
+            }
+            if (!bt.clutter)
+            {
+                bt.clutter_live = false;
+                continue;
+            }
+            sl::TerrainView clutter_view = view;
+            clutter_view.position = eye_rel;
+            clutter_perf.update_ms += time_ms([&] { bt.clutter->update(clutter_view); });
+        }
+    }
+
+    void App::report_clutter_perf()
+    {
+        if (options.perf)
+        {
+            ++clutter_perf.frames;
+            const auto now = std::chrono::steady_clock::now();
+            const double span = std::chrono::duration<double>(now - clutter_perf.last).count();
+            if (span >= 3.0)
+            {
+                std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
+                             1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
+                clutter_perf = ClutterPerf();
+            }
+        }
+    }
+
+    // Which terrain and sphere are drawn.
+    void App::update_terrains()
+    {
+        kosmos::Universe &universe = *universe_ref;
+        sl::PropertyTree &props = *props_ref;
         // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km (lower when the tiled imagery is present, which stays sharp down to there), scaled by the body's size.
         const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
         earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ? 300.0e3 : 20.0e3;
@@ -764,72 +836,15 @@ namespace kosmos::app
                     bt.terrain->update(body_view);
             }
         }
-        {
-            // Trees, houses, rocks and outposts exist only near the ground; build them lazily, outside begin_surface_3d().
-            const bool clutter_on = props.get_bool("/sim/settings/gfx-clutter", true) && !options.no_clutter;
-            const double clutter_density = std::clamp(props.get_int("/sim/settings/gfx-clutter-density", 100), 10, 200) / 100.0;
-            for (std::size_t k = 0; k < body_terrains.size(); ++k)
-            {
-                BodyTerrain &bt = *body_terrains[k];
-                const kosmos::Body &b = universe.bodies[static_cast<std::size_t>(bt.body)];
-                const bool drawn = k == 0 ? near_earth && !earth_as_sphere : bt.active;
-                const sl::dvec3 &eye_rel = k == 0 ? eye_from_earth : bt.eye_rel;
-                bt.clutter_live = clutter_on && drawn && glm::length(eye_rel) - b.radius < 6000.0 && kosmos::has_clutter(b);
-                if (bt.clutter_live)
-                {
-                    // Scatter only where it can matter: within 50 km of a base, or of a ship flying below 5 km.
-                    const glm::dquat unturn = glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis()));
-                    const sl::dvec3 eye_dir = glm::normalize(unturn * eye_rel);
-                    constexpr double clutter_range = 50.0e3;
-                    bool near = kosmos::distance_to_zones(bt.clutter_zones, eye_dir, b.radius) < clutter_range;
-                    const kosmos::Telemetry &tel = ship->telemetry();
-                    if (!near && tel.soi == bt.body && tel.altitude < 5000.0)
-                    {
-                        const sl::dvec3 ship_dir = glm::normalize(unturn * (ship->origin() - universe.position(bt.body)));
-                        near = std::acos(std::clamp(glm::dot(eye_dir, ship_dir), -1.0, 1.0)) * b.radius < clutter_range;
-                    }
-                    bt.clutter_live = near;
-                }
-                if (!bt.clutter_live)
-                    continue;
-                if (bt.clutter && bt.clutter_density != clutter_density)
-                    bt.clutter.reset();
-                if (!bt.clutter)
-                {
-                    kosmos::ClutterWorld world;
-                    world.body = &b;
-                    world.frame = bt.frame;
-                    world.zones = bt.clutter_zones;
-                    world.land = bt.landclass;
-                    world.density = clutter_density;
-                    world.near_direction = glm::normalize(glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis())) * eye_rel);
-                    world.root = sim.root();
-                    bt.clutter = kosmos::make_clutter(*bt.terrain, world);
-                    bt.clutter_density = clutter_density;
-                }
-                if (!bt.clutter)
-                {
-                    bt.clutter_live = false;
-                    continue;
-                }
-                sl::TerrainView clutter_view = view;
-                clutter_view.position = eye_rel;
-                clutter_perf.update_ms += time_ms([&] { bt.clutter->update(clutter_view); });
-            }
-        }
+    }
+
+    void App::prepare_scene()
+    {
+        const kosmos::Body &soi_body = *soi_body_ref;
+        update_terrains();
+        update_clutter();
         first_frame = false;
-        if (options.perf)
-        {
-            ++clutter_perf.frames;
-            const auto now = std::chrono::steady_clock::now();
-            const double span = std::chrono::duration<double>(now - clutter_perf.last).count();
-            if (span >= 3.0)
-            {
-                std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
-                             1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
-                clutter_perf = ClutterPerf();
-            }
-        }
+        report_clutter_perf();
         loading.end();
 
         const sl::dvec3 sun_dir_world = glm::normalize(-eye_world);

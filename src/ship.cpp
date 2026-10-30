@@ -1613,8 +1613,24 @@ namespace kosmos
     void Ship::after_step(double dt)
     {
         update_telemetry();
-        sl::FlightBody &b = body();
+        step_systems(dt);
 
+        // A building is part of the ground: held there from the first step, with no flight.
+        if (spec_.building())
+        {
+            if (!pinned_)
+                pin_to_ground();
+            else
+                hold_pinned();
+            return;
+        }
+        resolve_landing();
+        expire_debris(dt);
+    }
+
+    void Ship::step_systems(double dt)
+    {
+        sl::FlightBody &b = body();
         if (systems_ && dt > 0.0)
         {
             mission_time_ += dt;
@@ -1667,16 +1683,11 @@ namespace kosmos
                 }
             }
         }
+    }
 
-        // A building is part of the ground: held there from the first step, with no flight.
-        if (spec_.building())
-        {
-            if (!pinned_)
-                pin_to_ground();
-            else
-                hold_pinned();
-            return;
-        }
+    void Ship::resolve_landing()
+    {
+        sl::FlightBody &b = body();
 
         // Ships built for orbit have no landing gear: a gentle touchdown leaves them resting on the surface, a hard one wrecks them.
         double burning = 0.0;
@@ -1734,7 +1745,10 @@ namespace kosmos
             hold_pinned();
         else if (crashed_ && b.mode == sl::FlightBodyMode::kinematic)
             b.velocity = universe_.world.body(telemetry_.soi)->velocity;
+    }
 
+    void Ship::expire_debris(double dt)
+    {
         for (std::size_t i = 0; i < debris_.size();)
         {
             debris_[i].age += dt;
