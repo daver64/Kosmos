@@ -1,1 +1,3 @@
 1 ICON "icon.ico"
+// Common Controls 6: wxWidgets imports GetWindowSubclass by name, which only comctl32 v6 exports.
+1 24 "launcher.manifest"
