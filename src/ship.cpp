@@ -1318,6 +1318,25 @@ namespace kosmos
         b.gear.erase(b.gear.begin(), b.gear.begin() + static_cast<std::ptrdiff_t>(std::min(st.gear.size(), b.gear.size())));
     }
 
+    sl::dvec3 Ship::camera_focus() const
+    {
+        sl::dvec3 target = spec_.camera_target;
+        if (active_stage_ <= 0 || active_stage_ >= static_cast<int>(spec_.stages.size()))
+            return target;
+        const auto middle = [&](std::size_t first)
+        {
+            double lo = 1.0e30, hi = -1.0e30;
+            for (std::size_t s = first; s < spec_.stages.size(); ++s)
+            {
+                lo = std::min(lo, spec_.stages[s].z - spec_.stages[s].length * 0.5);
+                hi = std::max(hi, spec_.stages[s].z + spec_.stages[s].length * 0.5);
+            }
+            return 0.5 * (lo + hi);
+        };
+        target.z += middle(static_cast<std::size_t>(active_stage_)) - middle(0);
+        return target;
+    }
+
     void Ship::recentre()
     {
         sl::FlightBody &b = body();

@@ -471,6 +471,8 @@ namespace kosmos
         sl::dvec3 origin() const { return body().position - body().direction_to_world(com_); }
         const sl::dvec3 &com_offset() const { return com_; }
         int active_stage() const { return active_stage_; }
+        /** The camera's focus in the ship frame: `camera_target` moved along the axis by however far the middle of the stages still attached has shifted from the middle of the full stack. */
+        sl::dvec3 camera_focus() const;
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
         void set_gear_position(double p) { gear_position_ = std::clamp(p, 0.0, 1.0); }

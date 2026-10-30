@@ -30,4 +30,10 @@ namespace kosmos
      * where there is no way out.
      */
     sl::dvec3 push_out_of_solids(const SolidScene &scene, const sl::dvec3 &from, const sl::dvec3 &to, double height);
+
+    /**
+     * Keep a wheeled vehicle out of buildings, other ships and scattered objects: the points around its wheelbase are pushed out
+     * and the vehicle is moved by the largest push, losing the speed it had into the obstacle. `scene.ships` should not hold `ship`.
+     */
+    void collide_ground_vehicle(const SolidScene &scene, Ship &ship);
 } // namespace kosmos

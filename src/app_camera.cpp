@@ -61,6 +61,23 @@ namespace kosmos::app
         lua_console.tick(frame);
         ship = sim.active_ship();
         for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            kosmos::Ship *vehicle = sim.ship(i);
+            if (!vehicle->spec().ground() || vehicle->telemetry().soi < 0 || vehicle->telemetry().soi >= static_cast<int>(sim.universe.bodies.size()))
+                continue;
+            kosmos::SolidScene scene;
+            scene.universe = &sim.universe;
+            scene.body = vehicle->telemetry().soi;
+            scene.bases = &sim.bases;
+            for (int j = 0; j < sim.ship_count(); ++j)
+                if (j != i)
+                    scene.ships.push_back(sim.ship(j));
+            for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+                if (bt->body == scene.body)
+                    scene.clutter = bt->clutter.get();
+            kosmos::collide_ground_vehicle(scene, *vehicle);
+        }
+        for (int i = 0; i < sim.ship_count(); ++i)
             if (sim.ship(i)->spec().interior)
                 kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walker.position : nullptr, frame);
         if (eva.active)
@@ -425,7 +442,7 @@ namespace kosmos::app
         if (options.cam_antisun)
             offset_dir = glm::normalize(glm::normalize(fb.position - universe.position(0)) + east * std::sin(yaw_d) * 0.9 + up * std::sin(pitch_d) * 0.9);
         // A tall ship can name the point the external camera frames, such as the capsule at the top of a Saturn V.
-        const sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->spec().camera_target) : fb.position;
+        const sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->camera_focus()) : fb.position;
         eye_world = focus + offset_dir * cam_distance;
         ship_rel = glm::vec3(focus - eye_world);
         if (options.cam_antisun)
@@ -521,7 +538,7 @@ namespace kosmos::app
                             sh = sim.ship(si);
                 if (!a.ship || !sh || !sh->spec().has_camera_target)
                     return a.position;
-                return a.position + sh->body().direction_to_world(sh->spec().camera_target);
+                return a.position + sh->body().direction_to_world(sh->camera_focus());
             };
             view_fov = uc.fov;
             if (uc.orbit)

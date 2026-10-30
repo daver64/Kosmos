@@ -278,4 +278,42 @@ namespace kosmos
         }
         return to;
     }
+
+    void collide_ground_vehicle(const SolidScene &scene, Ship &ship)
+    {
+        if (!scene.universe || ship.on_rails())
+            return;
+        sl::FlightBody &b = ship.body();
+        const ShipSpec &spec = ship.spec();
+        double half_x = 1.0, half_z = 1.5;
+        for (const WheelSpec &w : spec.wheels)
+        {
+            half_x = std::max(half_x, std::fabs(w.position.x));
+            half_z = std::max(half_z, std::fabs(w.position.z));
+        }
+        const sl::dvec3 centre = scene.universe->position(scene.body);
+        const sl::dvec3 origin = ship.origin();
+        const sl::dvec3 points[] = {{0, 0, 0}, {half_x, 0, half_z}, {-half_x, 0, half_z}, {half_x, 0, -half_z}, {-half_x, 0, -half_z}, {0, 0, half_z}, {0, 0, -half_z}};
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            sl::dvec3 best(0.0);
+            for (const sl::dvec3 &p : points)
+            {
+                const sl::dvec3 at = origin + b.direction_to_world(p) - centre;
+                // The previous position is the same point where it stood before this pass, so only the push matters.
+                const sl::dvec3 pushed = push_out_of_solids(scene, at, at, 0.5);
+                const sl::dvec3 d = pushed - at;
+                if (glm::length(d) > glm::length(best))
+                    best = d;
+            }
+            const double l = glm::length(best);
+            if (l < 1.0e-6)
+                break;
+            b.position += best;
+            const sl::dvec3 n = best / l;
+            const double into = glm::dot(b.velocity, n);
+            if (into < 0.0)
+                b.velocity -= n * into;
+        }
+    }
 } // namespace kosmos
