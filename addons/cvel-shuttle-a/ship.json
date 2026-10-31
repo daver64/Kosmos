@@ -2156,7 +2156,8 @@
      "property": "/controls/sas",
      "value": "antinormal",
      "label": "Nav mode: Anti-normal"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2186,7 +2187,8 @@
      "property": "/controls/sas",
      "value": "normal",
      "label": "Nav mode: Normal"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2216,7 +2218,8 @@
      "property": "/controls/sas",
      "value": "retrograde",
      "label": "Nav mode: Retrograde"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2246,7 +2249,8 @@
      "property": "/controls/sas",
      "value": "prograde",
      "label": "Nav mode: Prograde"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2276,7 +2280,8 @@
      "property": "/controls/sas",
      "value": "level-horizon",
      "label": "Nav mode: Level horizon"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2306,7 +2311,8 @@
      "property": "/controls/sas",
      "value": "stability",
      "label": "Nav mode: Kill rotation"
-    }
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2335,8 +2341,9 @@
      "type": "button",
      "property": "/controls/pod-tilt",
      "value": "1",
-     "label": "Pod angle: pods vertical"
-    }
+     "label": "Pod angle: FWD"
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2365,8 +2372,9 @@
      "type": "button",
      "property": "/controls/pod-tilt",
      "value": "0.5",
-     "label": "Pod angle: pods 45 degrees"
-    }
+     "label": "Pod angle: HOVER"
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2395,8 +2403,9 @@
      "type": "button",
      "property": "/controls/pod-tilt",
      "value": "0",
-     "label": "Pod angle: pods horizontal"
-    }
+     "label": "Pod angle: RETRO"
+    },
+    "outline_active": true
    },
    {
     "quad": [
@@ -2644,6 +2653,100 @@
     ],
     "angle": -45,
     "initial": 0.5
+   }
+  ],
+  "vc_gauges": [
+   {
+    "part": "ShuttleA_Thrust",
+    "image": "models/textures/Thrust.png",
+    "controls": [
+     {
+      "type": "needle",
+      "property": "{ship}/engine/main-left/level",
+      "max": 1,
+      "cx": 33,
+      "cy": 34,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     },
+     {
+      "type": "needle",
+      "property": "{ship}/engine/main-right/level",
+      "max": 1,
+      "cx": 99,
+      "cy": 34,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     },
+     {
+      "type": "needle",
+      "property": "{ship}/engine/hover-front/level",
+      "max": 1,
+      "cx": 33,
+      "cy": 101,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     },
+     {
+      "type": "needle",
+      "property": "{ship}/engine/hover-aft/level",
+      "max": 1,
+      "cx": 99,
+      "cy": 101,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     },
+     {
+      "type": "needle",
+      "property": "{ship}/engine/pod-left/level",
+      "max": 1,
+      "cx": 33,
+      "cy": 167,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     },
+     {
+      "type": "needle",
+      "property": "{ship}/engine/pod-right/level",
+      "max": 1,
+      "cx": 99,
+      "cy": 167,
+      "r": 25,
+      "a0": -90,
+      "a1": 180
+     }
+    ]
+   },
+   {
+    "part": "ShuttleA_PodAngle",
+    "image": "models/textures/PodAngle.png",
+    "controls": [
+     {
+      "type": "needle",
+      "property": "/controls/pod-tilt-left",
+      "max": 1,
+      "cx": 37.5,
+      "cy": 14,
+      "r": 27,
+      "a0": -90,
+      "a1": -270
+     },
+     {
+      "type": "needle",
+      "property": "/controls/pod-tilt-right",
+      "max": 1,
+      "cx": 111,
+      "cy": 14,
+      "r": 27,
+      "a0": -90,
+      "a1": -270
+     }
+    ]
    }
   ]
  },

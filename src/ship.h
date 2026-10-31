@@ -248,6 +248,13 @@ namespace kosmos
             float gate_min = -1e30f, gate_max = 1e30f;
         };
         std::vector<PanelControl> controls;
+        /** VC parts (name substring) whose texture `image` (relative to the ship folder) is redrawn each frame with needles and numbers; control coordinates are in image pixels. */
+        struct VcGauge
+        {
+            std::string part, image;
+            std::vector<PanelControl> controls;
+        };
+        std::vector<VcGauge> vc_gauges;
         /** A clickable quad in the virtual cockpit (ship frame; corners top-left, top-right, bottom-left, bottom-right) that presses a panel control. */
         struct VcHotspot
         {
@@ -258,6 +265,8 @@ namespace kosmos
             /** A held-drag slider: dragging along the quad's second edge changes this property by `drag_gain` per quad length. */
             std::string drag;
             double drag_gain = 1.0, drag_min = 0.0, drag_max = 1.0;
+            /** Outlined in red on the panel while the control is selected (the artwork carries a green surround). */
+            bool outline_active = false;
         };
         std::vector<VcHotspot> vc_hotspots;
         float panel_width = 1400.0f, panel_height = 500.0f;

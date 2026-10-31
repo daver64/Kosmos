@@ -772,6 +772,18 @@ namespace kosmos::app
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                             }
+                            else if (const std::size_t gi = [&]() -> std::size_t {
+                                         for (std::size_t g = 0; g < cp.vc_gauges.size(); ++g)
+                                             if (g < gauge_target.size() && gauge_target[g] && mp.name.find(cp.vc_gauges[g].part) != std::string::npos)
+                                                 return g;
+                                         return cp.vc_gauges.size(); }();
+                                     gi < cp.vc_gauges.size())
+                            {
+                                mp.material.texture = gauge_target[gi];
+                                mp.material.tint = {217, 217, 217, 255};
+                                mp.material.lit = false;
+                                mp.material.fog = false;
+                            }
                             else if (mp.name.find("HUDDISP") != std::string::npos)
                             {
                                 mp.material.texture = hud_target;
@@ -791,11 +803,24 @@ namespace kosmos::app
                                 // The loader drops Kd, so plain materials would come out white.
                                 const Uint8 level = mp.material.texture ? 217 : 100;
                                 mp.material.tint = {level, level, level, static_cast<Uint8>(hidden ? 0 : glass ? 60 : 255)};
+                                if (!mp.material.texture && !glass)
+                                {
+                                    // Plain parts (switches, levers, trim) get a soft cockpit light so they read as solid shapes.
+                                    mp.material.lit = true;
+                                    mp.material.tint = {190, 190, 190, 255};
+                                }
                                 if (glass || hidden || mp.name.find("LIT_SURF") != std::string::npos)
                                     mp.material.blend = sl::MaterialBlend::alpha; // label strips are text on a transparent background
                             }
                         }
+                        const sl::Light3D saved_light = sl::get_light_3d();
+                        sl::Light3D cabin;
+                        cabin.direction = glm::mat3(model) * glm::normalize(glm::vec3(0.25f, -0.8f, -0.55f));
+                        cabin.ambient = 0.5f;
+                        cabin.colour = glm::vec3(0.9f);
+                        sl::set_light_3d(cabin);
                         sl::draw_model(vc, model);
+                        sl::set_light_3d(saved_light);
                     }
                     return;
                 }

@@ -1,5 +1,6 @@
 #include <functional>
 #include "app_state.h"
+#include "cockpit_panels.h"
 
 namespace kosmos::app
 {
@@ -430,9 +431,10 @@ namespace kosmos::app
     {
     sl::PropertyTree &props = *props_ref;
     sl::FlightBody &fb = *fb_ref;
-            if (props.get_bool("/sim/settings/vc-hotspots") && !ship->spec().cockpit.vc_model.empty())
+            if (!ship->spec().cockpit.vc_model.empty())
             {
-                // Debug: outline every hotspot where picking will test it.
+                // Debug: outline every hotspot where picking will test it; selected buttons are outlined in red.
+                const bool debug = props.get_bool("/sim/settings/vc-hotspots");
                 const glm::vec3 f = glm::normalize(ship_rel), r = glm::normalize(glm::cross(f, glm::vec3(up))), u2 = glm::cross(r, f);
                 const glm::mat3 to_w = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 o_local = glm::transpose(to_w) * (-glm::vec3(ship->origin() - eye_world));
@@ -440,6 +442,9 @@ namespace kosmos::app
                 const glm::mat3 from_local = to_w;
                 for (const kosmos::Cockpit::VcHotspot &hs : ship->spec().cockpit.vc_hotspots)
                 {
+                    const bool active = hs.outline_active && control_lit(sim, hs.control);
+                    if (!debug && !active)
+                        continue;
                     glm::mat4 moved(1.0f);
                     for (const kosmos::VcAnimation &va : ship->spec().cockpit.vc_animations)
                         for (const std::string &pn : va.parts)
@@ -462,7 +467,12 @@ namespace kosmos::app
                             px[k] = screen_w * 0.5f + focal * glm::dot(w, r) / z;
                             py[k] = screen_h * 0.5f - focal * glm::dot(w, u2) / z;
                         }
-                        if (ok)
+                        if (!ok)
+                            continue;
+                        if (active)
+                            for (float off : {-1.0f, 0.0f, 1.0f})
+                                sl::line(sl::screen, px[0] + off, py[0] + off, px[1] + off, py[1] + off, {255, 40, 30});
+                        else
                             sl::line(sl::screen, px[0], py[0], px[1], py[1], {255, 60, 60});
                     }
                 }

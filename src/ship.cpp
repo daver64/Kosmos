@@ -180,6 +180,8 @@ namespace kosmos
                 spec.cockpit.vc_hide = jc.value("vc_hide", std::vector<std::string>());
                 for (const nlohmann::json &ji : jc.value("vc_instruments", nlohmann::json::array()))
                     spec.cockpit.vc_instruments.push_back({ji.value("part", std::string()), ji.value("unit", 0)});
+                for (const nlohmann::json &jg : jc.value("vc_gauges", nlohmann::json::array()))
+                    spec.cockpit.vc_gauges.push_back({jg.value("part", std::string()), jg.value("image", std::string()), read_controls(jg.value("controls", nlohmann::json::array()))});
                 for (const nlohmann::json &jh : jc.value("vc_hotspots", nlohmann::json::array()))
                 {
                     if (!jh.contains("quad") || !jh.contains("control") || !jh["quad"].is_array() || jh["quad"].size() < 4)
@@ -190,6 +192,7 @@ namespace kosmos
                             hs.quad[i][k] = jh["quad"][i][k].get<double>();
                     hs.drag = jh.value("drag", "");
                     hs.drag_gain = jh.value("drag_gain", 1.0);
+                    hs.outline_active = jh.value("outline_active", false);
                     hs.drag_min = jh.value("drag_min", 0.0);
                     hs.drag_max = jh.value("drag_max", 1.0);
                     const std::vector<Cockpit::PanelControl> one = read_controls(nlohmann::json::array({jh["control"]}));

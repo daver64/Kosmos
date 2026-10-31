@@ -124,6 +124,39 @@ namespace kosmos::app
                     if (big)
                         downsample_target(big, t, {10, 12, 16, 255});
                 }
+                if (gauge_target.size() != pcp.vc_gauges.size())
+                {
+                    gauge_target.assign(pcp.vc_gauges.size(), nullptr);
+                    gauge_scratch.assign(pcp.vc_gauges.size(), nullptr);
+                }
+                for (std::size_t gi = 0; gi < pcp.vc_gauges.size(); ++gi)
+                {
+                    const kosmos::Cockpit::VcGauge &vg = pcp.vc_gauges[gi];
+                    sl::Bitmap *art = sim.mfd.bitmap((std::filesystem::path(ship->spec().directory) / vg.image).string());
+                    if (!art)
+                        continue;
+                    const int gw = art->width * 2, gh = art->height * 2;
+                    if (!gauge_target[gi])
+                    {
+                        gauge_target[gi] = sl::create_render_target(gw, gh);
+                        gauge_scratch[gi] = sl::create_render_target(gw, gh);
+                    }
+                    sl::Bitmap *scratch = gauge_scratch[gi], *out = gauge_target[gi];
+                    if (!scratch || !out || !sl::begin_render_target(scratch))
+                        continue;
+                    scratch->smooth = out->smooth = true;
+                    sl::clear_render_target({0, 0, 0, 255});
+                    sl::draw_sprite_region_flipped(art, 0, 0, art->width, art->height, 0.0f, 0.0f, static_cast<float>(gw), static_cast<float>(gh), false, false);
+                    for (const kosmos::Cockpit::PanelControl &c : vg.controls)
+                        draw_panel_control(sim, c, 0.0f, 0.0f, 2.0f);
+                    sl::end_render_target();
+                    if (sl::begin_render_target(out))
+                    {
+                        sl::clear_render_target({0, 0, 0, 255});
+                        sl::draw_sprite_region_flipped(scratch, 0, 0, gw, gh, 0.0f, 0.0f, static_cast<float>(gw), static_cast<float>(gh), false, true);
+                        sl::end_render_target();
+                    }
+                }
                 render_vc_hud_target();
             }
         }

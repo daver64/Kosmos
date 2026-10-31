@@ -213,6 +213,7 @@ namespace kosmos::app
         PropertyBrowser property_browser;
         int applied_volume{};
         sl::Bitmap * mfd_target[2]{};
+        std::vector<sl::Bitmap *> gauge_target, gauge_scratch; // `vc_gauges` textures and the top-down scratch they are drawn in
         sl::Bitmap * instr_target[8]{}; // panel instruments shown on VC parts (`vc_instruments`)
         sl::Bitmap * hud_target = nullptr;
         // Scratch targets for supersampling the MFD and HUD textures (see gfx-screen-ss).
