@@ -28,6 +28,57 @@ namespace kosmos::app
         }
     }
 
+    int App::screen_supersample() const
+    {
+        const int f = props_ref->get_int("/sim/settings/gfx-screen-ss", 2);
+        return f >= 4 ? 4 : f >= 2 ? 2 : 1;
+    }
+
+    // The scratch target the MFD and HUD are drawn into at `factor` times their size; made again when the factor changes.
+    sl::Bitmap *App::supersample_target(int factor)
+    {
+        if (factor != ss_factor)
+        {
+            if (ss_big)
+                sl::destroy_bitmap(ss_big);
+            if (ss_mid)
+                sl::destroy_bitmap(ss_mid);
+            ss_big = ss_mid = nullptr;
+            ss_factor = factor;
+            if (factor > 1)
+            {
+                ss_big = sl::create_render_target(mfd_target_size * factor, mfd_target_size * factor);
+                if (ss_big)
+                    ss_big->smooth = true;
+                if (factor > 2)
+                {
+                    ss_mid = sl::create_render_target(mfd_target_size * 2, mfd_target_size * 2);
+                    if (ss_mid)
+                        ss_mid->smooth = true;
+                }
+            }
+        }
+        return ss_big;
+    }
+
+    // Halves the image in steps, so each bilinear tap is an exact box filter.
+    void App::downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear)
+    {
+        const auto blit = [&](sl::Bitmap *from, sl::Bitmap *to, bool flip) {
+            if (!sl::begin_render_target(to))
+                return;
+            sl::clear_render_target(clear);
+            sl::draw_sprite_region_flipped(from, 0, 0, from->width, from->height, 0.0f, 0.0f, static_cast<float>(to->width), static_cast<float>(to->height), false, flip);
+            sl::end_render_target();
+        };
+        if (ss_mid && source != ss_mid && source->width > destination->width * 2)
+        {
+            blit(source, ss_mid, true);
+            source = ss_mid;
+        }
+        blit(source, destination, true);
+    }
+
     void App::draw_cockpit_targets()
     {
         if (!in_cockpit3d)
@@ -37,8 +88,20 @@ namespace kosmos::app
         const kosmos::Cockpit pcp = resolved_cockpit(ship->spec().cockpit, props_ref->get_int("/sim/active-ship"));
         if ((pcp.instruments.empty() && pcp.controls.empty()) || !pcp.vc_model.empty())
         {
+            const int factor = screen_supersample();
+            sl::Bitmap *big = supersample_target(factor);
             for (int side = 0; side < 2; ++side)
-                sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+                if (big)
+                {
+                    kosmos::MfdLayout layout = mfd_target_layout();
+                    layout.x *= factor;
+                    layout.y *= factor;
+                    layout.size *= factor;
+                    sim.mfd.draw_to_target(side, big, layout);
+                    downsample_target(big, mfd_target[side], {18, 20, 26, 255});
+                }
+                else
+                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
             if (!pcp.vc_model.empty())
                 render_vc_hud_target();
         }

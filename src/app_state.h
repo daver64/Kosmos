@@ -118,6 +118,7 @@ namespace kosmos::app
         sl::Surface3D * surface{};
         int surface_w{};
         int surface_h{};
+        int surface_msaa{1};
         Visuals vis;
         int earth_id{};
         const kosmos::Body * earth_body{};
@@ -173,6 +174,8 @@ namespace kosmos::app
         bool first_ship_seen{};
         int panel_index{};
         bool mfd_mouse_prev{};
+        const kosmos::Cockpit::VcHotspot *vc_drag_spot{};
+        float vc_drag_v{};
         // Panels and MFDs can be dragged with the left button; ids: 0 the 2D panel, 1 and 2 the left and right MFD.
         int ui_drag_id = -1;
         float ui_drag_last_x{}, ui_drag_last_y{};
@@ -211,6 +214,13 @@ namespace kosmos::app
         int applied_volume{};
         sl::Bitmap * mfd_target[2]{};
         sl::Bitmap * hud_target = nullptr;
+        // Scratch targets for supersampling the MFD and HUD textures (see gfx-screen-ss).
+        sl::Bitmap * ss_big = nullptr;
+        sl::Bitmap * ss_mid = nullptr;
+        int ss_factor = 0;
+        int screen_supersample() const;
+        sl::Bitmap * supersample_target(int factor);
+        void downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear);
         sl::Bitmap * panel_target{};
         int panel_target_height{};
         const Ship * mfd_ship{};
@@ -443,6 +453,7 @@ namespace kosmos::app
         void scene_bodies();
         void draw_ship_interior(int s, Ship &other, const sl::FlightBody &ob, const glm::mat4 &model);
         void draw_ship_cockpit3d(Ship &other, const sl::FlightBody &ob, const glm::mat4 &model);
+        glm::mat4 vc_animation_matrix(Ship &other, const kosmos::VcAnimation &va);
         void scene_ships();
         void scene_weather();
         void scene_lightning();

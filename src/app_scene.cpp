@@ -702,6 +702,24 @@ namespace kosmos::app
                 }
     }
 
+    glm::mat4 App::vc_animation_matrix(Ship &other, const kosmos::VcAnimation &va)
+    {
+        double v = 0.0;
+        if (va.source == "gear")
+            v = other.gear_position();
+        else if (va.source.rfind("anim:", 0) == 0)
+        {
+            const auto &ac = other.spec().animation_controls;
+            for (std::size_t i = 0; i < ac.size(); ++i)
+                if (ac[i].property == va.source.substr(5))
+                    v = other.animation_position(i);
+        }
+        else if (!va.source.empty())
+            v = sim.props.get_double(va.source, 0.0);
+        const glm::vec3 pivot(va.pivot[0], va.pivot[1], va.pivot[2]);
+        return glm::translate(glm::mat4(1.0f), pivot) * glm::rotate(glm::mat4(1.0f), glm::radians(static_cast<float>(va.angle_deg * (va.initial + (1.0 - va.initial) * glm::clamp(v, 0.0, 1.0)))), glm::normalize(glm::vec3(va.axis[0], va.axis[1], va.axis[2]))) * glm::translate(glm::mat4(1.0f), -pivot);
+    }
+
     void App::draw_ship_cockpit3d(Ship &other, const sl::FlightBody &ob, const glm::mat4 &model)
     {
                 const kosmos::Cockpit &cp = other.spec().cockpit;
@@ -717,6 +735,22 @@ namespace kosmos::app
                     {
                         for (sl::ModelPart &mp : vc->parts)
                         {
+                            glm::mat4 lever(1.0f);
+                            for (const kosmos::VcAnimation &va : cp.vc_animations)
+                            {
+                                bool match = false;
+                                for (const std::string &pn : va.parts)
+                                    match = match || mp.name.find(pn) != std::string::npos;
+                                if (!match)
+                                    continue;
+                                lever = vc_animation_matrix(other, va);
+                                break;
+                            }
+                            mp.transform = lever;
+                            mp.visible = true;
+                            for (const std::string &hn : cp.vc_hide)
+                                if (mp.name.find(hn) != std::string::npos)
+                                    mp.visible = false;
                             const bool left = mp.name.find("LMFD_DISPLAY") != std::string::npos;
                             if (left || mp.name.find("RMFD_DISPLAY") != std::string::npos)
                             {

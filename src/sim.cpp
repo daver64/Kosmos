@@ -55,6 +55,13 @@ namespace kosmos
         for (const char *name : {"throttle", "pitch", "yaw", "roll", "rcs-x", "rcs-y", "rcs-z", "brake", "flaps"})
             props.set_double(std::string("/controls/") + name, 0.0);
         props.set_double("/controls/gear", 1.0);
+        props.set_string("/controls/af-mode", "on");
+        props.set_double("/controls/trim", 0.0);
+        props.set_double("/controls/gimbal-pitch", 0.0);
+        props.set_double("/controls/gimbal-yaw", 0.0);
+        props.set_bool("/controls/lighting/lamps", true);
+        props.set_bool("/controls/lighting/nav", true);
+        props.set_double("/controls/brake-latch", 0.0);
         props.set_string("/controls/sas", "stability");
         props.set_double("/controls/target-pitch", 90.0);
         props.set_double("/controls/target-heading", 90.0);
@@ -493,6 +500,10 @@ namespace kosmos
         c.pod_tilt_left = props.get_double(path_of("pod-tilt-left"));
         c.pod_tilt_right = props.get_double(path_of("pod-tilt-right"));
         c.rcs_mode = props.get_string(path_of("rcs-mode"), "rot");
+        c.af_mode = props.get_string(path_of("af-mode"), "on");
+        c.trim = props.get_double(path_of("trim"));
+        c.gimbal_pitch = props.get_double(path_of("gimbal-pitch"));
+        c.gimbal_yaw = props.get_double(path_of("gimbal-yaw"));
         if (!ship)
             ship = active_ship();
         if (ship)
@@ -532,6 +543,27 @@ namespace kosmos
         return steps;
     }
 
+    // The airlock chamber follows its pressurize switch; a door opens only against matching pressure, and never both at once.
+    void Sim::update_airlock(double frame)
+    {
+        double pressure = props.get_double("/airlock/pressure", 1.0);
+        bool outer = props.get_bool("/controls/airlock/outer-door"), inner = props.get_bool("/controls/airlock/inner-door");
+        if (outer && inner)
+            inner = false;
+        if (outer && pressure > 0.05)
+            outer = false;
+        if (inner && pressure < 0.95)
+            inner = false;
+        const bool pressurize = props.get_bool("/controls/airlock/pressurize", true);
+        if (!outer && !inner)
+            pressure = std::clamp(pressure + (pressurize ? 1.0 : -1.0) * frame / 20.0, 0.0, 1.0);
+        props.set_bool("/controls/airlock/outer-door", outer);
+        props.set_bool("/controls/airlock/inner-door", inner);
+        props.set_bool("/airlock/outer-open", outer);
+        props.set_bool("/airlock/inner-open", inner);
+        props.set_double("/airlock/pressure", pressure);
+    }
+
     void Sim::step(double frame)
     {
         // HUD messages are notices: they go after a few seconds.
@@ -550,6 +582,7 @@ namespace kosmos
             activate(active_);
             log(flying_as_aircraft_ ? "Aircraft mode: wings and aircraft autopilot" : "Spacecraft mode: RCS and SAS, autopilot off");
         }
+        update_airlock(frame);
         if (script_loaded_)
         {
             const sl::LuaScriptResult result = lua.emit("update", static_cast<float>(frame));

@@ -84,6 +84,7 @@ namespace kosmos
 
         /** Advance by one frame of real time, applying the time warp. */
         void step(double frame_seconds);
+        void update_airlock(double frame);
         /** Warp factor in effect after the last step. */
         /** Runs `frame` seconds of wall time as constant physics steps and returns how many ran. Above 4x warp, or paused, it is a single step of the frame. */
         int advance(double frame);

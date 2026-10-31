@@ -65,6 +65,8 @@ namespace kosmos
         props.set_int("/sim/settings/gfx-light-radius", 8000);
         props.set_int("/sim/settings/gfx-weapon-lights", 4);
         props.set_int("/sim/settings/gfx-max-fps", 60);
+        props.set_int("/sim/settings/gfx-msaa", 4);
+        props.set_int("/sim/settings/gfx-screen-ss", 2);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
         props.set_bool("/sim/settings/gfx-earth-relief", false);
         props.set_bool("/sim/settings/gfx-clutter", true);
@@ -99,6 +101,8 @@ namespace kosmos
         load_int("gfx-light-radius", 500, 20000);
         load_int("gfx-weapon-lights", 0, 8);
         load_int("gfx-max-fps", 10, 240);
+        load_int("gfx-msaa", 1, 8);
+        load_int("gfx-screen-ss", 1, 4);
         load_int("gfx-terrain-detail", 0, 3);
         load_int("gfx-clutter-density", 10, 200);
         load_int("gfx-clutter-radius", 25, 200);
@@ -145,7 +149,7 @@ namespace kosmos
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
         j["world-texture"] = props.get_int("/sim/settings/world-texture");
         j["max-texture"] = props.get_int("/sim/settings/max-texture");
-        for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-terrain-detail", "gfx-cloud-style"})
+        for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-msaa", "gfx-terrain-detail", "gfx-cloud-style"})
             j[key] = props.get_int(std::string("/sim/settings/") + key);
         j["gfx-clouds"] = props.get_bool("/sim/settings/gfx-clouds");
         j["mouse-invert-x"] = props.get_bool("/sim/settings/mouse-invert-x");

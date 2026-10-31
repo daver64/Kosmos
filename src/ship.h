@@ -157,6 +157,18 @@ namespace kosmos
     };
 
     /** The view from inside a ship: an eye point in the ship frame and a panel of property readouts. */
+    /** A virtual-cockpit part (matched by name substring) that rotates about a pivot as a value in 0..1 moves; used for levers and throttles. */
+    struct VcAnimation
+    {
+        std::vector<std::string> parts;
+        /** A property path, "gear" (gear position) or "anim:<property>" (an animation control's position). */
+        std::string source;
+        double pivot[3] = {0, 0, 0}, axis[3] = {1, 0, 0};
+        double angle_deg = 0.0;
+        /** The fraction of the full angle held when the value is 0 (the rest is swept as it goes to 1). */
+        double initial = 0.0;
+    };
+
     struct Cockpit
     {
         bool present = false;
@@ -171,6 +183,9 @@ namespace kosmos
         std::string mfd_left = "orbit", mfd_right = "surface";
         /** A virtual cockpit mesh (OBJ, relative to the ship file) drawn around the eye in the 3D cockpit, in the hull's frame. */
         std::string vc_model;
+        std::vector<VcAnimation> vc_animations;
+        /** VC parts (name substrings) that are never drawn, such as the alternate of two overlapping panel variants. */
+        std::vector<std::string> vc_hide;
         /** Which MFD modes the ship offers: "auto" (aircraft get no orbital modes, everything else no airspeed-style flight gauges), "atmosphere", "space", or "none" to offer all. */
         std::string mfd_filter = "auto";
         /** HUD modes the H key cycles ("orbit", "surface", "docking"); empty means the class default (see ShipSpec::hud_modes). */
@@ -219,6 +234,18 @@ namespace kosmos
             float gate_min = -1e30f, gate_max = 1e30f;
         };
         std::vector<PanelControl> controls;
+        /** A clickable quad in the virtual cockpit (ship frame; corners top-left, top-right, bottom-left, bottom-right) that presses a panel control. */
+        struct VcHotspot
+        {
+            double quad[4][3] = {};
+            PanelControl control;
+            /** A part name of a vc_animations entry: the quad moves with that animated part. */
+            std::string follow;
+            /** A held-drag slider: dragging along the quad's second edge changes this property by `drag_gain` per quad length. */
+            std::string drag;
+            double drag_gain = 1.0, drag_min = 0.0, drag_max = 1.0;
+        };
+        std::vector<VcHotspot> vc_hotspots;
         float panel_width = 1400.0f, panel_height = 500.0f;
         std::string panel_image;
         /** A name for the panel above in the 2D Panels menu. */
@@ -353,6 +380,8 @@ namespace kosmos
         /** Aerodynamic surfaces and wheels, for aircraft and anything else that flies in an atmosphere. */
         std::vector<CameraSpec> cameras;
         std::vector<SurfaceSpec> surfaces;
+        /** Main-engine gimbal swing at full deflection, in degrees. */
+        double gimbal_range = 5.0;
         std::vector<WheelSpec> wheels;
         /** Running lights, strobes and floodlamps, in the ship frame. */
         std::vector<LightSpec> lights;
@@ -443,6 +472,12 @@ namespace kosmos
         double flaps = 0.0;
         /** Landing gear, 0 (up) or 1 (down); only ships with retractable gear react. */
         double gear = 1.0;
+        /** Control-surface mode: "on" (all axes), "pitch" (elevators only) or "off". */
+        std::string af_mode = "on";
+        /** Elevator trim, -1 to 1, added to the pitch command. */
+        double trim = 0.0;
+        /** Main-engine gimbal offsets, -1 to 1 (full scale is `ShipSpec::gimbal_range` degrees). */
+        double gimbal_pitch = 0.0, gimbal_yaw = 0.0;
     };
 
     /** Values derived from the ship's state once per frame; published to the property tree. */

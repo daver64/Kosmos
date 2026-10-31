@@ -68,17 +68,23 @@ namespace kosmos::app
         hs.camera.up = hs.roof;
         hs.camera.right = glm::normalize(glm::cross(hs.nose, hs.roof));
         // The HUD plate is 0.15 m wide, 0.31 m from the pilot's eye.
-        hs.camera.focal = mfd_target_size * 0.5 / (0.075 / 0.308);
-        hs.camera.width = mfd_target_size;
-        hs.camera.height = mfd_target_size;
+        const int factor = screen_supersample();
+        sl::Bitmap *big = supersample_target(factor);
+        const int size = big ? mfd_target_size * factor : mfd_target_size;
+        hs.camera.focal = size * 0.5 / (0.075 / 0.308);
+        hs.camera.width = size;
+        hs.camera.height = size;
         if (active)
             fill_hud_state(hs);
-        if (!sl::begin_render_target(hud_target))
+        sl::Bitmap *into = big ? big : hud_target;
+        if (!sl::begin_render_target(into))
             return;
         sl::clear_render_target({0, 0, 0, 0});
         if (active)
             hud.draw(hs);
         sl::end_render_target();
+        if (big)
+            downsample_target(big, hud_target, {0, 0, 0, 0});
     }
 
     void App::fill_hud_state(sl::HudState &hs)
@@ -362,15 +368,52 @@ namespace kosmos::app
     {
     sl::PropertyTree &props = *props_ref;
     sl::FlightBody &fb = *fb_ref;
+            if (props.get_bool("/sim/settings/vc-hotspots") && !ship->spec().cockpit.vc_model.empty())
+            {
+                // Debug: outline every hotspot where picking will test it.
+                const glm::vec3 f = glm::normalize(ship_rel), r = glm::normalize(glm::cross(f, glm::vec3(up))), u2 = glm::cross(r, f);
+                const glm::mat3 to_w = glm::mat3_cast(glm::quat(fb.orientation));
+                const glm::vec3 o_local = glm::transpose(to_w) * (-glm::vec3(ship->origin() - eye_world));
+                const float focal = static_cast<float>(screen_h * 0.5 / std::tan(glm::radians(view_fov * 0.5)));
+                const glm::mat3 from_local = to_w;
+                for (const kosmos::Cockpit::VcHotspot &hs : ship->spec().cockpit.vc_hotspots)
+                {
+                    glm::mat4 moved(1.0f);
+                    for (const kosmos::VcAnimation &va : ship->spec().cockpit.vc_animations)
+                        for (const std::string &pn : va.parts)
+                            if (!hs.follow.empty() && pn == hs.follow)
+                                moved = vc_animation_matrix(*ship, va);
+                    glm::vec3 c[4];
+                    for (int i = 0; i < 4; ++i)
+                        c[i] = glm::vec3(moved * glm::vec4(hs.quad[i][0], hs.quad[i][1], hs.quad[i][2], 1.0f));
+                    const int order[5] = {0, 1, 3, 2, 0};
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        float px[2], py[2];
+                        bool ok = true;
+                        for (int k = 0; k < 2; ++k)
+                        {
+                            const glm::vec3 w = from_local * (c[order[i + k]] - o_local);
+                            const float z = glm::dot(w, f);
+                            if (z < 0.01f)
+                                ok = false;
+                            px[k] = screen_w * 0.5f + focal * glm::dot(w, r) / z;
+                            py[k] = screen_h * 0.5f - focal * glm::dot(w, u2) / z;
+                        }
+                        if (ok)
+                            sl::line(sl::screen, px[0], py[0], px[1], py[1], {255, 60, 60});
+                    }
+                }
+            }
             // Pick MFD buttons by casting the mouse ray at the two screen quads.
             const bool down = ui_mouse_down();
-            if (down && !mfd_mouse_prev)
+            if (down && (!mfd_mouse_prev || vc_drag_spot))
             {
                 const kosmos::Cockpit cp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
                 const glm::vec3 fwd = glm::normalize(ship_rel);
                 const glm::vec3 right = glm::normalize(glm::cross(fwd, glm::vec3(up)));
                 const glm::vec3 cup = glm::cross(right, fwd);
-                const float ty = std::tan(glm::radians(25.0f));
+                const float ty = std::tan(glm::radians(static_cast<float>(view_fov) * 0.5f));
                 const float nx = (2.0f * sl::mouse_x() / screen_w - 1.0f) * ty * static_cast<float>(screen_w) / screen_h;
                 const float ny = (1.0f - 2.0f * sl::mouse_y() / screen_h) * ty;
                 const glm::vec3 dir = glm::normalize(fwd + right * nx + cup * ny);
@@ -378,7 +421,22 @@ namespace kosmos::app
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
-                if (!cp.vc_model.empty())
+                if (mfd_mouse_prev)
+                {
+                    // Held button: a drag hotspot follows the mouse along its quad.
+                    const kosmos::Cockpit::VcHotspot &hs = *vc_drag_spot;
+                    const glm::vec3 q0(hs.quad[0][0], hs.quad[0][1], hs.quad[0][2]), e1 = glm::vec3(hs.quad[1][0], hs.quad[1][1], hs.quad[1][2]) - q0, e2 = glm::vec3(hs.quad[2][0], hs.quad[2][1], hs.quad[2][2]) - q0, n = glm::cross(e1, e2);
+                    const float denom = glm::dot(dir_local, n);
+                    if (std::fabs(denom) > 1e-12f)
+                    {
+                        const float t = glm::dot(q0 - origin_local, n) / denom;
+                        const float v = glm::dot(origin_local + dir_local * t - q0, e2) / glm::dot(e2, e2);
+                        const double level = std::clamp(props.get_double(hs.drag) + hs.drag_gain * (v - vc_drag_v), hs.drag_min, hs.drag_max);
+                        props.set_double(hs.drag, level < 0.01 && level > -0.01 ? 0.0 : level);
+                        vc_drag_v = v;
+                    }
+                }
+                else if (!cp.vc_model.empty())
                 {
                     // Ray-cast the MFD screen triangles of the virtual cockpit and press the button under the hit.
                     const auto &screens = vis.vc_screen_tris(ship->spec().cockpit, ship->spec().directory);
@@ -404,7 +462,56 @@ namespace kosmos::app
                             best_side = side;
                             best_uv = tri.uv[0] * (1.0f - bu - bv) + tri.uv[1] * bu + tri.uv[2] * bv;
                         }
-                    if (best_side >= 0)
+                    // Hotspots (bezel buttons, HUD and nav buttons) win when they are nearer than the screen.
+                    const kosmos::Cockpit::VcHotspot *spot = nullptr;
+                    float spot_t = best;
+                    for (const kosmos::Cockpit::VcHotspot &hs : ship->spec().cockpit.vc_hotspots)
+                    {
+                        // A lever may be grabbed where it rests or where it has swung to.
+                        glm::mat4 moved(1.0f);
+                        if (!hs.follow.empty())
+                            for (const kosmos::VcAnimation &va : ship->spec().cockpit.vc_animations)
+                                for (const std::string &pn : va.parts)
+                                    if (pn == hs.follow)
+                                        moved = vc_animation_matrix(*ship, va);
+                        bool hit = false;
+                        float t = 0.0f;
+                        for (int pass = 0; pass < 2 && !hit; ++pass)
+                        {
+                            glm::vec3 corner[3];
+                            for (int ci = 0; ci < 3; ++ci)
+                                corner[ci] = glm::vec3((pass == 0 ? glm::mat4(1.0f) : moved) * glm::vec4(hs.quad[ci][0], hs.quad[ci][1], hs.quad[ci][2], 1.0f));
+                            const glm::vec3 q0 = corner[0], e1 = corner[1] - q0, e2 = corner[2] - q0, n = glm::cross(e1, e2);
+                            const float denom = glm::dot(dir_local, n);
+                            if (std::fabs(denom) < 1e-12f)
+                                continue;
+                            t = glm::dot(q0 - origin_local, n) / denom;
+                            if (t <= 0.0f || t >= spot_t + 0.02f)
+                                continue;
+                            const glm::vec3 d = origin_local + dir_local * t - q0;
+                            const float u = glm::dot(d, e1) / glm::dot(e1, e1), v = glm::dot(d, e2) / glm::dot(e2, e2);
+                            hit = u >= 0.0f && u <= 1.0f && v >= 0.0f && v <= 1.0f;
+                        }
+                        if (!hit)
+                            continue;
+                        spot = &hs;
+                        spot_t = t;
+                    }
+                    if (props.get_bool("/sim/settings/vc-hotspots"))
+                        sim.log("VC click o=" + std::to_string(origin_local.x) + "," + std::to_string(origin_local.y) + "," + std::to_string(origin_local.z) + " d=" + std::to_string(dir_local.x) + "," + std::to_string(dir_local.y) + "," + std::to_string(dir_local.z) + (spot ? " HIT " + spot->control.property : ""));
+                    if (spot && !spot->drag.empty())
+                    {
+                        const glm::vec3 q0(spot->quad[0][0], spot->quad[0][1], spot->quad[0][2]), e1 = glm::vec3(spot->quad[1][0], spot->quad[1][1], spot->quad[1][2]) - q0, e2 = glm::vec3(spot->quad[2][0], spot->quad[2][1], spot->quad[2][2]) - q0, n = glm::cross(e1, e2);
+                        const float denom = glm::dot(dir_local, n);
+                        if (std::fabs(denom) > 1e-12f)
+                        {
+                            vc_drag_spot = spot;
+                            vc_drag_v = glm::dot(origin_local + dir_local * (glm::dot(q0 - origin_local, n) / denom) - q0, e2) / glm::dot(e2, e2);
+                        }
+                    }
+                    else if (spot)
+                        panel_control_press(sim, spot->control);
+                    else if (best_side >= 0)
                     {
                         const int button = sim.mfd.hit_test(best_side, mfd_target_layout(), best_uv.x * mfd_target_size, best_uv.y * mfd_target_size);
                         if (button >= 0)
@@ -451,6 +558,8 @@ namespace kosmos::app
                     break;
                 }
             }
+            if (!down)
+                vc_drag_spot = nullptr;
             mfd_mouse_prev = down;
     }
 

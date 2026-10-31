@@ -197,6 +197,32 @@ namespace kosmos::app
                 props.set_int("/sim/settings/gfx-style", style);
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("Flat shaded and wireframe skip textures, clouds and haze: much lighter on slow or software graphics.");
+            {
+                static const char *aa[] = {"Off", "2x", "4x", "8x"};
+                static const int samples[] = {1, 2, 4, 8};
+                int cur = 0;
+                for (int i = 0; i < 4; ++i)
+                    if (samples[i] == props.get_int("/sim/settings/gfx-msaa", 4))
+                        cur = i;
+                ImGui::SetNextItemWidth(160.0f);
+                if (ImGui::Combo("Anti-aliasing", &cur, aa, 4))
+                    props.set_int("/sim/settings/gfx-msaa", samples[cur]);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Multisample edge smoothing of the 3D view (clamped to what the GPU supports). Textures are always mipmapped and anisotropically filtered.");
+            }
+            {
+                static const char *ss[] = {"Bilinear", "Supersampled 2x", "Supersampled 4x"};
+                static const int factors[] = {1, 2, 4};
+                int cur = 1;
+                for (int i = 0; i < 3; ++i)
+                    if (factors[i] == props.get_int("/sim/settings/gfx-screen-ss", 2))
+                        cur = i;
+                ImGui::SetNextItemWidth(160.0f);
+                if (ImGui::Combo("MFD / HUD filtering", &cur, ss, 3))
+                    props.set_int("/sim/settings/gfx-screen-ss", factors[cur]);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("The MFD screens and cockpit HUD are textures. Supersampling draws them at 2x or 4x size and filters them down, which removes the shimmer when they are small on screen.");
+            }
             flag("Clouds", "/sim/settings/gfx-clouds", "Cloud layers");
             int fps = props.get_int("/sim/settings/gfx-max-fps");
             ImGui::SetNextItemWidth(160.0f);

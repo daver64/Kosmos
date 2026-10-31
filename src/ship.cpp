@@ -87,6 +87,21 @@ namespace kosmos
                 spec.cockpit.fov = jc.value("fov", 0.0);
                 spec.cockpit.mfds = jc.value("mfds", true);
                 spec.cockpit.vc_model = jc.value("vc_model", "");
+                if (jc.contains("vc_animations") && jc["vc_animations"].is_array())
+                    for (const auto &ja : jc["vc_animations"])
+                    {
+                        VcAnimation a;
+                        a.parts = ja.value("parts", std::vector<std::string>());
+                        a.source = ja.value("source", "");
+                        a.angle_deg = ja.value("angle", 0.0);
+                        a.initial = ja.value("initial", 0.0);
+                        const std::vector<double> pv = ja.value("pivot", std::vector<double>{0, 0, 0}), av = ja.value("axis", std::vector<double>{1, 0, 0});
+                        for (int i = 0; i < 3 && i < static_cast<int>(pv.size()); ++i)
+                            a.pivot[i] = pv[i];
+                        for (int i = 0; i < 3 && i < static_cast<int>(av.size()); ++i)
+                            a.axis[i] = av[i];
+                        spec.cockpit.vc_animations.push_back(a);
+                    }
                 spec.cockpit.mfd_left = jc.value("mfd_left", spec.cockpit.mfd_left);
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 spec.cockpit.mfd_filter = jc.value("mfd_filter", spec.cockpit.mfd_filter);
@@ -155,6 +170,24 @@ namespace kosmos
                     return out;
                 };
                 spec.cockpit.controls = read_controls(jc.value("controls", nlohmann::json::array()));
+                spec.cockpit.vc_hide = jc.value("vc_hide", std::vector<std::string>());
+                for (const nlohmann::json &jh : jc.value("vc_hotspots", nlohmann::json::array()))
+                {
+                    if (!jh.contains("quad") || !jh.contains("control") || !jh["quad"].is_array() || jh["quad"].size() < 4)
+                        continue;
+                    Cockpit::VcHotspot hs;
+                    for (int i = 0; i < 4; ++i)
+                        for (int k = 0; k < 3; ++k)
+                            hs.quad[i][k] = jh["quad"][i][k].get<double>();
+                    hs.drag = jh.value("drag", "");
+                    hs.drag_gain = jh.value("drag_gain", 1.0);
+                    hs.drag_min = jh.value("drag_min", 0.0);
+                    hs.drag_max = jh.value("drag_max", 1.0);
+                    const std::vector<Cockpit::PanelControl> one = read_controls(nlohmann::json::array({jh["control"]}));
+                    hs.control = one.front();
+                    hs.follow = jh.value("follow", "");
+                    spec.cockpit.vc_hotspots.push_back(hs);
+                }
                 for (const nlohmann::json &ji : jc.value("instruments", nlohmann::json::array()))
                 {
                     Cockpit::PanelInstrument inst;
@@ -352,6 +385,7 @@ namespace kosmos
                 spec.locker = json["locker"].get<std::vector<std::string>>();
             spec.fuel_pod = json.value("fuel_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
+            spec.gimbal_range = std::max(0.0, json.value("gimbal_range", spec.gimbal_range));
         }
 
         StageSpec read_stage(const nlohmann::json &js)
@@ -1155,9 +1189,10 @@ namespace kosmos
         {
             return std::clamp(stick - (damp ? gain * rate * q : 0.0), -1.0, 1.0);
         };
-        universe_.world.set_control(body_, "elevator", command(c.pitch, w.x, spec_.damping.x));
-        universe_.world.set_control(body_, "rudder", command(c.yaw, w.y, spec_.damping.y));
-        universe_.world.set_control(body_, "aileron", command(c.roll, w.z, spec_.damping.z));
+        const double af = c.af_mode == "off" ? 0.0 : 1.0, af_lateral = c.af_mode == "on" ? 1.0 : 0.0;
+        universe_.world.set_control(body_, "elevator", af * command(c.pitch + c.trim, w.x, spec_.damping.x));
+        universe_.world.set_control(body_, "rudder", af_lateral * command(c.yaw, w.y, spec_.damping.y));
+        universe_.world.set_control(body_, "aileron", af_lateral * command(c.roll, w.z, spec_.damping.z));
         universe_.world.set_control(body_, "flaps", std::clamp(c.flaps, 0.0, 1.0));
 
         // Nose-wheel steering follows the yaw input; the wheels roll along their own heading.
@@ -1352,7 +1387,19 @@ namespace kosmos
                 t.level = std::clamp(pod == 0 ? c.pod_left : c.pod_right, 0.0, 1.0);
             }
             else
+            {
+                const bool main_engine = !thruster_rcs_[static_cast<std::size_t>(i)] && !thruster_hover_[static_cast<std::size_t>(i)];
                 t.level = thruster_rcs_[static_cast<std::size_t>(i)] ? 0.0 : thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
+                const auto &engines = spec_.stages[static_cast<std::size_t>(active_stage_)].engines;
+                const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(active_stage_)]);
+                if (main_engine && local < engines.size())
+                {
+                    // The gimbal swings the thrust line about the ship's X (pitch) and Y (yaw) axes.
+                    const double range = glm::radians(spec_.gimbal_range);
+                    const sl::dquat swing = glm::angleAxis(std::clamp(c.gimbal_yaw, -1.0, 1.0) * range, sl::dvec3(0.0, 1.0, 0.0)) * glm::angleAxis(std::clamp(c.gimbal_pitch, -1.0, 1.0) * range, sl::dvec3(1.0, 0.0, 0.0));
+                    t.direction = glm::normalize(swing * engines[local].direction);
+                }
+            }
         }
         if (flies_as_aircraft())
         {

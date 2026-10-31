@@ -389,9 +389,11 @@ namespace kosmos::app
             screen_w = sl::screen_width();
             screen_h = sl::screen_height();
         }
-        if (screen_w != surface_w || screen_h != surface_h)
+        const int want_msaa = std::clamp(sim.props.get_int("/sim/settings/gfx-msaa", 4), 1, 8);
+        if (screen_w != surface_w || screen_h != surface_h || want_msaa != surface_msaa)
         {
-            if (sl::Surface3D *resized = sl::create_surface_3d(screen_w, screen_h, 1))
+            surface_msaa = want_msaa;
+            if (sl::Surface3D *resized = sl::create_surface_3d(screen_w, screen_h, want_msaa))
             {
                 sl::destroy_surface_3d(surface);
                 surface = resized;
@@ -614,7 +616,7 @@ namespace kosmos::app
         const double lin_y = axis("pitch_up", "pitch_down") * lin_scale;
         const double lin_z = axis("roll_right", "rcs_back") * lin_scale;
         props.set_double("/controls/rcs-z", lin_z);
-        props.set_double("/controls/brake", !typing && !on_foot && keys.down("brake") ? 1.0 : 0.0);
+        props.set_double("/controls/brake", !typing && !on_foot && (keys.down("brake") || props.get_double("/controls/brake-latch") > 0.5) ? 1.0 : 0.0);
         // In the cockpit the arrow keys move the head instead of firing RCS translation.
         const bool head_keys = !typing && !on_foot && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
         if (eye_ship != ship || !cockpit_view)

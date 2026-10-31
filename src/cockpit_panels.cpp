@@ -249,6 +249,21 @@ namespace kosmos::app
                 sim.props.set_double("/controls/pod-tilt-left", std::atof(c.value.c_str()));
                 sim.props.set_double("/controls/pod-tilt-right", std::atof(c.value.c_str()));
             }
+            else if (c.value.find(',') != std::string::npos)
+            {
+                // A comma-separated value list cycles: the dial moves to the entry after the current one.
+                std::vector<std::string> items;
+                std::size_t start = 0;
+                for (std::size_t at; (at = c.value.find(',', start)) != std::string::npos; start = at + 1)
+                    items.push_back(c.value.substr(start, at - start));
+                items.push_back(c.value.substr(start));
+                const std::string now = sim.props.get_string(c.property);
+                std::size_t next = 0;
+                for (std::size_t i = 0; i < items.size(); ++i)
+                    if (items[i] == now)
+                        next = (i + 1) % items.size();
+                sim.props.set_string(c.property, items[next]);
+            }
             else if (control_is_numeric(c.value))
                 sim.props.set_double(c.property, std::atof(c.value.c_str()));
             else
