@@ -107,13 +107,14 @@ namespace kosmos::app
                             const float flat = glm::length(out);
                             if (flat > 1e-4f)
                                 out /= flat;
-                            p.velocity = along * 0.25f + out * (down * 0.9f) + up * (down * 0.08f * random01());
+                            p.velocity = along * 0.25f + out * (down * 0.45f) + up * (down * 0.04f * random01());
                         }
                         if (!p.splashed)
                         {
                             p.splashed = true;
-                            p.life = std::min(p.life, p.age + 0.35f + 0.25f * random01());
-                            p.size *= 1.5f;
+                            p.life = std::min(p.life, p.age + 0.25f + 0.2f * random01());
+                            p.size *= 1.2f;
+                            p.bright *= 0.3f;
                         }
                     }
                 }

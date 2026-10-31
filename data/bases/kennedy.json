@@ -40,7 +40,8 @@
       "pad": {
         "x": 0,
         "z": 0,
-        "heading": 0
+        "heading": 0,
+        "deck": 8.7
       },
       "objects": [
         {

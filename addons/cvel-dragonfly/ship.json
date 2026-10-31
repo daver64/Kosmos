@@ -895,7 +895,7 @@
     40,
     30
    ],
-   "intensity": 2.5,
+   "intensity": 0.5,
    "range": 60,
    "glow": 0.5
   },
@@ -910,7 +910,7 @@
     255,
     70
    ],
-   "intensity": 2.5,
+   "intensity": 0.5,
    "range": 60,
    "glow": 0.5
   },
@@ -925,7 +925,7 @@
     255,
     255
    ],
-   "intensity": 2.5,
+   "intensity": 0.5,
    "range": 60,
    "glow": 0.5
   },
@@ -940,7 +940,7 @@
     255,
     255
    ],
-   "intensity": 5,
+   "intensity": 0.5,
    "range": 80,
    "glow": 0.6,
    "pattern": "strobe",
@@ -958,7 +958,7 @@
     255,
     255
    ],
-   "intensity": 5,
+   "intensity": 0.5,
    "range": 80,
    "glow": 0.6,
    "pattern": "strobe",

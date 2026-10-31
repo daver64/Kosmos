@@ -184,7 +184,8 @@ namespace kosmos::app
                     shared_rock = vis.body_textures.back();
             }
             sl::Model *shape = nullptr;
-            if (!b.mesh.empty())
+            // A mesh under data/textures-hires/ is optional; without it the body stays a sphere.
+            if (!b.mesh.empty() && std::filesystem::exists(sim.root() + "/data/" + b.mesh))
             {
                 shape = sl::load_model(sim.root() + "/data/" + b.mesh);
                 if (!shape || shape->parts.empty() || !shape->parts[0].mesh)

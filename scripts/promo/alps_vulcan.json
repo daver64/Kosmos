@@ -1,0 +1,22 @@
+{
+ "name": "Gallery: Vulcan over the Alps",
+ "description": "The Vulcan in level cruise over the Alps, for the gallery.",
+ "weather": "KOSM 011200Z 27006KT 9999 SCT330 BKN340 14/04 Q1018",
+ "active": 0,
+ "date": "2024-06-21 10:30:00",
+ "throttle": 0.6,
+ "autopilot": true,
+ "ships": [
+  {
+   "ship": "CVEL Vulcan",
+   "body": "Earth",
+   "surface": {
+    "latitude": 46.4,
+    "longitude": 8.2,
+    "heading": 70,
+    "altitude": 3200,
+    "speed": 200
+   }
+  }
+ ]
+}

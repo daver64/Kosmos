@@ -414,6 +414,7 @@ namespace kosmos
                     b.pad_x = j["pad"].value("x", 0.0);
                     b.pad_z = j["pad"].value("z", 0.0);
                     b.pad_heading = j["pad"].value("heading", 0.0);
+                    b.pad_deck = j["pad"].value("deck", 0.0);
                 }
                 for (const nlohmann::json &o : j.value("objects", nlohmann::json::array()))
                     b.objects.push_back(parse_object(o));
@@ -613,6 +614,8 @@ namespace kosmos
                 j["terrain_meshes"].push_back(jt);
             }
             j["pad"] = {{"x", b.pad_x}, {"z", b.pad_z}, {"heading", b.pad_heading}};
+            if (b.pad_deck != 0.0)
+                j["pad"]["deck"] = b.pad_deck;
             if (!b.runways.empty())
                 j["runways"] = json::array();
             for (const Runway &r : b.runways)
@@ -722,6 +725,8 @@ namespace kosmos
 
     double base_pad_deck(const Base &base)
     {
+        if (base.pad_deck != 0.0)
+            return base.pad_deck;
         for (const BaseObject &o : base.objects)
         {
             double reach, deck;
@@ -854,6 +859,11 @@ namespace kosmos
             runway_ends(rw, false, x0, z0, x1, z1);
             const double margin = 0.5 * rw.width + 30.0;
             sites.push_back({base_point(base, radius, x0, z0), base_point(base, radius, x1, z1), base.height, margin, 150.0});
+        }
+        if (base.pad_deck != 0.0)
+        {
+            const sl::dvec3 p = base_point(base, radius, base.pad_x, base.pad_z);
+            sites.push_back({p, p, base.height + base.pad_deck, 6.0, 1.5});
         }
         for (const BaseObject &o : base.objects)
         {

@@ -25,3 +25,7 @@ Please do not remove the credits when redistributing.
 - **Hydra and Nix** (`textures/hydra.dds`, `textures/nix.dds`): from the Orbiter 2016 textures in `import/orbiter/Textures/`, installed by `tools/celbody_import.py`.
 
 Licensing note: the OpenGameArt textures are Creative Commons, which is fine for a free release. Before any commercial sale of Kosmos, run a full asset audit (check each licence for commercial use and attribution terms).
+
+## Main Belt Asteroids (not shipped)
+
+Asteroid textures and meshes (Ida, Gaspra, Kleopatra, Toutatis) come from the Orbiter Main Belt Asteroids add-on. They are not redistributed. `tools/mainbelt_import.py` converts a local copy into `data/textures-hires/`, which is git-ignored.

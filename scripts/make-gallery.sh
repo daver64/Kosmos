@@ -17,12 +17,31 @@ mkdir -p "$OUT"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-SHOTS='navlights_dragonfly|4|--scenario 07_dragonfly_orbit --clean --sunlit --sun-angle 80 --orbit-alt 3000 --set /controls/lighting/nav=1 --cam-yaw 4.5 --cam-pitch 0.9 --cam-distance 55
-navlights_deltaglider|4|--ship "CVEL Deltaglider" --orbit --orbit-alt 3000 --alone --clean --sunlit --sun-angle 80 --set /controls/lighting/nav=1 --cam-yaw 4.5 --cam-pitch 0.9 --cam-distance 36
-navlights_shuttle_a|4|--scenario 11_shuttle_a_cargo_orbit --clean --sunlit --sun-angle 80 --orbit-alt 3000 --set /controls/lighting/nav=1 --cam-yaw 4.5 --cam-pitch 0.9 --cam-distance 50
-satv_launch|22|--scenario 01_apollo11_saturn_v_t_minus_5 --clean --launch-at 2 --cam-distance 375
-skylark_nav|6|--scenario-file "$SRC/scripts/promo/skylark.json" --clean --set /controls/lighting/nav=1 --set /controls/lighting/lamps=0 --cam-yaw 60 --cam-pitch 6 --cam-distance 40
-mars_dock|6|--scenario-file "$SRC/scripts/promo/mars.json" --clean --sunlit --sun-angle 45 --cam-yaw 4.5 --cam-pitch 0.9 --cam-distance 45'
+# Saved user settings must not leak into the shots, so weather and the cloud style are always set.
+W='--set /sim/settings/weather=1 --set /sim/settings/gfx-cloud-style=2 --clean'
+# Rockets just clearing the tower; ships in orbit with the planet behind them, day to the right, night to the left, above the terminator;
+# aircraft in level flight over the Alps, with the cloud deck 10 km up so it stays out of the view.
+ORB='--sunlit --sun-angle -90 --orbit-alt 4000 --cam-yaw 0 --cam-pitch 1.3'
+LAUNCH='--auto-stage --launch-at 2 --cam-yaw 0.8 --cam-pitch 0.08'
+SHOTS="launch_saturn_v|9.5|--scenario 01_apollo11_saturn_v_t_minus_5 $W $LAUNCH --cam-distance 480
+launch_delta_iv_heavy|8.5|--scenario 04_delta_iv_heavy_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 260
+launch_atlas|8|--scenario 02_atlas_iii_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 200
+launch_soyuz|8|--scenario 09_soyuz_fg_twickenham --date '2024-06-21 11:00:00' $W $LAUNCH --cam-distance 200
+launch_kestrel|7|--ship Kestrel $W $LAUNCH --cam-distance 150
+orbit_deltaglider|4|--ship 'CVEL Deltaglider' --orbit --alone $W $ORB --cam-distance 45
+orbit_dragonfly|4|--scenario 07_dragonfly_orbit $W $ORB --cam-distance 60
+orbit_shuttle_a|4|--scenario 11_shuttle_a_cargo_orbit $W $ORB --cam-distance 70
+orbit_soyuz|4|--scenario 08_soyuz_tma_orbit $W $ORB --cam-distance 40
+orbit_mars_stack|5|--scenario 13_dragonfly_deltaglider_mars $W $ORB --cam-distance 70
+flight_skylark_alps|16|--scenario-file '$SRC/scripts/promo/alps_skylark.json' $W --cam-yaw 0.6 --cam-pitch 0.2 --cam-distance 30
+flight_vulcan_alps|16|--scenario-file '$SRC/scripts/promo/alps_vulcan.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 45
+flight_cub_alps|16|--scenario-file '$SRC/scripts/promo/alps_cub.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 22
+flight_deltaglider_alps|16|--scenario-file '$SRC/scripts/promo/alps_deltaglider.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 38
+cockpit3d_deltaglider|8|--hide-info --ship 'CVEL Deltaglider' --orbit --alone $W --cockpit3d --cam-pitch -20
+cockpit2d_deltaglider|8|--hide-info --ship 'CVEL Deltaglider' --orbit --alone $W --cockpit
+cockpit3d_skylark|16|--hide-info --scenario-file '$SRC/scripts/promo/alps_skylark.json' $W --cockpit3d
+cockpit2d_skylark|16|--hide-info --scenario-file '$SRC/scripts/promo/alps_skylark.json' $W --cockpit
+cockpit3d_shuttle_a|10|--hide-info --scenario 11_shuttle_a_cargo_orbit $W --sunlit --sun-angle -90 --cockpit3d --cam-yaw 0 --cam-pitch -28"
 
 echo "$SHOTS" >"$tmp/shots.txt"
 while IFS='|' read -r name secs options; do
