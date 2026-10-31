@@ -272,6 +272,8 @@ A script returns a table: `name`, `buttons` (12 labels, left column then right),
 
 ### OrbitComp
 
+The website has an MFD Operations Manual (`mfd-manual.html`) covering every display, with step-by-step Transfer and OrbitComp guides.
+
 **OrbitComp** is an orbital computer MFD in the spirit of Orbiter's TransX: an orbit plot with the target and closest approach, manoeuvre nodes (T+, Pe, Ap, AN, DN) with the post-burn orbit and burn time, and Hohmann and ejection plans that can be loaded into a node. It reads `/universe/bodies/body[i]/*` and publishes `/orbitcomp/*`; `--set PATH=VALUE` sets any property at start.
 
 **MFD filtering.** A cockpit's `mfd_filter` (`auto`, `atmosphere`, `space`, `none`) chooses which MFDs are offered: with `auto`, aircraft that cannot leave the atmosphere do not get the orbital ones and spacecraft lose most of the atmospheric instruments. Addon MFD modes can set `"domain"` (`space` or `atmosphere`); `none` offers everything, for spaceplanes. `mfd_hide` is a list of mode ids a ship never offers (the Deltaglider hides the airliner-style `asi`, `vsi`, `dg`, `turn`, `altimeter` and `engine`).

@@ -1233,7 +1233,7 @@ namespace kosmos
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
                                    "  Keypad 7 / Insert: fire primary / secondary weapons (ships that carry them)\n"
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
-                                   "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";

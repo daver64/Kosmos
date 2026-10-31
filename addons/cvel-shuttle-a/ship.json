@@ -2567,7 +2567,11 @@
    "vsi",
    "dg",
    "turn",
-   "engine"
+   "engine",
+   "dg_aoa",
+   "dg_slip",
+   "dg_slope",
+   "icbm-target"
   ],
   "vc_animations": [
    {
