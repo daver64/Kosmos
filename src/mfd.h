@@ -86,7 +86,11 @@ namespace kosmos
         void set_domain(const std::string &domain);
         /** Mode ids the current ship does not offer, on top of the domain filter. */
         void set_hidden(const std::vector<std::string> &ids);
+        /** Whether a mode can be chosen by the player: the domain filter and the hidden list both apply. */
         bool allowed(int mode) const;
+        /** Whether a mode can be shown at all (a panel can place a hidden mode on a fixed instrument). */
+        bool domain_allowed(int mode) const;
+        bool domain_allowed(const std::string &id) const;
         bool allowed(const std::string &id) const;
 
         /** Units are numbered from 0; the stock display uses 0 and 1, and a cockpit panel can add more. */

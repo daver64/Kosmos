@@ -180,7 +180,21 @@ namespace kosmos
         const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
         if (std::find(hidden_.begin(), hidden_.end(), modes_[static_cast<std::size_t>(mode)].id) != hidden_.end())
             return false;
+        return domain_allowed(mode);
+    }
+
+    bool MfdSystem::domain_allowed(int mode) const
+    {
+        if (mode < 0 || mode >= static_cast<int>(modes_.size()))
+            return false;
+        const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
         return !((domain_ == "atmosphere" && d == "space") || (domain_ == "space" && d == "atmosphere"));
+    }
+
+    bool MfdSystem::domain_allowed(const std::string &id) const
+    {
+        const int mode = mode_by_id(id);
+        return mode < 0 || domain_allowed(mode);
     }
 
     bool MfdSystem::allowed(const std::string &id) const
@@ -199,7 +213,7 @@ namespace kosmos
         domain_ = domain;
         const int fallback = mode_by_id("surface");
         for (std::size_t i = 0; i < units_.size(); ++i)
-            if (units_[i].mode >= 0 && !allowed(units_[i].mode))
+            if (units_[i].mode >= 0 && !domain_allowed(units_[i].mode))
                 set_mode(static_cast<int>(i), fallback);
     }
 
@@ -229,7 +243,7 @@ namespace kosmos
         if (side < 0 || side >= unit_count())
             return;
         MfdUnit &u = unit(side);
-        if (mode < 0 || mode >= static_cast<int>(modes_.size()) || !allowed(mode))
+        if (!domain_allowed(mode))
             return;
         u.mode = mode;
         u.selecting = false;

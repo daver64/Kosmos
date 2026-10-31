@@ -304,7 +304,7 @@ namespace kosmos::app
             sl::rect(sl::screen, ox, oy, ox + w, oy + h, {70, 78, 90, 255}, 2.0f);
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
-            if (sim.mfd.allowed(cp.instruments[i].mode) && !cp.instruments[i].vc_only)
+            if (sim.mfd.domain_allowed(cp.instruments[i].mode) && !cp.instruments[i].vc_only)
                 sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_cover(c, ox, oy, scale);
@@ -356,7 +356,7 @@ namespace kosmos::app
             return control_tooltip(cp.controls[static_cast<std::size_t>(slider)]);
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
         {
-            if (!sim.mfd.allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
+            if (!sim.mfd.domain_allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
                 continue;
             const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
             if (button >= 0)
@@ -388,7 +388,7 @@ namespace kosmos::app
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
         {
-            if (!sim.mfd.allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
+            if (!sim.mfd.domain_allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
                 continue;
             const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
             if (button >= 0)

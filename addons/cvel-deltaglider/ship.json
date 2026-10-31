@@ -386,7 +386,9 @@
    "vsi",
    "dg",
    "turn",
-   "engine"
+   "engine",
+   "dg_aoa",
+   "dg_slip"
   ],
   "mfd_left": "orbit",
   "mfd_right": "surface",

@@ -789,8 +789,8 @@ namespace kosmos::app
                                 // The loader drops Kd, so plain materials would come out white.
                                 const Uint8 level = mp.material.texture ? 217 : 100;
                                 mp.material.tint = {level, level, level, static_cast<Uint8>(hidden ? 0 : glass ? 60 : 255)};
-                                if (glass || hidden)
-                                    mp.material.blend = sl::MaterialBlend::alpha;
+                                if (glass || hidden || mp.name.find("LIT_SURF") != std::string::npos)
+                                    mp.material.blend = sl::MaterialBlend::alpha; // label strips are text on a transparent background
                             }
                         }
                         sl::draw_model(vc, model);
