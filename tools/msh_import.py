@@ -26,6 +26,7 @@ class Group:
         self.material = 0
         self.texture = 0
         self.nonormal = False
+        self.flag = 0
         self.vertices = []   # (x, y, z, nx, ny, nz, u, v)
         self.triangles = []
 
@@ -78,6 +79,8 @@ def parse_msh(path):
                         g.material = int(w[1])
                     elif k == "TEXTURE":
                         g.texture = int(w[1])
+                    elif k == "FLAG":
+                        g.flag = int(w[1])
                     elif k == "NONORMAL":
                         g.nonormal = True
                     elif k == "GEOM":
@@ -217,6 +220,9 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None):
     tris = 0
     for gi, g in enumerate(mesh.groups):
         if not g.triangles:
+            continue
+        # Orbiter does not draw a group whose user flag has bit 2 set ("obsolete"); display groups are switched on by the vessel.
+        if g.flag & 2 and not re.search(r"DISPLAY$|DISP$", g.label or ""):
             continue
         obj.append(f"g {re.sub(r'[^A-Za-z0-9_]+', '_', g.label) or 'group%d' % gi}")
         obj.append(f"usemtl {material_for(g)}")

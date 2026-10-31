@@ -380,6 +380,7 @@
   ],
   "mfds": true,
   "mfd_filter": "none",
+  "mfd_hide": ["altimeter", "asi", "vsi", "dg", "turn", "engine"],
   "mfd_left": "orbit",
   "mfd_right": "surface",
   "layout": {
@@ -411,6 +412,30 @@
       "y": 150,
       "w": 120,
       "h": 30
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/outer-door",
+      "x": 240,
+      "y": 30,
+      "w": 25,
+      "h": 38
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/inner-door",
+      "x": 302,
+      "y": 30,
+      "w": 25,
+      "h": 38
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/pressurize",
+      "x": 360,
+      "y": 30,
+      "w": 25,
+      "h": 38
      }
     ]
    }
@@ -448,9 +473,16 @@
    },
    {
     "mode": "dg_slope",
-    "x": 414,
-    "y": 405,
-    "size": 41
+    "x": 389,
+    "y": 360,
+    "size": 161
+   },
+   {
+    "mode": "hsi",
+    "x": 0,
+    "y": 0,
+    "size": 96,
+    "vc_only": true
    }
   ],
   "controls": [
@@ -985,6 +1017,66 @@
     "x": 1002,
     "y": 241,
     "w": 36
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "off",
+    "x": 7.5,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": -45
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "pitch",
+    "x": 28.5,
+    "y": 182,
+    "w": 24,
+    "h": 14,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 0
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "on",
+    "x": 53.5,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 45
+   },
+   {
+    "type": "nudge",
+    "property": "/controls/trim",
+    "value": "-0.05",
+    "x": 1080,
+    "y": 431,
+    "w": 16,
+    "h": 27
+   },
+   {
+    "type": "nudge",
+    "property": "/controls/trim",
+    "value": "0.05",
+    "x": 1080,
+    "y": 458,
+    "w": 16,
+    "h": 27
    }
   ],
   "vc_animations": [
@@ -1004,8 +1096,8 @@
      0,
      0
     ],
-    "angle": -50,
-    "initial": 0.4
+    "angle": -33.333333333333336,
+    "initial": 0.1
    },
    {
     "parts": [
@@ -1041,7 +1133,7 @@
      0
     ],
     "angle": 70,
-    "initial": 0.0
+    "initial": 0.5
    },
    {
     "parts": [
@@ -1059,7 +1151,7 @@
      0
     ],
     "angle": 70,
-    "initial": 0.0
+    "initial": 0.5
    },
    {
     "parts": [
@@ -1077,7 +1169,7 @@
      0
     ],
     "angle": 40,
-    "initial": 0.0
+    "initial": 0.8
    }
   ],
   "vc_hotspots": [
@@ -2409,10 +2501,430 @@
     },
     "drag": "/controls/hover",
     "drag_gain": 1.0
+   },
+   {
+    "quad": [
+     [
+      -0.323,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.308,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.323,
+      1.10605,
+      -7.24699
+     ],
+     [
+      -0.308,
+      1.10605,
+      -7.24699
+     ]
+    ],
+    "control": {
+     "type": "step",
+     "property": "/controls/af-mode",
+     "value": "off,pitch,on",
+     "button": -1
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.308,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.293,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.308,
+      1.10605,
+      -7.24699
+     ],
+     [
+      -0.293,
+      1.10605,
+      -7.24699
+     ]
+    ],
+    "control": {
+     "type": "step",
+     "property": "/controls/af-mode",
+     "value": "off,pitch,on",
+     "button": 1
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.346,
+      0.87841,
+      -7.10545
+     ],
+     [
+      -0.316,
+      0.87841,
+      -7.10545
+     ],
+     [
+      -0.346,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.316,
+      0.9231050000000001,
+      -7.137505
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/trim",
+     "value": "0.05"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.346,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.316,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.346,
+      0.9678,
+      -7.16956
+     ],
+     [
+      -0.316,
+      0.9678,
+      -7.16956
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/trim",
+     "value": "-0.05"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22334,
+      1.00616,
+      -7.19708
+     ],
+     [
+      -0.2035,
+      1.00616,
+      -7.19708
+     ],
+     [
+      -0.22334,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.2035,
+      1.015685,
+      -7.2039100000000005
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-pitch",
+     "value": "-0.1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22334,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.2035,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.22334,
+      1.02521,
+      -7.21074
+     ],
+     [
+      -0.2035,
+      1.02521,
+      -7.21074
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-pitch",
+     "value": "0.1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22514,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.22514,
+      0.97686,
+      -7.17606
+     ],
+     [
+      -0.21342,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.21342,
+      0.97686,
+      -7.17606
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-yaw",
+     "value": "-0.1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.21342,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.21342,
+      0.97686,
+      -7.17606
+     ],
+     [
+      -0.2017,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.2017,
+      0.97686,
+      -7.17606
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-yaw",
+     "value": "0.1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.1315,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.1115,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.1315,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1115,
+      1.670995,
+      -6.86393
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/inner-door",
+     "value": "0"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.1315,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1115,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1315,
+      1.67617,
+      -6.84461
+     ],
+     [
+      -0.1115,
+      1.67617,
+      -6.84461
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/inner-door",
+     "value": "1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.10445,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.08445,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.10445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.08445,
+      1.670995,
+      -6.86393
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/outer-door",
+     "value": "0"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.10445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.08445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.10445,
+      1.67617,
+      -6.84461
+     ],
+     [
+      -0.08445,
+      1.67617,
+      -6.84461
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/outer-door",
+     "value": "1"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0774,
+      1.68723,
+      -6.80334
+     ],
+     [
+      -0.0574,
+      1.68723,
+      -6.80334
+     ],
+     [
+      -0.0774,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0574,
+      1.692405,
+      -6.78402
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/pressurize",
+     "value": "0"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0774,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0574,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0774,
+      1.69758,
+      -6.7647
+     ],
+     [
+      -0.0574,
+      1.69758,
+      -6.7647
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/pressurize",
+     "value": "1"
+    }
    }
   ],
   "vc_hide": [
-   "instrument_DG_dg_instr__PROPELLANT_STATUS_NOSCRAM"
+   "instrument_DG_dg_instr__PROPELLANT_STATUS_NOSCRAM",
+   "SCRAM",
+   "inst1_6_DG_DG_VC3"
+  ],
+  "vc_instruments": [
+   {
+    "part": "ADI_DISPLAY",
+    "unit": 2
+   },
+   {
+    "part": "HSI_DISPLAY",
+    "unit": 6
+   }
   ]
  },
  "lights": [

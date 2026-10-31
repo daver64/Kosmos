@@ -45,17 +45,15 @@ namespace kosmos::app
                 sl::destroy_bitmap(ss_mid);
             ss_big = ss_mid = nullptr;
             ss_factor = factor;
-            if (factor > 1)
+            // Even at 1x the scratch target is used, so the final blit puts every backend's render target the right way up.
+            ss_big = sl::create_render_target(mfd_target_size * factor, mfd_target_size * factor);
+            if (ss_big)
+                ss_big->smooth = true;
+            if (factor > 2)
             {
-                ss_big = sl::create_render_target(mfd_target_size * factor, mfd_target_size * factor);
-                if (ss_big)
-                    ss_big->smooth = true;
-                if (factor > 2)
-                {
-                    ss_mid = sl::create_render_target(mfd_target_size * 2, mfd_target_size * 2);
-                    if (ss_mid)
-                        ss_mid->smooth = true;
-                }
+                ss_mid = sl::create_render_target(mfd_target_size * 2, mfd_target_size * 2);
+                if (ss_mid)
+                    ss_mid->smooth = true;
             }
         }
         return ss_big;
@@ -71,9 +69,11 @@ namespace kosmos::app
             sl::draw_sprite_region_flipped(from, 0, 0, from->width, from->height, 0.0f, 0.0f, static_cast<float>(to->width), static_cast<float>(to->height), false, flip);
             sl::end_render_target();
         };
+        // OpenGL targets are stored bottom-up, so a flipped sprite is a plain copy there; on Vulkan and Direct3D it is a real flip,
+        // and the single final one is what turns a top-down target the right way up for the cockpit meshes.
         if (ss_mid && source != ss_mid && source->width > destination->width * 2)
         {
-            blit(source, ss_mid, true);
+            blit(source, ss_mid, sl::graphics_backend() == sl::GraphicsBackend::opengl);
             source = ss_mid;
         }
         blit(source, destination, true);
@@ -93,7 +93,7 @@ namespace kosmos::app
             for (int side = 0; side < 2; ++side)
                 if (big)
                 {
-                    kosmos::MfdLayout layout = mfd_target_layout();
+                    kosmos::MfdLayout layout = mfd_target_layout(!pcp.vc_model.empty());
                     layout.x *= factor;
                     layout.y *= factor;
                     layout.size *= factor;
@@ -101,9 +101,31 @@ namespace kosmos::app
                     downsample_target(big, mfd_target[side], {18, 20, 26, 255});
                 }
                 else
-                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout());
+                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout(!pcp.vc_model.empty()));
             if (!pcp.vc_model.empty())
+            {
+                for (const kosmos::Cockpit::VcInstrument &vi : pcp.vc_instruments)
+                {
+                    if (vi.unit < 2 || vi.unit >= 8 || vi.unit >= sim.mfd.unit_count())
+                        continue;
+                    sl::Bitmap *&t = instr_target[vi.unit];
+                    if (!t)
+                        t = sl::create_render_target(mfd_target_size, mfd_target_size);
+                    sl::Bitmap *into = big ? big : t;
+                    if (!t || !sl::begin_render_target(into))
+                        continue;
+                    t->smooth = true;
+                    sl::clear_render_target({10, 12, 16, 255});
+                    kosmos::MfdLayout layout;
+                    layout.bare = true;
+                    layout.size = static_cast<float>(into->width);
+                    sim.mfd.draw(vi.unit, layout);
+                    sl::end_render_target();
+                    if (big)
+                        downsample_target(big, t, {10, 12, 16, 255});
+                }
                 render_vc_hud_target();
+            }
         }
         else
             render_panel_target(pcp, ship->spec().directory);

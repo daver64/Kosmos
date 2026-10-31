@@ -186,8 +186,17 @@ namespace kosmos
         std::vector<VcAnimation> vc_animations;
         /** VC parts (name substrings) that are never drawn, such as the alternate of two overlapping panel variants. */
         std::vector<std::string> vc_hide;
+        /** VC parts (name substring) that show a panel instrument: `unit` indexes the cockpit's instruments list. */
+        struct VcInstrument
+        {
+            std::string part;
+            int unit = 0;
+        };
+        std::vector<VcInstrument> vc_instruments;
         /** Which MFD modes the ship offers: "auto" (aircraft get no orbital modes, everything else no airspeed-style flight gauges), "atmosphere", "space", or "none" to offer all. */
         std::string mfd_filter = "auto";
+        /** MFD mode ids this ship never offers, whatever the filter says. */
+        std::vector<std::string> mfd_hide;
         /** HUD modes the H key cycles ("orbit", "surface", "docking"); empty means the class default (see ShipSpec::hud_modes). */
         std::vector<std::string> hud_modes;
         /** How the Dynamic Camera moves the eye on its springs. */
@@ -199,6 +208,8 @@ namespace kosmos
             std::string mode;
             float x = 0, y = 0, size = 200;
             bool frame = false;
+            /** Shown only on a virtual cockpit part (`vc_instruments`), not on the 2D panel. */
+            bool vc_only = false;
         };
         /**
          * An Orbiter-style instrument panel, used for both the 2D panel and the 3D cockpit. When `instruments` is not empty it replaces

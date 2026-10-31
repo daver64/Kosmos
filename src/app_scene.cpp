@@ -717,7 +717,7 @@ namespace kosmos::app
         else if (!va.source.empty())
             v = sim.props.get_double(va.source, 0.0);
         const glm::vec3 pivot(va.pivot[0], va.pivot[1], va.pivot[2]);
-        return glm::translate(glm::mat4(1.0f), pivot) * glm::rotate(glm::mat4(1.0f), glm::radians(static_cast<float>(va.angle_deg * (va.initial + (1.0 - va.initial) * glm::clamp(v, 0.0, 1.0)))), glm::normalize(glm::vec3(va.axis[0], va.axis[1], va.axis[2]))) * glm::translate(glm::mat4(1.0f), -pivot);
+        return glm::translate(glm::mat4(1.0f), pivot) * glm::rotate(glm::mat4(1.0f), glm::radians(static_cast<float>(va.angle_deg * (glm::clamp(v, 0.0, 1.0) - va.initial))), glm::normalize(glm::vec3(va.axis[0], va.axis[1], va.axis[2]))) * glm::translate(glm::mat4(1.0f), -pivot);
     }
 
     void App::draw_ship_cockpit3d(Ship &other, const sl::FlightBody &ob, const glm::mat4 &model)
@@ -755,6 +755,17 @@ namespace kosmos::app
                             if (left || mp.name.find("RMFD_DISPLAY") != std::string::npos)
                             {
                                 mp.material.texture = mfd_target[left ? 0 : 1];
+                                mp.material.tint = {255, 255, 255, 255};
+                                mp.material.lit = false;
+                                mp.material.fog = false;
+                            }
+                            else if (const kosmos::Cockpit::VcInstrument *vi = [&]() -> const kosmos::Cockpit::VcInstrument * {
+                                         for (const kosmos::Cockpit::VcInstrument &c : cp.vc_instruments)
+                                             if (c.unit >= 0 && c.unit < 8 && instr_target[c.unit] && mp.name.find(c.part) != std::string::npos)
+                                                 return &c;
+                                         return nullptr; }())
+                            {
+                                mp.material.texture = instr_target[vi->unit];
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;

@@ -178,6 +178,8 @@ namespace kosmos
         if (mode < 0 || mode >= static_cast<int>(modes_.size()))
             return false;
         const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
+        if (std::find(hidden_.begin(), hidden_.end(), modes_[static_cast<std::size_t>(mode)].id) != hidden_.end())
+            return false;
         return !((domain_ == "atmosphere" && d == "space") || (domain_ == "space" && d == "atmosphere"));
     }
 
@@ -185,6 +187,11 @@ namespace kosmos
     {
         const int mode = mode_by_id(id);
         return mode < 0 || allowed(mode);
+    }
+
+    void MfdSystem::set_hidden(const std::vector<std::string> &ids)
+    {
+        hidden_ = ids;
     }
 
     void MfdSystem::set_domain(const std::string &domain)
@@ -368,6 +375,8 @@ namespace kosmos
         sl::rectfill(sl::screen, l - bw - 14 * s, t - 10 * s, r + bw + 14 * s, b + bh + 24 * s, {22, 24, 30, 255});
         sl::rectfill(sl::screen, l, t, r, b, {2, 6, 4, 255});
         sl::rect(sl::screen, l - 1, t - 1, r + 1, b + 1, {80, 90, 100, 255}, 2.0f);
+        if (layout.no_buttons)
+            return;
         for (int i = 0; i < 12; ++i)
         {
             const float y = t + (i % 6 + 0.5f) * layout.size / 6.0f;
@@ -457,7 +466,7 @@ namespace kosmos
 
     int MfdSystem::hit_test(int, const MfdLayout &layout, float px, float py) const
     {
-        if (layout.bare)
+        if (layout.bare || layout.no_buttons)
             return -1;
         const float s = layout.size / mfd_size;
         const float bw = 22.0f * s, bh = 18.0f * s;

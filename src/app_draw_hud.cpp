@@ -513,7 +513,7 @@ namespace kosmos::app
                         panel_control_press(sim, spot->control);
                     else if (best_side >= 0)
                     {
-                        const int button = sim.mfd.hit_test(best_side, mfd_target_layout(), best_uv.x * mfd_target_size, best_uv.y * mfd_target_size);
+                        const int button = sim.mfd.hit_test(best_side, mfd_target_layout(true), best_uv.x * mfd_target_size, best_uv.y * mfd_target_size);
                         if (button >= 0)
                             sim.mfd.press(best_side, button);
                     }

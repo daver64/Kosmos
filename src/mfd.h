@@ -67,6 +67,7 @@ namespace kosmos
     {
         float x = 0, y = 0, size = 400;
         bool hud = false; // no background or frame, shapes and text only
+        bool no_buttons = false; // the bezel buttons are on a 3D model instead: none drawn or hit-tested
         bool bare = false; // a panel gauge: a plain backing square instead of the MFD frame and buttons
     };
 
@@ -83,6 +84,8 @@ namespace kosmos
         int mode_by_id(const std::string &id) const;
         /** The flown ship's regime: "atmosphere" hides the "space" modes, "space" hides the "atmosphere" ones, anything else hides none. */
         void set_domain(const std::string &domain);
+        /** Mode ids the current ship does not offer, on top of the domain filter. */
+        void set_hidden(const std::vector<std::string> &ids);
         bool allowed(int mode) const;
         bool allowed(const std::string &id) const;
 
@@ -122,6 +125,7 @@ namespace kosmos
         sl::LuaRuntime *lua_ = nullptr;
         std::vector<MfdMode> modes_;
         std::string domain_ = "any";
+        std::vector<std::string> hidden_;
         std::vector<MfdUnit> units_ = std::vector<MfdUnit>(2);
         std::string error_;
     };

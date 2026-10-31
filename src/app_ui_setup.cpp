@@ -114,6 +114,11 @@ namespace kosmos::app
         keys_window = options.keys_window;
         cam_yaw = static_cast<float>(options.cam_yaw);
         cam_pitch = static_cast<float>(options.cam_pitch);
+        if (options.cockpit3d && (options.cam_yaw != 0.0 || options.cam_pitch != 0.0))
+        {
+            look_yaw = static_cast<float>(glm::radians(options.cam_yaw));
+            look_pitch = static_cast<float>(glm::radians(options.cam_pitch));
+        }
         cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
         // Right-drag in the chase view turns the camera on the spot; the ship moves across the screen instead of the camera swinging round it.
         free_yaw = 0.0f;

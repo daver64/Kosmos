@@ -17,7 +17,7 @@ namespace kosmos::app
 
     constexpr float mfd_target_frame = 400.0f;
 
-    kosmos::MfdLayout mfd_target_layout();
+    kosmos::MfdLayout mfd_target_layout(bool no_buttons = false);
 
     CockpitScreen cockpit_screen(const kosmos::Cockpit &cp, int side);
 

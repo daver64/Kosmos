@@ -4,9 +4,10 @@
 
 namespace kosmos::app
 {
-    kosmos::MfdLayout mfd_target_layout()
+    kosmos::MfdLayout mfd_target_layout(bool no_buttons)
     {
         kosmos::MfdLayout layout;
+        layout.no_buttons = no_buttons;
         layout.size = mfd_target_frame;
         layout.x = (mfd_target_size - mfd_target_frame) * 0.5f;
         layout.y = 22.0f;
@@ -233,6 +234,24 @@ namespace kosmos::app
             sim.props.set_string("/sim/hud-request", c.value);
         else if (c.type == "toggle")
             sim.props.set_double(c.property, sim.props.get_double(c.property) > 0.5 ? 0.0 : 1.0);
+        else if (c.type == "nudge")
+            sim.props.set_double(c.property, std::clamp(sim.props.get_double(c.property) + std::atof(c.value.c_str()), -1.0, 1.0));
+        else if (c.type == "step")
+        {
+            // A dial with detents: `value` lists them, and `button` (-1 or +1) moves one detent without wrapping.
+            std::vector<std::string> items;
+            std::size_t start = 0;
+            for (std::size_t at; (at = c.value.find(',', start)) != std::string::npos; start = at + 1)
+                items.push_back(c.value.substr(start, at - start));
+            items.push_back(c.value.substr(start));
+            const std::string now = sim.props.get_string(c.property);
+            int at = 0;
+            for (std::size_t i = 0; i < items.size(); ++i)
+                if (items[i] == now)
+                    at = static_cast<int>(i);
+            at = std::clamp(at + c.button, 0, static_cast<int>(items.size()) - 1);
+            sim.props.set_string(c.property, items[static_cast<std::size_t>(at)]);
+        }
         else if (c.type == "button")
         {
             if (c.property == "/controls/sas")
@@ -283,7 +302,7 @@ namespace kosmos::app
             sl::rect(sl::screen, ox, oy, ox + w, oy + h, {70, 78, 90, 255}, 2.0f);
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
-            if (sim.mfd.allowed(cp.instruments[i].mode))
+            if (sim.mfd.allowed(cp.instruments[i].mode) && !cp.instruments[i].vc_only)
                 sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_cover(c, ox, oy, scale);
@@ -310,7 +329,7 @@ namespace kosmos::app
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
         {
-            if (!sim.mfd.allowed(cp.instruments[i].mode))
+            if (!sim.mfd.allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
                 continue;
             const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
             if (button >= 0)

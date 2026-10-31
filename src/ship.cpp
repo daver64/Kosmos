@@ -105,6 +105,7 @@ namespace kosmos
                 spec.cockpit.mfd_left = jc.value("mfd_left", spec.cockpit.mfd_left);
                 spec.cockpit.mfd_right = jc.value("mfd_right", spec.cockpit.mfd_right);
                 spec.cockpit.mfd_filter = jc.value("mfd_filter", spec.cockpit.mfd_filter);
+                spec.cockpit.mfd_hide = jc.value("mfd_hide", spec.cockpit.mfd_hide);
                 spec.cockpit.hud_modes = jc.value("hud_modes", spec.cockpit.hud_modes);
                 if (jc.contains("head_motion") && jc["head_motion"].is_object())
                 {
@@ -171,6 +172,8 @@ namespace kosmos
                 };
                 spec.cockpit.controls = read_controls(jc.value("controls", nlohmann::json::array()));
                 spec.cockpit.vc_hide = jc.value("vc_hide", std::vector<std::string>());
+                for (const nlohmann::json &ji : jc.value("vc_instruments", nlohmann::json::array()))
+                    spec.cockpit.vc_instruments.push_back({ji.value("part", std::string()), ji.value("unit", 0)});
                 for (const nlohmann::json &jh : jc.value("vc_hotspots", nlohmann::json::array()))
                 {
                     if (!jh.contains("quad") || !jh.contains("control") || !jh["quad"].is_array() || jh["quad"].size() < 4)
@@ -196,6 +199,7 @@ namespace kosmos
                     inst.y = ji.value("y", 0.0f);
                     inst.size = ji.value("size", 200.0f);
                     inst.frame = ji.value("frame", false);
+                    inst.vc_only = ji.value("vc_only", false);
                     if (!inst.mode.empty())
                         spec.cockpit.instruments.push_back(inst);
                 }

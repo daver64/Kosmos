@@ -56,6 +56,7 @@ namespace kosmos
             props.set_double(std::string("/controls/") + name, 0.0);
         props.set_double("/controls/gear", 1.0);
         props.set_string("/controls/af-mode", "on");
+        props.set_bool("/controls/airlock/pressurize", true);
         props.set_double("/controls/trim", 0.0);
         props.set_double("/controls/gimbal-pitch", 0.0);
         props.set_double("/controls/gimbal-yaw", 0.0);
