@@ -1,0 +1,44 @@
+{
+ "name": "Mir",
+ "class": "station",
+ "torque_accel": 0.02,
+ "max_rate": 0.2,
+ "rcs_thrust": 2000,
+ "drag_area": 300,
+ "camera_distance": 60,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 100000,
+   "max_w": 20000
+  },
+  {
+   "type": "load",
+   "name": "Station systems",
+   "watts": 3000,
+   "priority": 0
+  }
+ ],
+ "stages": [
+  {
+   "name": "Station",
+   "dry_mass": 130000,
+   "propellant": 2000,
+   "z": 0,
+   "length": 32,
+   "radius": 4,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/mir.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

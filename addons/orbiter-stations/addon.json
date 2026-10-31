@@ -1,0 +1,9 @@
+{
+ "id": "orbiter-stations",
+ "name": "Orbiter ISS and Mir stations",
+ "version": "0.1",
+ "ships": [
+  "iss.json",
+  "mir.json"
+ ]
+}

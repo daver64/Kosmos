@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Convert Orbiter .msh meshes (MSHX1) into Wavefront OBJ/MTL for Kosmos.
 
-    msh_import.py <addon root | Meshes dir | file.msh> [--out DIR] [--scale S] [--textures DIR]
+    msh_import.py <addon root | Meshes dir | file.msh> [--out DIR] [--scale S] [--props]
     msh_import.py --selftest
 
 Orbiter is left-handed with the ship's nose along +Z. Kosmos is right-handed with the nose along -Z, so the
@@ -173,7 +173,7 @@ def convert_texture(src_dir, name, out_dir):
         return None
 
 
-def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None):
+def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False):
     """Writes out_base.obj/.mtl. Returns (vertex count, triangle count, textures written)."""
     out_dir = os.path.dirname(out_base) or "."
     tex_out = tex_out or out_dir
@@ -227,9 +227,9 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None):
         obj.append(f"g {re.sub(r'[^A-Za-z0-9_]+', '_', g.label) or 'group%d' % gi}")
         obj.append(f"usemtl {material_for(g)}")
         for v in g.vertices:
-            obj.append("v %.5f %.5f %.5f" % (v[0] * scale, v[1] * scale, -v[2] * scale))
+            obj.append("v %.5f %.5f %.5f" % ((-v[0] if props else v[0]) * scale, v[1] * scale, (v[2] if props else -v[2]) * scale))
         for v in g.vertices:
-            obj.append("vn %.4f %.4f %.4f" % (v[3], v[4], -v[5]))
+            obj.append("vn %.4f %.4f %.4f" % (-v[3] if props else v[3], v[4], v[5] if props else -v[5]))
         # A render target is stored bottom-up, so display groups keep Orbiter's V instead of flipping it.
         is_display = bool(re.search(r"DISPLAY$|DISP$", g.label or ""))
         for v in g.vertices:
@@ -286,6 +286,7 @@ def main():
     ap.add_argument("path", nargs="?", help="Orbiter add-on root, its Meshes folder, or one .msh file")
     ap.add_argument("--out", help="output folder (default: <path>/models)")
     ap.add_argument("--scale", type=float, default=1.0)
+    ap.add_argument("--props", action="store_true", help="props-library frame (+Z forward, +X left) for base objects, instead of the ship frame (nose along -Z)")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
     if args.selftest:
@@ -297,7 +298,7 @@ def main():
     for f in files:
         name = os.path.splitext(os.path.basename(f))[0].lower()
         try:
-            nv, nt, ntex = write_obj(parse_msh(f), os.path.join(out, name), tex_dirs, args.scale, os.path.join(out, "textures"))
+            nv, nt, ntex = write_obj(parse_msh(f), os.path.join(out, name), tex_dirs, args.scale, os.path.join(out, "textures"), args.props)
             print(f"{os.path.basename(f)}: {nv} vertices, {nt} triangles, {ntex} textures -> {out}/{name}.obj")
         except Exception as e:
             print(f"{os.path.basename(f)}: skipped ({e})", file=sys.stderr)

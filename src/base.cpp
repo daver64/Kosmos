@@ -506,7 +506,7 @@ namespace kosmos
         for (const fs::directory_entry &folder : fs::directory_iterator(root, ec))
             if (folder.is_directory(ec))
                 for (const fs::directory_entry &file : fs::directory_iterator(folder.path(), ec))
-                    if (file.path().extension() == ".glb")
+                    if (file.path().extension() == ".glb" || file.path().extension() == ".obj")
                         found.push_back(fs::relative(file.path(), stock_folder(), ec).generic_string());
         std::sort(found.begin(), found.end());
         return found;

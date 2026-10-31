@@ -1,0 +1,44 @@
+{
+ "name": "ISS",
+ "class": "station",
+ "torque_accel": 0.02,
+ "max_rate": 0.2,
+ "rcs_thrust": 2000,
+ "drag_area": 2000,
+ "camera_distance": 160,
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 100000,
+   "max_w": 20000
+  },
+  {
+   "type": "load",
+   "name": "Station systems",
+   "watts": 3000,
+   "priority": 0
+  }
+ ],
+ "stages": [
+  {
+   "name": "Station",
+   "dry_mass": 420000,
+   "propellant": 2000,
+   "z": 0,
+   "length": 110,
+   "radius": 12,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/iss.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

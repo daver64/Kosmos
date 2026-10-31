@@ -8,15 +8,15 @@
       "latitude": 28.6081,
       "longitude": -80.6041,
       "heading": 90,
-      "flat_radius": 260,
-      "blend": 200,
+      "flat_radius": 430,
+      "blend": 300,
       "elevation": 3,
       "cameras": [
         {
           "name": "Pad",
-          "x": -70,
-          "y": 3,
-          "z": -90,
+          "x": -130,
+          "y": 45,
+          "z": -190,
           "fov": 55
         },
         {
@@ -44,17 +44,19 @@
       },
       "objects": [
         {
-          "type": "launch_pad",
-          "size": 50,
+          "type": "model",
+          "model": "parts/orbiter/klc39b.obj",
           "x": 0,
-          "z": 0
+          "z": 0,
+          "heading": -90,
+          "y": -14
         },
         {
-          "type": "launch_tower",
-          "height": 110,
-          "x": -22,
-          "z": 0,
-          "heading": 180
+          "type": "model",
+          "model": "parts/orbiter/vab.obj",
+          "x": 2710,
+          "z": -4364,
+          "heading": -80
         },
         {
           "type": "tank",
