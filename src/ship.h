@@ -167,6 +167,9 @@ namespace kosmos
         double angle_deg = 0.0;
         /** The fraction of the full angle held when the value is 0 (the rest is swept as it goes to 1). */
         double initial = 0.0;
+        /** A sliding part: the ship-frame shift at value 1 (instead of a rotation), scaled by (value - initial). */
+        double move[3] = {0, 0, 0};
+        bool slide = false;
     };
 
     struct Cockpit

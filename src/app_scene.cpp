@@ -716,6 +716,8 @@ namespace kosmos::app
         }
         else if (!va.source.empty())
             v = sim.props.get_double(va.source, 0.0);
+        if (va.slide)
+            return glm::translate(glm::mat4(1.0f), glm::vec3(va.move[0], va.move[1], va.move[2]) * static_cast<float>(glm::clamp(v, 0.0, 1.0) - va.initial));
         const glm::vec3 pivot(va.pivot[0], va.pivot[1], va.pivot[2]);
         return glm::translate(glm::mat4(1.0f), pivot) * glm::rotate(glm::mat4(1.0f), glm::radians(static_cast<float>(va.angle_deg * (glm::clamp(v, 0.0, 1.0) - va.initial))), glm::normalize(glm::vec3(va.axis[0], va.axis[1], va.axis[2]))) * glm::translate(glm::mat4(1.0f), -pivot);
     }

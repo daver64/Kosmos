@@ -237,7 +237,15 @@ namespace kosmos::app
         else if (c.type == "toggle")
             sim.props.set_double(c.property, sim.props.get_double(c.property) > 0.5 ? 0.0 : 1.0);
         else if (c.type == "nudge")
-            sim.props.set_double(c.property, std::clamp(sim.props.get_double(c.property) + std::atof(c.value.c_str()), -1.0, 1.0));
+        {
+            // "/controls/pod-tilt" moves both pods together.
+            const bool pods = c.property == "/controls/pod-tilt";
+            for (const char *path : {"/controls/pod-tilt-left", "/controls/pod-tilt-right"})
+                if (pods)
+                    sim.props.set_double(path, std::clamp(sim.props.get_double(path) + std::atof(c.value.c_str()), 0.0, 1.0));
+            if (!pods)
+                sim.props.set_double(c.property, std::clamp(sim.props.get_double(c.property) + std::atof(c.value.c_str()), -1.0, 1.0));
+        }
         else if (c.type == "step")
         {
             // A dial with detents: `value` lists them, and `button` (-1 or +1) moves one detent without wrapping.

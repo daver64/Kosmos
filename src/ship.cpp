@@ -95,6 +95,12 @@ namespace kosmos
                         a.source = ja.value("source", "");
                         a.angle_deg = ja.value("angle", 0.0);
                         a.initial = ja.value("initial", 0.0);
+                        if (ja.contains("move") && ja["move"].is_array() && ja["move"].size() == 3)
+                        {
+                            a.slide = true;
+                            for (int i = 0; i < 3; ++i)
+                                a.move[i] = ja["move"][static_cast<std::size_t>(i)].get<double>();
+                        }
                         const std::vector<double> pv = ja.value("pivot", std::vector<double>{0, 0, 0}), av = ja.value("axis", std::vector<double>{1, 0, 0});
                         for (int i = 0; i < 3 && i < static_cast<int>(pv.size()); ++i)
                             a.pivot[i] = pv[i];
