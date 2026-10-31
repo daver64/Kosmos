@@ -182,6 +182,19 @@ namespace kosmos::app
             std::filesystem::file_time_type stamp{};
         };
         std::map<const kosmos::PartSpec *, LoadedModel> models;
+        // A parachute's canopy model is loaded through the same cache, as a stand-in part.
+        std::map<const kosmos::ParachuteSpec *, kosmos::PartSpec> canopy_parts;
+        sl::Model *canopy_model(const kosmos::ParachuteSpec &chute, const std::string &directory)
+        {
+            auto found = canopy_parts.find(&chute);
+            if (found == canopy_parts.end())
+            {
+                kosmos::PartSpec stand_in;
+                stand_in.model = chute.model;
+                found = canopy_parts.emplace(&chute, stand_in).first;
+            }
+            return part_model(found->second, directory);
+        }
         sl::Model *part_model(const kosmos::PartSpec &part, const std::string &directory)
         {
             auto found = models.find(&part);

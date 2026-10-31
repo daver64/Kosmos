@@ -1,0 +1,21 @@
+newmtl darkgrey
+Kd 0.329 0.329 0.329
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl silver
+Kd 0.659 0.659 0.659
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl descentmod_with_Tex_SOY_DESC_SOY_DESC
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/SOY-DESC.png
+
+newmtl glass
+Kd 0.192 0.192 0.192
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+

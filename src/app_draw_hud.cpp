@@ -261,6 +261,7 @@ namespace kosmos::app
             if (t.max_thrust > 0.0 && t.level > 0.0 && t.tank >= 0 && t.max_thrust < 4000.0 && fb.tanks[static_cast<std::size_t>(t.tank)].mass > 0.0)
                 rcs_level = std::max(rcs_level, t.level);
         sound.data_root = sim.root();
+        sound.set_engine_file(ship->spec().engine_sound.empty() ? std::string() : ship->spec().directory + "/" + ship->spec().engine_sound);
         sound.set(sound_on ? rocket_level * (0.35 + 0.65 * air) : 0.0, sound_on ? rcs_level : 0.0, sound_on ? wind_level : 0.0);
         {
             // Event cues: one-shots on the edge of a state change. The first frame only records the state.

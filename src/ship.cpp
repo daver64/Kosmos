@@ -542,6 +542,7 @@ namespace kosmos
                 spec.grid = json.value("grid", "");
             }
             spec.script = json.value("script", "");
+            spec.engine_sound = json.value("engine_sound", "");
             // A building's cockpit is its interface: either key works there.
             const char *cockpit_key = json.contains("cockpit") || !spec.building() ? "cockpit" : "interface";
             read_module(json, spec);
@@ -1262,6 +1263,9 @@ namespace kosmos
             deploy_parachute();
         else if (c.parachute < 0)
             cut_parachutes();
+        for (const ChuteRuntime &chute : chutes_)
+            if (chute.state != ChuteState::stowed && chute.state != ChuteState::gone)
+                c.sas = "off";
         if (spec_.ground())
         {
             apply_ground_controls(c);
@@ -1695,7 +1699,18 @@ namespace kosmos
             if (area <= 0.0 || speed < 0.5)
                 continue;
             const sl::dvec3 pull = -air / speed * (q * area);
-            universe_.world.apply_force_at(body_, pull, b.position + b.direction_to_world(spec.position - com_));
+            // The pull acts through the centre of mass; the canopy's own pendulum stability is a
+            // damped torque that swings the attachment point toward the upwind direction.
+            universe_.world.apply_force(body_, pull);
+            const sl::dvec3 lever = spec.position - com_;
+            if (glm::length(lever) > 1e-3)
+            {
+                const sl::dvec3 attach = glm::normalize(lever);
+                const sl::dvec3 upwind = b.direction_to_local(-air / speed);
+                const double w0 = 1.2, zeta = 1.0;
+                const sl::dvec3 accel = w0 * w0 * glm::cross(attach, upwind) - 2.0 * zeta * w0 * b.angular_velocity;
+                universe_.world.apply_torque(body_, b.direction_to_world(accel * b.inertia()));
+            }
         }
     }
 

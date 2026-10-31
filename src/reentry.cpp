@@ -173,6 +173,8 @@ namespace kosmos
             s.auto_speed = j.value("auto_speed", s.auto_speed);
             s.canopy_radius = j.value("canopy_radius", std::sqrt(s.cd_area / 1.5 / pi));
             s.cut_on_landing = j.value("cut_on_landing", s.cut_on_landing);
+            s.model = j.value("model", s.model);
+            s.model_radius = std::max(j.value("model_radius", s.model_radius), 1e-3);
             list.push_back(std::move(s));
         }
     }

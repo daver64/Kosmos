@@ -116,6 +116,10 @@ namespace kosmos
         double canopy_radius = 0.0;
         /** Frees itself on touchdown. */
         bool cut_on_landing = true;
+        /** An optional canopy model (OBJ/glTF, relative to the addon folder) drawn while the chute is out. Its origin is the apex where the
+         *  lines meet the ship and it points along -Z; `model_radius` is the radius of the model as authored, so it is scaled to `canopy_radius`. */
+        std::string model;
+        double model_radius = 1.0;
     };
 
     enum class ChuteState

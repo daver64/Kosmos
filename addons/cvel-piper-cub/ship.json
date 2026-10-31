@@ -6,6 +6,7 @@
   { "position": [0, 1.4, 4.9], "colour": [255, 255, 255], "intensity": 1.0, "range": 20, "glow": 0.25 }
  ],
  "class": "aircraft",
+ "engine_sound": "sounds/engine.wav",
  "torque_accel": 0.0,
  "drag_area": 0.35,
  "camera_distance": 12,

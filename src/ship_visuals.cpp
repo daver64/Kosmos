@@ -142,8 +142,42 @@ namespace kosmos::app
         return sl::HudMode::off;
     }
 
+    // Parachute canopies that are out: narrow while reefed, filling to full width as they open.
+    static void draw_canopies(Visuals &v, const kosmos::ShipSpec &spec, const glm::mat4 &model, const kosmos::Ship &ship)
+    {
+        const auto &runtime = ship.chutes();
+        for (std::size_t i = 0; i < spec.parachutes.size() && i < runtime.size(); ++i)
+        {
+            const kosmos::ParachuteSpec &chute = spec.parachutes[i];
+            const kosmos::ChuteRuntime &state = runtime[i];
+            if (chute.model.empty() || state.state == kosmos::ChuteState::stowed || state.state == kosmos::ChuteState::gone)
+                continue;
+            double width = 1.0, length = 1.0;
+            if (state.state == kosmos::ChuteState::reefed)
+            {
+                width = 0.3;
+                length = 0.6 + 0.4 * std::min(1.0, state.time / 1.5);
+            }
+            else if (state.state == kosmos::ChuteState::opening)
+            {
+                const double fill = std::clamp(state.fill, 0.0, 1.0);
+                width = 0.3 + 0.7 * fill;
+                length = 1.0;
+            }
+            if (sl::Model *canopy = v.canopy_model(chute, spec.directory))
+            {
+                const float k = static_cast<float>(std::max(chute.canopy_radius, 0.1) / chute.model_radius);
+                glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(chute.position));
+                place = glm::scale(place, glm::vec3(k * static_cast<float>(width), k * static_cast<float>(width), k * static_cast<float>(length)));
+                sl::draw_model(canopy, model * place);
+            }
+        }
+    }
+
     void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit, double gear, double pod_left, double pod_right, const kosmos::Ship *ship)
     {
+        if (ship && !spec.parachutes.empty())
+            draw_canopies(v, spec, model, *ship);
         for (int s = first_stage; s <= last_stage; ++s)
             for (const kosmos::PartSpec &part : spec.stages[static_cast<std::size_t>(s)].parts)
             {

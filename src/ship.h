@@ -312,6 +312,8 @@ namespace kosmos
         /** The ship.json this was read from, so the part editor can write a converted part back. */
         std::string source_file;
         std::string script;
+        /** A looping engine sound (path inside the ship folder) that replaces the generic engine voice while this ship is flown. */
+        std::string engine_sound;
         Cockpit cockpit;
         /** The native addon that flies this ship and the most force (N) and torque (N m) it may apply; 0 uses a default scaled to the ship's mass. */
         std::string module_addon;

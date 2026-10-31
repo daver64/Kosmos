@@ -1,0 +1,42 @@
+{
+ "name": "CVEL Soyuz TMA Descent Module",
+ "class": "capsule",
+ "torque_accel": 0.5,
+ "max_rate": 0.5,
+ "rcs_thrust": 120,
+ "drag_area": 4,
+ "thermal": {"nose_radius": 2.8, "heat_area": 4, "shield_mass": 350, "ablation_heat": 1.2e7, "shield_axis": [0, 0, 1]},
+ "hypersonic": {"area": 3.8, "length": 2.2, "cd_max": 1.4, "axis": [0, 0, 1], "trim_dir": [0, 1, 0], "trim_deg": 20},
+ "parachutes": [
+  {"name": "Main", "position": [0, 0, -56.4], "cd_area": 1500, "reef_cd_area": 60, "auto_altitude": 8000, "auto_speed": 250, "max_q": 12000,
+   "canopy_radius": 14, "model": "models/chute.obj", "model_radius": 17.75}
+ ],
+ "camera_distance": 8,
+ "camera_target": [0, 0, 0],
+ "systems": [
+  { "type": "battery", "name": "Batteries", "capacity_wh": 1500, "max_w": 1000 },
+  { "type": "load", "name": "Avionics", "watts": 150, "priority": 0 },
+  { "type": "load", "name": "Cabin lighting", "watts": 40, "priority": 2 },
+  { "type": "tank", "gas": "oxygen", "capacity_kg": 10 },
+  { "type": "tank", "gas": "nitrogen", "capacity_kg": 5 },
+  { "type": "regulator", "name": "Cabin regulator", "vessel": "Cabin" },
+  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 20 }
+ ],
+ "vessels": [
+  { "name": "Cabin", "stage": "Descent module", "position": [0, 0, 0], "size": [2.0, 2.0, 2.0], "crew": 3 }
+ ],
+ "stages": [
+  {
+   "name": "Descent module",
+   "dry_mass": 2950,
+   "propellant": 40,
+   "z": 0,
+   "length": 2.3,
+   "radius": 1.1,
+   "engines": [],
+   "parts": [
+    { "model": "models/soyuz-descent.obj", "offset": [0, 0, 0] }
+   ]
+  }
+ ]
+}

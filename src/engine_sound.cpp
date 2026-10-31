@@ -61,12 +61,46 @@ namespace kosmos
             sl::play_sample(s, volume, 128, 1000, 0);
     }
 
+    void EngineSound::set_engine_file(const std::string &path)
+    {
+        if (path == engine_file)
+            return;
+        engine_file = path;
+        if (!started)
+            return;
+        if (rocket_voice)
+            sl::stop_voice(rocket_voice);
+        pick_engine_sample();
+        rocket_voice = rocket ? sl::play_sample(rocket, 0, 128, 1000, -1) : 0;
+    }
+
+    void EngineSound::pick_engine_sample()
+    {
+        if (custom)
+        {
+            sl::destroy_sample(custom);
+            custom = nullptr;
+        }
+        if (!engine_file.empty())
+            custom = sl::load_sample(engine_file);
+        if (custom)
+        {
+            rocket = custom;
+            return;
+        }
+        rocket = effect("main_engines");
+        if (!rocket)
+        {
+            if (!generic_rocket)
+                generic_rocket = fx::make_rocket_sound();
+            rocket = generic_rocket;
+        }
+    }
+
     void EngineSound::start()
     {
         started = true;
-        rocket = effect("main_engines");
-        if (!rocket)
-            rocket = fx::make_rocket_sound();
+        pick_engine_sample();
         hiss = effect("rcs_sustain");
         if (!hiss)
             hiss = fx::make_hiss_sound();
@@ -97,11 +131,18 @@ namespace kosmos
                 sl::destroy_sample(e.second);
         if (wind)
             sl::destroy_sample(wind);
-        for (sl::Sample **sample : {&rocket, &hiss})
+        if (rocket == custom)
+            rocket = nullptr;
+        if (custom)
+            sl::destroy_sample(custom);
+        custom = nullptr;
+        if (generic_rocket == rocket)
+            generic_rocket = nullptr;
+        for (sl::Sample **sample : {&rocket, &hiss, &generic_rocket})
             if (*sample && !std::any_of(effects.begin(), effects.end(), [&](const auto &e) { return e.second == *sample; }))
                 sl::destroy_sample(*sample);
         effects.clear();
-        rocket = hiss = wind = nullptr;
+        rocket = hiss = wind = generic_rocket = nullptr;
         sl::audio_fx_shutdown();
     }
 } // namespace kosmos

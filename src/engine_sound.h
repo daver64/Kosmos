@@ -17,6 +17,8 @@ namespace kosmos
         sl::Sample *rocket = nullptr, *hiss = nullptr, *wind = nullptr;
         std::uint64_t rocket_voice = 0, hiss_voice = 0, wind_voice = 0;
         bool started = false;
+        std::string engine_file;
+        sl::Sample *custom = nullptr;
         std::string data_root;
         std::map<std::string, sl::Sample *> effects;
 
@@ -25,8 +27,12 @@ namespace kosmos
         /** Set the three voice levels (0 to 1); the voices are created on the first call. */
         void set(double rocket_level, double rcs_level, double wind_level);
         void stop();
+        /** Use a ship's own engine loop (a full path, or empty for the generic one); a file that will not load leaves the generic sound. */
+        void set_engine_file(const std::string &path);
 
     private:
         void start();
+        void pick_engine_sample();
+        sl::Sample *generic_rocket = nullptr;
     };
 } // namespace kosmos
