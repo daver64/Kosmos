@@ -22,4 +22,6 @@ Cloud maps, the Orbiter terrain data and any other third-party pack are credited
 Please do not remove the credits when redistributing.
 - **Rocks, nebula and tarmac** (`textures/rocks/`, `textures/nebula/proc_sheet_nebula.jpg`, `textures/tarmac/`): the OpenGameArt textures the game actually loads (terrain rocks, the sky nebula atlas and runway asphalt), copied from the full collection kept in `import/open-game-art/`. Add new OpenGameArt textures to `import/open-game-art/` and copy only the ones used into `data/textures/`.
 
+- **Hydra and Nix** (`textures/hydra.dds`, `textures/nix.dds`): from the Orbiter 2016 textures in `import/orbiter/Textures/`, installed by `tools/celbody_import.py`.
+
 Licensing note: the OpenGameArt textures are Creative Commons, which is fine for a free release. Before any commercial sale of Kosmos, run a full asset audit (check each licence for commercial use and attribution terms).
