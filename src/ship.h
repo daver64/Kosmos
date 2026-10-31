@@ -146,6 +146,8 @@ namespace kosmos
         sl::dvec3 up{0.0, 1.0, 0.0};
         /** IDS beacon frequency in MHz; 0 assigns one when the ship is created. */
         double frequency = 0.0;
+        /** Stage the port sits on (-1 assigns the nearest one when the ship loads); it is gone once that stage is jettisoned. */
+        int stage = -1;
     };
 
     /** One readout on a cockpit panel: any property-tree path, so addons can show whatever they publish. */
@@ -564,6 +566,8 @@ namespace kosmos
         sl::dvec3 origin() const { return body().position - body().direction_to_world(com_); }
         const sl::dvec3 &com_offset() const { return com_; }
         int active_stage() const { return active_stage_; }
+        /** False once the stage carrying docking port `index` has been jettisoned. */
+        bool port_attached(int index) const { return spec_.ports[static_cast<std::size_t>(index)].stage >= active_stage_; }
         /** The camera's focus in the ship frame: `camera_target` moved along the axis by however far the middle of the stages still attached has shifted from the middle of the full stack. */
         sl::dvec3 camera_focus() const;
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */

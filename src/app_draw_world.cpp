@@ -184,6 +184,25 @@ namespace kosmos::app
             const double cloud_room = near_earth ? 12.0e3 : 0.0;
             // Capped so a star-sized distance cannot push the near plane past the far one.
             near_plane = std::max(ship_near, std::min(0.6 * (nearest_surface - cloud_room), 1.0e8));
+            // The near plane is flat across the view, so ground straight below is nearer to it the more the camera looks toward the
+            // horizon. Pull the plane in to match, or the cloud shell is sliced along a line across the view.
+            if (near_earth)
+            {
+                const glm::dvec3 forward = glm::normalize(sl::dvec3(ship_rel));
+                const double looking_down = std::acos(std::clamp(glm::dot(forward, -glm::normalize(eye_from_earth)), -1.0, 1.0));
+                const double half_view = std::atan(std::tan(view_fov * 0.5 * 3.14159265358979 / 180.0) * 1.9);
+                const double cos_worst = std::cos(std::min(looking_down + half_view, 1.45));
+                if (cos_worst < 0.55)
+                    near_plane = std::max(ship_near, near_plane * cos_worst / 0.55);
+            }
+        }
+        shell_clearance = 1.8 * near_plane;
+        if (layered && near_earth)
+        {
+            const glm::dvec3 forward = glm::normalize(sl::dvec3(ship_rel));
+            const double looking_down = std::acos(std::clamp(glm::dot(forward, -glm::normalize(eye_from_earth)), -1.0, 1.0));
+            const double half_view = std::atan(std::tan(view_fov * 0.5 * 3.14159265358979 / 180.0) * 1.9);
+            shell_clearance = std::max(1.8 * near_plane, 1.1 * near_plane / std::max(std::cos(std::min(looking_down + half_view, 1.45)), 0.1));
         }
         camera.near_plane = static_cast<float>(near_plane);
         camera.far_plane = static_cast<float>(layered || view_distance * 0.3 > 1.0e3 ? 1.0e10 : near_earth ? std::max(view.far_distance, soi_body.radius * 3.0) : std::max(soi_body.radius * 8.0, 6.0e8));

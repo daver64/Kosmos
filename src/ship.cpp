@@ -249,6 +249,7 @@ namespace kosmos
                 up -= port.direction * glm::dot(up, port.direction);
                 port.up = glm::length(up) > 1.0e-6 ? glm::normalize(up) : sl::dvec3(0.0, 1.0, 0.0);
                 port.frequency = jd.value("frequency", 0.0);
+                port.stage = jd.value("stage", -1);
                 spec.ports.push_back(port);
             }
             spec.torque_accel = json.value("torque_accel", spec.torque_accel);
@@ -489,6 +490,22 @@ namespace kosmos
                     if (st.z - st.length * 0.5 < front->z - front->length * 0.5)
                         front = &st;
                 spec.cockpit.eye = sl::dvec3(0.0, front->radius * 0.3, front->z - front->length * 0.5);
+            }
+            for (PortSpec &port : spec.ports)
+            {
+                if (port.stage >= 0)
+                    continue;
+                double best = 1.0e30;
+                for (std::size_t s = 0; s < spec.stages.size(); ++s)
+                {
+                    const StageSpec &st = spec.stages[s];
+                    const double gap = std::max({0.0, port.position.z - (st.z + st.length * 0.5), (st.z - st.length * 0.5) - port.position.z});
+                    if (gap < best - 1.0e-9)
+                    {
+                        best = gap;
+                        port.stage = static_cast<int>(s);
+                    }
+                }
             }
             // A light with no stage of its own belongs to the stage it sits on, and goes when that stage does.
             for (LightSpec &light : spec.lights)

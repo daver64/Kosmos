@@ -284,7 +284,7 @@ namespace kosmos
                 for (int pa = 0; pa < static_cast<int>(sa.spec().ports.size()); ++pa)
                     for (int pb = 0; pb < static_cast<int>(sb.spec().ports.size()); ++pb)
                     {
-                        if (port_busy(a, pa) || port_busy(b, pb))
+                        if (!sa.port_attached(pa) || !sb.port_attached(pb) || port_busy(a, pa) || port_busy(b, pb))
                             continue;
                         const PortRelative r = relative_ports(sa, pa, sb, pb);
                         if (r.range < 1.0 && r.speed < 0.8 && std::fabs(r.yaw) < 15.0 && std::fabs(r.pitch) < 15.0 && std::fabs(r.roll) < 25.0)
@@ -412,6 +412,8 @@ namespace kosmos
                 list.push_back(x);
             for (int p = 0; p < static_cast<int>(other.spec().ports.size()); ++p)
             {
+                if (!other.port_attached(p))
+                    continue;
                 sl::dvec3 pos, dir, up;
                 other.port_world(p, pos, dir, up);
                 Contact c;

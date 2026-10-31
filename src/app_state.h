@@ -434,6 +434,7 @@ namespace kosmos::app
         std::size_t limb_used{};
         bool layered{};
         double near_plane{};
+        double shell_clearance{}; // how far below the eye a lifted cloud shell must stay so the near plane cannot slice it
         sl::Camera ship_camera;
         sl::Environment3D environment;
         sl::Light3D light;

@@ -242,6 +242,8 @@ An engine with `"group": "hover"` is driven by a separate hover throttle (`/cont
 
 A rocket's `isp` is its vacuum value. Add `"isp_sl"` (sea-level Isp) and the engine behaves as in Orbiter: `thrust` is the vacuum thrust, propellant flow stays constant, and thrust and Isp fall toward `isp_sl` as the air thickens. Without `isp_sl` the Isp is the same everywhere.
 
+A ship can carry its own engine sound: `"engine_sound": "sounds/engine.wav"` names a looping file in the ship's folder (the Piper Cub does this); its volume follows the throttle. A `parachutes` list (see `addons/davemecury1`, `addons/cvel-soyuz/descent.json` and `addons/cvel-saturn-v/command_module.json`) gives each chute `position`, `cd_area`, `reef_cd_area`, `auto_altitude` and `auto_speed`; adding `model` (an OBJ) and `model_radius` draws the canopy, scaled to `canopy_radius`. SAS is switched off while a chute is out.
+
 Specs that only set `"air_breathing": true` still work and count as jets. `--shot-throttle X` holds a throttle during a `--shot`, for exhaust pictures.
 
 ## Importing Orbiter add-ons

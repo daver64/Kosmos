@@ -1,0 +1,1020 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     90
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "objects": [
+    "anim_g16"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g17"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     90
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "objects": [
+    "anim_g17"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.18,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g18"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g18"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g18"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     90
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "objects": [
+    "anim_g18"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.18,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g19"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g19"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g19"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     90
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "objects": [
+    "anim_g19"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g20"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g20"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    -1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     90
+    ],
+    [
+     1,
+     90
+    ]
+   ],
+   "objects": [
+    "anim_g20"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -90
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "objects": [
+    "anim_g21"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g22"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -90
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "objects": [
+    "anim_g22"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.18,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g23"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g23"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g23"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -90
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "objects": [
+    "anim_g23"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.18,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g24"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g24"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g24"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -90
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "objects": [
+    "anim_g24"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.15,
+    -0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g25"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.12,
+    0.63,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     178
+    ],
+    [
+     1,
+     178
+    ]
+   ],
+   "objects": [
+    "anim_g25"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "center": [
+    1.1,
+    0,
+    0
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.1,
+     0
+    ],
+    [
+     0.9,
+     -90
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "objects": [
+    "anim_g25"
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "panels",
+   "axis": [
+    0.2398,
+    0.97082,
+    0.0
+   ],
+   "center": [
+    -0.722,
+    0.891,
+    2.6
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.05,
+     0
+    ],
+    [
+     0.3,
+     -178
+    ],
+    [
+     1,
+     -178
+    ]
+   ],
+   "objects": [
+    "anim_g12"
+   ]
+  }
+ ]
+}

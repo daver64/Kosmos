@@ -1,0 +1,32 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "translate",
+   "property": "panels",
+   "axis": [
+    0,
+    -0.98512,
+    -0.1724
+   ],
+   "objects": [
+    "anim_g0",
+    "anim_g4"
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     0.8,
+     0
+    ],
+    [
+     1,
+     0.40608
+    ]
+   ]
+  }
+ ]
+}

@@ -27,7 +27,7 @@
   {"name": "Panels and antennae", "property": "panels", "duration": 10}
  ],
  "ports": [
-  { "name": "Docking", "position": [0, 0, -34.1], "direction": [0, 0, -1], "up": [0, 1, 0] }
+  { "name": "Docking", "position": [0, 0, -34.1], "direction": [0, 0, -1], "up": [0, 1, 0], "stage": 6 }
  ],
  "lights": [
   { "stage": 2, "position": [0, 0, -42.3], "colour": [255, 255, 255], "intensity": 3, "range": 50, "pattern": "strobe", "period": 1.6, "glow": 0.4 },
