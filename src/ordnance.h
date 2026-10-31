@@ -192,6 +192,14 @@ namespace kosmos
             int fuse_mode = -1;
         };
         std::vector<Launched> launched_;
+        /** Where a released warhead burst, so the external camera keeps watching the blast for a while instead of snapping back. */
+        struct Aftermath
+        {
+            const Ship *owner = nullptr;
+            int body = -1;
+            sl::dvec3 relative{0.0};
+            double left = 0.0;
+        } aftermath_;
         void step_launched(ArsenalContext &context, double dt);
         std::vector<Shock> shocks_;
         std::vector<Active> effects_;

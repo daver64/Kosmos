@@ -140,6 +140,7 @@ namespace kosmos
         scars_.clear();
         racks_.clear();
         detonations_ = 0;
+        aftermath_ = {};
         particles_.clear();
         particle_body_ = -1;
         readout_.clear();
@@ -787,7 +788,6 @@ namespace kosmos
 
     bool Arsenal::follow_target(const Universe &universe, const Ship *ship, sl::dvec3 &world, double &seconds_to_burst) const
     {
-        (void)universe;
         for (auto it = launched_.rbegin(); it != launched_.rend(); ++it)
         {
             if (it->owner != ship)
@@ -798,6 +798,12 @@ namespace kosmos
             const Telemetry &t = it->ship->telemetry();
             const double fall = -t.vertical_speed;
             seconds_to_burst = fall > 1.0 ? std::max(t.altitude - burst, 0.0) / fall : 1.0e9;
+            return true;
+        }
+        if (aftermath_.owner == ship && aftermath_.left > 0.0 && aftermath_.body >= 0)
+        {
+            world = universe.position(aftermath_.body) + aftermath_.relative;
+            seconds_to_burst = 0.0;
             return true;
         }
         return false;
@@ -845,6 +851,7 @@ namespace kosmos
                 r.age = l.age;
                 r.owner = l.owner;
                 detonate(context, r, r.position);
+                aftermath_ = {l.owner, r.body, r.position, 12.0};
             }
             else
             {
@@ -1065,6 +1072,7 @@ namespace kosmos
         recoil_ = std::max(0.0, recoil_ - real_dt * 6.0);
         hurt_ = std::max(0.0, hurt_ - real_dt * 0.6);
         last_event_time_ += real_dt;
+        aftermath_.left = std::max(0.0, aftermath_.left - real_dt);
 
         // Racks of ships that are gone are dropped; the rest keep their payload mass in step.
         racks_.erase(std::remove_if(racks_.begin(), racks_.end(),
