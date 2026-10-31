@@ -380,7 +380,14 @@
   ],
   "mfds": true,
   "mfd_filter": "none",
-  "mfd_hide": ["altimeter", "asi", "vsi", "dg", "turn", "engine"],
+  "mfd_hide": [
+   "altimeter",
+   "asi",
+   "vsi",
+   "dg",
+   "turn",
+   "engine"
+  ],
   "mfd_left": "orbit",
   "mfd_right": "surface",
   "layout": {
@@ -1547,7 +1554,8 @@
     "control": {
      "type": "mfd",
      "unit": 0,
-     "button": 13
+     "button": 13,
+     "label": "Left MFD SEL"
     }
    },
    {
@@ -1576,7 +1584,8 @@
     "control": {
      "type": "mfd",
      "unit": 0,
-     "button": 14
+     "button": 14,
+     "label": "Left MFD MNU"
     }
    },
    {
@@ -1953,7 +1962,8 @@
     "control": {
      "type": "mfd",
      "unit": 1,
-     "button": 13
+     "button": 13,
+     "label": "Right MFD SEL"
     }
    },
    {
@@ -1982,7 +1992,8 @@
     "control": {
      "type": "mfd",
      "unit": 1,
-     "button": 14
+     "button": 14,
+     "label": "Right MFD MNU"
     }
    },
    {
@@ -2010,7 +2021,8 @@
     ],
     "control": {
      "type": "hud",
-     "value": "orbit"
+     "value": "orbit",
+     "label": "HUD: orbit"
     }
    },
    {
@@ -2038,7 +2050,8 @@
     ],
     "control": {
      "type": "hud",
-     "value": "surface"
+     "value": "surface",
+     "label": "HUD: surface"
     }
    },
    {
@@ -2066,7 +2079,8 @@
     ],
     "control": {
      "type": "hud",
-     "value": "docking"
+     "value": "docking",
+     "label": "HUD: docking"
     }
    },
    {
@@ -2095,7 +2109,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "stability"
+     "value": "stability",
+     "label": "Kill rotation"
     }
    },
    {
@@ -2124,7 +2139,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "prograde"
+     "value": "prograde",
+     "label": "Prograde hold"
     }
    },
    {
@@ -2153,7 +2169,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "normal"
+     "value": "normal",
+     "label": "Orbit normal hold"
     }
    },
    {
@@ -2182,7 +2199,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "level-horizon"
+     "value": "level-horizon",
+     "label": "Level horizon"
     }
    },
    {
@@ -2211,7 +2229,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "retrograde"
+     "value": "retrograde",
+     "label": "Retrograde hold"
     }
    },
    {
@@ -2240,7 +2259,8 @@
     "control": {
      "type": "button",
      "property": "/controls/sas",
-     "value": "antinormal"
+     "value": "antinormal",
+     "label": "Orbit anti-normal hold"
     }
    },
    {
@@ -2268,7 +2288,8 @@
     ],
     "control": {
      "type": "toggle",
-     "property": "/controls/gear"
+     "property": "/controls/gear",
+     "label": "Landing gear lever"
     },
     "follow": "GEAR_LEVER"
    },
@@ -2297,7 +2318,8 @@
     ],
     "control": {
      "type": "toggle",
-     "property": "/controls/anim/nose-cone"
+     "property": "/controls/anim/nose-cone",
+     "label": "Nose cone lever"
     },
     "follow": "NOSECONE_LEVER"
    },
@@ -2326,7 +2348,8 @@
     ],
     "control": {
      "type": "toggle",
-     "property": "/controls/brake-latch"
+     "property": "/controls/brake-latch",
+     "label": "Airbrake latch"
     },
     "follow": "AIRBRAKE_LEVER"
    },
@@ -2356,7 +2379,8 @@
     "control": {
      "type": "button",
      "property": "/dock/undock",
-     "value": "1"
+     "value": "1",
+     "label": "Undock lever"
     }
    },
    {
@@ -2385,7 +2409,8 @@
     "control": {
      "type": "button",
      "property": "/controls/rcs-mode",
-     "value": "rot,lin,off"
+     "value": "rot,lin,off",
+     "label": "RCS mode (rotation / linear / off)"
     }
    },
    {
@@ -2413,7 +2438,8 @@
     ],
     "control": {
      "type": "toggle",
-     "property": "/controls/lighting/lamps"
+     "property": "/controls/lighting/lamps",
+     "label": "Cockpit lamps"
     }
    },
    {
@@ -2441,7 +2467,8 @@
     ],
     "control": {
      "type": "toggle",
-     "property": "/controls/lighting/nav"
+     "property": "/controls/lighting/nav",
+     "label": "Navigation lights"
     }
    },
    {
@@ -2468,7 +2495,8 @@
      ]
     ],
     "control": {
-     "type": "label"
+     "type": "label",
+     "label": "Main throttle"
     },
     "drag": "/controls/throttle",
     "drag_gain": 2.0
@@ -2497,7 +2525,8 @@
      ]
     ],
     "control": {
-     "type": "label"
+     "type": "label",
+     "label": "Hover throttle"
     },
     "drag": "/controls/hover",
     "drag_gain": 1.0
@@ -2529,7 +2558,8 @@
      "type": "step",
      "property": "/controls/af-mode",
      "value": "off,pitch,on",
-     "button": -1
+     "button": -1,
+     "label": "AF CTRL dial: previous"
     }
    },
    {
@@ -2559,7 +2589,8 @@
      "type": "step",
      "property": "/controls/af-mode",
      "value": "off,pitch,on",
-     "button": 1
+     "button": 1,
+     "label": "AF CTRL dial: next"
     }
    },
    {
@@ -2588,7 +2619,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/trim",
-     "value": "0.05"
+     "value": "0.05",
+     "label": "Elevator trim: nose down"
     }
    },
    {
@@ -2617,7 +2649,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/trim",
-     "value": "-0.05"
+     "value": "-0.05",
+     "label": "Elevator trim: nose up"
     }
    },
    {
@@ -2646,7 +2679,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/gimbal-pitch",
-     "value": "-0.1"
+     "value": "-0.1",
+     "label": "Main gimbal pitch: down"
     }
    },
    {
@@ -2675,7 +2709,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/gimbal-pitch",
-     "value": "0.1"
+     "value": "0.1",
+     "label": "Main gimbal pitch: up"
     }
    },
    {
@@ -2704,7 +2739,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/gimbal-yaw",
-     "value": "-0.1"
+     "value": "-0.1",
+     "label": "Main gimbal yaw: left"
     }
    },
    {
@@ -2733,7 +2769,8 @@
     "control": {
      "type": "nudge",
      "property": "/controls/gimbal-yaw",
-     "value": "0.1"
+     "value": "0.1",
+     "label": "Main gimbal yaw: right"
     }
    },
    {
@@ -2762,7 +2799,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/inner-door",
-     "value": "0"
+     "value": "0",
+     "label": "Inner airlock door: close"
     }
    },
    {
@@ -2791,7 +2829,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/inner-door",
-     "value": "1"
+     "value": "1",
+     "label": "Inner airlock door: open"
     }
    },
    {
@@ -2820,7 +2859,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/outer-door",
-     "value": "0"
+     "value": "0",
+     "label": "Outer airlock door: close"
     }
    },
    {
@@ -2849,7 +2889,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/outer-door",
-     "value": "1"
+     "value": "1",
+     "label": "Outer airlock door: open"
     }
    },
    {
@@ -2878,7 +2919,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/pressurize",
-     "value": "0"
+     "value": "0",
+     "label": "Airlock chamber: evacuate"
     }
    },
    {
@@ -2907,7 +2949,8 @@
     "control": {
      "type": "button",
      "property": "/controls/airlock/pressurize",
-     "value": "1"
+     "value": "1",
+     "label": "Airlock chamber: pressurize"
     }
    }
   ],

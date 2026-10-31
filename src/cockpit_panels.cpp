@@ -1,6 +1,8 @@
 #include "cockpit_panels.h"
 
+#include <cctype>
 #include <map>
+#include <string>
 
 namespace kosmos::app
 {
@@ -311,6 +313,63 @@ namespace kosmos::app
     }
 
     int panel_slider = -1;
+
+    std::string control_tooltip(const kosmos::Cockpit::PanelControl &c)
+    {
+        if (!c.label.empty())
+            return c.label;
+        if (c.type == "mfd")
+        {
+            static const char *const names[3] = {"PWR", "SEL", "MNU"};
+            const std::string unit = c.unit == 0 ? "Left MFD " : "Right MFD ";
+            if (c.button >= 12 && c.button <= 14)
+                return unit + names[c.button - 12];
+            return unit + (c.button < 6 ? "L" + std::to_string(c.button + 1) : "R" + std::to_string(c.button - 5));
+        }
+        if (c.type == "hud")
+            return "HUD " + c.value;
+        std::string name = c.property;
+        if (name.rfind("/controls/", 0) == 0)
+            name.erase(0, 10);
+        else if (!name.empty() && name[0] == '/')
+            name.erase(0, 1);
+        for (char &ch : name)
+            if (ch == '/' || ch == '-' || ch == '_')
+                ch = ' ';
+        if (!name.empty())
+            name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+        if (c.type == "button" && !c.value.empty())
+            name += ": " + c.value;
+        return name;
+    }
+
+    std::string panel_tooltip(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
+    {
+        for (const auto &c : cp.controls)
+        {
+            if (c.type == "slider" || c.type == "label" || c.type == "readout" || c.type == "gauge" || c.type == "lamp" || c.type == "needle" || c.type == "bar" || c.type == "number" || px < ox + c.x * scale || px > ox + (c.x + c.w) * scale || py < oy + c.y * scale || py > oy + (c.y + c.h) * scale)
+                continue;
+            return control_tooltip(c);
+        }
+        const int slider = panel_slider_at(cp, ox, oy, scale, px, py);
+        if (slider >= 0)
+            return control_tooltip(cp.controls[static_cast<std::size_t>(slider)]);
+        for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
+        {
+            if (!sim.mfd.allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
+                continue;
+            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
+            if (button >= 0)
+            {
+                kosmos::Cockpit::PanelControl mfd;
+                mfd.type = "mfd";
+                mfd.unit = static_cast<int>(i);
+                mfd.button = button;
+                return control_tooltip(mfd);
+            }
+        }
+        return {};
+    }
 
     bool panel_click(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
     {

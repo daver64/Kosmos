@@ -387,6 +387,7 @@ namespace kosmos::app
                 flag("Ship labels", "/sim/settings/ship-labels", "Name and distance tags on other ships");
                 flag("Orbit line", "/sim/settings/orbit-line", "Draw the flown ship's orbit (O)");
                 flag("Key help text", "/sim/settings/help-text", "The key reminder lines under the info text");
+                flag("Cockpit tooltips", "/sim/settings/tooltips", "Name the panel control or virtual cockpit switch under the mouse");
                 flag("Warp and time", "/sim/settings/clock", "Warp factor, date and elapsed time along the bottom of the screen");
                 ImGui::SeparatorText("Sound");
                 flag("Sound on", "/sim/settings/sound", "Engine sound (M)");

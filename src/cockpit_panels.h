@@ -47,6 +47,12 @@ namespace kosmos::app
 
 extern int panel_slider;
 
+    /** What a panel control is called: its label, else a name made from its type and property. */
+    std::string control_tooltip(const kosmos::Cockpit::PanelControl &c);
+
+    /** The tooltip of the clickable control (or MFD button) under a point on a 2D panel; empty when there is none. */
+    std::string panel_tooltip(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py);
+
     bool panel_click(kosmos::Sim &sim, const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py);
 
     glm::mat3 panel_basis(const kosmos::Cockpit &cp);

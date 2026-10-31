@@ -1,3 +1,4 @@
+#include <functional>
 #include "app_state.h"
 
 namespace kosmos::app
@@ -364,6 +365,67 @@ namespace kosmos::app
             }
     }
 
+    namespace
+    {
+        // The nearest hotspot a ray (ship frame) passes through, no further than `limit`. A lever may be grabbed where it rests or where it has swung to.
+        const kosmos::Cockpit::VcHotspot *hotspot_on_ray(const Ship &ship, const std::function<glm::mat4(const kosmos::VcAnimation &)> &animation, const glm::vec3 &origin_local, const glm::vec3 &dir_local, float limit, float &hit_t)
+        {
+            const kosmos::Cockpit::VcHotspot *spot = nullptr;
+            float spot_t = limit;
+            for (const kosmos::Cockpit::VcHotspot &hs : ship.spec().cockpit.vc_hotspots)
+            {
+                glm::mat4 moved(1.0f);
+                if (!hs.follow.empty())
+                    for (const kosmos::VcAnimation &va : ship.spec().cockpit.vc_animations)
+                        for (const std::string &pn : va.parts)
+                            if (pn == hs.follow)
+                                moved = animation(va);
+                bool hit = false;
+                float t = 0.0f;
+                for (int pass = 0; pass < 2 && !hit; ++pass)
+                {
+                    glm::vec3 corner[3];
+                    for (int ci = 0; ci < 3; ++ci)
+                        corner[ci] = glm::vec3((pass == 0 ? glm::mat4(1.0f) : moved) * glm::vec4(hs.quad[ci][0], hs.quad[ci][1], hs.quad[ci][2], 1.0f));
+                    const glm::vec3 q0 = corner[0], e1 = corner[1] - q0, e2 = corner[2] - q0, n = glm::cross(e1, e2);
+                    const float denom = glm::dot(dir_local, n);
+                    if (std::fabs(denom) < 1e-12f)
+                        continue;
+                    t = glm::dot(q0 - origin_local, n) / denom;
+                    if (t <= 0.0f || t >= spot_t + 0.02f)
+                        continue;
+                    const glm::vec3 d = origin_local + dir_local * t - q0;
+                    const float u = glm::dot(d, e1) / glm::dot(e1, e1), v = glm::dot(d, e2) / glm::dot(e2, e2);
+                    hit = u >= 0.0f && u <= 1.0f && v >= 0.0f && v <= 1.0f;
+                }
+                if (!hit)
+                    continue;
+                spot = &hs;
+                spot_t = t;
+            }
+            hit_t = spot_t;
+            return spot;
+        }
+
+        // A small label by the mouse pointer, kept on screen.
+        void draw_tooltip(const std::string &text, int screen_w, int screen_h)
+        {
+            static sl::Font *font = nullptr;
+            if (text.empty())
+                return;
+            if (!font)
+                font = sl::open_sans_font(15);
+            if (!font)
+                return;
+            const int w = sl::text_length(font, text) + 12, h = sl::text_height(font) + 6;
+            const int x = std::clamp(static_cast<int>(sl::mouse_x()) + 16, 0, std::max(0, screen_w - w));
+            const int y = std::clamp(static_cast<int>(sl::mouse_y()) + 20, 0, std::max(0, screen_h - h));
+            sl::rectfill(sl::screen, static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + w), static_cast<float>(y + h), {12, 16, 22, 225});
+            sl::rect(sl::screen, static_cast<float>(x), static_cast<float>(y), static_cast<float>(x + w), static_cast<float>(y + h), {120, 150, 170, 255});
+            sl::textout(font, x + 6, y + 3, {235, 240, 245, 255}, text);
+        }
+    } // namespace
+
     void App::draw_cockpit3d_overlay()
     {
     sl::PropertyTree &props = *props_ref;
@@ -463,40 +525,8 @@ namespace kosmos::app
                             best_uv = tri.uv[0] * (1.0f - bu - bv) + tri.uv[1] * bu + tri.uv[2] * bv;
                         }
                     // Hotspots (bezel buttons, HUD and nav buttons) win when they are nearer than the screen.
-                    const kosmos::Cockpit::VcHotspot *spot = nullptr;
                     float spot_t = best;
-                    for (const kosmos::Cockpit::VcHotspot &hs : ship->spec().cockpit.vc_hotspots)
-                    {
-                        // A lever may be grabbed where it rests or where it has swung to.
-                        glm::mat4 moved(1.0f);
-                        if (!hs.follow.empty())
-                            for (const kosmos::VcAnimation &va : ship->spec().cockpit.vc_animations)
-                                for (const std::string &pn : va.parts)
-                                    if (pn == hs.follow)
-                                        moved = vc_animation_matrix(*ship, va);
-                        bool hit = false;
-                        float t = 0.0f;
-                        for (int pass = 0; pass < 2 && !hit; ++pass)
-                        {
-                            glm::vec3 corner[3];
-                            for (int ci = 0; ci < 3; ++ci)
-                                corner[ci] = glm::vec3((pass == 0 ? glm::mat4(1.0f) : moved) * glm::vec4(hs.quad[ci][0], hs.quad[ci][1], hs.quad[ci][2], 1.0f));
-                            const glm::vec3 q0 = corner[0], e1 = corner[1] - q0, e2 = corner[2] - q0, n = glm::cross(e1, e2);
-                            const float denom = glm::dot(dir_local, n);
-                            if (std::fabs(denom) < 1e-12f)
-                                continue;
-                            t = glm::dot(q0 - origin_local, n) / denom;
-                            if (t <= 0.0f || t >= spot_t + 0.02f)
-                                continue;
-                            const glm::vec3 d = origin_local + dir_local * t - q0;
-                            const float u = glm::dot(d, e1) / glm::dot(e1, e1), v = glm::dot(d, e2) / glm::dot(e2, e2);
-                            hit = u >= 0.0f && u <= 1.0f && v >= 0.0f && v <= 1.0f;
-                        }
-                        if (!hit)
-                            continue;
-                        spot = &hs;
-                        spot_t = t;
-                    }
+                    const kosmos::Cockpit::VcHotspot *spot = hotspot_on_ray(*ship, [&](const kosmos::VcAnimation &va) { return vc_animation_matrix(*ship, va); }, origin_local, dir_local, best, spot_t);
                     if (props.get_bool("/sim/settings/vc-hotspots"))
                         sim.log("VC click o=" + std::to_string(origin_local.x) + "," + std::to_string(origin_local.y) + "," + std::to_string(origin_local.z) + " d=" + std::to_string(dir_local.x) + "," + std::to_string(dir_local.y) + "," + std::to_string(dir_local.z) + (spot ? " HIT " + spot->control.property : ""));
                     if (spot && !spot->drag.empty())
@@ -561,6 +591,21 @@ namespace kosmos::app
             if (!down)
                 vc_drag_spot = nullptr;
             mfd_mouse_prev = down;
+            if (!down && props.get_bool("/sim/settings/tooltips") && !ship->spec().cockpit.vc_model.empty() && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse))
+            {
+                const glm::vec3 fwd = glm::normalize(ship_rel);
+                const glm::vec3 right = glm::normalize(glm::cross(fwd, glm::vec3(up)));
+                const glm::vec3 cup = glm::cross(right, fwd);
+                const float ty = std::tan(glm::radians(static_cast<float>(view_fov) * 0.5f));
+                const float nx = (2.0f * sl::mouse_x() / screen_w - 1.0f) * ty * static_cast<float>(screen_w) / screen_h;
+                const float ny = (1.0f - 2.0f * sl::mouse_y() / screen_h) * ty;
+                const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
+                const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
+                const glm::vec3 dir_local = glm::transpose(to_world) * glm::normalize(fwd + right * nx + cup * ny);
+                float t = 0.0f;
+                if (const kosmos::Cockpit::VcHotspot *spot = hotspot_on_ray(*ship, [&](const kosmos::VcAnimation &va) { return vc_animation_matrix(*ship, va); }, origin_local, dir_local, 1e30f, t))
+                    draw_tooltip(control_tooltip(spot->control), screen_w, screen_h);
+            }
     }
 
     // The left button as the panels and MFDs see it: a press that lands on an imgui window belongs to that window.
@@ -656,6 +701,8 @@ namespace kosmos::app
                 ui_drag_id = -1;
             mfd_mouse_prev = down;
             draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
+            if (!down && inside && props_ref->get_bool("/sim/settings/tooltips") && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse))
+                draw_tooltip(panel_tooltip(sim, cp, ox, oy, scale, mx, my), screen_w, screen_h);
     }
 
     void App::draw_cockpit_hud_mfds(bool dashboard)
