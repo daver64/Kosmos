@@ -7,7 +7,7 @@
  ],
  "torque_accel": 0.15,
  "max_rate": 0.35,
- "rcs_thrust": 18000,
+ "rcs_thrust": 40000,
  "drag_area": 90,
  "camera_distance": 60,
  "systems": [
@@ -2882,5 +2882,5 @@
    "phase": 0.5
   }
  ],
- "rcs_propellant": 2700
+ "rcs_propellant": 6000
 }
