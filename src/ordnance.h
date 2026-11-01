@@ -227,6 +227,7 @@ namespace kosmos
         sl::dvec3 eye_world_{0.0};
         bool have_eye_ = false, sound_on_ = false;
         double spin_dt_ = -1.0, lag_ = 0.0;
+        bool before_update_ = false;
         sl::dvec3 lagged(int body, const sl::dvec3 &p, double sign) const;
 
         // Particles live in coordinates relative to `anchor_` (itself body-relative) so floats stay precise.

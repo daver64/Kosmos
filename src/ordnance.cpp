@@ -282,7 +282,9 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 aim = unit(fwd + (right * noise() + glm::cross(right, fwd) * noise()) * spec->spread, fwd);
             }
             const sl::dvec3 muzzle = eye + fwd * 0.7 + right * 0.15 - up * 0.12;
+            before_update_ = true;
             add_effect(universe, sl::Effect3DKind::muzzle_flash, eva.body, muzzle, spec->effect == "plasma" ? 1.6 : 1.0, aim);
+            before_update_ = false;
 
             if (spec->fire == "bolt")
             {
@@ -560,14 +562,18 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
 
     void Arsenal::add_effect(const Universe &universe, sl::Effect3DKind kind, int body, const sl::dvec3 &position, double scale, const sl::dvec3 &direction)
     {
-        (void)universe;
         if (body < 0 || !anchor_for(body, position))
             return;
         const sl::dvec3 up = unit(position, sl::dvec3(0, 1, 0));
         // One standing cloud at a time: a new one replaces the old, which then thins away with its remaining particles.
         if (kind == sl::Effect3DKind::mushroom)
             effects_.erase(std::remove_if(effects_.begin(), effects_.end(), [](const Active &a) { return a.cloud; }), effects_.end());
-        effects_.push_back({sl::Effect3D(kind, to_f(position - anchor_), to_f(up), static_cast<float>(scale), static_cast<std::uint32_t>(detonations_ * 31 + effects_.size() + 7),
+        // An effect made before this frame's update would be carried along with the turning anchor; offset it so it ends the frame where it was asked for.
+        sl::dvec3 rel = position - anchor_;
+        if (before_update_ && spin_dt_ > 0.0)
+            if (const sl::FlightBody *pb = universe.world.body(body))
+                rel = position - sl::dvec3(glm::angleAxis(pb->spin_rate * spin_dt_, pb->spin_axis) * anchor_);
+        effects_.push_back({sl::Effect3D(kind, to_f(rel), to_f(up), static_cast<float>(scale), static_cast<std::uint32_t>(detonations_ * 31 + effects_.size() + 7),
                                          glm::length(direction) > 0.0 ? to_f(unit(direction, up)) : glm::vec3(0.0f)),
                             body, kind == sl::Effect3DKind::mushroom});
     }
