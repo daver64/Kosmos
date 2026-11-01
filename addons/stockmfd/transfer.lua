@@ -86,6 +86,61 @@ local function bar(g, x, y, w, frac)
   if frac > 0.01 then g:fillrect(x + 1, y + 1, x + 1 + (w - 2) * math.min(frac, 1), y + 9) end
 end
 
+-- Plan diagram: the central body, your actual orbit (green) with a white dot where you are, the target's orbit
+-- (orange) with its dot, and for a near circular orbit the planned transfer ellipse (yellow). A hollow ring marks where
+-- the target must be when you burn. If you are already on an eccentric orbit (after burn 1) that ellipse is drawn instead
+-- of a circle. When the sizes differ a lot the radii are compressed, so the picture is not to scale.
+local function transfer_diagram(g, cx, cy, R, r1, r2, phase, lead, centre, from_name, to_name, so)
+  local ecc = so and so.e or 0
+  local p = so and so.a and so.a * (1 - ecc * ecc) or r1
+  local actual = so and ecc > 0.02 and ecc < 0.98
+  local ra, rp = r1, r1
+  if actual then ra, rp = p / (1 - ecc), p / (1 + ecc) end
+  local rmax = math.max(r1, r2, ra)
+  local rmin = math.min(r1, r2, rp)
+  local k = 1
+  if rmin / rmax < 0.32 then k = math.min(1, math.log(0.32) / math.log(rmin / rmax)) end
+  local function disp(r) return R * (r / rmax) ^ k end
+  local d1, d2 = disp(r1), disp(r2)
+  g:colour(90, 140, 255)
+  g:disc(cx, cy, 4)
+  g:text(cx, cy + 8, centre, 1)
+  g:colour(255, 140, 60)
+  g:circle(cx, cy, d2)
+  local w = so and math.rad(-so.nu) or 0
+  g:colour(120, 255, 140)
+  if actual then
+    local px, py
+    for i = 0, 72 do
+      local t = (2 * math.pi) * i / 72
+      local d = disp(p / (1 + ecc * math.cos(t - w)))
+      local x, y = cx + d * math.cos(t), cy - d * math.sin(t)
+      if px then g:line(px, py, x, y) end
+      px, py = x, y
+    end
+  else
+    g:circle(cx, cy, d1)
+    g:colour(255, 200, 80)
+    local e, q
+    if d2 >= d1 then e = (d2 - d1) / (d2 + d1); q = d1 * (1 + e) else e = (d1 - d2) / (d1 + d2); q = d2 * (1 + e) end
+    local px, py
+    for i = 0, 48 do
+      local t = math.pi * i / 48
+      local r = d2 >= d1 and q / (1 + e * math.cos(t)) or q / (1 - e * math.cos(t))
+      local x, y = cx + r * math.cos(t), cy - r * math.sin(t)
+      if px then g:line(px, py, x, y) end
+      px, py = x, y
+    end
+  end
+  g:colour(255, 140, 60)
+  if not actual then g:circle(cx + d2 * math.cos(lead), cy - d2 * math.sin(lead), 5) end
+  g:disc(cx + d2 * math.cos(phase), cy - d2 * math.sin(phase), 4)
+  g:text(cx + d2 * math.cos(phase) + 7, cy - d2 * math.sin(phase) - 12, to_name, 0)
+  g:colour(255, 255, 255)
+  g:disc(cx + d1, cy, 4)
+  g:text(cx + d1 + 7, cy - 12, from_name, 0)
+end
+
 local burn_dv0 = 0
 
 return {
@@ -126,40 +181,35 @@ return {
 
     local state = props.get("/autopilot/burn/state")
     local armed = props.get("/autopilot/burn/armed")
-    g:text(30, 70, string.format("Burn 1   %+8.1f m/s", dv1), 0)
-    g:text(30, 90, string.format("Burn 2   %+8.1f m/s", dv2), 0)
-    g:text(30, 110, string.format("Total    %8.1f m/s", math.abs(dv1) + math.abs(dv2)), 0)
-    g:text(30, 140, "Flight time  " .. fmt_time(tof), 0)
-    g:text(30, 160, string.format("Needed phase  %.1f deg", math.deg(lead)), 0)
-    g:text(30, 180, string.format("Current phase %.1f deg", math.deg(phase)), 0)
+    g:text(52, 70, string.format("Burn 1   %+8.1f m/s", dv1), 0)
+    g:text(52, 90, string.format("Burn 2   %+8.1f m/s", dv2), 0)
+    g:text(52, 110, string.format("Total    %8.1f m/s", math.abs(dv1) + math.abs(dv2)), 0)
+    g:text(52, 140, "Flight time  " .. fmt_time(tof), 0)
+    g:text(52, 160, string.format("Needed phase  %.1f deg", math.deg(lead)), 0)
+    g:text(52, 180, string.format("Current phase %.1f deg", math.deg(phase)), 0)
     g:colour(255, 200, 80)
     if armed and state == "wait" then
       local t = props.get("/autopilot/burn/ignition-in")
-      g:text(30, 210, "AUTO: ignition in  " .. fmt_time(t), 0)
-      g:text(30, 228, string.format("Burn time ~%s, holding prograde", fmt_time(props.get("/autopilot/burn/duration"))), 0)
+      g:text(52, 210, "AUTO: ignition in  " .. fmt_time(t), 0)
+      g:text(52, 228, string.format("Burn time ~%s, holding prograde", fmt_time(props.get("/autopilot/burn/duration"))), 0)
       burn_dv0 = props.get("/autopilot/burn/remaining")
     elseif armed and state == "burn" then
       local left = props.get("/autopilot/burn/remaining")
       g:colour(255, 120, 90)
-      g:text(30, 210, string.format("BURNING   dV LEFT  %.0f m/s", left), 0)
-      bar(g, 30, 232, 340, burn_dv0 > 0 and 1 - left / burn_dv0 or 0)
+      g:text(52, 210, string.format("BURNING   dV LEFT  %.0f m/s", left), 0)
+      if left > burn_dv0 then burn_dv0 = left end
+      bar(g, 52, 232, 320, burn_dv0 > 0 and 1 - left / burn_dv0 or 0)
     elseif state == "done" then
       g:colour(120, 255, 140)
-      g:text(30, 210, "Burn complete - trim your approach", 0)
+      g:text(52, 210, "Burn complete - trim your approach", 0)
     else
-      g:text(30, 210, "Next window in  " .. fmt_time(wait), 0)
-      g:text(30, 228, "Press AUTO to fly the burn", 0)
+      g:text(52, 210, "Next window in  " .. fmt_time(wait), 0)
+      g:text(52, 228, "Press AUTO to fly the burn", 0)
     end
     g:colour(120, 255, 140)
 
-    local cx, cy = 200, 300
-    local s = 60 / math.max(r1, r2)
-    g:circle(cx, cy, r1 * s)
-    g:circle(cx, cy, r2 * s)
-    g:colour(255, 255, 255)
-    g:disc(cx + r1 * s, cy, 3)
-    g:colour(255, 200, 80)
-    g:disc(cx + math.cos(phase) * r2 * s, cy - math.sin(phase) * r2 * s, 3)
+    transfer_diagram(g, 200, 318, 56, r1, r2, phase, lead, ship("soi"), "You", props.get("/sim/target"),
+      { a = ship("orbit/semi-major-axis"), e = ship("orbit/eccentricity"), nu = ship("orbit/true-anomaly") })
   end,
 
   button = function(self, i)

@@ -628,6 +628,61 @@ local function plan_ejection(f, s)
   return res
 end
 
+-- Plan diagram: the central body, your actual orbit (green) with a white dot where you are, the target's orbit
+-- (orange) with its dot, and for a near circular orbit the planned transfer ellipse (yellow). A hollow ring marks where
+-- the target must be when you burn. If you are already on an eccentric orbit (after burn 1) that ellipse is drawn instead
+-- of a circle. When the sizes differ a lot the radii are compressed, so the picture is not to scale.
+local function transfer_diagram(g, cx, cy, R, r1, r2, phase, lead, centre, from_name, to_name, so)
+  local ecc = so and so.e or 0
+  local p = so and so.a and so.a * (1 - ecc * ecc) or r1
+  local actual = so and ecc > 0.02 and ecc < 0.98
+  local ra, rp = r1, r1
+  if actual then ra, rp = p / (1 - ecc), p / (1 + ecc) end
+  local rmax = math.max(r1, r2, ra)
+  local rmin = math.min(r1, r2, rp)
+  local k = 1
+  if rmin / rmax < 0.32 then k = math.min(1, math.log(0.32) / math.log(rmin / rmax)) end
+  local function disp(r) return R * (r / rmax) ^ k end
+  local d1, d2 = disp(r1), disp(r2)
+  g:colour(90, 140, 255)
+  g:disc(cx, cy, 4)
+  g:text(cx, cy + 8, centre, 1)
+  g:colour(255, 140, 60)
+  g:circle(cx, cy, d2)
+  local w = so and math.rad(-so.nu) or 0
+  g:colour(120, 255, 140)
+  if actual then
+    local px, py
+    for i = 0, 72 do
+      local t = (2 * math.pi) * i / 72
+      local d = disp(p / (1 + ecc * math.cos(t - w)))
+      local x, y = cx + d * math.cos(t), cy - d * math.sin(t)
+      if px then g:line(px, py, x, y) end
+      px, py = x, y
+    end
+  else
+    g:circle(cx, cy, d1)
+    g:colour(255, 200, 80)
+    local e, q
+    if d2 >= d1 then e = (d2 - d1) / (d2 + d1); q = d1 * (1 + e) else e = (d1 - d2) / (d1 + d2); q = d2 * (1 + e) end
+    local px, py
+    for i = 0, 48 do
+      local t = math.pi * i / 48
+      local r = d2 >= d1 and q / (1 + e * math.cos(t)) or q / (1 - e * math.cos(t))
+      local x, y = cx + r * math.cos(t), cy - r * math.sin(t)
+      if px then g:line(px, py, x, y) end
+      px, py = x, y
+    end
+  end
+  g:colour(255, 140, 60)
+  if not actual then g:circle(cx + d2 * math.cos(lead), cy - d2 * math.sin(lead), 5) end
+  g:disc(cx + d2 * math.cos(phase), cy - d2 * math.sin(phase), 4)
+  g:text(cx + d2 * math.cos(phase) + 7, cy - d2 * math.sin(phase) - 12, to_name, 0)
+  g:colour(255, 255, 255)
+  g:disc(cx + d1, cy, 4)
+  g:text(cx + d1 + 7, cy - 12, from_name, 0)
+end
+
 local function draw_plan(g, f, ot, tr, tv)
   title(g, f)
   if not props.get("/target/valid") then need_target(g, 200); return nil end
@@ -663,6 +718,8 @@ local function draw_plan(g, f, ot, tr, tv)
       g:colour(255, 120, 80)
       g:text(LX, 208, string.format("Planes differ by %.1f deg", plan.plane), 0)
     end
+    transfer_diagram(g, 200, 318, 56, len(f.r), len(tr), plan.phase, plan.lead, f.soi, "You", target_name(),
+      { a = ship("orbit/semi-major-axis"), e = ship("orbit/eccentricity"), nu = ship("orbit/true-anomaly") })
   else
     g:text(LX, 62, plan.outward and "Ejection to an outer planet" or "Ejection to an inner planet", 0)
     g:text(LX, 84, string.format("Ejection dV  %.1f m/s", plan.dv), 0)
@@ -677,6 +734,7 @@ local function draw_plan(g, f, ot, tr, tv)
       g:colour(255, 120, 80)
       g:text(LX, 218, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
     end
+    transfer_diagram(g, 120, 322, 50, len(sib.rp), len(sib.rt), plan.phase, plan.lead, f.parent, f.soi, target_name())
     -- The planet's path, with the burn point at the ejection angle from its direction of travel.
     local cx, cy, r = 300, 320, 45
     g:colour(60, 110, 255)

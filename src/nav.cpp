@@ -238,6 +238,15 @@ namespace kosmos
             return;
         for (const Link &l : links_)
         {
+            Ship &sa = *ships[static_cast<std::size_t>(l.a)], &sb = *ships[static_cast<std::size_t>(l.b)];
+            if (sa.spec().life_pod == sb.spec().life_pod)
+                continue;
+            Ship &pod = sa.spec().life_pod ? sa : sb, &host = sa.spec().life_pod ? sb : sa;
+            if (pod.systems() && host.systems())
+                host.systems()->refill_from(*pod.systems(), 1.0 * dt);
+        }
+        for (const Link &l : links_)
+        {
             int from = -1, to = -1;
             if (mode == "auto")
             {

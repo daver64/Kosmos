@@ -400,6 +400,7 @@ namespace kosmos
             if (json.contains("locker"))
                 spec.locker = json["locker"].get<std::vector<std::string>>();
             spec.fuel_pod = json.value("fuel_pod", false);
+            spec.life_pod = json.value("life_pod", false);
             spec.gear_time = std::max(0.1, json.value("gear_time", spec.gear_time));
             spec.gimbal_range = std::max(0.0, json.value("gimbal_range", spec.gimbal_range));
         }

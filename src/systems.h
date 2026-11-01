@@ -126,6 +126,8 @@ namespace kosmos
         /** Open a leak of `area_cm2` in vessel `index` at a point of its unit cube. Returns false for a bad index. */
         /** Set what fraction (0..1) of a gas's tank capacity is left, across all its tanks. */
         void set_tank_fraction(const std::string &gas, double fraction);
+        /** Move up to `kg` of consumables (gas and water tanks, scrubber sorbent) from a docked supply pod's systems into this ship's matching, part-empty ones. Returns the mass moved. */
+        double refill_from(Systems &donor, double kg);
         void set_battery_fraction(double fraction);
         bool breach(int vessel, double area_cm2, const sl::dvec3 &at = {0.0, 0.5, 0.5});
         /** A controllable hole from vessel `index` to vacuum (an open hatch). `key` names it so it can be changed or closed with area 0. */

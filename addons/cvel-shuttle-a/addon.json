@@ -5,7 +5,8 @@
   "ships": [
     "ship.json",
     "cargo.json",
-    "fuelpod.json"
+    "fuelpod.json",
+    "lifepod.json"
   ],
   "mfds": [
     {

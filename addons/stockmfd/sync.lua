@@ -146,18 +146,47 @@ return {
       return
     end
     local phase = props.get("/target/phase-angle")
-    local cx, cy, r1, r2 = 200, 272, 38, 66
-    g:colour(60, 110, 255)
-    g:circle(cx, cy, r1)
-    g:circle(cx, cy, r2)
-    g:colour(255, 255, 255)
-    g:disc(cx + r1, cy, 4)
+    -- Seen from above your orbital plane: your real orbit (green, an ellipse once you are on a transfer), the target's
+    -- orbit (orange) and a dot for each. Radii are compressed when the orbits differ a lot, so it is not to scale.
+    local cx, cy, R = 200, 272, 64
+    local rs, rt = props.get("/target/ship-radius"), props.get("/target/radius")
+    local ecc, sma = ship("orbit/eccentricity"), ship("orbit/semi-major-axis")
+    local nu = math.rad(-ship("orbit/true-anomaly"))
+    local bound = ship("orbit/bound") and ecc < 0.98 and sma > 0
+    local p = bound and sma * (1 - ecc * ecc) or rs
+    local rmax, rmin = math.max(rs, rt), math.min(rs, rt)
+    if bound then rmax = math.max(rmax, p / (1 - ecc)); rmin = math.min(rmin, p / (1 + ecc)) end
+    local k = 1
+    if rmin / rmax < 0.32 then k = math.min(1, math.log(0.32) / math.log(rmin / rmax)) end
+    local function disp(r) return R * (r / rmax) ^ k end
+    local dt, ds = disp(rt), disp(rs)
     local a = math.rad(phase)
-    g:colour(255, 200, 80)
-    g:disc(cx + math.cos(a) * r2, cy - math.sin(a) * r2, 4)
+    g:colour(90, 140, 255)
+    g:disc(cx, cy, 3)
+    g:colour(255, 140, 60)
+    g:circle(cx, cy, dt)
     g:colour(120, 255, 140)
-    g:line(cx, cy, cx + r1, cy)
-    g:line(cx, cy, cx + math.cos(a) * r2, cy - math.sin(a) * r2)
+    if bound and ecc > 0.02 then
+      local px, py
+      for n = 0, 72 do
+        local t = 2 * math.pi * n / 72
+        local d = disp(p / (1 + ecc * math.cos(t - nu)))
+        local x, y = cx + d * math.cos(t), cy - d * math.sin(t)
+        if px then g:line(px, py, x, y) end
+        px, py = x, y
+      end
+    else
+      g:circle(cx, cy, ds)
+    end
+    g:colour(255, 255, 255)
+    g:disc(cx + ds, cy, 4)
+    g:text(cx + ds + 6, cy - 12, "You", 0)
+    g:colour(255, 200, 80)
+    g:disc(cx + math.cos(a) * dt, cy - math.sin(a) * dt, 4)
+    g:text(cx + math.cos(a) * dt + 6, cy - math.sin(a) * dt - 12, props.get("/sim/target"), 0)
+    g:colour(70, 90, 130)
+    g:line(cx, cy, cx + ds, cy)
+    g:line(cx, cy, cx + math.cos(a) * dt, cy - math.sin(a) * dt)
     local lines = plan(orbits, phase)
     g:colour(255, 200, 80)
     for i, t in ipairs(lines) do g:text(200, 118 + (i - 1) * 17, t, 1) end

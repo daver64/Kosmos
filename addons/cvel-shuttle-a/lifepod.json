@@ -1,0 +1,112 @@
+{
+ "name": "CVEL Shuttle-A Life Support Pod",
+ "class": "payload",
+ "drag_area": 12,
+ "camera_distance": 14,
+ "ports": [
+  {
+   "name": "Shuttle end",
+   "position": [
+    -0.319,
+    0,
+    -2.5
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Far end",
+   "position": [
+    -0.319,
+    0,
+    2.5
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "stages": [
+  {
+   "name": "Life support pod",
+   "dry_mass": 20000,
+   "propellant": 0,
+   "z": 0,
+   "length": 5,
+   "radius": 2.8,
+   "engines": [],
+   "gear": [
+    [
+     -2,
+     -2,
+     -2.5
+    ],
+    [
+     2,
+     -2,
+     -2.5
+    ],
+    [
+     -2,
+     -2,
+     2.5
+    ],
+    [
+     2,
+     -2,
+     2.5
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/cargopod.obj"
+    }
+   ]
+  }
+ ],
+ "life_pod": true,
+ "systems": [
+  {
+   "type": "tank",
+   "name": "Oxygen",
+   "gas": "oxygen",
+   "capacity_kg": 650,
+   "kg": 650
+  },
+  {
+   "type": "tank",
+   "name": "Nitrogen",
+   "gas": "nitrogen",
+   "capacity_kg": 40,
+   "kg": 40
+  },
+  {
+   "type": "tank",
+   "name": "Water",
+   "gas": "water",
+   "capacity_kg": 2300,
+   "kg": 2300
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 sorbent",
+   "sorbent_kg": 760,
+   "enabled": false
+  }
+ ]
+}

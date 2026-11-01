@@ -406,6 +406,8 @@ namespace kosmos
         std::vector<std::string> locker;
         /** A tank pod: when docked it can feed its propellant to the ship it is attached to (see /dock/transfer). */
         bool fuel_pod = false;
+        /** A supply pod: when docked it tops up the host ship's oxygen, nitrogen and water tanks and CO2 sorbent from its own. */
+        bool life_pod = false;
         double gear_time = 6.0;
         std::vector<StageSpec> stages;
         /** Aerodynamic surfaces and wheels, for aircraft and anything else that flies in an atmosphere. */

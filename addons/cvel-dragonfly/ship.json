@@ -28,6 +28,36 @@
    "name": "Avionics",
    "watts": 300,
    "priority": 0
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 8,
+   "kg": 8
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 2,
+   "kg": 2
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 25,
+   "kg": 25
+  },
+  {
+   "type": "regulator",
+   "name": "Pressure regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 3,
+   "sorbent_kg": 9
   }
  ],
  "vessels": [
@@ -43,7 +73,7 @@
     2,
     2
    ],
-   "crew": 2
+   "crew": 1
   }
  ],
  "stages": [

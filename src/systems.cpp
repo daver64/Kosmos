@@ -258,6 +258,29 @@ namespace kosmos
         return nullptr;
     }
 
+    double Systems::refill_from(Systems &donor, double kg)
+    {
+        double moved = 0.0;
+        for (SystemComponent &c : components_)
+        {
+            const bool tank = c.type == "tank", sorbent = c.type == "scrubber" && c.capacity < 1e8;
+            if (!c.alive || (!tank && !sorbent))
+                continue;
+            for (SystemComponent &d : donor.components_)
+            {
+                if (!d.alive || d.type != c.type || d.gas != c.gas || d.amount <= 0.0)
+                    continue;
+                const double n = std::min({kg - moved, d.amount, c.capacity - c.amount});
+                if (n <= 0.0)
+                    continue;
+                d.amount -= n;
+                c.amount += n;
+                moved += n;
+            }
+        }
+        return moved;
+    }
+
     double Systems::take(const std::string &gas, double kg)
     {
         double got = 0.0;
