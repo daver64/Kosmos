@@ -23,7 +23,7 @@ namespace kosmos
     /**
      * One piece of ship equipment, described by `type`:
      *  battery      capacity_wh, charge (0..1), max_w
-     *  solar        area_m2, efficiency, facing (ship frame, default +Y)
+     *  solar        area_m2, efficiency, facing (ship frame, default +Y), tracking (true: always faces the Sun)
      *  rtg          watts, half_life_years, age_years
      *  fission      watts, fuel_kg
      *  fusion       watts, fuel_kg (deuterium)
@@ -46,6 +46,8 @@ namespace kosmos
         double wear_hours = 0.0;
         int priority = 1;
         sl::dvec3 facing{0.0, 1.0, 0.0};
+        /** Solar arrays only: the array steers to face the Sun, so the facing is ignored. */
+        bool tracking = false;
         // Runtime
         bool enabled = true;
         bool alive = true;
@@ -131,6 +133,11 @@ namespace kosmos
         /** A passage between two vessels (an open door): gas flows until the pressures match. Closed with area 0. */
         void set_link(int vessel_a, int vessel_b, int key, double area_cm2);
         void set_mode(LifeSupportMode mode) { mode_ = mode; }
+        /** Put `crew` people aboard vessel `index` (0 when they leave). Arriving after an empty spell restores full health. */
+        bool set_crew(int vessel, int crew);
+        /** Turn every load, CO2 scrubber and pressure regulator on or off together (a crew arriving or leaving). */
+        void set_consumers(bool on);
+        bool consumers_on() const;
         LifeSupportMode mode() const { return mode_; }
 
         bool crew_lost() const { return crew_lost_; }

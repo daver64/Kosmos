@@ -1,5 +1,6 @@
 {
  "name": "Mir",
+ "description": "Mir space station. Dormant until a crew arrives: switch on systems and life support from the Ship systems window (F1). Stores a month of oxygen, water and CO2 sorbent for two people.",
  "class": "station",
  "torque_accel": 0.02,
  "max_rate": 0.2,
@@ -8,16 +9,74 @@
  "camera_distance": 60,
  "systems": [
   {
+   "type": "solar",
+   "name": "Solar arrays",
+   "area_m2": 100,
+   "efficiency": 0.2,
+   "tracking": true
+  },
+  {
    "type": "battery",
    "name": "Batteries",
-   "capacity_wh": 100000,
-   "max_w": 20000
+   "capacity_wh": 40000,
+   "max_w": 6000
   },
   {
    "type": "load",
    "name": "Station systems",
-   "watts": 3000,
-   "priority": 0
+   "watts": 1500,
+   "priority": 1,
+   "enabled": false
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 80,
+   "kg": 80
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 40,
+   "kg": 40
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 240,
+   "kg": 240
+  },
+  {
+   "type": "regulator",
+   "name": "Pressure regulator",
+   "vessel": "Habitat",
+   "enabled": false
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Habitat",
+   "kg_per_day": 3,
+   "sorbent_kg": 80,
+   "enabled": false
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Habitat",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "size": [
+    5,
+    5,
+    14
+   ],
+   "crew": 0,
+   "pressure_kpa": 101.3,
+   "o2_fraction": 0.21
   }
  ],
  "stages": [
@@ -38,6 +97,44 @@
       0
      ]
     }
+   ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Fore",
+   "position": [
+    0,
+    0,
+    -11.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Aft",
+   "position": [
+    0,
+    0,
+    11.65
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
    ]
   }
  ]

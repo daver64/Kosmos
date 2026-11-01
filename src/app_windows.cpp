@@ -20,6 +20,16 @@ namespace kosmos::app
                     const char *modes[] = {"Off", "Warn", "Fatal"};
                     if (ImGui::Combo("Life support", &mode, modes, 3))
                         sys->set_mode(static_cast<kosmos::LifeSupportMode>(mode));
+                    if (sys->vessel_count() > 0)
+                    {
+                        const bool on = sys->consumers_on();
+                        if (ImGui::Button(on ? "Crew depart: systems and life support off" : "Crew arrive: systems and life support on"))
+                        {
+                            sys->set_consumers(!on);
+                            for (int vi = 0; vi < sys->vessel_count(); ++vi)
+                                sys->set_crew(vi, on ? 0 : std::max(sys->vessels()[static_cast<std::size_t>(vi)].spec.crew, 2));
+                        }
+                    }
                     ImGui::SeparatorText("Power");
                     ImGui::Text("Supply %.0f W   Demand %.0f W   %s", sys->supply_w(), sys->demand_w(), sys->powered() ? "" : "SHORTAGE");
                     const double cap = sys->battery_capacity_wh();
@@ -41,6 +51,8 @@ namespace kosmos::app
                         }
                         else if (c.output_w > 0.0)
                             ImGui::Text("%s  %.0f W", c.name.c_str(), c.output_w);
+                        else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && !c.enabled)
+                            ImGui::TextDisabled("%s  off", c.name.c_str());
                         else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && c.enabled)
                             ImGui::TextColored(c.powered ? ImVec4(0.7f, 1.0f, 0.7f, 1.0f) : ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "%s  %.0f W %s", c.name.c_str(), c.watts, c.powered ? "" : "(shed)");
                     }
@@ -56,6 +68,12 @@ namespace kosmos::app
                         }
                         ImGui::Text("%.1f kPa   O2 %.1f   CO2 %.2f kPa   crew %d   health %.0f%%  %s", v.pressure_kpa(), v.ppo2_kpa(), v.ppco2_kpa(), v.spec.crew, v.health * 100.0, v.hazard.c_str());
                         ImGui::PushID(vi);
+                        if (ImGui::SmallButton("Crew -"))
+                            sys->set_crew(vi, v.spec.crew - 1);
+                        ImGui::SameLine();
+                        if (ImGui::SmallButton("Crew +"))
+                            sys->set_crew(vi, v.spec.crew + 1);
+                        ImGui::SameLine();
                         if (ImGui::SmallButton("Open 5 cm2 leak"))
                             sys->breach(vi, 5.0);
                         ImGui::SameLine();

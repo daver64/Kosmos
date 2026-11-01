@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copy just the web pages (html, css, js, images, report/ scripts) from this machine's site to the public host.
-# No build, no version bump, and downloads/, kav/ and the SDK archives are left alone.
+# No build, no version bump; game and Kosmos downloads, kav/ and SDK archives are left alone.
 #
 # Usage: sync-site.sh [--dry-run] [--host USER@HOST]
 set -e
@@ -19,3 +19,13 @@ ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" true || { echo "cannot reach $
 rsync -rlt --omit-dir-times --itemize-changes $dry \
     --exclude=/kav/ --exclude=/download/ \
     "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
+for game in exinvaders exbomberman exdefender exasteroids; do
+    rsync -rlt --omit-dir-times --itemize-changes $dry --exclude=/download/ \
+        "$WEB_ROOT/$game/" "$HOST:$WEB_ROOT/$game/"
+done
+rsync -t --itemize-changes $dry "$WEB_ROOT/index.html" "$HOST:$WEB_ROOT/index.html"
+rsync -t --itemize-changes $dry "$WEB_ROOT/nebulabrot.jpg" "$HOST:$WEB_ROOT/nebulabrot.jpg"
+rsync -t --itemize-changes $dry \
+    "$WEB_ROOT"/img/card-kosmos.jpg "$WEB_ROOT"/img/card-simlib.jpg \
+    "$WEB_ROOT"/img/card-exinvaders.jpg "$WEB_ROOT"/img/card-exbomberman.jpg \
+    "$WEB_ROOT"/img/card-exdefender.jpg "$WEB_ROOT"/img/card-exasteroids.jpg "$HOST:$WEB_ROOT/img/"

@@ -117,6 +117,7 @@ namespace kosmos
             c.enabled = jc.value("enabled", c.type != "electrolyser" && c.type != "isru");
             c.priority = jc.value("priority", (c.type == "regulator" || c.type == "scrubber") ? 0 : 1);
             c.facing = vec3(jc.value("facing", nlohmann::json()), c.facing);
+            c.tracking = jc.value("tracking", false);
             if (c.type == "battery")
             {
                 c.capacity = jc.value("capacity_wh", 1000.0);
@@ -218,7 +219,7 @@ namespace kosmos
             v.n2 = pressure_to_mass(n2_kpa, v.volume, vs.temperature_k, molar_n2);
             v.co2 = pressure_to_mass(vs.co2_kpa, v.volume, vs.temperature_k, molar_co2);
             if (v.spec.crew_at.empty())
-                for (int i = 0; i < std::max(v.spec.crew, 0); ++i)
+                for (int i = 0; i < (v.spec.crew > 0 ? v.spec.crew : 2); ++i)
                     v.spec.crew_at.push_back({0.3 + 0.4 * ((i % 3) / 2.0), 0.35, 0.3 + 0.4 * ((i / 3 % 3) / 2.0)});
             v.grid = sl::create_gas_vessel(12);
             if (v.grid)
@@ -396,7 +397,7 @@ namespace kosmos
             if (c.type == "solar")
             {
                 const double len = std::sqrt(c.facing.x * c.facing.x + c.facing.y * c.facing.y + c.facing.z * c.facing.z);
-                const double cosine = len > 0.0 ? (c.facing.x * sun.x + c.facing.y * sun.y + c.facing.z * sun.z) / len : 0.0;
+                const double cosine = c.tracking ? 1.0 : len > 0.0 ? (c.facing.x * sun.x + c.facing.y * sun.y + c.facing.z * sun.z) / len : 0.0;
                 c.output_w = c.area * c.efficiency * solar_constant * ctx.sun_flux * std::max(cosine, 0.0);
             }
             else if (c.type == "rtg")
@@ -658,6 +659,38 @@ namespace kosmos
         step_links(dt);
     }
 
+    bool Systems::set_crew(int vessel, int crew)
+    {
+        if (vessel < 0 || vessel >= static_cast<int>(vessels_.size()))
+            return false;
+        Vessel &v = vessels_[static_cast<std::size_t>(vessel)];
+        crew = std::max(crew, 0);
+        if (v.spec.crew <= 0 && crew > 0)
+            v.health = 1.0;
+        v.spec.crew = crew;
+        return true;
+    }
+
+    namespace
+    {
+        bool is_consumer(const SystemComponent &c) { return c.type == "load" || c.type == "scrubber" || c.type == "regulator"; }
+    } // namespace
+
+    void Systems::set_consumers(bool on)
+    {
+        for (SystemComponent &c : components_)
+            if (is_consumer(c))
+                c.enabled = on;
+    }
+
+    bool Systems::consumers_on() const
+    {
+        for (const SystemComponent &c : components_)
+            if (c.alive && is_consumer(c) && c.enabled)
+                return true;
+        return false;
+    }
+
     void Systems::step(double dt, const SystemsContext &ctx)
     {
         if (dt <= 0.0 || crew_lost_)
@@ -730,6 +763,8 @@ namespace kosmos
             tree.node(base + "/" + cb + "output-w")->tie_double([this, i] { return components_[i].output_w; });
             tree.node(base + "/" + cb + "failed")->tie_double([this, i] { return components_[i].wear >= 1.0 ? 1.0 : 0.0; });
         }
+        // Writing 1 or 0 switches every load, scrubber and regulator on or off.
+        tree.node(base + "/consumers")->tie_double([this] { return consumers_on() ? 1.0 : 0.0; }, [this](double v) { set_consumers(v > 0.5); });
         // Writing 1 here overhauls every component.
         tree.node(base + "/repair")->tie_double([] { return 0.0; }, [this](double v) {
             if (v > 0.5)
@@ -747,6 +782,7 @@ namespace kosmos
             num(vb + "pressure-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].pressure_kpa() : 0.0; });
             num(vb + "ppo2-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].ppo2_kpa() : 0.0; });
             num(vb + "ppco2-kpa", [this, i] { return vessels_[i].alive ? vessels_[i].ppco2_kpa() : 0.0; });
+            tree.node(base + "/" + vb + "crew")->tie_double([this, i] { return static_cast<double>(vessels_[i].spec.crew); }, [this, i](double n) { set_crew(static_cast<int>(i), static_cast<int>(n)); });
             num(vb + "health", [this, i] { return vessels_[i].health; });
             num(vb + "leak-rate", [this, i] { return vessels_[i].leak_k; });
             // Writing an area (cm2) here opens a leak in this vessel; it reads back as 0.

@@ -1,0 +1,201 @@
+{
+ "name": "ISS (Nuclear)",
+ "description": "International Space Station fitted with a 20 kW fission plant for the outer system, where sunlight is too weak for its solar arrays. Dormant until a crew arrives: switch on systems and life support from the Ship systems window (F1). Stores a month of oxygen, water and CO2 sorbent for two people.",
+ "class": "station",
+ "torque_accel": 0.02,
+ "max_rate": 0.2,
+ "rcs_thrust": 2000,
+ "drag_area": 2000,
+ "camera_distance": 160,
+ "systems": [
+  {
+   "type": "solar",
+   "name": "Solar arrays",
+   "area_m2": 640,
+   "efficiency": 0.14,
+   "tracking": true
+  },
+  {
+   "type": "fission",
+   "name": "Fission reactor",
+   "watts": 20000,
+   "fuel_kg": 100
+  },
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 100000,
+   "max_w": 16000
+  },
+  {
+   "type": "load",
+   "name": "Station systems",
+   "watts": 4000,
+   "priority": 1,
+   "enabled": false
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 80,
+   "kg": 80
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 40,
+   "kg": 40
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 240,
+   "kg": 240
+  },
+  {
+   "type": "regulator",
+   "name": "Pressure regulator",
+   "vessel": "Habitat",
+   "enabled": false
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Habitat",
+   "kg_per_day": 3,
+   "sorbent_kg": 80,
+   "enabled": false
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Habitat",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "size": [
+    7,
+    7,
+    18
+   ],
+   "crew": 0,
+   "pressure_kpa": 101.3,
+   "o2_fraction": 0.21
+  }
+ ],
+ "stages": [
+  {
+   "name": "Station",
+   "dry_mass": 420000,
+   "propellant": 2000,
+   "z": 0,
+   "length": 110,
+   "radius": 12,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/iss.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Forward",
+   "position": [
+    0.08,
+    -5.8,
+    -15.7
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    -1,
+    0
+   ]
+  },
+  {
+   "name": "Nadir 1",
+   "position": [
+    0.09,
+    -17.9,
+    3.8
+   ],
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "up": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "name": "Aft",
+   "position": [
+    0.05,
+    -4.3,
+    36.3
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "Nadir 2",
+   "position": [
+    0.05,
+    -7.7,
+    -10.3
+   ],
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "name": "Nadir 3",
+   "position": [
+    0.05,
+    -18.3,
+    23.7
+   ],
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "up": [
+    0,
+    0,
+    1
+   ]
+  }
+ ]
+}

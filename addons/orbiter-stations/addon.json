@@ -1,9 +1,12 @@
 {
  "id": "orbiter-stations",
- "name": "Orbiter ISS and Mir stations",
+ "name": "Orbiter ISS, Mir and Wheel stations",
  "version": "0.1",
  "ships": [
   "iss.json",
-  "mir.json"
+  "iss_nuclear.json",
+  "mir.json",
+  "mir_nuclear.json",
+  "wheel.json"
  ]
 }

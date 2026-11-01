@@ -1,0 +1,103 @@
+{
+ "name": "Wheel",
+ "description": "Orbiter's wheel station, a 514 m rotating ring. Dormant until a crew arrives: switch on systems and life support from the Ship systems window (F1). Stores a month of oxygen, water and CO2 sorbent for two people.",
+ "class": "station",
+ "torque_accel": 0.02,
+ "max_rate": 0.2,
+ "rcs_thrust": 2000,
+ "drag_area": 20000,
+ "camera_distance": 700,
+ "systems": [
+  {
+   "type": "solar",
+   "name": "Solar arrays",
+   "area_m2": 400,
+   "efficiency": 0.28,
+   "tracking": true
+  },
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 200000,
+   "max_w": 24000
+  },
+  {
+   "type": "load",
+   "name": "Station systems",
+   "watts": 6000,
+   "priority": 1,
+   "enabled": false
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 80,
+   "kg": 80
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 40,
+   "kg": 40
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 240,
+   "kg": 240
+  },
+  {
+   "type": "regulator",
+   "name": "Pressure regulator",
+   "vessel": "Habitat",
+   "enabled": false
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Habitat",
+   "kg_per_day": 3,
+   "sorbent_kg": 80,
+   "enabled": false
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Habitat",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "size": [
+    6,
+    6,
+    30
+   ],
+   "crew": 0,
+   "pressure_kpa": 101.3,
+   "o2_fraction": 0.21
+  }
+ ],
+ "stages": [
+  {
+   "name": "Station",
+   "dry_mass": 900000,
+   "propellant": 2000,
+   "z": 0,
+   "length": 44,
+   "radius": 257,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/wheel.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

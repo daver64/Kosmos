@@ -62,6 +62,23 @@ int main()
         assert(sys.battery_wh() < wh1);
     }
     {
+        // A sun-tracking array ignores its facing and its output follows the flux: full at 1 AU, a quarter at 2 AU, none in eclipse.
+        SystemsSpec s = parse(R"({"systems":[{"type":"solar","area_m2":100,"efficiency":0.2,"facing":[0,1,0],"tracking":true}]})");
+        Systems sys(s, LifeSupportMode::warn);
+        SystemsContext c;
+        c.sun_dir = {1.0, 0.0, 0.0};
+        c.sun_flux = 1.0;
+        sys.step(1.0, c);
+        const double full = sys.supply_w();
+        assert(full > 27000.0 && full < 27400.0);
+        c.sun_flux = 0.25;
+        sys.step(1.0, c);
+        assert(std::abs(sys.supply_w() - full * 0.25) < 1.0);
+        c.sun_flux = 0.0;
+        sys.step(1.0, c);
+        assert(sys.supply_w() == 0.0);
+    }
+    {
         // Load shedding: with no power source the battery empties and low-priority loads drop first.
         SystemsSpec s = parse(R"({"systems":[{"type":"battery","capacity_wh":10,"max_w":1000},
             {"type":"load","name":"essential","watts":100,"priority":0},{"type":"load","name":"lux","watts":100,"priority":2}]})");
