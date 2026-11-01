@@ -8,12 +8,6 @@ namespace shipedit
     namespace
     {
         constexpr double pi = 3.14159265358979323846;
-        constexpr std::size_t triangle_budget = 150000;
-
-        struct V3
-        {
-            double x = 0, y = 0, z = 0;
-        };
 
         V3 read_vec(const json &j, V3 fallback = {})
         {
@@ -55,12 +49,6 @@ namespace shipedit
         {
             double sx[3], sy[3], depth;
             double r, g, b;
-        };
-
-        struct Soup
-        {
-            std::vector<V3> p; // 3 per triangle
-            double r = 0.6, g = 0.65, b = 0.72;
         };
 
         void cylinder(Soup &s, double z, double length, double r_tail, double r_nose, int segments = 20)
@@ -131,23 +119,19 @@ namespace shipedit
         return &it->second.mesh;
     }
 
-    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes)
+    std::shared_ptr<const Geometry> prepare_geometry(const Document &doc, const PreviewView &view, MeshCache &meshes)
     {
-        cairo_pattern_t *bg = cairo_pattern_create_linear(0, 0, 0, height);
-        cairo_pattern_add_color_stop_rgb(bg, 0, 0.05, 0.06, 0.09);
-        cairo_pattern_add_color_stop_rgb(bg, 1, 0.10, 0.12, 0.16);
-        cairo_set_source(cr, bg);
-        cairo_paint(cr);
-        cairo_pattern_destroy(bg);
-
         const json &root = doc.root();
         if (!root.contains("stages") || !root["stages"].is_array() || root["stages"].empty())
-        {
-            text(cr, 20, 30, "No stages. Add one with + Stage.", 0.8, 0.8, 0.8);
-            return;
-        }
+            return nullptr;
         const json &stages = root["stages"];
-
+        std::string key = stages.dump() + '|' + doc.resolve("x").string() + (view.interactive && view.thin_when_dragging ? "|i" : "|f") + std::to_string(view.triangle_budget);
+        if (!meshes.geometry || meshes.geometry_key != key)
+        {
+            static unsigned counter = 0;
+            auto geo = std::make_shared<Geometry>();
+            geo->generation = ++counter;
+            std::vector<Item> &items = geo->items;
         double zmin = 1e30, zmax = -1e30, rmax = 0.1;
         for (const json &st : stages)
         {
@@ -156,37 +140,6 @@ namespace shipedit
             zmax = std::max(zmax, z + half);
             rmax = std::max(rmax, st.value("radius", 1.0));
         }
-        struct Item
-        {
-            Soup soup;
-            double tint;
-            bool highlight;
-        };
-        std::vector<Item> items;
-        Camera cam;
-        std::vector<Tri> tris;
-        auto emit = [&](const Soup &soup, double tint, bool highlight) {
-            for (std::size_t i = 0; i + 2 < soup.p.size(); i += 3)
-            {
-                const V3 w[3] = {soup.p[i], soup.p[i + 1], soup.p[i + 2]};
-                const double light = shade(w);
-                Tri t;
-                double depth = 0;
-                for (int k = 0; k < 3; ++k)
-                {
-                    const V3 v = cam.view(w[k]);
-                    cam.screen(v, t.sx[k], t.sy[k]);
-                    depth += v.z;
-                }
-                t.depth = depth / 3.0;
-                const double lift = highlight ? 0.25 : 0.0;
-                t.r = std::min(1.0, soup.r * light * tint + lift * 0.6);
-                t.g = std::min(1.0, soup.g * light * tint + lift * 0.45);
-                t.b = std::min(1.0, soup.b * light * tint);
-                tris.push_back(t);
-            }
-        };
-
         std::size_t model_tris = 0;
         std::vector<const Mesh *> loaded;
         for (const json &st : stages)
@@ -205,19 +158,16 @@ namespace shipedit
                     model_tris += mesh->triangles.size() / 3;
             }
         }
-        const std::size_t stride = std::max<std::size_t>(1, model_tris / (view.interactive ? triangle_budget / 6 : triangle_budget));
+        const std::size_t stride = std::max<std::size_t>(1, model_tris / (view.interactive && view.thin_when_dragging ? view.triangle_budget / 6 : view.triangle_budget));
 
         std::size_t part_counter = 0;
         for (std::size_t s = 0; s < stages.size(); ++s)
         {
             const json &st = stages[s];
-            const bool stage_selected = sel.stage == static_cast<int>(s);
-            const double tint = sel.kind == Selection::none || stage_selected ? 1.0 : 0.55;
             const json parts = st.value("parts", json::array());
             for (std::size_t p = 0; p < parts.size(); ++p, ++part_counter)
             {
                 const json &part = parts[p];
-                const bool picked = sel.kind == Selection::part && stage_selected && sel.item == static_cast<int>(p);
                 Soup soup;
                 if (part.contains("model"))
                 {
@@ -270,41 +220,137 @@ namespace shipedit
                 }
                 else
                     continue;
-                items.push_back({std::move(soup), tint, picked});
+                items.push_back({std::move(soup), static_cast<int>(s), static_cast<int>(p), {}});
             }
         }
 
         // Frame what is really there: the meshes can reach past the stage envelopes.
-        for (const Item &it : items)
+        for (Item &it : items)
             for (const V3 &v : it.soup.p)
             {
                 zmin = std::min(zmin, v.z);
                 zmax = std::max(zmax, v.z);
                 rmax = std::max(rmax, std::max(std::abs(v.x), std::abs(v.y)));
             }
-        cam.cy = std::cos(view.yaw);
-        cam.sy = std::sin(view.yaw);
-        cam.cp = std::cos(view.pitch);
-        cam.sp = std::sin(view.pitch);
-        cam.centre = {0, 0, (zmin + zmax) * 0.5};
-        const double extent = std::max(zmax - zmin, rmax * 2.0);
-        cam.scale = std::min(width, height) * 0.8 / std::max(extent, 1.0e-3) * view.zoom;
-        cam.cx = width * 0.5 + view.pan_x;
-        cam.cyc = height * 0.5 + view.pan_y;
-
+        // Each triangle's light depends only on its place in the ship, so it is worked out here and not on every frame.
+        for (Item &it : items)
+            for (std::size_t i = 0; i + 2 < it.soup.p.size(); i += 3)
+                it.light.push_back(static_cast<float>(shade(&it.soup.p[i])));
         for (const Item &it : items)
-            emit(it.soup, it.tint, it.highlight);
+            geo->triangles += it.soup.p.size() / 3;
+        geo->zmin = zmin;
+        geo->zmax = zmax;
+        geo->rmax = rmax;
+        meshes.geometry = geo;
+        meshes.geometry_key = key;
+        }
+        return meshes.geometry;
+    }
+
+    Projection projection(const Geometry &geo, int width, int height, const PreviewView &view)
+    {
+        Projection p;
+        p.cy = std::cos(view.yaw);
+        p.sy = std::sin(view.yaw);
+        p.cp = std::cos(view.pitch);
+        p.sp = std::sin(view.pitch);
+        p.centre_z = (geo.zmin + geo.zmax) * 0.5;
+        const double extent = std::max(geo.zmax - geo.zmin, geo.rmax * 2.0);
+        p.scale = std::min(width, height) * 0.8 / std::max(extent, 1.0e-3) * view.zoom;
+        p.cx = width * 0.5 + view.pan_x;
+        p.cyc = height * 0.5 + view.pan_y;
+        p.depth_range = (geo.zmax - geo.zmin + geo.rmax * 2.0) * 1.5 + 1.0;
+        return p;
+    }
+
+    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes, bool solids)
+    {
+        if (solids)
+        {
+            cairo_pattern_t *bg = cairo_pattern_create_linear(0, 0, 0, height);
+            cairo_pattern_add_color_stop_rgb(bg, 0, 0.05, 0.06, 0.09);
+            cairo_pattern_add_color_stop_rgb(bg, 1, 0.10, 0.12, 0.16);
+            cairo_set_source(cr, bg);
+            cairo_paint(cr);
+            cairo_pattern_destroy(bg);
+        }
+
+        const json &root = doc.root();
+        if (!root.contains("stages") || !root["stages"].is_array() || root["stages"].empty())
+        {
+            text(cr, 20, 30, "No stages. Add one with + Stage.", 0.8, 0.8, 0.8);
+            return;
+        }
+        const json &stages = root["stages"];
+
+        const std::shared_ptr<const Geometry> geo_ptr = prepare_geometry(doc, view, meshes);
+        const Geometry &geo = *geo_ptr;
+        const double zmin = geo.zmin, zmax = geo.zmax, rmax = geo.rmax;
+        const double extent = std::max(zmax - zmin, rmax * 2.0);
+        const Projection pj = projection(geo, width, height, view);
+        Camera cam;
+        std::vector<Tri> tris;
+        cam.cy = pj.cy;
+        cam.sy = pj.sy;
+        cam.cp = pj.cp;
+        cam.sp = pj.sp;
+        cam.centre = {0, 0, pj.centre_z};
+        cam.scale = pj.scale;
+        cam.cx = pj.cx;
+        cam.cyc = pj.cyc;
+
+        if (solids)
+        {
+        tris.reserve(geo.triangles);
+        for (const Item &it : geo.items)
+        {
+            const bool stage_selected = sel.stage == it.stage;
+            const double tint = sel.kind == Selection::none || stage_selected ? 1.0 : 0.55;
+            const bool highlight = sel.kind == Selection::part && stage_selected && sel.item == it.part;
+            const double lift = highlight ? 0.25 : 0.0;
+            for (std::size_t i = 0; i + 2 < it.soup.p.size(); i += 3)
+            {
+                Tri t;
+                double depth = 0;
+                for (int k = 0; k < 3; ++k)
+                {
+                    const V3 v = cam.view(it.soup.p[i + k]);
+                    cam.screen(v, t.sx[k], t.sy[k]);
+                    depth += v.z;
+                }
+                t.depth = depth / 3.0;
+                const double light = it.light[i / 3];
+                t.r = std::min(1.0, it.soup.r * light * tint + lift * 0.6);
+                t.g = std::min(1.0, it.soup.g * light * tint + lift * 0.45);
+                t.b = std::min(1.0, it.soup.b * light * tint);
+                tris.push_back(t);
+            }
+        }
         std::sort(tris.begin(), tris.end(), [](const Tri &a, const Tri &b) { return a.depth < b.depth; });
         cairo_set_line_width(cr, 0.4);
-        for (const Tri &t : tris)
+        // Seams between smoothed triangles show the background through. A first pass without smoothing closes them; when still, a second
+        // smoothed pass over it softens the edges. That is much cheaper than stroking every triangle.
+        for (int pass = 0; pass < (view.interactive ? 1 : 2); ++pass)
         {
-            cairo_move_to(cr, t.sx[0], t.sy[0]);
-            cairo_line_to(cr, t.sx[1], t.sy[1]);
-            cairo_line_to(cr, t.sx[2], t.sy[2]);
-            cairo_close_path(cr);
-            cairo_set_source_rgb(cr, t.r, t.g, t.b);
-            cairo_fill_preserve(cr);
-            cairo_stroke(cr);
+            cairo_set_antialias(cr, pass == 0 ? CAIRO_ANTIALIAS_NONE : CAIRO_ANTIALIAS_DEFAULT);
+            for (const Tri &t : tris)
+            {
+                const double minx = std::min({t.sx[0], t.sx[1], t.sx[2]}), maxx = std::max({t.sx[0], t.sx[1], t.sx[2]});
+                const double miny = std::min({t.sy[0], t.sy[1], t.sy[2]}), maxy = std::max({t.sy[0], t.sy[1], t.sy[2]});
+                if (maxx < 0 || minx > width || maxy < 0 || miny > height)
+                    continue;
+                // A triangle under a pixel only needs the unsmoothed pass.
+                if (pass == 1 && maxx - minx < 1.0 && maxy - miny < 1.0)
+                    continue;
+                cairo_move_to(cr, t.sx[0], t.sy[0]);
+                cairo_line_to(cr, t.sx[1], t.sy[1]);
+                cairo_line_to(cr, t.sx[2], t.sy[2]);
+                cairo_close_path(cr);
+                cairo_set_source_rgb(cr, t.r, t.g, t.b);
+                cairo_fill(cr);
+            }
+        }
+        cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
         }
 
         auto line3 = [&](V3 a, V3 b) {

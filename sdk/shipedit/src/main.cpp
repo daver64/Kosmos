@@ -4,6 +4,8 @@
 // shipedit [--root DIR] [--addon ID] [--ship NAME] [--shot FILE [--yaw D] [--pitch D] [--size WxH]]
 // --shot draws the preview to a PNG without opening a window.
 #include "model.h"
+#include <epoxy/gl.h>
+#include "gl_preview.h"
 #include "preview.h"
 
 #include <gtk/gtk.h>
@@ -38,7 +40,9 @@ namespace
         PreviewView view;
         std::string last_saved_ship;
 
-        GtkWidget *window = nullptr, *addon_combo = nullptr, *ship_combo = nullptr, *tree_view = nullptr, *area = nullptr, *form_box = nullptr;
+        GtkWidget *window = nullptr, *addon_combo = nullptr, *ship_combo = nullptr, *tree_view = nullptr, *area = nullptr, *form_box = nullptr, *gl_area = nullptr;
+        GlPreview gl;
+        bool use_gl = false; // the ship's surfaces are drawn by the GL widget under the overlay; otherwise cairo draws everything
         GtkWidget *stats_label = nullptr, *problems_label = nullptr, *undo_btn = nullptr, *redo_btn = nullptr, *with_contents = nullptr, *launch_btn = nullptr, *save_btn = nullptr;
         GtkTreeStore *store = nullptr;
         bool building = false;
@@ -99,6 +103,7 @@ namespace
 
     void refresh_status();
     void rebuild_form();
+    void redraw_preview();
 
     void select_in_tree(const Selection &want)
     {
@@ -167,7 +172,7 @@ namespace
     void structure_changed(Selection want)
     {
         rebuild_tree(want);
-        gtk_widget_queue_draw(app->area);
+        redraw_preview();
     }
 
     void update_title()
@@ -224,7 +229,7 @@ namespace
             }
         }
         refresh_status();
-        gtk_widget_queue_draw(app->area);
+        redraw_preview();
     }
 
     void commit_value(const char *key, const json &value, bool erase)
@@ -868,8 +873,52 @@ namespace
 
     gboolean draw_cb(GtkWidget *w, cairo_t *cr, gpointer)
     {
-        draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w), app->doc, app->sel, app->view, app->meshes);
+        draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w), app->doc, app->sel, app->view, app->meshes, !app->use_gl);
         return FALSE;
+    }
+
+    gboolean gl_render_cb(GtkGLArea *a, GdkGLContext *, gpointer)
+    {
+        const int w = gtk_widget_get_allocated_width(GTK_WIDGET(a)), h = gtk_widget_get_allocated_height(GTK_WIDGET(a));
+        if (const std::shared_ptr<const Geometry> geo = prepare_geometry(app->doc, app->view, app->meshes))
+            app->gl.draw(*geo, projection(*geo, w, h, app->view), app->sel, w, h, gtk_widget_get_scale_factor(GTK_WIDGET(a)));
+        else
+        {
+            glClearColor(0.07f, 0.08f, 0.12f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
+        return TRUE;
+    }
+
+    void gl_realize_cb(GtkWidget *w, gpointer)
+    {
+        gtk_gl_area_make_current(GTK_GL_AREA(w));
+        if (gtk_gl_area_get_error(GTK_GL_AREA(w)) || !app->gl.init())
+        {
+            std::fprintf(stderr, "shipedit: OpenGL is not available (%s); drawing the preview in software\n", gtk_gl_area_get_error(GTK_GL_AREA(w)) ? "no context" : "shader");
+            gtk_widget_hide(w);
+            return;
+        }
+        app->use_gl = true;
+        app->view.thin_when_dragging = false;
+        app->view.triangle_budget = 4000000;
+        gtk_widget_queue_draw(app->area);
+    }
+
+    void gl_unrealize_cb(GtkWidget *w, gpointer)
+    {
+        gtk_gl_area_make_current(GTK_GL_AREA(w));
+        if (!gtk_gl_area_get_error(GTK_GL_AREA(w)))
+            app->gl.release();
+        app->use_gl = false;
+    }
+
+    // Both layers change together: the overlay is cairo, the surfaces are GL.
+    void redraw_preview()
+    {
+        gtk_widget_queue_draw(app->area);
+        if (app->use_gl)
+            gtk_gl_area_queue_render(GTK_GL_AREA(app->gl_area));
     }
 
     GtkWidget *button(const char *label, std::function<void()> f)
@@ -956,7 +1005,7 @@ namespace
                              gtk_tree_model_get(m, &it, COL_KIND, &k, COL_STAGE, &st, COL_ITEM, &item, -1);
                              app->sel = {static_cast<Selection::Kind>(k), st, item};
                              rebuild_form();
-                             gtk_widget_queue_draw(app->area);
+                             redraw_preview();
                          }),
                          nullptr);
         GtkWidget *tsw = gtk_scrolled_window_new(nullptr, nullptr);
@@ -1047,14 +1096,14 @@ namespace
                                  app->view.yaw += dx * 0.008;
                                  app->view.pitch = std::max(-1.5707, std::min(1.5707, app->view.pitch + dy * 0.008));
                              }
-                             gtk_widget_queue_draw(w);
+                             redraw_preview();
                              return TRUE;
                          }),
                          nullptr);
         g_signal_connect(app->area, "button-release-event", CB(+[](GtkWidget *w, GdkEventButton *, gpointer) -> gboolean {
                              app->drag_button = 0;
                              app->view.interactive = false;
-                             gtk_widget_queue_draw(w);
+                             redraw_preview();
                              return TRUE;
                          }),
                          nullptr);
@@ -1066,7 +1115,7 @@ namespace
                              app->view.pan_x = mx + (app->view.pan_x - mx) * f;
                              app->view.pan_y = my + (app->view.pan_y - my) * f;
                              app->view.zoom = nz;
-                             gtk_widget_queue_draw(w);
+                             redraw_preview();
                              return TRUE;
                          }),
                          nullptr);
@@ -1089,7 +1138,7 @@ namespace
             GtkWidget *b = button(p.label, [p] {
                 app->view.yaw = p.yaw;
                 app->view.pitch = p.pitch;
-                gtk_widget_queue_draw(app->area);
+                redraw_preview();
             });
             gtk_widget_set_tooltip_text(b, p.tip);
             gtk_box_pack_start(GTK_BOX(views), b, FALSE, FALSE, 0);
@@ -1097,12 +1146,28 @@ namespace
         GtkWidget *fit = button("Fit", [] {
             app->view.zoom = 1.0;
             app->view.pan_x = app->view.pan_y = 0.0;
-            gtk_widget_queue_draw(app->area);
+            redraw_preview();
         });
         gtk_widget_set_tooltip_text(fit, "Centre the ship and reset the zoom");
         gtk_box_pack_start(GTK_BOX(views), fit, FALSE, FALSE, 8);
         gtk_box_pack_start(GTK_BOX(centre), views, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(centre), app->area, TRUE, TRUE, 0);
+        // The GL widget draws the ship; the transparent cairo area over it draws the outlines and labels and takes the mouse.
+        GtkWidget *overlay = gtk_overlay_new();
+        if (!std::getenv("SHIPEDIT_SOFTWARE"))
+        {
+            app->gl_area = gtk_gl_area_new();
+            gtk_gl_area_set_required_version(GTK_GL_AREA(app->gl_area), 3, 2);
+            gtk_gl_area_set_has_depth_buffer(GTK_GL_AREA(app->gl_area), FALSE);
+            gtk_widget_set_size_request(app->gl_area, 400, 300);
+            g_signal_connect(app->gl_area, "render", CB(gl_render_cb), nullptr);
+            g_signal_connect(app->gl_area, "realize", CB(gl_realize_cb), nullptr);
+            g_signal_connect(app->gl_area, "unrealize", CB(gl_unrealize_cb), nullptr);
+            gtk_container_add(GTK_CONTAINER(overlay), app->gl_area);
+            gtk_overlay_add_overlay(GTK_OVERLAY(overlay), app->area);
+        }
+        else
+            gtk_container_add(GTK_CONTAINER(overlay), app->area);
+        gtk_box_pack_start(GTK_BOX(centre), overlay, TRUE, TRUE, 0);
         app->stats_label = gtk_label_new("");
         gtk_widget_set_halign(app->stats_label, GTK_ALIGN_START);
         gtk_label_set_selectable(GTK_LABEL(app->stats_label), TRUE);

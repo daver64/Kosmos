@@ -59,7 +59,7 @@ schemas "$SRC/addons/kosmosmap"
 SE=$SRC/sdk/shipedit
 JSON_INCLUDE=${SHIPEDIT_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
 mkdir -p "$TMP/se"
-printf '%s\n' main model mesh preview | xargs -P 4 -I{} sh -c \
+printf '%s\n' main model mesh preview gl_preview | xargs -P 4 -I{} sh -c \
     '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$SE"'/src" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$SE"'/src/{}.cpp" -o "$TMP/se/{}.o"'
 mkdir -p "$SRC/addons/shipedit/bin"
 "$WINCXX" -static -mwindows -o "$SRC/addons/shipedit/bin/shipedit.exe" "$TMP"/se/*.o $LIBS
