@@ -319,6 +319,7 @@ namespace kosmos::app
         sl::dvec3 eye_world;
         glm::vec3 ship_rel;
         double view_fov{};
+        bool fov_was_held{};
         double fov_user{}; // field of view set with X / Z; 0 keeps each view's own
         double user_extent{};
         int soi{};

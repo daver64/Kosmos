@@ -132,6 +132,8 @@ namespace kosmos
         Controls read_controls(const std::string &prefix = "/controls", const Ship *ship = nullptr);
         /** Publish /target/... relative to the ship named by /sim/target (a ship or a body). */
         void update_target();
+        /** Burn autopilot: waits for the ignition time, holds prograde and burns until the apoapsis reaches the target radius (see /autopilot/burn). */
+        void run_burn();
 
         std::string root_;
         std::vector<Addon> addons_;

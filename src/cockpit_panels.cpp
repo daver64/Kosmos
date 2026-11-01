@@ -152,9 +152,13 @@ namespace kosmos::app
         const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
         if (c.type == "slider")
         {
-            const float v = static_cast<float>(std::clamp(sim.props.get_double(c.property), 0.0, 1.0));
+            const double lo = c.min, span = std::max(c.max - c.min, 1e-6f);
+            const float v = static_cast<float>(std::clamp((sim.props.get_double(c.property) - lo) / span, 0.0, 1.0));
             const float ty = y + h * (1.0f - v);
-            sl::rectfill(sl::screen, x, ty, x + w, y + h, {90, 255, 120, 60});
+            const float zy = y + h * static_cast<float>(1.0 + lo / span);
+            sl::rectfill(sl::screen, x, std::min(ty, zy), x + w, std::max(ty, zy), {90, 255, 120, 60});
+            if (lo < 0.0)
+                sl::rectfill(sl::screen, x, zy - 1, x + w, zy + 1, {255, 255, 255, 160});
             sl::rectfill(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {255, 190, 60, 235});
             sl::rect(sl::screen, x, ty - 3 * scale, x + w, ty + 3 * scale, {40, 30, 10, 255}, 1.0f);
         }
@@ -219,7 +223,10 @@ namespace kosmos::app
 
     void panel_slider_set(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float oy, float scale, float py)
     {
-        const double v = std::clamp(1.0 - static_cast<double>((py - oy - c.y * scale) / (c.h * scale)), 0.0, 1.0);
+        double v = c.min + std::clamp(1.0 - static_cast<double>((py - oy - c.y * scale) / (c.h * scale)), 0.0, 1.0) * (c.max - c.min);
+        // A slider that spans zero sticks there, so the throttle is easy to cut.
+        if (c.min < 0.0 && std::fabs(v) < 0.04 * (c.max - c.min))
+            v = 0.0;
         if (c.property == "/controls/throttle")
             sim.props.set_bool("/autopilot/enabled", false);
         sim.props.set_double(c.property, v);

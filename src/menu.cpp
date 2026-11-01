@@ -1206,6 +1206,8 @@ namespace kosmos
                                    "  Keypad 5         SAS kill rotation   [ ] ; '  prograde / retrograde / normal / anti-normal\n"
                                    "  P                autopilot (Autopilot menu for modes)\n"
                                    "  Ctrl+D           undock\n"
+                                   "  Home             reset cockpit view to forwards\n"
+                                   "  Ctrl+Home/End    hover full / off\n"
                                    "  R / T            time warp down / up\n"
                                    "  Shift+R          restart scenario\n"
                                    "View\n"

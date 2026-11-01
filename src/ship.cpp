@@ -95,6 +95,7 @@ namespace kosmos
                         a.source = ja.value("source", "");
                         a.angle_deg = ja.value("angle", 0.0);
                         a.initial = ja.value("initial", 0.0);
+                        a.min = std::min(ja.value("min", 0.0), 0.0);
                         if (ja.contains("move") && ja["move"].is_array() && ja["move"].size() == 3)
                         {
                             a.slide = true;
@@ -337,6 +338,7 @@ namespace kosmos
             }
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
+            spec.reverse_throttle = json.value("reverse_throttle", false);
             spec.rcs_effects = json.value("rcs_effects", true);
             spec.rcs_propellant = json.value("rcs_propellant", 0.0);
             spec.rcs_isp = json.value("rcs_isp", 280.0);
@@ -1356,6 +1358,7 @@ namespace kosmos
 
     void Ship::apply_rcs_mode(Controls &c) const
     {
+        const double reverse = spec_.reverse_throttle && c.throttle < 0.0 ? c.throttle : 0.0;
         if (spec_.rcs_modes)
         {
             if (c.rcs_mode == "off")
@@ -1369,6 +1372,8 @@ namespace kosmos
                 c.pitch = c.yaw = c.roll = 0.0;
             }
         }
+        if (reverse < 0.0)
+            c.rcs_z = std::clamp(c.rcs_z + reverse, -1.0, 1.0);
     }
 
     void Ship::animate_mechanisms(const Controls &c, double dt)

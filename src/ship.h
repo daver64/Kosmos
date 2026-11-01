@@ -167,6 +167,8 @@ namespace kosmos
         std::string source;
         double pivot[3] = {0, 0, 0}, axis[3] = {1, 0, 0};
         double angle_deg = 0.0;
+        /** The lowest value of the source, below zero for a reversing throttle. */
+        double min = 0.0;
         /** The fraction of the full angle held when the value is 0 (the rest is swept as it goes to 1). */
         double initial = 0.0;
         /** A sliding part: the ship-frame shift at value 1 (instead of a rotation), scaled by (value - initial). */
@@ -346,6 +348,8 @@ namespace kosmos
         bool retractable_gear = false;
         /** An RCS mode switch (/controls/rcs-mode: "rot", "lin" or "off"), as on the Shuttle-A. */
         bool rcs_modes = false;
+        /** The main throttle can go below zero: reverse thrust, made by the linear RCS (needs rcs_thrust). */
+        bool reverse_throttle = false;
         /** Draw the generic cold-gas puffs at the ends of the stage envelope when the RCS fires (ships without RCS thrusters of their own). */
         bool rcs_effects = true;
         /** Kilograms of RCS propellant (0 for an unlimited supply). The generic RCS stops when it runs out. */

@@ -372,7 +372,11 @@ namespace kosmos::app
                 mouse_captured = capture;
             }
         }
-        if (!typing && (keys.down("fov_up") || keys.down("fov_down")))
+        const bool fov_held = !typing && (keys.down("fov_up") || keys.down("fov_down"));
+        if (fov_was_held && !fov_held)
+            sim.log("Field of view " + std::to_string(static_cast<int>(view_fov + 0.5)) + " deg");
+        fov_was_held = fov_held;
+        if (fov_held)
             fov_user = std::clamp((fov_user > 0.0 ? fov_user : view_fov) * std::exp((keys.down("fov_up") ? 0.6 : -0.6) * frame), 5.0, 120.0);
         const double zoom_in = keys.down("zoom_in") ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
         const double zoom_out = keys.down("zoom_out") ? 1.0 + 2.0 * frame : 1.0;

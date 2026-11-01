@@ -8,7 +8,8 @@
  "torque_accel": 0.8,
  "max_rate": 0.6,
  "rcs_thrust": 10000,
- "rcs_propellant": 600,
+ "reverse_throttle": true,
+ "rcs_propellant": 2000,
  "drag_area": 1.5,
  "thermal": {
   "nose_radius": 0.5,
@@ -293,7 +294,7 @@
   {
    "name": "Deltaglider",
    "dry_mass": 12000,
-   "propellant": 11400,
+   "propellant": 18400,
    "z": -1,
    "length": 19,
    "radius": 1.5,
@@ -372,6 +373,7 @@
  ],
  "cockpit": {
   "vc_model": "models/deltaglider_vc.obj",
+  "hud_modes": ["orbit", "surface", "docking"],
   "pitch": -18,
   "eye": [
    0,
@@ -508,9 +510,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 6,
-    "x": 208,
+    "x": 536,
     "y": 99.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -526,9 +528,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 7,
-    "x": 208,
+    "x": 536,
     "y": 140.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -544,9 +546,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 8,
-    "x": 208,
+    "x": 536,
     "y": 181.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -562,9 +564,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 9,
-    "x": 208,
+    "x": 536,
     "y": 223.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -580,9 +582,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 10,
-    "x": 208,
+    "x": 536,
     "y": 264.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -598,9 +600,9 @@
     "type": "mfd",
     "unit": 0,
     "button": 11,
-    "x": 208,
+    "x": 536,
     "y": 305.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -643,9 +645,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 6,
-    "x": 616,
+    "x": 944,
     "y": 99.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -661,9 +663,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 7,
-    "x": 616,
+    "x": 944,
     "y": 140.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -679,9 +681,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 8,
-    "x": 616,
+    "x": 944,
     "y": 181.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -697,9 +699,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 9,
-    "x": 616,
+    "x": 944,
     "y": 223.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -715,9 +717,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 10,
-    "x": 616,
+    "x": 944,
     "y": 264.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -733,9 +735,9 @@
     "type": "mfd",
     "unit": 1,
     "button": 11,
-    "x": 616,
+    "x": 944,
     "y": 305.0,
-    "w": 26,
+    "w": 28,
     "h": 18
    },
    {
@@ -854,10 +856,11 @@
    {
     "type": "slider",
     "property": "/controls/throttle",
+    "min": -0.377,
     "x": 1000,
     "y": 277,
     "w": 50,
-    "h": 122
+    "h": 168
    },
    {
     "type": "slider",
@@ -1095,6 +1098,7 @@
      "THROTTLE_MAIN_R"
     ],
     "source": "/controls/throttle",
+    "min": -1,
     "pivot": [
      0,
      0.72,
@@ -2501,7 +2505,8 @@
      "label": "Main throttle"
     },
     "drag": "/controls/throttle",
-    "drag_gain": 2.0
+    "drag_gain": 2.0,
+    "drag_min": -1.0
    },
    {
     "quad": [

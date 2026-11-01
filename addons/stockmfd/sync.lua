@@ -47,6 +47,11 @@ local function soi_body()
   return 0
 end
 
+local function fmt_dv(dv)
+  local a = math.abs(dv)
+  return string.format(a < 10 and "%.2f" or "%.1f", a)
+end
+
 local function burn_dir(dv)
   return dv >= 0 and "prograde" or "retrograde"
 end
@@ -94,21 +99,23 @@ local function plan(orbits, phase)
   end
 
   -- Same orbit: burn into a phasing orbit whose period closes the gap after the chosen number of orbits.
-  local Tp = Tt * (orbits - phase / 360)
-  local ap = (mu * (Tp / (2 * math.pi)) ^ 2) ^ (1 / 3)
+  -- More orbits make a gentler phasing orbit; skip any that would dip below the surface.
+  local Tp, ap
+  for n = orbits, 40 do
+    orbits = n
+    Tp = Tt * (n - phase / 360) / n
+    ap = (mu * (Tp / (2 * math.pi)) ^ 2) ^ (1 / 3)
+    if Tp > 0 and 2 * ap - rs > R + 1000 and 2 * ap - rs < 2 * rs then break end
+  end
   local v1 = math.sqrt(mu / rs)
   local dv1 = math.sqrt(mu * (2 / rs - 1 / ap)) - v1
-  local other = 2 * ap - rs
-  if other < R + 1000 then
-    return { "Phasing orbit hits the surface", "Press ORB+ for more orbits" }
-  end
-  if math.abs(phase) < 0.05 then return { "Phased with target" } end
+  if math.abs(rs * math.rad(phase)) < 30 then return { "Phased with target" } end
   return {
     string.format("Phasing: %d orbit%s", orbits, orbits > 1 and "s" or ""),
-    string.format("Burn 1 NOW  %.1f m/s %s", math.abs(dv1), burn_dir(dv1)),
-    string.format("Burn 2 %.1f m/s %s", math.abs(dv1), burn_dir(-dv1)),
-    string.format("%s after burn 1", fmt_time(Tp)),
-    string.format("Total %.1f m/s", 2 * math.abs(dv1)),
+    string.format("Burn 1 NOW  %s m/s %s", fmt_dv(dv1), burn_dir(dv1)),
+    string.format("Burn 2 %s m/s %s", fmt_dv(dv1), burn_dir(-dv1)),
+    string.format("%s after burn 1", fmt_time(Tp * orbits)),
+    string.format("Total %s m/s", fmt_dv(2 * dv1)),
   }
 end
 

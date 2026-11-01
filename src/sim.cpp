@@ -87,6 +87,9 @@ namespace kosmos
         props.set_string("/sim/target", "");
         props.set_bool("/target/valid", false);
         props.node("/sim/warp")->tie_double([this] { return current_warp_; });
+        props.node("/sim/time")->tie_double([this] { return universe.time(); });
+        props.set_bool("/autopilot/burn/armed", false);
+        props.set_string("/autopilot/burn/state", "");
 
         lua.initialise([this](const std::string &text) { log(text); });
         sl::bind_property_tree(lua, props);
@@ -452,6 +455,7 @@ namespace kosmos
             return;
         active_ = index;
         props.set_int("/sim/active-ship", index);
+        props.set_bool("/autopilot/burn/armed", false);
         script_loaded_ = false;
         const Ship &ship = *ships_[static_cast<std::size_t>(index)];
         const ShipSpec &spec = ship.spec();
@@ -593,6 +597,7 @@ namespace kosmos
                 script_loaded_ = false;
             }
         }
+        run_burn();
         const Controls controls = read_controls();
         Controls idle;
         idle.sas = "off";
@@ -722,6 +727,72 @@ namespace kosmos
             return wrap_two_pi(mean(wrap_two_pi(to)) - mean(wrap_two_pi(from))) / n;
         }
     } // namespace
+
+    void Sim::run_burn()
+    {
+        if (!props.get_bool("/autopilot/burn/armed"))
+            return;
+        Ship *me = active_ship();
+        auto finish = [&](const char *state, const std::string &text) {
+            props.set_bool("/autopilot/burn/armed", false);
+            props.set_string("/autopilot/burn/state", state);
+            props.set_double("/controls/throttle", 0.0);
+            props.set_string("/controls/sas", "stability");
+            log(text);
+        };
+        if (!me || me->crashed())
+        {
+            finish("abort", "Burn autopilot: no vessel");
+            return;
+        }
+        const Telemetry &t = me->telemetry();
+        if (!t.bound || t.max_thrust <= 0.0 || t.mass <= 0.0)
+        {
+            finish("abort", "Burn autopilot stopped: " + std::string(t.bound ? "no thrust available" : "not in a bound orbit"));
+            return;
+        }
+        const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
+        const double r = glm::length(me->body().position - universe.position(t.soi));
+        const double target = props.get_double("/autopilot/burn/target-radius");
+        const double apo = t.apoapsis + t.body_radius;
+        const double needed = std::sqrt(mu * (2.0 / r - 2.0 / (r + target)));
+        const double remaining = std::max(needed - t.orbital_speed, 0.0);
+        const double accel = t.max_thrust / t.mass;
+        const double duration = remaining / accel;
+        props.set_double("/autopilot/burn/remaining", remaining);
+        props.set_double("/autopilot/burn/duration", duration);
+
+        const std::string state = props.get_string("/autopilot/burn/state");
+        const double ignition = props.get_double("/autopilot/burn/start") - 0.5 * duration - universe.time();
+        props.set_double("/autopilot/burn/ignition-in", ignition);
+        props.set_bool("/autopilot/enabled", false);
+        props.set_string("/controls/sas", "prograde");
+
+        if (state != "burn" && ignition > 0.0)
+        {
+            props.set_string("/autopilot/burn/state", "wait");
+            props.set_double("/controls/throttle", 0.0);
+            // Slow time warp down so the ignition is not overshot.
+            int index = props.get_int("/sim/warp-index");
+            while (index > 0 && (ignition < 30.0 || warp_factor(index) > ignition * 5.0))
+                --index;
+            props.set_int("/sim/warp-index", index);
+            return;
+        }
+        if (apo >= target || remaining < 0.05)
+        {
+            finish("done", "Burn complete: apoapsis " + std::to_string(static_cast<int>(apo / 1000.0)) + " km");
+            return;
+        }
+        props.set_string("/autopilot/burn/state", "burn");
+        if (props.get_int("/sim/warp-index") > 0 && warp_factor(props.get_int("/sim/warp-index")) > max_physics_warp)
+            props.set_int("/sim/warp-index", 0);
+        const sl::dvec3 v = me->relative_velocity();
+        const sl::dvec3 nose = me->body().direction_to_world({0.0, 0.0, -1.0});
+        const double alignment = glm::length(v) > 1.0 ? glm::dot(nose, glm::normalize(v)) : 1.0;
+        const double level = std::clamp(remaining / (2.0 * accel), 0.03, 1.0);
+        props.set_double("/controls/throttle", alignment > 0.985 ? level : 0.0);
+    }
 
     void Sim::update_target()
     {

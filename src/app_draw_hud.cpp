@@ -780,7 +780,7 @@ namespace kosmos::app
         // HUD.
         const std::string soi_name = soi_body.name;
         if (show_info)
-            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str());
+            sl::gprintf(16, 12, {240, 240, 240}, "KOSMOS   %s   T+%s   %s   FOV %.0f   HUD %s", ship->name.c_str(), format_time(universe.time()).c_str(), kosmos::format_utc(universe.julian_date()).c_str(), view_fov, hud.mode() == sl::HudMode::off ? "off" : sl::hud_mode_name(hud.mode()));
         if (ship->crashed())
             sl::gprintf_center(screen_h / 2 - 20, {255, 90, 80}, ship->systems() && ship->systems()->crew_lost() ? "*** CREW LOST - press Shift+R to reset ***" : "*** VESSEL LOST - press Shift+R to reset ***");
         else if (ship->systems() && !ship->systems()->alarms().empty() && ((sl::time_ms() / 450) % 4 != 0 || ship->systems()->mode() == kosmos::LifeSupportMode::off))

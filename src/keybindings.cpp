@@ -175,8 +175,9 @@ namespace kosmos
         add("gear", "Landing gear up / down", ship, fly, false, {K::letter_g});
         add("flaps", "Flaps (map: focus; on foot: pack)", ship, any, false, {K::letter_f});
         add("undock", "Undock", ship, fly, false, {K::letter_d, false, true});
-        add("hover_on", "Hover engines full", ship, fly, false, {K::home});
-        add("hover_off", "Hover engines off", ship, fly, false, {K::end});
+        add("hover_on", "Hover engines full", ship, fly, false, {K::home, false, true});
+        add("reset_look", "Reset cockpit view to forwards", gen, any, false, {K::home});
+        add("hover_off", "Hover engines off", ship, fly, false, {K::end, false, true});
         add("hud_mode", "Next HUD mode", ship, any, false, {K::letter_h});
         add("hud_colour", "Next HUD colour", ship, any, false, {K::letter_h, false, false, true});
 

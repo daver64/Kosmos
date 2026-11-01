@@ -1,1 +1,0 @@
-{"name": "TMP sync", "description": "t", "active": 0, "ships": [{"ship": "CVEL Deltaglider", "label": "A", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 51.6, "phase": 0}}, {"ship": "Mir", "label": "Mir", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 51.6, "phase": 40}}]}

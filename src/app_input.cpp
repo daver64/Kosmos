@@ -228,6 +228,12 @@ namespace kosmos::app
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", 0.0);
         }
+        else if (hit("reset_look"))
+        {
+            look_yaw = look_pitch = 0.0f;
+            eva_look_yaw = eva_look_pitch = 0.0;
+            sim.log("View reset to forwards");
+        }
         else if (hit("hover_on"))
             props.set_double("/controls/hover", 1.0);
         else if (hit("hover_off"))
@@ -344,6 +350,8 @@ namespace kosmos::app
                 hud.next_colour();
             else
                 hud.set_mode(next_hud_mode(hud.mode(), ship->spec().hud_modes()));
+            if (hit("hud_mode"))
+                sim.log(std::string("HUD mode: ") + (hud.mode() == sl::HudMode::off ? "off" : sl::hud_mode_name(hud.mode())));
             if (!(cockpit_view || interior_cam >= 0))
                 sim.log("HUD is shown in cockpit view (press C)");
         }
@@ -592,8 +600,8 @@ namespace kosmos::app
         if (!typing && !on_foot && keys.down("throttle_down"))
         {
             props.set_bool("/autopilot/enabled", false);
-            // A wheeled vehicle's throttle goes below zero to reverse.
-            props.set_double("/controls/throttle", std::max(ship->spec().ground() ? -1.0 : 0.0, throttle - throttle_rate));
+            // A wheeled vehicle's throttle goes below zero to reverse, and so does a ship with reverse thrust.
+            props.set_double("/controls/throttle", std::max(ship->spec().ground() || ship->spec().reverse_throttle ? -1.0 : 0.0, throttle - throttle_rate));
         }
         const double hover = props.get_double("/controls/hover");
         if (!typing && !on_foot && keys.down("hover_up"))
