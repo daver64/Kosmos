@@ -202,6 +202,10 @@ namespace kosmos::app
                 eva.recharge(frame * std::max(1.0, warp_now));
             {
                 const bool trigger = !typing && mouse_captured && sl::mouse_button_down(sl::MouseButton::left);
+                {
+                    const bool stepped = sim.current_warp() <= 4.0 && !sim.props.get_bool("/sim/paused");
+                    arsenal.set_spin(stepped ? sim.universe.time() - physics_time_before : -1.0, 0.0);
+                }
                 arsenal.use_held(arsenal_ctx, trigger && !memory.trigger_was_down, trigger);
                 memory.trigger_was_down = trigger;
             }
@@ -234,7 +238,7 @@ namespace kosmos::app
         ship_weapons.set_sound(sound_on);
         {
             const bool stepped = sim.current_warp() <= 4.0 && !props.get_bool("/sim/paused");
-            arsenal.set_spin(stepped ? universe.time() - physics_time_before : -1.0, stepped ? sim.step_remainder() : 0.0);
+            arsenal.set_spin(stepped ? universe.time() - physics_time_before : -1.0, 0.0);
         }
         arsenal.update(arsenal_ctx, frame * std::min(sim.current_warp(), 4.0), frame);
         if (!typing)

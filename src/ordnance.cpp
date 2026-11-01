@@ -228,7 +228,7 @@ namespace kosmos
         return pack_[static_cast<std::size_t>(selected_)].count;
     }
 
-    sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
+sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
     {
         const sl::FlightBody *pb = context_universe_ ? context_universe_->world.body(body) : nullptr;
         const double angle = pb ? sign * pb->spin_rate * lag_ : 0.0;
@@ -289,8 +289,12 @@ namespace kosmos
                 Round r;
                 r.spec = spec;
                 r.body = eva.body;
-                r.position = lagged(eva.body, muzzle, 1.0);
-                r.velocity = lagged(eva.body, eva.velocity + aim * spec->speed, 1.0);
+                // The round is stepped once before it is first drawn, and that step carries it along with the turning ground. The walker has already made this frame's turn, so start the round a step behind on the ground.
+                r.velocity = eva.velocity + aim * spec->speed;
+                const sl::FlightBody *pb = universe.world.body(eva.body);
+                r.position = muzzle;
+                if (pb && spin_dt_ > 0.0)
+                    r.position -= glm::cross(pb->spin_axis * pb->spin_rate, muzzle) * spin_dt_;
                 r.bolt = true;
                 r.by_person = true;
                 rounds_.push_back(r);
@@ -953,7 +957,9 @@ namespace kosmos
                         else if (anchor_for(r.body, r.position))
                         {
                             sl::Particle3D p;
-                            p.position = to_f(lagged(r.body, r.position, -1.0) - anchor_);
+                            // The particle stays on the ground, which has turned on by the time the frame ends: express this substep's position in that frame.
+                            const double later = pb.spin_rate * (dt - (s + 1) * h);
+                            p.position = to_f((later != 0.0 ? sl::dvec3(glm::angleAxis(later, pb.spin_axis) * r.position) : r.position) - anchor_);
                             p.life = 0.35f;
                             p.size_start = 0.35f;
                             p.size_end = 0.05f;
@@ -1133,7 +1139,7 @@ namespace kosmos
 
         if (dt > 0.0)
         {
-            step_rounds(context, dt);
+            step_rounds(context, spin_dt_ >= 0.0 ? spin_dt_ : dt);
             step_launched(context, dt);
 
             step_shocks(context, dt);
@@ -1175,7 +1181,10 @@ namespace kosmos
             sl::Material m;
             if (r.bolt)
             {
-                const glm::vec3 dir = to_f(unit(r.velocity, sl::dvec3(0, 0, -1)));
+                // The streak points along the bolt's motion over the ground, not the inertial motion, which includes the planet's spin.
+                const sl::FlightBody *spinning = universe.world.body(r.body);
+                const sl::dvec3 over_ground = spinning ? r.velocity - glm::cross(spinning->spin_axis * spinning->spin_rate, r.position) : r.velocity;
+                const glm::vec3 dir = to_f(unit(over_ground, sl::dvec3(0, 0, -1)));
                 model *= glm::mat4_cast(glm::quat(glm::vec3(0, 0, 1), dir)) * glm::scale(glm::mat4(1.0f), glm::vec3(0.35f, 0.35f, 1.6f));
                 m.tint = glow_colour(spec);
                 m.lit = false;

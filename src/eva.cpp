@@ -221,6 +221,8 @@ namespace kosmos
             }
 
             // In the air or in space: inertial motion under gravity, with drag in an atmosphere.
+            // Advance by the time the planet actually turned this frame, or the walker drifts against the quantised ground.
+            const double ha = h * spin_scale;
             sl::dvec3 accel = -up * gravity;
             const sl::dvec3 relative = velocity - glm::cross(omega, position);
             accel -= relative * glm::length(relative) * (9.81 / (55.0 * 55.0)) * (rho / 1.225);
@@ -231,12 +233,12 @@ namespace kosmos
             {
                 const sl::dvec3 push = forward() * input.forward + orientation * sl::dvec3(1.0, 0.0, 0.0) * input.right + view_up() * input.up;
                 accel += glm::normalize(push) * pack_accel * std::min(1.0, stick);
-                suit.propellant = std::max(0.0, suit.propellant - pack_burn * std::min(1.0, stick) * h);
+                suit.propellant = std::max(0.0, suit.propellant - pack_burn * std::min(1.0, stick) * ha);
                 suit.thrusting = std::min(1.0, stick);
             }
-            velocity += accel * h;
+            velocity += accel * ha;
             const sl::dvec3 before = position;
-            position += velocity * h;
+            position += velocity * ha;
             if (solids)
             {
                 const double above = glm::length(before) - ground_radius(terrain, planet.radius, before);

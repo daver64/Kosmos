@@ -90,7 +90,8 @@ namespace kosmos
          * really turned this frame and `lag` how far the smooth clock is ahead of it; flying bolts are drawn turned back by that lag
          * so they stay put against the ground and the walker instead of jittering along the planet's spin.
          */
-        void set_spin(double spin_dt, double lag) { spin_dt_ = spin_dt; lag_ = lag; }
+        // Rounds are stepped by the time the universe really advanced, so they share a clock with the turning ground and the walker.
+        void set_spin(double spin_dt, double) { spin_dt_ = spin_dt; }
         std::size_t rounds_in_flight() const { return rounds_.size(); }
         /** World position of the newest released warhead vessel that @p ship dropped, so the external camera can follow it.
          *  @p seconds_to_burst estimates the time left before it bursts, or a large number while it is not falling. */
