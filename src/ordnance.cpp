@@ -194,6 +194,7 @@ namespace kosmos
         readout_.clear();
         survey_.clear();
         hurt_ = 0.0;
+        nuke_flash_ = 0.0;
         last_event_.clear();
         last_event_time_ = 0.0;
     }
@@ -826,6 +827,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         const sl::dvec3 up = unit(point, sl::dvec3(0, 1, 0));
         const sl::dvec3 base = up * ground;
 
+        if (nuclear && have_eye_ && glm::length(universe.position(round.body) + point - eye_world_) < 400000.0)
+            nuke_flash_ = 1.0;
         if (nuclear)
             add_effect(universe, sl::Effect3DKind::mushroom, round.body, height > 5.0 ? base : point, spec.yield * round.scale);
         else
@@ -1145,6 +1148,7 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         cooldown_ = std::max(0.0, cooldown_ - real_dt);
         recoil_ = std::max(0.0, recoil_ - real_dt * 6.0);
         hurt_ = std::max(0.0, hurt_ - real_dt * 0.6);
+        nuke_flash_ = std::max(0.0, nuke_flash_ - real_dt);
         last_event_time_ += real_dt;
         aftermath_.left = std::max(0.0, aftermath_.left - real_dt);
 
@@ -1353,6 +1357,12 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         const double white = flash(sim.universe, eye_world);
         if (white > 0.01)
             sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h), {255, 250, 235, static_cast<Uint8>(std::min(255.0, white * 255.0))});
+        if (nuke_flash_ > 0.0)
+        {
+            // Pure white for the first 0.1 s (a few frames), then a quick fade over the next 0.7 s.
+            const double a = nuke_flash_ > 0.9 ? 1.0 : std::pow(nuke_flash_ / 0.9, 2.0);
+            sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h), {255, 255, 255, static_cast<Uint8>(a * 255.0)});
+        }
         if (hurt_ > 0.01)
             sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h), {200, 0, 0, static_cast<Uint8>(std::min(160.0, hurt_ * 160.0))});
         if (!eva.active)

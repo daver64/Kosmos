@@ -1,6 +1,6 @@
 {
  "name": "CVEL: Sentinel ICBM test shot from Faslane",
- "description": "A two-stage CVEL Sentinel ICBM on its pad at Faslane in Scotland, loaded with a 20 kt Fat Man re-entry vehicle. Open an MFD (F5) and choose ICBM Targeting: enter the target's latitude and longitude, choose air or ground burst, the burst height and a yield from 20 kt to 1 Mt, then ARM and LAUNCH. The scenario's target is a point in the Atlantic about 310 km (190 miles) west of Faslane, the shortest range the guidance accepts, so a test shot is quick. For a long shot enter a target up to 4,900 km away.",
+ "description": "A two-stage CVEL Sentinel ICBM on its pad at Faslane in Scotland, loaded with a 20 kt nuclear warhead in a conical re-entry vehicle. Open an MFD (F5) and choose ICBM Targeting: enter the target's latitude and longitude, choose air or ground burst, the burst height and a yield from 20 kt to 1 Mt, then ARM and LAUNCH. The scenario's target is a point in the Atlantic about 310 km (190 miles) west of Faslane, the shortest range the guidance accepts, so a test shot is quick. For a long shot enter a target up to 4,900 km away.",
  "active": 0,
  "set": {
   "/icbm/target/lat": 56.07,

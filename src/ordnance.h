@@ -248,6 +248,7 @@ namespace kosmos
         };
         std::vector<Sample> survey_;
         double hurt_ = 0.0;
+        double nuke_flash_ = 0.0; // seconds left of the burst white-out, 1 at the moment of detonation
         std::string last_event_;
         double last_event_time_ = 0.0;
 
