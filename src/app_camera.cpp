@@ -45,6 +45,7 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
         const double time_before_step = universe.time();
+        physics_time_before = time_before_step;
         double step_dt = frame;
         bool lockstepped = false;
         if (link_server && link_server->running() && !props.get_bool("/sim/paused"))
@@ -182,7 +183,11 @@ namespace kosmos::app
                 eva.height = 0.0;
             }
             else
+            {
+                const double warp = std::max(1.0, sim.current_warp());
+                eva.spin_scale = frame > 0.0 ? std::clamp((sim.universe.time() - physics_time_before) / (warp * frame), 0.0, 2.0) : 1.0;
                 eva.step(sim.universe, terrain_of(eva.body), in, frame, solids);
+            }
             const double warp_now = sim.current_warp();
             if (warp_now > 1.0 && !indoors)
                 eva.carry(sim.universe, terrain_of(eva.body), frame * (warp_now - 1.0));
@@ -227,6 +232,10 @@ namespace kosmos::app
         }
         arsenal.set_sound(sound_on);
         ship_weapons.set_sound(sound_on);
+        {
+            const bool stepped = sim.current_warp() <= 4.0 && !props.get_bool("/sim/paused");
+            arsenal.set_spin(stepped ? universe.time() - physics_time_before : -1.0, stepped ? sim.step_remainder() : 0.0);
+        }
         arsenal.update(arsenal_ctx, frame * std::min(sim.current_warp(), 4.0), frame);
         if (!typing)
         {

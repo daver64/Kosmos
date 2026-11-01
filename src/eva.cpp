@@ -192,13 +192,13 @@ namespace kosmos
                 const double omega_length = glm::length(omega);
                 sl::dvec3 next = position + surface * h;
                 if (omega_length > 1e-12)
-                    next = glm::angleAxis(omega_length * h, omega / omega_length) * next;
+                    next = glm::angleAxis(omega_length * h * spin_scale, omega / omega_length) * next;
                 const double next_ground = ground_radius(terrain, planet.radius, next), next_d = glm::length(next);
                 const double travel = glm::length(horizontal) * h;
                 if (!jumping && next_ground - next_d > 0.15 + 1.2 * travel)
                 {
                     // Too steep to climb: stand still against it.
-                    next = omega_length > 1e-12 ? glm::angleAxis(omega_length * h, omega / omega_length) * position : position;
+                    next = omega_length > 1e-12 ? glm::angleAxis(omega_length * h * spin_scale, omega / omega_length) * position : position;
                     horizontal = sl::dvec3(0.0);
                     surface = sl::dvec3(0.0);
                 }

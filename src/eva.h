@@ -70,6 +70,11 @@ namespace kosmos
         void step(const Universe &universe, const sl::Terrain *terrain, const EvaInput &input, double dt, const Solids &solids = nullptr);
         /** Stand still while `dt` seconds of warped time go by: the planet carries you round and the suit uses its supplies. */
         void carry(const Universe &universe, const sl::Terrain *terrain, double dt);
+        /**
+         * How much of the planet's spin to follow in a step, as the share of the step that the simulation really advanced (it moves in
+         * fixed steps, so a standing person turned by the whole frame drifts from a parked ship by up to a step's worth of ground speed).
+         */
+        double spin_scale = 1.0;
         /** 0 standing to 1 crouched, eased. */
         double crouch = 0.0;
         /** Top up oxygen, battery, pressure and propellant, as at an airlock or a base. */

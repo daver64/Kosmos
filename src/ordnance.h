@@ -85,6 +85,12 @@ namespace kosmos
         void step_shocks(ArsenalContext &context, double dt);
         void play_bangs(double dt);
         void update(ArsenalContext &context, double dt, double real_dt);
+        /**
+         * The simulation turns the planet in fixed steps, so what stands on the ground moves in hops. `spin_dt` is the time the planet
+         * really turned this frame and `lag` how far the smooth clock is ahead of it; flying bolts are drawn turned back by that lag
+         * so they stay put against the ground and the walker instead of jittering along the planet's spin.
+         */
+        void set_spin(double spin_dt, double lag) { spin_dt_ = spin_dt; lag_ = lag; }
         std::size_t rounds_in_flight() const { return rounds_.size(); }
         /** World position of the newest released warhead vessel that @p ship dropped, so the external camera can follow it.
          *  @p seconds_to_burst estimates the time left before it bursts, or a large number while it is not falling. */
@@ -219,11 +225,14 @@ namespace kosmos
         bool nuke_tried_ = false;
         sl::dvec3 eye_world_{0.0};
         bool have_eye_ = false, sound_on_ = false;
+        double spin_dt_ = -1.0, lag_ = 0.0;
+        sl::dvec3 lagged(int body, const sl::dvec3 &p, double sign) const;
 
         // Particles live in coordinates relative to `anchor_` (itself body-relative) so floats stay precise.
         sl::ParticleSystem3D particles_{9000};
         int particle_body_ = -1;
         sl::dvec3 anchor_{0.0};
+        const Universe *context_universe_ = nullptr;
 
         std::vector<std::string> readout_;
         struct Sample

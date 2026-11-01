@@ -433,6 +433,7 @@ namespace kosmos::app
         double backdrop{};
         std::size_t limb_used{};
         bool layered{};
+        double physics_time_before{}; // universe time at the start of this frame's simulation step
         double near_plane{};
         double shell_clearance{}; // how far below the eye a lifted cloud shell must stay so the near plane cannot slice it
         sl::Camera ship_camera;

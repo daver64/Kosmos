@@ -228,6 +228,13 @@ namespace kosmos
         return pack_[static_cast<std::size_t>(selected_)].count;
     }
 
+    sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
+    {
+        const sl::FlightBody *pb = context_universe_ ? context_universe_->world.body(body) : nullptr;
+        const double angle = pb ? sign * pb->spin_rate * lag_ : 0.0;
+        return std::fabs(angle) > 0.0 ? sl::dvec3(glm::angleAxis(angle, pb->spin_axis) * p) : p;
+    }
+
     void Arsenal::use_held(ArsenalContext &context, bool pressed, bool down)
     {
         const EquipmentSpec *spec = held(*context.sim);
@@ -246,6 +253,7 @@ namespace kosmos
             return;
 
         const Universe &universe = context.sim->universe;
+        context_universe_ = &universe;
         const sl::dvec3 up = eva.local_up();
         const sl::dvec3 fwd = eva.forward();
         const sl::dvec3 right = glm::normalize(glm::cross(fwd, up));
@@ -281,8 +289,8 @@ namespace kosmos
                 Round r;
                 r.spec = spec;
                 r.body = eva.body;
-                r.position = muzzle;
-                r.velocity = eva.velocity + aim * spec->speed;
+                r.position = lagged(eva.body, muzzle, 1.0);
+                r.velocity = lagged(eva.body, eva.velocity + aim * spec->speed, 1.0);
                 r.bolt = true;
                 r.by_person = true;
                 rounds_.push_back(r);
@@ -945,7 +953,7 @@ namespace kosmos
                         else if (anchor_for(r.body, r.position))
                         {
                             sl::Particle3D p;
-                            p.position = to_f(r.position - anchor_);
+                            p.position = to_f(lagged(r.body, r.position, -1.0) - anchor_);
                             p.life = 0.35f;
                             p.size_start = 0.35f;
                             p.size_end = 0.05f;
@@ -1068,6 +1076,7 @@ namespace kosmos
     {
         Sim &sim = *context.sim;
         Universe &universe = sim.universe;
+        context_universe_ = &universe;
         cooldown_ = std::max(0.0, cooldown_ - real_dt);
         recoil_ = std::max(0.0, recoil_ - real_dt * 6.0);
         hurt_ = std::max(0.0, hurt_ - real_dt * 0.6);
@@ -1102,7 +1111,7 @@ namespace kosmos
             const auto spin_of = [&](int body, const sl::dvec3 &p)
             {
                 const sl::FlightBody &pb = *universe.world.body(body);
-                const double angle = pb.spin_rate * dt;
+                const double angle = pb.spin_rate * (spin_dt_ >= 0.0 ? spin_dt_ : dt);
                 return std::fabs(angle) > 0.0 ? sl::dvec3(glm::angleAxis(angle, pb.spin_axis) * p) : p;
             };
             if (particle_body_ >= 0 && (particles_.size() > 0 || !effects_.empty()))
@@ -1153,12 +1162,13 @@ namespace kosmos
     void Arsenal::draw_world(const Universe &universe, const sl::dvec3 &eye_world, const sl::Mesh *unit_sphere)
     {
         meshes_->build();
+        context_universe_ = &universe;
         eye_world_ = eye_world;
         have_eye_ = true;
         for (const Round &r : rounds_)
         {
             const EquipmentSpec &spec = *r.spec;
-            const sl::dvec3 rel = universe.position(r.body) + r.position - eye_world;
+            const sl::dvec3 rel = universe.position(r.body) + (r.bolt ? lagged(r.body, r.position, -1.0) : r.position) - eye_world;
             if (glm::length(rel) > 20000.0)
                 continue;
             glm::mat4 model = glm::translate(glm::mat4(1.0f), to_f(rel));

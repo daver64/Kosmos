@@ -89,6 +89,8 @@ namespace kosmos
         /** Runs `frame` seconds of wall time as constant physics steps and returns how many ran. Above 4x warp, or paused, it is a single step of the frame. */
         int advance(double frame);
         double current_warp() const { return current_warp_; }
+        /** Frame time the fixed physics steps have not yet used (0 when warped or paused). */
+        double step_remainder() const { return step_accumulator_; }
         const std::vector<std::string> &messages() const { return messages_; }
         const std::vector<Addon> &addons() const { return addons_; }
         const std::string &root() const { return root_; }
