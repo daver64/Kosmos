@@ -686,6 +686,7 @@ namespace kosmos
         int body_ = -1;
         int active_stage_ = 0;
         sl::dvec3 com_{0.0};
+        double stage_time_ = -1.0e9;
         bool crashed_ = false;
         double health_ = 1.0;
         double rcs_fuel_ = 0.0, rcs_flow_ = 0.0, fuel_flow_ = 0.0;

@@ -365,7 +365,26 @@ namespace kosmos::app
             terrain_set.items.emplace_back(bt->body, bt->terrain.get());
         }
         build_cloud_layers();
-        cloud_shell = sl::create_sphere_mesh(static_cast<float>(earth_body->radius + home_cloud_height), 256, 128, {255, 255, 255, 255});
+        const float shell_radius = static_cast<float>(earth_body->radius + home_cloud_height);
+        constexpr int shell_segments = 256, shell_rings = 128;
+        cloud_shell = sl::create_sphere_mesh(shell_radius, shell_segments, shell_rings, {255, 255, 255, 255});
+        // The same vertices again on the CPU, so the shell can be faded toward its limb each frame.
+        cloud_shell_vertices.clear();
+        for (int ring = 0; ring <= shell_rings; ++ring)
+            for (int segment = 0; segment <= shell_segments; ++segment)
+            {
+                const float phi = 3.14159265f * static_cast<float>(ring) / shell_rings, theta = 6.2831853f * static_cast<float>(segment) / shell_segments;
+                const glm::vec3 normal{std::sin(phi) * std::cos(theta), std::cos(phi), std::sin(phi) * std::sin(theta)};
+                sl::Vertex3D v;
+                for (int k = 0; k < 3; ++k)
+                {
+                    v.position[k] = normal[k] * shell_radius;
+                    v.normal[k] = normal[k];
+                }
+                v.uv[0] = static_cast<float>(segment) / shell_segments;
+                v.uv[1] = static_cast<float>(ring) / shell_rings;
+                cloud_shell_vertices.push_back(v);
+            }
         return true;
     }
 

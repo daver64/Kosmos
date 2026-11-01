@@ -17,7 +17,7 @@
    "z": 1.65,
    "length": 3.3,
    "radius": 0.75,
-   "parts": [ { "prop": "fatman", "radius": 0.75, "length": 3.3, "z": 3.3, "colour": [60, 64, 70] } ]
+   "parts": [ { "prop": "rv", "radius": 0.6, "length": 3.3, "z": 3.3, "colour": [60, 64, 70] } ]
   }
  ]
 }

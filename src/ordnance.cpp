@@ -12,6 +12,52 @@
 
 namespace kosmos
 {
+    sl::MeshData make_rv_data(float radius, float length)
+    {
+        // Profile from the base up to the nose: (radius, y, colour factor).
+        struct P { float r, y, shade; };
+        std::vector<P> profile{{0.0f, 0.0f, 0.5f}, {radius * 0.92f, 0.0f, 0.5f}, {radius * 0.92f, 0.01f * length, 0.6f}, {radius, 0.06f * length, 0.75f}, {radius, 0.12f * length, 0.75f}};
+        constexpr int steps = 14;
+        for (int i = 1; i <= steps; ++i)
+        {
+            const float t = static_cast<float>(i) / static_cast<float>(steps);
+            profile.push_back({std::max(radius * std::pow(1.0f - t, 0.9f), 0.015f * radius), 0.12f * length + t * 0.88f * length, 1.0f - 0.35f * t});
+        }
+        profile.back().r = 0.0f;
+        constexpr int sides = 24;
+        sl::MeshData data;
+        const int rows = static_cast<int>(profile.size());
+        for (int i = 0; i < rows; ++i)
+        {
+            const P &a = profile[static_cast<std::size_t>(std::max(i - 1, 0))], &b = profile[static_cast<std::size_t>(std::min(i + 1, rows - 1))];
+            const float dr = b.r - a.r, dy = b.y - a.y, len = std::max(std::hypot(dr, dy), 1e-6f);
+            const bool cap = i <= 1 && profile[static_cast<std::size_t>(i)].y == 0.0f;
+            for (int s = 0; s <= sides; ++s)
+            {
+                const float angle = 6.2831853f * static_cast<float>(s) / static_cast<float>(sides), sn = std::sin(angle), cs = std::cos(angle);
+                sl::Vertex3D v;
+                v.position[0] = profile[static_cast<std::size_t>(i)].r * sn;
+                v.position[1] = profile[static_cast<std::size_t>(i)].y;
+                v.position[2] = profile[static_cast<std::size_t>(i)].r * cs;
+                v.normal[0] = cap ? 0.0f : sn * dy / len;
+                v.normal[1] = cap ? -1.0f : -dr / len;
+                v.normal[2] = cap ? 0.0f : cs * dy / len;
+                const float k = profile[static_cast<std::size_t>(i)].shade;
+                v.colour[0] = 0.30f * k;
+                v.colour[1] = 0.29f * k;
+                v.colour[2] = 0.28f * k;
+                data.vertices.push_back(v);
+            }
+        }
+        for (int i = 0; i + 1 < rows; ++i)
+            for (int s = 0; s < sides; ++s)
+            {
+                const std::uint32_t p = static_cast<std::uint32_t>(i * (sides + 1) + s), q = p + sides + 1;
+                data.indices.insert(data.indices.end(), {p, p + 1, q, p + 1, q + 1, q});
+            }
+        return data;
+    }
+
     namespace
     {
         constexpr double pi = 3.14159265358979323846;
@@ -70,7 +116,7 @@ namespace kosmos
 
     struct Arsenal::Meshes
     {
-        sl::Mesh *cube = nullptr, *cylinder = nullptr, *sphere = nullptr, *bomb = nullptr, *fatman = nullptr;
+        sl::Mesh *cube = nullptr, *cylinder = nullptr, *sphere = nullptr, *bomb = nullptr, *fatman = nullptr, *rv = nullptr;
 
         void build()
         {
@@ -120,6 +166,8 @@ namespace kosmos
             bomb = sl::create_mesh(b.vertices, b.indices);
             const sl::MeshData f = sl::make_fatman_data();
             fatman = sl::create_mesh(f.vertices, f.indices);
+            const sl::MeshData rd = make_rv_data();
+            rv = sl::create_mesh(rd.vertices, rd.indices);
         }
     };
 
@@ -847,8 +895,11 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             const bool airburst = l.fuse_mode < 0 ? l.spec->fuse == "airburst" : l.fuse_mode == 1;
             const double burst = airburst ? (l.burst_height >= 0.0 ? l.burst_height : l.spec->burst_height) : 0.0;
             bool boom = false, lost = false;
-            if (l.ship->health() <= 0.0 && !l.ship->crashed())
+            // A warhead wrecked by the ground before the crash flag is set still went off; only one lost high up burns away.
+            if (l.ship->health() <= 0.0 && !l.ship->crashed() && t.altitude > 100.0)
                 lost = true;
+            else if (l.ship->health() <= 0.0)
+                boom = true;
             else if (l.ship->crashed() || (airburst && t.altitude <= burst && l.age > 2.0))
                 boom = true;
             if (!boom && !lost)
@@ -869,12 +920,14 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 r.age = l.age;
                 r.owner = l.owner;
                 detonate(context, r, r.position);
-                aftermath_ = {l.owner, r.body, r.position, 12.0};
+                aftermath_ = {l.owner, r.body, r.position, 25.0};
             }
             else
             {
                 last_event_ = l.spec->name + " burned up on re-entry";
                 last_event_time_ = 0.0;
+                // The camera stays with the spot where it was lost instead of snapping back to the bus.
+                aftermath_ = {l.owner, t.soi, l.ship->body().position - sim.universe.position(t.soi), 25.0};
             }
             launched_.erase(launched_.begin() + static_cast<std::ptrdiff_t>(i));
             sim.remove_ship(index);
@@ -1168,6 +1221,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             return meshes_->bomb;
         if (prop == "fatman")
             return meshes_->fatman;
+        if (prop == "rv")
+            return meshes_->rv;
         return box ? meshes_->cube : meshes_->sphere;
     }
 
@@ -1201,8 +1256,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             }
             if (!spec.prop.empty())
             {
-                const bool fat = spec.prop == "fatman";
-                const float rs = static_cast<float>(spec.radius / (fat ? 0.75 : 0.25)), ls = static_cast<float>(spec.length / (fat ? 3.3 : 3.0));
+                const bool fat = spec.prop == "fatman", rv = spec.prop == "rv";
+                const float rs = static_cast<float>(spec.radius / (fat ? 0.75 : rv ? 0.6 : 0.25)), ls = static_cast<float>(spec.length / (fat || rv ? 3.3 : 3.0));
                 model *= glm::mat4_cast(glm::quat(static_cast<float>(r.orientation.w), static_cast<float>(r.orientation.x), static_cast<float>(r.orientation.y), static_cast<float>(r.orientation.z))) *
                          glm::scale(glm::mat4(1.0f), glm::vec3(rs, ls, rs));
                 sl::draw_mesh(round_mesh(spec.prop, false), model, m);

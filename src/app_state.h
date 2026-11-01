@@ -126,6 +126,7 @@ namespace kosmos::app
         sl::Terrain * terrain{};
         TerrainSet terrain_set;
         sl::Mesh * cloud_shell{};
+        std::vector<sl::Vertex3D> cloud_shell_vertices;
         sl::Bitmap * home_cloud_texture{};
         double home_cloud_height{};
         kosmos::BaseRenderer base_renderer;

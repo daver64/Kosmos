@@ -478,7 +478,7 @@ namespace kosmos::app
             sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
             sl::set_light_3d(body_light);
         }
-        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0)
+        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0 && distance - b.radius < 0.003 * b.radius)
         {
             // Rayleigh scattering over the sunlit side: a faint, lit blue veil that lifts the oceans and hazes the land.
             sl::Material veil;
@@ -583,6 +583,25 @@ namespace kosmos::app
             // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it well beyond that plane, as the plane also cuts off-axis parts of a wide view.
             shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - shell_clearance));
             const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
+            // The shell would end on a hard line at its own limb, so it fades out over the last few degrees before it.
+            if (!cloud_shell_vertices.empty() && altitude_now > 3.0e3)
+            {
+                const glm::dvec3 eye_rel = -(glm::dvec3(earth_pos) - glm::dvec3(eye_world));
+                std::vector<sl::Vertex3D> &verts = cloud_shell_vertices;
+                for (sl::Vertex3D &v : verts)
+                {
+                    const glm::dvec3 w = glm::dvec3(v.position[0], v.position[1], v.position[2]) * static_cast<double>(shell_scale);
+                    const double facing = -glm::dot(glm::normalize(w), glm::normalize(w - eye_rel));
+                    v.colour[3] = static_cast<float>(fx::smoothstep(0.0, 0.06, facing));
+                }
+                sl::update_mesh_vertices(cloud_shell, verts);
+            }
+            else if (!cloud_shell_vertices.empty() && cloud_shell_vertices.front().colour[3] < 1.0f)
+            {
+                for (sl::Vertex3D &v : cloud_shell_vertices)
+                    v.colour[3] = 1.0f;
+                sl::update_mesh_vertices(cloud_shell, cloud_shell_vertices);
+            }
             sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
         }
 

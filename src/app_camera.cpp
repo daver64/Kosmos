@@ -571,13 +571,13 @@ namespace kosmos::app
         double seconds_to_burst = 1.0e9;
         const bool following = !in_cockpit && !in_interior && !map_mode && arsenal.follow_target(universe, ship, focus, seconds_to_burst);
         double distance = cam_distance;
-        if (following && seconds_to_burst < 5.0)
+        if (following && seconds_to_burst < 8.0)
         {
-            // Five seconds before the burst the camera eases out to 2 km, level with the warhead, to watch it from a safe distance.
-            const double t = std::clamp(1.0 - seconds_to_burst / 5.0, 0.0, 1.0), w = t * t * (3.0 - 2.0 * t);
+            // Eight seconds before the burst the camera eases out to 25 km, level with the warhead, to watch it from a safe distance.
+            const double t = std::clamp(1.0 - seconds_to_burst / 8.0, 0.0, 1.0), w = t * t * (3.0 - 2.0 * t);
             const sl::dvec3 level = east * std::sin(yaw_d) + north * std::cos(yaw_d);
             offset_dir = glm::normalize(offset_dir * (1.0 - w) + level * w);
-            distance = cam_distance + (2000.0 - cam_distance) * w;
+            distance = cam_distance + (25000.0 - cam_distance) * w;
         }
         eye_world = focus + offset_dir * distance;
         ship_rel = glm::vec3(focus - eye_world);
@@ -875,7 +875,7 @@ namespace kosmos::app
         sl::PropertyTree &props = *props_ref;
         // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km (lower when the tiled imagery is present, which stays sharp down to there), scaled by the body's size.
         const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
-        earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ? 300.0e3 : 20.0e3;
+        earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ?400.0e3 : 120.0e3;
         earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > (vis.earth_tiles ? earth_sphere_switch_m : 300.0e3) * earth_body->radius / 6.371e6;
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
         {

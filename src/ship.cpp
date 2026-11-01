@@ -1507,6 +1507,7 @@ namespace kosmos
             return false;
         drop_stage(active_stage_);
         ++active_stage_;
+        stage_time_ = universe_.time();
         recentre();
         refresh_mass_properties();
         return true;
@@ -1558,17 +1559,20 @@ namespace kosmos
         sl::dvec3 target = spec_.camera_target;
         if (active_stage_ <= 0 || active_stage_ >= static_cast<int>(spec_.stages.size()))
             return target;
-        const auto middle = [&](std::size_t first)
+        const auto middle = [&](int first)
         {
             double lo = 1.0e30, hi = -1.0e30;
-            for (std::size_t s = first; s < spec_.stages.size(); ++s)
+            for (std::size_t s = static_cast<std::size_t>(first); s < spec_.stages.size(); ++s)
             {
                 lo = std::min(lo, spec_.stages[s].z - spec_.stages[s].length * 0.5);
                 hi = std::max(hi, spec_.stages[s].z + spec_.stages[s].length * 0.5);
             }
             return 0.5 * (lo + hi);
         };
-        target.z += middle(static_cast<std::size_t>(active_stage_)) - middle(0);
+        // Ease from the previous stack's centre to the new one, so the camera does not jump when a stage drops.
+        const double t = std::clamp((universe_.time() - stage_time_) / 2.5, 0.0, 1.0), ease = t * t * (3.0 - 2.0 * t);
+        const double before = active_stage_ > 1 ? middle(active_stage_ - 1) : middle(0);
+        target.z += (before + (middle(active_stage_) - before) * ease) - middle(0);
         return target;
     }
 

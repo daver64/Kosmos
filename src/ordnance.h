@@ -16,6 +16,9 @@
 
 namespace kosmos
 {
+    /** A ballistic re-entry vehicle: a slender cone with a short skirt, base on y = 0 and nose at y = length (the props library's orientation). */
+    sl::MeshData make_rv_data(float radius = 0.6f, float length = 3.3f);
+
     /** What the arsenal needs each frame from the app: the simulation, the person on foot and the ground under them. */
     struct ArsenalContext
     {
