@@ -25,6 +25,114 @@ namespace kosmos::app
         return KOSMOS_ROOT;
     }
 
+    static bool parse_early_option(int argc, char **argv, int &i, Options &options)
+    {
+        if (!std::strcmp(argv[i], "--root") && i + 1 < argc)
+            options.root = argv[++i];
+        else if (!std::strcmp(argv[i], "--selftest") && i + 1 < argc)
+            options.selftest = std::atof(argv[++i]);
+        else if (!std::strcmp(argv[i], "--system") && i + 1 < argc)
+            options.system_name = argv[++i];
+        else if (!std::strcmp(argv[i], "--stars"))
+            options.list_stars = true;
+        else if (!std::strcmp(argv[i], "--list-worlds") && i + 1 < argc)
+            options.list_worlds = argv[++i];
+        else if (!std::strcmp(argv[i], "--galaxy-map"))
+            options.galaxy_view = true;
+        else if (!std::strcmp(argv[i], "--quantum"))
+            options.quantum_window = true;
+        else if (!std::strcmp(argv[i], "--test-jump-body") && i + 1 < argc)
+            options.test_jump_body = argv[++i];
+        else if (!std::strcmp(argv[i], "--world-texture") && i + 1 < argc)
+            options.world_texture = std::max(0, std::atoi(argv[++i]));
+        else if (!std::strcmp(argv[i], "--test-scenario") && i + 1 < argc)
+            options.test_scenario = argv[++i];
+        else if (!std::strcmp(argv[i], "--test-jump") && i + 1 < argc)
+            options.test_jump = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--max-texture") && i + 1 < argc)
+            options.max_texture = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--host"))
+        {
+            options.net_host = true;
+            if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
+                options.net_port = std::atoi(argv[++i]);
+        }
+        else if (!std::strcmp(argv[i], "--join") && i + 1 < argc)
+            options.net_join = argv[++i];
+        else if (!std::strcmp(argv[i], "--name") && i + 1 < argc)
+            options.net_name = argv[++i];
+        else if (!std::strcmp(argv[i], "--advertise") && i + 1 < argc)
+            options.net_advertise = argv[++i];
+        else if (!std::strcmp(argv[i], "--irc") && i + 1 < argc)
+            options.net_irc = argv[++i];
+        else if (!std::strcmp(argv[i], "--channel") && i + 1 < argc)
+            options.net_channel = argv[++i];
+        else if (!std::strcmp(argv[i], "--lobby"))
+            options.net_window = true;
+        else if (!std::strcmp(argv[i], "--fullscreen"))
+            options.fullscreen = true;
+        else if (!std::strcmp(argv[i], "--render-style") && i + 1 < argc)
+        {
+            const std::string v = argv[++i];
+            options.render_style = v == "flat" ? 1 : v == "wireframe" ? 2 : 0;
+        }
+        else if (!std::strcmp(argv[i], "--no-clouds"))
+            options.no_clouds = true;
+        else if (!std::strcmp(argv[i], "--no-clutter"))
+            options.no_clutter = true;
+        else if (!std::strcmp(argv[i], "--eva-walk"))
+            options.eva = options.eva_walk = true;
+        else if (!std::strcmp(argv[i], "--eva"))
+            options.eva = true;
+        else if (!std::strcmp(argv[i], "--perf"))
+            options.perf = true;
+        else if (!std::strcmp(argv[i], "--no-tiles"))
+            options.no_tiles = true;
+        else if (!std::strcmp(argv[i], "--no-detail"))
+            detail_disabled = true;
+        else if (!std::strcmp(argv[i], "--no-relief"))
+            options.no_relief = true;
+        else if (!std::strcmp(argv[i], "--blender") && i + 1 < argc)
+            options.blender = argv[++i];
+        else if (!std::strcmp(argv[i], "--part-editor"))
+            options.part_window = true;
+        else if (!std::strcmp(argv[i], "--clean"))
+            options.clean = options.hide_info = true;
+        else if (!std::strcmp(argv[i], "--hide-info"))
+            options.hide_info = true;
+        else if (!std::strcmp(argv[i], "--console"))
+        {
+            // handled by main() before the window opens (Windows only)
+        }
+        else if (!std::strcmp(argv[i], "--show-info"))
+            options.show_info = true;
+        else if (!std::strcmp(argv[i], "--systems-window"))
+            options.systems_window = true;
+        else if (!std::strcmp(argv[i], "--life-support") && i + 1 < argc)
+            options.life_support = argv[++i];
+        else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
+            options.hud = argv[++i];
+        else if (!std::strcmp(argv[i], "--camera-editor"))
+            options.camera_editor = true;
+        else if (!std::strcmp(argv[i], "--user-camera") && i + 1 < argc)
+            options.user_camera = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--camera-window"))
+            options.camera_window = true;
+        else if (!std::strcmp(argv[i], "--aircraft-autopilot-window"))
+            options.aircraft_autopilot = true;
+        else if (!std::strcmp(argv[i], "--spacecraft-autopilot-window"))
+            options.spacecraft_autopilot = true;
+        else if (!std::strcmp(argv[i], "--settings-window"))
+            options.settings_window = true;
+        else if (!std::strcmp(argv[i], "--performance-window"))
+            options.performance_window = true;
+        else if (!std::strcmp(argv[i], "--keys-window"))
+            options.keys_window = true;
+        else
+            return false;
+        return true;
+    }
+
     int parse_command_line(int argc, char **argv, Options &options, std::vector<char *> &backend_args)
     {
         for (int i = 1; i < argc; ++i)
@@ -59,107 +167,8 @@ namespace kosmos::app
                 std::printf("wrote %s\n", out.c_str());
                 return 0;
             }
-            else if (!std::strcmp(argv[i], "--root") && i + 1 < argc)
-                options.root = argv[++i];
-            else if (!std::strcmp(argv[i], "--selftest") && i + 1 < argc)
-                options.selftest = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--system") && i + 1 < argc)
-                options.system_name = argv[++i];
-            else if (!std::strcmp(argv[i], "--stars"))
-                options.list_stars = true;
-            else if (!std::strcmp(argv[i], "--list-worlds") && i + 1 < argc)
-                options.list_worlds = argv[++i];
-            else if (!std::strcmp(argv[i], "--galaxy-map"))
-                options.galaxy_view = true;
-            else if (!std::strcmp(argv[i], "--quantum"))
-                options.quantum_window = true;
-            else if (!std::strcmp(argv[i], "--test-jump-body") && i + 1 < argc)
-                options.test_jump_body = argv[++i];
-            else if (!std::strcmp(argv[i], "--world-texture") && i + 1 < argc)
-                options.world_texture = std::max(0, std::atoi(argv[++i]));
-            else if (!std::strcmp(argv[i], "--test-scenario") && i + 1 < argc)
-                options.test_scenario = argv[++i];
-            else if (!std::strcmp(argv[i], "--test-jump") && i + 1 < argc)
-                options.test_jump = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--max-texture") && i + 1 < argc)
-                options.max_texture = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--host"))
-            {
-                options.net_host = true;
-                if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
-                    options.net_port = std::atoi(argv[++i]);
-            }
-            else if (!std::strcmp(argv[i], "--join") && i + 1 < argc)
-                options.net_join = argv[++i];
-            else if (!std::strcmp(argv[i], "--name") && i + 1 < argc)
-                options.net_name = argv[++i];
-            else if (!std::strcmp(argv[i], "--advertise") && i + 1 < argc)
-                options.net_advertise = argv[++i];
-            else if (!std::strcmp(argv[i], "--irc") && i + 1 < argc)
-                options.net_irc = argv[++i];
-            else if (!std::strcmp(argv[i], "--channel") && i + 1 < argc)
-                options.net_channel = argv[++i];
-            else if (!std::strcmp(argv[i], "--lobby"))
-                options.net_window = true;
-            else if (!std::strcmp(argv[i], "--fullscreen"))
-                options.fullscreen = true;
-            else if (!std::strcmp(argv[i], "--render-style") && i + 1 < argc)
-            {
-                const std::string v = argv[++i];
-                options.render_style = v == "flat" ? 1 : v == "wireframe" ? 2 : 0;
-            }
-            else if (!std::strcmp(argv[i], "--no-clouds"))
-                options.no_clouds = true;
-            else if (!std::strcmp(argv[i], "--no-clutter"))
-                options.no_clutter = true;
-            else if (!std::strcmp(argv[i], "--eva-walk"))
-                options.eva = options.eva_walk = true;
-            else if (!std::strcmp(argv[i], "--eva"))
-                options.eva = true;
-            else if (!std::strcmp(argv[i], "--perf"))
-                options.perf = true;
-            else if (!std::strcmp(argv[i], "--no-tiles"))
-                options.no_tiles = true;
-            else if (!std::strcmp(argv[i], "--no-detail"))
-                detail_disabled = true;
-            else if (!std::strcmp(argv[i], "--no-relief"))
-                options.no_relief = true;
-            else if (!std::strcmp(argv[i], "--blender") && i + 1 < argc)
-                options.blender = argv[++i];
-            else if (!std::strcmp(argv[i], "--part-editor"))
-                options.part_window = true;
-            else if (!std::strcmp(argv[i], "--clean"))
-                options.clean = options.hide_info = true;
-            else if (!std::strcmp(argv[i], "--hide-info"))
-                options.hide_info = true;
-            else if (!std::strcmp(argv[i], "--console"))
-            {
-                // handled by main() before the window opens (Windows only)
-            }
-            else if (!std::strcmp(argv[i], "--show-info"))
-                options.show_info = true;
-            else if (!std::strcmp(argv[i], "--systems-window"))
-                options.systems_window = true;
-            else if (!std::strcmp(argv[i], "--life-support") && i + 1 < argc)
-                options.life_support = argv[++i];
-            else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
-                options.hud = argv[++i];
-            else if (!std::strcmp(argv[i], "--camera-editor"))
-                options.camera_editor = true;
-            else if (!std::strcmp(argv[i], "--user-camera") && i + 1 < argc)
-                options.user_camera = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--camera-window"))
-                options.camera_window = true;
-            else if (!std::strcmp(argv[i], "--aircraft-autopilot-window"))
-                options.aircraft_autopilot = true;
-            else if (!std::strcmp(argv[i], "--spacecraft-autopilot-window"))
-                options.spacecraft_autopilot = true;
-            else if (!std::strcmp(argv[i], "--settings-window"))
-                options.settings_window = true;
-            else if (!std::strcmp(argv[i], "--performance-window"))
-                options.performance_window = true;
-            else if (!std::strcmp(argv[i], "--keys-window"))
-                options.keys_window = true;
+            else if (parse_early_option(argc, argv, i, options))
+                continue;
             else if (!std::strcmp(argv[i], "--link-window"))
                 options.link_window = true;
             else if (!std::strcmp(argv[i], "--link"))

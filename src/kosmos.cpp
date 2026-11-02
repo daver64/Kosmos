@@ -12,6 +12,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 
@@ -44,3 +45,10 @@ int main(int argc, char **argv)
     kosmos::app::App app;
     return app.run(argc, argv);
 }
+
+#ifdef _WIN32
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+{
+    return main(__argc, __argv);
+}
+#endif

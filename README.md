@@ -4,13 +4,29 @@ An Orbiter/Kerbal-style space simulator built on simlib. Fly from a launch pad t
 
 ## Build and run
 
-Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) (`cmake --install` of rsimlib; pinned to the commit in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it, and the pin is only moved after simlib itself changes). Needs a C++17 compiler, CMake 3.28+, Ninja and simlib's dependencies.
+Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) (`cmake --install` of rsimlib; pinned to the commit in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it, and the pin is only moved after simlib itself changes). Needs a C++17 compiler, CMake 3.28+ and simlib's dependencies; the Linux command below uses Ninja.
 
     cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/opt
     cmake --build build --target kosmos
     ./build/kosmos [options]
 
 Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source checkout instead.
+
+### Native Windows build (MSVC)
+
+With the MSVC C++ tools, a neighboring simlib checkout at the commit in `SIMLIB_COMMIT`, and simlib's dependencies installed in vcpkg's `x64-windows` triplet, configure and build the executable:
+
+```powershell
+$env:VCPKG_ROOT = "C:\path\to\vcpkg"
+cmake -S . -B build-msvc -G "Visual Studio 18 2026" -A x64 `
+  "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+  -DVCPKG_TARGET_TRIPLET=x64-windows `
+  -DKOSMOS_SIMLIB_DIR=..\rsimlib `
+  -DSIMLIB_RENDERERS=gl -DSIMLIB_BUILD_SHADER_COMPILER=OFF -DSIMLIB_VALIDATE_SHADERS=OFF
+cmake --build build-msvc --config Release --target kosmos --parallel 4
+```
+
+Use the Visual Studio generator name matching the installed version. This builds the game executable; the Windows package script below remains the MinGW cross-build.
 
 ### Source layout
 
