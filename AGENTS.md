@@ -26,7 +26,7 @@ Kosmos is an Kerbal/Orbiter-style space flight sim in C++17, built on **simlib**
 - Tests: `build/systems_test`.
 
 ## Things that have bitten before
-- OBJ model parts are named by **material** (`usemtl`), not by `g` group. To animate a group separately, give it its own material in the `.obj` and `.mtl`, then use that name in the animation JSON.
+- OBJ model parts are named by the **`o` object name**, falling back to the material (`usemtl`) name when the file has no `o` lines. `g` is ignored (Orbiter conversions emit meaningless group0, group1...). Animations and visibility rules match either the part name or its material name. Needs the simlib change that adds `ModelPart::material_name`.
 - Anything that touches OpenGL (`sl::destroy_bitmap`, texture creation) must run on the main thread. Terrain worker threads must not free GPU-backed bitmaps.
 - Aircraft ships get the atmosphere-only MFD filter unless the cockpit sets `"mfd_filter": "none"`.
 - Panel instruments can be listed in any order. The first two are the ones F6-F9 drive, which is not always left then right on screen.

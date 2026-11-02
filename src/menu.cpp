@@ -811,6 +811,18 @@ namespace kosmos
     void BaseEditor::blender_controls(Sim &sim, Base &b, const BaseObject &o)
     {
     ImGui::SeparatorText("Edit in Blender or KosmosCAD");
+    {
+        const bool cad = sim.props.get_string("/sim/settings/mesh-editor", "blender") == "kosmoscad";
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::BeginCombo("Mesh editor", cad ? "KosmosCAD" : "Blender"))
+        {
+            if (ImGui::Selectable("Blender", !cad))
+                sim.props.set_string("/sim/settings/mesh-editor", "blender");
+            if (ImGui::Selectable("KosmosCAD", cad))
+                sim.props.set_string("/sim/settings/mesh-editor", "kosmoscad");
+            ImGui::EndCombo();
+        }
+    }
     picked_.resize(b.objects.size(), 0);
     if (ImGui::TreeNode("Pick objects to join"))
     {

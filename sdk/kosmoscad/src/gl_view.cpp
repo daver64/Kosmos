@@ -23,9 +23,11 @@ uniform float uPoint;
 out vec3 vColour;
 out vec3 vNormal;
 out vec2 vUV;
+out vec3 vPos;
 void main()
 {
     vUV = aUV;
+    vPos = (uModel * vec4(aPos, 1.0)).xyz;
     gl_Position = uMVP * (uModel * vec4(aPos, 1.0));
     gl_PointSize = uPoint;
     vColour = aColour;
@@ -36,9 +38,16 @@ void main()
 in vec3 vColour;
 in vec3 vNormal;
 in vec2 vUV;
+in vec3 vPos;
 uniform vec4 uMul;
 uniform sampler2D uTex;
+uniform sampler2D uNormalTex;
+uniform sampler2D uSpecTex;
 uniform int uMode;   // 0 plain colour, 1 texture, 2 checker
+uniform int uMaps;   // bit 0 normal map, bit 1 metallic-roughness map
+uniform vec4 uPbr;   // metallic, roughness, 0, 0
+uniform vec3 uEmit;
+uniform vec3 uEye;
 out vec4 fragment;
 void main()
 {
@@ -51,9 +60,42 @@ void main()
         base = vec3(mix(0.30, 0.80, mod(c.x + c.y, 2.0)));
     }
     float lit = 1.0;
+    vec3 spec = vec3(0.0);
     if (dot(vNormal, vNormal) > 0.01)
-        lit = 0.30 + 0.70 * abs(dot(normalize(vNormal), normalize(vec3(0.4, 0.8, 0.5))));
-    fragment = vec4(base * lit * uMul.rgb, uMul.a);
+    {
+        vec3 n = normalize(vNormal);
+        vec3 l = normalize(vec3(0.4, 0.8, 0.5));
+        vec2 st = vec2(vUV.x, 1.0 - vUV.y);
+        if (uMode == 1 && (uMaps & 1) != 0)
+        {
+            // Tangent frame from screen-space derivatives, so no tangents are stored per vertex.
+            vec3 dp1 = dFdx(vPos), dp2 = dFdy(vPos);
+            vec2 duv1 = dFdx(st), duv2 = dFdy(st);
+            vec3 dp2perp = cross(dp2, n), dp1perp = cross(n, dp1);
+            vec3 t = dp2perp * duv1.x + dp1perp * duv2.x;
+            vec3 b = dp2perp * duv1.y + dp1perp * duv2.y;
+            float inv = inversesqrt(max(max(dot(t, t), dot(b, b)), 1e-12));
+            vec3 tn = texture(uNormalTex, st).xyz * 2.0 - 1.0;
+            n = normalize(mat3(t * inv, b * inv, n) * tn);
+        }
+        float metal = uPbr.x, rough = uPbr.y;
+        if (uMode == 1 && (uMaps & 2) != 0)
+        {
+            vec3 mr = texture(uSpecTex, st).rgb;
+            rough *= mr.g;
+            metal *= mr.b;
+        }
+        if (!gl_FrontFacing)
+            n = -n;
+        lit = 0.30 + 0.70 * abs(dot(n, l));
+        vec3 v = normalize(uEye - vPos);
+        vec3 h = normalize(l + v);
+        float shin = mix(200.0, 4.0, clamp(rough, 0.0, 1.0));
+        float s = pow(max(dot(n, h), 0.0), shin) * max(dot(n, l), 0.0);
+        spec = mix(vec3(0.25 * (1.0 - rough)), base, metal) * s;
+        base *= 1.0 - 0.6 * metal;
+    }
+    fragment = vec4((base * lit + spec + uEmit) * uMul.rgb, uMul.a);
 }
 )";
 
@@ -298,6 +340,12 @@ void main()
         u_mode_ = glGetUniformLocation(program_, "uMode");
         glUseProgram(program_);
         glUniform1i(glGetUniformLocation(program_, "uTex"), 0);
+        glUniform1i(glGetUniformLocation(program_, "uNormalTex"), 1);
+        glUniform1i(glGetUniformLocation(program_, "uSpecTex"), 2);
+        u_maps_ = glGetUniformLocation(program_, "uMaps");
+        u_pbr_ = glGetUniformLocation(program_, "uPbr");
+        u_emit_ = glGetUniformLocation(program_, "uEmit");
+        u_eye_ = glGetUniformLocation(program_, "uEye");
         glGenVertexArrays(1, &scratch_vao_);
         glGenBuffers(1, &scratch_vbo_);
         return true;
@@ -524,15 +572,32 @@ void main()
                 glUniform1f(u_point_, 1);
                 if (cam.textured)
                 {
+                    const V3 eye = cam.eye();
+                    glUniform3f(u_eye_, float(eye.x), float(eye.y), float(eye.z));
                     for (const Range &rg : b.ranges)
                     {
+                        const Material &mat = ed.scene().materials[std::clamp(rg.material, 0, static_cast<int>(ed.scene().materials.size()) - 1)];
                         const Tex *t = vs.checker ? nullptr : texture_for(ed, rg.material);
+                        const Tex *nt = t ? load_tex(mat.normal_map) : nullptr;
+                        const Tex *st = t ? load_tex(mat.spec_map) : nullptr;
                         if (t)
                             glBindTexture(GL_TEXTURE_2D, t->id);
+                        glActiveTexture(GL_TEXTURE1);
+                        if (nt)
+                            glBindTexture(GL_TEXTURE_2D, nt->id);
+                        glActiveTexture(GL_TEXTURE2);
+                        if (st)
+                            glBindTexture(GL_TEXTURE_2D, st->id);
+                        glActiveTexture(GL_TEXTURE0);
                         glUniform1i(u_mode_, t ? 1 : (vs.checker ? 2 : 0));
+                        glUniform1i(u_maps_, (nt ? 1 : 0) | (st ? 2 : 0));
+                        glUniform4f(u_pbr_, float(mat.metallic), float(mat.roughness), 0, 0);
+                        glUniform3f(u_emit_, float(mat.emissive.x), float(mat.emissive.y), float(mat.emissive.z));
                         glDrawArrays(GL_TRIANGLES, rg.first, rg.count);
                     }
                     glUniform1i(u_mode_, 0);
+                    glUniform1i(u_maps_, 0);
+                    glUniform3f(u_emit_, 0, 0, 0);
                 }
                 else
                     glDrawArrays(GL_TRIANGLES, 0, b.tri_count);
@@ -704,9 +769,16 @@ void main()
     const GlView::Tex *GlView::texture_for(const Editor &ed, int material)
     {
         const auto &mats = ed.scene().materials;
-        if (material < 0 || material >= static_cast<int>(mats.size()) || mats[material].texture.empty() || !loader)
+        if (material < 0 || material >= static_cast<int>(mats.size()))
             return nullptr;
-        std::string path = mats[material].texture;
+        return load_tex(mats[material].texture);
+    }
+
+    const GlView::Tex *GlView::load_tex(const std::string &file)
+    {
+        if (file.empty() || !loader)
+            return nullptr;
+        std::string path = file;
         const bool absolute = path[0] == '/' || (path.size() > 1 && path[1] == ':');
         if (!absolute && !base_dir.empty() && !std::filesystem::exists(path)) // a path from an OBJ import is already relative to where it was opened
             path = base_dir + "/" + path;

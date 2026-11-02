@@ -20,6 +20,11 @@ namespace cad
         std::string name = "part"; // becomes the OBJ usemtl name, which Kosmos uses as the part name for animation
         V3 colour{0.7, 0.72, 0.75};
         std::string texture;       // path to an image, absolute or relative to the scene file; empty for none
+        std::string normal_map;    // tangent-space normal map (OBJ map_Bump, glTF normalTexture); empty for none
+        std::string spec_map;      // glTF-style metallic-roughness image (G roughness, B metallic); empty for none
+        double metallic = 0.0;     // 0..1
+        double roughness = 0.6;    // 0 mirror .. 1 matt
+        V3 emissive{0, 0, 0};      // light the surface gives off, as a colour
     };
 
     struct Object

@@ -166,7 +166,20 @@ namespace cad
             j["ship_root"] = scene.ship_root;
         json &mats = j["materials"] = json::array();
         for (const Material &m : scene.materials)
-            mats.push_back({{"name", m.name}, {"colour", v3_json(m.colour)}, {"texture", m.texture}});
+            {
+            json mj = {{"name", m.name}, {"colour", v3_json(m.colour)}, {"texture", m.texture}};
+            if (!m.normal_map.empty())
+                mj["normal_map"] = m.normal_map;
+            if (!m.spec_map.empty())
+                mj["spec_map"] = m.spec_map;
+            if (m.metallic != 0.0)
+                mj["metallic"] = m.metallic;
+            if (m.roughness != 0.6)
+                mj["roughness"] = m.roughness;
+            if (m.emissive.x != 0 || m.emissive.y != 0 || m.emissive.z != 0)
+                mj["emissive"] = v3_json(m.emissive);
+            mats.push_back(mj);
+        }
         json &objs = j["objects"] = json::array();
         for (const Object &o : scene.objects)
         {
@@ -211,6 +224,11 @@ namespace cad
                 mat.name = m.value("name", "part");
                 mat.colour = v3_from(m.value("colour", json()), mat.colour);
                 mat.texture = m.value("texture", "");
+                mat.normal_map = m.value("normal_map", "");
+                mat.spec_map = m.value("spec_map", "");
+                mat.metallic = m.value("metallic", mat.metallic);
+                mat.roughness = m.value("roughness", mat.roughness);
+                mat.emissive = v3_from(m.value("emissive", json()), mat.emissive);
                 s.materials.push_back(mat);
             }
             if (s.materials.empty())
@@ -313,6 +331,7 @@ namespace cad
         {
             Mesh mesh;
             bool smooth;
+            std::string name;
             int vbase = 0, tbase = 0, nbase = 0;
             std::vector<V3> normals;   // per face corner, in face order
         };
@@ -325,6 +344,7 @@ namespace cad
             Baked b;
             b.mesh = world ? world_mesh(o) : o.mesh;
             b.smooth = o.smooth;
+            b.name = o.name;
             baked.push_back(std::move(b));
         }
 
@@ -364,11 +384,11 @@ namespace cad
         }
 
         std::vector<bool> used(scene.materials.size(), false);
-        for (size_t mi = 0; mi < scene.materials.size(); ++mi)
+        for (const Baked &b : baked)
         {
-            bool header = false;
-            for (const Baked &b : baked)
+            for (size_t mi = 0; mi < scene.materials.size(); ++mi)
             {
+                bool header = false;
                 int corner = 0;
                 for (size_t fi = 0; fi < b.mesh.f.size(); ++fi)
                 {
@@ -379,7 +399,8 @@ namespace cad
                         continue;
                     if (!header)
                     {
-                        obj << "g " << safe_name(scene.materials[mi].name) << "\nusemtl " << safe_name(scene.materials[mi].name) << '\n';
+                        // `o` names the part Kosmos animates; the material only describes the look.
+                        obj << "o " << safe_name(b.name) << "\nusemtl " << safe_name(scene.materials[mi].name) << '\n';
                         header = true;
                         used[mi] = true;
                     }
@@ -401,16 +422,23 @@ namespace cad
             if (!used[mi])
                 continue;
             const Material &m = scene.materials[mi];
-            mtl << "newmtl " << safe_name(m.name) << "\nKd " << m.colour.x << ' ' << m.colour.y << ' ' << m.colour.z << "\nKs 0.3 0.3 0.3\n";
-            if (!m.texture.empty() && fs::exists(m.texture))
+            const double ks = 0.1 + 0.4 * (1.0 - m.roughness);
+            mtl << "newmtl " << safe_name(m.name) << "\nKd " << m.colour.x << ' ' << m.colour.y << ' ' << m.colour.z << "\nKs " << ks << ' ' << ks << ' ' << ks << '\n';
+            // Pm, Pr and Ke are the PBR extension keys, read by Kosmos's OBJ loader. The spec map is GLB-only (glTF layout, not a classic map_Ks).
+            mtl << "Pm " << m.metallic << "\nPr " << m.roughness << "\nKe " << m.emissive.x << ' ' << m.emissive.y << ' ' << m.emissive.z << '\n';
+            auto copy_map = [&](const std::string &src, const char *key)
             {
+                if (src.empty() || !fs::exists(src))
+                    return;
                 const fs::path tex_dir = dir / "textures";
                 fs::create_directories(tex_dir, ec);
-                const fs::path target = tex_dir / fs::path(m.texture).filename();
+                const fs::path target = tex_dir / fs::path(src).filename();
                 if (!fs::exists(target))
-                    fs::copy_file(m.texture, target, ec);
-                mtl << "map_Kd textures/" << target.filename().string() << '\n';
-            }
+                    fs::copy_file(src, target, ec);
+                mtl << key << " textures/" << target.filename().string() << '\n';
+            };
+            copy_map(m.texture, "map_Kd");
+            copy_map(m.normal_map, "map_Bump");
             mtl << '\n';
         }
         return true;
@@ -421,7 +449,9 @@ namespace cad
         struct MtlEntry
         {
             V3 colour{0.7, 0.72, 0.75};
-            std::string texture;
+            std::string texture, normal_map, spec_map;
+            double metallic = 0.0, roughness = 0.6;
+            V3 emissive{0, 0, 0};
         };
 
         std::map<std::string, MtlEntry> read_mtl(const fs::path &file)
@@ -441,13 +471,31 @@ namespace cad
                 }
                 else if (key == "Kd" && !current.empty())
                     ss >> out[current].colour.x >> out[current].colour.y >> out[current].colour.z;
-                else if (key == "map_Kd" && !current.empty())
+                else if (key == "Ke" && !current.empty())
+                    ss >> out[current].emissive.x >> out[current].emissive.y >> out[current].emissive.z;
+                else if (key == "Pm" && !current.empty())
+                    ss >> out[current].metallic;
+                else if (key == "Pr" && !current.empty())
+                    ss >> out[current].roughness;
+                else if ((key == "map_Kd" || key == "map_Bump" || key == "map_bump" || key == "bump" || key == "norm") && !current.empty())
                 {
+                    // Options such as "-bm 1" come first; the file name is the rest after them.
                     std::string rest;
                     std::getline(ss, rest);
-                    const size_t s = rest.find_first_not_of(' ');
+                    size_t s = rest.find_first_not_of(' ');
+                    while (s != std::string::npos && rest[s] == '-')
+                    {
+                        const size_t sp = rest.find(' ', s);
+                        const size_t arg = sp == std::string::npos ? sp : rest.find_first_not_of(' ', sp);
+                        s = arg == std::string::npos ? arg : rest.find(' ', arg);
+                        s = s == std::string::npos ? s : rest.find_first_not_of(' ', s);
+                    }
                     if (s != std::string::npos)
-                        out[current].texture = (file.parent_path() / rest.substr(s)).string();
+                    {
+                        const std::string path = (file.parent_path() / rest.substr(s)).string();
+                        MtlEntry &e = out[current];
+                        (key == "map_Kd" ? e.texture : e.normal_map) = path;
+                    }
                 }
             }
             return out;
@@ -491,6 +539,11 @@ namespace cad
             {
                 m.colour = mt->second.colour;
                 m.texture = mt->second.texture;
+                m.normal_map = mt->second.normal_map;
+                m.spec_map = mt->second.spec_map;
+                m.metallic = mt->second.metallic;
+                m.roughness = mt->second.roughness;
+                m.emissive = mt->second.emissive;
             }
             scene.materials.push_back(m);
             return mat_index[mname] = static_cast<int>(scene.materials.size()) - 1;

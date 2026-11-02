@@ -199,6 +199,11 @@ int main()
         check(near(signed_volume(loaded.objects[0].mesh), signed_volume(doc.scene.objects[0].mesh), 1e-9) && loaded.objects[1].mesh.uv.size() == doc.scene.objects[1].mesh.uv.size(), "kmodel keeps meshes and UVs");
 
         check(export_obj(doc.scene, tmp + "/out", "thing", err), "export OBJ " + err);
+        {
+            std::ifstream written(tmp + "/out/thing.obj");
+            std::string text((std::istreambuf_iterator<char>(written)), std::istreambuf_iterator<char>());
+            check(text.find("\no ") != std::string::npos || text.rfind("o ", 0) == 0, "OBJ export names parts with o lines");
+        }
         Scene back;
         check(import_obj(tmp + "/out/thing.obj", back, err), "re-import OBJ " + err);
         double want = 0, got = 0;
@@ -495,6 +500,54 @@ int main()
                 check(b.objects[0].mesh.uv.size() > 0 && b.objects[0].mesh.f[0].uv.size() == b.objects[0].mesh.f[0].v.size(), "GLB keeps UVs");
             }
             fs::remove(glb);
+
+            // material maps and factors survive .kmodel, GLB and OBJ+MTL
+            {
+                const fs::path dir = fs::temp_directory_path() / "kosmoscad_test_mat";
+                fs::create_directories(dir);
+                for (const char *n : {"c.png", "n.png", "s.png"})
+                    std::ofstream(dir / n, std::ios::binary) << "fake";
+                Scene m;
+                m.materials[0].name = "hull";
+                m.materials[0].texture = (dir / "c.png").string();
+                m.materials[0].normal_map = (dir / "n.png").string();
+                m.materials[0].spec_map = (dir / "s.png").string();
+                m.materials[0].metallic = 0.75;
+                m.materials[0].roughness = 0.25;
+                m.materials[0].emissive = {0.5, 0.25, 0.0};
+                Object ob;
+                ob.name = "box";
+                ob.mesh = make_box(1, 1, 1);
+                m.objects.push_back(ob);
+                auto same = [&](const Scene &r, const char *what, bool maps)
+                {
+                    Material x;
+                    for (const Material &c : r.materials)
+                        if (c.name == "hull")
+                            x = c;
+                    check(near(x.metallic, 0.75, 1e-6) && near(x.roughness, 0.25, 1e-6), std::string(what) + " keeps metallic and roughness");
+                    check(near(x.emissive.x, 0.5, 1e-6) && near(x.emissive.y, 0.25, 1e-6), std::string(what) + " keeps emissive");
+                    check(!x.normal_map.empty() && (maps ? true : fs::path(x.normal_map).filename() == "n.png"), std::string(what) + " keeps the normal map");
+                    check(maps || fs::path(x.spec_map).filename() == "s.png", std::string(what) + " keeps the spec map name");
+                    if (maps)
+                        check(!x.spec_map.empty() && fs::exists(x.normal_map) && !x.texture.empty(), std::string(what) + " keeps the colour and spec maps");
+                };
+                std::string e2;
+                const fs::path km = dir / "t.kmodel";
+                Scene r1;
+                check(save_kmodel(m, km, e2) && load_kmodel(km, r1, e2), "kmodel material round trip: " + e2);
+                same(r1, "kmodel", false);
+                const fs::path g2 = dir / "t.glb";
+                Scene r2;
+                check(write_mesh_file(m, g2, e2) && import_mesh_file(g2, r2, e2), "GLB material round trip: " + e2);
+                same(r2, "GLB", true);
+                Scene r3;
+                check(export_obj(m, dir / "out", "t", e2) && import_obj(dir / "out" / "t.obj", r3, e2), "OBJ material round trip: " + e2);
+                for (const Material &c : r3.materials)
+                    if (c.name == "hull")
+                        check(!c.normal_map.empty() && fs::exists(c.normal_map), "MTL map_Bump is written and found");
+                fs::remove_all(dir);
+            }
 
             // a glTF whose node is translated and mirrored in X (negative determinant keeps faces outward)
             const fs::path gl = fs::temp_directory_path() / "kosmoscad_test.gltf";

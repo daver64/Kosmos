@@ -38,7 +38,7 @@ namespace
         GtkWidget *sp_pos[3] = {}, *sp_rot[3] = {}, *sp_scl[3] = {};
         GtkWidget *obj_name = nullptr, *obj_visible = nullptr, *obj_smooth = nullptr;
         GtkWidget *mk_box = nullptr, *mk_kind = nullptr, *mk_name = nullptr, *mk_props = nullptr, *mk_place = nullptr;
-        GtkWidget *mat_combo = nullptr, *mat_name = nullptr, *mat_colour = nullptr, *mat_tex = nullptr;
+        GtkWidget *mat_combo = nullptr, *mat_name = nullptr, *mat_colour = nullptr, *mat_tex = nullptr, *mat_normal = nullptr, *mat_spec = nullptr, *mat_metal = nullptr, *mat_rough = nullptr, *mat_emit = nullptr;
         GtkWidget *sp_extrude = nullptr, *sp_inset = nullptr, *sp_weld = nullptr;
         GtkWidget *cb_uv = nullptr, *cb_uv_axis = nullptr;
         GtkWidget *mode_btn[4] = {}, *tool_btn[4] = {};
@@ -528,6 +528,20 @@ namespace
         const std::string name = A->ed.doc.file.empty() ? "model" : A->ed.doc.file.stem().string();
         if (export_obj(A->ed.scene(), dir, name, err))
             say("Exported " + dir + "/" + name + ".obj");
+        else
+            say("Export failed: " + err);
+    }
+
+    void act_export_glb()
+    {
+        std::string f = choose(GTK_FILE_CHOOSER_ACTION_SAVE, "Export GLB", "*.glb", "model.glb");
+        if (f.empty())
+            return;
+        if (f.size() < 4 || f.substr(f.size() - 4) != ".glb")
+            f += ".glb";
+        std::string err;
+        if (write_mesh_file(A->ed.scene(), f, err))
+            say("Exported " + f);
         else
             say("Export failed: " + err);
     }
@@ -1260,8 +1274,9 @@ namespace
         for (int i = 0; i < 3; ++i)
         {
             Geom &g = g_geom[i];
-            if (i > 0 && !gtk_widget_get_visible(wins[i]) && g.known)
+            if (i > 0 && !gtk_widget_get_visible(wins[i]))
             {
+                // A hidden window reports 0,0; keep what was recorded when it was hidden.
                 g.vis = false;
                 continue;
             }
@@ -1287,6 +1302,31 @@ namespace
     }
 
     // The scene list and the properties live in floating tool windows so the views get the whole main window.
+    // Remembers where a tool window was, so it can come back there after being hidden.
+    void remember_tool(GtkWidget *win)
+    {
+        if (!gtk_widget_get_visible(win))
+            return;
+        Geom &g = g_geom[win == A->scene_win ? 1 : 2];
+        gtk_window_get_position(GTK_WINDOW(win), &g.x, &g.y);
+        gtk_window_get_size(GTK_WINDOW(win), &g.w, &g.h);
+        g.known = g.w > 50 && g.h > 50;
+    }
+
+    // Keeps a window's title bar on a monitor so it cannot be stranded off screen.
+    void clamp_to_screen(GtkWidget *win, int &x, int &y, int w)
+    {
+        GdkDisplay *d = gdk_display_get_default();
+        GdkMonitor *m = d ? gdk_display_get_monitor_at_point(d, x + w / 2, y + 20) : nullptr;
+        GdkRectangle r{0, 0, 1280, 800};
+        if (m)
+            gdk_monitor_get_geometry(m, &r);
+        else if (d && gdk_display_get_n_monitors(d) > 0)
+            gdk_monitor_get_geometry(gdk_display_get_monitor(d, 0), &r);
+        x = std::max(r.x, std::min(x, r.x + r.width - 80));
+        y = std::max(r.y + 30, std::min(y, r.y + r.height - 60));
+    }
+
     void show_tool(GtkWidget *win, GtkWidget *button, bool show)
     {
         if (show)
@@ -1294,10 +1334,12 @@ namespace
             if (!gtk_widget_get_visible(win) && !g_object_get_data(G_OBJECT(win), "placed"))
             {
                 const Geom &sg = g_geom[win == A->scene_win ? 1 : 2];
-                if (sg.known)
+                if (sg.known && (sg.x != 0 || sg.y != 0))
                 {
+                    int x = sg.x, y = sg.y;
+                    clamp_to_screen(win, x, y, sg.w);
                     gtk_window_resize(GTK_WINDOW(win), sg.w, sg.h);
-                    gtk_window_move(GTK_WINDOW(win), sg.x, sg.y);
+                    gtk_window_move(GTK_WINDOW(win), x, y);
                 }
                 else
                 {
@@ -1312,7 +1354,10 @@ namespace
             gtk_window_present(GTK_WINDOW(win));
         }
         else
+        {
+            remember_tool(win);
             gtk_widget_hide(win);
+        }
         A->updating = true;
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), show);
         A->updating = false;
@@ -1518,6 +1563,12 @@ namespace
         GdkRGBA c{m.colour.x, m.colour.y, m.colour.z, 1};
         gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(A->mat_colour), &c);
         gtk_entry_set_text(GTK_ENTRY(A->mat_tex), m.texture.c_str());
+        gtk_entry_set_text(GTK_ENTRY(A->mat_normal), m.normal_map.c_str());
+        gtk_entry_set_text(GTK_ENTRY(A->mat_spec), m.spec_map.c_str());
+        gtk_range_set_value(GTK_RANGE(A->mat_metal), m.metallic);
+        gtk_range_set_value(GTK_RANGE(A->mat_rough), m.roughness);
+        GdkRGBA ec{m.emissive.x, m.emissive.y, m.emissive.z, 1};
+        gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(A->mat_emit), &ec);
         A->updating = false;
         if (A->vs.uv)
         {
@@ -1539,6 +1590,13 @@ namespace
         gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(A->mat_colour), &c);
         m.colour = {c.red, c.green, c.blue};
         m.texture = gtk_entry_get_text(GTK_ENTRY(A->mat_tex));
+        m.normal_map = gtk_entry_get_text(GTK_ENTRY(A->mat_normal));
+        m.spec_map = gtk_entry_get_text(GTK_ENTRY(A->mat_spec));
+        m.metallic = gtk_range_get_value(GTK_RANGE(A->mat_metal));
+        m.roughness = gtk_range_get_value(GTK_RANGE(A->mat_rough));
+        GdkRGBA ec;
+        gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(A->mat_emit), &ec);
+        m.emissive = {ec.red, ec.green, ec.blue};
         A->ed.changed();
         A->drop_tex = true;
         A->updating = true;
@@ -1550,6 +1608,41 @@ namespace
         A->updating = false;
         sync_ui();
         render();
+    }
+
+    // Sliders fire on every step of a drag; one undo checkpoint per burst of changes.
+    void on_material_slider(GtkWidget *, gpointer)
+    {
+        if (A->updating)
+            return;
+        static gint64 last = 0;
+        const gint64 now = g_get_monotonic_time();
+        Material &m = A->ed.scene().materials[current_material()];
+        if (now - last > 1000000)
+            A->ed.doc.checkpoint();
+        last = now;
+        m.metallic = gtk_range_get_value(GTK_RANGE(A->mat_metal));
+        m.roughness = gtk_range_get_value(GTK_RANGE(A->mat_rough));
+        A->ed.changed();
+        render();
+    }
+
+    // "..." beside a texture path: pick an image, then apply it like pressing Enter in the entry.
+    GtkWidget *browse_button(GtkWidget *entry, const char *title)
+    {
+        GtkWidget *b = gtk_button_new_with_label("...");
+        gtk_widget_set_tooltip_text(b, "Browse for an image (PNG, JPG, DDS...)");
+        g_object_set_data(G_OBJECT(b), "entry", entry);
+        g_object_set_data(G_OBJECT(b), "title", const_cast<char *>(title));
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkWidget *w, gpointer) {
+                           GtkWidget *e = GTK_WIDGET(g_object_get_data(G_OBJECT(w), "entry"));
+                           const std::string f = choose(GTK_FILE_CHOOSER_ACTION_OPEN, static_cast<const char *>(g_object_get_data(G_OBJECT(w), "title")), "*.png;*.jpg;*.jpeg;*.dds;*.bmp;*.tga");
+                           if (f.empty())
+                               return;
+                           gtk_entry_set_text(GTK_ENTRY(e), f.c_str());
+                           on_material_edit(nullptr, nullptr);
+                       }), nullptr);
+        return b;
     }
 
     // ---- UI construction ------------------------------------------------------------------------------------------
@@ -1641,6 +1734,7 @@ namespace
                            A->updating = true;
                            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w == A->scene_win ? A->scene_btn : A->props_btn), FALSE);
                            A->updating = false;
+                           remember_tool(w);
                            gtk_widget_hide(w);
                            return TRUE;
                        }), nullptr);
@@ -1679,6 +1773,7 @@ namespace
         menu_item(file, "Save to ship.json  (Ctrl+Shift+S)", +[](GtkWidget *, gpointer) { act_save_ship(false); });
         menu_item(file, "Save ship.json as...", +[](GtkWidget *, gpointer) { act_save_ship(true); });
         menu_item(file, "Export OBJ...", +[](GtkWidget *, gpointer) { act_export_obj(); });
+        menu_item(file, "Export GLB...", +[](GtkWidget *, gpointer) { act_export_glb(); });
         gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
         menu_item(file, "Quit", +[](GtkWidget *, gpointer) { if (discard_ok()) { layout_capture(); gtk_main_quit(); } });
 
@@ -1911,14 +2006,36 @@ namespace
         gtk_widget_set_tooltip_text(A->mat_name, "The material's name is the part name Kosmos animates (the OBJ usemtl name)");
         A->mat_colour = gtk_color_button_new();
         A->mat_tex = gtk_entry_new();
-        gtk_widget_set_tooltip_text(A->mat_tex, "Texture image path (relative to the ship folder, or absolute); copied next to the OBJ on export");
+        gtk_widget_set_tooltip_text(A->mat_tex, "Colour (diffuse) image: a path relative to the ship folder, or absolute; copied next to the OBJ on export");
+        A->mat_normal = gtk_entry_new();
+        gtk_widget_set_tooltip_text(A->mat_normal, "Normal (bump) map, tangent space. Written as map_Bump in the MTL and as the glTF normal texture; Kosmos shades with it");
+        A->mat_spec = gtk_entry_new();
+        gtk_widget_set_tooltip_text(A->mat_spec, "Specular map in glTF metallic-roughness layout (green = roughness, blue = metallic). Used by GLB parts");
+        A->mat_metal = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+        A->mat_rough = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 1, 0.01);
+        gtk_scale_set_draw_value(GTK_SCALE(A->mat_metal), TRUE);
+        gtk_scale_set_draw_value(GTK_SCALE(A->mat_rough), TRUE);
+        gtk_widget_set_tooltip_text(A->mat_metal, "0 = paint or plastic, 1 = bare metal (GLB parts)");
+        gtk_widget_set_tooltip_text(A->mat_rough, "0 = mirror-like, 1 = matt; sets the size of the highlight");
+        A->mat_emit = gtk_color_button_new();
+        gtk_widget_set_tooltip_text(A->mat_emit, "Light the surface gives off (windows, panels, displays); black for none (GLB parts)");
+        g_signal_connect(A->mat_normal, "activate", G_CALLBACK(on_material_edit), nullptr);
+        g_signal_connect(A->mat_spec, "activate", G_CALLBACK(on_material_edit), nullptr);
+        g_signal_connect(A->mat_metal, "value-changed", G_CALLBACK(on_material_slider), nullptr);
+        g_signal_connect(A->mat_rough, "value-changed", G_CALLBACK(on_material_slider), nullptr);
+        g_signal_connect(A->mat_emit, "color-set", G_CALLBACK(on_material_edit), nullptr);
         g_signal_connect(A->mat_name, "activate", G_CALLBACK(on_material_edit), nullptr);
         g_signal_connect(A->mat_tex, "activate", G_CALLBACK(on_material_edit), nullptr);
         g_signal_connect(A->mat_colour, "color-set", G_CALLBACK(on_material_edit), nullptr);
         gtk_box_pack_start(GTK_BOX(mm), row("Material", A->mat_combo), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(mm), row("Name", A->mat_name), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(mm), row("Colour", A->mat_colour), FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(mm), row("Texture", A->mat_tex), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Texture", A->mat_tex, browse_button(A->mat_tex, "Colour texture")), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Normal", A->mat_normal, browse_button(A->mat_normal, "Normal map")), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Spec map", A->mat_spec, browse_button(A->mat_spec, "Metallic-roughness map")), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Metallic", A->mat_metal), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Roughness", A->mat_rough), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(mm), row("Emissive", A->mat_emit), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(mm), two_buttons(button("New material", +[](GtkWidget *, gpointer) {
                                                           const int n = A->ed.new_material("part");
                                                           rebuild_materials();

@@ -594,9 +594,26 @@ namespace cad
                 name = "material" + std::to_string(m);
             Material mat;
             mat.name = name;
+            auto tex_of = [&](const jv &slot) -> std::string
+            {
+                if (!slot.is_object() || !slot.contains("index") || !g.j.contains("textures"))
+                    return {};
+                const int ti = slot["index"].get<int>();
+                if (ti < 0 || ti >= static_cast<int>(g.j["textures"].size()))
+                    return {};
+                return image_path(g, g.j["textures"][ti].value("source", -1));
+            };
+            if (mj.contains("normalTexture"))
+                mat.normal_map = tex_of(mj["normalTexture"]);
+            if (mj.contains("emissiveFactor") && mj["emissiveFactor"].is_array() && mj["emissiveFactor"].size() >= 3)
+                mat.emissive = {mj["emissiveFactor"][0].get<double>(), mj["emissiveFactor"][1].get<double>(), mj["emissiveFactor"][2].get<double>()};
             if (mj.contains("pbrMetallicRoughness"))
             {
                 const jv &p = mj["pbrMetallicRoughness"];
+                mat.metallic = p.value("metallicFactor", 1.0);
+                mat.roughness = p.value("roughnessFactor", 1.0);
+                if (p.contains("metallicRoughnessTexture"))
+                    mat.spec_map = tex_of(p["metallicRoughnessTexture"]);
                 if (p.contains("baseColorFactor") && p["baseColorFactor"].is_array() && p["baseColorFactor"].size() >= 3)
                     mat.colour = {p["baseColorFactor"][0].get<double>(), p["baseColorFactor"][1].get<double>(), p["baseColorFactor"][2].get<double>()};
                 else
@@ -799,29 +816,42 @@ namespace cad
             if (mat_map[m] >= 0)
                 return mat_map[m];
             const Material &sm = scene.materials[m];
-            ordered pbr = {{"baseColorFactor", {sm.colour.x, sm.colour.y, sm.colour.z, 1.0}}, {"metallicFactor", 0.0}, {"roughnessFactor", 0.8}};
-            const std::string e = ext_of(sm.texture);
-            if (!sm.texture.empty() && (e == ".png" || e == ".jpg" || e == ".jpeg"))
+            ordered pbr = {{"baseColorFactor", {sm.colour.x, sm.colour.y, sm.colour.z, 1.0}}, {"metallicFactor", sm.metallic}, {"roughnessFactor", sm.roughness}};
+            // Embeds a PNG or JPG and returns its glTF texture index, or -1 (DDS and missing files are skipped).
+            auto embed = [&](const std::string &path) -> int
             {
-                fs::path tp(sm.texture);
+                const std::string e = ext_of(path);
+                if (path.empty() || (e != ".png" && e != ".jpg" && e != ".jpeg"))
+                    return -1;
+                fs::path tp(path);
                 if (tp.is_relative())
                     tp = file.parent_path() / tp;
                 std::vector<unsigned char> data;
-                if (read_all(tp, data))
+                if (!read_all(tp, data))
+                    return -1;
+                auto it = image_of.find(tp.string());
+                if (it == image_of.end())
                 {
-                    auto it = image_of.find(tp.string());
-                    if (it == image_of.end())
-                    {
-                        const int view = add_view(data.data(), data.size(), 0);
-                        images.push_back({{"bufferView", view}, {"mimeType", e == ".png" ? "image/png" : "image/jpeg"}});
-                        textures.push_back({{"source", static_cast<int>(images.size()) - 1}});
-                        it = image_of.emplace(tp.string(), static_cast<int>(textures.size()) - 1).first;
-                    }
-                    pbr["baseColorTexture"] = {{"index", it->second}};
-                    pbr["baseColorFactor"] = {1.0, 1.0, 1.0, 1.0};
+                    const int view = add_view(data.data(), data.size(), 0);
+                    images.push_back({{"bufferView", view}, {"mimeType", e == ".png" ? "image/png" : "image/jpeg"}});
+                    textures.push_back({{"source", static_cast<int>(images.size()) - 1}});
+                    it = image_of.emplace(tp.string(), static_cast<int>(textures.size()) - 1).first;
                 }
+                return it->second;
+            };
+            if (const int t = embed(sm.texture); t >= 0)
+            {
+                pbr["baseColorTexture"] = {{"index", t}};
+                pbr["baseColorFactor"] = {1.0, 1.0, 1.0, 1.0};
             }
-            materials.push_back({{"name", sm.name}, {"pbrMetallicRoughness", pbr}, {"doubleSided", true}});
+            if (const int t = embed(sm.spec_map); t >= 0)
+                pbr["metallicRoughnessTexture"] = {{"index", t}};
+            ordered mat = {{"name", sm.name}, {"pbrMetallicRoughness", pbr}, {"doubleSided", true}};
+            if (const int t = embed(sm.normal_map); t >= 0)
+                mat["normalTexture"] = {{"index", t}};
+            if (sm.emissive.x > 0 || sm.emissive.y > 0 || sm.emissive.z > 0)
+                mat["emissiveFactor"] = {std::min(1.0, sm.emissive.x), std::min(1.0, sm.emissive.y), std::min(1.0, sm.emissive.z)};
+            materials.push_back(mat);
             return mat_map[m] = static_cast<int>(materials.size()) - 1;
         };
 

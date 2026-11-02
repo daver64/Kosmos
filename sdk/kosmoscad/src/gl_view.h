@@ -62,7 +62,7 @@ namespace cad
         struct ObjectBuffers { unsigned vao = 0, tri = 0, line = 0; int tri_count = 0, line_count = 0; std::vector<Range> ranges; };
         struct Tex { unsigned id = 0; int w = 0, h = 0; };
         std::map<std::string, Tex> textures_;
-        int u_mode_ = -1;
+        int u_mode_ = -1, u_maps_ = -1, u_pbr_ = -1, u_emit_ = -1, u_eye_ = -1;
         unsigned msaa_fbo_ = 0, msaa_color_ = 0, msaa_depth_ = 0;
         int msaa_w_ = 0, msaa_h_ = 0;
         bool ensure_msaa(int w, int h);
@@ -76,6 +76,7 @@ namespace cad
 
         void rebuild(const Editor &ed);
         const Tex *texture_for(const Editor &ed, int material);
+        const Tex *load_tex(const std::string &file);
         void draw_uv(const Editor &ed, const Rect &r, const ViewState &vs, int scale);
         void free_objects();
         void draw_view(const Editor &ed, const Camera &cam, const Rect &r, int view, const ViewState &vs, int scale);
