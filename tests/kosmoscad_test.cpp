@@ -5,6 +5,7 @@
 #include "equipment.h"
 #include "editor.h"
 #include "image.h"
+#include "mesh_io.h"
 #include "ship_io.h"
 
 #include <cmath>
@@ -462,6 +463,86 @@ int main()
                 for (int b : mm.f[1].uv)
                     shared = shared || a == b;
             check(!shared, "scope faces no longer share UVs with others");
+        }
+
+        // Mesh file formats: GLB round trip, glTF node transforms, Orbiter MSH
+        {
+            Scene a;
+            Object o;
+            o.name = "hull";
+            o.mesh = make_box(2, 2, 2);
+            o.mesh.uv.assign({{0, 0}, {1, 0}, {1, 1}, {0, 1}});
+            for (Face &f : o.mesh.f)
+                f.uv = {0, 1, 2, 3};
+            a.objects.push_back(o);
+            Object o2;
+            o2.name = "pod";
+            o2.mesh = make_box(1, 1, 1);
+            o2.xf.pos = {5, 0, 0};
+            a.objects.push_back(o2);
+            const fs::path glb = fs::temp_directory_path() / "kosmoscad_test.glb";
+            std::string err;
+            check(write_mesh_file(a, glb, err), "GLB writes: " + err);
+            Scene b;
+            check(import_mesh_file(glb, b, err) && b.objects.size() == 2, "GLB reads back two objects: " + err);
+            if (b.objects.size() == 2)
+            {
+                Mesh m = b.objects[1].mesh;
+                V3 lo, hi;
+                bounds(m, lo, hi);
+                check(near(lo.x, 4.5, 1e-4) && near(hi.x, 5.5, 1e-4), "object transform is baked into the GLB");
+                check(near(signed_volume(m), 1.0, 1e-4) && closed(m), "GLB object comes back closed with the same volume");
+                check(b.objects[0].mesh.uv.size() > 0 && b.objects[0].mesh.f[0].uv.size() == b.objects[0].mesh.f[0].v.size(), "GLB keeps UVs");
+            }
+            fs::remove(glb);
+
+            // a glTF whose node is translated and mirrored in X (negative determinant keeps faces outward)
+            const fs::path gl = fs::temp_directory_path() / "kosmoscad_test.gltf";
+            const float pos[9] = {0, 0, 0, 1, 0, 0, 0, 1, 0};
+            const uint16_t ind[3] = {0, 1, 2};
+            std::string bytes(reinterpret_cast<const char *>(pos), sizeof pos);
+            bytes.append(reinterpret_cast<const char *>(ind), sizeof ind);
+            bytes.append(2, '\0');
+            static const char *b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            std::string enc;
+            for (size_t i = 0; i < bytes.size(); i += 3)
+            {
+                const unsigned v = (static_cast<unsigned char>(bytes[i]) << 16) | (i + 1 < bytes.size() ? static_cast<unsigned char>(bytes[i + 1]) << 8 : 0) | (i + 2 < bytes.size() ? static_cast<unsigned char>(bytes[i + 2]) : 0);
+                enc += b64[(v >> 18) & 63];
+                enc += b64[(v >> 12) & 63];
+                enc += i + 1 < bytes.size() ? b64[(v >> 6) & 63] : '=';
+                enc += i + 2 < bytes.size() ? b64[v & 63] : '=';
+            }
+            std::ofstream(gl) << "{\"asset\":{\"version\":\"2.0\"},\"scene\":0,\"scenes\":[{\"nodes\":[0]}],"
+                                 "\"nodes\":[{\"name\":\"tri\",\"mesh\":0,\"translation\":[10,0,0],\"scale\":[-1,1,1]}],"
+                                 "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0},\"indices\":1}]}],"
+                                 "\"accessors\":[{\"bufferView\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\"},{\"bufferView\":1,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}],"
+                                 "\"bufferViews\":[{\"buffer\":0,\"byteLength\":36},{\"buffer\":0,\"byteOffset\":36,\"byteLength\":6}],"
+                                 "\"buffers\":[{\"byteLength\":44,\"uri\":\"data:application/octet-stream;base64," << enc << "\"}]}";
+            Scene c;
+            check(import_mesh_file(gl, c, err) && c.objects.size() == 1, "glTF with an embedded buffer reads: " + err);
+            if (!c.objects.empty())
+            {
+                const Mesh &m = c.objects[0].mesh;
+                V3 lo, hi;
+                bounds(m, lo, hi);
+                check(near(lo.x, 9, 1e-6) && near(hi.x, 10, 1e-6), "glTF node translation and scale are applied");
+                const V3 n = face_normal(m, 0);
+                check(n.z > 0.99, "a mirrored node keeps its faces facing the same way");
+            }
+            fs::remove(gl);
+
+            const fs::path msh = "import/orbiter/Meshes/Wheel.msh";
+            if (fs::exists(msh))
+            {
+                Scene w;
+                check(import_mesh_file(msh, w, err) && !w.objects.empty() && w.materials.size() > 1, "Orbiter Wheel.msh reads: " + err);
+                bool tex = false;
+                for (const Material &mt : w.materials)
+                    tex = tex || !mt.texture.empty();
+                check(tex, "the Wheel's texture is found in the sibling Textures folder");
+            }
+            check(!import_mesh_file("nonexistent.xyz", a, err), "unknown mesh extensions are refused");
         }
 
         // DDS decoding: a 4x4 DXT1 block whose two colours are red and blue, and pixel 0 picks colour 0

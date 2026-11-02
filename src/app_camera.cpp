@@ -29,7 +29,7 @@ namespace kosmos::app
             edit_paused = false;
             props.set_bool("/sim/paused", edit_was_paused);
             props.set_bool("/sim/blender-edit", false);
-            part_status = "Blender closed; simulation resumed";
+            part_status = blender_edit.name() + " closed; simulation resumed";
         }
         model_poll += frame;
         if (model_poll > 0.5)

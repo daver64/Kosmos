@@ -28,18 +28,47 @@ namespace kosmos
 #endif
     }
 
-    bool BlenderEdit::start(const std::string &blender, const std::filesystem::path &script, const std::filesystem::path &mesh, std::string &error)
+    MeshEditorChoice mesh_editor_choice(const std::string &editor, const std::string &blender, const std::string &cad, const std::filesystem::path &root)
     {
         namespace fs = std::filesystem;
+        MeshEditorChoice c;
+        c.cad = editor == "kosmoscad";
+        if (c.cad)
+        {
+            if (!cad.empty())
+                c.exe = cad;
+            else
+            {
+#ifdef _WIN32
+                const fs::path bundled = root / "addons" / "kosmoscad" / "bin" / "kosmoscad.exe";
+#else
+                const fs::path bundled = root / "addons" / "kosmoscad" / "bin" / "kosmoscad";
+#endif
+                std::error_code ec;
+                c.exe = fs::exists(bundled, ec) ? bundled.string() : "kosmoscad";
+            }
+        }
+        else
+        {
+            c.exe = blender.empty() ? "blender" : blender;
+            c.script = root / "data" / "blender" / "kosmos_edit.py";
+        }
+        return c;
+    }
+
+    bool BlenderEdit::start(const MeshEditorChoice &editor, const std::filesystem::path &mesh, std::string &error)
+    {
+        namespace fs = std::filesystem;
+        const std::string &exe = editor.exe;
         if (running_ && active())
         {
-            error = "Blender is already open on " + file_.filename().string();
+            error = name_ + " is already open on " + file_.filename().string();
             return false;
         }
         std::error_code ec;
-        if (!fs::exists(script, ec))
+        if (!editor.cad && !fs::exists(editor.script, ec))
         {
-            error = "missing " + script.string();
+            error = "missing " + editor.script.string();
             return false;
         }
         if (!fs::exists(mesh, ec))
@@ -52,30 +81,33 @@ namespace kosmos
         // The backup is of the file as this session found it, so Cancel never undoes an earlier session's work.
         fs::copy_file(mesh, backup, fs::copy_options::overwrite_existing, ec);
         file_ = mesh;
+        const std::string hint = editor.cad ? "cannot start '" + exe + "' (build KosmosCAD, or set its path in the part editor)" : "cannot start '" + exe + "' (set the Blender path in the part editor)";
 #ifdef _WIN32
-        std::string command = "\"" + blender + "\" --python \"" + script.string() + "\" -- \"" + mesh.string() + "\"";
+        std::string command = editor.cad ? "\"" + exe + "\" --edit-mesh \"" + mesh.string() + "\"" : "\"" + exe + "\" --python \"" + editor.script.string() + "\" -- \"" + mesh.string() + "\"";
         STARTUPINFOA si{};
         si.cb = sizeof(si);
         PROCESS_INFORMATION pi{};
         if (!CreateProcessA(nullptr, command.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi))
         {
-            error = "cannot start '" + blender + "' (set the Blender path in the part editor)";
+            error = hint;
             return false;
         }
         CloseHandle(pi.hThread);
         process_ = reinterpret_cast<long long>(pi.hProcess);
 #else
-        const std::string script_arg = script.string(), mesh_arg = mesh.string();
-        char *argv[] = {const_cast<char *>(blender.c_str()), const_cast<char *>("--python"), const_cast<char *>(script_arg.c_str()), const_cast<char *>("--"), const_cast<char *>(mesh_arg.c_str()), nullptr};
+        const std::string script_arg = editor.script.string(), mesh_arg = mesh.string();
+        char *blender_argv[] = {const_cast<char *>(exe.c_str()), const_cast<char *>("--python"), const_cast<char *>(script_arg.c_str()), const_cast<char *>("--"), const_cast<char *>(mesh_arg.c_str()), nullptr};
+        char *cad_argv[] = {const_cast<char *>(exe.c_str()), const_cast<char *>("--edit-mesh"), const_cast<char *>(mesh_arg.c_str()), nullptr};
         pid_t pid = 0;
-        const int rc = posix_spawnp(&pid, blender.c_str(), nullptr, nullptr, argv, environ);
+        const int rc = posix_spawnp(&pid, exe.c_str(), nullptr, nullptr, editor.cad ? cad_argv : blender_argv, environ);
         if (rc != 0)
         {
-            error = "cannot start '" + blender + "' (set the Blender path in the part editor)";
+            error = hint;
             return false;
         }
         process_ = pid;
 #endif
+        name_ = editor.name();
         running_ = true;
         return true;
     }

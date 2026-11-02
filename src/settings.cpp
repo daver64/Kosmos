@@ -51,6 +51,8 @@ namespace kosmos
         props.set_bool("/sim/settings/sound", true);
         props.set_int("/sim/settings/volume", 20);
         props.set_string("/sim/settings/blender", "blender");
+        props.set_string("/sim/settings/mesh-editor", "blender");
+        props.set_string("/sim/settings/kosmoscad", "");
         props.set_int("/sim/settings/world-texture", 0);
         props.set_int("/sim/settings/gfx-style", 0);
         props.set_bool("/sim/settings/gfx-clouds", true);
@@ -136,6 +138,10 @@ namespace kosmos
             props.set_bool("/sim/settings/link-listen", j["link-listen"].get<bool>());
         if (j.contains("blender") && j["blender"].is_string() && !j["blender"].get<std::string>().empty())
             props.set_string("/sim/settings/blender", j["blender"].get<std::string>());
+        if (j.contains("mesh-editor") && j["mesh-editor"].is_string())
+            props.set_string("/sim/settings/mesh-editor", j["mesh-editor"].get<std::string>());
+        if (j.contains("kosmoscad") && j["kosmoscad"].is_string())
+            props.set_string("/sim/settings/kosmoscad", j["kosmoscad"].get<std::string>());
     }
 
     void settings_save(sl::PropertyTree &props)
@@ -148,6 +154,8 @@ namespace kosmos
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
+        j["mesh-editor"] = props.get_string("/sim/settings/mesh-editor", "blender");
+        j["kosmoscad"] = props.get_string("/sim/settings/kosmoscad", "");
         j["world-texture"] = props.get_int("/sim/settings/world-texture");
         j["max-texture"] = props.get_int("/sim/settings/max-texture");
         for (const char *key : {"gfx-style", "gfx-light-radius", "gfx-weapon-lights", "gfx-max-fps", "gfx-msaa", "gfx-terrain-detail", "gfx-cloud-style"})

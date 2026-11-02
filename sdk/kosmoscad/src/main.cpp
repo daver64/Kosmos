@@ -4,6 +4,7 @@
 #include "editor.h"
 #include "gl_view.h"
 #include "image.h"
+#include "mesh_io.h"
 #include "ship_io.h"
 
 #include <epoxy/gl.h>
@@ -52,7 +53,10 @@ namespace
         bool uv_drag = false, press_ctrl = false, drop_tex = false;
         V2 uv_pivot;
         GtkWidget *uv_tool_btn[3] = {}, *uv_btn = nullptr, *uv_checker = nullptr, *uv_num[4] = {};
-        std::string render_file;
+        bool render_pending = false;
+        GtkWidget *render_win = nullptr, *render_img = nullptr;
+        GdkPixbuf *render_pb = nullptr;
+        fs::path edit_mesh;                    // set when Kosmos opened a part here: saving writes it back to this file
         GtkWidget *scene_win = nullptr, *props_win = nullptr, *scene_btn = nullptr, *props_btn = nullptr;
 
         std::string shot_file;
@@ -115,7 +119,15 @@ namespace
         {
             GtkFileFilter *f = gtk_file_filter_new();
             gtk_file_filter_set_name(f, pattern);
-            gtk_file_filter_add_pattern(f, pattern);
+            std::string rest = pattern; // "*.obj;*.glb" adds each pattern to the one filter
+            for (size_t at = 0; at <= rest.size();)
+            {
+                const size_t semi = rest.find(';', at);
+                gtk_file_filter_add_pattern(f, rest.substr(at, semi == std::string::npos ? std::string::npos : semi - at).c_str());
+                if (semi == std::string::npos)
+                    break;
+                at = semi + 1;
+            }
             gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dlg), f);
         }
         if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
@@ -274,7 +286,7 @@ namespace
                       ed.mode == Mode::Vertex ? "   verts " : (ed.mode == Mode::Edge ? "   edges " : (ed.mode == Mode::Face ? "   faces " : "")),
                       ed.mode == Mode::Vertex ? std::to_string(ed.sel.verts.size()).c_str() : (ed.mode == Mode::Edge ? std::to_string(ed.sel.edges.size()).c_str() : (ed.mode == Mode::Face ? std::to_string(ed.sel.faces.size()).c_str() : "")));
         say(text);
-        gtk_window_set_title(GTK_WINDOW(A->window), (std::string("KosmosCAD - ") + (ed.doc.file.empty() ? (ed.scene().ship_file.empty() ? "untitled" : fs::path(ed.scene().ship_file).parent_path().filename().string()) : ed.doc.file.filename().string()) + (ed.doc.dirty ? " *" : "")).c_str());
+        gtk_window_set_title(GTK_WINDOW(A->window), (std::string("KosmosCAD - ") + (!A->edit_mesh.empty() ? A->edit_mesh.filename().string() + " (editing for Kosmos)" : ed.doc.file.empty() ? (ed.scene().ship_file.empty() ? "untitled" : fs::path(ed.scene().ship_file).parent_path().filename().string()) : ed.doc.file.filename().string()) + (ed.doc.dirty ? " *" : "")).c_str());
     }
 
     void refresh()
@@ -341,6 +353,8 @@ namespace
         bool ok;
         if (p.extension() == ".kmodel")
             ok = load_kmodel(p, s, err);
+        else if (is_mesh_file(p))
+            ok = import_mesh_file(p, s, err);
         else
             ok = load_ship(p, s, err);
         if (!ok)
@@ -354,6 +368,7 @@ namespace
         }
         A->ed.doc = Document();
         A->ed.doc.scene = std::move(s);
+        A->edit_mesh.clear();
         if (p.extension() == ".kmodel")
             A->ed.doc.file = p;
         A->ed.sel.clear();
@@ -378,6 +393,7 @@ namespace
         if (!discard_ok())
             return;
         A->ed.doc = Document();
+        A->edit_mesh.clear();
         A->ed.sel.clear();
         A->ed.mesh_gen++;
         refresh();
@@ -387,6 +403,7 @@ namespace
         if (!discard_ok())
             return;
         A->ed.doc = Document();
+        A->edit_mesh.clear();
         A->ed.sel.clear();
         A->ed.sketch.clear();
         A->vs.sketching = false;
@@ -398,7 +415,7 @@ namespace
     {
         if (!discard_ok())
             return;
-        const std::string f = choose(GTK_FILE_CHOOSER_ACTION_OPEN, "Open ship.json or scene", "*.json");
+        const std::string f = choose(GTK_FILE_CHOOSER_ACTION_OPEN, "Open ship.json, scene or mesh", "*.json;*.kmodel;*.obj;*.msh;*.glb;*.gltf");
         if (!f.empty())
             load_any(f);
     }
@@ -410,8 +427,31 @@ namespace
         if (!f.empty())
             load_any(f);
     }
+    // "Send to Kosmos": writes the scene back to the mesh file Kosmos opened here; Kosmos reloads the part when the file changes.
+    void act_send()
+    {
+        if (A->edit_mesh.empty())
+        {
+            say("Not editing a Kosmos part (Kosmos starts KosmosCAD with --edit-mesh FILE from its part editor)");
+            return;
+        }
+        std::string err;
+        if (write_mesh_file(A->ed.scene(), A->edit_mesh, err))
+        {
+            A->ed.doc.dirty = false;
+            sync_ui();
+            say("Sent " + A->edit_mesh.filename().string() + " to Kosmos");
+        }
+        else
+            say("Not sent: " + err);
+    }
     void act_save_kmodel(bool as)
     {
+        if (!as && !A->edit_mesh.empty())
+        {
+            act_send();
+            return;
+        }
         Editor &ed = A->ed;
         if (as || ed.doc.file.empty())
         {
@@ -432,6 +472,11 @@ namespace
     }
     void act_save_ship(bool as)
     {
+        if (!as && !A->edit_mesh.empty())
+        {
+            act_send();
+            return;
+        }
         Editor &ed = A->ed;
         std::string path = ed.scene().ship_file;
         if (as || path.empty())
@@ -457,14 +502,14 @@ namespace
         else
             say("Save failed: " + err);
     }
-    void act_import_obj()
+    void act_import_mesh()
     {
-        const std::string f = choose(GTK_FILE_CHOOSER_ACTION_OPEN, "Import OBJ", "*.obj");
+        const std::string f = choose(GTK_FILE_CHOOSER_ACTION_OPEN, "Import a mesh (OBJ, Orbiter MSH, glTF/GLB)", "*.obj;*.msh;*.glb;*.gltf");
         if (f.empty())
             return;
         std::string err;
         A->ed.doc.checkpoint();
-        if (import_obj(f, A->ed.scene(), err))
+        if (import_mesh_file(f, A->ed.scene(), err))
         {
             A->ed.changed();
             A->ed.sel.clear();
@@ -693,14 +738,22 @@ namespace
         A->gl_ok = false;
     }
 
-    bool write_frame(const std::string &file)
+    // The frame just drawn as a pixbuf the caller owns.
+    GdkPixbuf *grab_frame()
     {
         const int sc = gtk_widget_get_scale_factor(A->area);
         const int w = gtk_widget_get_allocated_width(A->area) * sc, h = gtk_widget_get_allocated_height(A->area) * sc;
         std::vector<unsigned char> px = A->gl.read_pixels(w, h);
         for (size_t i = 3; i < px.size(); i += 4)
             px[i] = 255;
-        GdkPixbuf *pb = gdk_pixbuf_new_from_data(px.data(), GDK_COLORSPACE_RGB, TRUE, 8, w, h, w * 4, nullptr, nullptr);
+        GdkPixbuf *view = gdk_pixbuf_new_from_data(px.data(), GDK_COLORSPACE_RGB, TRUE, 8, w, h, w * 4, nullptr, nullptr);
+        GdkPixbuf *copy = gdk_pixbuf_copy(view); // the view points at `px`, which goes away here
+        g_object_unref(view);
+        return copy;
+    }
+
+    bool write_pixbuf(GdkPixbuf *pb, const std::string &file)
+    {
         GError *err = nullptr;
         const bool ok = gdk_pixbuf_save(pb, file.c_str(), "png", &err, nullptr);
         if (!ok)
@@ -708,8 +761,74 @@ namespace
             std::fprintf(stderr, "kosmoscad: could not write %s: %s\n", file.c_str(), err ? err->message : "?");
             g_clear_error(&err);
         }
+        return ok;
+    }
+
+    bool write_frame(const std::string &file)
+    {
+        GdkPixbuf *pb = grab_frame();
+        const bool ok = write_pixbuf(pb, file);
         g_object_unref(pb);
         return ok;
+    }
+
+    // The render window: the finished picture with a Save button, so a render is looked at before it is written anywhere.
+    void show_render(GdkPixbuf *pb)
+    {
+        if (A->render_pb)
+            g_object_unref(A->render_pb);
+        A->render_pb = pb;
+        if (!A->render_win)
+        {
+            GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+            gtk_window_set_transient_for(GTK_WINDOW(win), GTK_WINDOW(A->window));
+            gtk_window_set_skip_taskbar_hint(GTK_WINDOW(win), TRUE);
+            GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4), *bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+            gtk_container_set_border_width(GTK_CONTAINER(box), 4);
+            auto add_button = [&](const char *label, GCallback cb)
+            {
+                GtkWidget *b = gtk_button_new_with_label(label);
+                g_signal_connect(b, "clicked", cb, nullptr);
+                gtk_box_pack_start(GTK_BOX(bar), b, FALSE, FALSE, 0);
+            };
+            add_button("Save as PNG...", G_CALLBACK(+[](GtkWidget *, gpointer) {
+                           if (!A->render_pb)
+                               return;
+                           const std::string f = choose(GTK_FILE_CHOOSER_ACTION_SAVE, "Save render", "*.png", "render.png");
+                           if (!f.empty())
+                               say(write_pixbuf(A->render_pb, f) ? "Saved " + f : "Could not write " + f);
+                       }));
+            add_button("Copy to clipboard", G_CALLBACK(+[](GtkWidget *, gpointer) {
+                           if (A->render_pb)
+                               gtk_clipboard_set_image(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), A->render_pb);
+                       }));
+            add_button("Render again", G_CALLBACK(+[](GtkWidget *, gpointer) {
+                           A->render_pending = true;
+                           render();
+                       }));
+            add_button("Close", G_CALLBACK(+[](GtkWidget *, gpointer) { gtk_widget_hide(A->render_win); }));
+            A->render_img = gtk_image_new();
+            GtkWidget *scroll = gtk_scrolled_window_new(nullptr, nullptr);
+            gtk_container_add(GTK_CONTAINER(scroll), A->render_img);
+            gtk_box_pack_start(GTK_BOX(box), bar, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(box), scroll, TRUE, TRUE, 0);
+            gtk_container_add(GTK_CONTAINER(win), box);
+            g_signal_connect(win, "delete-event", G_CALLBACK(+[](GtkWidget *w, GdkEvent *, gpointer) -> gboolean { gtk_widget_hide(w); return TRUE; }), nullptr);
+            g_signal_connect(win, "key-press-event", G_CALLBACK(+[](GtkWidget *w, GdkEventKey *e, gpointer) -> gboolean {
+                               if (e->keyval == GDK_KEY_Escape)
+                               {
+                                   gtk_widget_hide(w);
+                                   return TRUE;
+                               }
+                               return FALSE;
+                           }), nullptr);
+            A->render_win = win;
+            gtk_widget_show_all(box);
+            gtk_window_set_default_size(GTK_WINDOW(win), std::min(1100, gdk_pixbuf_get_width(pb) + 12), std::min(780, gdk_pixbuf_get_height(pb) + 50));
+        }
+        gtk_image_set_from_pixbuf(GTK_IMAGE(A->render_img), pb);
+        gtk_window_set_title(GTK_WINDOW(A->render_win), ("Render " + std::to_string(gdk_pixbuf_get_width(pb)) + "x" + std::to_string(gdk_pixbuf_get_height(pb))).c_str());
+        gtk_window_present(GTK_WINDOW(A->render_win));
     }
 
     void save_shot()
@@ -776,7 +895,7 @@ namespace
         }
         A->gl.base_dir = texture_base();
         A->gl.render(A->ed, A->cams, A->vs, W, H, sc);
-        if (!A->render_file.empty())
+        if (A->render_pending)
         {
             // Render: the perspective view alone, textured, without grid or overlays.
             ViewState rv = A->vs;
@@ -788,10 +907,11 @@ namespace
             rc[3].wire = false;
             rc[3].textured = true;
             A->gl.render(A->ed, rc, rv, W, H, sc);
-            const bool ok = write_frame(A->render_file);
-            say(ok ? "Rendered " + A->render_file : "Could not write " + A->render_file);
-            A->render_file.clear();
-            gtk_widget_queue_draw(GTK_WIDGET(area));
+            A->render_pending = false;
+            GdkPixbuf *pb = grab_frame();
+            gtk_widget_queue_draw(GTK_WIDGET(area)); // put the normal view back
+            g_idle_add(+[](gpointer d) -> gboolean { show_render(static_cast<GdkPixbuf *>(d)); return G_SOURCE_REMOVE; }, pb);
+            say("Rendered");
         }
         if (!A->shot_file.empty() && ++A->shot_frames >= 3)
             save_shot();
@@ -1549,9 +1669,10 @@ namespace
         GtkWidget *file = submenu(bar, "File");
         menu_item(file, "New", +[](GtkWidget *, gpointer) { act_new(); });
         menu_item(file, "Close file  (Ctrl+W)", +[](GtkWidget *, gpointer) { act_close(); });
-        menu_item(file, "Open ship.json...  (Ctrl+O)", +[](GtkWidget *, gpointer) { act_open(); });
+        menu_item(file, "Open ship.json, scene or mesh...  (Ctrl+O)", +[](GtkWidget *, gpointer) { act_open(); });
         menu_item(file, "Open scene (.kmodel)...", +[](GtkWidget *, gpointer) { act_open_kmodel(); });
-        menu_item(file, "Import OBJ...", +[](GtkWidget *, gpointer) { act_import_obj(); });
+        menu_item(file, "Import mesh (OBJ, Orbiter MSH, glTF)...", +[](GtkWidget *, gpointer) { act_import_mesh(); });
+        menu_item(file, "Send to Kosmos  (Ctrl+S while editing a part)", +[](GtkWidget *, gpointer) { act_send(); });
         gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
         menu_item(file, "Save scene (.kmodel)  (Ctrl+S)", +[](GtkWidget *, gpointer) { act_save_kmodel(false); });
         menu_item(file, "Save scene as...", +[](GtkWidget *, gpointer) { act_save_kmodel(true); });
@@ -1619,13 +1740,9 @@ namespace
         menu_item(view, "Maximise / restore the active view  (Space)", +[](GtkWidget *, gpointer) { toggle_max(); });
         menu_item(view, "Wire / solid / textured in the active view  (Z)", +[](GtkWidget *, gpointer) { toggle_wire(); });
         menu_item(view, "UV editor on / off  (U)", +[](GtkWidget *, gpointer) { toggle_uv(); });
-        menu_item(view, "Render image (PNG)...", +[](GtkWidget *, gpointer) {
-            const std::string f = choose(GTK_FILE_CHOOSER_ACTION_SAVE, "Render image", "*.png", "render.png");
-            if (!f.empty())
-            {
-                A->render_file = f;
-                render();
-            }
+        menu_item(view, "Render...  (opens a window with a Save button)", +[](GtkWidget *, gpointer) {
+            A->render_pending = true;
+            render();
         });
         menu_item(view, "Scene list window  (F2)", +[](GtkWidget *, gpointer) { toggle_tool(A->scene_win, A->scene_btn); });
         menu_item(view, "Properties window  (F3)", +[](GtkWidget *, gpointer) { toggle_tool(A->props_win, A->props_btn); });
@@ -1900,7 +2017,7 @@ int main(int argc, char **argv)
     App app;
     A = &app;
     app.gl.loader = load_texture_file;
-    std::string open_file;
+    std::string open_file, edit_mesh_arg;
     const char *mode_arg = nullptr;
     bool uv_arg = false, textured_arg = false, panels_arg = false;
     int select_face = -1;
@@ -1924,9 +2041,11 @@ int main(int argc, char **argv)
             textured_arg = true;
         else if (a == "--select-face" && more)
             select_face = std::atoi(argv[++i]);
+        else if (a == "--edit-mesh" && more)
+            edit_mesh_arg = argv[++i];
         else if (a == "--help" || a == "-h")
         {
-            std::puts("kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH] [--uv] [--textured] [--panels]]");
+            std::puts("kosmoscad [ship.json | scene.kmodel | mesh.obj/.msh/.glb/.gltf] [--edit-mesh PART.glb|PART.obj] [--shot FILE [--size WxH] [--uv] [--textured] [--panels]]");
             return 0;
         }
         else if (a[0] != '-')
@@ -1952,7 +2071,15 @@ int main(int argc, char **argv)
     }
     gtk_widget_show_all(app.window);
     gtk_widget_set_visible(app.mk_box, FALSE);
-    if (!open_file.empty())
+    if (!edit_mesh_arg.empty())
+    {
+        if (load_any(edit_mesh_arg))
+        {
+            A->edit_mesh = edit_mesh_arg;
+            refresh();
+        }
+    }
+    else if (!open_file.empty())
         load_any(open_file);
     else
         refresh();

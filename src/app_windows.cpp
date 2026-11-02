@@ -561,9 +561,9 @@ namespace kosmos::app
     void App::part_paused_controls()
     {
         sl::PropertyTree &props = *props_ref;
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in Blender", part_edit.file.filename().string().c_str());
-        ImGui::TextWrapped("The simulation is paused. Save in Blender (Ctrl+S) to see the change here; closing Blender resumes.");
-        if (ImGui::Button("Resume, keep Blender open"))
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in %s", part_edit.file.filename().string().c_str(), blender_edit.name().c_str());
+        ImGui::TextWrapped("The simulation is paused. Save in %s (Ctrl+S) to see the change here; closing %s resumes.", blender_edit.name().c_str(), blender_edit.name().c_str());
+        if (ImGui::Button(("Resume, keep " + blender_edit.name() + " open").c_str()))
         {
             edit_paused = false;
             props.set_bool("/sim/blender-edit", false);
@@ -600,7 +600,7 @@ namespace kosmos::app
                 const std::string what = is_model ? std::filesystem::path(part.model).filename().string() : (part.prop.empty() ? std::string("profile") : part.prop);
                 ImGui::Text("%s: %s", stage.name.c_str(), what.c_str());
                 ImGui::SameLine(ImGui::GetWindowWidth() - 150.0f);
-                if (ImGui::SmallButton(is_model ? "Edit in Blender" : "Convert + edit") && !netplay.shared())
+                if (ImGui::SmallButton(is_model ? (props.get_string("/sim/settings/mesh-editor", "blender") == "kosmoscad" ? "Edit in KosmosCAD" : "Edit in Blender") : "Convert + edit") && !netplay.shared())
                 {
                     std::filesystem::path file;
                     std::string problem;
@@ -611,7 +611,13 @@ namespace kosmos::app
                         file = std::filesystem::path(fspec.directory) / part.model;
                         std::string ext = file.extension().string();
                         std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                        if (ext != ".glb" && ext != ".gltf" && ext != ".obj")
+                        const bool cad_editor = props.get_string("/sim/settings/mesh-editor", "blender") == "kosmoscad";
+                        if (cad_editor && ext == ".gltf")
+                        {
+                            problem = "KosmosCAD saves .glb or .obj; use Blender for .gltf parts, or convert it first";
+                            ok = false;
+                        }
+                        else if (ext != ".glb" && ext != ".gltf" && ext != ".obj")
                         {
                             problem = "Blender can edit .glb, .gltf and .obj parts; convert " + ext + " first";
                             ok = false;
@@ -642,9 +648,9 @@ namespace kosmos::app
                     if (ok && props.get_bool("/sim/blender-edit"))
                     {
                         ok = false;
-                        part_status = "Another Blender edit is already running";
+                        part_status = "Another mesh edit is already running";
                     }
-                    if (ok && blender_edit.start(props.get_string("/sim/settings/blender", "blender"), std::filesystem::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, problem))
+                    if (ok && blender_edit.start(kosmos::mesh_editor_choice(props.get_string("/sim/settings/mesh-editor", "blender"), props.get_string("/sim/settings/blender", "blender"), props.get_string("/sim/settings/kosmoscad", ""), std::filesystem::path(sim.root())), file, problem))
                     {
                         part_edit.part = &part;
                         part_edit.original = saved;
@@ -666,7 +672,7 @@ namespace kosmos::app
                         props.set_bool("/sim/paused", true);
                         props.set_bool("/sim/blender-edit", true);
                         edit_paused = true;
-                        part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; Blender started" : "Blender started";
+                        part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; " + blender_edit.name() + " started" : blender_edit.name() + " started";
                     }
                     else if (!problem.empty())
                         part_status = problem;
@@ -694,11 +700,28 @@ namespace kosmos::app
                 kosmos::ShipSpec &fspec = flown.editable_spec();
                 if (blender_buffer[0] == '\0')
                     copy_text(blender_buffer, sizeof blender_buffer, props.get_string("/sim/settings/blender", "blender"));
-                ImGui::SetNextItemWidth(260.0f);
-                if (ImGui::InputText("Blender", blender_buffer, sizeof blender_buffer))
-                    props.set_string("/sim/settings/blender", blender_buffer);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
+                {
+                    const bool cad = props.get_string("/sim/settings/mesh-editor", "blender") == "kosmoscad";
+                    ImGui::SetNextItemWidth(160.0f);
+                    if (ImGui::BeginCombo("Mesh editor", cad ? "KosmosCAD" : "Blender"))
+                    {
+                        if (ImGui::Selectable("Blender", !cad))
+                            props.set_string("/sim/settings/mesh-editor", "blender");
+                        if (ImGui::Selectable("KosmosCAD", cad))
+                            props.set_string("/sim/settings/mesh-editor", "kosmoscad");
+                        ImGui::EndCombo();
+                    }
+                    if (ImGui::IsItemHovered())
+                        ImGui::SetTooltip("Blender has the full toolset. KosmosCAD is the simple editor that knows engines, habitats and systems.");
+                    if (!cad)
+                    {
+                        ImGui::SetNextItemWidth(260.0f);
+                        if (ImGui::InputText("Blender", blender_buffer, sizeof blender_buffer))
+                            props.set_string("/sim/settings/blender", blender_buffer);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
+                    }
+                }
                 // Stays after Blender closes, so the converted mesh can still be written into the ship file.
                 part_converted_mesh(fspec);
                 if (edit_paused)

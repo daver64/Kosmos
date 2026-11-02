@@ -651,7 +651,7 @@ namespace kosmos
         blender_paused_ = false;
         sim.props.set_bool("/sim/paused", blender_was_paused_);
         sim.props.set_bool("/sim/blender-edit", false);
-        blender_status_ = "Blender closed; simulation resumed";
+        blender_status_ = blender_.name() + " closed; simulation resumed";
     }
 
     // Bakes the chosen objects into one GLB (one scene object each, so Blender can join them) and swaps them for a model object.
@@ -659,7 +659,7 @@ namespace kosmos
     {
         if (sim.props.get_bool("/sim/blender-edit"))
         {
-            blender_status_ = "Another Blender edit is already running";
+            blender_status_ = "Another mesh edit is already running";
             return false;
         }
         std::string error;
@@ -721,9 +721,9 @@ namespace kosmos
                 return false;
             }
         }
-        if (!blender_.start(sim.props.get_string("/sim/settings/blender", "blender"), fs::path(sim.root()) / "data" / "blender" / "kosmos_edit.py", file, error))
+        if (!blender_.start(mesh_editor_choice(sim.props.get_string("/sim/settings/mesh-editor", "blender"), sim.props.get_string("/sim/settings/blender", "blender"), sim.props.get_string("/sim/settings/kosmoscad", ""), fs::path(sim.root())), file, error))
         {
-            blender_status_ = "Cannot start Blender: " + error;
+            blender_status_ = "Cannot start the editor: " + error;
             return false;
         }
         blender_saved_ = saved;
@@ -745,7 +745,7 @@ namespace kosmos
         sim.props.set_bool("/sim/paused", true);
         sim.props.set_bool("/sim/blender-edit", true);
         blender_paused_ = true;
-        blender_status_ = "Editing " + file.filename().string() + " in Blender";
+        blender_status_ = "Editing " + file.filename().string() + " in " + blender_.name();
         return true;
     }
 
@@ -810,7 +810,7 @@ namespace kosmos
 
     void BaseEditor::blender_controls(Sim &sim, Base &b, const BaseObject &o)
     {
-    ImGui::SeparatorText("Edit in Blender");
+    ImGui::SeparatorText("Edit in Blender or KosmosCAD");
     picked_.resize(b.objects.size(), 0);
     if (ImGui::TreeNode("Pick objects to join"))
     {
@@ -825,9 +825,9 @@ namespace kosmos
     }
     if (blender_paused_)
     {
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Paused; editing in Blender");
-        ImGui::TextWrapped("Save in Blender (Ctrl+S) to see it here; closing Blender resumes.");
-        if (ImGui::Button("Resume, keep Blender open"))
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Paused; editing in %s", blender_.name().c_str());
+        ImGui::TextWrapped("Save in %s (Ctrl+S) to see it here; closing it resumes.", blender_.name().c_str());
+        if (ImGui::Button("Resume, keep editor open"))
         {
             blender_paused_ = false;
             sim.props.set_bool("/sim/paused", blender_was_paused_);
@@ -847,7 +847,7 @@ namespace kosmos
     else
     {
         const bool is_model = o.type == "model";
-        if (ImGui::Button(is_model ? "Edit this model in Blender" : "Convert this object + edit"))
+        if (ImGui::Button(is_model ? "Edit this model" : "Convert this object + edit"))
             begin_blender(sim, b, {object_});
         std::vector<int> chosen;
         for (std::size_t i = 0; i < picked_.size() && i < b.objects.size(); ++i)
