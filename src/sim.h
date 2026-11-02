@@ -75,6 +75,7 @@ namespace kosmos
         };
         std::map<int, LinkClaim> link_claims;
         void activate(int index);
+        void release_payload_on_stage();
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }
         Ship *ship(int index) { return ships_[static_cast<std::size_t>(index)].get(); }

@@ -11,6 +11,20 @@
     "inclination": 28.5,
     "phase": 180
    }
+  },
+  {
+   "ship": "Luna E3",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 1,
+    "own_port": 0
+   },
+   "orbit": {
+    "altitude_km": 400,
+    "inclination": 28.5,
+    "phase": 180
+   }
   }
  ]
 }

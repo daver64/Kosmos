@@ -449,6 +449,36 @@ namespace kosmos
         return true;
     }
 
+    // On the last stage the stage key lets go of the payload, the rearmost docked one first, and hands you its controls.
+    void Sim::release_payload_on_stage()
+    {
+        Ship *ship = active_ship();
+        if (!ship || !props.get_bool("/controls/stage") || ship->active_stage() < ship->stage_count() - 1)
+            return;
+        int best = -1, other = -1, port = -1;
+        double rear = -1e30;
+        for (const std::array<int, 4> &l : nav.dock_links())
+        {
+            const bool lead = l[0] == active_;
+            if (!lead && l[2] != active_)
+                continue;
+            const int mine = lead ? l[1] : l[3];
+            const double z = ship->spec().ports[static_cast<std::size_t>(mine)].position.z;
+            if (z > rear)
+            {
+                rear = z;
+                port = mine;
+                other = lead ? l[2] : l[0];
+                best = 1;
+            }
+        }
+        if (best < 0)
+            return;
+        props.set_bool("/controls/stage", false);
+        if (nav.undock(ships_, active_, port))
+            activate(other);
+    }
+
     void Sim::activate(int index)
     {
         if (index < 0 || index >= ship_count())
@@ -598,6 +628,7 @@ namespace kosmos
             }
         }
         run_burn();
+        release_payload_on_stage();
         const Controls controls = read_controls();
         Controls idle;
         idle.sas = "off";

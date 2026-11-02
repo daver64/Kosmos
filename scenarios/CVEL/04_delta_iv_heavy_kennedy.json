@@ -1,11 +1,36 @@
 {
  "name": "CVEL: Delta IV Heavy, Kennedy",
- "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center.",
+ "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center, with a Centaur G upper stage and its probe under the payload fairing.",
+ "date":"2003-07-08 17:45:00",
  "active": 0,
  "ships": [
   {
    "ship": "CVEL Delta IV Heavy",
    "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "ship": "CVEL Centaur G",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "ship": "Luna E3",
+   "body": "Earth",
+   "dock": {
+    "to": 1,
+    "port": 1,
+    "own_port": 0
+   },
    "surface": {
     "base": "kennedy"
    }

@@ -398,6 +398,7 @@ namespace kosmos
                 stage.length = js.value("length", stage.length);
                 stage.radius = js.value("radius", stage.radius);
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
+                stage.with_next = js.value("with_next", false);
                 stage.separation_dir = vec3(js.value("separation_dir", nlohmann::json()), stage.separation_dir);
                 for (const nlohmann::json &je : js.value("engines", nlohmann::json::array()))
                 {

@@ -16,7 +16,7 @@ local R_EARTH = 6.371e6
 -- last: the last stage the autopilot burns (a capsule or payload stage after it is left for the pilot).
 local vehicles = {
   ["CVEL Soyuz-FG"] = { kick_speed = 35, kick = 88, closed_alt = 45000, mid_pitch = 35, climb = 250, gain = 0.2, last = 5, inert_after = 1, inert = 3 },
-  ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 2 },
+  ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 1 },
   ["CVEL Energia-M"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },
   ["CVEL Saturn V"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },

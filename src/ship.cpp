@@ -270,8 +270,15 @@ namespace kosmos
     {
         if (active_stage_ >= stage_count() - 1)
             return false;
+        const bool bare = spec_.stages[static_cast<std::size_t>(active_stage_)].with_next;
         drop_stage(active_stage_);
         ++active_stage_;
+        // Paired stages, such as the two fairing halves, go together on one press.
+        if (bare && active_stage_ < stage_count() - 1)
+        {
+            drop_stage(active_stage_);
+            ++active_stage_;
+        }
         stage_time_ = universe_.time();
         recentre();
         refresh_mass_properties();

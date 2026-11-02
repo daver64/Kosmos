@@ -12,6 +12,9 @@
   0,
   0
  ],
+ "ports": [
+  {"name":"Orbiter cradle","position":[0,4,4],"direction":[0,1,0],"up":[0,0,-1],"stage":1}
+ ],
  "systems": [
   {
    "type": "battery",

@@ -13,6 +13,9 @@
   0,
   -24
  ],
+ "ports": [
+  {"name":"Payload","position":[0,0,-30.8],"direction":[0,0,-1],"up":[0,1,0],"stage":4}
+ ],
  "systems": [
   {
    "type": "battery",
@@ -196,7 +199,50 @@
    ]
   },
   {
-   "name": "Second stage and fairing",
+   "name": "Payload fairing half",
+   "with_next": true,
+   "dry_mass": 800,
+   "propellant": 0,
+   "z": -38.3,
+   "length": 18.35,
+   "radius": 2.6,
+   "separation_speed": 2.5,
+   "separation_dir": [-1, 0, -0.2],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/deltaivplf_1.obj",
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Payload fairing half",
+   "dry_mass": 800,
+   "propellant": 0,
+   "z": -38.3,
+   "length": 18.35,
+   "radius": 2.6,
+   "separation_speed": 2.5,
+   "separation_dir": [1, 0, -0.2],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/deltaivplf_2.obj",
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Second stage",
    "dry_mass": 4640,
    "propellant": 27220,
    "z": -24.2,
@@ -232,22 +278,6 @@
       0,
       0,
       -24.2
-     ]
-    },
-    {
-     "model": "models/deltaivplf_1.obj",
-     "offset": [
-      0,
-      0,
-      -29.1
-     ]
-    },
-    {
-     "model": "models/deltaivplf_2.obj",
-     "offset": [
-      0,
-      0,
-      -29.1
      ]
     }
    ]

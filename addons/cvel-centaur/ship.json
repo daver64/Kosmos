@@ -11,6 +11,10 @@
   0,
   4
  ],
+ "ports": [
+  {"name":"Aft","position":[0,0,9.5],"direction":[0,0,1],"up":[0,1,0]},
+  {"name":"Payload","position":[0,0,0],"direction":[0,0,-1],"up":[0,1,0]}
+ ],
  "systems": [
   {
    "type": "battery",
@@ -115,14 +119,6 @@
       0,
       0,
       0
-     ]
-    },
-    {
-     "model": "models/probe.obj",
-     "offset": [
-      0,
-      0,
-      -0.9
      ]
     }
    ]
