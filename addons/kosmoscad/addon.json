@@ -1,0 +1,13 @@
+{
+  "id": "kosmoscad",
+  "name": "KosmosCAD",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/kosmoscad"
+    },
+    "capabilities": [],
+    "autostart": false,
+    "restart": false
+  }
+}

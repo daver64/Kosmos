@@ -871,6 +871,30 @@ namespace
         message("The kosmos program was not found next to the addons folder.", GTK_MESSAGE_ERROR);
     }
 
+    void do_cad()
+    {
+        const fs::path ship = app->doc.source_dir() / "ship.json";
+        if (app->doc.source_dir().empty() || !fs::exists(ship))
+        {
+            message("Save the ship as an addon first; KosmosCAD edits its ship.json.", GTK_MESSAGE_ERROR);
+            return;
+        }
+        for (const fs::path &exe : {app->root / "addons" / "kosmoscad" / "bin" / "kosmoscad"})
+            if (!exe.empty() && fs::exists(exe))
+            {
+                const std::string exe_s = exe.string(), ship_s = ship.string();
+                gchar *argv[] = {const_cast<gchar *>(exe_s.c_str()), const_cast<gchar *>(ship_s.c_str()), nullptr};
+                GError *err = nullptr;
+                if (!g_spawn_async(nullptr, argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr, nullptr, &err))
+                {
+                    message(std::string("Could not start KosmosCAD: ") + err->message, GTK_MESSAGE_ERROR);
+                    g_error_free(err);
+                }
+                return;
+            }
+        message("KosmosCAD was not found in addons/kosmoscad/bin.", GTK_MESSAGE_ERROR);
+    }
+
     gboolean draw_cb(GtkWidget *w, cairo_t *cr, gpointer)
     {
         draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w), app->doc, app->sel, app->view, app->meshes, !app->use_gl);
@@ -983,6 +1007,9 @@ namespace
         gtk_box_pack_start(GTK_BOX(bar), app->undo_btn, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(bar), app->redo_btn, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(bar), app->launch_btn, FALSE, FALSE, 0);
+        GtkWidget *cad_btn = button("Model in KosmosCAD", [] { do_cad(); });
+        gtk_widget_set_tooltip_text(cad_btn, "Open this ship's ship.json in KosmosCAD, the 3D modeller. Reload the ship here afterwards.");
+        gtk_box_pack_start(GTK_BOX(bar), cad_btn, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), bar, FALSE, FALSE, 0);
 
         GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);

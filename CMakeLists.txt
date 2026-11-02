@@ -271,12 +271,23 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
+# KosmosCAD's modelling core (no GTK, no GL): cmake --build build --target kosmoscad_test && build/kosmoscad_test
+add_executable(kosmoscad_test EXCLUDE_FROM_ALL tests/kosmoscad_test.cpp sdk/kosmoscad/src/mesh.cpp sdk/kosmoscad/src/csg.cpp sdk/kosmoscad/src/scene.cpp
+    sdk/kosmoscad/src/equipment.cpp sdk/kosmoscad/src/ship_io.cpp sdk/kosmoscad/src/editor.cpp)
+target_include_directories(kosmoscad_test PRIVATE sdk/kosmoscad/src ${KOSMOS_JSON_INCLUDE})
+target_compile_features(kosmoscad_test PRIVATE cxx_std_17)
+target_compile_definitions(kosmoscad_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)
     set(SHIPEDIT_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/shipedit)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS shipedit)
+    # KosmosCAD (sdk/kosmoscad), the 3D modeller ShipEdit launches, needs GTK 3 and OpenGL 3.2.
+    set(KOSMOSCAD_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmoscad/bin" CACHE PATH "" FORCE)
+    set(KOSMOSCAD_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
+    add_subdirectory(sdk/kosmoscad)
+    list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmoscad)
 endif()
 # KosmosAV, the pilot's program for the KosmosAV freight network (kav/client), is a GTK 3 program too and also needs libcurl (the Windows program is built by scripts/build-win-tools.sh with WinHTTP).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
@@ -307,10 +318,10 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/planetbake/bin/planetbake$")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/planetbake/bin/planetbake$")
 else()
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
-        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit)/share(/|$)")
+        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit|kosmoscad)/share(/|$)")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------
