@@ -73,7 +73,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | Arrow keys | RCS translation |
 | Joystick | View > Joystick: bind axes and buttons separately for aircraft and spacecraft (saved in `joystick.json`) |
 | Space | Stage |
-| Keypad / , Ctrl+Keypad / | RCS rotation / linear mode, RCS off (linear: Keypad 2 8 up/down, 1 3 left/right, 6 9 forward/back; Ctrl for fine) |
+| Keypad / , Ctrl+Keypad / | RCS rotation / linear mode, RCS off (linear: Keypad 2 8 up/down, 1 3 left/right, 6 9 forward/back; Ctrl for fine; in the atmosphere a hybrid's control surfaces always answer the rotation keys) |
 | Keypad 7 / Insert | Fire primary / secondary weapons |
 | Keypad 5 / `[` / `]` / `;` / `'` | SAS: kill rotation / prograde / retrograde / normal / anti-normal (as Orbiter's navigation modes) |
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
@@ -105,7 +105,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | V | Switch ship |
 | O | Orbit line |
 | I | Show or hide all on-screen text (title, telemetry, nearest base, key help); hidden when Kosmos starts |
-| M | Sound on/off (rocket, RCS and ground wind) |
+| M | Sound on/off (rocket, RCS, ground wind and cabin ambience inside pressurised spaces) |
 | R | Reset |
 
 ## Command line

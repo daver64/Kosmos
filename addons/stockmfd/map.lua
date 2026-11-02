@@ -138,11 +138,11 @@ return {
     g:colour(120, 200, 255)
     if target then
       local d, brg = course(lat, lon, target.lat, target.lon, radius)
-      g:text(290, ty, string.sub(target.name, 1, 22), 0)
-      g:text(290, ty + 16, string.format("DST %.1f km", d / 1000), 0)
-      g:text(290, ty + 32, string.format("BRG %03d", math.floor(brg + 0.5) % 360), 0)
+      g:text(394, ty, string.sub(target.name, 1, 16), 2)
+      g:text(394, ty + 16, string.format("DST %.1f km", d / 1000), 2)
+      g:text(394, ty + 32, string.format("BRG %03d", math.floor(brg + 0.5) % 360), 2)
     else
-      g:text(290, ty, #bases > 0 and "BASE: none" or "no bases here", 0)
+      g:text(394, ty, #bases > 0 and "BASE: none" or "no bases here", 2)
     end
   end,
 
