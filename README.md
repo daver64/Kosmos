@@ -14,7 +14,7 @@ Use `-DKOSMOS_SIMLIB_DIR=/path/to/rsimlib` to build against a simlib source chec
 
 ### Native Windows build (MSVC)
 
-With the MSVC C++ tools, a neighboring simlib checkout at the commit in `SIMLIB_COMMIT`, and simlib's dependencies installed in vcpkg's `x64-windows` triplet, configure and build the executable:
+With the MSVC C++ tools, a neighboring simlib checkout at the commit in `SIMLIB_COMMIT`, and simlib's dependencies (including wxWidgets for the launcher) installed in vcpkg's `x64-windows` triplet, configure and build the default targets:
 
 ```powershell
 $env:VCPKG_ROOT = "C:\path\to\vcpkg"
@@ -23,10 +23,10 @@ cmake -S . -B build-msvc -G "Visual Studio 18 2026" -A x64 `
   -DVCPKG_TARGET_TRIPLET=x64-windows `
   -DKOSMOS_SIMLIB_DIR=..\rsimlib `
   -DSIMLIB_RENDERERS=gl -DSIMLIB_BUILD_SHADER_COMPILER=OFF -DSIMLIB_VALIDATE_SHADERS=OFF
-cmake --build build-msvc --config Release --target kosmos --parallel 4
+cmake --build build-msvc --config Release --parallel 4
 ```
 
-Use the Visual Studio generator name matching the installed version. This builds the game executable; the Windows package script below remains the MinGW cross-build.
+Use the Visual Studio generator name matching the installed version. The default build includes `kosmos`, `kosmos-launcher` and `planetbake`; optional GTK-based tools are not part of this native Windows CMake build. The Windows package script below remains the MinGW cross-build.
 
 ### Source layout
 
