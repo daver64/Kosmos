@@ -317,8 +317,50 @@ void main()
         objects_.clear();
     }
 
+    void GlView::free_msaa()
+    {
+        if (msaa_fbo_)
+            glDeleteFramebuffers(1, &msaa_fbo_);
+        if (msaa_color_)
+            glDeleteRenderbuffers(1, &msaa_color_);
+        if (msaa_depth_)
+            glDeleteRenderbuffers(1, &msaa_depth_);
+        msaa_fbo_ = msaa_color_ = msaa_depth_ = 0;
+        msaa_w_ = msaa_h_ = 0;
+    }
+
+    // A 4x multisampled target, because GtkGLArea gives us a single-sample framebuffer and dense meshes alias into speckle without it.
+    bool GlView::ensure_msaa(int w, int h)
+    {
+        if (msaa_fbo_ && msaa_w_ == w && msaa_h_ == h)
+            return true;
+        free_msaa();
+        int samples = 0;
+        glGetIntegerv(GL_MAX_SAMPLES, &samples);
+        samples = std::min(samples, 4);
+        if (samples < 2)
+            return false;
+        glGenFramebuffers(1, &msaa_fbo_);
+        glGenRenderbuffers(1, &msaa_color_);
+        glGenRenderbuffers(1, &msaa_depth_);
+        glBindRenderbuffer(GL_RENDERBUFFER, msaa_color_);
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_RGBA8, w, h);
+        glBindRenderbuffer(GL_RENDERBUFFER, msaa_depth_);
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH_COMPONENT24, w, h);
+        glBindFramebuffer(GL_FRAMEBUFFER, msaa_fbo_);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, msaa_color_);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, msaa_depth_);
+        const bool ok = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+        if (!ok)
+            free_msaa();
+        msaa_w_ = w;
+        msaa_h_ = h;
+        return ok;
+    }
+
     void GlView::release()
     {
+        free_msaa();
         free_objects();
         drop_textures();
         if (scratch_vbo_)
@@ -487,7 +529,7 @@ void main()
                         const Tex *t = vs.checker ? nullptr : texture_for(ed, rg.material);
                         if (t)
                             glBindTexture(GL_TEXTURE_2D, t->id);
-                        glUniform1i(u_mode_, t ? 1 : 2);
+                        glUniform1i(u_mode_, t ? 1 : (vs.checker ? 2 : 0));
                         glDrawArrays(GL_TRIANGLES, rg.first, rg.count);
                     }
                     glUniform1i(u_mode_, 0);
@@ -744,8 +786,34 @@ void main()
         thick(border, px(0), py(1), px(0), py(0), 1.5, grey);
         draw_batch(border, GL_TRIANGLES, 1, 1, 1, 0.9f);
 
+        const std::vector<Editor::UvRef> scope = ed.uv_scope();
+        if (vs.uv_dim && ed.mode == Mode::Face && !scope.empty())
+        {
+            const int obj = scope.front().object;
+            std::set<int> in;
+            for (const Editor::UvRef &ref : scope)
+                in.insert(ref.face);
+            const Mesh &mesh = ed.scene().objects[obj].mesh;
+            Batch faint;
+            const V3 grey2(0.6, 0.6, 0.65);
+            for (size_t fi = 0; fi < mesh.f.size(); ++fi)
+            {
+                const Face &f = mesh.f[fi];
+                if (in.count(static_cast<int>(fi)) || f.uv.size() != f.v.size())
+                    continue;
+                for (size_t k = 0; k < f.uv.size(); ++k)
+                {
+                    const int a = f.uv[k], b = f.uv[(k + 1) % f.uv.size()];
+                    if (a < 0 || b < 0 || a >= static_cast<int>(mesh.uv.size()) || b >= static_cast<int>(mesh.uv.size()))
+                        continue;
+                    thick(faint, px(mesh.uv[a].u), py(mesh.uv[a].v), px(mesh.uv[b].u), py(mesh.uv[b].v), 1.0, grey2);
+                }
+            }
+            draw_batch(faint, GL_TRIANGLES, 1, 1, 1, 0.22f);
+        }
+
         std::set<std::pair<int, int>> seen;
-        for (const Editor::UvRef &ref : ed.uv_scope())
+        for (const Editor::UvRef &ref : scope)
         {
             const Mesh &mesh = ed.scene().objects[ref.object].mesh;
             const Face &f = mesh.f[ref.face];
@@ -757,7 +825,7 @@ void main()
                 if (a < 0 || b < 0 || a >= static_cast<int>(mesh.uv.size()) || b >= static_cast<int>(mesh.uv.size()))
                     continue;
                 thick(wire, px(mesh.uv[a].u), py(mesh.uv[a].v), px(mesh.uv[b].u), py(mesh.uv[b].v), 1.2, cyan);
-                if (seen.insert({ref.object, a}).second)
+                if (seen.insert({ref.object, a}).second && (vs.uv_points || ed.uv_sel.count({ref.object, a})))
                     square(ed.uv_sel.count({ref.object, a}) ? sel_pts : pts, px(mesh.uv[a].u), py(mesh.uv[a].v), ed.uv_sel.count({ref.object, a}) ? 4.0 : 2.5, ed.uv_sel.count({ref.object, a}) ? orange : blue);
             }
         }
@@ -793,6 +861,13 @@ void main()
         H_ = H;
         if (built_gen_ != ed.mesh_gen || built_count_ != ed.scene().objects.size())
             rebuild(ed);
+        int target = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &target);
+        const bool ms = ensure_msaa(W * scale, H * scale);
+        if (ms)
+            glBindFramebuffer(GL_FRAMEBUFFER, msaa_fbo_);
+        else
+            free_msaa();
         glUseProgram(program_);
         glEnable(GL_SCISSOR_TEST);
         glViewport(0, 0, W * scale, H * scale);
@@ -810,6 +885,13 @@ void main()
                 draw_view(ed, cams[i], r, i, vs, scale);
         }
         glDisable(GL_SCISSOR_TEST);
+        if (ms)
+        {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, msaa_fbo_);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, target);
+            glBlitFramebuffer(0, 0, W * scale, H * scale, 0, 0, W * scale, H * scale, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            glBindFramebuffer(GL_FRAMEBUFFER, target);
+        }
     }
 
     std::vector<unsigned char> GlView::read_pixels(int w, int h) const

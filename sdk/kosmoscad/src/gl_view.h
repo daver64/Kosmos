@@ -33,6 +33,8 @@ namespace cad
         bool uv = false;                // the UV editor layout: view 4 on the left, the perspective view on the right
         int uv_material = 0;            // the material whose image the UV editor shows
         double uv_cx = 0.5, uv_cy = 0.5, uv_zoom = 300; // the UV view's centre (UV units) and pixels per UV unit
+        bool uv_points = true;          // draw the UV points (selected ones always show)
+        bool uv_dim = true;             // in Face mode, draw the unselected faces of the object faintly for context
         bool checker = false;           // show the checker instead of the texture images
         bool clean = false;             // no grid, overlays or selection tint (render mode)
     };
@@ -61,6 +63,10 @@ namespace cad
         struct Tex { unsigned id = 0; int w = 0, h = 0; };
         std::map<std::string, Tex> textures_;
         int u_mode_ = -1;
+        unsigned msaa_fbo_ = 0, msaa_color_ = 0, msaa_depth_ = 0;
+        int msaa_w_ = 0, msaa_h_ = 0;
+        bool ensure_msaa(int w, int h);
+        void free_msaa();
         unsigned program_ = 0, scratch_vao_ = 0, scratch_vbo_ = 0;
         int u_mvp_ = -1, u_model_ = -1, u_normal_ = -1, u_mul_ = -1, u_point_ = -1;
         std::vector<ObjectBuffers> objects_;
