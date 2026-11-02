@@ -627,6 +627,33 @@ namespace kosmos
         }
     }
 
+    namespace
+    {
+        // Calls with no crew and no vent after which the air in a vessel counts as evenly mixed.
+        constexpr int grid_settle_steps = 900;
+
+        bool differs(double a, double b) { return std::fabs(a - b) > 1.0e-4 * std::max(std::fabs(b), 1.0e-9); }
+    } // namespace
+
+    // Mixes the vessel's gas grid and keeps it scaled to the lumped totals. An empty, sealed vessel has nothing to mix once it has
+    // settled, so it only follows the totals when they change.
+    void Systems::step_grid(Vessel &v, double dt, const SystemsContext &ctx, bool crewed)
+    {
+        const bool active = crewed || !v.spec.vents.empty();
+        v.grid_idle = active ? 0 : std::min(v.grid_idle + 1, grid_settle_steps);
+        const bool settled = v.grid_idle >= grid_settle_steps;
+        if (!settled && dt <= ctx.grid_dt_limit)
+            sl::gas_vessel_step(v.grid, static_cast<float>(std::min(dt, 4.0)));
+        if (settled && !differs(v.o2, v.grid_o2) && !differs(v.n2, v.grid_n2) && !differs(v.co2, v.grid_co2))
+            return;
+        sl::gas_vessel_set_total(v.grid, sl::VesselGas::Oxygen, static_cast<float>(v.o2));
+        sl::gas_vessel_set_total(v.grid, sl::VesselGas::Nitrogen, static_cast<float>(v.n2));
+        sl::gas_vessel_set_total(v.grid, sl::VesselGas::CarbonDioxide, static_cast<float>(v.co2));
+        v.grid_o2 = v.o2;
+        v.grid_n2 = v.n2;
+        v.grid_co2 = v.co2;
+    }
+
     void Systems::step_vessels(double dt, const SystemsContext &ctx)
     {
         for (std::size_t vi = 0; vi < vessels_.size(); ++vi)
@@ -691,13 +718,7 @@ namespace kosmos
             }
 
             if (v.grid)
-            {
-                if (dt <= ctx.grid_dt_limit)
-                    sl::gas_vessel_step(v.grid, static_cast<float>(std::min(dt, 4.0)));
-                sl::gas_vessel_set_total(v.grid, sl::VesselGas::Oxygen, static_cast<float>(v.o2));
-                sl::gas_vessel_set_total(v.grid, sl::VesselGas::Nitrogen, static_cast<float>(v.n2));
-                sl::gas_vessel_set_total(v.grid, sl::VesselGas::CarbonDioxide, static_cast<float>(v.co2));
-            }
+                step_grid(v, dt, ctx, crew > 0.0);
 
             const double p = v.pressure_kpa(), po2 = v.ppo2_kpa(), pco2 = v.ppco2_kpa();
             v.hazard.clear();

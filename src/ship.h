@@ -634,6 +634,8 @@ namespace kosmos
 
         /** Docking port `index` in the world frame: position, outward direction and up. */
         void port_world(int index, sl::dvec3 &position, sl::dvec3 &direction, sl::dvec3 &up) const;
+        /** The farthest any docking port lies from the body origin, in metres. */
+        double port_reach() const;
         /** Velocity of a world-space point rigidly attached to the ship. */
         sl::dvec3 point_velocity(const sl::dvec3 &world_point) const;
         /** Mass of ships docked to this one that it carries along; included in its mass and inertia. */

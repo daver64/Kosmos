@@ -290,6 +290,10 @@ namespace kosmos
                 Ship &sa = *ships[static_cast<std::size_t>(a)], &sb = *ships[static_cast<std::size_t>(b)];
                 if (sa.on_rails() || sb.on_rails() || locked(a, b))
                     continue;
+                // Ports capture within 1 m, so ships whose ports cannot reach each other need no port-by-port check.
+                const double reach = sa.port_reach() + sb.port_reach() + 1.0;
+                if (glm::dot(sa.body().position - sb.body().position, sa.body().position - sb.body().position) > reach * reach)
+                    continue;
                 for (int pa = 0; pa < static_cast<int>(sa.spec().ports.size()); ++pa)
                     for (int pb = 0; pb < static_cast<int>(sb.spec().ports.size()); ++pb)
                     {

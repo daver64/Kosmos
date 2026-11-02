@@ -251,6 +251,14 @@ namespace kosmos
         up = r * port.up;
     }
 
+    double Ship::port_reach() const
+    {
+        double reach = 0.0;
+        for (const PortSpec &port : spec_.ports)
+            reach = std::max(reach, glm::length(port.position - com_));
+        return reach;
+    }
+
     sl::dvec3 Ship::point_velocity(const sl::dvec3 &world_point) const
     {
         const sl::FlightBody &b = body();

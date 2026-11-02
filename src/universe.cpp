@@ -485,9 +485,14 @@ namespace kosmos
     {
         int best = 0;
         for (std::size_t i = 1; i < bodies.size(); ++i)
-            if (bodies[i].kind != BodyKind::star && glm::length(position - world.body(static_cast<int>(i))->position) < bodies[i].soi &&
-                bodies[i].soi < bodies[static_cast<std::size_t>(best)].soi)
+        {
+            const double soi = bodies[i].soi;
+            if (bodies[i].kind == BodyKind::star || soi >= bodies[static_cast<std::size_t>(best)].soi)
+                continue;
+            const sl::dvec3 offset = position - world.body(static_cast<int>(i))->position;
+            if (glm::dot(offset, offset) < soi * soi)
                 best = static_cast<int>(i);
+        }
         return best;
     }
 

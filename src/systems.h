@@ -184,6 +184,9 @@ namespace kosmos
             double health = 1.0;
             std::string hazard;
             sl::GasVessel *grid = nullptr;
+            /** Grid updates since the vessel last had a crew or a vent; once the air has mixed, an idle grid is left alone. */
+            int grid_idle = 0;
+            double grid_o2 = -1.0, grid_n2 = -1.0, grid_co2 = -1.0; // the totals the grid was last scaled to
             double pressure_kpa() const;
             double ppo2_kpa() const;
             double ppco2_kpa() const;
@@ -204,6 +207,7 @@ namespace kosmos
         void balance_supply(double need, double discharge_capacity, double charge_room, double dt);
         void run_processors(const std::vector<SystemComponent *> &loads, double dt, const SystemsContext &ctx);
         void step_vessels(double dt, const SystemsContext &ctx);
+        void step_grid(Vessel &v, double dt, const SystemsContext &ctx, bool crewed);
         void step_links(double dt);
         SystemComponent *find_tank(const std::string &gas);
         double take(const std::string &gas, double kg);
