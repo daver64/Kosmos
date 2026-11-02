@@ -39,6 +39,10 @@ cmake -S "$SRC" -B "$OUT" -DKOSMOS_PREBUILT_WIN_TOOLS=$PREBUILT -G Ninja -DCMAKE
   -DCMAKE_CXX_FLAGS="-I$TRIPLETS/inc -D_USE_MATH_DEFINES" \
   -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
 
-[ $# -eq 0 ] && set -- kosmos_package
+# Only the release being built is kept: clear every earlier package so old versions never pile up (history is archived elsewhere).
+if [ $# -eq 0 ]; then
+    set -- kosmos_package
+    rm -rf "$OUT"/package/kosmos-beta-*
+fi
 nice cmake --build "$OUT" $([ -z "$INCREMENTAL" ] && echo --clean-first) -j "$JOBS" --target "$@"
 ls -la "$OUT"/package/*.zip

@@ -24,6 +24,7 @@ Kosmos is an Kerbal/Orbiter-style space flight sim in C++17, built on **simlib**
 - Run from `build/`. Useful options: `--ship NAME`, `--orbit`, `--cockpit`, `--cockpit3d`, `--set /path=VALUE`, `--hide-info`, `--selftest SECS` (with `--selftest-throttle`, `--selftest-gear-up`), `--test-jump N`, `--system N`, `--orbit-body auto`.
 - Screenshot: `DISPLAY=:0 ./kosmos --hide-info --ship "CVEL Deltaglider" --orbit --cam-yaw 70 --cam-pitch 10 --cam-distance 20 --shot FILE.png --shot-at SECS`.
 - Tests: `build/systems_test`.
+- MFD manual screenshots: `sh scripts/make-mfd-shots.sh [OUTDIR] [RUN...]` takes them with `--shot` and crops each display; copy the PNGs to `/var/www/html/kosmos/img/mfd/`. Not covered yet: Sync Orbit and Docking (they need a target in the same orbit frame and a tuned IDS beacon).
 
 ## Things that have bitten before
 - OBJ model parts are named by the **`o` object name**, falling back to the material (`usemtl`) name when the file has no `o` lines. `g` is ignored (Orbiter conversions emit meaningless group0, group1...). Animations and visibility rules match either the part name or its material name. Needs the simlib change that adds `ModelPart::material_name`.

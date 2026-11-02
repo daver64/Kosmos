@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds the Linux package.
 # Usage: build-linux.sh [-j N] [target ...]   (default: kosmos_package)
-# Output: build/package/kosmos-beta-<version>-Linux.tar.gz
+# Output: build/package/kosmos-beta-<version>-Linux.tar.gz (any earlier kosmos-beta-* packages there are deleted first)
 # Always a clean rebuild (every object recompiled); set INCREMENTAL=1 to reuse the existing build tree.
 # Needs simlib installed (cmake --install) under SIMLIB_PREFIX.
 # Overrides (env): OUT, JOBS (default 4; -j N overrides), INCREMENTAL, SIMLIB_PREFIX (default ~/opt), KOSMOS_SIMLIB_DIR (build against a simlib source tree instead)
@@ -28,6 +28,10 @@ cmake -S "$SRC" -B "$OUT" -G Ninja -DCMAKE_BUILD_TYPE=Release -DKOSMOS_BUILD_JOB
   -DCMAKE_PREFIX_PATH="$SIMLIB_PREFIX" \
   ${KOSMOS_SIMLIB_DIR:+-DKOSMOS_SIMLIB_DIR=$KOSMOS_SIMLIB_DIR}
 
-[ $# -eq 0 ] && set -- kosmos_package
+# Only the release being built is kept: clear every earlier package so old versions never pile up (history is archived elsewhere).
+if [ $# -eq 0 ]; then
+    set -- kosmos_package
+    rm -rf "$OUT"/package/kosmos-beta-*
+fi
 nice cmake --build "$OUT" $([ -z "$INCREMENTAL" ] && echo --clean-first) -j "$JOBS" --target "$@"
 ls -la "$OUT"/package/*.tar.gz
