@@ -18,6 +18,7 @@ namespace cad
         double dist = 40;                   // perspective: metres from the target
         double fov = 45;                    // degrees, vertical
         bool wire = false;
+        bool textured = false;      // solid shading with each material's texture (or the checker) on
 
         bool ortho() const { return kind != Persp; }
 
@@ -120,7 +121,7 @@ namespace cad
             }
             else
             {
-                const double n = 0.1, fa = 20000.0, t = 1 / std::tan(fov * kPi / 360);
+                const double n = std::max(0.05, dist * 0.02), fa = std::max(200.0, dist * 300.0), t = 1 / std::tan(fov * kPi / 360);
                 set_row(0, r * (t / aspect), -dot(r, o) * t / aspect);
                 set_row(1, u * t, -dot(u, o) * t);
                 // z_clip = -(f+n)/(f-n) * z_view - 2fn/(f-n), with z_view = -depth

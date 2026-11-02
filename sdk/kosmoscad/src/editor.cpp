@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
 
 namespace cad
 {
@@ -812,6 +813,272 @@ namespace cad
             for (int i : sel.objects)
                 project_uv(scene().objects[i].mesh, {}, uv_mode, axis);
         touch_mesh();
+    }
+
+    std::vector<Editor::UvRef> Editor::uv_scope() const
+    {
+        std::vector<UvRef> out;
+        const Scene &sc = scene();
+        if (mode == Mode::Face && active_object() && !sel.faces.empty())
+        {
+            const int a = sel.active;
+            for (int f : sel.faces)
+                if (f >= 0 && f < static_cast<int>(sc.objects[a].mesh.f.size()))
+                    out.push_back({a, f});
+            return out;
+        }
+        for (int i : sel.objects)
+            if (i >= 0 && i < static_cast<int>(sc.objects.size()))
+                for (size_t f = 0; f < sc.objects[i].mesh.f.size(); ++f)
+                    out.push_back({i, static_cast<int>(f)});
+        return out;
+    }
+
+    bool Editor::uv_prepare()
+    {
+        const std::vector<UvRef> scope = uv_scope();
+        std::set<std::pair<int, int>> in_scope;
+        for (const UvRef &r : scope)
+            in_scope.insert({r.object, r.face});
+        bool need = false;
+        std::map<int, std::map<int, int>> outside; // object -> UV index -> users outside the scope
+        for (const UvRef &r : scope)
+        {
+            const Mesh &m = scene().objects[r.object].mesh;
+            if (m.f[r.face].uv.size() != m.f[r.face].v.size())
+                need = true;
+        }
+        std::set<int> objects;
+        for (const UvRef &r : scope)
+            objects.insert(r.object);
+        for (int oi : objects)
+        {
+            const Mesh &m = scene().objects[oi].mesh;
+            for (size_t f = 0; f < m.f.size(); ++f)
+                if (!in_scope.count({oi, static_cast<int>(f)}))
+                    for (int u : m.f[f].uv)
+                        ++outside[oi][u];
+        }
+        for (const UvRef &r : scope)
+            for (int u : scene().objects[r.object].mesh.f[r.face].uv)
+                if (outside[r.object].count(u))
+                    need = true;
+        if (!need)
+            return false;
+        doc.checkpoint();
+        for (int oi : objects)
+        {
+            Mesh &m = scene().objects[oi].mesh;
+            std::set<int> missing;
+            for (const UvRef &r : scope)
+                if (r.object == oi && m.f[r.face].uv.size() != m.f[r.face].v.size())
+                    missing.insert(r.face);
+            if (!missing.empty())
+                project_uv(m, missing, UvMode::Box, 2);
+            for (const UvRef &r : scope)
+                if (r.object == oi)
+                    for (int &u : m.f[r.face].uv)
+                        if (outside[oi].count(u))
+                        {
+                            m.uv.push_back(m.uv[u]);
+                            u = static_cast<int>(m.uv.size()) - 1;
+                        }
+        }
+        touch_mesh();
+        return true;
+    }
+
+    std::set<std::pair<int, int>> Editor::uv_targets() const
+    {
+        std::set<std::pair<int, int>> all;
+        for (const UvRef &r : uv_scope())
+        {
+            const Mesh &m = scene().objects[r.object].mesh;
+            for (int u : m.f[r.face].uv)
+                if (u >= 0 && u < static_cast<int>(m.uv.size()))
+                    all.insert({r.object, u});
+        }
+        std::set<std::pair<int, int>> chosen;
+        for (const auto &k : uv_sel)
+            if (all.count(k))
+                chosen.insert(k);
+        return chosen.empty() ? all : chosen;
+    }
+
+    bool Editor::uv_bounds(V2 &lo, V2 &hi) const
+    {
+        bool any = false;
+        for (const auto &k : uv_targets())
+        {
+            const V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            if (!any)
+                lo = hi = p;
+            lo.u = std::min(lo.u, p.u);
+            lo.v = std::min(lo.v, p.v);
+            hi.u = std::max(hi.u, p.u);
+            hi.v = std::max(hi.v, p.v);
+            any = true;
+        }
+        return any;
+    }
+
+    bool Editor::uv_begin()
+    {
+        uv_snap_.clear();
+        for (const auto &k : uv_targets())
+            uv_snap_.push_back({k, scene().objects[k.first].mesh.uv[k.second]});
+        if (uv_snap_.empty())
+            return false;
+        doc.checkpoint();
+        return true;
+    }
+
+    void Editor::uv_apply(UvTool t, double a, double b, const V2 &pivot)
+    {
+        const double rad = a * 3.14159265358979323846 / 180, c = std::cos(rad), s = std::sin(rad);
+        for (const auto &e : uv_snap_)
+        {
+            V2 p = e.second;
+            if (t == UvTool::Move)
+            {
+                p.u += a;
+                p.v += b;
+            }
+            else if (t == UvTool::Rotate)
+            {
+                const double x = p.u - pivot.u, y = p.v - pivot.v;
+                p.u = pivot.u + x * c - y * s;
+                p.v = pivot.v + x * s + y * c;
+            }
+            else
+            {
+                p.u = pivot.u + (p.u - pivot.u) * a;
+                p.v = pivot.v + (p.v - pivot.v) * b;
+            }
+            scene().objects[e.first.first].mesh.uv[e.first.second] = p;
+        }
+        touch_mesh();
+    }
+
+    void Editor::uv_end() { uv_snap_.clear(); }
+
+    void Editor::uv_transform(double du, double dv, double degrees, double scale)
+    {
+        V2 lo, hi;
+        if (!uv_bounds(lo, hi))
+            return;
+        doc.checkpoint();
+        const double cu = (lo.u + hi.u) / 2, cv = (lo.v + hi.v) / 2;
+        const double rad = degrees * 3.14159265358979323846 / 180, c = std::cos(rad), s = std::sin(rad);
+        for (const auto &k : uv_targets())
+        {
+            V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            const double x = (p.u - cu) * scale, y = (p.v - cv) * scale;
+            p.u = cu + x * c - y * s + du;
+            p.v = cv + x * s + y * c + dv;
+        }
+        touch_mesh();
+    }
+
+    void Editor::uv_flip(bool horizontal)
+    {
+        V2 lo, hi;
+        if (!uv_bounds(lo, hi))
+            return;
+        doc.checkpoint();
+        for (const auto &k : uv_targets())
+        {
+            V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            if (horizontal)
+                p.u = lo.u + hi.u - p.u;
+            else
+                p.v = lo.v + hi.v - p.v;
+        }
+        touch_mesh();
+    }
+
+    void Editor::uv_rotate90()
+    {
+        V2 lo, hi;
+        if (!uv_bounds(lo, hi))
+            return;
+        doc.checkpoint();
+        const double cu = (lo.u + hi.u) / 2, cv = (lo.v + hi.v) / 2;
+        for (const auto &k : uv_targets())
+        {
+            V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            const double x = p.u - cu, y = p.v - cv;
+            p.u = cu - y;
+            p.v = cv + x;
+        }
+        touch_mesh();
+    }
+
+    void Editor::uv_fit()
+    {
+        V2 lo, hi;
+        if (!uv_bounds(lo, hi))
+            return;
+        doc.checkpoint();
+        const double du = hi.u - lo.u, dv = hi.v - lo.v;
+        for (const auto &k : uv_targets())
+        {
+            V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            p.u = du > 1e-9 ? (p.u - lo.u) / du : 0.5;
+            p.v = dv > 1e-9 ? (p.v - lo.v) / dv : 0.5;
+        }
+        touch_mesh();
+    }
+
+    int Editor::uv_pick(double u, double v, double tolerance, bool add)
+    {
+        std::set<std::pair<int, int>> all;
+        for (const UvRef &r : uv_scope())
+        {
+            const Mesh &m = scene().objects[r.object].mesh;
+            for (int k : m.f[r.face].uv)
+                if (k >= 0 && k < static_cast<int>(m.uv.size()))
+                    all.insert({r.object, k});
+        }
+        std::pair<int, int> best{-1, -1};
+        double best_d = tolerance;
+        for (const auto &k : all)
+        {
+            const V2 &p = scene().objects[k.first].mesh.uv[k.second];
+            const double d = std::hypot(p.u - u, p.v - v);
+            if (d <= best_d)
+            {
+                best_d = d;
+                best = k;
+            }
+        }
+        if (!add)
+            uv_sel.clear();
+        if (best.first < 0)
+            return -1;
+        if (add && uv_sel.count(best))
+            uv_sel.erase(best);
+        else
+            uv_sel.insert(best);
+        return best.second;
+    }
+
+    void Editor::uv_box_select(double u0, double v0, double u1, double v1, bool add)
+    {
+        if (!add)
+            uv_sel.clear();
+        const double lu = std::min(u0, u1), hu = std::max(u0, u1), lv = std::min(v0, v1), hv = std::max(v0, v1);
+        for (const UvRef &r : uv_scope())
+        {
+            const Mesh &m = scene().objects[r.object].mesh;
+            for (int k : m.f[r.face].uv)
+                if (k >= 0 && k < static_cast<int>(m.uv.size()))
+                {
+                    const V2 &p = m.uv[k];
+                    if (p.u >= lu && p.u <= hu && p.v >= lv && p.v <= hv)
+                        uv_sel.insert({r.object, k});
+                }
+        }
     }
 
     int Editor::new_material(const std::string &name)

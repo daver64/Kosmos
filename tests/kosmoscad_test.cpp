@@ -4,9 +4,11 @@
 #include "scene.h"
 #include "equipment.h"
 #include "editor.h"
+#include "image.h"
 #include "ship_io.h"
 
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <cstdio>
 #include <cstdlib>
@@ -415,6 +417,67 @@ int main()
         sk.sketch = {{0, 0}, {0, 1}, {2, 1}, {2, 0}};
         sk.sketch_extrude(3);
         check(near(signed_volume(sk.scene().objects[1].mesh), 6, 1e-9), "sketch extrude from the top view also faces outward");
+
+        // UV editor logic
+        {
+            Editor ue;
+            ue.add_shape(ShapeKind::Box, 2, 2, 2, 8, {0, 0, 0});
+            ue.sel.clear();
+            ue.sel.objects = {0};
+            ue.sel.active = 0;
+            check(ue.uv_scope().size() == ue.scene().objects[0].mesh.f.size(), "UV scope is every face of the selected object");
+            check(ue.uv_prepare(), "UV prepare projects faces that have no UVs");
+            check(!ue.uv_prepare(), "UV prepare is idempotent");
+            V2 lo, hi;
+            check(ue.uv_bounds(lo, hi), "UV bounds exist after prepare");
+            const V2 before = ue.scene().objects[0].mesh.uv[ue.uv_scope().empty() ? 0 : ue.scene().objects[0].mesh.f[0].uv[0]];
+            check(ue.uv_begin(), "UV drag begins");
+            ue.uv_apply(Editor::UvTool::Move, 0.25, -0.5, {0, 0});
+            ue.uv_apply(Editor::UvTool::Move, 0.25, -0.5, {0, 0});
+            ue.uv_end();
+            const V2 after = ue.scene().objects[0].mesh.uv[ue.scene().objects[0].mesh.f[0].uv[0]];
+            check(near(after.u - before.u, 0.25, 1e-9) && near(after.v - before.v, -0.5, 1e-9), "UV move is relative to the drag start");
+            ue.doc.undo();
+            const V2 undone = ue.scene().objects[0].mesh.uv[ue.scene().objects[0].mesh.f[0].uv[0]];
+            check(near(undone.u, before.u, 1e-9) && near(undone.v, before.v, 1e-9), "a UV drag is one undo step");
+            ue.uv_fit();
+            ue.uv_bounds(lo, hi);
+            check(near(lo.u, 0, 1e-9) && near(hi.v, 1, 1e-9), "UV fit fills 0..1");
+            ue.uv_begin();
+            ue.uv_apply(Editor::UvTool::Rotate, 90, 0, {0.5, 0.5});
+            ue.uv_end();
+            ue.uv_bounds(lo, hi);
+            check(near(lo.u, 0, 1e-9) && near(hi.u, 1, 1e-9), "a 90 degree UV rotation about the centre keeps the square");
+            ue.uv_transform(0.5, 0, 0, 0.5);
+            ue.uv_bounds(lo, hi);
+            check(near(hi.u - lo.u, 0.5, 1e-9) && near(lo.u, 0.75, 1e-9), "UV transform scales about the centre then moves");
+            // faces sharing UVs with faces outside the scope get their own
+            Mesh &mm = ue.scene().objects[0].mesh;
+            mm.f[1].uv = mm.f[0].uv;
+            ue.set_mode(Mode::Face);
+            ue.sel.faces = {0};
+            check(ue.uv_prepare(), "UV prepare unshares UVs used by faces outside the scope");
+            bool shared = false;
+            for (int a : mm.f[0].uv)
+                for (int b : mm.f[1].uv)
+                    shared = shared || a == b;
+            check(!shared, "scope faces no longer share UVs with others");
+        }
+
+        // DDS decoding: a 4x4 DXT1 block whose two colours are red and blue, and pixel 0 picks colour 0
+        {
+            std::vector<uint8_t> d(128 + 8, 0);
+            std::memcpy(d.data(), "DDS ", 4);
+            d[4] = 124;
+            d[12] = 4; d[16] = 4;                 // height, width
+            d[76] = 32; d[80] = 4;                // pixel format size, FourCC flag
+            std::memcpy(&d[84], "DXT1", 4);
+            d[128] = 0x00; d[129] = 0xF8;         // colour 0 = 0xF800 (red)
+            d[130] = 0x1F; d[131] = 0x00;         // colour 1 = 0x001F (blue)
+            Image im;
+            check(decode_dds(d, im) && im.w == 4 && im.h == 4, "DXT1 header decodes");
+            check(im.rgba[0] == 255 && im.rgba[1] == 0 && im.rgba[2] == 0 && im.rgba[3] == 255, "DXT1 colour 0 is red");
+        }
     }
     std::printf("%d failure(s)\n", failures);
     return failures ? 1 : 0;

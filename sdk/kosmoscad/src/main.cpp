@@ -1,25 +1,28 @@
 // KosmosCAD: a small 3D modeller for Kosmos ships (four views, mesh editing, equipment markers). GTK 3 for the panels, OpenGL for every view.
-//   kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH] [--select-face N] [--mode object|vertex|edge|face]]
+//   kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH] [--select-face N] [--mode object|vertex|edge|face] [--uv] [--textured]]
 // --shot draws the views to a PNG and exits.
 #include "editor.h"
 #include "gl_view.h"
+#include "image.h"
 #include "ship_io.h"
 
 #include <epoxy/gl.h>
 #include <gtk/gtk.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 
 using namespace cad;
 
 namespace
 {
-    const char *kViewNames[4] = {"Top", "Front", "Side", "Perspective"};
+    const char *kViewNames[5] = {"Top", "Front", "Side", "Perspective", "UV editor"};
 
     struct App
     {
@@ -29,7 +32,7 @@ namespace
         ViewState vs;
         bool gl_ok = false, updating = false, need_frame = true;
 
-        GtkWidget *window = nullptr, *area = nullptr, *status = nullptr, *tree = nullptr, *labels[4] = {};
+        GtkWidget *window = nullptr, *area = nullptr, *status = nullptr, *tree = nullptr, *labels[5] = {};
         GtkListStore *store = nullptr;
         GtkWidget *sp_pos[3] = {}, *sp_rot[3] = {}, *sp_scl[3] = {};
         GtkWidget *obj_name = nullptr, *obj_visible = nullptr, *obj_smooth = nullptr;
@@ -43,6 +46,14 @@ namespace
         double press_x = 0, press_y = 0, last_x = 0, last_y = 0;
         bool pressed = false, moved = false, gizmo_drag = false, navigating = false;
         std::string backed_up;
+
+        // UV editor
+        Editor::UvTool uv_tool = Editor::UvTool::Move;
+        bool uv_drag = false, press_ctrl = false, drop_tex = false;
+        V2 uv_pivot;
+        GtkWidget *uv_tool_btn[3] = {}, *uv_btn = nullptr, *uv_checker = nullptr, *uv_num[4] = {};
+        std::string render_file;
+        GtkWidget *scene_win = nullptr, *props_win = nullptr, *scene_btn = nullptr, *props_btn = nullptr;
 
         std::string shot_file;
         int shot_w = 1280, shot_h = 800, shot_frames = 0;
@@ -346,7 +357,9 @@ namespace
         if (p.extension() == ".kmodel")
             A->ed.doc.file = p;
         A->ed.sel.clear();
+        A->ed.uv_sel.clear();
         A->ed.mesh_gen++;
+        A->drop_tex = true;
         A->need_frame = true;
         refresh();
         say("Opened " + path);
@@ -573,14 +586,90 @@ namespace
 
     void toggle_wire()
     {
+        if (A->vs.active > 3)
+            return;
         Camera &c = A->cams[A->vs.active];
-        c.wire = !c.wire;
+        if (c.wire)
+            c.wire = false;
+        else if (!c.textured)
+            c.textured = true;
+        else
+        {
+            c.textured = false;
+            c.wire = true;
+        }
+        say(std::string(kViewNames[A->vs.active]) + ": " + (c.wire ? "wireframe" : (c.textured ? "textured" : "solid")) + "  (Z cycles wire, solid, textured)");
         render();
     }
     void toggle_max()
     {
         A->vs.maximised = A->vs.maximised >= 0 ? -1 : A->vs.active;
         render();
+    }
+
+    // ---- UV editor --------------------------------------------------------------------------------------------------
+
+    void uv_refresh()
+    {
+        if (!A->vs.uv)
+            return;
+        A->ed.uv_prepare();
+        const auto scope = A->ed.uv_scope();
+        if (!scope.empty())
+        {
+            const Mesh &m = A->ed.scene().objects[scope[0].object].mesh;
+            A->vs.uv_material = std::clamp(m.f[scope[0].face].mat, 0, static_cast<int>(A->ed.scene().materials.size()) - 1);
+        }
+        render();
+    }
+
+    void uv_frame()
+    {
+        const Rect r = view_rect(4, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), -1, true);
+        A->vs.uv_cx = A->vs.uv_cy = 0.5;
+        A->vs.uv_zoom = std::max(60.0, std::min(r.w, r.h) * 0.8);
+    }
+
+    void set_uv_tool(Editor::UvTool t)
+    {
+        A->uv_tool = t;
+        A->updating = true;
+        for (int i = 0; i < 3; ++i)
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(A->uv_tool_btn[i]), i == static_cast<int>(t));
+        A->updating = false;
+        say(t == Editor::UvTool::Move ? "UV move: drag to slide the image mapping (G)" : (t == Editor::UvTool::Rotate ? "UV rotate: drag around the centre (R)" : "UV scale: drag away from or towards the centre (S)"));
+    }
+
+    void toggle_uv()
+    {
+        A->vs.uv = !A->vs.uv;
+        if (A->vs.uv)
+        {
+            A->vs.maximised = -1;
+            A->vs.active = 4;
+            A->cams[3].wire = false;
+            A->cams[3].textured = true;
+            A->ed.uv_sel.clear();
+            uv_frame();
+            if (A->ed.uv_scope().empty())
+                say("UV editor: select an object (or faces in Face mode) to edit its UVs.");
+            else
+                say("UV editor: drag to move/rotate/scale the mapping (G R S), click a UV point to select it, Ctrl+drag to box-select, middle drag pans.");
+            uv_refresh();
+        }
+        else
+            A->vs.active = 3;
+        gtk_widget_queue_resize(gtk_widget_get_parent(A->area));
+        A->updating = true;
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(A->uv_btn), A->vs.uv);
+        A->updating = false;
+        render();
+    }
+
+    void uv_view_coords(double lx, double ly, int w, int h, double &u, double &v)
+    {
+        u = A->vs.uv_cx + (lx - w / 2.0) / A->vs.uv_zoom;
+        v = A->vs.uv_cy - (ly - h / 2.0) / A->vs.uv_zoom;
     }
 
     // ---- GL callbacks ---------------------------------------------------------------------------------------------
@@ -604,7 +693,7 @@ namespace
         A->gl_ok = false;
     }
 
-    void save_shot()
+    bool write_frame(const std::string &file)
     {
         const int sc = gtk_widget_get_scale_factor(A->area);
         const int w = gtk_widget_get_allocated_width(A->area) * sc, h = gtk_widget_get_allocated_height(A->area) * sc;
@@ -613,13 +702,58 @@ namespace
             px[i] = 255;
         GdkPixbuf *pb = gdk_pixbuf_new_from_data(px.data(), GDK_COLORSPACE_RGB, TRUE, 8, w, h, w * 4, nullptr, nullptr);
         GError *err = nullptr;
-        if (!gdk_pixbuf_save(pb, A->shot_file.c_str(), "png", &err, nullptr))
+        const bool ok = gdk_pixbuf_save(pb, file.c_str(), "png", &err, nullptr);
+        if (!ok)
         {
-            std::fprintf(stderr, "kosmoscad: could not write %s: %s\n", A->shot_file.c_str(), err ? err->message : "?");
+            std::fprintf(stderr, "kosmoscad: could not write %s: %s\n", file.c_str(), err ? err->message : "?");
             g_clear_error(&err);
         }
         g_object_unref(pb);
+        return ok;
+    }
+
+    void save_shot()
+    {
+        write_frame(A->shot_file);
         gtk_main_quit();
+    }
+
+    // Textures: DDS through our own decoder, everything else through gdk-pixbuf.
+    bool load_texture_file(const std::string &path, Image &out)
+    {
+        std::string ext = fs::path(path).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (ext == ".dds")
+            return load_dds_file(path, out);
+        GdkPixbuf *pb = gdk_pixbuf_new_from_file(path.c_str(), nullptr);
+        if (!pb)
+            return false;
+        if (!gdk_pixbuf_get_has_alpha(pb))
+        {
+            GdkPixbuf *a = gdk_pixbuf_add_alpha(pb, FALSE, 0, 0, 0);
+            g_object_unref(pb);
+            pb = a;
+        }
+        out.w = gdk_pixbuf_get_width(pb);
+        out.h = gdk_pixbuf_get_height(pb);
+        out.rgba.resize(static_cast<size_t>(out.w) * out.h * 4);
+        const unsigned char *src = gdk_pixbuf_get_pixels(pb);
+        const int stride = gdk_pixbuf_get_rowstride(pb);
+        for (int y = 0; y < out.h; ++y)
+            std::memcpy(&out.rgba[static_cast<size_t>(y) * out.w * 4], src + static_cast<size_t>(y) * stride, static_cast<size_t>(out.w) * 4);
+        g_object_unref(pb);
+        return true;
+    }
+
+    // The folder relative texture paths are resolved against: the ship.json's, or the .kmodel's.
+    std::string texture_base()
+    {
+        const Scene &sc = A->ed.scene();
+        if (!sc.ship_file.empty())
+            return fs::path(sc.ship_file).parent_path().string();
+        if (!A->ed.doc.file.empty())
+            return A->ed.doc.file.parent_path().string();
+        return "";
     }
 
     gboolean on_render(GtkGLArea *area, GdkGLContext *, gpointer)
@@ -631,9 +765,34 @@ namespace
         if (A->need_frame)
         {
             frame_all();
+            if (A->vs.uv)
+                uv_frame();
             A->need_frame = false;
         }
+        if (A->drop_tex)
+        {
+            A->gl.drop_textures();
+            A->drop_tex = false;
+        }
+        A->gl.base_dir = texture_base();
         A->gl.render(A->ed, A->cams, A->vs, W, H, sc);
+        if (!A->render_file.empty())
+        {
+            // Render: the perspective view alone, textured, without grid or overlays.
+            ViewState rv = A->vs;
+            rv.uv = false;
+            rv.maximised = 3;
+            rv.active = 3;
+            rv.clean = true;
+            Camera rc[4] = {A->cams[0], A->cams[1], A->cams[2], A->cams[3]};
+            rc[3].wire = false;
+            rc[3].textured = true;
+            A->gl.render(A->ed, rc, rv, W, H, sc);
+            const bool ok = write_frame(A->render_file);
+            say(ok ? "Rendered " + A->render_file : "Could not write " + A->render_file);
+            A->render_file.clear();
+            gtk_widget_queue_draw(GTK_WIDGET(area));
+        }
         if (!A->shot_file.empty() && ++A->shot_frames >= 3)
             save_shot();
         return TRUE;
@@ -653,7 +812,7 @@ namespace
     void sketch_click(int view, double x, double y)
     {
         const Camera &c = A->cams[view];
-        const Rect r = view_rect(view, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised);
+        const Rect r = view_rect(view, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised, A->vs.uv);
         V3 right, up, fwd;
         c.basis(right, up, fwd);
         double u = dot(c.target, right) + (x - r.x - r.w / 2.0) / c.scale;
@@ -667,7 +826,7 @@ namespace
 
     void local(int view, double x, double y, double &lx, double &ly, int &w, int &h)
     {
-        const Rect r = view_rect(view, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised);
+        const Rect r = view_rect(view, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised, A->vs.uv);
         lx = x - r.x;
         ly = y - r.y;
         w = r.w;
@@ -678,7 +837,7 @@ namespace
     {
         gtk_widget_grab_focus(widget);
         const int W = gtk_widget_get_allocated_width(widget), H = gtk_widget_get_allocated_height(widget);
-        const int v = view_at(e->x, e->y, W, H, A->vs.maximised);
+        const int v = view_at(e->x, e->y, W, H, A->vs.maximised, A->vs.uv);
         if (v < 0)
             return TRUE;
         A->vs.active = v;
@@ -699,6 +858,13 @@ namespace
         }
         if (e->button != 1)
             return TRUE;
+        A->press_ctrl = e->state & GDK_CONTROL_MASK;
+        A->uv_drag = false;
+        if (v == 4)
+        {
+            render();
+            return TRUE;
+        }
         double lx, ly;
         int w, h;
         local(v, e->x, e->y, lx, ly, w, h);
@@ -722,6 +888,13 @@ namespace
         A->last_y = e->y;
         if (A->pressed && !A->moved && std::hypot(e->x - A->press_x, e->y - A->press_y) > 3)
             A->moved = true;
+        if (A->pressed && A->navigating && A->nav_view == 4)
+        {
+            A->vs.uv_cx -= dx / A->vs.uv_zoom;
+            A->vs.uv_cy += dy / A->vs.uv_zoom;
+            render();
+            return TRUE;
+        }
         if (A->pressed && A->navigating)
         {
             Camera &c = A->cams[A->nav_view];
@@ -749,6 +922,58 @@ namespace
         local(v, e->x, e->y, lx, ly, w, h);
         A->vs.cursor_x = lx;
         A->vs.cursor_y = ly;
+        if (v == 4)
+        {
+            if (A->pressed && A->press_button == 1 && A->moved)
+            {
+                double px, py;
+                int pw, ph;
+                local(v, A->press_x, A->press_y, px, py, pw, ph);
+                if (A->press_ctrl)
+                {
+                    A->vs.box = true;
+                    A->vs.bx0 = px;
+                    A->vs.by0 = py;
+                    A->vs.bx1 = lx;
+                    A->vs.by1 = ly;
+                }
+                else
+                {
+                    if (!A->uv_drag)
+                    {
+                        V2 lo, hi;
+                        if (A->ed.uv_bounds(lo, hi) && A->ed.uv_begin())
+                        {
+                            A->uv_pivot = {(lo.u + hi.u) / 2, (lo.v + hi.v) / 2};
+                            A->uv_drag = true;
+                        }
+                    }
+                    if (A->uv_drag)
+                    {
+                        using T = Editor::UvTool;
+                        const double zoom = A->vs.uv_zoom;
+                        if (A->uv_tool == T::Move)
+                            A->ed.uv_apply(T::Move, (lx - px) / zoom, -(ly - py) / zoom, A->uv_pivot);
+                        else
+                        {
+                            const double cx = w / 2.0 + (A->uv_pivot.u - A->vs.uv_cx) * zoom, cy = h / 2.0 - (A->uv_pivot.v - A->vs.uv_cy) * zoom;
+                            if (A->uv_tool == T::Rotate)
+                            {
+                                double deg = (std::atan2(-(ly - cy), lx - cx) - std::atan2(-(py - cy), px - cx)) * 180 / 3.14159265358979323846;
+                                A->ed.uv_apply(T::Rotate, deg, 0, A->uv_pivot);
+                            }
+                            else
+                            {
+                                const double d0 = std::max(std::hypot(px - cx, py - cy), 4.0), f = std::max(std::hypot(lx - cx, ly - cy) / d0, 0.02);
+                                A->ed.uv_apply(T::Scale, f, f, A->uv_pivot);
+                            }
+                        }
+                    }
+                }
+                render();
+            }
+            return TRUE;
+        }
         if (A->gizmo_drag)
         {
             A->ed.drag(A->cams[v], w, h, lx, ly);
@@ -807,6 +1032,32 @@ namespace
         }
         if (e->button != 1)
             return TRUE;
+        if (v == 4)
+        {
+            if (A->uv_drag)
+            {
+                A->ed.uv_end();
+                A->uv_drag = false;
+            }
+            else if (A->moved && A->press_ctrl)
+            {
+                double px, py, u0, v0, u1, v1;
+                int pw, ph;
+                local(v, A->press_x, A->press_y, px, py, pw, ph);
+                uv_view_coords(px, py, pw, ph, u0, v0);
+                uv_view_coords(lx, ly, w, h, u1, v1);
+                A->ed.uv_box_select(u0, v0, u1, v1, e->state & GDK_SHIFT_MASK);
+            }
+            else if (!A->moved)
+            {
+                double u, vv;
+                uv_view_coords(lx, ly, w, h, u, vv);
+                A->ed.uv_pick(u, vv, 10.0 / A->vs.uv_zoom, e->state & GDK_SHIFT_MASK);
+            }
+            A->vs.box = false;
+            render();
+            return TRUE;
+        }
         if (A->vs.sketching && v < 3)
         {
             if (A->cams[v].kind == A->ed.sketch_kind)
@@ -824,7 +1075,9 @@ namespace
         else
             A->ed.click(A->cams[v], w, h, lx, ly, add);
         A->vs.box = false;
+        A->ed.uv_sel.clear();
         sync_ui();
+        uv_refresh();
         render();
         (void)widget;
         return TRUE;
@@ -832,18 +1085,123 @@ namespace
 
     gboolean on_scroll(GtkWidget *widget, GdkEventScroll *e, gpointer)
     {
-        const int v = view_at(e->x, e->y, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget), A->vs.maximised);
+        const int v = view_at(e->x, e->y, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget), A->vs.maximised, A->vs.uv);
         if (v < 0)
             return TRUE;
         A->vs.active = v;
+        if (v == 4)
+        {
+            const Rect r = view_rect(4, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget), -1, true);
+            double u0, v0, u1, v1;
+            uv_view_coords(e->x - r.x, e->y - r.y, r.w, r.h, u0, v0);
+            const double f = e->direction == GDK_SCROLL_UP ? 1.15 : (e->direction == GDK_SCROLL_DOWN ? 1 / 1.15 : (e->delta_y < 0 ? 1.15 : 1 / 1.15));
+            A->vs.uv_zoom = std::clamp(A->vs.uv_zoom * f, 20.0, 20000.0);
+            uv_view_coords(e->x - r.x, e->y - r.y, r.w, r.h, u1, v1);
+            A->vs.uv_cx += u0 - u1;
+            A->vs.uv_cy += v0 - v1;
+            render();
+            return TRUE;
+        }
         A->cams[v].zoom(e->direction == GDK_SCROLL_UP ? 1.15 : (e->direction == GDK_SCROLL_DOWN ? 1 / 1.15 : (e->delta_y < 0 ? 1.15 : 1 / 1.15)));
         render();
         return TRUE;
     }
 
-    gboolean on_key(GtkWidget *, GdkEventKey *e, gpointer)
+    // Window layout remembered between sessions (~/.config/kosmoscad/layout.txt): "name x y w h visible" per window.
+    struct Geom { int x = 0, y = 0, w = 0, h = 0; bool vis = false, known = false; };
+    Geom g_geom[3]; // main, scene, properties
+
+    std::string layout_path()
     {
-        GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(A->window));
+        const char *home = std::getenv("HOME");
+        return home ? std::string(home) + "/.config/kosmoscad/layout.txt" : std::string();
+    }
+
+    void layout_load()
+    {
+        const std::string path = layout_path();
+        std::ifstream in(path);
+        std::string name;
+        Geom g;
+        int vis = 0;
+        while (in && (in >> name >> g.x >> g.y >> g.w >> g.h >> vis))
+        {
+            g.vis = vis != 0;
+            g.known = g.w > 50 && g.h > 50;
+            const int i = name == "main" ? 0 : (name == "scene" ? 1 : (name == "props" ? 2 : -1));
+            if (i >= 0)
+                g_geom[i] = g;
+        }
+    }
+
+    void layout_capture()
+    {
+        GtkWidget *wins[3] = {A->window, A->scene_win, A->props_win};
+        for (int i = 0; i < 3; ++i)
+        {
+            Geom &g = g_geom[i];
+            if (i > 0 && !gtk_widget_get_visible(wins[i]) && g.known)
+            {
+                g.vis = false;
+                continue;
+            }
+            gtk_window_get_position(GTK_WINDOW(wins[i]), &g.x, &g.y);
+            gtk_window_get_size(GTK_WINDOW(wins[i]), &g.w, &g.h);
+            g.vis = i == 0 || gtk_widget_get_visible(wins[i]);
+            g.known = true;
+        }
+    }
+
+    void layout_save()
+    {
+        const std::string path = layout_path();
+        if (path.empty())
+            return;
+        std::error_code ec;
+        std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
+        std::ofstream out(path);
+        const char *names[3] = {"main", "scene", "props"};
+        for (int i = 0; i < 3; ++i)
+            if (g_geom[i].known)
+                out << names[i] << ' ' << g_geom[i].x << ' ' << g_geom[i].y << ' ' << g_geom[i].w << ' ' << g_geom[i].h << ' ' << (g_geom[i].vis ? 1 : 0) << '\n';
+    }
+
+    // The scene list and the properties live in floating tool windows so the views get the whole main window.
+    void show_tool(GtkWidget *win, GtkWidget *button, bool show)
+    {
+        if (show)
+        {
+            if (!gtk_widget_get_visible(win) && !g_object_get_data(G_OBJECT(win), "placed"))
+            {
+                const Geom &sg = g_geom[win == A->scene_win ? 1 : 2];
+                if (sg.known)
+                {
+                    gtk_window_resize(GTK_WINDOW(win), sg.w, sg.h);
+                    gtk_window_move(GTK_WINDOW(win), sg.x, sg.y);
+                }
+                else
+                {
+                int x = 0, y = 0, w = 0, h = 0;
+                gtk_window_get_position(GTK_WINDOW(A->window), &x, &y);
+                gtk_window_get_size(GTK_WINDOW(A->window), &w, &h);
+                const bool right = win == A->props_win;
+                gtk_window_move(GTK_WINDOW(win), right ? x + w - 360 : x + 24, y + 110);
+                }
+                g_object_set_data(G_OBJECT(win), "placed", GINT_TO_POINTER(1));
+            }
+            gtk_window_present(GTK_WINDOW(win));
+        }
+        else
+            gtk_widget_hide(win);
+        A->updating = true;
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), show);
+        A->updating = false;
+    }
+    void toggle_tool(GtkWidget *win, GtkWidget *button) { show_tool(win, button, !gtk_widget_get_visible(win)); }
+
+    gboolean on_key(GtkWidget *w, GdkEventKey *e, gpointer)
+    {
+        GtkWidget *focus = gtk_window_get_focus(GTK_WINDOW(w));
         if (focus && (GTK_IS_EDITABLE(focus) || GTK_IS_TEXT_VIEW(focus)))
             return FALSE;
         const bool ctrl = e->state & GDK_CONTROL_MASK, shift = e->state & GDK_SHIFT_MASK;
@@ -866,10 +1224,15 @@ namespace
         }
         switch (k)
         {
+        case GDK_KEY_F2: toggle_tool(A->scene_win, A->scene_btn); return TRUE;
+        case GDK_KEY_F3: toggle_tool(A->props_win, A->props_btn); return TRUE;
+        case GDK_KEY_u: toggle_uv(); return TRUE;
+        case GDK_KEY_g: if (A->vs.uv && A->vs.active == 4) { set_uv_tool(Editor::UvTool::Move); return TRUE; } A->vs.grid = !A->vs.grid; render(); return TRUE;
+        case GDK_KEY_s: if (A->vs.uv && A->vs.active == 4) { set_uv_tool(Editor::UvTool::Scale); return TRUE; } break;
+        case GDK_KEY_r: if (A->vs.uv && A->vs.active == 4) { set_uv_tool(Editor::UvTool::Rotate); return TRUE; } set_tool(Tool::Scale); return TRUE;
         case GDK_KEY_q: set_tool(Tool::Select); return TRUE;
         case GDK_KEY_w: set_tool(Tool::Move); return TRUE;
         case GDK_KEY_e: set_tool(Tool::Rotate); return TRUE;
-        case GDK_KEY_r: set_tool(Tool::Scale); return TRUE;
         case GDK_KEY_1: set_mode(Mode::Object); return TRUE;
         case GDK_KEY_2: set_mode(Mode::Vertex); return TRUE;
         case GDK_KEY_3: set_mode(Mode::Edge); return TRUE;
@@ -877,9 +1240,14 @@ namespace
         case GDK_KEY_Delete:
         case GDK_KEY_x: ed.delete_selection(); clamp_selection(); refresh(); return TRUE;
         case GDK_KEY_space: toggle_max(); return TRUE;
-        case GDK_KEY_f: A->need_frame = true; render(); return TRUE;
+        case GDK_KEY_f:
+            if (A->vs.uv && A->vs.active == 4)
+                uv_frame();
+            else
+                A->need_frame = true;
+            render();
+            return TRUE;
         case GDK_KEY_z: toggle_wire(); return TRUE;
-        case GDK_KEY_g: A->vs.grid = !A->vs.grid; render(); return TRUE;
         case GDK_KEY_Return:
         case GDK_KEY_KP_Enter: finish_sketch(false); return TRUE;
         case GDK_KEY_l: finish_sketch(true); return TRUE;
@@ -1014,7 +1382,9 @@ namespace
         g_list_free_full(rows, reinterpret_cast<GDestroyNotify>(gtk_tree_path_free));
         s.active = s.objects.empty() ? -1 : *s.objects.begin();
         s.clear_elements();
+        A->ed.uv_sel.clear();
         sync_ui(false);
+        uv_refresh();
         render();
     }
 
@@ -1029,6 +1399,11 @@ namespace
         gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(A->mat_colour), &c);
         gtk_entry_set_text(GTK_ENTRY(A->mat_tex), m.texture.c_str());
         A->updating = false;
+        if (A->vs.uv)
+        {
+            A->vs.uv_material = current_material();
+            render();
+        }
     }
 
     void on_material_edit(GtkWidget *, gpointer)
@@ -1045,6 +1420,7 @@ namespace
         m.colour = {c.red, c.green, c.blue};
         m.texture = gtk_entry_get_text(GTK_ENTRY(A->mat_tex));
         A->ed.changed();
+        A->drop_tex = true;
         A->updating = true;
         const int keep = current_material();
         gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(A->mat_combo));
@@ -1120,7 +1496,7 @@ namespace
     gboolean on_child_position(GtkOverlay *, GtkWidget *child, GdkRectangle *alloc, gpointer)
     {
         const int v = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(child), "view"));
-        const Rect r = view_rect(v, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised);
+        const Rect r = view_rect(v, gtk_widget_get_allocated_width(A->area), gtk_widget_get_allocated_height(A->area), A->vs.maximised, A->vs.uv);
         GtkRequisition min, nat;
         gtk_widget_get_preferred_size(child, &min, &nat);
         alloc->x = r.x + 6;
@@ -1131,11 +1507,37 @@ namespace
         return TRUE;
     }
 
+    GtkWidget *tool_window(const char *title, GtkWidget *content, int w, int h)
+    {
+        GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_title(GTK_WINDOW(win), title);
+        gtk_window_set_transient_for(GTK_WINDOW(win), GTK_WINDOW(A->window));
+        gtk_window_set_type_hint(GTK_WINDOW(win), GDK_WINDOW_TYPE_HINT_UTILITY);
+        gtk_window_set_default_size(GTK_WINDOW(win), w, h);
+        gtk_window_set_skip_taskbar_hint(GTK_WINDOW(win), TRUE);
+        gtk_widget_show_all(content);
+        gtk_container_add(GTK_CONTAINER(win), content);
+        g_signal_connect(win, "delete-event", G_CALLBACK(+[](GtkWidget *w, GdkEvent *, gpointer) -> gboolean {
+                           A->updating = true;
+                           gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w == A->scene_win ? A->scene_btn : A->props_btn), FALSE);
+                           A->updating = false;
+                           gtk_widget_hide(w);
+                           return TRUE;
+                       }), nullptr);
+        g_signal_connect(win, "key-press-event", G_CALLBACK(on_key), nullptr);
+        return win;
+    }
+
     void build_ui()
     {
         A->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_default_size(GTK_WINDOW(A->window), A->shot_file.empty() ? 1400 : A->shot_w + 330, A->shot_file.empty() ? 860 : A->shot_h + 90);
-        g_signal_connect(A->window, "delete-event", G_CALLBACK(+[](GtkWidget *, GdkEvent *, gpointer) -> gboolean { return !discard_ok(); }), nullptr);
+        gtk_window_set_default_size(GTK_WINDOW(A->window), A->shot_file.empty() ? 1400 : A->shot_w, A->shot_file.empty() ? 860 : A->shot_h + 90);
+        g_signal_connect(A->window, "delete-event", G_CALLBACK(+[](GtkWidget *, GdkEvent *, gpointer) -> gboolean {
+                           if (!discard_ok())
+                               return TRUE;
+                           layout_capture();
+                           return FALSE;
+                       }), nullptr);
         g_signal_connect(A->window, "destroy", G_CALLBACK(+[](GtkWidget *, gpointer) { gtk_main_quit(); }), nullptr);
         g_signal_connect(A->window, "key-press-event", G_CALLBACK(on_key), nullptr);
 
@@ -1157,7 +1559,7 @@ namespace
         menu_item(file, "Save ship.json as...", +[](GtkWidget *, gpointer) { act_save_ship(true); });
         menu_item(file, "Export OBJ...", +[](GtkWidget *, gpointer) { act_export_obj(); });
         gtk_menu_shell_append(GTK_MENU_SHELL(file), gtk_separator_menu_item_new());
-        menu_item(file, "Quit", +[](GtkWidget *, gpointer) { if (discard_ok()) gtk_main_quit(); });
+        menu_item(file, "Quit", +[](GtkWidget *, gpointer) { if (discard_ok()) { layout_capture(); gtk_main_quit(); } });
 
         GtkWidget *edit = submenu(bar, "Edit");
         menu_item(edit, "Undo  (Ctrl+Z)", +[](GtkWidget *, gpointer) { do_undo(); });
@@ -1190,10 +1592,43 @@ namespace
             gtk_menu_shell_append(GTK_MENU_SHELL(eq_menu), mi);
         }
 
+        GtkWidget *modify = submenu(bar, "Modify");
+        menu_item(modify, "Extrude faces  (distance in Properties)", +[](GtkWidget *, gpointer) { A->ed.extrude(val(A->sp_extrude)); refresh(); });
+        menu_item(modify, "Inset faces  (amount in Properties)", +[](GtkWidget *, gpointer) { A->ed.inset(val(A->sp_inset)); refresh(); });
+        menu_item(modify, "Delete faces", +[](GtkWidget *, gpointer) { A->ed.delete_selected_faces(); refresh(); });
+        menu_item(modify, "Flip normals", +[](GtkWidget *, gpointer) { A->ed.flip_selected_faces(); refresh(); });
+        menu_item(modify, "Split edge", +[](GtkWidget *, gpointer) { A->ed.split_selected_edges(); refresh(); });
+        menu_item(modify, "Weld vertices  (distance in Properties)", +[](GtkWidget *, gpointer) { A->ed.weld_selected(val(A->sp_weld)); refresh(); });
+        gtk_menu_shell_append(GTK_MENU_SHELL(modify), gtk_separator_menu_item_new());
+        menu_item(modify, "Mirror X", +[](GtkWidget *, gpointer) { A->ed.mirror_object(0); refresh(); });
+        menu_item(modify, "Mirror Y", +[](GtkWidget *, gpointer) { A->ed.mirror_object(1); refresh(); });
+        menu_item(modify, "Mirror Z", +[](GtkWidget *, gpointer) { A->ed.mirror_object(2); refresh(); });
+        gtk_menu_shell_append(GTK_MENU_SHELL(modify), gtk_separator_menu_item_new());
+        menu_item(modify, "Union", +[](GtkWidget *, gpointer) { A->ed.boolean(BoolOp::Union); refresh(); });
+        menu_item(modify, "Subtract", +[](GtkWidget *, gpointer) { A->ed.boolean(BoolOp::Subtract); refresh(); });
+        menu_item(modify, "Intersect", +[](GtkWidget *, gpointer) { A->ed.boolean(BoolOp::Intersect); refresh(); });
+        gtk_menu_shell_append(GTK_MENU_SHELL(modify), gtk_separator_menu_item_new());
+        menu_item(modify, "Apply rotation + scale", +[](GtkWidget *, gpointer) { A->ed.apply_transform(); refresh(); });
+        menu_item(modify, "Origin to centre", +[](GtkWidget *, gpointer) { A->ed.set_origin_to_centre(); refresh(); });
+        gtk_menu_shell_append(GTK_MENU_SHELL(modify), gtk_separator_menu_item_new());
+        menu_item(modify, "Extrude sketch", +[](GtkWidget *, gpointer) { finish_sketch(false); });
+        menu_item(modify, "Lathe sketch", +[](GtkWidget *, gpointer) { finish_sketch(true); });
+
         GtkWidget *view = submenu(bar, "View");
         menu_item(view, "Frame everything  (F)", +[](GtkWidget *, gpointer) { A->need_frame = true; render(); });
         menu_item(view, "Maximise / restore the active view  (Space)", +[](GtkWidget *, gpointer) { toggle_max(); });
-        menu_item(view, "Wireframe / solid in the active view  (Z)", +[](GtkWidget *, gpointer) { toggle_wire(); });
+        menu_item(view, "Wire / solid / textured in the active view  (Z)", +[](GtkWidget *, gpointer) { toggle_wire(); });
+        menu_item(view, "UV editor on / off  (U)", +[](GtkWidget *, gpointer) { toggle_uv(); });
+        menu_item(view, "Render image (PNG)...", +[](GtkWidget *, gpointer) {
+            const std::string f = choose(GTK_FILE_CHOOSER_ACTION_SAVE, "Render image", "*.png", "render.png");
+            if (!f.empty())
+            {
+                A->render_file = f;
+                render();
+            }
+        });
+        menu_item(view, "Scene list window  (F2)", +[](GtkWidget *, gpointer) { toggle_tool(A->scene_win, A->scene_btn); });
+        menu_item(view, "Properties window  (F3)", +[](GtkWidget *, gpointer) { toggle_tool(A->props_win, A->props_btn); });
         menu_item(view, "Grid on / off  (G)", +[](GtkWidget *, gpointer) { A->vs.grid = !A->vs.grid; render(); });
         menu_item(view, "Mesh edges on / off", +[](GtkWidget *, gpointer) { A->vs.edges = !A->vs.edges; render(); });
         gtk_box_pack_start(GTK_BOX(root), bar, FALSE, FALSE, 0);
@@ -1225,14 +1660,23 @@ namespace
             gtk_box_pack_start(GTK_BOX(tb), A->tool_btn[i], FALSE, FALSE, 0);
         }
         gtk_box_pack_start(GTK_BOX(tb), gtk_separator_new(GTK_ORIENTATION_VERTICAL), FALSE, FALSE, 6);
-        gtk_box_pack_start(GTK_BOX(tb), button("Wire/Solid (Z)", +[](GtkWidget *, gpointer) { toggle_wire(); }), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(tb), button("Wire/Solid/Textured (Z)", +[](GtkWidget *, gpointer) { toggle_wire(); }), FALSE, FALSE, 0);
+        A->scene_btn = gtk_toggle_button_new_with_label("Scene (F2)");
+        A->props_btn = gtk_toggle_button_new_with_label("Properties (F3)");
+        g_signal_connect(A->scene_btn, "toggled", G_CALLBACK(+[](GtkWidget *w, gpointer) { if (!A->updating) show_tool(A->scene_win, A->scene_btn, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w))); }), nullptr);
+        g_signal_connect(A->props_btn, "toggled", G_CALLBACK(+[](GtkWidget *w, gpointer) { if (!A->updating) show_tool(A->props_win, A->props_btn, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w))); }), nullptr);
+        gtk_box_pack_start(GTK_BOX(tb), A->scene_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(tb), A->props_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(tb), gtk_separator_new(GTK_ORIENTATION_VERTICAL), FALSE, FALSE, 6);
+        A->uv_btn = gtk_toggle_button_new_with_label("UV editor (U)");
+        gtk_widget_set_tooltip_text(A->uv_btn, "Slide, rotate and scale the texture mapping of the selected faces or objects, like Blender's UV editor");
+        g_signal_connect(A->uv_btn, "toggled", G_CALLBACK(+[](GtkWidget *, gpointer) { if (!A->updating) toggle_uv(); }), nullptr);
+        gtk_box_pack_start(GTK_BOX(tb), A->uv_btn, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(tb), button("Maximise (Space)", +[](GtkWidget *, gpointer) { toggle_max(); }), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(tb), button("Frame (F)", +[](GtkWidget *, gpointer) { A->need_frame = true; render(); }), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(root), tb, FALSE, FALSE, 0);
 
         // ---- left: scene tree
-        GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-        gtk_box_pack_start(GTK_BOX(root), paned, TRUE, TRUE, 0);
         A->store = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT);
         A->tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(A->store));
         gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(A->tree), FALSE);
@@ -1242,8 +1686,6 @@ namespace
         g_signal_connect(ts, "changed", G_CALLBACK(on_tree_selection), nullptr);
         GtkWidget *tree_scroll = gtk_scrolled_window_new(nullptr, nullptr);
         gtk_container_add(GTK_CONTAINER(tree_scroll), A->tree);
-        gtk_widget_set_size_request(tree_scroll, 190, -1);
-        gtk_paned_pack1(GTK_PANED(paned), tree_scroll, FALSE, FALSE);
 
         // ---- centre: the GL area with view-name labels over it
         GtkWidget *overlay = gtk_overlay_new();
@@ -1260,7 +1702,7 @@ namespace
         g_signal_connect(A->area, "motion-notify-event", G_CALLBACK(on_motion), nullptr);
         g_signal_connect(A->area, "scroll-event", G_CALLBACK(on_scroll), nullptr);
         gtk_container_add(GTK_CONTAINER(overlay), A->area);
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             A->labels[i] = gtk_label_new(kViewNames[i]);
             gtk_widget_set_halign(A->labels[i], GTK_ALIGN_START);
@@ -1381,14 +1823,64 @@ namespace
                                             })), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(side), section("Materials and UVs", mm), FALSE, FALSE, 0);
 
+        // the UV editor's tools (the editor itself is the left half of the view area when switched on)
+        GtkWidget *uvp = vbox();
+        GtkWidget *uvt = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+        const char *uv_tool_names[3] = {"Move (G)", "Rotate (R)", "Scale (S)"};
+        for (int i = 0; i < 3; ++i)
+        {
+            A->uv_tool_btn[i] = gtk_toggle_button_new_with_label(uv_tool_names[i]);
+            g_object_set_data(G_OBJECT(A->uv_tool_btn[i]), "i", GINT_TO_POINTER(i));
+            g_signal_connect(A->uv_tool_btn[i], "clicked", G_CALLBACK(+[](GtkWidget *w, gpointer) {
+                               if (!A->updating)
+                                   set_uv_tool(static_cast<Editor::UvTool>(GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w), "i"))));
+                           }), nullptr);
+            gtk_box_pack_start(GTK_BOX(uvt), A->uv_tool_btn[i], TRUE, TRUE, 0);
+        }
+        A->updating = true;
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(A->uv_tool_btn[0]), TRUE);
+        A->updating = false;
+        gtk_box_pack_start(GTK_BOX(uvp), uvt, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(uvp), two_buttons(button("Flip U", +[](GtkWidget *, gpointer) { A->ed.uv_flip(true); render(); }),
+                                                     button("Flip V", +[](GtkWidget *, gpointer) { A->ed.uv_flip(false); render(); }),
+                                                     button("Rotate 90", +[](GtkWidget *, gpointer) { A->ed.uv_rotate90(); render(); })), FALSE, FALSE, 0);
+        A->uv_checker = gtk_check_button_new_with_label("Checker instead of the image");
+        g_signal_connect(A->uv_checker, "toggled", G_CALLBACK(+[](GtkWidget *w, gpointer) {
+                           A->vs.checker = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w));
+                           render();
+                       }), nullptr);
+        A->uv_num[0] = spin(-100, 100, 0.05, 3, 0);
+        A->uv_num[1] = spin(-100, 100, 0.05, 3, 0);
+        A->uv_num[2] = spin(-360, 360, 5, 1, 0);
+        A->uv_num[3] = spin(0.001, 1000, 0.1, 3, 1);
+        gtk_box_pack_start(GTK_BOX(uvp), row("Offset U V", A->uv_num[0], A->uv_num[1]), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(uvp), row("Rotate / scale", A->uv_num[2], A->uv_num[3]), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(uvp), two_buttons(button("Apply numbers", +[](GtkWidget *, gpointer) {
+                                                          A->ed.uv_transform(val(A->uv_num[0]), val(A->uv_num[1]), val(A->uv_num[2]), val(A->uv_num[3]));
+                                                          render();
+                                                      }, "Scales and rotates about the centre of the UVs being edited, then offsets them"),
+                                                    button("Fit to 0..1", +[](GtkWidget *, gpointer) { A->ed.uv_fit(); render(); })), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(uvp), A->uv_checker, FALSE, FALSE, 0);
+        for (int i = 0; i < 2; ++i)
+        {
+            GtkWidget *cb = gtk_check_button_new_with_label(i == 0 ? "Show UV points" : "Dim the other faces (Face mode)");
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cb), TRUE);
+            g_object_set_data(G_OBJECT(cb), "i", GINT_TO_POINTER(i));
+            g_signal_connect(cb, "toggled", G_CALLBACK(+[](GtkWidget *w, gpointer) {
+                               const bool on = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w));
+                               (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w), "i")) == 0 ? A->vs.uv_points : A->vs.uv_dim) = on;
+                               render();
+                           }), nullptr);
+            gtk_box_pack_start(GTK_BOX(uvp), cb, FALSE, FALSE, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(side), section("UV editor (U)", uvp), FALSE, FALSE, 0);
+
         GtkWidget *side_scroll = gtk_scrolled_window_new(nullptr, nullptr);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(side_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
         gtk_container_add(GTK_CONTAINER(side_scroll), side);
-        gtk_widget_set_size_request(side_scroll, 330, -1);
-        GtkWidget *outer = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
-        gtk_paned_pack1(GTK_PANED(outer), overlay, TRUE, FALSE);
-        gtk_paned_pack2(GTK_PANED(outer), side_scroll, FALSE, FALSE);
-        gtk_paned_pack2(GTK_PANED(paned), outer, TRUE, FALSE);
+        gtk_box_pack_start(GTK_BOX(root), overlay, TRUE, TRUE, 0);
+        A->scene_win = tool_window("Scene", tree_scroll, 230, 380);
+        A->props_win = tool_window("Properties", side_scroll, 350, 700);
 
         A->status = gtk_label_new("");
         gtk_label_set_xalign(GTK_LABEL(A->status), 0);
@@ -1407,8 +1899,10 @@ int main(int argc, char **argv)
     gtk_init(&argc, &argv);
     App app;
     A = &app;
+    app.gl.loader = load_texture_file;
     std::string open_file;
     const char *mode_arg = nullptr;
+    bool uv_arg = false, textured_arg = false, panels_arg = false;
     int select_face = -1;
     for (int i = 1; i < argc; ++i)
     {
@@ -1420,11 +1914,19 @@ int main(int argc, char **argv)
             std::sscanf(argv[++i], "%dx%d", &app.shot_w, &app.shot_h);
         else if (a == "--mode" && more)
             mode_arg = argv[++i];
+        else if (a == "--maximise" && more)
+            app.vs.maximised = std::atoi(argv[++i]);
+        else if (a == "--panels")
+            panels_arg = true;
+        else if (a == "--uv")
+            uv_arg = true;
+        else if (a == "--textured")
+            textured_arg = true;
         else if (a == "--select-face" && more)
             select_face = std::atoi(argv[++i]);
         else if (a == "--help" || a == "-h")
         {
-            std::puts("kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH]]");
+            std::puts("kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH] [--uv] [--textured] [--panels]]");
             return 0;
         }
         else if (a[0] != '-')
@@ -1438,6 +1940,16 @@ int main(int argc, char **argv)
         app.cams[i].wire = true;
 
     build_ui();
+    const bool use_layout = app.shot_file.empty();
+    if (use_layout)
+    {
+        layout_load();
+        if (g_geom[0].known)
+        {
+            gtk_window_set_default_size(GTK_WINDOW(app.window), g_geom[0].w, g_geom[0].h);
+            gtk_window_move(GTK_WINDOW(app.window), g_geom[0].x, g_geom[0].y);
+        }
+    }
     gtk_widget_show_all(app.window);
     gtk_widget_set_visible(app.mk_box, FALSE);
     if (!open_file.empty())
@@ -1458,9 +1970,32 @@ int main(int argc, char **argv)
         app.ed.sel.active = 0;
     }
     sync_ui();
+    if (textured_arg)
+        for (Camera &c : app.cams)
+        {
+            c.wire = false;
+            c.textured = true;
+        }
+    if (uv_arg)
+        toggle_uv();
+    if (panels_arg)
+    {
+        show_tool(app.scene_win, app.scene_btn, true);
+        show_tool(app.props_win, app.props_btn, true);
+    }
+    if (use_layout)
+    {
+        if (g_geom[1].vis)
+            show_tool(app.scene_win, app.scene_btn, true);
+        if (g_geom[2].vis)
+            show_tool(app.props_win, app.props_btn, true);
+        say("F2 Scene list  |  F3 Properties  |  U UV editor  |  Z wire/solid/textured  |  Space maximise a view  |  Modify menu for modelling tools");
+    }
     if (!app.shot_file.empty())
         g_timeout_add(100, +[](gpointer) -> gboolean { render(); return A->shot_frames < 3; }, nullptr);
     gtk_main();
+    if (use_layout)
+        layout_save();
     A = nullptr;
     return 0;
 }

@@ -84,6 +84,29 @@ namespace cad
         int new_material(const std::string &name);
         void changed();                 // call after editing fields directly (name, material colour, marker props)
 
+        // ---- UV editing (the UV editor view) --------------------------------------------------------------------
+        enum class UvTool { Move, Rotate, Scale };
+        struct UvRef { int object, face; };
+        std::set<std::pair<int, int>> uv_sel;   // (object, UV index); empty means "all the UVs in scope"
+        /** The faces the UV editor shows: the selected faces in Face mode, otherwise every face of the selected objects. */
+        std::vector<UvRef> uv_scope() const;
+        /** Box-projects faces in scope that have no UVs, and gives scope faces their own UVs where they shared them with faces outside it. */
+        bool uv_prepare();
+        /** The UVs a transform moves: the selection, or all of the scope. */
+        std::set<std::pair<int, int>> uv_targets() const;
+        bool uv_bounds(V2 &lo, V2 &hi) const;
+        bool uv_begin();                        // checkpoint and snapshot for a drag
+        /** Move: (a, b) = (du, dv). Rotate: a = degrees. Scale: (a, b) = factors. Always relative to the snapshot, about `pivot`. */
+        void uv_apply(UvTool tool, double a, double b, const V2 &pivot);
+        void uv_end();
+        /** One undo step: scale by `scale` and rotate by `degrees` about the targets' centre, then move by (du, dv). */
+        void uv_transform(double du, double dv, double degrees, double scale);
+        void uv_flip(bool horizontal);
+        void uv_rotate90();
+        void uv_fit();                          // scale and move the targets to fill 0..1
+        int uv_pick(double u, double v, double tolerance, bool add);
+        void uv_box_select(double u0, double v0, double u1, double v1, bool add);
+
         bool bounds(V3 &lo, V3 &hi) const;
         /** World-space vertex positions of an object (or of the active one when -1). */
         std::vector<V3> world_verts(int object) const;
@@ -104,6 +127,7 @@ namespace cad
         double drag_x0_ = 0, drag_y0_ = 0;
         V3 drag_start_;                  // ray/plane hit at the start (move)
         Snapshot snap_;
+        std::vector<std::pair<std::pair<int, int>, V2>> uv_snap_;
 
         void touch_mesh() { ++mesh_gen; doc.dirty = true; }
         std::set<int> element_verts() const;
