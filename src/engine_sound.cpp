@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <vector>
 
 namespace kosmos
@@ -121,6 +122,25 @@ namespace kosmos
             sl::set_voice_volume(rocket_voice, static_cast<int>(std::clamp(rocket_level, 0.0, 1.0) * 51.0));
         if (hiss_voice)
             sl::set_voice_volume(hiss_voice, static_cast<int>(std::clamp(rcs_level, 0.0, 1.0) * 28.0));
+    }
+
+    void EngineSound::cabin_ambience(bool inside, bool enabled)
+    {
+        if (!inside || !enabled)
+        {
+            ambience_due = -1.0;
+            return;
+        }
+        static std::mt19937 rng{std::random_device{}()};
+        const double now = sl::time_ms() / 1000.0;
+        const auto schedule = [&] { ambience_due = now + std::uniform_real_distribution<double>(120.0, 360.0)(rng); };
+        if (ambience_due < 0.0)
+            schedule();
+        else if (now >= ambience_due)
+        {
+            play("cabin/amb" + std::to_string(std::uniform_int_distribution<int>(0, 11)(rng)), 140);
+            schedule();
+        }
     }
 
     void EngineSound::stop()

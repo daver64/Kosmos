@@ -615,11 +615,13 @@ namespace kosmos::app
         const std::string rcs_mode = props.get_string("/controls/rcs-mode", "rot");
         const bool rcs_off = rcs_mode == "off", rcs_lin = rcs_mode == "lin";
         const double fine = sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control) ? 0.1 : 1.0;
-        const double rot_scale = rcs_off || rcs_lin ? 0.0 : fine;
+        // In the air the same keys drive the control surfaces, so the RCS switch only silences them in space.
+        const bool aero = ship->flies_as_aircraft();
+        const double rot_scale = (rcs_off || rcs_lin) && !aero ? 0.0 : fine;
         props.set_double("/controls/pitch", axis("pitch_up", "pitch_down") * rot_scale);
         props.set_double("/controls/yaw", axis("yaw_left", "yaw_right") * rot_scale);
         props.set_double("/controls/roll", axis("roll_left", "roll_right") * rot_scale);
-        const double lin_scale = rcs_lin ? fine : 0.0;
+        const double lin_scale = rcs_lin && !aero ? fine : 0.0;
         const double lin_x = axis("yaw_right", "yaw_left") * lin_scale;
         const double lin_y = axis("pitch_up", "pitch_down") * lin_scale;
         const double lin_z = axis("roll_right", "rcs_back") * lin_scale;

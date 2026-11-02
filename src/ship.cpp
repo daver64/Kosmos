@@ -1335,7 +1335,12 @@ namespace kosmos
         set_thruster_levels(c);
         if (flies_as_aircraft())
         {
-            apply_flight_controls(c);
+            // The control surfaces answer the stick whatever the RCS switch says.
+            Controls surfaces = c;
+            surfaces.pitch = input.pitch;
+            surfaces.yaw = input.yaw;
+            surfaces.roll = input.roll;
+            apply_flight_controls(surfaces);
             hold_hover_attitude(c);
             // High in the air the surfaces have little bite, so the thrusters take over as in space.
             if (b.mode == sl::FlightBodyMode::dynamic && telemetry_.dynamic_pressure < 500.0 && c.hover <= 0.02)
@@ -1702,9 +1707,15 @@ namespace kosmos
         const double top = atmosphere_top(planet);
         if (telemetry_.altitude < top + 1000.0)
             return "inside the atmosphere";
-        if (telemetry_.bound ? telemetry_.periapsis <= top : (telemetry_.vertical_speed <= 0.0 && telemetry_.periapsis <= top))
-            return "orbit dips into the atmosphere";
+        // An orbit that will dip back into the air may still be warped; Sim::step slows the clock as the air gets close.
         return {};
+    }
+
+    double Ship::rails_margin() const
+    {
+        const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
+        const double top = atmosphere_top(planet);
+        return top > 0.0 ? telemetry_.altitude - (top + 1000.0) : 1.0e18;
     }
 
     bool Ship::deploy_parachute()

@@ -436,6 +436,7 @@ namespace kosmos::app
         void draw_body_labels();
         void draw_overlays();
         void update_sound();
+        void cabin_ambience_tick();
         void draw_flight_readout(const std::string &soi_name);
         void draw_cockpit3d_overlay();
         void draw_panel2d();

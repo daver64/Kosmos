@@ -264,6 +264,7 @@ namespace kosmos
     void MfdSystem::press(int side, int button)
     {
         MfdUnit &u = unit(side);
+        u.flash[std::clamp(button, 0, 14)] = 0.3f;
         if (button == 12)
         {
             u.power = !u.power;
@@ -301,6 +302,8 @@ namespace kosmos
     {
         for (MfdUnit &u : units_)
         {
+            for (float &f : u.flash)
+                f = std::max(0.0f, f - static_cast<float>(dt));
             if (!u.power || !bus_power || u.mode < 0 || u.selecting)
                 continue;
             sol::protected_function fn = modes_[static_cast<std::size_t>(u.mode)].table["update"];
@@ -476,10 +479,60 @@ namespace kosmos
             }
         }
         render(g, layout);
+        if (layout.hud)
+            draw_hud_buttons(u, layout);
     }
 
-    int MfdSystem::hit_test(int, const MfdLayout &layout, float px, float py) const
+    // The see-through display has no bezel, so each labelled button gets a green box that flashes red when pressed.
+    void MfdSystem::draw_hud_buttons(const MfdUnit &u, const MfdLayout &layout) const
     {
+        const float s = layout.size / mfd_size;
+        for (int i = 0; i < 12; ++i)
+        {
+            if (!hud_button_active(u, i))
+                continue;
+            float x, y, w, h;
+            hud_button_box(layout, i, x, y, w, h);
+            const float f = std::clamp(u.flash[i] / 0.3f, 0.0f, 1.0f);
+            const sl::Colour edge{static_cast<Uint8>(70 + 185 * f), static_cast<Uint8>(230 - 170 * f), static_cast<Uint8>(110 - 50 * f), 255};
+            if (f > 0.0f)
+                sl::rectfill(sl::screen, x, y, x + w, y + h, {255, 60, 40, static_cast<Uint8>(110 * f)});
+            sl::rect(sl::screen, x, y, x + w, y + h, edge, std::max(1.0f, 1.5f * s));
+        }
+    }
+
+    bool MfdSystem::hud_button_active(const MfdUnit &u, int i) const
+    {
+        if (!u.power || !bus_power)
+            return false;
+        if (u.selecting || u.mode < 0)
+            return true;
+        sol::optional<sol::table> labels = modes_[static_cast<std::size_t>(u.mode)].table["buttons"];
+        return labels && !labels->get_or<std::string>(i + 1, "").empty();
+    }
+
+    void MfdSystem::hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const
+    {
+        const float s = layout.size / mfd_size;
+        w = 70.0f * s;
+        h = layout.size / 6.0f * 0.6f;
+        x = i < 6 ? layout.x : layout.x + layout.size - w;
+        y = layout.y + (i % 6 + 0.5f) * layout.size / 6.0f - h / 2;
+    }
+
+    int MfdSystem::hit_test(int side, const MfdLayout &layout, float px, float py) const
+    {
+        if (layout.hud)
+        {
+            for (int i = 0; i < 12; ++i)
+            {
+                float x, y, w, h;
+                hud_button_box(layout, i, x, y, w, h);
+                if (hud_button_active(units_[static_cast<std::size_t>(side)], i) && px >= x && px <= x + w && py >= y && py <= y + h)
+                    return i;
+            }
+            return -1;
+        }
         if (layout.bare || layout.no_buttons)
             return -1;
         const float s = layout.size / mfd_size;

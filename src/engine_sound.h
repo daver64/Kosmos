@@ -26,6 +26,8 @@ namespace kosmos
         void play(const std::string &name, int volume = 200);
         /** Set the three voice levels (0 to 1); the voices are created on the first call. */
         void set(double rocket_level, double rcs_level, double wind_level);
+        /** Inside a pressure vessel, play one of the cabin ambience clips at random every 2 to 6 minutes. Call every frame. */
+        void cabin_ambience(bool inside, bool enabled);
         void stop();
         /** Use a ship's own engine loop (a full path, or empty for the generic one); a file that will not load leaves the generic sound. */
         void set_engine_file(const std::string &path);
@@ -34,5 +36,6 @@ namespace kosmos
         void start();
         void pick_engine_sample();
         sl::Sample *generic_rocket = nullptr;
+        double ambience_due = -1.0; // time_ms()/1000 of the next clip, or negative when outside
     };
 } // namespace kosmos

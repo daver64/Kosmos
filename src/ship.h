@@ -662,6 +662,8 @@ namespace kosmos
         bool can_rails(const Controls &controls) const;
         /** Why the ship cannot go on rails, or an empty string when it can. */
         std::string rails_blocker(const Controls &controls) const;
+        /** Metres of height above the point where the warp must drop to 4x (the top of the atmosphere plus a margin); large when there is no air. */
+        double rails_margin() const;
 
         bool stage_once();
         /** Direction of travel relative to the sphere-of-influence body (including its spin) in world axes. */

@@ -60,13 +60,14 @@ namespace kosmos
         int mode = -1;
         sol::table self;
         int select_scroll = 0;
+        float flash[15]{}; // seconds left of the press highlight on each button
     };
 
     /** Where an MFD is drawn on screen and how the mouse hits its buttons. */
     struct MfdLayout
     {
         float x = 0, y = 0, size = 400;
-        bool hud = false; // no background or frame, shapes and text only
+        bool hud = false; // no background or frame, shapes and text only; the side buttons are the outlined labels
         bool no_buttons = false; // the bezel buttons are on a 3D model instead: none drawn or hit-tested
         bool bare = false; // a panel gauge: a plain backing square instead of the MFD frame and buttons
     };
@@ -117,6 +118,9 @@ namespace kosmos
         sl::Bitmap *bitmap(const std::string &path);
 
     private:
+        void draw_hud_buttons(const MfdUnit &u, const MfdLayout &layout) const;
+        bool hud_button_active(const MfdUnit &u, int i) const;
+        void hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const;
         void draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons);
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
         void draw_select(MfdUnit &unit, MfdCanvas &g);

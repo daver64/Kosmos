@@ -242,6 +242,13 @@ namespace kosmos::app
     }
 
     // Engine and wind sound.
+    void App::cabin_ambience_tick()
+    {
+        const bool in_room = in_eva && room_kpa > 20.0;
+        sound.data_root = sim.root();
+        sound.cabin_ambience(in_cockpit || in_interior || in_room, sound_on);
+    }
+
     void App::update_sound()
     {
     sl::PropertyTree &props = *props_ref;
@@ -263,6 +270,7 @@ namespace kosmos::app
         sound.data_root = sim.root();
         sound.set_engine_file(ship->spec().engine_sound.empty() ? std::string() : ship->spec().directory + "/" + ship->spec().engine_sound);
         sound.set(sound_on ? rocket_level * (0.35 + 0.65 * air) : 0.0, sound_on ? rcs_level : 0.0, sound_on ? wind_level : 0.0);
+        cabin_ambience_tick();
         {
             // Event cues: one-shots on the edge of a state change. The first frame only records the state.
             const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = props.get_bool("/dock/docked");
@@ -706,8 +714,11 @@ namespace kosmos::app
             const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
             const bool inside = mx >= ox && mx <= ox + cp.panel_width * scale && my >= oy && my <= oy + cp.panel_height * scale;
             ui_drag(0, inside, down, pressed, consumed, panel_offset[0], panel_offset[1]);
-            panel_offset[0] = std::clamp(panel_offset[0], -(screen_w - 40.0f), screen_w - 40.0f);
-            panel_offset[1] = std::clamp(panel_offset[1], -(screen_h - 40.0f), 0.0f);
+            // Only a 40 px sliver has to stay on screen, so the panel can be pushed almost out of view in any direction.
+            const float pw = cp.panel_width * scale, ph = cp.panel_height * scale, keep = 40.0f;
+            const float home_x = (screen_w - pw) * 0.5f, home_y = screen_h - ph;
+            panel_offset[0] = std::clamp(panel_offset[0], keep - pw - home_x, screen_w - keep - home_x);
+            panel_offset[1] = std::clamp(panel_offset[1], keep - ph - home_y, screen_h - keep - home_y);
             if (panel_slider >= 0)
                 ui_drag_id = -1;
             mfd_mouse_prev = down;
@@ -756,8 +767,16 @@ namespace kosmos::app
             const bool pressed = down && !mfd_mouse_prev;
             place_mfd(0, left);
             place_mfd(1, right);
-            // See-through HUD displays have no buttons, so any press on one is a drag.
-            const bool consumed = !show_hud && sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
+            // A see-through display's buttons are its outlined labels; a side that is not shown gets an empty layout so it cannot be hit.
+            kosmos::MfdLayout hit_left = left, hit_right = right;
+            if (show_hud)
+            {
+                if (!(hud_sides & 1))
+                    hit_left.size = 0.0f;
+                if (!(hud_sides & 2))
+                    hit_right.size = 0.0f;
+            }
+            const bool consumed = sim.mfd.handle_mouse(hit_left, hit_right, pressed, sl::mouse_x(), sl::mouse_y());
             if (!show_hud || (hud_sides & 1))
                 drag_mfd(0, left, down, pressed, consumed);
             if (!show_hud || (hud_sides & 2))

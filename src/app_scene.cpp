@@ -1118,23 +1118,27 @@ namespace kosmos::app
             const glm::mat4 basis(glm::vec4(side, 0.0f), glm::vec4(up_axis, 0.0f), glm::vec4(back, 0.0f), glm::vec4(0, 0, 0, 1));
             // The sheath starts at the part of the hull that leads into the flow and trails behind the whole vehicle.
             const glm::vec3 flow_local = glm::vec3(glm::normalize(ob.direction_to_local(air)));
-            float lead = -1.0e9f, trail = 1.0e9f;
-            glm::vec3 lead_point(0.0f);
-            const glm::vec3 lateral = std::fabs(flow_local.x) + std::fabs(flow_local.y) > 1.0e-3f ? glm::normalize(glm::vec3(flow_local.x, flow_local.y, 0.0f)) : glm::vec3(1, 0, 0);
+            // The hull is bounded by an ellipsoid; the plasma starts at the point of it that faces the airstream, so a belly-first entry glows across the underside.
+            float z_lo = 1.0e9f, z_hi = -1.0e9f, wide = 0.0f;
             for (std::size_t i = static_cast<std::size_t>(std::max(other.active_stage(), 0)); i < spec.stages.size(); ++i)
             {
                 const kosmos::StageSpec &st = spec.stages[i];
-                for (const float dz : {-0.5f, 0.5f})
-                    for (const float sgn : {-1.0f, 1.0f})
-                    {
-                        const glm::vec3 p = glm::vec3(0.0f, 0.0f, static_cast<float>(st.z + dz * st.length)) + lateral * static_cast<float>(st.radius) * sgn * 0.3f;
-                        const float d = glm::dot(p, flow_local);
-                        if (d > lead)
-                            lead = d, lead_point = p;
-                        trail = std::min(trail, d);
-                    }
+                z_lo = std::min(z_lo, static_cast<float>(st.z - 0.5 * st.length));
+                z_hi = std::max(z_hi, static_cast<float>(st.z + 0.5 * st.length));
+                wide = std::max(wide, static_cast<float>(st.radius));
             }
-            const float depth = lead > trail ? lead - trail : 0.0f;
+            if (z_lo > z_hi)
+                z_lo = z_hi = 0.0f;
+            const float half_z = std::max(0.5f * (z_hi - z_lo), 0.5f);
+            const float half_xy = std::max(wide * 1.5f, half_z * 0.4f);
+            const glm::vec3 semi(half_xy, half_xy, half_z);
+            const glm::vec3 centre(0.0f, 0.0f, 0.5f * (z_lo + z_hi));
+            const glm::vec3 scaled = semi * flow_local;
+            const glm::vec3 lead_point = centre + semi * scaled / std::max(glm::length(scaled), 1.0e-6f);
+            const float depth = 2.0f * std::sqrt(glm::dot(semi * semi, flow_local * flow_local));
+            // How wide the hull looks from the front: the plasma is shed across this, not just from a point.
+            const float cz = std::fabs(flow_local.z);
+            const float silhouette = std::sqrt(half_xy * half_xy * cz * cz + half_z * half_z * (1.0f - cz * cz));
             const glm::mat4 at = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(ob.orientation))) *
                                  glm::translate(glm::mat4(1.0f), lead_point) * glm::mat4(glm::mat3(glm::inverse(glm::mat3_cast(glm::quat(ob.orientation)))) * glm::mat3(basis));
             const float wake = look.length + depth * 0.8f;
@@ -1167,7 +1171,7 @@ namespace kosmos::app
             plasma_carry += std::clamp(wake * 14.0f, 160.0f, 700.0f) * dt;
             for (; plasma_carry >= 1.0f; plasma_carry -= 1.0f)
             {
-                const float ang = rnd() * 6.2831853f, rad = std::sqrt(rnd()) * look.width * 0.35f;
+                const float ang = rnd() * 6.2831853f, rad = std::sqrt(rnd()) * std::max(look.width * 0.35f, silhouette * 0.45f);
                 const glm::vec3 spread = ax1 * std::cos(ang) + ax2 * std::sin(ang);
                 PlasmaPuff pf;
                 pf.owner = &other;

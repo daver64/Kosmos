@@ -636,6 +636,20 @@ namespace kosmos
                 props.set_int("/sim/warp-index", index);
             }
         }
+        // Coasting towards the air at high warp: keep each frame's travel well inside the gap, so the clock is already at 4x at the top of the atmosphere.
+        if (warp_factor(index) > phys_limit && !ground_hold)
+        {
+            double allowed = 1.0e18;
+            for (const std::unique_ptr<Ship> &ship : ships_)
+                if (!ship->spec().building() && !ship->crashed())
+                {
+                    const double speed = std::max(1.0, glm::length(ship->relative_velocity()));
+                    allowed = std::min(allowed, std::max(0.0, ship->rails_margin()) / (2.0 * speed * std::max(frame, 1.0 / 60.0)));
+                }
+            while (index > 0 && warp_factor(index) > phys_limit && warp_factor(index) > allowed)
+                --index;
+            props.set_int("/sim/warp-index", index);
+        }
         const double warp = warp_factor(index);
         current_warp_ = warp;
 
