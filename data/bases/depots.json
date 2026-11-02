@@ -1,380 +1,388 @@
 {
-  "bases": [
+ "bases": [
+  {
+   "id": "proxima_depot",
+   "icao": "PXMA",
+   "name": "Proxima b Freight Depot",
+   "body": "Proxima b",
+   "latitude": 10.0,
+   "longitude": 20.0,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "cameras": [
     {
-      "id": "proxima_depot",
-      "icao": "PXMA",
-      "name": "Proxima b Freight Depot",
-      "body": "Proxima b",
-      "latitude": 10.0,
-      "longitude": 20.0,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "cameras": [
-        {
-          "name": "Pad",
-          "x": -26,
-          "y": 2,
-          "z": -30,
-          "fov": 55
-        },
-        {
-          "name": "Overview (fixed)",
-          "x": 0,
-          "y": 60,
-          "z": -140,
-          "fov": 60,
-          "track": false,
-          "pitch": -22
-        }
-      ],
-      "pad": {
-        "x": 0,
-        "z": 0,
-        "heading": 0
-      },
-      "objects": [
-        {
-          "type": "landing_pad",
-          "radius": 22,
-          "x": 0,
-          "z": 0
-        },
-        {
-          "type": "habitat_tube",
-          "length": 16,
-          "radius": 2.4,
-          "x": -47,
-          "z": -4,
-          "heading": 90
-        },
-        {
-          "type": "tank",
-          "radius": 2.5,
-          "height": 5,
-          "count": 3,
-          "x": 34,
-          "z": -30,
-          "step_x": 6.5,
-          "colour": [
-            214,
-            214,
-            208
-          ]
-        },
-        {
-          "type": "solar_array",
-          "length": 14,
-          "width": 4,
-          "number": 6,
-          "x": 62,
-          "z": 4,
-          "heading": 90,
-          "count": 3,
-          "step_z": 12
-        },
-        {
-          "type": "radar",
-          "height": 7,
-          "radius": 3,
-          "x": 52,
-          "z": 56
-        },
-        {
-          "type": "container",
-          "count": 4,
-          "x": 22,
-          "z": -48,
-          "step_x": 3.2,
-          "colour": [
-            200,
-            200,
-            196
-          ]
-        }
-      ]
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
     },
     {
-      "id": "sirius_depot",
-      "icao": "SIRP",
-      "name": "Sirius Prime Freight Depot",
-      "body": "Sirius Prime",
-      "latitude": 5.0,
-      "longitude": -30.0,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "cameras": [
-        {
-          "name": "Pad",
-          "x": -26,
-          "y": 2,
-          "z": -30,
-          "fov": 55
-        },
-        {
-          "name": "Overview (fixed)",
-          "x": 0,
-          "y": 60,
-          "z": -140,
-          "fov": 60,
-          "track": false,
-          "pitch": -22
-        }
-      ],
-      "pad": {
-        "x": 0,
-        "z": 0,
-        "heading": 0
-      },
-      "objects": [
-        {
-          "type": "landing_pad",
-          "radius": 22,
-          "x": 0,
-          "z": 0
-        },
-        {
-          "type": "habitat_tube",
-          "length": 16,
-          "radius": 2.4,
-          "x": -47,
-          "z": -4,
-          "heading": 90
-        },
-        {
-          "type": "tank",
-          "radius": 2.5,
-          "height": 5,
-          "count": 3,
-          "x": 34,
-          "z": -30,
-          "step_x": 6.5,
-          "colour": [
-            214,
-            214,
-            208
-          ]
-        },
-        {
-          "type": "solar_array",
-          "length": 14,
-          "width": 4,
-          "number": 6,
-          "x": 62,
-          "z": 4,
-          "heading": 90,
-          "count": 3,
-          "step_z": 12
-        },
-        {
-          "type": "radar",
-          "height": 7,
-          "radius": 3,
-          "x": 52,
-          "z": 56
-        },
-        {
-          "type": "container",
-          "count": 4,
-          "x": 22,
-          "z": -48,
-          "step_x": 3.2,
-          "colour": [
-            200,
-            200,
-            196
-          ]
-        }
-      ]
-    },
-    {
-      "id": "thalassa_depot",
-      "icao": "TCTH",
-      "name": "Thalassa Freight Depot",
-      "body": "Thalassa",
-      "latitude": -8.0,
-      "longitude": 45.0,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "cameras": [
-        {
-          "name": "Pad",
-          "x": -26,
-          "y": 2,
-          "z": -30,
-          "fov": 55
-        },
-        {
-          "name": "Overview (fixed)",
-          "x": 0,
-          "y": 60,
-          "z": -140,
-          "fov": 60,
-          "track": false,
-          "pitch": -22
-        }
-      ],
-      "pad": {
-        "x": 0,
-        "z": 0,
-        "heading": 0
-      },
-      "objects": [
-        {
-          "type": "landing_pad",
-          "radius": 22,
-          "x": 0,
-          "z": 0
-        },
-        {
-          "type": "habitat_tube",
-          "length": 16,
-          "radius": 2.4,
-          "x": -47,
-          "z": -4,
-          "heading": 90
-        },
-        {
-          "type": "tank",
-          "radius": 2.5,
-          "height": 5,
-          "count": 3,
-          "x": 34,
-          "z": -30,
-          "step_x": 6.5,
-          "colour": [
-            214,
-            214,
-            208
-          ]
-        },
-        {
-          "type": "solar_array",
-          "length": 14,
-          "width": 4,
-          "number": 6,
-          "x": 62,
-          "z": 4,
-          "heading": 90,
-          "count": 3,
-          "step_z": 12
-        },
-        {
-          "type": "radar",
-          "height": 7,
-          "radius": 3,
-          "x": 52,
-          "z": 56
-        },
-        {
-          "type": "container",
-          "count": 4,
-          "x": 22,
-          "z": -48,
-          "step_x": 3.2,
-          "colour": [
-            200,
-            200,
-            196
-          ]
-        }
-      ]
-    },
-    {
-      "id": "trappist_depot",
-      "icao": "TRPE",
-      "name": "TRAPPIST-1 e Freight Depot",
-      "body": "TRAPPIST-1 e",
-      "latitude": 0.0,
-      "longitude": 60.0,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "cameras": [
-        {
-          "name": "Pad",
-          "x": -26,
-          "y": 2,
-          "z": -30,
-          "fov": 55
-        },
-        {
-          "name": "Overview (fixed)",
-          "x": 0,
-          "y": 60,
-          "z": -140,
-          "fov": 60,
-          "track": false,
-          "pitch": -22
-        }
-      ],
-      "pad": {
-        "x": 0,
-        "z": 0,
-        "heading": 0
-      },
-      "objects": [
-        {
-          "type": "landing_pad",
-          "radius": 22,
-          "x": 0,
-          "z": 0
-        },
-        {
-          "type": "habitat_tube",
-          "length": 16,
-          "radius": 2.4,
-          "x": -47,
-          "z": -4,
-          "heading": 90
-        },
-        {
-          "type": "tank",
-          "radius": 2.5,
-          "height": 5,
-          "count": 3,
-          "x": 34,
-          "z": -30,
-          "step_x": 6.5,
-          "colour": [
-            214,
-            214,
-            208
-          ]
-        },
-        {
-          "type": "solar_array",
-          "length": 14,
-          "width": 4,
-          "number": 6,
-          "x": 62,
-          "z": 4,
-          "heading": 90,
-          "count": 3,
-          "step_z": 12
-        },
-        {
-          "type": "radar",
-          "height": 7,
-          "radius": 3,
-          "x": 52,
-          "z": 56
-        },
-        {
-          "type": "container",
-          "count": 4,
-          "x": 22,
-          "z": -48,
-          "step_x": 3.2,
-          "colour": [
-            200,
-            200,
-            196
-          ]
-        }
-      ]
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
     }
-  ]
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 22,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 16,
+     "radius": 2.4,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 70,
+     "z": 10
+    },
+    {
+     "type": "rtg_house",
+     "x": 50,
+     "z": -14,
+     "heading": 90
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 52,
+     "z": 56
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sirius_depot",
+   "icao": "SIRP",
+   "name": "Sirius Prime Freight Depot",
+   "body": "Sirius Prime",
+   "latitude": 5.0,
+   "longitude": -30.0,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 22,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 16,
+     "radius": 2.4,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 70,
+     "z": 10
+    },
+    {
+     "type": "rtg_house",
+     "x": 50,
+     "z": -14,
+     "heading": 90
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 52,
+     "z": 56
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thalassa_depot",
+   "icao": "TCTH",
+   "name": "Thalassa Freight Depot",
+   "body": "Thalassa",
+   "latitude": -8.0,
+   "longitude": 45.0,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 22,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 16,
+     "radius": 2.4,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 70,
+     "z": 10
+    },
+    {
+     "type": "rtg_house",
+     "x": 50,
+     "z": -14,
+     "heading": 90
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 52,
+     "z": 56
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    }
+   ]
+  },
+  {
+   "id": "trappist_depot",
+   "icao": "TRPE",
+   "name": "TRAPPIST-1 e Freight Depot",
+   "body": "TRAPPIST-1 e",
+   "latitude": 0.0,
+   "longitude": 60.0,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 22,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 16,
+     "radius": 2.4,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 70,
+     "z": 10
+    },
+    {
+     "type": "rtg_house",
+     "x": 50,
+     "z": -14,
+     "heading": 90
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 52,
+     "z": 56
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    }
+   ]
+  }
+ ]
 }

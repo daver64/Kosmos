@@ -109,6 +109,8 @@ namespace kosmos
         void draw_world(const Universe &universe, const sl::dvec3 &eye_world, const sl::Mesh *unit_sphere);
         /** The held item's stand-in model, in the eye's frame: `eye_to_world` is the view orientation. */
         void draw_held(const Sim &sim, const glm::mat4 &eye_to_world);
+        /** Draws the instrument readout into the held item's screen texture. Call outside the 3D scene pass. */
+        void render_screen(const Sim &sim);
         /** 2D overlay: crosshair, ammo, instrument readout, damage and flash. */
         void draw_hud(const Sim &sim, const Astronaut &eva, int screen_w, int screen_h, const sl::dvec3 &eye_world);
         /** Brightness of a nuclear-flash white-out at the eye, 0 to 1. */
@@ -241,6 +243,7 @@ namespace kosmos
         const Universe *context_universe_ = nullptr;
 
         std::vector<std::string> readout_;
+        sl::Bitmap *screen_target_ = nullptr;
         struct Sample
         {
             std::string text;

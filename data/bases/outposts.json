@@ -1,116 +1,1308 @@
 {
-  "bases": [
+ "bases": [
+  {
+   "id": "tranquility",
+   "icao": "LTRQ",
+   "name": "Tranquility Base",
+   "body": "Moon",
+   "latitude": 0.67,
+   "longitude": 23.47,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "cameras": [
     {
-      "id": "tranquility",
-      "icao": "LTRQ",
-      "name": "Tranquility Base",
-      "body": "Moon",
-      "latitude": 0.67,
-      "longitude": 23.47,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "cameras": [
-        { "name": "Pad", "x": -26, "y": 2, "z": -30, "fov": 55 },
-        { "name": "Overview (fixed)", "x": 0, "y": 60, "z": -140, "fov": 60, "track": false, "pitch": -22 }
-      ],
-      "pad": { "x": 0, "z": 0, "heading": 0 },
-      "objects": [
-        { "type": "landing_pad", "radius": 14, "x": 0, "z": 0 },
-        { "type": "building", "building": "Tranquility habitat", "x": -48, "z": 22, "heading": 40 },
-        { "type": "building", "building": "Tranquility ISRU plant", "x": -30, "z": 62, "heading": 10 },
-        { "type": "habitat_tube", "length": 14, "radius": 2.2, "x": -47, "z": -4, "heading": 90 },
-        { "type": "habitat_tube", "length": 10, "radius": 1.6, "x": -41, "z": 44, "heading": 60 },
-        { "type": "building", "building": "Tranquility power plant", "x": 40, "z": 30, "heading": 0 },
-        { "type": "tank", "radius": 2.5, "height": 5, "count": 3, "x": 34, "z": -30, "step_x": 6.5, "colour": [214, 214, 208] },
-        { "type": "solar_array", "length": 14, "width": 4, "number": 6, "x": 62, "z": 4, "heading": 90, "count": 3, "step_z": 12 },
-        { "type": "building", "building": "Tranquility comms mast", "x": 20, "z": 58, "heading": 0 },
-        { "type": "radar", "height": 7, "radius": 3, "x": 52, "z": 56 },
-        { "type": "container", "count": 3, "x": 22, "z": -48, "step_x": 3.2, "colour": [200, 200, 196] },
-        { "type": "lunar_rover", "x": 24, "z": 16, "heading": 120 },
-        { "type": "lunar_rover", "length": 4, "x": -22, "z": -34, "heading": 40, "seed": 2 },
-        { "type": "street_lamp", "height": 6, "count": 4, "x": -20, "z": 12, "step_z": -9 },
-        { "type": "rock_cluster", "radius": 2.5, "x": 70, "z": -40, "colour": [110, 108, 104], "seed": 4 },
-        { "type": "rock_cluster", "radius": 3.5, "x": -80, "z": -50, "colour": [110, 108, 104], "seed": 9 },
-        { "type": "rock", "radius": 1.4, "count": 8, "x": -70, "z": 80, "step_x": 17, "step_z": -9, "colour": [112, 110, 106], "seed": 6 }
-      ]
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
     },
     {
-      "id": "luna_e3",
-      "icao": "LUE3",
-      "name": "Mare Frigoris Outpost",
-      "body": "Moon",
-      "latitude": 38.2,
-      "longitude": -35.0,
-      "heading": 90,
-      "flat_radius": 140,
-      "blend": 100,
-      "pad": { "x": 0, "z": 0, "heading": 0 },
-      "objects": [
-        { "type": "landing_pad", "radius": 8, "x": 0, "z": 0 },
-        { "type": "building", "building": "Mare Frigoris habitat", "x": -34, "z": 20, "heading": 30 },
-        { "type": "building", "building": "Mare Frigoris quarters", "x": -10, "z": 30, "heading": 0 },
-        { "type": "habitat_tube", "length": 12, "radius": 2, "x": -32, "z": -6, "heading": 90 },
-        { "type": "solar_array", "length": 12, "width": 4, "number": 5, "x": 36, "z": 6, "heading": 90, "count": 2, "step_z": 10 },
-        { "type": "building", "building": "Mare Frigoris comms mast", "x": 18, "z": 34, "heading": 0 },
-        { "type": "building", "building": "Mare Frigoris power plant", "x": 24, "z": -34, "heading": 0 },
-        { "type": "lunar_rover", "x": 22, "z": -14, "heading": 70 },
-        { "type": "rock_cluster", "radius": 3, "x": -50, "z": -40, "colour": [110, 108, 104], "seed": 5 }
-      ]
-    },
-    {
-      "id": "gale",
-      "icao": "MGAL",
-      "name": "Gale Crater Base",
-      "body": "Mars",
-      "latitude": -5.4,
-      "longitude": 137.8,
-      "heading": 90,
-      "flat_radius": 160,
-      "blend": 120,
-      "terrain_meshes": [
-        { "file": "terrain/gale-crater.stl", "x": 1160, "z": -560, "scale": 40, "vscale": 1.5, "y": -128, "blend": 300 }
-      ],
-      "cameras": [
-        { "name": "Habitat", "x": -48, "y": 3, "z": -2, "fov": 60, "track": false, "yaw": 0, "pitch": 5 }
-      ],
-      "pad": { "x": 0, "z": 0, "heading": 0 },
-      "objects": [
-        { "type": "landing_pad", "radius": 14, "x": 0, "z": 0 },
-        { "type": "building", "building": "Gale habitat", "x": -48, "z": 22, "heading": 40 },
-        { "type": "building", "building": "Gale ISRU plant", "x": -30, "z": 62, "heading": 10 },
-        { "type": "habitat_tube", "length": 14, "radius": 2.2, "x": -47, "z": -4, "heading": 90 },
-        { "type": "building", "building": "Gale power plant", "x": 40, "z": 30, "heading": 0 },
-        { "type": "tank", "radius": 2.5, "height": 5, "count": 3, "x": 34, "z": -30, "step_x": 6.5, "colour": [214, 214, 208] },
-        { "type": "solar_array", "length": 14, "width": 4, "number": 6, "x": 62, "z": 4, "heading": 90, "count": 3, "step_z": 12 },
-        { "type": "solar_windmill", "length": 7, "width": 3, "x": 55, "z": 60 },
-        { "type": "building", "building": "Gale comms mast", "x": 20, "z": 58, "heading": 0 },
-        { "type": "container", "count": 3, "x": 22, "z": -48, "step_x": 3.2, "colour": [200, 200, 196] },
-        { "type": "lunar_rover", "x": 24, "z": 16, "heading": 120 },
-        { "type": "rock_cluster", "radius": 3, "x": 70, "z": -40, "colour": [140, 88, 62], "seed": 4 },
-        { "type": "rock_cluster", "radius": 4, "x": -80, "z": -50, "colour": [140, 88, 62], "seed": 9 }
-      ]
-    },
-    {
-      "id": "caloris",
-      "icao": "MCAL",
-      "name": "Caloris Outpost",
-      "body": "Mercury",
-      "latitude": 30.0,
-      "longitude": 0.0,
-      "heading": 90,
-      "flat_radius": 140,
-      "blend": 100,
-      "pad": { "x": 0, "z": 0, "heading": 0 },
-      "objects": [
-        { "type": "landing_pad", "radius": 8, "x": 0, "z": 0 },
-        { "type": "building", "building": "Caloris habitat", "x": -34, "z": 20, "heading": 30 },
-        { "type": "habitat_tube", "length": 12, "radius": 2, "x": -32, "z": -6, "heading": 90 },
-        { "type": "solar_array", "length": 12, "width": 4, "number": 5, "x": 36, "z": 6, "heading": 90, "count": 2, "step_z": 10 },
-        { "type": "building", "building": "Caloris comms mast", "x": 18, "z": 34, "heading": 0 },
-        { "type": "building", "building": "Caloris power plant", "x": 24, "z": -34, "heading": 0 },
-        { "type": "rock_cluster", "radius": 3, "x": -50, "z": -40, "colour": [110, 104, 98], "seed": 5 }
-      ]
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
     }
-  ]
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "building",
+     "building": "Tranquility habitat",
+     "x": -48,
+     "z": 22,
+     "heading": 40
+    },
+    {
+     "type": "building",
+     "building": "Tranquility ISRU plant",
+     "x": -30,
+     "z": 62,
+     "heading": 10
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 1.6,
+     "x": -41,
+     "z": 44,
+     "heading": 60
+    },
+    {
+     "type": "building",
+     "building": "Tranquility power plant",
+     "x": 40,
+     "z": 30,
+     "heading": 0
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "solar_array",
+     "length": 14,
+     "width": 4,
+     "number": 6,
+     "x": 62,
+     "z": 4,
+     "heading": 90,
+     "count": 3,
+     "step_z": 12
+    },
+    {
+     "type": "building",
+     "building": "Tranquility comms mast",
+     "x": 20,
+     "z": 58,
+     "heading": 0
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 52,
+     "z": 56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    },
+    {
+     "type": "lunar_rover",
+     "x": 24,
+     "z": 16,
+     "heading": 120
+    },
+    {
+     "type": "lunar_rover",
+     "length": 4,
+     "x": -22,
+     "z": -34,
+     "heading": 40,
+     "seed": 2
+    },
+    {
+     "type": "street_lamp",
+     "height": 6,
+     "count": 4,
+     "x": -20,
+     "z": 12,
+     "step_z": -9
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 2.5,
+     "x": 70,
+     "z": -40,
+     "colour": [
+      110,
+      108,
+      104
+     ],
+     "seed": 4
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3.5,
+     "x": -80,
+     "z": -50,
+     "colour": [
+      110,
+      108,
+      104
+     ],
+     "seed": 9
+    },
+    {
+     "type": "rock",
+     "radius": 1.4,
+     "count": 8,
+     "x": -70,
+     "z": 80,
+     "step_x": 17,
+     "step_z": -9,
+     "colour": [
+      112,
+      110,
+      106
+     ],
+     "seed": 6
+    }
+   ]
+  },
+  {
+   "id": "luna_e3",
+   "icao": "LUE3",
+   "name": "Mare Frigoris Outpost",
+   "body": "Moon",
+   "latitude": 38.2,
+   "longitude": -35.0,
+   "heading": 90,
+   "flat_radius": 140,
+   "blend": 100,
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 8,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "building",
+     "building": "Mare Frigoris habitat",
+     "x": -34,
+     "z": 20,
+     "heading": 30
+    },
+    {
+     "type": "building",
+     "building": "Mare Frigoris quarters",
+     "x": -10,
+     "z": 30,
+     "heading": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 12,
+     "radius": 2,
+     "x": -32,
+     "z": -6,
+     "heading": 90
+    },
+    {
+     "type": "solar_array",
+     "length": 12,
+     "width": 4,
+     "number": 5,
+     "x": 36,
+     "z": 6,
+     "heading": 90,
+     "count": 2,
+     "step_z": 10
+    },
+    {
+     "type": "building",
+     "building": "Mare Frigoris comms mast",
+     "x": 18,
+     "z": 34,
+     "heading": 0
+    },
+    {
+     "type": "building",
+     "building": "Mare Frigoris power plant",
+     "x": 24,
+     "z": -34,
+     "heading": 0
+    },
+    {
+     "type": "lunar_rover",
+     "x": 22,
+     "z": -14,
+     "heading": 70
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -50,
+     "z": -40,
+     "colour": [
+      110,
+      108,
+      104
+     ],
+     "seed": 5
+    }
+   ]
+  },
+  {
+   "id": "gale",
+   "icao": "MGAL",
+   "name": "Gale Crater Base",
+   "body": "Mars",
+   "latitude": -5.4,
+   "longitude": 137.8,
+   "heading": 90,
+   "flat_radius": 160,
+   "blend": 120,
+   "terrain_meshes": [
+    {
+     "file": "terrain/gale-crater.stl",
+     "x": 1160,
+     "z": -560,
+     "scale": 40,
+     "vscale": 1.5,
+     "y": -128,
+     "blend": 300
+    }
+   ],
+   "cameras": [
+    {
+     "name": "Habitat",
+     "x": -48,
+     "y": 3,
+     "z": -2,
+     "fov": 60,
+     "track": false,
+     "yaw": 0,
+     "pitch": 5
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "building",
+     "building": "Gale habitat",
+     "x": -48,
+     "z": 22,
+     "heading": 40
+    },
+    {
+     "type": "building",
+     "building": "Gale ISRU plant",
+     "x": -30,
+     "z": 62,
+     "heading": 10
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -47,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "building",
+     "building": "Gale power plant",
+     "x": 40,
+     "z": 30,
+     "heading": 0
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 34,
+     "z": -30,
+     "step_x": 6.5,
+     "colour": [
+      214,
+      214,
+      208
+     ]
+    },
+    {
+     "type": "solar_array",
+     "length": 14,
+     "width": 4,
+     "number": 6,
+     "x": 62,
+     "z": 4,
+     "heading": 90,
+     "count": 3,
+     "step_z": 12
+    },
+    {
+     "type": "solar_windmill",
+     "length": 7,
+     "width": 3,
+     "x": 55,
+     "z": 60
+    },
+    {
+     "type": "building",
+     "building": "Gale comms mast",
+     "x": 20,
+     "z": 58,
+     "heading": 0
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": 22,
+     "z": -48,
+     "step_x": 3.2,
+     "colour": [
+      200,
+      200,
+      196
+     ]
+    },
+    {
+     "type": "lunar_rover",
+     "x": 24,
+     "z": 16,
+     "heading": 120
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": 70,
+     "z": -40,
+     "colour": [
+      140,
+      88,
+      62
+     ],
+     "seed": 4
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 4,
+     "x": -80,
+     "z": -50,
+     "colour": [
+      140,
+      88,
+      62
+     ],
+     "seed": 9
+    }
+   ]
+  },
+  {
+   "id": "caloris",
+   "icao": "MCAL",
+   "name": "Caloris Outpost",
+   "body": "Mercury",
+   "latitude": 30.0,
+   "longitude": 0.0,
+   "heading": 90,
+   "flat_radius": 140,
+   "blend": 100,
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 8,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "building",
+     "building": "Caloris habitat",
+     "x": -34,
+     "z": 20,
+     "heading": 30
+    },
+    {
+     "type": "habitat_tube",
+     "length": 12,
+     "radius": 2,
+     "x": -32,
+     "z": -6,
+     "heading": 90
+    },
+    {
+     "type": "solar_array",
+     "length": 12,
+     "width": 4,
+     "number": 5,
+     "x": 36,
+     "z": 6,
+     "heading": 90,
+     "count": 2,
+     "step_z": 10
+    },
+    {
+     "type": "building",
+     "building": "Caloris comms mast",
+     "x": 18,
+     "z": 34,
+     "heading": 0
+    },
+    {
+     "type": "building",
+     "building": "Caloris power plant",
+     "x": 24,
+     "z": -34,
+     "heading": 0
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -50,
+     "z": -40,
+     "colour": [
+      110,
+      104,
+      98
+     ],
+     "seed": 5
+    }
+   ]
+  },
+  {
+   "id": "europa",
+   "icao": "JEUR",
+   "name": "Europa Ice Station",
+   "body": "Europa",
+   "latitude": 0.0,
+   "longitude": 0.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "ganymede",
+   "icao": "JGAN",
+   "name": "Ganymede Station",
+   "body": "Ganymede",
+   "latitude": 10.0,
+   "longitude": 30.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "callisto",
+   "icao": "JCAL",
+   "name": "Callisto Valhalla Station",
+   "body": "Callisto",
+   "latitude": 15.0,
+   "longitude": -55.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "titan",
+   "icao": "STIT",
+   "name": "Titan Kraken Station",
+   "body": "Titan",
+   "latitude": 20.0,
+   "longitude": 0.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "enceladus",
+   "icao": "SENC",
+   "name": "Enceladus Station",
+   "body": "Enceladus",
+   "latitude": -80.0,
+   "longitude": 0.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "triton",
+   "icao": "NTRI",
+   "name": "Triton Station",
+   "body": "Triton",
+   "latitude": -30.0,
+   "longitude": 0.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "pluto",
+   "icao": "PLUT",
+   "name": "Pluto Sputnik Station",
+   "body": "Pluto",
+   "latitude": 20.0,
+   "longitude": 170.0,
+   "heading": 90,
+   "flat_radius": 150,
+   "blend": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -26,
+     "y": 2,
+     "z": -30,
+     "fov": 55
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": 0,
+     "y": 60,
+     "z": -140,
+     "fov": 60,
+     "track": false,
+     "pitch": -22
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "landing_pad",
+     "radius": 14,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "habitat_tube",
+     "length": 14,
+     "radius": 2.2,
+     "x": -40,
+     "z": -4,
+     "heading": 90
+    },
+    {
+     "type": "habitat_tube",
+     "length": 10,
+     "radius": 2.0,
+     "x": -40,
+     "z": 14,
+     "heading": 90
+    },
+    {
+     "type": "pressure_dome",
+     "radius": 6,
+     "x": -30,
+     "z": 38
+    },
+    {
+     "type": "reactor",
+     "radius": 3,
+     "height": 6,
+     "x": 60,
+     "z": 30
+    },
+    {
+     "type": "rtg_house",
+     "x": 40,
+     "z": -30,
+     "heading": 90
+    },
+    {
+     "type": "tank",
+     "radius": 2.5,
+     "height": 5,
+     "count": 3,
+     "x": 30,
+     "z": -50,
+     "step_x": 6.5
+    },
+    {
+     "type": "radar",
+     "height": 7,
+     "radius": 3,
+     "x": 50,
+     "z": -56
+    },
+    {
+     "type": "container",
+     "count": 3,
+     "x": -20,
+     "z": -45,
+     "step_x": 3.2
+    },
+    {
+     "type": "lunar_rover",
+     "x": 16,
+     "z": 28,
+     "heading": 30
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -60,
+     "z": -40,
+     "seed": 7
+    }
+   ]
+  }
+ ]
 }

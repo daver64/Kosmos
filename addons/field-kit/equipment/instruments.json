@@ -45,7 +45,8 @@
       210,
       130
      ],
-     "glow": true
+     "glow": true,
+     "screen": true
     },
     {
      "type": "cylinder",

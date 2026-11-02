@@ -77,6 +77,7 @@ namespace kosmos
                         for (int c = 0; c < 3; ++c)
                             s.colour[static_cast<std::size_t>(c)] = static_cast<std::uint8_t>(std::clamp(js["colour"][static_cast<std::size_t>(c)].get<int>(), 0, 255));
                     s.glow = js.value("glow", false);
+                    s.screen = js.value("screen", false);
                     e.shapes.push_back(s);
                 }
             return e;

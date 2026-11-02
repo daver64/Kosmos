@@ -38,6 +38,8 @@ namespace kosmos
         std::array<std::uint8_t, 3> colour{128, 128, 128};
         /** Drawn unlit and bright, as a screen or energy cell. */
         bool glow = false;
+        /** Shows the instrument readout as a live text screen (glow items only). */
+        bool screen = false;
     };
 
     /** What a piece of equipment is and does, from an addon's equipment/NAME.json. */

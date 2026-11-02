@@ -1,0 +1,1929 @@
+{
+ "bases": [
+  {
+   "id": "hornafjordur",
+   "icao": "BIHN",
+   "name": "Hornafjordur Airport",
+   "body": "Earth",
+   "latitude": 64.2956,
+   "longitude": -15.2272,
+   "heading": 10,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 7,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 172.5,
+     "y": 24,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 47.5,
+     "y": 2.5,
+     "z": -840.0,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -480.0,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 92.6,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -172.5,
+     "z": -1000.0,
+     "frequency": 112.1
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 222.5,
+     "z": -1100.0,
+     "frequency": 0.352
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 1600,
+     "width": 45,
+     "ils": [
+      {
+       "frequency": 108.1
+      },
+      {
+       "frequency": 108.3,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -680.0,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -24.5,
+     "y": 0.4,
+     "z": -800.0,
+     "count": 33,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 24.5,
+     "y": 0.4,
+     "z": -800.0,
+     "count": 33,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -800.0,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 800.0,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 172.5,
+     "y": 24,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 102.5,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 1600,
+     "width": 25,
+     "x": 82.5,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 82.5,
+     "width": 20,
+     "x": 41.25,
+     "z": -650.0,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 82.5,
+     "width": 20,
+     "x": 41.25,
+     "z": 650.0,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 22,
+     "x": 172.5,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 212.5,
+     "z": 60,
+     "heading": 270,
+     "width": 50,
+     "depth": 20,
+     "height": 9
+    },
+    {
+     "type": "hangar",
+     "width": 30,
+     "depth": 30,
+     "height": 10,
+     "x": 212.5,
+     "z": -200,
+     "heading": 270,
+     "count": 1,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -112.5,
+     "z": 160.0
+    },
+    {
+     "type": "aeroplane",
+     "width": 14,
+     "x": 122.5,
+     "z": 20,
+     "heading": 270,
+     "count": 1,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 282.5,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 102.5,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 152.5,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -122.5,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 322.5,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "keflavik",
+   "icao": "BIKF",
+   "name": "Keflavik International Airport",
+   "body": "Earth",
+   "latitude": 63.985,
+   "longitude": -22.6056,
+   "heading": 100,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 52,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 55.0,
+     "y": 2.5,
+     "z": -1572.5,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -919.5,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 92.7,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -180.0,
+     "z": -1732.5,
+     "frequency": 112.3
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 230.0,
+     "z": -1832.5,
+     "frequency": 0.355
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 3065,
+     "width": 60,
+     "ils": [
+      {
+       "frequency": 108.5
+      },
+      {
+       "frequency": 108.7,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -1412.5,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -32.0,
+     "y": 0.4,
+     "z": -1532.5,
+     "count": 62,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 32.0,
+     "y": 0.4,
+     "z": -1532.5,
+     "count": 62,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -1532.5,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 1532.5,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 110.0,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 3065,
+     "width": 25,
+     "x": 90.0,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": -1382.5,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": 1382.5,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 50,
+     "x": 180.0,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 220.0,
+     "z": 60,
+     "heading": 270,
+     "width": 120,
+     "depth": 30,
+     "height": 18
+    },
+    {
+     "type": "hangar",
+     "width": 50,
+     "depth": 50,
+     "height": 18,
+     "x": 220.0,
+     "z": -200,
+     "heading": 270,
+     "count": 2,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -120.0,
+     "z": 306.5
+    },
+    {
+     "type": "aeroplane",
+     "width": 36,
+     "x": 130.0,
+     "z": 20,
+     "heading": 270,
+     "count": 3,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 290.0,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 110.0,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 160.0,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -130.0,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 330.0,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "vagar",
+   "icao": "EKVG",
+   "name": "Vagar Airport, Faroe Islands",
+   "body": "Earth",
+   "latitude": 62.0636,
+   "longitude": -7.2772,
+   "heading": 120,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 85,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 172.5,
+     "y": 24,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 47.5,
+     "y": 2.5,
+     "z": -939.5,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -539.6999999999999,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 92.8,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -172.5,
+     "z": -1099.5,
+     "frequency": 112.5
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 222.5,
+     "z": -1199.5,
+     "frequency": 0.358
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 1799,
+     "width": 45,
+     "ils": [
+      {
+       "frequency": 108.9
+      },
+      {
+       "frequency": 109.1,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -779.5,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -24.5,
+     "y": 0.4,
+     "z": -899.5,
+     "count": 36,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 24.5,
+     "y": 0.4,
+     "z": -899.5,
+     "count": 36,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -899.5,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 899.5,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 172.5,
+     "y": 24,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 102.5,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 1799,
+     "width": 25,
+     "x": 82.5,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 82.5,
+     "width": 20,
+     "x": 41.25,
+     "z": -749.5,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 82.5,
+     "width": 20,
+     "x": 41.25,
+     "z": 749.5,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 22,
+     "x": 172.5,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 212.5,
+     "z": 60,
+     "heading": 270,
+     "width": 50,
+     "depth": 20,
+     "height": 9
+    },
+    {
+     "type": "hangar",
+     "width": 30,
+     "depth": 30,
+     "height": 10,
+     "x": 212.5,
+     "z": -200,
+     "heading": 270,
+     "count": 1,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -112.5,
+     "z": 179.9
+    },
+    {
+     "type": "aeroplane",
+     "width": 14,
+     "x": 122.5,
+     "z": 20,
+     "heading": 270,
+     "count": 1,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 282.5,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 102.5,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 152.5,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -122.5,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 322.5,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "miami",
+   "icao": "KMIA",
+   "name": "Miami International Airport",
+   "body": "Earth",
+   "latitude": 25.7932,
+   "longitude": -80.2906,
+   "heading": 87,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 3,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 55.0,
+     "y": 2.5,
+     "z": -2021.0,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -1188.6,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 92.9,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -180.0,
+     "z": -2181.0,
+     "frequency": 112.7
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 230.0,
+     "z": -2281.0,
+     "frequency": 0.361
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 3962,
+     "width": 60,
+     "ils": [
+      {
+       "frequency": 109.3
+      },
+      {
+       "frequency": 109.7,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -1861.0,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -32.0,
+     "y": 0.4,
+     "z": -1981.0,
+     "count": 80,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 32.0,
+     "y": 0.4,
+     "z": -1981.0,
+     "count": 80,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -1981.0,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 1981.0,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 110.0,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 3962,
+     "width": 25,
+     "x": 90.0,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": -1831.0,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": 1831.0,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 50,
+     "x": 180.0,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 220.0,
+     "z": 60,
+     "heading": 270,
+     "width": 120,
+     "depth": 30,
+     "height": 18
+    },
+    {
+     "type": "hangar",
+     "width": 50,
+     "depth": 50,
+     "height": 18,
+     "x": 220.0,
+     "z": -200,
+     "heading": 270,
+     "count": 2,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -120.0,
+     "z": 396.20000000000005
+    },
+    {
+     "type": "aeroplane",
+     "width": 36,
+     "x": 130.0,
+     "z": 20,
+     "heading": 270,
+     "count": 3,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 290.0,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 110.0,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 160.0,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -130.0,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 330.0,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "paris_cdg",
+   "icao": "LFPG",
+   "name": "Paris Charles de Gaulle Airport",
+   "body": "Earth",
+   "latitude": 49.0097,
+   "longitude": 2.5479,
+   "heading": 90,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 119,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 55.0,
+     "y": 2.5,
+     "z": -2147.5,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -1264.5,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 93.1,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -180.0,
+     "z": -2307.5,
+     "frequency": 112.9
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 230.0,
+     "z": -2407.5,
+     "frequency": 0.364
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 4215,
+     "width": 60,
+     "ils": [
+      {
+       "frequency": 110.1
+      },
+      {
+       "frequency": 110.3,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -1987.5,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -32.0,
+     "y": 0.4,
+     "z": -2107.5,
+     "count": 85,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 32.0,
+     "y": 0.4,
+     "z": -2107.5,
+     "count": 85,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -2107.5,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 2107.5,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 110.0,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 4215,
+     "width": 25,
+     "x": 90.0,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": -1957.5,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": 1957.5,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 50,
+     "x": 180.0,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 220.0,
+     "z": 60,
+     "heading": 270,
+     "width": 120,
+     "depth": 30,
+     "height": 18
+    },
+    {
+     "type": "hangar",
+     "width": 50,
+     "depth": 50,
+     "height": 18,
+     "x": 220.0,
+     "z": -200,
+     "heading": 270,
+     "count": 2,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -120.0,
+     "z": 421.5
+    },
+    {
+     "type": "aeroplane",
+     "width": 36,
+     "x": 130.0,
+     "z": 20,
+     "heading": 270,
+     "count": 3,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 290.0,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 110.0,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 160.0,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -130.0,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 330.0,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "rome_fco",
+   "icao": "LIRF",
+   "name": "Rome Fiumicino Airport",
+   "body": "Earth",
+   "latitude": 41.8003,
+   "longitude": 12.2389,
+   "heading": 164,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 4,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 55.0,
+     "y": 2.5,
+     "z": -1990.0,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -1170.0,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 93.3,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -180.0,
+     "z": -2150.0,
+     "frequency": 113.1
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 230.0,
+     "z": -2250.0,
+     "frequency": 0.367
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 3900,
+     "width": 60,
+     "ils": [
+      {
+       "frequency": 110.5
+      },
+      {
+       "frequency": 110.7,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -1830.0,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -32.0,
+     "y": 0.4,
+     "z": -1950.0,
+     "count": 79,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 32.0,
+     "y": 0.4,
+     "z": -1950.0,
+     "count": 79,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -1950.0,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 1950.0,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 110.0,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 3900,
+     "width": 25,
+     "x": 90.0,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": -1800.0,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": 1800.0,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 50,
+     "x": 180.0,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 220.0,
+     "z": 60,
+     "heading": 270,
+     "width": 120,
+     "depth": 30,
+     "height": 18
+    },
+    {
+     "type": "hangar",
+     "width": 50,
+     "depth": 50,
+     "height": 18,
+     "x": 220.0,
+     "z": -200,
+     "heading": 270,
+     "count": 2,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -120.0,
+     "z": 390.0
+    },
+    {
+     "type": "aeroplane",
+     "width": 36,
+     "x": 130.0,
+     "z": 20,
+     "heading": 270,
+     "count": 3,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 290.0,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 110.0,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 160.0,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -130.0,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 330.0,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  },
+  {
+   "id": "berlin_ber",
+   "icao": "EDDB",
+   "name": "Berlin Brandenburg Airport",
+   "body": "Earth",
+   "latitude": 52.3667,
+   "longitude": 13.5033,
+   "heading": 73,
+   "flat_radius": 330,
+   "blend": 220,
+   "elevation": 48,
+   "cameras": [
+    {
+     "name": "Control tower",
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "fov": 40
+    },
+    {
+     "name": "Runway threshold",
+     "x": 55.0,
+     "y": 2.5,
+     "z": -1840.0,
+     "fov": 45
+    },
+    {
+     "name": "Overview (fixed)",
+     "x": -300,
+     "y": 120,
+     "z": -1080.0,
+     "fov": 60,
+     "track": false,
+     "pitch": -12
+    }
+   ],
+   "navaids": [
+    {
+     "type": "vtol",
+     "name": "Apron",
+     "frequency": 93.5,
+     "heading": 0
+    },
+    {
+     "type": "vor",
+     "name": "VOR",
+     "x": -180.0,
+     "z": -2000.0,
+     "frequency": 113.3
+    },
+    {
+     "type": "ndb",
+     "name": "NDB",
+     "x": 230.0,
+     "z": -2100.0,
+     "frequency": 0.37
+    }
+   ],
+   "runways": [
+    {
+     "name": "Runway 1",
+     "x": 0,
+     "z": 0,
+     "length": 3600,
+     "width": 60,
+     "ils": [
+      {
+       "frequency": 110.9
+      },
+      {
+       "frequency": 111.9,
+       "reverse": true
+      }
+     ]
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": -1680.0,
+    "heading": 0
+   },
+   "lights": [
+    {
+     "x": -32.0,
+     "y": 0.4,
+     "z": -1800.0,
+     "count": 73,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": 32.0,
+     "y": 0.4,
+     "z": -1800.0,
+     "count": 73,
+     "step_z": 50,
+     "colour": [
+      255,
+      250,
+      235
+     ],
+     "intensity": 0,
+     "glow": 0.6
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": -1800.0,
+     "colour": [
+      60,
+      255,
+      90
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": -8,
+     "y": 0.4,
+     "z": 1800.0,
+     "colour": [
+      255,
+      60,
+      50
+     ],
+     "intensity": 0,
+     "glow": 1.0,
+     "count": 5,
+     "step_x": 4
+    },
+    {
+     "x": 180.0,
+     "y": 52,
+     "z": -60,
+     "colour": [
+      255,
+      40,
+      30
+     ],
+     "intensity": 0.5,
+     "range": 30,
+     "pattern": "beacon",
+     "period": 2,
+     "glow": 1.2,
+     "always": true
+    },
+    {
+     "x": 110.0,
+     "y": 6.7,
+     "z": -200,
+     "count": 8,
+     "step_z": 50,
+     "colour": [
+      255,
+      205,
+      140
+     ],
+     "intensity": 6,
+     "range": 32,
+     "glow": 0.5
+    }
+   ],
+   "objects": [
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 3600,
+     "width": 25,
+     "x": 90.0,
+     "z": 0
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": -1650.0,
+     "heading": 90
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 90.0,
+     "width": 20,
+     "x": 45.0,
+     "z": 1650.0,
+     "heading": 90
+    },
+    {
+     "type": "control_tower",
+     "height": 50,
+     "x": 180.0,
+     "z": -60,
+     "heading": 270
+    },
+    {
+     "type": "office",
+     "x": 220.0,
+     "z": 60,
+     "heading": 270,
+     "width": 120,
+     "depth": 30,
+     "height": 18
+    },
+    {
+     "type": "hangar",
+     "width": 50,
+     "depth": 50,
+     "height": 18,
+     "x": 220.0,
+     "z": -200,
+     "heading": 270,
+     "count": 2,
+     "step_z": -70
+    },
+    {
+     "type": "domed_radar",
+     "x": -120.0,
+     "z": 360.0
+    },
+    {
+     "type": "aeroplane",
+     "width": 36,
+     "x": 130.0,
+     "z": 20,
+     "heading": 270,
+     "count": 3,
+     "step_z": 60
+    },
+    {
+     "type": "tank",
+     "radius": 5,
+     "height": 10,
+     "count": 2,
+     "x": 290.0,
+     "z": 200,
+     "step_x": 14
+    },
+    {
+     "type": "street_lamp",
+     "count": 8,
+     "x": 110.0,
+     "z": -200,
+     "step_z": 50
+    },
+    {
+     "type": "car",
+     "count": 3,
+     "x": 160.0,
+     "z": 120,
+     "step_z": 8
+    },
+    {
+     "type": "fence",
+     "x": -130.0,
+     "z": -200,
+     "length": 400
+    },
+    {
+     "type": "fence",
+     "x": 330.0,
+     "z": -200,
+     "length": 400
+    }
+   ]
+  }
+ ]
+}

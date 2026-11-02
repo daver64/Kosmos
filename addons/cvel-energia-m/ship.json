@@ -2,9 +2,9 @@
  "name": "CVEL Energia-M",
  "class": "launcher",
  "script": "@launcher.lua",
- "torque_accel": 0.05,
+ "torque_accel": 0.12,
  "max_rate": 0.2,
- "rcs_thrust": 20000,
+ "rcs_thrust": 0,
  "drag_area": 60,
  "camera_distance": 120,
  "camera_target": [
@@ -100,18 +100,7 @@
      "fuel": "hydrogen"
     }
    ],
-   "gear": [
-    [
-     5.95,
-     0,
-     19.0
-    ],
-    [
-     -5.95,
-     0,
-     19.0
-    ]
-   ],
+   "gear": [[5.95, 0, 23.0], [-5.95, 0, 23.0], [0, 4, 23.0], [0, -4, 23.0]],
    "parts": [
     {
      "model": "models/boosterm1.obj",

@@ -139,7 +139,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--name NAME` | Your name in multiplayer and the lobby |
 | `--lobby` | Open the Multiplayer window at start |
 | `--irc HOST`, `--channel #NAME`, `--advertise ADDR:PORT` | Lobby IRC server (default `salyut.ddns.net`, `#kosmos`) and the address you announce |
-| `--no-clutter` | Leave out trees, buildings, rocks and outposts on the ground |
+| `--no-clutter` | Leave out trees, buildings and rocks on the ground |
 | `--perf` | Print frame rate and ground-scatter CPU time every few seconds |
 | `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
 | `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `I`). The bottom warp and time line is separate (View menu) |
@@ -362,7 +362,7 @@ A base is a built-up site on a body's surface, defined in JSON so modders can ad
   ]}]}
 ```
 
-Object coordinates are metres in the base frame (x right of the heading, z along it; `y` lifts a prop). `heading` turns the prop, `scale` scales it, `count` with `step_x`/`step_z` makes rows. Optional `size`, `width`, `depth`, `height`, `length`, `radius`, `number`, `seed`, and `colour`/`colour2` as `[r,g,b]` override the builder defaults. Types: house, office, skyscraper, hangar, wall, fence, water_tower, radar, domed_radar, pressure_dome, habitat_tube, lunar_rover, landing_pad, control_tower, street_lamp, road, barrel, crate, container, tank, conifer, rock, tree, bush, rock_cluster, car, spaceship, aeroplane, launch_tower, launch_pad, saturn_v, rocket_stage, station_module, solar_array, solar_windmill, antenna_dish, satellite, skylab.
+Object coordinates are metres in the base frame (x right of the heading, z along it; `y` lifts a prop). `heading` turns the prop, `scale` scales it, `count` with `step_x`/`step_z` makes rows. Optional `size`, `width`, `depth`, `height`, `length`, `radius`, `number`, `seed`, and `colour`/`colour2` as `[r,g,b]` override the builder defaults. Types: house, office, skyscraper, hangar, wall, fence, water_tower, radar, domed_radar, pressure_dome, habitat_tube, lunar_rover, landing_pad, control_tower, street_lamp, road, barrel, crate, container, tank, conifer, rock, tree, bush, rock_cluster, car, spaceship, aeroplane, launch_tower, launch_pad, saturn_v, rocket_stage, station_module, solar_array, solar_windmill, antenna_dish, satellite, skylab, rtg_house (RTG canisters on a hall), reactor (vessel, hall and radiator wing).
 
 **Terrain meshes.** `terrain_meshes` in a base file sets an `.stl`, `.obj`, `.glb` or `.gltf` into the ground so its surface becomes the terrain (a height map: no overhangs or caves). Keys: `file`, `x`, `z`, `heading`, `scale` (metres per unit), `vscale`, `y`, `blend`, `up`, `texture` (`auto` uses the mesh's own textures or vertex colours when it has them, `terrain` keeps the terrain's colouring) and `image` (a picture draped over the footprint, for STL). The Gale Crater base sits in a scan of the crater (`import/nasa/Gale Crater.stl`).
 

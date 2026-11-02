@@ -1,0 +1,1858 @@
+{
+ "bases": [
+  {
+   "id": "baikonur",
+   "icao": "UATB",
+   "name": "Baikonur Cosmodrome",
+   "body": "Earth",
+   "latitude": 45.965,
+   "longitude": 63.305,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 90,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 1
+    }
+   ]
+  },
+  {
+   "id": "plesetsk",
+   "icao": "ULPL",
+   "name": "Plesetsk Cosmodrome",
+   "body": "Earth",
+   "latitude": 62.926,
+   "longitude": 40.577,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 130,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 2
+    }
+   ]
+  },
+  {
+   "id": "vostochny",
+   "icao": "UHWV",
+   "name": "Vostochny Cosmodrome",
+   "body": "Earth",
+   "latitude": 51.884,
+   "longitude": 128.334,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 200,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 3
+    }
+   ]
+  },
+  {
+   "id": "kourou",
+   "icao": "SOCA",
+   "name": "Guiana Space Centre, Kourou",
+   "body": "Earth",
+   "latitude": 5.236,
+   "longitude": -52.775,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 15,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 4
+    }
+   ]
+  },
+  {
+   "id": "vandenberg",
+   "icao": "KVBG",
+   "name": "Vandenberg Space Force Base",
+   "body": "Earth",
+   "latitude": 34.742,
+   "longitude": -120.572,
+   "heading": 200,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 110,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 5
+    }
+   ]
+  },
+  {
+   "id": "wallops",
+   "icao": "KWAL",
+   "name": "Wallops Flight Facility",
+   "body": "Earth",
+   "latitude": 37.94,
+   "longitude": -75.466,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 3,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 40,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 60,
+     "x": -28.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 14,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 6
+    }
+   ]
+  },
+  {
+   "id": "starbase",
+   "icao": "KSBX",
+   "name": "Starbase, Boca Chica",
+   "body": "Earth",
+   "latitude": 25.997,
+   "longitude": -97.157,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 2,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 7
+    }
+   ]
+  },
+  {
+   "id": "jiuquan",
+   "icao": "ZJSC",
+   "name": "Jiuquan Satellite Launch Centre",
+   "body": "Earth",
+   "latitude": 40.958,
+   "longitude": 100.291,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 1000,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 8
+    }
+   ]
+  },
+  {
+   "id": "taiyuan",
+   "icao": "ZTYS",
+   "name": "Taiyuan Satellite Launch Centre",
+   "body": "Earth",
+   "latitude": 38.849,
+   "longitude": 111.608,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 1500,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 9
+    }
+   ]
+  },
+  {
+   "id": "xichang",
+   "icao": "ZXCH",
+   "name": "Xichang Satellite Launch Centre",
+   "body": "Earth",
+   "latitude": 28.246,
+   "longitude": 102.027,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 1800,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 10
+    }
+   ]
+  },
+  {
+   "id": "wenchang",
+   "icao": "ZWCH",
+   "name": "Wenchang Space Launch Site",
+   "body": "Earth",
+   "latitude": 19.614,
+   "longitude": 110.951,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 8,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 11
+    }
+   ]
+  },
+  {
+   "id": "tanegashima",
+   "icao": "RJTA",
+   "name": "Tanegashima Space Center",
+   "body": "Earth",
+   "latitude": 30.4,
+   "longitude": 130.97,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 40,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 12
+    }
+   ]
+  },
+  {
+   "id": "sriharikota",
+   "icao": "VOSH",
+   "name": "Satish Dhawan Space Centre, Sriharikota",
+   "body": "Earth",
+   "latitude": 13.733,
+   "longitude": 80.235,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 6,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 13
+    }
+   ]
+  },
+  {
+   "id": "alcantara",
+   "icao": "SBAC",
+   "name": "Alcantara Launch Centre",
+   "body": "Earth",
+   "latitude": -2.373,
+   "longitude": -44.396,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 40,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 60,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 100,
+     "x": -38.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 20,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 14
+    }
+   ]
+  },
+  {
+   "id": "mahia",
+   "icao": "NZMH",
+   "name": "Rocket Lab Launch Complex 1, Mahia",
+   "body": "Earth",
+   "latitude": -39.261,
+   "longitude": 177.865,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 10,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 40,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 60,
+     "x": -28.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 14,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 15
+    }
+   ]
+  },
+  {
+   "id": "palmachim",
+   "icao": "LLPA",
+   "name": "Palmachim Airbase",
+   "body": "Earth",
+   "latitude": 31.885,
+   "longitude": 34.69,
+   "heading": 270,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 40,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 40,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 60,
+     "x": -28.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 14,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 16
+    }
+   ]
+  },
+  {
+   "id": "semnan",
+   "icao": "OISM",
+   "name": "Semnan Space Centre",
+   "body": "Earth",
+   "latitude": 35.234,
+   "longitude": 53.921,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 1100,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 40,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 60,
+     "x": -28.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 14,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 17
+    }
+   ]
+  },
+  {
+   "id": "naro",
+   "icao": "RKNR",
+   "name": "Naro Space Center",
+   "body": "Earth",
+   "latitude": 34.431,
+   "longitude": 127.535,
+   "heading": 90,
+   "flat_radius": 320,
+   "blend": 220,
+   "elevation": 10,
+   "cameras": [
+    {
+     "name": "Pad",
+     "x": -60,
+     "y": 3,
+     "z": -90,
+     "fov": 55
+    },
+    {
+     "name": "Control tower",
+     "x": 120,
+     "y": 26,
+     "z": -90,
+     "fov": 40
+    }
+   ],
+   "pad": {
+    "x": 0,
+    "z": 0,
+    "heading": 0
+   },
+   "objects": [
+    {
+     "type": "launch_pad",
+     "size": 40,
+     "x": 0,
+     "z": 0
+    },
+    {
+     "type": "launch_tower",
+     "height": 60,
+     "x": -28.0,
+     "z": 0,
+     "heading": 180
+    },
+    {
+     "type": "tank",
+     "radius": 4,
+     "height": 9,
+     "count": 3,
+     "x": -120,
+     "z": 70,
+     "step_z": 12
+    },
+    {
+     "type": "control_tower",
+     "height": 24,
+     "x": 120,
+     "z": -90,
+     "heading": 180
+    },
+    {
+     "type": "hangar",
+     "width": 36,
+     "depth": 44,
+     "height": 14,
+     "x": 170,
+     "z": 40,
+     "heading": 270
+    },
+    {
+     "type": "radar",
+     "height": 9,
+     "radius": 4,
+     "x": -60,
+     "z": -130
+    },
+    {
+     "type": "container",
+     "count": 4,
+     "x": 90,
+     "z": 110,
+     "step_x": 7
+    },
+    {
+     "type": "road",
+     "y": 0.2,
+     "length": 300,
+     "width": 12,
+     "x": 160,
+     "z": -60,
+     "heading": 90
+    },
+    {
+     "type": "rock_cluster",
+     "radius": 3,
+     "x": -150,
+     "z": -60,
+     "seed": 18
+    }
+   ]
+  }
+ ]
+}

@@ -110,6 +110,17 @@ namespace kosmos
             return out;
         }
 
+        sl::MeshData offset_mesh(sl::MeshData m, float x, float y, float z)
+        {
+            for (sl::Vertex3D &v : m.vertices)
+            {
+                v.position[0] += x;
+                v.position[1] += y;
+                v.position[2] += z;
+            }
+            return m;
+        }
+
         // Returns an empty mesh for an unknown type.
         sl::MeshData build(const BaseObject &o)
         {
@@ -188,6 +199,24 @@ namespace kosmos
                 return solar_rack(pick(len, 10.0f), pick(w, 3.0f), o.number > 0 ? o.number : 4, col({30, 48, 118, 255}));
             if (t == "solar_windmill")
                 return solar_rack(pick(len, 7.0f) * 2.0f, pick(w, 3.0f), 4, col({30, 48, 118, 255}));
+            if (t == "rtg_house")
+            {
+                // A shielded hall with a row of RTG canisters on the roof.
+                const float len_ = pick(len, 8.0f), hgt = pick(h, 3.0f);
+                sl::MeshData out = sl::make_container_data(len_, pick(w, 4.0f), hgt, col({150, 152, 156, 255}));
+                for (int i = 0; i < 4; ++i)
+                    sl::append_mesh_data(out, offset_mesh(sl::make_barrel_data(0.45f, 1.6f, {58, 60, 66, 255}), (static_cast<float>(i) - 1.5f) * len_ * 0.22f, hgt, 0.0f));
+                return out;
+            }
+            if (t == "reactor")
+            {
+                // A reactor vessel and control hall with a radiator wing.
+                const float rad = pick(r, 3.5f), hgt = pick(h, 7.0f);
+                sl::MeshData out = sl::make_tank_data(rad, hgt, col({188, 190, 194, 255}));
+                sl::append_mesh_data(out, offset_mesh(sl::make_container_data(8.0f, 3.5f, 3.0f, {150, 152, 156, 255}), rad + 6.0f, 0.0f, 0.0f));
+                sl::append_mesh_data(out, offset_mesh(solar_rack(10.0f, 3.0f, 3, {176, 82, 54, 255}), -rad - 7.0f, 0.0f, 0.0f));
+                return out;
+            }
             if (t == "antenna_dish")
                 return sl::make_antenna_dish_data(pick(r, 1.0f));
             if (t == "satellite")
@@ -578,7 +607,7 @@ namespace kosmos
         static const std::vector<std::string> types = {"house", "office", "skyscraper", "hangar", "wall", "fence", "water_tower", "radar", "domed_radar", "pressure_dome", "habitat_tube", "lunar_rover", "landing_pad", "control_tower", "street_lamp",
                                                        "road", "barrel", "crate", "container", "tank", "conifer", "rock", "tree", "bush", "rock_cluster", "car", "spaceship", "aeroplane",
                                                        "model", "launch_tower", "launch_pad", "building", "saturn_v", "rocket_stage", "station_module", "solar_array", "solar_windmill", "antenna_dish",
-                                                       "satellite", "skylab"};
+                                                       "satellite", "skylab", "rtg_house", "reactor"};
         return types;
     }
 
@@ -863,7 +892,7 @@ namespace kosmos
         if (base.pad_deck != 0.0)
         {
             const sl::dvec3 p = base_point(base, radius, base.pad_x, base.pad_z);
-            sites.push_back({p, p, base.height + base.pad_deck, 6.0, 1.5});
+            sites.push_back({p, p, base.height + base.pad_deck, 15.0, 1.5});
         }
         for (const BaseObject &o : base.objects)
         {

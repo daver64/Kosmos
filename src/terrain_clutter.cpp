@@ -344,7 +344,7 @@ namespace kosmos
                     out[k] = static_cast<float>(sum[k] / count);
         }
 
-        void add_rocky(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, double density, const float colour[3], bool outposts)
+        void add_rocky(sl::ClutterLayer &layer, const std::shared_ptr<const Ground> &ground, double density, const float colour[3])
         {
             const double d = density;
             const sl::Colour stone = rgb(colour, 1.0f), dark = rgb(colour, 0.78f);
@@ -360,21 +360,6 @@ namespace kosmos
             add(layer, ground, rock_species(sl::make_rock_cluster_data(1.6f, stone, 3u), 1.6, 2, 0.0006 * d, 50.0f, 200.0f, 1400.0f, 23u), field, -1.0e30f);
             add(layer, ground, rock_species(sl::make_rock_data(3.5f, dark, 4u), 3.5, 3, 0.00025 * d, 55.0f, 300.0f, 2400.0f, 29u), boulders, -1.0e30f);
             add(layer, ground, rock_species(sl::make_rock_data(7.0f, stone, 5u), 7.0, 4, 0.00006 * d, 55.0f, 500.0f, 3600.0f, 37u), boulders, -1.0e30f);
-            if (!outposts)
-                return;
-
-            // Only a handful of outposts, in a ring around each base just outside its levelled ground.
-            const Rule settlement = [](const Ground &g, const sl::TerrainSample &s) {
-                const double dist = g.nearest(s.position);
-                return smooth(-20.0, 40.0, dist) * (1.0 - smooth(450.0, 650.0, dist)) * (1.0 - smooth(4.0, 9.0, s.slope_degrees));
-            };
-            const sl::Colour hull = {226, 229, 234, 255};
-            add(layer, ground, species(sl::make_pressure_dome_data(8.0f, hull), 0.0000020 * d, 8.0f, 600.0f, 4200.0f, 101u), settlement, -1.0e30f);
-            add(layer, ground, species(sl::make_pressure_dome_data(5.0f, {214, 218, 224, 255}), 0.0000015 * d, 8.0f, 500.0f, 3600.0f, 107u), settlement, -1.0e30f);
-            add(layer, ground, species(sl::make_habitat_tube_data(12.0f, 2.2f, {222, 224, 226, 255}), 0.0000025 * d, 8.0f, 500.0f, 3600.0f, 113u), settlement, -1.0e30f);
-            add(layer, ground, species(sl::make_container_data(6.1f, 2.44f, 2.6f, {190, 190, 186, 255}, 2u), 0.0000020 * d, 8.0f, 300.0f, 2000.0f, 119u), settlement, -1.0e30f);
-            add(layer, ground, species(sl::make_tank_data(2.5f, 5.0f, {196, 198, 200, 255}), 0.0000015 * d, 8.0f, 300.0f, 2000.0f, 127u), settlement, -1.0e30f);
-            add(layer, ground, species(sl::make_lunar_rover_data(3.5f, {214, 214, 208, 255}), 0.0000010 * d, 10.0f, 250.0f, 1500.0f, 131u), settlement, -1.0e30f);
         }
 
         /** Flat-shaded mesh building for the alien plants; solids pass a point inside so every facet faces outwards. */
@@ -679,7 +664,7 @@ namespace kosmos
             {
             float colour[3];
             ground_colour(terrain, *world.body, world.near_direction, colour);
-            add_rocky(*layer, ground, world.density, colour, kind == Kind::rocky);
+            add_rocky(*layer, ground, world.density, colour);
         }
         return layer;
     }

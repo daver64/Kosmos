@@ -312,6 +312,8 @@ namespace kosmos::app
         setup_environment();
         draw_building_panel_target();
         draw_cockpit_targets();
+        if (eva.active)
+            arsenal.render_screen(sim);
         if (sl::begin_surface_3d(surface, camera))
         {
             sl::clear_surface_3d({0, 0, 0, 255});

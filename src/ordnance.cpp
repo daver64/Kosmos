@@ -116,13 +116,27 @@ namespace kosmos
 
     struct Arsenal::Meshes
     {
-        sl::Mesh *cube = nullptr, *cylinder = nullptr, *sphere = nullptr, *bomb = nullptr, *fatman = nullptr, *rv = nullptr;
+        sl::Mesh *quad = nullptr, *cube = nullptr, *cylinder = nullptr, *sphere = nullptr, *bomb = nullptr, *fatman = nullptr, *rv = nullptr;
 
         void build()
         {
             if (cube)
                 return;
             cube = sl::create_cube_mesh(1.0f);
+            {
+                std::vector<sl::Vertex3D> v(4);
+                const float xs[4] = {-0.5f, 0.5f, 0.5f, -0.5f}, ys[4] = {0.5f, 0.5f, -0.5f, -0.5f};
+                const bool bottom_up = sl::graphics_backend() == sl::GraphicsBackend::opengl;
+                for (int i = 0; i < 4; ++i)
+                {
+                    v[i].position[0] = xs[i];
+                    v[i].position[1] = ys[i];
+                    v[i].normal[2] = 1.0f;
+                    v[i].uv[0] = xs[i] + 0.5f;
+                    v[i].uv[1] = bottom_up ? ys[i] + 0.5f : 0.5f - ys[i];
+                }
+                quad = sl::create_mesh(v, {0, 2, 1, 0, 3, 2});
+            }
             sphere = sl::create_sphere_mesh(0.5f, 14, 8);
             sl::MeshData cyl;
             const int n = 16;
@@ -1329,6 +1343,16 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 mesh = meshes_->sphere;
                 scale = glm::vec3(s.size.x);
             }
+            if (s.screen && screen_target_)
+            {
+                sl::Material screen;
+                screen.texture = screen_target_;
+                screen.lit = false;
+                screen.fog = false;
+                screen.cull = sl::CullMode::none;
+                sl::draw_mesh(meshes_->quad, model * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, s.size.z * 0.5f + 0.001f)) * glm::scale(glm::mat4(1.0f), glm::vec3(s.size.x, s.size.y, 1.0f)), screen);
+                continue;
+            }
             if (s.glow)
             {
                 m.blend = sl::MaterialBlend::additive;
@@ -1336,6 +1360,33 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             }
             sl::draw_mesh(mesh, model * glm::scale(glm::mat4(1.0f), scale), m);
         }
+    }
+
+    void Arsenal::render_screen(const Sim &sim)
+    {
+        const EquipmentSpec *spec = held(sim);
+        bool wanted = false;
+        if (spec)
+            for (const ViewShape &s : spec->shapes)
+                wanted = wanted || s.screen;
+        if (!wanted)
+            return;
+        if (!screen_target_)
+        {
+            screen_target_ = sl::create_render_target(256, 288);
+            if (screen_target_)
+                screen_target_->smooth = true;
+        }
+        if (!screen_target_ || !sl::begin_render_target(screen_target_))
+            return;
+        sl::clear_render_target({6, 28, 18, 255});
+        int y = 12;
+        for (const std::string &line : readout_)
+        {
+            sl::gprintf(10, y, sl::Colour{140, 255, 170, 255}, "%s", line.c_str());
+            y += 18;
+        }
+        sl::end_render_target();
     }
 
     double Arsenal::flash(const Universe &universe, const sl::dvec3 &eye_world) const
