@@ -1,6 +1,7 @@
 #pragma once
 
-#include "app.h"
+#include "app_common.h"
+#include "sim.h"
 #include "scenario_start.h"
 
 // The multiplayer window (F12) and the helpers it uses.

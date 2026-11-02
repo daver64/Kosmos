@@ -59,7 +59,7 @@ namespace kosmos::app
     // The HUD of a virtual cockpit is drawn onto a texture for the HUD glass, looking along the nose.
     void App::render_vc_hud_target()
     {
-        if (!hud_target)
+        if (!targets.hud_target)
             return;
         const bool active = hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes());
         sl::FlightBody &fb = *fb_ref;
@@ -78,7 +78,7 @@ namespace kosmos::app
         hs.camera.height = size;
         if (active)
             fill_hud_state(hs);
-        sl::Bitmap *into = big ? big : hud_target;
+        sl::Bitmap *into = big ? big : targets.hud_target;
         if (!sl::begin_render_target(into))
             return;
         sl::clear_render_target({0, 0, 0, 0});
@@ -86,7 +86,7 @@ namespace kosmos::app
             hud.draw(hs);
         sl::end_render_target();
         if (big)
-            downsample_target(big, hud_target, {0, 0, 0, 0});
+            downsample_target(big, targets.hud_target, {0, 0, 0, 0});
     }
 
     void App::fill_hud_state(sl::HudState &hs)
@@ -148,17 +148,17 @@ namespace kosmos::app
                 const double distance = glm::length(rel);
                 if (distance > 300.0)
                     continue;
-                if (eva.building == s && interior_panel >= 0)
+                if (eva.building == s && walk.interior_panel >= 0)
                     sl::gprintf_center(screen_h / 2 + 70, {120, 255, 150}, "Press Enter to use the panel");
                 else if (s == building_at_door() && eva.building == s && !sim.ship(s)->spec().interior->airlock_name().empty())
                 {
-                    if (in_airlock)
-                        sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, room_kpa > kosmos::airlock_safe_kpa ? "Press Enter to depressurise and go out" : "Press Enter to go outside");
+                    if (walk.in_airlock)
+                        sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, walk.room_kpa > kosmos::airlock_safe_kpa ? "Press Enter to depressurise and go out" : "Press Enter to go outside");
                 }
                 else if (s == building_at_door())
                     sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, eva.building == s ? "Press Enter to go outside" : "Press Enter to go into %s", sim.ship(s)->name.c_str());
-                if (eva.building == s && room_kpa >= 0.0)
-                    sl::gprintf_center(screen_h / 2 + 130, {160, 210, 255}, "%s  %.0f kPa", room_label.empty() ? "Room" : room_label.c_str(), room_kpa);
+                if (eva.building == s && walk.room_kpa >= 0.0)
+                    sl::gprintf_center(screen_h / 2 + 130, {160, 210, 255}, "%s  %.0f kPa", walk.room_label.empty() ? "Room" : walk.room_label.c_str(), walk.room_kpa);
                 float x = 0.0f, y = 0.0f;
                 if (distance < 1.0 || !project(view_proj, glm::vec3(rel / distance * 1000.0), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
                     continue;
@@ -244,7 +244,7 @@ namespace kosmos::app
     // Engine and wind sound.
     void App::cabin_ambience_tick()
     {
-        const bool in_room = in_eva && room_kpa > 20.0;
+        const bool in_room = in_eva && walk.room_kpa > 20.0;
         sound.data_root = sim.root();
         sound.cabin_ambience(in_cockpit || in_interior || in_room, sound_on);
     }
@@ -488,7 +488,7 @@ namespace kosmos::app
             }
             // Pick MFD buttons by casting the mouse ray at the two screen quads.
             const bool down = ui_mouse_down();
-            if (down && (!mfd_mouse_prev || vc_drag_spot))
+            if (down && (!drag.mfd_mouse_prev || drag.vc_drag_spot))
             {
                 const kosmos::Cockpit cp = resolved_cockpit(ship->spec().cockpit, props.get_int("/sim/active-ship"));
                 const glm::vec3 fwd = glm::normalize(ship_rel);
@@ -502,19 +502,19 @@ namespace kosmos::app
                 const glm::mat3 to_world = glm::mat3_cast(glm::quat(fb.orientation));
                 const glm::vec3 origin_local = glm::transpose(to_world) * (-glm::vec3(ship->origin() - eye_world));
                 const glm::vec3 dir_local = glm::transpose(to_world) * dir;
-                if (mfd_mouse_prev)
+                if (drag.mfd_mouse_prev)
                 {
                     // Held button: a drag hotspot follows the mouse along its quad.
-                    const kosmos::Cockpit::VcHotspot &hs = *vc_drag_spot;
+                    const kosmos::Cockpit::VcHotspot &hs = *drag.vc_drag_spot;
                     const glm::vec3 q0(hs.quad[0][0], hs.quad[0][1], hs.quad[0][2]), e1 = glm::vec3(hs.quad[1][0], hs.quad[1][1], hs.quad[1][2]) - q0, e2 = glm::vec3(hs.quad[2][0], hs.quad[2][1], hs.quad[2][2]) - q0, n = glm::cross(e1, e2);
                     const float denom = glm::dot(dir_local, n);
                     if (std::fabs(denom) > 1e-12f)
                     {
                         const float t = glm::dot(q0 - origin_local, n) / denom;
                         const float v = glm::dot(origin_local + dir_local * t - q0, e2) / glm::dot(e2, e2);
-                        const double level = std::clamp(props.get_double(hs.drag) + hs.drag_gain * (v - vc_drag_v), hs.drag_min, hs.drag_max);
+                        const double level = std::clamp(props.get_double(hs.drag) + hs.drag_gain * (v - drag.vc_drag_v), hs.drag_min, hs.drag_max);
                         props.set_double(hs.drag, level < 0.01 && level > -0.01 ? 0.0 : level);
-                        vc_drag_v = v;
+                        drag.vc_drag_v = v;
                     }
                 }
                 else if (!cp.vc_model.empty())
@@ -554,8 +554,8 @@ namespace kosmos::app
                         const float denom = glm::dot(dir_local, n);
                         if (std::fabs(denom) > 1e-12f)
                         {
-                            vc_drag_spot = spot;
-                            vc_drag_v = glm::dot(origin_local + dir_local * (glm::dot(q0 - origin_local, n) / denom) - q0, e2) / glm::dot(e2, e2);
+                            drag.vc_drag_spot = spot;
+                            drag.vc_drag_v = glm::dot(origin_local + dir_local * (glm::dot(q0 - origin_local, n) / denom) - q0, e2) / glm::dot(e2, e2);
                         }
                     }
                     else if (spot)
@@ -608,8 +608,8 @@ namespace kosmos::app
                 }
             }
             if (!down)
-                vc_drag_spot = nullptr;
-            mfd_mouse_prev = down;
+                drag.vc_drag_spot = nullptr;
+            drag.mfd_mouse_prev = down;
             if (!down && props.get_bool("/sim/settings/tooltips") && !ship->spec().cockpit.vc_model.empty() && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse))
             {
                 const glm::vec3 fwd = glm::normalize(ship_rel);
@@ -632,7 +632,7 @@ namespace kosmos::app
     {
         if (!sl::mouse_button_down(sl::MouseButton::left))
             return false;
-        if (ui_drag_id < 0 && !mfd_mouse_prev && sl::gui_available() && ImGui::GetIO().WantCaptureMouse)
+        if (drag.ui_drag_id < 0 && !drag.mfd_mouse_prev && sl::gui_available() && ImGui::GetIO().WantCaptureMouse)
             return false;
         return true;
     }
@@ -643,31 +643,31 @@ namespace kosmos::app
         const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
         if (pressed && !consumed && inside)
         {
-            ui_drag_id = id;
-            ui_drag_last_x = mx;
-            ui_drag_last_y = my;
+            drag.ui_drag_id = id;
+            drag.ui_drag_last_x = mx;
+            drag.ui_drag_last_y = my;
         }
-        else if (ui_drag_id == id && down)
+        else if (drag.ui_drag_id == id && down)
         {
-            offset_x += mx - ui_drag_last_x;
-            offset_y += my - ui_drag_last_y;
-            ui_drag_last_x = mx;
-            ui_drag_last_y = my;
+            offset_x += mx - drag.ui_drag_last_x;
+            offset_y += my - drag.ui_drag_last_y;
+            drag.ui_drag_last_x = mx;
+            drag.ui_drag_last_y = my;
         }
-        if (!down && ui_drag_id == id)
-            ui_drag_id = -1;
+        if (!down && drag.ui_drag_id == id)
+            drag.ui_drag_id = -1;
     }
 
     // Moves one MFD by its saved offset, keeping it on screen.
     void App::place_mfd(int side, kosmos::MfdLayout &layout)
     {
-        float *off = mfd_offset[side];
-        mfd_base[side][0] = layout.x;
-        mfd_base[side][1] = layout.y;
+        float *off = drag.mfd_offset[side];
+        drag.mfd_base[side][0] = layout.x;
+        drag.mfd_base[side][1] = layout.y;
         layout.x = std::clamp(layout.x + off[0], 0.0f, std::max(0.0f, screen_w - layout.size));
         layout.y = std::clamp(layout.y + off[1], 0.0f, std::max(0.0f, screen_h - layout.size));
-        off[0] = layout.x - mfd_base[side][0];
-        off[1] = layout.y - mfd_base[side][1];
+        off[0] = layout.x - drag.mfd_base[side][0];
+        off[1] = layout.y - drag.mfd_base[side][1];
     }
 
     // An already placed MFD can be dragged by anything that is not a button.
@@ -675,11 +675,11 @@ namespace kosmos::app
     {
         const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
         const bool inside = mx >= layout.x && mx <= layout.x + layout.size && my >= layout.y && my <= layout.y + layout.size;
-        ui_drag(1 + side, inside, down, pressed, consumed, mfd_offset[side][0], mfd_offset[side][1]);
-        layout.x = std::clamp(mfd_base[side][0] + mfd_offset[side][0], 0.0f, std::max(0.0f, screen_w - layout.size));
-        layout.y = std::clamp(mfd_base[side][1] + mfd_offset[side][1], 0.0f, std::max(0.0f, screen_h - layout.size));
-        mfd_offset[side][0] = layout.x - mfd_base[side][0];
-        mfd_offset[side][1] = layout.y - mfd_base[side][1];
+        ui_drag(1 + side, inside, down, pressed, consumed, drag.mfd_offset[side][0], drag.mfd_offset[side][1]);
+        layout.x = std::clamp(drag.mfd_base[side][0] + drag.mfd_offset[side][0], 0.0f, std::max(0.0f, screen_w - layout.size));
+        layout.y = std::clamp(drag.mfd_base[side][1] + drag.mfd_offset[side][1], 0.0f, std::max(0.0f, screen_h - layout.size));
+        drag.mfd_offset[side][0] = layout.x - drag.mfd_base[side][0];
+        drag.mfd_offset[side][1] = layout.y - drag.mfd_base[side][1];
     }
 
     void App::draw_panel2d()
@@ -699,11 +699,11 @@ namespace kosmos::app
             cp.panel_height = shown.height;
             cp.panel_image = shown.image;
             const float scale = std::min(screen_w / cp.panel_width, screen_h * 0.55f / cp.panel_height);
-            float ox = (screen_w - cp.panel_width * scale) * 0.5f + panel_offset[0], oy = screen_h - cp.panel_height * scale + panel_offset[1];
+            float ox = (screen_w - cp.panel_width * scale) * 0.5f + drag.panel_offset[0], oy = screen_h - cp.panel_height * scale + drag.panel_offset[1];
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = ui_mouse_down();
-            const bool pressed = down && !mfd_mouse_prev;
+            const bool pressed = down && !drag.mfd_mouse_prev;
             bool consumed = false;
             if (pressed)
                 consumed = panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
@@ -713,15 +713,15 @@ namespace kosmos::app
                 panel_slider = -1;
             const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
             const bool inside = mx >= ox && mx <= ox + cp.panel_width * scale && my >= oy && my <= oy + cp.panel_height * scale;
-            ui_drag(0, inside, down, pressed, consumed, panel_offset[0], panel_offset[1]);
+            ui_drag(0, inside, down, pressed, consumed, drag.panel_offset[0], drag.panel_offset[1]);
             // Only a 40 px sliver has to stay on screen, so the panel can be pushed almost out of view in any direction.
             const float pw = cp.panel_width * scale, ph = cp.panel_height * scale, keep = 40.0f;
             const float home_x = (screen_w - pw) * 0.5f, home_y = screen_h - ph;
-            panel_offset[0] = std::clamp(panel_offset[0], keep - pw - home_x, screen_w - keep - home_x);
-            panel_offset[1] = std::clamp(panel_offset[1], keep - ph - home_y, screen_h - keep - home_y);
+            drag.panel_offset[0] = std::clamp(drag.panel_offset[0], keep - pw - home_x, screen_w - keep - home_x);
+            drag.panel_offset[1] = std::clamp(drag.panel_offset[1], keep - ph - home_y, screen_h - keep - home_y);
             if (panel_slider >= 0)
-                ui_drag_id = -1;
-            mfd_mouse_prev = down;
+                drag.ui_drag_id = -1;
+            drag.mfd_mouse_prev = down;
             draw_panel(sim, cp, cp.panel_image.empty() ? "" : (std::filesystem::path(ship->spec().directory) / cp.panel_image).string(), ox, oy, scale);
             if (!down && inside && props_ref->get_bool("/sim/settings/tooltips") && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse))
                 draw_tooltip(panel_tooltip(sim, cp, ox, oy, scale, mx, my), screen_w, screen_h);
@@ -764,7 +764,7 @@ namespace kosmos::app
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = ui_mouse_down();
-            const bool pressed = down && !mfd_mouse_prev;
+            const bool pressed = down && !drag.mfd_mouse_prev;
             place_mfd(0, left);
             place_mfd(1, right);
             // A see-through display's buttons are its outlined labels; a side that is not shown gets an empty layout so it cannot be hit.
@@ -781,7 +781,7 @@ namespace kosmos::app
                 drag_mfd(0, left, down, pressed, consumed);
             if (!show_hud || (hud_sides & 2))
                 drag_mfd(1, right, down, pressed, consumed);
-            mfd_mouse_prev = down;
+            drag.mfd_mouse_prev = down;
             if (!show_hud || (hud_sides & 1))
                 sim.mfd.draw(0, left);
             if (!show_hud || (hud_sides & 2))
@@ -836,13 +836,13 @@ namespace kosmos::app
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = ui_mouse_down();
-            const bool pressed = down && !mfd_mouse_prev;
+            const bool pressed = down && !drag.mfd_mouse_prev;
             place_mfd(0, left);
             place_mfd(1, right);
             const bool consumed = sim.mfd.handle_mouse(left, right, pressed, sl::mouse_x(), sl::mouse_y());
             drag_mfd(0, left, down, pressed, consumed);
             drag_mfd(1, right, down, pressed, consumed);
-            mfd_mouse_prev = down;
+            drag.mfd_mouse_prev = down;
             sim.mfd.draw(0, left);
             sim.mfd.draw(1, right);
         }

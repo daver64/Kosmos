@@ -431,14 +431,14 @@ namespace kosmos::app
         shot_saved = false;
         map_mode = options.map;
         galaxy_mode = options.galaxy_view;
-        jump_to = -1;
-        jump_to_star_orbit = false;
+        quantum.jump_to = -1;
+        quantum.jump_to_star_orbit = false;
               // a body of the target system to arrive at; empty picks the best world
               // the planet or moon chosen in the quantum window for quantum_selected
-        quantum_bodies_for = -1;
+        quantum.quantum_bodies_for = -1;
          // name, description
-        quantum_window = options.quantum_window;
-        quantum_selected = -1;
+        quantum.quantum_window = options.quantum_window;
+        quantum.quantum_selected = -1;
         gview.refresh(sim.galaxy, sim.system_index());
         cockpit_view = options.cockpit;
         mouse_captured = false;

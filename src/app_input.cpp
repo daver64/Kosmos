@@ -23,7 +23,7 @@ namespace kosmos::app
                 if (p < view_fov - 0.5)
                     next = p;
         }
-        fov_user = next;
+        rig.fov_user = next;
         sim.log("Field of view " + std::to_string(static_cast<int>(next + 0.5)) + " deg");
     }
 
@@ -33,9 +33,9 @@ namespace kosmos::app
         ship = start_scenario(sim, options, terrain_set);
         eva.active = false;
         arsenal.reset();
-        cam_dyn.reset();
-        dyn_valid = false;
-        cam_distance = ship->spec().camera_distance;
+        rig.cam_dyn.reset();
+        rig.dyn_valid = false;
+        rig.cam_distance = ship->spec().camera_distance;
     }
 
     void App::drop_bomb(bool special)
@@ -67,7 +67,7 @@ namespace kosmos::app
     void App::cycle_mfd_display()
     {
         const bool on_dashboard = cockpit_view && !cockpit3d && ship->spec().cockpit.present && ship->spec().cockpit.mfds &&
-                                  !map_mode && interior_cam < 0 && base_view < 0;
+                                  !map_mode && rig.interior_cam < 0 && rig.base_view < 0;
         // The see-through HUD steps through both displays, the left one and the right one before moving on.
         const bool in_hud = on_dashboard ? cockpit_mfd == 1 : mfd_display == 2;
         if (in_hud && hud_sides == 3)
@@ -89,13 +89,13 @@ namespace kosmos::app
 
     void App::cycle_camera()
     {
-        free_yaw = free_pitch = 0.0f;
+        rig.free_yaw = rig.free_pitch = 0.0f;
         // C cycles chase view, 2D cockpit, (for ships with MFDs) the 3D cockpit, then each camera from the Camera editor.
-        interior_cam = base_view = -1;
-        if (user_cam >= 0)
+        rig.interior_cam = rig.base_view = -1;
+        if (rig.user_cam >= 0)
         {
-            if (++user_cam >= static_cast<int>(user_cams.size()))
-                user_cam = -1;
+            if (++rig.user_cam >= static_cast<int>(rig.user_cams.size()))
+                rig.user_cam = -1;
         }
         else if (!cockpit_view)
             cockpit_view = true, cockpit3d = false;
@@ -104,10 +104,10 @@ namespace kosmos::app
         else
         {
             cockpit_view = cockpit3d = false;
-            if (!user_cams.empty())
-                user_cam = 0;
+            if (!rig.user_cams.empty())
+                rig.user_cam = 0;
         }
-        look_yaw = look_pitch = 0.0f;
+        rig.look_yaw = rig.look_pitch = 0.0f;
     }
 
     void App::switch_to_next_ship()
@@ -128,9 +128,9 @@ namespace kosmos::app
         props.set_double("/controls/hover", 0.0);
         props.set_string("/controls/sas", "stability");
         sas_index = 0;
-        cam_distance = ship->spec().camera_distance;
-        look_yaw = look_pitch = 0.0f;
-        interior_cam = -1;
+        rig.cam_distance = ship->spec().camera_distance;
+        rig.look_yaw = rig.look_pitch = 0.0f;
+        rig.interior_cam = -1;
     }
 
     void App::jump_to_player()
@@ -177,19 +177,19 @@ namespace kosmos::app
         {
         }
         else if (hit("window_cameras"))
-            camera_window = !camera_window;
+            windows.camera_window = !windows.camera_window;
         else if (hit("window_settings"))
-            settings_window = !settings_window;
+            windows.settings_window = !windows.settings_window;
         else if (hit("window_properties"))
-            property_window = !property_window;
+            windows.property_window = !windows.property_window;
         else if (hit("window_systems"))
-            systems_window = !systems_window;
+            windows.systems_window = !windows.systems_window;
         else if (hit("free_pointer"))
             pointer_free = !pointer_free;
         else if (hit("window_lua"))
-            lua_window = !lua_window;
+            windows.lua_window = !windows.lua_window;
         else if (hit("window_multiplayer"))
-            net_window = !net_window;
+            windows.net_window = !windows.net_window;
         else if (key == sl::Event::Key::escape)
         {
             if (!menu_bar.dismiss(menu_windows))
@@ -230,8 +230,8 @@ namespace kosmos::app
         }
         else if (hit("reset_look"))
         {
-            look_yaw = look_pitch = 0.0f;
-            eva_look_yaw = eva_look_pitch = 0.0;
+            rig.look_yaw = rig.look_pitch = 0.0f;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             sim.log("View reset to forwards");
         }
         else if (hit("hover_on"))
@@ -322,8 +322,8 @@ namespace kosmos::app
             gview.step_selection(-1);
         else if (galaxy_mode && hit("enter_exit") && gview.selected >= 0 && gview.selected != sim.system_index())
         {
-            jump_to = gview.selected;
-            jump_to_star_orbit = false;
+            quantum.jump_to = gview.selected;
+            quantum.jump_to_star_orbit = false;
         }
         else if (hit("cycle_camera"))
         {
@@ -352,7 +352,7 @@ namespace kosmos::app
                 hud.set_mode(next_hud_mode(hud.mode(), ship->spec().hud_modes()));
             if (hit("hud_mode"))
                 sim.log(std::string("HUD mode: ") + (hud.mode() == sl::HudMode::off ? "off" : sl::hud_mode_name(hud.mode())));
-            if (!(cockpit_view || interior_cam >= 0))
+            if (!(cockpit_view || rig.interior_cam >= 0))
                 sim.log("HUD is shown in cockpit view (press C)");
         }
         else if (hit("jump_player"))
@@ -460,68 +460,68 @@ namespace kosmos::app
             const double throttle = options.shot_throttle >= 0.0 ? options.shot_throttle : 1.0;
             // Engines light over 3 s rather than snapping to full thrust, with a thump as they catch.
             auto light_engines = [&] {
-                ramp_clock = clock;
+                script.ramp_clock = clock;
                 sound.play("thump", 255);
             };
-            if (options.launch_at >= 0.0 && ramp_clock < 0.0 && first_stage_clock < 0.0)
+            if (options.launch_at >= 0.0 && script.ramp_clock < 0.0 && script.first_stage_clock < 0.0)
             {
                 props.set_double("/controls/throttle", 0.0);
                 if (clock >= options.launch_at)
                     light_engines();
             }
-            if (ascent_fuel0 < 0.0 && ship->active_stage() == 0 && ship->telemetry().stage_fuel > 0.0 && ship->telemetry().thrust > 0.0)
-                ascent_fuel0 = ship->telemetry().stage_fuel;
-            if (pitchover_clock < 0.0 && ascent_fuel0 > 0.0 && ship->telemetry().stage_fuel < 0.5 * ascent_fuel0)
-                pitchover_clock = clock;
-            if (pitchover_clock >= 0.0)
+            if (script.ascent_fuel0 < 0.0 && ship->active_stage() == 0 && ship->telemetry().stage_fuel > 0.0 && ship->telemetry().thrust > 0.0)
+                script.ascent_fuel0 = ship->telemetry().stage_fuel;
+            if (script.pitchover_clock < 0.0 && script.ascent_fuel0 > 0.0 && ship->telemetry().stage_fuel < 0.5 * script.ascent_fuel0)
+                script.pitchover_clock = clock;
+            if (script.pitchover_clock >= 0.0)
             {
                 props.set_string("/controls/sas", "attitude");
                 props.set_double("/controls/target-heading", 90.0);
-                props.set_double("/controls/target-pitch", std::max(40.0, 90.0 - 0.8 * (clock - pitchover_clock)));
+                props.set_double("/controls/target-pitch", std::max(40.0, 90.0 - 0.8 * (clock - script.pitchover_clock)));
             }
-            if (ignite_clock >= 0.0)
+            if (script.ignite_clock >= 0.0)
             {
                 props.set_double("/controls/throttle", 0.0);
-                if (clock >= ignite_clock)
+                if (clock >= script.ignite_clock)
                 {
-                    ignite_clock = -1.0;
+                    script.ignite_clock = -1.0;
                     light_engines();
                 }
             }
-            else if (ramp_clock >= 0.0)
+            else if (script.ramp_clock >= 0.0)
             {
-                const double t = std::clamp((clock - ramp_clock) / 3.0, 0.0, 1.0);
+                const double t = std::clamp((clock - script.ramp_clock) / 3.0, 0.0, 1.0);
                 props.set_double("/controls/throttle", throttle * t * t * (3.0 - 2.0 * t));
             }
-            if (ignite_clock < 0.0 && ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
+            if (script.ignite_clock < 0.0 && ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
                 ship->telemetry().total_fuel > 1.0 && ship->stage_once())
             {
-                if (first_stage_clock < 0.0)
-                    first_stage_clock = clock;
-                ignite_clock = clock + 5.0;
-                ramp_clock = -1.0;
+                if (script.first_stage_clock < 0.0)
+                    script.first_stage_clock = clock;
+                script.ignite_clock = clock + 5.0;
+                script.ramp_clock = -1.0;
                 props.set_double("/controls/throttle", 0.0);
                 props.set_int("/sim/warp-index", 0);
             }
         }
-        for (; set_at_done < options.set_at.size() && clock >= options.set_at[set_at_done].first; ++set_at_done)
+        for (; script.set_at_done < options.set_at.size() && clock >= options.set_at[script.set_at_done].first; ++script.set_at_done)
         {
             {
-                const std::string &assignment = options.set_at[set_at_done].second;
+                const std::string &assignment = options.set_at[script.set_at_done].second;
                 const std::size_t eq = assignment.find('=');
                 if (eq != std::string::npos)
                     for (const char *axis_name : {"pitch", "yaw", "roll", "rcs-x", "rcs-y", "rcs-z"})
                         if (assignment.substr(0, eq) == std::string("/controls/") + axis_name)
-                            held_axes[axis_name] = std::atof(assignment.c_str() + eq + 1);
+                            script.held_axes[axis_name] = std::atof(assignment.c_str() + eq + 1);
             }
-            apply_sets(props, {options.set_at[set_at_done].second});
+            apply_sets(props, {options.set_at[script.set_at_done].second});
         }
         if (options.drop_at >= 0.0)
-            while (drops_done < options.drop_count && clock >= options.drop_at + drops_done * options.drop_interval)
+            while (script.drops_done < options.drop_count && clock >= options.drop_at + script.drops_done * options.drop_interval)
             {
                 if (Ship *flown = sim.active_ship())
                     arsenal.release(arsenal_ctx, *flown, 0);
-                ++drops_done;
+                ++script.drops_done;
             }
         if (options.shot_throttle >= 0.0 && !options.auto_stage)
             props.set_double("/controls/throttle", options.shot_throttle);
@@ -628,19 +628,19 @@ namespace kosmos::app
         props.set_double("/controls/rcs-z", lin_z);
         props.set_double("/controls/brake", !typing && !on_foot && (keys.down("brake") || props.get_double("/controls/brake-latch") > 0.5) ? 1.0 : 0.0);
         // In the cockpit the arrow keys move the head instead of firing RCS translation.
-        const bool head_keys = !typing && !on_foot && cockpit_view && interior_cam < 0 && base_view < 0 && !galaxy_mode && !map_mode;
-        if (eye_ship != ship || !cockpit_view)
+        const bool head_keys = !typing && !on_foot && cockpit_view && rig.interior_cam < 0 && rig.base_view < 0 && !galaxy_mode && !map_mode;
+        if (rig.eye_ship != ship || !cockpit_view)
         {
-            eye_ship = ship;
-            eye_shift = sl::dvec3(0.0);
+            rig.eye_ship = ship;
+            rig.eye_shift = sl::dvec3(0.0);
         }
         if (head_keys)
         {
             const double step = 0.6 * frame;
-            eye_shift.z -= axis("rcs_up", "rcs_down") * step;
-            eye_shift.x += axis("rcs_right", "rcs_left") * step;
-            eye_shift.y += axis("head_up", "head_down") * step;
-            eye_shift = glm::clamp(eye_shift, sl::dvec3(-0.8), sl::dvec3(0.8));
+            rig.eye_shift.z -= axis("rcs_up", "rcs_down") * step;
+            rig.eye_shift.x += axis("rcs_right", "rcs_left") * step;
+            rig.eye_shift.y += axis("head_up", "head_down") * step;
+            rig.eye_shift = glm::clamp(rig.eye_shift, sl::dvec3(-0.8), sl::dvec3(0.8));
         }
         if (const std::string request = props.get_string("/sim/hud-request"); !request.empty())
         {
@@ -653,7 +653,7 @@ namespace kosmos::app
         const double arrows_y = head_keys || rcs_off ? 0.0 : axis("rcs_up", "rcs_down");
         props.set_double("/controls/rcs-x", std::clamp(arrows_x + lin_x, -1.0, 1.0));
         props.set_double("/controls/rcs-y", std::clamp(arrows_y + lin_y, -1.0, 1.0));
-        for (const auto &[name, value] : held_axes)
+        for (const auto &[name, value] : script.held_axes)
             props.set_double("/controls/" + name, value);
         read_joystick(on_foot);
         if (props.get_bool("/autopilot/enabled") && props.get_double("/controls/pitch") + props.get_double("/controls/yaw") + props.get_double("/controls/roll") != 0.0)

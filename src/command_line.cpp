@@ -4,6 +4,8 @@
 #include "surface_textures.h"
 #include "scenario.h"
 #include <algorithm>
+#include <functional>
+#include <unordered_map>
 
 namespace kosmos::app
 {
@@ -25,113 +27,242 @@ namespace kosmos::app
         return KOSMOS_ROOT;
     }
 
-    static bool parse_early_option(int argc, char **argv, int &i, Options &options)
+    namespace
     {
-        if (!std::strcmp(argv[i], "--root") && i + 1 < argc)
-            options.root = argv[++i];
-        else if (!std::strcmp(argv[i], "--selftest") && i + 1 < argc)
-            options.selftest = std::atof(argv[++i]);
-        else if (!std::strcmp(argv[i], "--system") && i + 1 < argc)
-            options.system_name = argv[++i];
-        else if (!std::strcmp(argv[i], "--stars"))
-            options.list_stars = true;
-        else if (!std::strcmp(argv[i], "--list-worlds") && i + 1 < argc)
-            options.list_worlds = argv[++i];
-        else if (!std::strcmp(argv[i], "--galaxy-map"))
-            options.galaxy_view = true;
-        else if (!std::strcmp(argv[i], "--quantum"))
-            options.quantum_window = true;
-        else if (!std::strcmp(argv[i], "--test-jump-body") && i + 1 < argc)
-            options.test_jump_body = argv[++i];
-        else if (!std::strcmp(argv[i], "--world-texture") && i + 1 < argc)
-            options.world_texture = std::max(0, std::atoi(argv[++i]));
-        else if (!std::strcmp(argv[i], "--test-scenario") && i + 1 < argc)
-            options.test_scenario = argv[++i];
-        else if (!std::strcmp(argv[i], "--test-jump") && i + 1 < argc)
-            options.test_jump = std::atoi(argv[++i]);
-        else if (!std::strcmp(argv[i], "--max-texture") && i + 1 < argc)
-            options.max_texture = std::atoi(argv[++i]);
-        else if (!std::strcmp(argv[i], "--host"))
-        {
-            options.net_host = true;
-            if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
-                options.net_port = std::atoi(argv[++i]);
-        }
-        else if (!std::strcmp(argv[i], "--join") && i + 1 < argc)
-            options.net_join = argv[++i];
-        else if (!std::strcmp(argv[i], "--name") && i + 1 < argc)
-            options.net_name = argv[++i];
-        else if (!std::strcmp(argv[i], "--advertise") && i + 1 < argc)
-            options.net_advertise = argv[++i];
-        else if (!std::strcmp(argv[i], "--irc") && i + 1 < argc)
-            options.net_irc = argv[++i];
-        else if (!std::strcmp(argv[i], "--channel") && i + 1 < argc)
-            options.net_channel = argv[++i];
-        else if (!std::strcmp(argv[i], "--lobby"))
-            options.net_window = true;
-        else if (!std::strcmp(argv[i], "--fullscreen"))
-            options.fullscreen = true;
-        else if (!std::strcmp(argv[i], "--render-style") && i + 1 < argc)
-        {
-            const std::string v = argv[++i];
-            options.render_style = v == "flat" ? 1 : v == "wireframe" ? 2 : 0;
-        }
-        else if (!std::strcmp(argv[i], "--no-clouds"))
-            options.no_clouds = true;
-        else if (!std::strcmp(argv[i], "--no-clutter"))
-            options.no_clutter = true;
-        else if (!std::strcmp(argv[i], "--eva-walk"))
-            options.eva = options.eva_walk = true;
-        else if (!std::strcmp(argv[i], "--eva"))
-            options.eva = true;
-        else if (!std::strcmp(argv[i], "--perf"))
-            options.perf = true;
-        else if (!std::strcmp(argv[i], "--no-tiles"))
-            options.no_tiles = true;
-        else if (!std::strcmp(argv[i], "--no-detail"))
-            detail_disabled = true;
-        else if (!std::strcmp(argv[i], "--no-relief"))
-            options.no_relief = true;
-        else if (!std::strcmp(argv[i], "--blender") && i + 1 < argc)
-            options.blender = argv[++i];
-        else if (!std::strcmp(argv[i], "--part-editor"))
-            options.part_window = true;
-        else if (!std::strcmp(argv[i], "--clean"))
-            options.clean = options.hide_info = true;
-        else if (!std::strcmp(argv[i], "--hide-info"))
-            options.hide_info = true;
-        else if (!std::strcmp(argv[i], "--console"))
-        {
-            // handled by main() before the window opens (Windows only)
-        }
-        else if (!std::strcmp(argv[i], "--show-info"))
-            options.show_info = true;
-        else if (!std::strcmp(argv[i], "--systems-window"))
-            options.systems_window = true;
-        else if (!std::strcmp(argv[i], "--life-support") && i + 1 < argc)
-            options.life_support = argv[++i];
-        else if (!std::strcmp(argv[i], "--hud") && i + 1 < argc)
-            options.hud = argv[++i];
-        else if (!std::strcmp(argv[i], "--camera-editor"))
-            options.camera_editor = true;
-        else if (!std::strcmp(argv[i], "--user-camera") && i + 1 < argc)
-            options.user_camera = std::atoi(argv[++i]);
-        else if (!std::strcmp(argv[i], "--camera-window"))
-            options.camera_window = true;
-        else if (!std::strcmp(argv[i], "--aircraft-autopilot-window"))
-            options.aircraft_autopilot = true;
-        else if (!std::strcmp(argv[i], "--spacecraft-autopilot-window"))
-            options.spacecraft_autopilot = true;
-        else if (!std::strcmp(argv[i], "--settings-window"))
-            options.settings_window = true;
-        else if (!std::strcmp(argv[i], "--performance-window"))
-            options.performance_window = true;
-        else if (!std::strcmp(argv[i], "--keys-window"))
-            options.keys_window = true;
+    // One entry per command-line flag: the number of arguments it takes and what it does with them (false stops the run with an error).
+    // A flag missing its arguments is not recognised and goes to the backend with the rest.
+    struct Flag
+    {
+        const char *name;
+        int arity;
+        std::function<bool(Options &, char **)> apply;
+    };
+
+    using Apply = std::function<bool(Options &, char **)>;
+
+    template <typename T> Apply on(bool T::*field)
+    {
+        return [field](Options &o, char **) { o.*field = true; return true; };
+    }
+    Apply text(std::string Options::*field)
+    {
+        return [field](Options &o, char **a) { o.*field = a[0]; return true; };
+    }
+    Apply real(double Options::*field)
+    {
+        return [field](Options &o, char **a) { o.*field = std::atof(a[0]); return true; };
+    }
+    Apply whole(int Options::*field)
+    {
+        return [field](Options &o, char **a) { o.*field = std::atoi(a[0]); return true; };
+    }
+
+    // A number picks among the ships spawned in orbit; a name starts the scenario with that ship.
+    bool pick_ship(Options &o, char **a)
+    {
+        if (std::isdigit(static_cast<unsigned char>(a[0][0])))
+            o.ship_index = std::atoi(a[0]);
         else
-            return false;
+            o.ship_name = a[0];
         return true;
     }
+
+    // Kept in time order, so an earlier event given later on the command line is not held up.
+    bool set_at(Options &o, char **a)
+    {
+        const double at = std::atof(a[0]);
+        const auto later = std::find_if(o.set_at.begin(), o.set_at.end(), [at](const std::pair<double, std::string> &e) { return e.first > at; });
+        o.set_at.insert(later, {at, a[1]});
+        return true;
+    }
+
+    bool read_date(Options &o, char **a)
+    {
+        if (kosmos::parse_epoch(a[0], o.start_jd))
+            return true;
+        std::fprintf(stderr, "kosmos: cannot read --date \"%s\" (use \"YYYY-MM-DD HH:MM:SS\" in GMT, or an MJD)\n", a[0]);
+        return false;
+    }
+
+    const std::unordered_map<std::string, Flag> &flag_table()
+    {
+        static const std::unordered_map<std::string, Flag> table = [] {
+            const std::vector<Flag> list = {
+        {"--selftest", 1, real(&Options::selftest)},
+        {"--system", 1, text(&Options::system_name)},
+        {"--stars", 0, on(&Options::list_stars)},
+        {"--list-worlds", 1, text(&Options::list_worlds)},
+        {"--galaxy-map", 0, on(&Options::galaxy_view)},
+        {"--quantum", 0, on(&Options::quantum_window)},
+        {"--test-jump-body", 1, text(&Options::test_jump_body)},
+        {"--test-scenario", 1, text(&Options::test_scenario)},
+        {"--test-jump", 1, whole(&Options::test_jump)},
+        {"--max-texture", 1, whole(&Options::max_texture)},
+        {"--join", 1, text(&Options::net_join)},
+        {"--name", 1, text(&Options::net_name)},
+        {"--advertise", 1, text(&Options::net_advertise)},
+        {"--irc", 1, text(&Options::net_irc)},
+        {"--channel", 1, text(&Options::net_channel)},
+        {"--lobby", 0, on(&Options::net_window)},
+        {"--fullscreen", 0, on(&Options::fullscreen)},
+        {"--no-clouds", 0, on(&Options::no_clouds)},
+        {"--no-clutter", 0, on(&Options::no_clutter)},
+        {"--eva", 0, on(&Options::eva)},
+        {"--perf", 0, on(&Options::perf)},
+        {"--no-tiles", 0, on(&Options::no_tiles)},
+        {"--no-relief", 0, on(&Options::no_relief)},
+        {"--blender", 1, text(&Options::blender)},
+        {"--part-editor", 0, on(&Options::part_window)},
+        {"--hide-info", 0, on(&Options::hide_info)},
+        {"--show-info", 0, on(&Options::show_info)},
+        {"--systems-window", 0, on(&Options::systems_window)},
+        {"--life-support", 1, text(&Options::life_support)},
+        {"--hud", 1, text(&Options::hud)},
+        {"--camera-editor", 0, on(&Options::camera_editor)},
+        {"--user-camera", 1, whole(&Options::user_camera)},
+        {"--camera-window", 0, on(&Options::camera_window)},
+        {"--aircraft-autopilot-window", 0, on(&Options::aircraft_autopilot)},
+        {"--spacecraft-autopilot-window", 0, on(&Options::spacecraft_autopilot)},
+        {"--settings-window", 0, on(&Options::settings_window)},
+        {"--performance-window", 0, on(&Options::performance_window)},
+        {"--keys-window", 0, on(&Options::keys_window)},
+        {"--link-window", 0, on(&Options::link_window)},
+        {"--link", 0, on(&Options::link_listen)},
+        {"--lua-window", 0, on(&Options::lua_window)},
+        {"--check-data", 0, on(&Options::check_data)},
+        {"--menu", 0, on(&Options::menu_visible)},
+        {"--scenario-editor", 0, on(&Options::scenario_editor)},
+        {"--base-editor", 0, on(&Options::base_editor)},
+        {"--property-window", 0, on(&Options::property_window)},
+        {"--enter-building", 1, text(&Options::enter_building)},
+        {"--base-cam", 1, text(&Options::view_base)},
+        {"--selftest-throttle", 1, real(&Options::selftest_throttle)},
+        {"--selftest-gear-up", 0, on(&Options::selftest_gear_up)},
+        {"--selftest-drop", 1, real(&Options::selftest_drop)},
+        {"--selftest-weapons", 0, on(&Options::selftest_weapons)},
+        {"--selftest-arsenal", 0, on(&Options::selftest_arsenal)},
+        {"--selftest-drop-atom", 0, on(&Options::selftest_drop_atom)},
+        {"--selftest-warp", 1, real(&Options::selftest_warp)},
+        {"--panel", 1, whole(&Options::panel)},
+        {"--shot-stages", 1, whole(&Options::shot_stages)},
+        {"--shot-throttle", 1, real(&Options::shot_throttle)},
+        {"--shot", 1, text(&Options::shot)},
+        {"--record", 1, real(&Options::record_seconds)},
+        {"--shot-at", 1, real(&Options::shot_at)},
+        {"--auto-stage", 0, on(&Options::auto_stage)},
+        {"--record-after-stage", 1, real(&Options::record_after_stage)},
+        {"--autopilot", 0, on(&Options::autopilot)},
+        {"--cockpit", 0, on(&Options::cockpit)},
+        {"--scenario", 1, text(&Options::scenario)},
+        {"--target", 1, text(&Options::target)},
+        {"--bake-planet", 1, text(&Options::bake_body)},
+        {"--gen-world", 1, text(&Options::gen_world)},
+        {"--gen-width", 1, whole(&Options::gen_width)},
+        {"--bake-width", 1, whole(&Options::bake_width)},
+        {"--bake-lazy", 0, on(&Options::bake_lazy)},
+        {"--bake-estimate", 0, on(&Options::bake_estimate)},
+        {"--list-scenarios", 0, on(&Options::list_scenarios)},
+        {"--mfd", 1, whole(&Options::mfd_display)},
+        {"--mfd-left", 1, text(&Options::mfd_left)},
+        {"--mfd-right", 1, text(&Options::mfd_right)},
+        {"--map-scale", 1, real(&Options::map_scale)},
+        {"--map-focus", 1, text(&Options::map_focus)},
+        {"--map", 0, on(&Options::map)},
+        {"--orbit", 0, on(&Options::orbit_start)},
+        {"--orbit-body", 1, text(&Options::orbit_body)},
+        {"--cam-pitch", 1, real(&Options::cam_pitch)},
+        {"--cam-yaw", 1, real(&Options::cam_yaw)},
+        {"--cam-dolly", 1, real(&Options::cam_dolly)},
+        {"--cam-spin", 1, real(&Options::cam_spin)},
+        {"--launch-at", 1, real(&Options::launch_at)},
+        {"--alone", 0, on(&Options::alone)},
+        {"--cam-tilt", 1, real(&Options::cam_tilt)},
+        {"--cam-fov", 1, real(&Options::cam_fov)},
+        {"--cam-antisun", 0, on(&Options::cam_antisun)},
+        {"--cam-sunward", 0, on(&Options::cam_sunward)},
+        {"--cam-distance", 1, real(&Options::cam_distance)},
+        {"--orbit-phase", 1, real(&Options::orbit_phase)},
+        {"--sunlit", 0, on(&Options::sunlit)},
+        {"--sun-angle", 1, real(&Options::sun_angle)},
+        {"--orbit-half", 0, on(&Options::orbit_half)},
+        {"--orbit-alt", 1, real(&Options::orbit_altitude)},
+        {"--warp-to", 1, real(&Options::shot_time)},
+        {"--root", 1, text(&Options::root)},
+        {"--world-texture", 1, [](Options &o, char **a) { o.world_texture = std::max(0, std::atoi(a[0])); return true; }},
+        {"--render-style", 1, [](Options &o, char **a) { const std::string v = a[0]; o.render_style = v == "flat" ? 1 : v == "wireframe" ? 2 : 0; return true; }},
+        {"--eva-walk", 0, [](Options &o, char **) { o.eva = o.eva_walk = true; return true; }},
+        {"--no-detail", 0, [](Options &, char **) { detail_disabled = true; return true; }},
+        {"--clean", 0, [](Options &o, char **) { o.clean = o.hide_info = true; return true; }},
+        {"--console", 0, [](Options &, char **) { return true; }}, // handled by main() before the window opens (Windows only)
+        {"--cockpit3d", 0, [](Options &o, char **) { o.cockpit = o.cockpit3d = true; return true; }},
+        {"--set", 1, [](Options &o, char **a) { o.sets.push_back(a[0]); return true; }},
+        {"--link-port", 1, [](Options &o, char **a) { o.link_port = std::clamp(std::atoi(a[0]), 0, 65535); return true; }},
+        {"--gen-threads", 1, [](Options &o, char **a) { o.gen_threads = std::clamp(std::atoi(a[0]), 1, 4); return true; }},
+        {"--gen-memory", 1, [](Options &o, char **a) { o.gen_memory_mb = std::clamp(std::atoi(a[0]), 512, 4096); return true; }},
+        {"--scenario-file", 1, text(&Options::scenario_file)},
+        {"--ambient", 1, [](Options &o, char **a) { o.ambient = static_cast<float>(std::atof(a[0])); return true; }},
+        {"--mjd", 1, [](Options &o, char **a) { o.start_jd = std::atof(a[0]) + kosmos::mjd_offset; return true; }},
+        {"--earth-turn", 1, [](Options &o, char **a) { o.earth_turn = std::atof(a[0]) * 3.14159265358979 / 180.0; return true; }},
+        {"--export-base", 2, [](Options &o, char **a) { o.export_base = a[0]; o.export_file = a[1]; return true; }},
+        {"--drop", 3, [](Options &o, char **a) { o.drop_at = std::atof(a[0]); o.drop_count = std::atoi(a[1]); o.drop_interval = std::atof(a[2]); return true; }},
+        {"--interior-at", 4, [](Options &o, char **a) { o.interior_at = true; for (int k = 0; k < 4; ++k) o.interior_pos[k] = std::atof(a[k]); return true; }},
+        {"--set-at", 2, set_at},
+        {"--ship", 1, pick_ship},
+        {"--date", 1, read_date},
+            };
+            std::unordered_map<std::string, Flag> map;
+            for (const Flag &f : list)
+                map.emplace(f.name, f);
+            return map;
+        }();
+        return table;
+    }
+
+    // Developer preview: --gen-planet TYPE SEED OUT.png [WIDTH] writes an invented world's far-view image and exits.
+    int generate_planet_preview(int argc, char **argv, int i)
+    {
+        kosmos::PlanetStyle style;
+        style.type = kosmos::archetype_from_name(argv[i + 1]);
+        style.seed = std::atoi(argv[i + 2]);
+        const std::string out = argv[i + 3];
+        const int width = i + 4 < argc && std::atoi(argv[i + 4]) > 0 ? std::atoi(argv[i + 4]) : 1024;
+        if (!style.valid())
+        {
+            std::fprintf(stderr, "types: mercury venus earth mars gas\n");
+            return 1;
+        }
+        static const float tints[][3] = {{0.6f, 0.6f, 0.6f}, {0.6f, 0.6f, 0.6f}, {0.88f, 0.75f, 0.47f}, {0.24f, 0.43f, 0.67f}, {0.75f, 0.4f, 0.25f}, {0.85f, 0.7f, 0.5f}};
+        std::copy(tints[static_cast<int>(style.type)], tints[static_cast<int>(style.type)] + 3, style.tint);
+        const kosmos::PlanetSurface surface(style, 6.0e6);
+        sl::Bitmap *bitmap = surface.make_texture(width, width / 2);
+        if (!bitmap || !sl::save_bitmap(bitmap, out))
+        {
+            std::fprintf(stderr, "could not write %s\n", out.c_str());
+            return 1;
+        }
+        std::printf("wrote %s\n", out.c_str());
+        return 0;
+    }
+
+    // --host [PORT]: the port is optional, so this one does not fit the table.
+    void parse_host(int argc, char **argv, int &i, Options &options)
+    {
+        options.net_host = true;
+        if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
+            options.net_port = std::atoi(argv[++i]);
+    }
+
+    // Applies the flag at argv[i] from the table and moves i past its arguments. Returns 0 if it was applied, 1 if it failed, -1 if it is not a known flag.
+    int apply_flag(int argc, char **argv, int &i, Options &options)
+    {
+        const auto it = flag_table().find(argv[i]);
+        if (it == flag_table().end() || i + it->second.arity >= argc)
+            return -1;
+        char **args = argv + i + 1;
+        i += it->second.arity;
+        return it->second.apply(options, args) ? 0 : 1;
+    }
+    } // namespace
 
     int parse_command_line(int argc, char **argv, Options &options, std::vector<char *> &backend_args)
     {
@@ -142,218 +273,17 @@ namespace kosmos::app
                 std::printf("Kosmos %s\n", KOSMOS_VERSION);
                 return 0;
             }
-            else if (!std::strcmp(argv[i], "--gen-planet") && i + 3 < argc)
+            if (!std::strcmp(argv[i], "--gen-planet") && i + 3 < argc)
+                return generate_planet_preview(argc, argv, i);
+            if (!std::strcmp(argv[i], "--host"))
             {
-                // Developer preview: --gen-planet TYPE SEED OUT.png [WIDTH] writes an invented world's far-view image and exits.
-                kosmos::PlanetStyle style;
-                style.type = kosmos::archetype_from_name(argv[i + 1]);
-                style.seed = std::atoi(argv[i + 2]);
-                const std::string out = argv[i + 3];
-                const int width = i + 4 < argc && std::atoi(argv[i + 4]) > 0 ? std::atoi(argv[i + 4]) : 1024;
-                static const float tints[][3] = {{0.6f, 0.6f, 0.6f}, {0.6f, 0.6f, 0.6f}, {0.88f, 0.75f, 0.47f}, {0.24f, 0.43f, 0.67f}, {0.75f, 0.4f, 0.25f}, {0.85f, 0.7f, 0.5f}};
-                std::copy(tints[static_cast<int>(style.type)], tints[static_cast<int>(style.type)] + 3, style.tint);
-                if (!style.valid())
-                {
-                    std::fprintf(stderr, "types: mercury venus earth mars gas\n");
-                    return 1;
-                }
-                const kosmos::PlanetSurface surface(style, 6.0e6);
-                sl::Bitmap *bitmap = surface.make_texture(width, width / 2);
-                if (!bitmap || !sl::save_bitmap(bitmap, out))
-                {
-                    std::fprintf(stderr, "could not write %s\n", out.c_str());
-                    return 1;
-                }
-                std::printf("wrote %s\n", out.c_str());
-                return 0;
-            }
-            else if (parse_early_option(argc, argv, i, options))
+                parse_host(argc, argv, i, options);
                 continue;
-            else if (!std::strcmp(argv[i], "--link-window"))
-                options.link_window = true;
-            else if (!std::strcmp(argv[i], "--link"))
-                options.link_listen = true;
-            else if (!std::strcmp(argv[i], "--link-port") && i + 1 < argc)
-                options.link_port = std::clamp(std::atoi(argv[++i]), 0, 65535);
-            else if (!std::strcmp(argv[i], "--lua-window"))
-                options.lua_window = true;
-            else if (!std::strcmp(argv[i], "--export-base") && i + 2 < argc)
-            {
-                options.export_base = argv[++i];
-                options.export_file = argv[++i];
             }
-            else if (!std::strcmp(argv[i], "--check-data"))
-                options.check_data = true;
-            else if (!std::strcmp(argv[i], "--menu"))
-                options.menu_visible = true;
-            else if (!std::strcmp(argv[i], "--scenario-editor"))
-                options.scenario_editor = true;
-            else if (!std::strcmp(argv[i], "--base-editor"))
-                options.base_editor = true;
-            else if (!std::strcmp(argv[i], "--property-window"))
-                options.property_window = true;
-            else if (!std::strcmp(argv[i], "--interior-at") && i + 4 < argc)
-            {
-                options.interior_at = true;
-                for (double &v : options.interior_pos)
-                    v = std::atof(argv[++i]);
-            }
-            else if (!std::strcmp(argv[i], "--enter-building") && i + 1 < argc)
-                options.enter_building = argv[++i];
-            else if (!std::strcmp(argv[i], "--base-cam") && i + 1 < argc)
-                options.view_base = argv[++i];
-            else if (!std::strcmp(argv[i], "--selftest-throttle") && i + 1 < argc)
-                options.selftest_throttle = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--selftest-gear-up"))
-                options.selftest_gear_up = true;
-            else if (!std::strcmp(argv[i], "--selftest-drop") && i + 1 < argc)
-                options.selftest_drop = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--selftest-weapons"))
-                options.selftest_weapons = true;
-            else if (!std::strcmp(argv[i], "--selftest-arsenal"))
-                options.selftest_arsenal = true;
-            else if (!std::strcmp(argv[i], "--selftest-drop-atom"))
-                options.selftest_drop_atom = true;
-            else if (!std::strcmp(argv[i], "--selftest-warp") && i + 1 < argc)
-                options.selftest_warp = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--panel") && i + 1 < argc)
-                options.panel = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--shot-stages") && i + 1 < argc)
-                options.shot_stages = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--shot-throttle") && i + 1 < argc)
-                options.shot_throttle = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--shot") && i + 1 < argc)
-                options.shot = argv[++i];
-            else if (!std::strcmp(argv[i], "--record") && i + 1 < argc)
-                options.record_seconds = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--shot-at") && i + 1 < argc)
-                options.shot_at = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--auto-stage"))
-                options.auto_stage = true;
-            else if (!std::strcmp(argv[i], "--record-after-stage") && i + 1 < argc)
-                options.record_after_stage = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--autopilot"))
-                options.autopilot = true;
-            else if (!std::strcmp(argv[i], "--cockpit"))
-                options.cockpit = true;
-            else if (!std::strcmp(argv[i], "--cockpit3d"))
-                options.cockpit = options.cockpit3d = true;
-            else if (!std::strcmp(argv[i], "--scenario") && i + 1 < argc)
-                options.scenario = argv[++i];
-            else if (!std::strcmp(argv[i], "--target") && i + 1 < argc)
-                options.target = argv[++i];
-            else if (!std::strcmp(argv[i], "--set") && i + 1 < argc)
-                options.sets.push_back(argv[++i]);
-            else if (!std::strcmp(argv[i], "--bake-planet") && i + 1 < argc)
-                options.bake_body = argv[++i];
-            else if (!std::strcmp(argv[i], "--gen-world") && i + 1 < argc)
-                options.gen_world = argv[++i];
-            else if (!std::strcmp(argv[i], "--gen-width") && i + 1 < argc)
-                options.gen_width = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--gen-threads") && i + 1 < argc)
-                options.gen_threads = std::clamp(std::atoi(argv[++i]), 1, 4);
-            else if (!std::strcmp(argv[i], "--gen-memory") && i + 1 < argc)
-                options.gen_memory_mb = std::clamp(std::atoi(argv[++i]), 512, 4096);
-            else if (!std::strcmp(argv[i], "--bake-width") && i + 1 < argc)
-                options.bake_width = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--bake-lazy"))
-                options.bake_lazy = true;
-            else if (!std::strcmp(argv[i], "--bake-estimate"))
-                options.bake_estimate = true;
-            else if (!std::strcmp(argv[i], "--list-scenarios"))
-                options.list_scenarios = true;
-            else if (!std::strcmp(argv[i], "--mfd") && i + 1 < argc)
-                options.mfd_display = std::atoi(argv[++i]);
-            else if (!std::strcmp(argv[i], "--mfd-left") && i + 1 < argc)
-                options.mfd_left = argv[++i];
-            else if (!std::strcmp(argv[i], "--mfd-right") && i + 1 < argc)
-                options.mfd_right = argv[++i];
-            else if (!std::strcmp(argv[i], "--ship") && i + 1 < argc)
-            {
-                // A number picks among the ships spawned in orbit; a name starts the scenario with that ship.
-                const char *value = argv[++i];
-                if (std::isdigit(static_cast<unsigned char>(value[0])))
-                    options.ship_index = std::atoi(value);
-                else
-                    options.ship_name = value;
-            }
-            else if (!std::strcmp(argv[i], "--map-scale") && i + 1 < argc)
-                options.map_scale = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--map-focus") && i + 1 < argc)
-                options.map_focus = argv[++i];
-            else if (!std::strcmp(argv[i], "--map"))
-                options.map = true;
-            else if (!std::strcmp(argv[i], "--orbit"))
-                options.orbit_start = true;
-            else if (!std::strcmp(argv[i], "--orbit-body") && i + 1 < argc)
-                options.orbit_body = argv[++i];
-            else if (!std::strcmp(argv[i], "--cam-pitch") && i + 1 < argc)
-                options.cam_pitch = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--cam-yaw") && i + 1 < argc)
-                options.cam_yaw = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--cam-dolly") && i + 1 < argc)
-                options.cam_dolly = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--cam-spin") && i + 1 < argc)
-                options.cam_spin = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--scenario-file") && i + 1 < argc)
-            {
-                options.scenario_file = argv[++i];
-            }
-            else if (!std::strcmp(argv[i], "--set-at") && i + 2 < argc)
-            {
-                const double at = std::atof(argv[i + 1]);
-                // Kept in time order, so an earlier event given later on the command line is not held up.
-                const auto later = std::find_if(options.set_at.begin(), options.set_at.end(), [at](const std::pair<double, std::string> &e) { return e.first > at; });
-                options.set_at.insert(later, {at, argv[i + 2]});
-                i += 2;
-            }
-            else if (!std::strcmp(argv[i], "--drop") && i + 3 < argc)
-            {
-                options.drop_at = std::atof(argv[++i]);
-                options.drop_count = std::atoi(argv[++i]);
-                options.drop_interval = std::atof(argv[++i]);
-            }
-            else if (!std::strcmp(argv[i], "--launch-at") && i + 1 < argc)
-                options.launch_at = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--alone"))
-                options.alone = true;
-            else if (!std::strcmp(argv[i], "--cam-tilt") && i + 1 < argc)
-                options.cam_tilt = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--cam-fov") && i + 1 < argc)
-                options.cam_fov = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--cam-antisun"))
-                options.cam_antisun = true;
-            else if (!std::strcmp(argv[i], "--cam-sunward"))
-                options.cam_sunward = true;
-            else if (!std::strcmp(argv[i], "--cam-distance") && i + 1 < argc)
-                options.cam_distance = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--ambient") && i + 1 < argc)
-                options.ambient = static_cast<float>(std::atof(argv[++i]));
-            else if (!std::strcmp(argv[i], "--orbit-phase") && i + 1 < argc)
-                options.orbit_phase = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--sunlit"))
-                options.sunlit = true;
-            else if (!std::strcmp(argv[i], "--sun-angle") && i + 1 < argc)
-                options.sun_angle = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--orbit-half"))
-                options.orbit_half = true;
-            else if (!std::strcmp(argv[i], "--orbit-alt") && i + 1 < argc)
-                options.orbit_altitude = std::atof(argv[++i]);
-            else if (!std::strcmp(argv[i], "--date") && i + 1 < argc)
-            {
-                if (!kosmos::parse_epoch(argv[++i], options.start_jd))
-                {
-                    std::fprintf(stderr, "kosmos: cannot read --date \"%s\" (use \"YYYY-MM-DD HH:MM:SS\" in GMT, or an MJD)\n", argv[i]);
-                    return 1;
-                }
-            }
-            else if (!std::strcmp(argv[i], "--mjd") && i + 1 < argc)
-                options.start_jd = std::atof(argv[++i]) + kosmos::mjd_offset;
-            else if (!std::strcmp(argv[i], "--earth-turn") && i + 1 < argc)
-                options.earth_turn = std::atof(argv[++i]) * 3.14159265358979 / 180.0;
-            else if (!std::strcmp(argv[i], "--warp-to") && i + 1 < argc)
-                options.shot_time = std::atof(argv[++i]);
-            else
+            const int applied = apply_flag(argc, argv, i, options);
+            if (applied > 0)
+                return 1;
+            if (applied < 0)
                 backend_args.push_back(argv[i]);
         }
         return keep_going;

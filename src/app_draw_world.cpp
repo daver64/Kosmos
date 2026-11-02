@@ -15,11 +15,11 @@ namespace kosmos::app
     void App::render_panel_target(const kosmos::Cockpit &pcp, const std::string &directory)
     {
         const int wanted = static_cast<int>(std::ceil(panel_target_width * pcp.panel_height / pcp.panel_width));
-        if (!panel_target || wanted != panel_target_height)
-            panel_target = sl::create_render_target(panel_target_width, panel_target_height = wanted);
-        if (panel_target)
-            panel_target->smooth = true;
-        if (panel_target && sl::begin_render_target(panel_target))
+        if (!targets.panel_target || wanted != targets.panel_target_height)
+            targets.panel_target = sl::create_render_target(panel_target_width, targets.panel_target_height = wanted);
+        if (targets.panel_target)
+            targets.panel_target->smooth = true;
+        if (targets.panel_target && sl::begin_render_target(targets.panel_target))
         {
             sl::clear_render_target({18, 20, 26, 255});
             draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(directory) / pcp.panel_image).string(), 0.0f, 0.0f,
@@ -37,26 +37,26 @@ namespace kosmos::app
     // The scratch target the MFD and HUD are drawn into at `factor` times their size; made again when the factor changes.
     sl::Bitmap *App::supersample_target(int factor)
     {
-        if (factor != ss_factor)
+        if (factor != targets.ss_factor)
         {
-            if (ss_big)
-                sl::destroy_bitmap(ss_big);
-            if (ss_mid)
-                sl::destroy_bitmap(ss_mid);
-            ss_big = ss_mid = nullptr;
-            ss_factor = factor;
+            if (targets.ss_big)
+                sl::destroy_bitmap(targets.ss_big);
+            if (targets.ss_mid)
+                sl::destroy_bitmap(targets.ss_mid);
+            targets.ss_big = targets.ss_mid = nullptr;
+            targets.ss_factor = factor;
             // Even at 1x the scratch target is used, so the final blit puts every backend's render target the right way up.
-            ss_big = sl::create_render_target(mfd_target_size * factor, mfd_target_size * factor);
-            if (ss_big)
-                ss_big->smooth = true;
+            targets.ss_big = sl::create_render_target(mfd_target_size * factor, mfd_target_size * factor);
+            if (targets.ss_big)
+                targets.ss_big->smooth = true;
             if (factor > 2)
             {
-                ss_mid = sl::create_render_target(mfd_target_size * 2, mfd_target_size * 2);
-                if (ss_mid)
-                    ss_mid->smooth = true;
+                targets.ss_mid = sl::create_render_target(mfd_target_size * 2, mfd_target_size * 2);
+                if (targets.ss_mid)
+                    targets.ss_mid->smooth = true;
             }
         }
-        return ss_big;
+        return targets.ss_big;
     }
 
     // Halves the image in steps, so each bilinear tap is an exact box filter.
@@ -71,10 +71,10 @@ namespace kosmos::app
         };
         // OpenGL targets are stored bottom-up, so a flipped sprite is a plain copy there; on Vulkan and Direct3D it is a real flip,
         // and the single final one is what turns a top-down target the right way up for the cockpit meshes.
-        if (ss_mid && source != ss_mid && source->width > destination->width * 2)
+        if (targets.ss_mid && source != targets.ss_mid && source->width > destination->width * 2)
         {
-            blit(source, ss_mid, sl::graphics_backend() == sl::GraphicsBackend::opengl);
-            source = ss_mid;
+            blit(source, targets.ss_mid, sl::graphics_backend() == sl::GraphicsBackend::opengl);
+            source = targets.ss_mid;
         }
         blit(source, destination, true);
     }
@@ -98,17 +98,17 @@ namespace kosmos::app
                     layout.y *= factor;
                     layout.size *= factor;
                     sim.mfd.draw_to_target(side, big, layout);
-                    downsample_target(big, mfd_target[side], {18, 20, 26, 255});
+                    downsample_target(big, targets.mfd_target[side], {18, 20, 26, 255});
                 }
                 else
-                    sim.mfd.draw_to_target(side, mfd_target[side], mfd_target_layout(!pcp.vc_model.empty()));
+                    sim.mfd.draw_to_target(side, targets.mfd_target[side], mfd_target_layout(!pcp.vc_model.empty()));
             if (!pcp.vc_model.empty())
             {
                 for (const kosmos::Cockpit::VcInstrument &vi : pcp.vc_instruments)
                 {
                     if (vi.unit < 2 || vi.unit >= 8 || vi.unit >= sim.mfd.unit_count())
                         continue;
-                    sl::Bitmap *&t = instr_target[vi.unit];
+                    sl::Bitmap *&t = targets.instr_target[vi.unit];
                     if (!t)
                         t = sl::create_render_target(mfd_target_size, mfd_target_size);
                     sl::Bitmap *into = big ? big : t;
@@ -124,10 +124,10 @@ namespace kosmos::app
                     if (big)
                         downsample_target(big, t, {10, 12, 16, 255});
                 }
-                if (gauge_target.size() != pcp.vc_gauges.size())
+                if (targets.gauge_target.size() != pcp.vc_gauges.size())
                 {
-                    gauge_target.assign(pcp.vc_gauges.size(), nullptr);
-                    gauge_scratch.assign(pcp.vc_gauges.size(), nullptr);
+                    targets.gauge_target.assign(pcp.vc_gauges.size(), nullptr);
+                    targets.gauge_scratch.assign(pcp.vc_gauges.size(), nullptr);
                 }
                 for (std::size_t gi = 0; gi < pcp.vc_gauges.size(); ++gi)
                 {
@@ -136,12 +136,12 @@ namespace kosmos::app
                     if (!art)
                         continue;
                     const int gw = art->width * 2, gh = art->height * 2;
-                    if (!gauge_target[gi])
+                    if (!targets.gauge_target[gi])
                     {
-                        gauge_target[gi] = sl::create_render_target(gw, gh);
-                        gauge_scratch[gi] = sl::create_render_target(gw, gh);
+                        targets.gauge_target[gi] = sl::create_render_target(gw, gh);
+                        targets.gauge_scratch[gi] = sl::create_render_target(gw, gh);
                     }
-                    sl::Bitmap *scratch = gauge_scratch[gi], *out = gauge_target[gi];
+                    sl::Bitmap *scratch = targets.gauge_scratch[gi], *out = targets.gauge_target[gi];
                     if (!scratch || !out || !sl::begin_render_target(scratch))
                         continue;
                     scratch->smooth = out->smooth = true;

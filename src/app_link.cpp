@@ -93,8 +93,8 @@ namespace kosmos::app
                     return "";
                 App &app = app_;
                 app_.sim.mfd.register_native(addon, mode, title, directory, [&app, addon, id](MfdCanvas &g) {
-                    link::Page *page = app.link_server ? app.link_server->page(addon, id) : nullptr;
-                    if (!page || !app.link_server->page_live(addon))
+                    link::Page *page = app.link_state.link_server ? app.link_state.link_server->page(addon, id) : nullptr;
+                    if (!page || !app.link_state.link_server->page_live(addon))
                     {
                         g.set_colour(255, 120, 80);
                         g.text(mfd_size / 2.0f, mfd_size / 2.0f, "NO SIGNAL", 1);
@@ -386,68 +386,68 @@ namespace kosmos::app
 
     void App::setup_link()
     {
-        link_host = std::make_unique<AppLinkHost>(*this);
-        link_server = std::make_unique<link::LinkServer>(sim.props, *link_host, &native_addons);
+        link_state.link_host = std::make_unique<AppLinkHost>(*this);
+        link_state.link_server = std::make_unique<link::LinkServer>(sim.props, *link_state.link_host, &link_state.native_addons);
         std::vector<link::AddonRef> refs;
         for (const kosmos::Addon &addon : sim.addons())
             refs.push_back({addon.id, addon.name, addon.directory});
-        native_addons.scan(refs);
+        link_state.native_addons.scan(refs);
         const std::string keys_file = kosmos::keybindings_path();
         if (!keys_file.empty())
-            native_addons.set_state_file((std::filesystem::path(keys_file).parent_path() / "native_addons.json").string());
-        native_addons.load();
-        link_window = options.link_window;
+            link_state.native_addons.set_state_file((std::filesystem::path(keys_file).parent_path() / "native_addons.json").string());
+        link_state.native_addons.load();
+        windows.link_window = options.link_window;
         if (options.link_listen)
             sim.props.set_bool(listen_setting, true);
     }
 
     void App::update_link()
     {
-        if (!link_server)
+        if (!link_state.link_server)
             return;
         const auto now = std::chrono::steady_clock::now();
-        if (now - link_tick > std::chrono::seconds(1))
+        if (now - link_state.link_tick > std::chrono::seconds(1))
         {
-            link_tick = now;
+            link_state.link_tick = now;
             bool want = sim.props.get_bool(listen_setting);
-            for (const link::NativeEntry &e : native_addons.entries())
+            for (const link::NativeEntry &e : link_state.native_addons.entries())
                 want = want || (e.allowed && !e.program.empty());
-            if (want && !link_server->running() && !link_failed)
+            if (want && !link_state.link_server->running() && !link_state.link_failed)
             {
-                if (link_server->start(static_cast<std::uint16_t>(options.link_port)))
+                if (link_state.link_server->start(static_cast<std::uint16_t>(options.link_port)))
                 {
-                    native_addons.set_endpoint(link_server->port());
-                    sim.log("KosmosLink listening on 127.0.0.1:" + std::to_string(link_server->port()));
+                    link_state.native_addons.set_endpoint(link_state.link_server->port());
+                    sim.log("KosmosLink listening on 127.0.0.1:" + std::to_string(link_state.link_server->port()));
                 }
                 else
                 {
-                    link_failed = true;
+                    link_state.link_failed = true;
                     sim.log("KosmosLink: cannot listen on port " + std::to_string(options.link_port));
                 }
             }
             else if (!want)
             {
-                link_failed = false;
-                if (link_server->running())
-                    link_server->stop();
+                link_state.link_failed = false;
+                if (link_state.link_server->running())
+                    link_state.link_server->stop();
             }
-            native_addons.update();
+            link_state.native_addons.update();
         }
-        if (!link_server->running())
+        if (!link_state.link_server->running())
             return;
-        link_server->set_timeout(sim.props.exists(timeout_setting) ? sim.props.get_double(timeout_setting) : 15.0);
-        link_server->poll();
-        link_server->flush();
+        link_state.link_server->set_timeout(sim.props.exists(timeout_setting) ? sim.props.get_double(timeout_setting) : 15.0);
+        link_state.link_server->poll();
+        link_state.link_server->flush();
         const Ship *active = sim.active_ship();
-        if (active != link_ship)
+        if (active != link_state.link_ship)
         {
-            link_ship = active;
-            link_server->broadcast_event("ship", active ? active->spec().name : std::string());
+            link_state.link_ship = active;
+            link_state.link_server->broadcast_event("ship", active ? active->spec().name : std::string());
         }
 
         // Opt-in events: each is worked out only while some client has asked for it.
         LinkWatch &w = memory.link_watch;
-        link::LinkServer &srv = *link_server;
+        link::LinkServer &srv = *link_state.link_server;
         auto &props = sim.props;
         {
             const auto hits = ship_weapons.take_hits();
@@ -462,10 +462,10 @@ namespace kosmos::app
                             break;
                         }
         }
-        if (!link_scenario.empty())
+        if (!link_state.link_scenario.empty())
         {
-            srv.broadcast_event("scenario", link_scenario);
-            link_scenario.clear();
+            srv.broadcast_event("scenario", link_state.link_scenario);
+            link_state.link_scenario.clear();
         }
         if (srv.wants_event("pause") || srv.wants_event("warp") || srv.wants_event("ships") || srv.wants_event("soi") || srv.wants_event("crash") || srv.wants_event("touchdown") || srv.wants_event("weather") || srv.wants_event("tick") || !w.primed)
         {
@@ -522,36 +522,36 @@ namespace kosmos::app
 
     void App::shutdown_link()
     {
-        if (link_server && link_server->running())
+        if (link_state.link_server && link_state.link_server->running())
         {
-            link_server->broadcast_event("shutdown", "");
-            link_server->flush();
-            link_server->stop();
+            link_state.link_server->broadcast_event("shutdown", "");
+            link_state.link_server->flush();
+            link_state.link_server->stop();
         }
-        native_addons.shutdown();
+        link_state.native_addons.shutdown();
     }
 
     void App::draw_link_window()
     {
-        if (!link_window)
+        if (!windows.link_window)
             return;
         ImGui::SetNextWindowPos(ImVec2(380.0f, 50.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(620.0f, 420.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowBgAlpha(0.94f);
-        if (ImGui::Begin("Native addons", &link_window))
+        if (ImGui::Begin("Native addons", &windows.link_window))
         {
             ImGui::TextWrapped("Native addons are separate programs that read and control the simulation through KosmosLink. They run only if you allow them here, and can do only what their addon declares.");
             bool listen = sim.props.get_bool(listen_setting);
             if (ImGui::Checkbox("Listen for programs started outside Kosmos", &listen))
             {
                 sim.props.set_bool(listen_setting, listen);
-                link_failed = false;
+                link_state.link_failed = false;
                 kosmos::settings_save(sim.props);
             }
-            if (link_server && link_server->running())
-                ImGui::TextDisabled("Listening on 127.0.0.1:%d (this computer only)", static_cast<int>(link_server->port()));
+            if (link_state.link_server && link_state.link_server->running())
+                ImGui::TextDisabled("Listening on 127.0.0.1:%d (this computer only)", static_cast<int>(link_state.link_server->port()));
             else
-                ImGui::TextDisabled(link_failed ? "Cannot listen on the link port (is another program using it?)" : "Not listening");
+                ImGui::TextDisabled(link_state.link_failed ? "Cannot listen on the link port (is another program using it?)" : "Not listening");
             float timeout = sim.props.exists(timeout_setting) ? static_cast<float>(sim.props.get_double(timeout_setting)) : 15.0f;
             if (ui::slider_float("Drop silent programs after (s, 0 = never)", &timeout, 0.0f, 60.0f, "%.0f"))
             {
@@ -565,16 +565,16 @@ namespace kosmos::app
                 kosmos::settings_save(sim.props);
             }
             ImGui::Separator();
-            std::vector<link::NativeEntry> &entries = native_addons.entries();
+            std::vector<link::NativeEntry> &entries = link_state.native_addons.entries();
             if (entries.empty())
                 ImGui::TextWrapped("No addon declares a native program, and none has connected. See the Kosmos SDK manual to write one.");
-            const std::vector<link::ClientInfo> clients = link_server ? link_server->clients() : std::vector<link::ClientInfo>();
+            const std::vector<link::ClientInfo> clients = link_state.link_server ? link_state.link_server->clients() : std::vector<link::ClientInfo>();
             for (link::NativeEntry &e : entries)
             {
                 ImGui::PushID(e.id.c_str());
                 bool allowed = e.allowed;
                 if (ImGui::Checkbox(e.name.c_str(), &allowed))
-                    native_addons.set_allowed(e.id, allowed);
+                    link_state.native_addons.set_allowed(e.id, allowed);
                 ImGui::SameLine();
                 ImGui::TextDisabled("(%s)", e.id.c_str());
                 const link::ClientInfo *connected = nullptr;
@@ -594,7 +594,7 @@ namespace kosmos::app
                 {
                     ImGui::SameLine();
                     if (ImGui::SmallButton("Restart"))
-                        native_addons.restart(e.id);
+                        link_state.native_addons.restart(e.id);
                 }
                 ImGui::PopID();
             }
@@ -605,9 +605,9 @@ namespace kosmos::app
     // Windows the programs show: the server keeps their widgets, the game draws them and reports what the player did.
     void App::draw_link_ui()
     {
-        if (!link_server || !link_server->running())
+        if (!link_state.link_server || !link_state.link_server->running())
             return;
-        for (const link::UiWindow &w : link_server->ui_windows())
+        for (const link::UiWindow &w : link_state.link_server->ui_windows())
         {
             bool open = true;
             ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_FirstUseEver);
@@ -626,20 +626,20 @@ namespace kosmos::app
                         break;
                     case 1:
                         if (ImGui::Button(wd.label.c_str()))
-                            link_server->ui_event(w.addon, w.id, wd.id, "1");
+                            link_state.link_server->ui_event(w.addon, w.id, wd.id, "1");
                         break;
                     case 2:
                     {
                         bool v = wd.value != 0.0;
                         if (ImGui::Checkbox(wd.label.c_str(), &v))
-                            link_server->ui_event(w.addon, w.id, wd.id, v ? "1" : "0");
+                            link_state.link_server->ui_event(w.addon, w.id, wd.id, v ? "1" : "0");
                         break;
                     }
                     case 3:
                     {
                         float v = static_cast<float>(wd.value);
                         if (ImGui::SliderFloat(wd.label.c_str(), &v, static_cast<float>(wd.low), static_cast<float>(wd.high)))
-                            link_server->ui_event(w.addon, w.id, wd.id, std::to_string(v));
+                            link_state.link_server->ui_event(w.addon, w.id, wd.id, std::to_string(v));
                         break;
                     }
                     case 4:
@@ -647,7 +647,7 @@ namespace kosmos::app
                         char buffer[201] = {};
                         std::copy_n(wd.text.begin(), std::min<std::size_t>(wd.text.size(), 200), buffer);
                         if (ImGui::InputText(wd.label.c_str(), buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue))
-                            link_server->ui_event(w.addon, w.id, wd.id, buffer);
+                            link_state.link_server->ui_event(w.addon, w.id, wd.id, buffer);
                         break;
                     }
                     default:
@@ -658,7 +658,7 @@ namespace kosmos::app
             }
             ImGui::End();
             if (!open)
-                link_server->ui_event(w.addon, w.id, "", "closed");
+                link_state.link_server->ui_event(w.addon, w.id, "", "closed");
         }
     }
 
@@ -831,9 +831,9 @@ namespace kosmos::app
     // Lines, markers and labels the programs place in the world, projected with the same view as the orbit line.
     void App::draw_link_3d()
     {
-        if (!link_server || !link_server->running() || map_mode || galaxy_mode)
+        if (!link_state.link_server || !link_state.link_server->running() || map_mode || galaxy_mode)
             return;
-        const std::vector<const link::Layer3 *> layers = link_server->layers();
+        const std::vector<const link::Layer3 *> layers = link_state.link_server->layers();
         if (layers.empty() || !universe_ref)
             return;
         const sl::FlightBody *body_fb = sim.universe.world.body(soi);

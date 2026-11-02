@@ -15,11 +15,11 @@ namespace kosmos::app
             sl::set_fps(fps);
             applied_fps = fps;
         }
-        if (jump_to >= 0)
+        if (quantum.jump_to >= 0)
         {
             // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
-            const int target_system = jump_to;
-            jump_to = -1;
+            const int target_system = quantum.jump_to;
+            quantum.jump_to = -1;
             const std::string target_name = sim.galaxy.star(target_system).name;
             // change_system deletes every ship, so the flown ship's name is taken now.
             const std::string flown_name = ship ? ship->spec().name : std::string();
@@ -64,19 +64,19 @@ namespace kosmos::app
             }
             options.scenario.clear();
             options.orbit_altitude = 0.0;
-            options.orbit_body = jump_to_star_orbit ? "auto" : "";
-            if (jump_to_star_orbit && !jump_to_body.empty())
+            options.orbit_body = quantum.jump_to_star_orbit ? "auto" : "";
+            if (quantum.jump_to_star_orbit && !quantum.jump_to_body.empty())
             {
-                const int chosen = sim.universe.find(jump_to_body);
+                const int chosen = sim.universe.find(quantum.jump_to_body);
                 if (chosen >= 0)
                 {
-                    options.orbit_body = jump_to_body;
+                    options.orbit_body = quantum.jump_to_body;
                     options.orbit_altitude = std::min(200.0, sim.universe.bodies[static_cast<std::size_t>(chosen)].radius * 0.5 / 1000.0);
                 }
             }
-            jump_to_body.clear();
-            options.orbit_start = !jump_to_star_orbit;
-            if (jump_to_star_orbit && !flown_name.empty())
+            quantum.jump_to_body.clear();
+            options.orbit_start = !quantum.jump_to_star_orbit;
+            if (quantum.jump_to_star_orbit && !flown_name.empty())
                 options.ship_name = flown_name;
             ship = start_scenario(sim, options, terrain_set);
             eva.active = false;
@@ -84,13 +84,13 @@ namespace kosmos::app
             ship_weapons.reset();
             if (!ship)
                 return false;
-            cam_distance = ship->spec().camera_distance;
+            rig.cam_distance = ship->spec().camera_distance;
             cockpit_view = cockpit3d = false;
-            interior_cam = base_view = -1;
-            look_yaw = look_pitch = 0.0f;
+            rig.interior_cam = rig.base_view = -1;
+            rig.look_yaw = rig.look_pitch = 0.0f;
             map.focus = -1;
-            quantum_selected = -1;
-            quantum_body.clear();
+            quantum.quantum_selected = -1;
+            quantum.quantum_body.clear();
             galaxy_mode = false;
             exhaust_fx = ExhaustFx();
             gview.refresh(sim.galaxy, sim.system_index());
@@ -144,9 +144,9 @@ namespace kosmos::app
                         cockpit_view = false;
                         if (options.interior_at && eva.building >= 0)
                         {
-                            walker.position = sl::dvec3(options.interior_pos[0], 0.0, options.interior_pos[1]);
-                            walker.yaw = glm::radians(options.interior_pos[2]);
-                            walker.pitch = glm::radians(options.interior_pos[3]);
+                            walk.walker.position = sl::dvec3(options.interior_pos[0], 0.0, options.interior_pos[1]);
+                            walk.walker.yaw = glm::radians(options.interior_pos[2]);
+                            walk.walker.pitch = glm::radians(options.interior_pos[3]);
                         }
                     }
                     break;
@@ -161,9 +161,9 @@ namespace kosmos::app
         }
         if (options.test_jump >= 0 && clock > 1.0)
         {
-            jump_to = options.test_jump;
-            jump_to_star_orbit = true;
-            jump_to_body = options.test_jump_body;
+            quantum.jump_to = options.test_jump;
+            quantum.jump_to_star_orbit = true;
+            quantum.jump_to_body = options.test_jump_body;
             options.test_jump = -1;
         }
         const std::uint32_t now = sl::time_ms();
@@ -206,15 +206,15 @@ namespace kosmos::app
         }
         if (options.record_seconds > 0.0)
         {
-            if (!record_pipe && record_frames == 0)
+            if (!rec.record_pipe && rec.record_frames == 0)
                 menu_actions.toggle_recording();
-            else if (options.record_after_stage > 0.0 ? (first_stage_clock >= 0.0 && clock >= first_stage_clock + options.record_after_stage) : clock >= options.record_seconds)
+            else if (options.record_after_stage > 0.0 ? (script.first_stage_clock >= 0.0 && clock >= script.first_stage_clock + options.record_after_stage) : clock >= options.record_seconds)
                 running = false;
         }
-        if (record_pipe && sl::download_bitmap(sl::screen))
+        if (rec.record_pipe && sl::download_bitmap(sl::screen))
         {
-            std::fwrite(sl::screen->pixels.data(), 1, sl::screen->pixels.size(), record_pipe);
-            ++record_frames;
+            std::fwrite(sl::screen->pixels.data(), 1, sl::screen->pixels.size(), rec.record_pipe);
+            ++rec.record_frames;
             flush_record_audio();
         }
         sl::show_video_bitmap();

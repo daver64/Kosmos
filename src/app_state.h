@@ -103,8 +103,191 @@ namespace kosmos::app
         LinkWatch link_watch;
     };
 
+    // Re-entry plasma: glowing puffs shed from the hull that stream back along the airstream, offset from the ship's origin in world axes.
+    struct PlasmaPuff
+    {
+        const kosmos::Ship *owner;
+        glm::vec3 position, velocity;
+        float age, life, size, bright;
+    };
+
+    // State for scripted (headless, --set-at, video) runs.
+    struct ScriptRun
+    {
+        double first_stage_clock = -1.0;
+        double ascent_fuel0 = -1.0, pitchover_clock = -1.0, ignite_clock = -1.0, ramp_clock = -1.0;
+        std::size_t set_at_done = 0;
+        int drops_done = 0;
+        std::map<std::string, double> held_axes; // scripted control axes (--set-at) that the keyboard polling must not zero
+    };
+
+    // Video and audio recording.
+    struct Recording
+    {
+        FILE * record_pipe{};
+        FILE * record_pcm{};
+        std::string record_file;
+        std::string record_video;
+        std::string record_pcm_file;
+        long record_frames{};
+        int record_w{};
+        int record_h{};
+        int record_rate{};
+        int record_channels{};
+        std::mutex record_audio_mutex;
+        std::vector<std::int16_t> record_audio;
+    };
+
+    // Re-entry plasma puffs.
+    struct PlasmaState
+    {
+        std::vector<PlasmaPuff> plasma_puffs;
+        std::uint32_t plasma_seed = 1;
+        float plasma_carry = 0.0f;
+    };
+
+    // KosmosLink server and native addons.
+    struct LinkState
+    {
+        kosmos::link::NativeAddons native_addons;
+        std::unique_ptr<kosmos::link::LinkHost> link_host;
+        std::unique_ptr<kosmos::link::LinkServer> link_server;
+        std::chrono::steady_clock::time_point link_tick{};
+        const Ship *link_ship{};
+        std::string link_scenario;
+        bool link_failed{};
+    };
+
+    // Quantum jump and the destination picker.
+    struct QuantumState
+    {
+        int jump_to{};
+        bool jump_to_star_orbit{};
+        std::string jump_to_body;
+        std::string quantum_body;
+        int quantum_bodies_for{};
+        std::vector<std::pair<std::string, std::string>> quantum_bodies;
+        bool quantum_window{};
+        int quantum_selected{};
+    };
+
+    // Which tool windows are open.
+    struct WindowFlags
+    {
+        bool camera_editor_window{};
+        bool systems_window{};
+        bool camera_window{};
+        bool settings_window{};
+        bool performance_window{};
+        bool icbm_window{};
+        bool property_window{};
+        bool lua_window{};
+        bool net_window{};
+        bool part_window{};
+        bool keys_window{};
+        bool link_window{};
+        bool joystick_window{};
+    };
+
+    // The Blender part editor.
+    struct PartToolState
+    {
+        bool edit_paused{};
+        bool edit_was_paused{};
+        kosmos::BlenderEdit blender_edit;
+        PartEdit part_edit;
+        std::string part_status;
+        char blender_buffer[260]{};
+        double model_poll{};
+    };
+
+    // Dragging panels, MFDs and cockpit controls.
+    struct DragState
+    {
+        bool mfd_mouse_prev{};
+        const kosmos::Cockpit::VcHotspot *vc_drag_spot{};
+        float vc_drag_v{};
+        // ids: 0 the 2D panel, 1 and 2 the left and right MFD.
+        int ui_drag_id = -1;
+        float ui_drag_last_x{}, ui_drag_last_y{};
+        float panel_offset[2]{};
+        float mfd_offset[2][2]{};
+        float mfd_base[2][2]{};
+    };
+
+    // Off-screen textures for MFDs, gauges and panels.
+    struct RenderTargets
+    {
+        sl::Bitmap * mfd_target[2]{};
+        std::vector<sl::Bitmap *> gauge_target, gauge_scratch; // `vc_gauges` textures and the top-down scratch they are drawn in
+        sl::Bitmap * instr_target[8]{}; // panel instruments shown on VC parts (`vc_instruments`)
+        sl::Bitmap * hud_target = nullptr;
+        // Scratch targets for supersampling the MFD and HUD textures (see gfx-screen-ss).
+        sl::Bitmap * ss_big = nullptr;
+        sl::Bitmap * ss_mid = nullptr;
+        int ss_factor = 0;
+        sl::Bitmap * panel_target{};
+        int panel_target_height{};
+        const Ship * mfd_ship{};
+        std::string mfd_ship_id;
+    };
+
+    // Where the player is looking from and how the view is steered.
+    struct CameraRig
+    {
+        int interior_cam{};
+        int base_view{};
+        int base_view_cam{};
+        std::string user_cam_file;
+        std::vector<kosmos::UserCamera> user_cams;
+        int user_cam{};
+        int camera_editor_pick{};
+        float look_yaw{};
+        float look_pitch{};
+        double eva_look_yaw{};
+        double eva_look_pitch{};
+        sl::dvec3 eye_shift;
+        kosmos::CameraDynamics cam_dyn; // the Dynamic Camera's head on its springs
+        sl::dvec3 dyn_velocity{0.0};
+        const kosmos::Ship *dyn_ship = nullptr;
+        bool dyn_valid = false;
+        const Ship * eye_ship{};
+        float cam_yaw{};
+        float cam_pitch{};
+        double cam_distance{};
+        float free_yaw{};
+        float free_pitch{};
+        int last_mouse_x{};
+        int last_mouse_y{};
+        bool fov_was_held{};
+        double fov_user{}; // field of view set with X / Z; 0 keeps each view's own
+        double user_extent{};
+    };
+
+    // Walking inside an interior.
+    struct WalkState
+    {
+        kosmos::InteriorWalker walker;
+        int panel_return{-1}; // index of the building whose panel is open from inside; Enter returns to walking there
+        bool in_airlock{};     // the walker stands in the airlock room
+        double room_kpa{-1.0}; // pressure of the room the walker is in, or negative
+        std::string room_label;
+        int interior_panel{-1}; // the wall panel the walker is facing, or -1
+    };
+
     struct App
     {
+        ScriptRun script;
+        Recording rec;
+        PlasmaState plasma;
+        LinkState link_state;
+        QuantumState quantum;
+        WindowFlags windows;
+        PartToolState part_tool;
+        DragState drag;
+        RenderTargets targets;
+        CameraRig rig;
+        WalkState walk;
         FrameMemory memory;
         kosmos::Universe *universe_ref{};
         sl::PropertyTree *props_ref{};
@@ -155,14 +338,6 @@ namespace kosmos::app
         MapView map;
         GalaxyView gview;
         bool galaxy_mode{};
-        int jump_to{};
-        bool jump_to_star_orbit{};
-        std::string jump_to_body;
-        std::string quantum_body;
-        int quantum_bodies_for{};
-        std::vector<std::pair<std::string, std::string>> quantum_bodies;
-        bool quantum_window{};
-        int quantum_selected{};
         bool cockpit_view{};
         kosmos::Astronaut eva;
         kosmos::Arsenal arsenal;
@@ -174,98 +349,20 @@ namespace kosmos::app
         int hud_sides = 3; // bit 0 left, bit 1 right: which see-through MFDs are shown
         bool first_ship_seen{};
         int panel_index{};
-        bool mfd_mouse_prev{};
-        const kosmos::Cockpit::VcHotspot *vc_drag_spot{};
-        float vc_drag_v{};
-        // Panels and MFDs can be dragged with the left button; ids: 0 the 2D panel, 1 and 2 the left and right MFD.
-        int ui_drag_id = -1;
-        float ui_drag_last_x{}, ui_drag_last_y{};
-        float panel_offset[2]{};
-        float mfd_offset[2][2]{};
-        float mfd_base[2][2]{};
         bool cockpit3d{};
-        int interior_cam{};
-        int base_view{};
-        int base_view_cam{};
-        std::string user_cam_file;
-        std::vector<kosmos::UserCamera> user_cams;
-        int user_cam{};
-        bool camera_editor_window{};
-        int camera_editor_pick{};
-        bool systems_window{};
-        bool camera_window{};
-        bool settings_window{};
-        bool performance_window{};
-        bool icbm_window{};
-        bool property_window{};
-        bool lua_window{};
-        bool net_window{};
-        bool part_window{};
-        bool edit_paused{};
-        bool edit_was_paused{};
-        kosmos::BlenderEdit blender_edit;
-        PartEdit part_edit;
-        std::string part_status;
-        char blender_buffer[260]{};
-        double model_poll{};
         kosmos::NetPlay netplay;
         NetUi net_ui;
         kosmos::LuaConsole lua_console;
         PropertyBrowser property_browser;
         int applied_volume{};
-        sl::Bitmap * mfd_target[2]{};
-        std::vector<sl::Bitmap *> gauge_target, gauge_scratch; // `vc_gauges` textures and the top-down scratch they are drawn in
-        sl::Bitmap * instr_target[8]{}; // panel instruments shown on VC parts (`vc_instruments`)
-        sl::Bitmap * hud_target = nullptr;
-        // Scratch targets for supersampling the MFD and HUD textures (see gfx-screen-ss).
-        sl::Bitmap * ss_big = nullptr;
-        sl::Bitmap * ss_mid = nullptr;
-        int ss_factor = 0;
         int screen_supersample() const;
         sl::Bitmap * supersample_target(int factor);
         void downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear);
-        sl::Bitmap * panel_target{};
-        int panel_target_height{};
-        const Ship * mfd_ship{};
-        std::string mfd_ship_id;
-        float look_yaw{};
-        float look_pitch{};
-        kosmos::InteriorWalker walker;
-        int panel_return{-1}; // index of the building whose panel is open from inside; Enter returns to walking there
-        bool in_airlock{};     // the walker stands in the airlock room
-        double room_kpa{-1.0}; // pressure of the room the walker is in, or negative
-        std::string room_label;
-        int interior_panel{-1}; // the wall panel the walker is facing, or -1
-        double eva_look_yaw{};
-        double eva_look_pitch{};
-        sl::dvec3 eye_shift;
-        kosmos::CameraDynamics cam_dyn; // the Dynamic Camera's head on its springs
-        sl::dvec3 dyn_velocity{0.0};
-        const kosmos::Ship *dyn_ship = nullptr;
-        bool dyn_valid = false;
-        const Ship * eye_ship{};
         int sas_index{};
         double earth_sphere_switch_m{};
         kosmos::Joystick joystick;
         kosmos::KeyBindings keys;
-        bool keys_window{};
-        bool link_window{};
-        kosmos::link::NativeAddons native_addons;
-        std::unique_ptr<kosmos::link::LinkHost> link_host;
-        std::unique_ptr<kosmos::link::LinkServer> link_server;
-        std::chrono::steady_clock::time_point link_tick{};
-        const Ship *link_ship{};
-        std::string link_scenario;
-        bool link_failed{};
         std::string keys_status;
-        bool joystick_window{};
-        float cam_yaw{};
-        float cam_pitch{};
-        double cam_distance{};
-        float free_yaw{};
-        float free_pitch{};
-        int last_mouse_x{};
-        int last_mouse_y{};
         kosmos::MenuBar menu_bar;
         bool screenshot_requested{};
         decltype(sl::time_ms()) screenshot_due_ms{};
@@ -279,34 +376,7 @@ namespace kosmos::app
         void board_ship(bool force);
         void leave_eva();
         void toggle_eva();
-        FILE * record_pipe{};
-        FILE * record_pcm{};
-        std::string record_file;
-        std::string record_video;
-        std::string record_pcm_file;
-        long record_frames{};
-        double first_stage_clock = -1.0;
-        double ascent_fuel0 = -1.0, pitchover_clock = -1.0, ignite_clock = -1.0, ramp_clock = -1.0;
-        std::size_t set_at_done = 0;
-        int drops_done = 0;
-        std::map<std::string, double> held_axes; // scripted control axes (--set-at) that the keyboard polling must not zero
-        int record_w{};
-        int record_h{};
-        int record_rate{};
-        int record_channels{};
-        std::mutex record_audio_mutex;
-        std::vector<std::int16_t> record_audio;
         ExhaustFx exhaust_fx;
-        // Re-entry plasma: glowing puffs shed from the nose that stream back along the airstream, offset from the ship's origin in world axes.
-        struct PlasmaPuff
-        {
-            const kosmos::Ship *owner;
-            glm::vec3 position, velocity;
-            float age, life, size, bright;
-        };
-        std::vector<PlasmaPuff> plasma_puffs;
-        std::uint32_t plasma_seed = 1;
-        float plasma_carry = 0.0f;
         sl::Event event_discard;
         double clock{};
         double lightning_flash{};
@@ -330,9 +400,6 @@ namespace kosmos::app
         sl::dvec3 eye_world;
         glm::vec3 ship_rel;
         double view_fov{};
-        bool fov_was_held{};
-        double fov_user{}; // field of view set with X / Z; 0 keeps each view's own
-        double user_extent{};
         int soi{};
         sl::dvec3 soi_pos;
         bool home{};

@@ -701,12 +701,12 @@ namespace kosmos::app
                         sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), glm::vec3(room.to_ship(mid))) * glm::mat4(axes) * glm::scale(glm::mat4(1.0f), size), slab);
                     }
                 }
-                if (panel_target && in_eva && eva.building == s && !other.spec().cockpit.controls.empty())
+                if (targets.panel_target && in_eva && eva.building == s && !other.spec().cockpit.controls.empty())
                 {
                     const kosmos::Cockpit &cp = other.spec().cockpit;
                     const double aspect = cp.panel_height / cp.panel_width;
                     sl::Material board;
-                    board.texture = panel_target;
+                    board.texture = targets.panel_target;
                     board.lit = false;
                     board.fog = false;
                     board.cull = sl::CullMode::none;
@@ -775,37 +775,37 @@ namespace kosmos::app
                             const bool left = mp.name.find("LMFD_DISPLAY") != std::string::npos;
                             if (left || mp.name.find("RMFD_DISPLAY") != std::string::npos)
                             {
-                                mp.material.texture = mfd_target[left ? 0 : 1];
+                                mp.material.texture = targets.mfd_target[left ? 0 : 1];
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                             }
                             else if (const kosmos::Cockpit::VcInstrument *vi = [&]() -> const kosmos::Cockpit::VcInstrument * {
                                          for (const kosmos::Cockpit::VcInstrument &c : cp.vc_instruments)
-                                             if (c.unit >= 0 && c.unit < 8 && instr_target[c.unit] && mp.name.find(c.part) != std::string::npos)
+                                             if (c.unit >= 0 && c.unit < 8 && targets.instr_target[c.unit] && mp.name.find(c.part) != std::string::npos)
                                                  return &c;
                                          return nullptr; }())
                             {
-                                mp.material.texture = instr_target[vi->unit];
+                                mp.material.texture = targets.instr_target[vi->unit];
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                             }
                             else if (const std::size_t gi = [&]() -> std::size_t {
                                          for (std::size_t g = 0; g < cp.vc_gauges.size(); ++g)
-                                             if (g < gauge_target.size() && gauge_target[g] && mp.name.find(cp.vc_gauges[g].part) != std::string::npos)
+                                             if (g < targets.gauge_target.size() && targets.gauge_target[g] && mp.name.find(cp.vc_gauges[g].part) != std::string::npos)
                                                  return g;
                                          return cp.vc_gauges.size(); }();
                                      gi < cp.vc_gauges.size())
                             {
-                                mp.material.texture = gauge_target[gi];
+                                mp.material.texture = targets.gauge_target[gi];
                                 mp.material.tint = {217, 217, 217, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                             }
                             else if (mp.name.find("HUDDISP") != std::string::npos)
                             {
-                                mp.material.texture = hud_target;
+                                mp.material.texture = targets.hud_target;
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;
@@ -851,10 +851,10 @@ namespace kosmos::app
                     // The console is a slab just behind the board.
                     if (!has_vc)
                         sl::draw_mesh(vis.cockpit_box, model * glm::translate(glm::mat4(1.0f), centre - pb[2] * 0.1f) * glm::mat4(pb) * glm::scale(glm::mat4(1.0f), glm::vec3(pw * 1.04f, ph * 1.06f, 0.18f)), console);
-                    if (panel_target)
+                    if (targets.panel_target)
                     {
                         sl::Material board;
-                        board.texture = panel_target;
+                        board.texture = targets.panel_target;
                         board.lit = false;
                         board.fog = false;
                         board.cull = sl::CullMode::none;
@@ -868,7 +868,7 @@ namespace kosmos::app
                 {
                     const CockpitScreen cs = cockpit_screen(cp, side);
                     sl::Material screen;
-                    screen.texture = mfd_target[side];
+                    screen.texture = targets.mfd_target[side];
                     screen.lit = false;
                     screen.fog = false;
                     screen.cull = sl::CullMode::none;
@@ -1083,12 +1083,12 @@ namespace kosmos::app
         glow.blend = sl::MaterialBlend::additive;
         glow.cull = sl::CullMode::none;
         const float dt = std::min(static_cast<float>(frame), 0.1f);
-        for (PlasmaPuff &pf : plasma_puffs)
+        for (PlasmaPuff &pf : plasma.plasma_puffs)
         {
             pf.age += dt;
             pf.position += pf.velocity * dt;
         }
-        plasma_puffs.erase(std::remove_if(plasma_puffs.begin(), plasma_puffs.end(), [](const PlasmaPuff &pf) { return pf.age >= pf.life; }), plasma_puffs.end());
+        plasma.plasma_puffs.erase(std::remove_if(plasma.plasma_puffs.begin(), plasma.plasma_puffs.end(), [](const PlasmaPuff &pf) { return pf.age >= pf.life; }), plasma.plasma_puffs.end());
         for (int s = 0; s < sim.ship_count(); ++s)
         {
             Ship &other = *sim.ship(s);
@@ -1163,13 +1163,13 @@ namespace kosmos::app
             const float life = 0.9f, stream = wake / life;
             const auto rnd = [&]()
             {
-                plasma_seed = plasma_seed * 1664525u + 1013904223u;
-                return static_cast<float>(plasma_seed >> 8) / 16777216.0f;
+                plasma.plasma_seed = plasma.plasma_seed * 1664525u + 1013904223u;
+                return static_cast<float>(plasma.plasma_seed >> 8) / 16777216.0f;
             };
             const glm::vec3 ax1 = std::fabs(back.y) < 0.95f ? glm::normalize(glm::cross(glm::vec3(0, 1, 0), back)) : glm::vec3(1, 0, 0);
             const glm::vec3 ax2 = glm::cross(back, ax1);
-            plasma_carry += std::clamp(wake * 14.0f, 160.0f, 700.0f) * dt;
-            for (; plasma_carry >= 1.0f; plasma_carry -= 1.0f)
+            plasma.plasma_carry += std::clamp(wake * 14.0f, 160.0f, 700.0f) * dt;
+            for (; plasma.plasma_carry >= 1.0f; plasma.plasma_carry -= 1.0f)
             {
                 const float ang = rnd() * 6.2831853f, rad = std::sqrt(rnd()) * std::max(look.width * 0.35f, silhouette * 0.45f);
                 const glm::vec3 spread = ax1 * std::cos(ang) + ax2 * std::sin(ang);
@@ -1181,9 +1181,9 @@ namespace kosmos::app
                 pf.life = life * (0.6f + 0.4f * rnd());
                 pf.size = look.width * (0.3f + 0.25f * rnd());
                 pf.bright = 0.6f + 0.4f * rnd();
-                plasma_puffs.push_back(pf);
+                plasma.plasma_puffs.push_back(pf);
             }
-            for (const PlasmaPuff &pf : plasma_puffs)
+            for (const PlasmaPuff &pf : plasma.plasma_puffs)
             {
                 if (pf.owner != &other)
                     continue;

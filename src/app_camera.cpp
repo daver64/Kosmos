@@ -24,19 +24,19 @@ namespace kosmos::app
     void App::poll_blender_edit()
     {
     sl::PropertyTree &props = *props_ref;
-        if (edit_paused && !blender_edit.active())
+        if (part_tool.edit_paused && !part_tool.blender_edit.active())
         {
-            edit_paused = false;
-            props.set_bool("/sim/paused", edit_was_paused);
+            part_tool.edit_paused = false;
+            props.set_bool("/sim/paused", part_tool.edit_was_paused);
             props.set_bool("/sim/blender-edit", false);
-            part_status = blender_edit.name() + " closed; simulation resumed";
+            part_tool.part_status = part_tool.blender_edit.name() + " closed; simulation resumed";
         }
-        model_poll += frame;
-        if (model_poll > 0.5)
+        part_tool.model_poll += frame;
+        if (part_tool.model_poll > 0.5)
         {
-            model_poll = 0.0;
-            if (vis.reload_models() > 0 && edit_paused)
-                part_status = "Reloaded the edited mesh";
+            part_tool.model_poll = 0.0;
+            if (vis.reload_models() > 0 && part_tool.edit_paused)
+                part_tool.part_status = "Reloaded the edited mesh";
         }
     }
 
@@ -48,12 +48,12 @@ namespace kosmos::app
         physics_time_before = time_before_step;
         double step_dt = frame;
         bool lockstepped = false;
-        if (link_server && link_server->running() && !props.get_bool("/sim/paused"))
+        if (link_state.link_server && link_state.link_server->running() && !props.get_bool("/sim/paused"))
         {
             // Lockstep: a program that asked for it computes each step before the simulation takes it (at 1x).
-            if (link_server->lockstep_active() && props.get_int("/sim/warp-index") > 0)
+            if (link_state.link_server->lockstep_active() && props.get_int("/sim/warp-index") > 0)
                 props.set_int("/sim/warp-index", 0);
-            const double fixed = link_server->lockstep_gate(frame, universe.time());
+            const double fixed = link_state.link_server->lockstep_gate(frame, universe.time());
             if (fixed > 0.0)
             {
                 step_dt = fixed;
@@ -100,8 +100,8 @@ namespace kosmos::app
         if (eva.active)
         {
             kosmos::EvaInput in;
-            double yaw = eva_look_yaw, pitch = eva_look_pitch;
-            eva_look_yaw = eva_look_pitch = 0.0;
+            double yaw = rig.eva_look_yaw, pitch = rig.eva_look_pitch;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             if (!typing)
             {
                 auto held = [this](const char *id) { return keys.down(id) ? 1.0 : 0.0; };
@@ -148,10 +148,10 @@ namespace kosmos::app
                 eva.building = -1;
             if (!indoors)
             {
-                interior_panel = -1;
-                in_airlock = false;
-                room_kpa = -1.0;
-                room_label.clear();
+                walk.interior_panel = -1;
+                walk.in_airlock = false;
+                walk.room_kpa = -1.0;
+                walk.room_label.clear();
             }
             if (indoors)
             {
@@ -159,27 +159,27 @@ namespace kosmos::app
                 const kosmos::Interior &room = *bld.spec().interior;
                 const kosmos::Body &here = sim.universe.bodies[static_cast<std::size_t>(eva.body)];
                 const double g = here.gm / std::max(1.0, glm::dot(eva.position, eva.position));
-                walker.step(room, in, g, frame, &bld.interior_state);
-                interior_panel = room.panel_in_view(walker.eye(), walker.forward(), 2.5);
+                walk.walker.step(room, in, g, frame, &bld.interior_state);
+                walk.interior_panel = room.panel_in_view(walk.walker.eye(), walk.walker.forward(), 2.5);
                 {
-                    const int inside_room = room.room_at(walker.position + sl::dvec3(0.0, 0.1, 0.0));
-                    room_kpa = kosmos::room_pressure_kpa(bld, inside_room);
-                    room_label = inside_room >= 0 ? room.room_name(inside_room) : "";
-                    in_airlock = inside_room >= 0 && !room.airlock_name().empty() && room.room_name(inside_room) == room.airlock_name();
+                    const int inside_room = room.room_at(walk.walker.position + sl::dvec3(0.0, 0.1, 0.0));
+                    walk.room_kpa = kosmos::room_pressure_kpa(bld, inside_room);
+                    walk.room_label = inside_room >= 0 ? room.room_name(inside_room) : "";
+                    walk.in_airlock = inside_room >= 0 && !room.airlock_name().empty() && room.room_name(inside_room) == room.airlock_name();
                 }
                 // Mirror the walker into the astronaut so the camera, HUD and weapons work as outdoors.
                 const sl::FlightBody &pb = *sim.universe.world.body(eva.body);
                 auto world_dir = [&](const sl::dvec3 &d) { return bld.body().direction_to_world(room.dir_to_ship(d)); };
-                eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(walker.position)) - pb.position;
+                eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(walk.walker.position)) - pb.position;
                 eva.velocity = bld.body().velocity - pb.velocity;
-                const sl::dvec3 fwd = world_dir(walker.forward());
+                const sl::dvec3 fwd = world_dir(walk.walker.forward());
                 const sl::dvec3 local_up = world_dir(sl::dvec3(0.0, 1.0, 0.0));
                 const sl::dvec3 right = glm::normalize(glm::cross(fwd, local_up));
                 eva.orientation = glm::normalize(glm::quat_cast(sl::dmat3(right, glm::cross(right, fwd), -fwd)));
                 eva.grounded = true;
                 eva.upright = true;
-                eva.crouch = walker.crouch;
-                eva.speed = walker.speed;
+                eva.crouch = walk.walker.crouch;
+                eva.speed = walk.walker.speed;
                 eva.height = 0.0;
             }
             else
@@ -279,11 +279,11 @@ namespace kosmos::app
     void App::select_default_instruments()
     {
     sl::PropertyTree &props = *props_ref;
-        if (ship != mfd_ship || ship->spec().name != mfd_ship_id)
+        if (ship != targets.mfd_ship || ship->spec().name != targets.mfd_ship_id)
         {
             // Each ship brings its own default instruments whenever it becomes the flown one.
-            mfd_ship = ship;
-            mfd_ship_id = ship->spec().name;
+            targets.mfd_ship = ship;
+            targets.mfd_ship_id = ship->spec().name;
             panel_index = first_ship_seen ? options.panel : 0;
             first_ship_seen = false;
             const auto &cockpit_spec = ship->spec().cockpit;
@@ -338,16 +338,16 @@ namespace kosmos::app
 
     void App::update_view_flags()
     {
-        if (interior_cam >= static_cast<int>(ship->spec().cameras.size()))
-            interior_cam = -1;
-        if (base_view >= static_cast<int>(sim.bases.size()) || (base_view >= 0 && base_view_cam >= static_cast<int>(sim.bases[static_cast<std::size_t>(base_view)].cameras.size())))
-            base_view = -1;
-        if (user_cam >= static_cast<int>(user_cams.size()))
-            user_cam = -1;
+        if (rig.interior_cam >= static_cast<int>(ship->spec().cameras.size()))
+            rig.interior_cam = -1;
+        if (rig.base_view >= static_cast<int>(sim.bases.size()) || (rig.base_view >= 0 && rig.base_view_cam >= static_cast<int>(sim.bases[static_cast<std::size_t>(rig.base_view)].cameras.size())))
+            rig.base_view = -1;
+        if (rig.user_cam >= static_cast<int>(rig.user_cams.size()))
+            rig.user_cam = -1;
         in_eva = eva.active && !map_mode && !galaxy_mode;
-        in_user = user_cam >= 0 && !map_mode && !galaxy_mode && !in_eva;
-        in_base_cam = base_view >= 0 && !map_mode && !galaxy_mode && !in_user && !in_eva;
-        in_interior = interior_cam >= 0 && !map_mode && !in_base_cam && !in_user && !in_eva;
+        in_user = rig.user_cam >= 0 && !map_mode && !galaxy_mode && !in_eva;
+        in_base_cam = rig.base_view >= 0 && !map_mode && !galaxy_mode && !in_user && !in_eva;
+        in_interior = rig.interior_cam >= 0 && !map_mode && !in_base_cam && !in_user && !in_eva;
         in_cockpit = cockpit_view && ship->spec().cockpit.present && !map_mode && !in_interior && !in_base_cam && !in_user && !in_eva;
         in_cockpit3d = in_cockpit && cockpit3d && ship->spec().cockpit.mfds;
     }
@@ -357,13 +357,13 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
         const int mx = sl::mouse_x(), my = sl::mouse_y();
         const int flip_x = sim.props.get_bool("/sim/settings/mouse-invert-x") ? -1 : 1, flip_y = sim.props.get_bool("/sim/settings/mouse-invert-y") ? -1 : 1;
-        const int dx = (mx - last_mouse_x) * flip_x, dy = (my - last_mouse_y) * flip_y;
+        const int dx = (mx - rig.last_mouse_x) * flip_x, dy = (my - rig.last_mouse_y) * flip_y;
         const bool dragging = sl::mouse_button_down(sl::MouseButton::right) && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse);
-        last_mouse_x = mx;
-        last_mouse_y = my;
+        rig.last_mouse_x = mx;
+        rig.last_mouse_y = my;
         {
             // On foot the mouse steers the view like a first-person game; the ` key, Alt, or any open window gives the pointer back.
-            const bool windows_open = camera_window || settings_window || performance_window || icbm_window || property_window || lua_window || net_window || systems_window || camera_editor_window || part_window || joystick_window || quantum_window;
+            const bool windows_open = windows.camera_window || windows.settings_window || windows.performance_window || windows.icbm_window || windows.property_window || windows.lua_window || windows.net_window || windows.systems_window || windows.camera_editor_window || windows.part_window || windows.joystick_window || quantum.quantum_window;
             const bool free_pointer = windows_open || pointer_free || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
             const bool capture = in_eva && options.shot.empty() && !free_pointer;
             if (capture != mouse_captured)
@@ -373,11 +373,11 @@ namespace kosmos::app
             }
         }
         const bool fov_held = !typing && (keys.down("fov_up") || keys.down("fov_down"));
-        if (fov_was_held && !fov_held)
+        if (rig.fov_was_held && !fov_held)
             sim.log("Field of view " + std::to_string(static_cast<int>(view_fov + 0.5)) + " deg");
-        fov_was_held = fov_held;
+        rig.fov_was_held = fov_held;
         if (fov_held)
-            fov_user = std::clamp((fov_user > 0.0 ? fov_user : view_fov) * std::exp((keys.down("fov_up") ? 0.6 : -0.6) * frame), 5.0, 120.0);
+            rig.fov_user = std::clamp((rig.fov_user > 0.0 ? rig.fov_user : view_fov) * std::exp((keys.down("fov_up") ? 0.6 : -0.6) * frame), 5.0, 120.0);
         const double zoom_in = keys.down("zoom_in") ? 1.0 / (1.0 + 2.0 * frame) : 1.0;
         const double zoom_out = keys.down("zoom_out") ? 1.0 + 2.0 * frame : 1.0;
         if (galaxy_mode)
@@ -400,18 +400,18 @@ namespace kosmos::app
             {
                 int rx = 0, ry = 0;
                 sl::mouse_relative_state(&rx, &ry);
-                eva_look_yaw -= rx * flip_x * 0.003;
-                eva_look_pitch -= ry * flip_y * 0.003;
+                rig.eva_look_yaw -= rx * flip_x * 0.003;
+                rig.eva_look_pitch -= ry * flip_y * 0.003;
             }
             else if (dragging)
             {
-                eva_look_yaw -= dx * 0.004;
-                eva_look_pitch -= dy * 0.004;
+                rig.eva_look_yaw -= dx * 0.004;
+                rig.eva_look_pitch -= dy * 0.004;
             }
         }
         else if (in_user)
         {
-            kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
+            kosmos::UserCamera &uc = rig.user_cams[static_cast<std::size_t>(rig.user_cam)];
             if (uc.orbit)
             {
                 uc.yaw += uc.spin * frame;
@@ -433,16 +433,16 @@ namespace kosmos::app
             }
             else if (dragging)
             {
-                look_yaw -= static_cast<float>(dx) * 0.008f;
-                look_pitch = std::clamp(look_pitch - static_cast<float>(dy) * 0.008f, -1.4f, 1.4f);
+                rig.look_yaw -= static_cast<float>(dx) * 0.008f;
+                rig.look_pitch = std::clamp(rig.look_pitch - static_cast<float>(dy) * 0.008f, -1.4f, 1.4f);
             }
         }
         else if (in_cockpit || in_interior)
         {
             if (dragging)
             {
-                look_yaw -= static_cast<float>(dx) * 0.008f;
-                look_pitch = std::clamp(look_pitch - static_cast<float>(dy) * 0.008f, -1.4f, 1.4f);
+                rig.look_yaw -= static_cast<float>(dx) * 0.008f;
+                rig.look_pitch = std::clamp(rig.look_pitch - static_cast<float>(dy) * 0.008f, -1.4f, 1.4f);
             }
         }
         else
@@ -450,10 +450,10 @@ namespace kosmos::app
             if (dragging)
             {
                 // Dragging swings the chase camera around the ship, which stays centred.
-                cam_yaw -= static_cast<float>(dx) * 0.006f;
-                cam_pitch = std::clamp(cam_pitch + static_cast<float>(dy) * 0.006f, -1.5f, 1.5f);
+                rig.cam_yaw -= static_cast<float>(dx) * 0.006f;
+                rig.cam_pitch = std::clamp(rig.cam_pitch + static_cast<float>(dy) * 0.006f, -1.5f, 1.5f);
             }
-            cam_distance = std::clamp(cam_distance * zoom_in * zoom_out, 8.0, 3.0e9);
+            rig.cam_distance = std::clamp(rig.cam_distance * zoom_in * zoom_out, 8.0, 3.0e9);
         }
     }
 
@@ -474,32 +474,32 @@ namespace kosmos::app
         const kosmos::HeadMotion hm = head_motion();
         sl::FlightBody &b = ship->body();
         const bool rails = sim.current_warp() > 4.0 || sim.props.get_bool("/sim/paused") || sim_dt <= 1.0e-6;
-        if (!hm.enabled || ship != dyn_ship)
+        if (!hm.enabled || ship != rig.dyn_ship)
         {
-            cam_dyn.reset();
-            dyn_ship = ship;
-            dyn_valid = false;
-            dyn_velocity = b.velocity;
+            rig.cam_dyn.reset();
+            rig.dyn_ship = ship;
+            rig.dyn_valid = false;
+            rig.dyn_velocity = b.velocity;
             return;
         }
         if (rails)
         {
-            cam_dyn.relax(frame, hm);
-            dyn_valid = false;
-            dyn_velocity = b.velocity;
+            rig.cam_dyn.relax(frame, hm);
+            rig.dyn_valid = false;
+            rig.dyn_velocity = b.velocity;
             return;
         }
-        if (dyn_valid)
+        if (rig.dyn_valid)
         {
-            const sl::dvec3 felt = (b.velocity - dyn_velocity) / sim_dt - universe.world.gravity_at(b.position);
+            const sl::dvec3 felt = (b.velocity - rig.dyn_velocity) / sim_dt - universe.world.gravity_at(b.position);
             // A jump this big is a teleport, a docking or a staging, not something a pilot feels.
             if (glm::length(felt) > 500.0)
-                cam_dyn.reset();
+                rig.cam_dyn.reset();
             else
-                cam_dyn.step(frame, b.direction_to_local(glm::length(felt) > 60.0 ? felt * (60.0 / glm::length(felt)) : felt), hm);
+                rig.cam_dyn.step(frame, b.direction_to_local(glm::length(felt) > 60.0 ? felt * (60.0 / glm::length(felt)) : felt), hm);
         }
-        dyn_velocity = b.velocity;
-        dyn_valid = true;
+        rig.dyn_velocity = b.velocity;
+        rig.dyn_valid = true;
     }
 
     // Time warp, the simulation step and the ship events that follow.
@@ -514,7 +514,7 @@ namespace kosmos::app
         collide_ground_vehicles();
         for (int i = 0; i < sim.ship_count(); ++i)
             if (sim.ship(i)->spec().interior)
-                kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walker.position : nullptr, frame);
+                kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walk.walker.position : nullptr, frame);
         update_eva();
         update_weapons(time_before_step);
         select_default_instruments();
@@ -558,12 +558,12 @@ namespace kosmos::app
     kosmos::Universe &universe = *universe_ref;
     sl::FlightBody &fb = *fb_ref;
         if (options.cam_spin != 0.0)
-            cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
+            rig.cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
         if (options.cam_dolly != 0.0)
-            cam_distance = std::clamp(cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
+            rig.cam_distance = std::clamp(rig.cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
         memory.tilt_clock += frame;
         const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(memory.tilt_clock * 0.5);
-        const double yaw_d = cam_yaw, pitch_d = cam_pitch + tilt;
+        const double yaw_d = rig.cam_yaw, pitch_d = rig.cam_pitch + tilt;
         sl::dvec3 offset_dir = (east * std::sin(yaw_d) + north * std::cos(yaw_d)) * std::cos(pitch_d) + up * std::sin(pitch_d);
         if (options.cam_sunward)
             offset_dir = glm::normalize(universe.position(0) - fb.position);
@@ -574,24 +574,24 @@ namespace kosmos::app
         // A released warhead takes the camera; the ship carries on its own way.
         double seconds_to_burst = 1.0e9;
         const bool following = !in_cockpit && !in_interior && !map_mode && arsenal.follow_target(universe, ship, focus, seconds_to_burst);
-        double distance = cam_distance;
+        double distance = rig.cam_distance;
         if (following && seconds_to_burst < 8.0)
         {
             // Eight seconds before the burst the camera eases out to 25 km, level with the warhead, to watch it from a safe distance.
             const double t = std::clamp(1.0 - seconds_to_burst / 8.0, 0.0, 1.0), w = t * t * (3.0 - 2.0 * t);
             const sl::dvec3 level = east * std::sin(yaw_d) + north * std::cos(yaw_d);
             offset_dir = glm::normalize(offset_dir * (1.0 - w) + level * w);
-            distance = cam_distance + (25000.0 - cam_distance) * w;
+            distance = rig.cam_distance + (25000.0 - rig.cam_distance) * w;
         }
         eye_world = focus + offset_dir * distance;
         ship_rel = glm::vec3(focus - eye_world);
         if (options.cam_antisun)
             ship_rel = glm::vec3(glm::normalize(universe.position(0) - eye_world) * 1000.0);
-        if (!in_cockpit && !in_interior && !in_base_cam && !map_mode && !galaxy_mode && (free_yaw != 0.0f || free_pitch != 0.0f))
+        if (!in_cockpit && !in_interior && !in_base_cam && !map_mode && !galaxy_mode && (rig.free_yaw != 0.0f || rig.free_pitch != 0.0f))
         {
             const sl::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));
             const sl::dvec3 right = glm::normalize(glm::cross(fwd, up));
-            const sl::dvec3 turned = glm::angleAxis(static_cast<double>(free_yaw), up) * (glm::angleAxis(static_cast<double>(free_pitch), right) * fwd);
+            const sl::dvec3 turned = glm::angleAxis(static_cast<double>(rig.free_yaw), up) * (glm::angleAxis(static_cast<double>(rig.free_pitch), right) * fwd);
             ship_rel = glm::vec3(turned * glm::length(sl::dvec3(ship_rel)));
         }
     }
@@ -600,8 +600,8 @@ namespace kosmos::app
     {
     sl::FlightBody &fb = *fb_ref;
             // Seen from the pilot's seat: the eye sits in the ship frame and the view looks along -Z, free to turn with the mouse.
-            sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : eye_shift + cam_dyn.offset(head_motion()));
-            double yaw = look_yaw, pitch = look_pitch;
+            sl::dvec3 seat = ship->spec().cockpit.eye + (in_interior ? sl::dvec3(0.0) : rig.eye_shift + rig.cam_dyn.offset(head_motion()));
+            double yaw = rig.look_yaw, pitch = rig.look_pitch;
             if (!in_interior)
             {
                 yaw += ship->spec().cockpit.yaw * pi / 180.0;
@@ -611,7 +611,7 @@ namespace kosmos::app
             }
             if (in_interior)
             {
-                const kosmos::CameraSpec &cs = ship->spec().cameras[static_cast<std::size_t>(interior_cam)];
+                const kosmos::CameraSpec &cs = ship->spec().cameras[static_cast<std::size_t>(rig.interior_cam)];
                 seat = cs.position;
                 yaw += cs.yaw * pi / 180.0;
                 pitch += cs.pitch * pi / 180.0;
@@ -634,7 +634,7 @@ namespace kosmos::app
     void App::place_user_camera()
     {
     kosmos::Universe &universe = *universe_ref;
-            const kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(user_cam)];
+            const kosmos::UserCamera &uc = rig.user_cams[static_cast<std::size_t>(rig.user_cam)];
             // Where an attachment is, and the axes its camera offsets are in (a ship's own; for a body, east, up and south).
             struct Anchor
             {
@@ -684,7 +684,7 @@ namespace kosmos::app
                 eye_world = focus_of(uc.attach, uc.attach_name, host) + dir * distance;
                 ship_rel = glm::vec3(-dir * distance);
                 if (!host.ship)
-                    user_extent = host.radius;
+                    rig.user_extent = host.radius;
             }
             else
             {
@@ -698,7 +698,7 @@ namespace kosmos::app
                 }
                 else
                 {
-                    const double yaw = uc.look_yaw * pi / 180.0 + look_yaw, pitch = uc.look_pitch * pi / 180.0 + look_pitch;
+                    const double yaw = uc.look_yaw * pi / 180.0 + rig.look_yaw, pitch = uc.look_pitch * pi / 180.0 + rig.look_pitch;
                     const double cl = std::cos(pitch);
                     ship_rel = glm::vec3((host.x * -std::sin(yaw) * cl + host.y * std::sin(pitch) + host.z * -std::cos(yaw) * cl) * 1000.0);
                     up = host.y;
@@ -761,7 +761,7 @@ namespace kosmos::app
         orbit_camera_eye();
         view_fov = options.cam_fov;
         // The radius of a body an orbiting camera is on, so the near plane frames it rather than the flown ship.
-        user_extent = -1.0;
+        rig.user_extent = -1.0;
         if (in_cockpit || in_interior)
         {
             place_cockpit_camera();
@@ -779,16 +779,16 @@ namespace kosmos::app
         }
         else if (in_base_cam)
         {
-            const kosmos::Base &bs = sim.bases[static_cast<std::size_t>(base_view)];
-            const kosmos::BaseCamera &bc = bs.cameras[static_cast<std::size_t>(base_view_cam)];
+            const kosmos::Base &bs = sim.bases[static_cast<std::size_t>(rig.base_view)];
+            const kosmos::BaseCamera &bc = bs.cameras[static_cast<std::size_t>(rig.base_view_cam)];
             sl::dvec3 look;
             kosmos::base_camera_pose(universe, bs, bc, &fb.position, eye_world, look, up);
             ship_rel = glm::vec3(look * 1000.0);
             view_fov = bc.fov;
         }
 
-        if (fov_user > 0.0)
-            view_fov = fov_user;
+        if (rig.fov_user > 0.0)
+            view_fov = rig.fov_user;
         soi = tm.soi;
         const kosmos::Body &soi_body = universe.bodies[static_cast<std::size_t>(soi)]; soi_body_ref = &soi_body;
         soi_pos = universe.position(soi);
@@ -955,8 +955,8 @@ namespace kosmos::app
         }
         eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
         const double nearest_ground = std::max(1.0, 0.5 * (eye_soi_altitude - 10.0e3));
-        view_distance = in_user && user_cams[static_cast<std::size_t>(user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : cam_distance;
-        in_user_mounted = in_user && !user_cams[static_cast<std::size_t>(user_cam)].orbit;
-        ship_near = in_eva && eva.building >= 0 ? 0.1 : in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (user_extent >= 0.0 ? user_extent : extent), nearest_ground));
+        view_distance = in_user && rig.user_cams[static_cast<std::size_t>(rig.user_cam)].orbit ? glm::length(sl::dvec3(ship_rel)) : rig.cam_distance;
+        in_user_mounted = in_user && !rig.user_cams[static_cast<std::size_t>(rig.user_cam)].orbit;
+        ship_near = in_eva && eva.building >= 0 ? 0.1 : in_cockpit3d ? 0.25 : (in_cockpit || in_interior) ? 1.0 : (in_base_cam || in_user_mounted) ? 1.0 : std::max(1.0, std::min(view_distance - (rig.user_extent >= 0.0 ? rig.user_extent : extent), nearest_ground));
     }
 } // namespace kosmos::app

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "app.h"
+#include "app_common.h"
+#include "sim.h"
+#include "options.h"
 
 namespace kosmos::app
 {

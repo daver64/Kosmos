@@ -5,11 +5,11 @@ namespace kosmos::app
 {
     void App::draw_systems_window()
     {
-        if (systems_window)
+        if (windows.systems_window)
         {
             ImGui::SetNextWindowPos(ImVec2(330.0f, 60.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.9f);
-            if (ImGui::Begin("Ship systems [F1]", &systems_window, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::Begin("Ship systems [F1]", &windows.systems_window, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 kosmos::Systems *sys = ship->systems();
                 if (!sys)
@@ -121,11 +121,11 @@ namespace kosmos::app
 
     void App::draw_joystick_window()
     {
-        if (joystick_window)
+        if (windows.joystick_window)
         {
             ImGui::SetNextWindowPos(ImVec2(360.0f, 40.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.92f);
-            if (ImGui::Begin("Joystick", &joystick_window, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::Begin("Joystick", &windows.joystick_window, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 ImGui::Checkbox("Joystick enabled", &joystick.enabled);
                 const int devices = joystick.device_count();
@@ -389,11 +389,11 @@ namespace kosmos::app
     void App::draw_settings_window()
     {
         sl::PropertyTree &props = *props_ref;
-        if (settings_window)
+        if (windows.settings_window)
         {
             ImGui::SetNextWindowPos(ImVec2(330.0f, 12.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.9f);
-            if (ImGui::Begin("Settings [F3]", &settings_window, ImGuiWindowFlags_AlwaysAutoResize))
+            if (ImGui::Begin("Settings [F3]", &windows.settings_window, ImGuiWindowFlags_AlwaysAutoResize))
             {
                 auto flag = [&](const char *label, const char *path, const char *tip)
                 {
@@ -431,12 +431,12 @@ namespace kosmos::app
 
     void App::draw_icbm_window()
     {
-        if (!icbm_window)
+        if (!windows.icbm_window)
             return;
         sl::PropertyTree &props = *props_ref;
         ImGui::SetNextWindowPos(ImVec2(330.0f, 60.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowBgAlpha(0.9f);
-        if (ImGui::Begin("ICBM targeting", &icbm_window, ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::Begin("ICBM targeting", &windows.icbm_window, ImGuiWindowFlags_AlwaysAutoResize))
         {
             if (!props.exists("/icbm/target/lat"))
             {
@@ -508,12 +508,12 @@ namespace kosmos::app
 
     void App::draw_performance_window()
     {
-        if (!performance_window)
+        if (!windows.performance_window)
             return;
         sl::PropertyTree &props = *props_ref;
         ImGui::SetNextWindowPos(ImVec2(330.0f, 12.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowBgAlpha(0.9f);
-        if (ImGui::Begin("Performance settings", &performance_window, ImGuiWindowFlags_AlwaysAutoResize))
+        if (ImGui::Begin("Performance settings", &windows.performance_window, ImGuiWindowFlags_AlwaysAutoResize))
         {
             ImGui::SeparatorText("Graphics");
             settings_graphics();
@@ -542,16 +542,16 @@ namespace kosmos::app
 
     void App::part_converted_mesh(kosmos::ShipSpec &fspec)
     {
-        if (part_edit.converted && !part_edit.model.empty())
+        if (part_tool.part_edit.converted && !part_tool.part_edit.model.empty())
         {
             ImGui::Separator();
-            ImGui::Text("Converted: %s", part_edit.model.c_str());
+            ImGui::Text("Converted: %s", part_tool.part_edit.model.c_str());
             ImGui::SameLine();
             if (ImGui::SmallButton("Use in ship.json"))
             {
                 std::string problem;
-                part_status = kosmos::write_part_model(fspec.source_file, part_edit.stage, part_edit.index, part_edit.model, problem)
-                                  ? "ship.json now uses " + part_edit.model + " (original kept as ship.json.bak); effective on the next launch"
+                part_tool.part_status = kosmos::write_part_model(fspec.source_file, part_tool.part_edit.stage, part_tool.part_edit.index, part_tool.part_edit.model, problem)
+                                  ? "ship.json now uses " + part_tool.part_edit.model + " (original kept as ship.json.bak); effective on the next launch"
                                   : "Not written: " + problem;
             }
             ImGui::Separator();
@@ -561,27 +561,27 @@ namespace kosmos::app
     void App::part_paused_controls()
     {
         sl::PropertyTree &props = *props_ref;
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in %s", part_edit.file.filename().string().c_str(), blender_edit.name().c_str());
-        ImGui::TextWrapped("The simulation is paused. Save in %s (Ctrl+S) to see the change here; closing %s resumes.", blender_edit.name().c_str(), blender_edit.name().c_str());
-        if (ImGui::Button(("Resume, keep " + blender_edit.name() + " open").c_str()))
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Editing %s in %s", part_tool.part_edit.file.filename().string().c_str(), part_tool.blender_edit.name().c_str());
+        ImGui::TextWrapped("The simulation is paused. Save in %s (Ctrl+S) to see the change here; closing %s resumes.", part_tool.blender_edit.name().c_str(), part_tool.blender_edit.name().c_str());
+        if (ImGui::Button(("Resume, keep " + part_tool.blender_edit.name() + " open").c_str()))
         {
-            edit_paused = false;
+            part_tool.edit_paused = false;
             props.set_bool("/sim/blender-edit", false);
-            props.set_bool("/sim/paused", edit_was_paused);
+            props.set_bool("/sim/paused", part_tool.edit_was_paused);
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel and restore"))
         {
-            blender_edit.stop();
-            if (part_edit.converted && part_edit.part)
-                *part_edit.part = part_edit.original;
-            blender_edit.restore();
-            part_edit.model.clear();
-            part_edit.converted = false;
-            edit_paused = false;
+            part_tool.blender_edit.stop();
+            if (part_tool.part_edit.converted && part_tool.part_edit.part)
+                *part_tool.part_edit.part = part_tool.part_edit.original;
+            part_tool.blender_edit.restore();
+            part_tool.part_edit.model.clear();
+            part_tool.part_edit.converted = false;
+            part_tool.edit_paused = false;
             props.set_bool("/sim/blender-edit", false);
-            props.set_bool("/sim/paused", edit_was_paused);
-            part_status = "Edit cancelled; the original was restored";
+            props.set_bool("/sim/paused", part_tool.edit_was_paused);
+            part_tool.part_status = "Edit cancelled; the original was restored";
         }
     }
 
@@ -642,40 +642,40 @@ namespace kosmos::app
                             if (!std::filesystem::exists(file, ec))
                                 ok = kosmos::write_glb(data, file, problem);
                             else
-                                part_status = "Reusing the existing " + file.filename().string();
+                                part_tool.part_status = "Reusing the existing " + file.filename().string();
                         }
                     }
                     if (ok && props.get_bool("/sim/blender-edit"))
                     {
                         ok = false;
-                        part_status = "Another mesh edit is already running";
+                        part_tool.part_status = "Another mesh edit is already running";
                     }
-                    if (ok && blender_edit.start(kosmos::mesh_editor_choice(props.get_string("/sim/settings/mesh-editor", "blender"), props.get_string("/sim/settings/blender", "blender"), props.get_string("/sim/settings/kosmoscad", ""), std::filesystem::path(sim.root())), file, problem))
+                    if (ok && part_tool.blender_edit.start(kosmos::mesh_editor_choice(props.get_string("/sim/settings/mesh-editor", "blender"), props.get_string("/sim/settings/blender", "blender"), props.get_string("/sim/settings/kosmoscad", ""), std::filesystem::path(sim.root())), file, problem))
                     {
-                        part_edit.part = &part;
-                        part_edit.original = saved;
-                        part_edit.converted = !is_model;
-                        part_edit.file = file;
-                        part_edit.stage = stage_index;
-                        part_edit.index = part_index;
-                        part_edit.model.clear();
+                        part_tool.part_edit.part = &part;
+                        part_tool.part_edit.original = saved;
+                        part_tool.part_edit.converted = !is_model;
+                        part_tool.part_edit.file = file;
+                        part_tool.part_edit.stage = stage_index;
+                        part_tool.part_edit.index = part_index;
+                        part_tool.part_edit.model.clear();
                         if (!is_model)
                         {
                             part.model = std::filesystem::relative(file, fspec.directory).generic_string();
                             part.prop.clear();
-                            part_edit.model = part.model;
+                            part_tool.part_edit.model = part.model;
                             const std::string snippet = "{\"model\": \"" + part.model + "\", \"offset\": [" + std::to_string(part.offset.x) + ", " + std::to_string(part.offset.y) + ", " + std::to_string(part.offset.z) + "]}";
                             ImGui::SetClipboardText(snippet.c_str());
                             sim.log("Copied part entry for ship.json: " + snippet);
                         }
-                        edit_was_paused = props.get_bool("/sim/paused");
+                        part_tool.edit_was_paused = props.get_bool("/sim/paused");
                         props.set_bool("/sim/paused", true);
                         props.set_bool("/sim/blender-edit", true);
-                        edit_paused = true;
-                        part_status = part_status.rfind("Reusing", 0) == 0 ? part_status + "; " + blender_edit.name() + " started" : blender_edit.name() + " started";
+                        part_tool.edit_paused = true;
+                        part_tool.part_status = part_tool.part_status.rfind("Reusing", 0) == 0 ? part_tool.part_status + "; " + part_tool.blender_edit.name() + " started" : part_tool.blender_edit.name() + " started";
                     }
                     else if (!problem.empty())
-                        part_status = problem;
+                        part_tool.part_status = problem;
                 }
                 ImGui::PopID();
                 ++part_index;
@@ -689,17 +689,17 @@ namespace kosmos::app
     void App::draw_part_window()
     {
         sl::PropertyTree &props = *props_ref;
-        if (part_window)
+        if (windows.part_window)
         {
             ImGui::SetNextWindowPos(ImVec2(330.0f, 80.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(520.0f, 360.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.92f);
-            if (ImGui::Begin("Part editor", &part_window))
+            if (ImGui::Begin("Part editor", &windows.part_window))
             {
                 kosmos::Ship &flown = *sim.active_ship();
                 kosmos::ShipSpec &fspec = flown.editable_spec();
-                if (blender_buffer[0] == '\0')
-                    copy_text(blender_buffer, sizeof blender_buffer, props.get_string("/sim/settings/blender", "blender"));
+                if (part_tool.blender_buffer[0] == '\0')
+                    copy_text(part_tool.blender_buffer, sizeof part_tool.blender_buffer, props.get_string("/sim/settings/blender", "blender"));
                 {
                     const bool cad = props.get_string("/sim/settings/mesh-editor", "blender") == "kosmoscad";
                     ImGui::SetNextItemWidth(160.0f);
@@ -716,15 +716,15 @@ namespace kosmos::app
                     if (!cad)
                     {
                         ImGui::SetNextItemWidth(260.0f);
-                        if (ImGui::InputText("Blender", blender_buffer, sizeof blender_buffer))
-                            props.set_string("/sim/settings/blender", blender_buffer);
+                        if (ImGui::InputText("Blender", part_tool.blender_buffer, sizeof part_tool.blender_buffer))
+                            props.set_string("/sim/settings/blender", part_tool.blender_buffer);
                         if (ImGui::IsItemHovered())
                             ImGui::SetTooltip("The Blender executable. Saved with the settings; --blender PATH overrides it.");
                     }
                 }
                 // Stays after Blender closes, so the converted mesh can still be written into the ship file.
                 part_converted_mesh(fspec);
-                if (edit_paused)
+                if (part_tool.edit_paused)
                 {
                     part_paused_controls();
                 }
@@ -732,8 +732,8 @@ namespace kosmos::app
                 {
                     part_live_controls(flown, fspec);
                 }
-                if (!part_status.empty())
-                    ImGui::TextWrapped("%s", part_status.c_str());
+                if (!part_tool.part_status.empty())
+                    ImGui::TextWrapped("%s", part_tool.part_status.c_str());
             }
             ImGui::End();
         }
@@ -752,12 +752,12 @@ namespace kosmos::app
 
     void App::draw_keys_window()
     {
-        if (!keys_window)
+        if (!windows.keys_window)
             return;
         ImGui::SetNextWindowPos(ImVec2(380.0f, 50.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(560.0f, 520.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowBgAlpha(0.94f);
-        if (ImGui::Begin("Keyboard", &keys_window))
+        if (ImGui::Begin("Keyboard", &windows.keys_window))
         {
             ImGui::TextWrapped("Click a key to rebind it, then press the new key (Esc cancels). Right-click a key to clear it. A key already used by another action in the same context is taken from it.");
             ImGui::TextDisabled("Fixed: Esc, Alt+Enter, 1-9 (pack items), arrows and Enter in the galaxy map.");
@@ -823,7 +823,7 @@ namespace kosmos::app
 
     void App::draw_quantum_window()
     {
-        if (quantum_window)
+        if (quantum.quantum_window)
         {
             // The quantum drive: pick a star within range and arrive 1 AU above its surface.
             double range_ly = 0.0;
@@ -834,7 +834,7 @@ namespace kosmos::app
             ImGui::SetNextWindowPos(ImVec2(330.0f, 120.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(420.0f, 400.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.9f);
-            if (ImGui::Begin("Quantum navigation", &quantum_window))
+            if (ImGui::Begin("Quantum navigation", &quantum.quantum_window))
             {
                 ImGui::Text("Ship: %s", ship->spec().name.c_str());
                 ImGui::Text("Position: %s", sim.galaxy.star(sim.system_index()).name.c_str());
@@ -862,10 +862,10 @@ namespace kosmos::app
                                 const kosmos::Star &st = sim.galaxy.star(id);
                                 ImGui::TableNextRow();
                                 ImGui::TableNextColumn();
-                                if (ImGui::Selectable((st.name + "##" + std::to_string(id)).c_str(), quantum_selected == id, ImGuiSelectableFlags_SpanAllColumns))
+                                if (ImGui::Selectable((st.name + "##" + std::to_string(id)).c_str(), quantum.quantum_selected == id, ImGuiSelectableFlags_SpanAllColumns))
                                 {
-                                    quantum_selected = id;
-                                    quantum_body.clear();
+                                    quantum.quantum_selected = id;
+                                    quantum.quantum_body.clear();
                                 }
                                 ImGui::TableNextColumn();
                                 ImGui::Text("%c", st.spectral_class);
@@ -878,21 +878,21 @@ namespace kosmos::app
                         }
                     }
                     ImGui::EndChild();
-                    const bool ok = quantum_selected >= 0 && quantum_selected != sim.system_index() && sim.galaxy.distance_ly(sim.system_index(), quantum_selected) <= range_ly;
-                    if (quantum_selected >= 0)
+                    const bool ok = quantum.quantum_selected >= 0 && quantum.quantum_selected != sim.system_index() && sim.galaxy.distance_ly(sim.system_index(), quantum.quantum_selected) <= range_ly;
+                    if (quantum.quantum_selected >= 0)
                     {
-                        const kosmos::Star &st = sim.galaxy.star(quantum_selected);
+                        const kosmos::Star &st = sim.galaxy.star(quantum.quantum_selected);
                         ImGui::Text("%s: %.1f solar masses, %.2f solar radii, %.0f K", st.name.c_str(), st.mass, st.radius, st.temperature);
                     }
                     else
                         ImGui::TextDisabled("Select a target star.");
-                    if (quantum_selected >= 0 && quantum_bodies_for != quantum_selected)
+                    if (quantum.quantum_selected >= 0 && quantum.quantum_bodies_for != quantum.quantum_selected)
                     {
                         // The planets and moons of the chosen system, read from its description without building it.
-                        quantum_bodies.clear();
-                        quantum_bodies_for = quantum_selected;
-                        std::string text = quantum_selected == 0 ? std::string{} : sim.galaxy.system_json(quantum_selected);
-                        if (quantum_selected == 0)
+                        quantum.quantum_bodies.clear();
+                        quantum.quantum_bodies_for = quantum.quantum_selected;
+                        std::string text = quantum.quantum_selected == 0 ? std::string{} : sim.galaxy.system_json(quantum.quantum_selected);
+                        if (quantum.quantum_selected == 0)
                         {
                             std::ifstream in(sim.root() + "/data/sol.json");
                             text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
@@ -903,20 +903,20 @@ namespace kosmos::app
                             {
                                 const std::string kind = b.value("kind", "");
                                 if (kind == "planet" || kind == "moon")
-                                    quantum_bodies.emplace_back(b.value("name", ""), (kind == "moon" ? "moon of " : "planet of ") + b.value("parent", ""));
+                                    quantum.quantum_bodies.emplace_back(b.value("name", ""), (kind == "moon" ? "moon of " : "planet of ") + b.value("parent", ""));
                             }
                     }
-                    if (quantum_selected >= 0)
+                    if (quantum.quantum_selected >= 0)
                     {
-                        const std::string label = quantum_body.empty() ? "Best world (habitable first)" : quantum_body;
+                        const std::string label = quantum.quantum_body.empty() ? "Best world (habitable first)" : quantum.quantum_body;
                         ImGui::SetNextItemWidth(-1.0f);
                         if (ImGui::BeginCombo("Arrive at", label.c_str()))
                         {
-                            if (ImGui::Selectable("Best world (habitable first)", quantum_body.empty()))
-                                quantum_body.clear();
-                            for (const auto &entry : quantum_bodies)
-                                if (ImGui::Selectable((entry.first + "  (" + entry.second + ")").c_str(), quantum_body == entry.first))
-                                    quantum_body = entry.first;
+                            if (ImGui::Selectable("Best world (habitable first)", quantum.quantum_body.empty()))
+                                quantum.quantum_body.clear();
+                            for (const auto &entry : quantum.quantum_bodies)
+                                if (ImGui::Selectable((entry.first + "  (" + entry.second + ")").c_str(), quantum.quantum_body == entry.first))
+                                    quantum.quantum_body = entry.first;
                             ImGui::EndCombo();
                         }
                     }
@@ -924,9 +924,9 @@ namespace kosmos::app
                         ImGui::BeginDisabled();
                     if (ImGui::Button("Engage quantum jump"))
                     {
-                        jump_to = quantum_selected;
-                        jump_to_star_orbit = true;
-                        jump_to_body = quantum_body;
+                        quantum.jump_to = quantum.quantum_selected;
+                        quantum.jump_to_star_orbit = true;
+                        quantum.jump_to_body = quantum.quantum_body;
                     }
                     if (!ok)
                         ImGui::EndDisabled();
@@ -944,8 +944,8 @@ namespace kosmos::app
     {
         kosmos::UserCamera c;
         c.name = "Orbit " + std::to_string(count + 1);
-        user_cams.push_back(c);
-        camera_editor_pick = count;
+        rig.user_cams.push_back(c);
+        rig.camera_editor_pick = count;
         changed = true;
     }
     ImGui::SameLine();
@@ -955,27 +955,27 @@ namespace kosmos::app
         c.name = "Mounted " + std::to_string(count + 1);
         c.orbit = false;
         c.y = 2.0;
-        user_cams.push_back(c);
-        camera_editor_pick = count;
+        rig.user_cams.push_back(c);
+        rig.camera_editor_pick = count;
         changed = true;
     }
     ImGui::SameLine();
     if (ImGui::Button("Copy") && count > 0)
     {
-        kosmos::UserCamera c = user_cams[static_cast<std::size_t>(camera_editor_pick)];
+        kosmos::UserCamera c = rig.user_cams[static_cast<std::size_t>(rig.camera_editor_pick)];
         c.name += " copy";
-        user_cams.push_back(c);
-        camera_editor_pick = count;
+        rig.user_cams.push_back(c);
+        rig.camera_editor_pick = count;
         changed = true;
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete") && count > 0)
     {
-        user_cams.erase(user_cams.begin() + camera_editor_pick);
-        if (user_cam == camera_editor_pick)
-            user_cam = -1;
-        else if (user_cam > camera_editor_pick)
-            --user_cam;
+        rig.user_cams.erase(rig.user_cams.begin() + rig.camera_editor_pick);
+        if (rig.user_cam == rig.camera_editor_pick)
+            rig.user_cam = -1;
+        else if (rig.user_cam > rig.camera_editor_pick)
+            --rig.user_cam;
         changed = true;
     }
     }
@@ -984,11 +984,11 @@ namespace kosmos::app
     {
     if (ImGui::BeginListBox("##cams", ImVec2(-FLT_MIN, 100.0f)))
     {
-        for (int ui = 0; ui < static_cast<int>(user_cams.size()); ++ui)
+        for (int ui = 0; ui < static_cast<int>(rig.user_cams.size()); ++ui)
         {
             ImGui::PushID(ui);
-            if (ImGui::Selectable((user_cams[static_cast<std::size_t>(ui)].name + (user_cam == ui ? "  (viewing)" : "")).c_str(), camera_editor_pick == ui))
-                camera_editor_pick = ui;
+            if (ImGui::Selectable((rig.user_cams[static_cast<std::size_t>(ui)].name + (rig.user_cam == ui ? "  (viewing)" : "")).c_str(), rig.camera_editor_pick == ui))
+                rig.camera_editor_pick = ui;
             ImGui::PopID();
         }
         ImGui::EndListBox();
@@ -998,15 +998,15 @@ namespace kosmos::app
     void App::camera_editor_fields(bool &changed)
     {
         kosmos::Universe &universe = *universe_ref;
-        const int ui = camera_editor_pick;
-        kosmos::UserCamera &uc = user_cams[static_cast<std::size_t>(ui)];
-        if (ImGui::Button(user_cam == ui ? "Back to the ship view" : "Look through"))
+        const int ui = rig.camera_editor_pick;
+        kosmos::UserCamera &uc = rig.user_cams[static_cast<std::size_t>(ui)];
+        if (ImGui::Button(rig.user_cam == ui ? "Back to the ship view" : "Look through"))
         {
-            user_cam = user_cam == ui ? -1 : ui;
+            rig.user_cam = rig.user_cam == ui ? -1 : ui;
             cockpit_view = cockpit3d = false;
-            interior_cam = base_view = -1;
+            rig.interior_cam = rig.base_view = -1;
             map_mode = galaxy_mode = false;
-            look_yaw = look_pitch = 0.0f;
+            rig.look_yaw = rig.look_pitch = 0.0f;
         }
         ImGui::Separator();
         char name[64];
@@ -1100,24 +1100,24 @@ namespace kosmos::app
     void App::draw_camera_editor_window()
     {
         kosmos::Universe &universe = *universe_ref;
-        if (camera_editor_window)
+        if (windows.camera_editor_window)
         {
             ImGui::SetNextWindowPos(ImVec2(330.0f, 120.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(380.0f, 520.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.9f);
-            if (ImGui::Begin("Camera editor", &camera_editor_window))
+            if (ImGui::Begin("Camera editor", &windows.camera_editor_window))
             {
                 bool changed = false;
-                const int count = static_cast<int>(user_cams.size());
-                camera_editor_pick = std::clamp(camera_editor_pick, 0, std::max(0, count - 1));
+                const int count = static_cast<int>(rig.user_cams.size());
+                rig.camera_editor_pick = std::clamp(rig.camera_editor_pick, 0, std::max(0, count - 1));
                 camera_editor_buttons(changed, count);
                 camera_editor_list();
-                if (!user_cams.empty())
+                if (!rig.user_cams.empty())
                     camera_editor_fields(changed);
                 ImGui::Separator();
                 ImGui::TextDisabled("C steps through these after the ship's own views.");
                 if (changed)
-                    kosmos::save_user_cameras(user_cam_file, user_cams);
+                    kosmos::save_user_cameras(rig.user_cam_file, rig.user_cams);
             }
             ImGui::End();
         }
@@ -1126,12 +1126,12 @@ namespace kosmos::app
     void App::draw_camera_window()
     {
         sl::PropertyTree &props = *props_ref;
-        if (camera_window)
+        if (windows.camera_window)
         {
             ImGui::SetNextWindowPos(ImVec2(12.0f, 120.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(300.0f, 380.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.85f);
-            if (ImGui::Begin("Cameras [F2]", &camera_window))
+            if (ImGui::Begin("Cameras [F2]", &windows.camera_window))
             {
                 const int active = props.get_int("/sim/active-ship");
                 // Picking a ship's camera also hands you that ship's controls.
@@ -1147,18 +1147,18 @@ namespace kosmos::app
                         props.set_double("/controls/hover", 0.0);
                         props.set_string("/controls/sas", "stability");
                         sas_index = 0;
-                        cam_distance = ship->spec().camera_distance;
+                        rig.cam_distance = ship->spec().camera_distance;
                     }
                     cockpit_view = cockpit;
                     cockpit3d = three_d;
-                    interior_cam = interior;
-                    user_cam = -1;
-                    base_view = base_index;
-                    base_view_cam = base_camera;
-                    look_yaw = look_pitch = 0.0f;
+                    rig.interior_cam = interior;
+                    rig.user_cam = -1;
+                    rig.base_view = base_index;
+                    rig.base_view_cam = base_camera;
+                    rig.look_yaw = rig.look_pitch = 0.0f;
                     map_mode = galaxy_mode = false;
                 };
-                const bool chase_now = !cockpit_view && interior_cam < 0 && base_view < 0 && user_cam < 0;
+                const bool chase_now = !cockpit_view && rig.interior_cam < 0 && rig.base_view < 0 && rig.user_cam < 0;
                 for (int si = 0; si < sim.ship_count(); ++si)
                 {
                     const Ship &other = *sim.ship(si);
@@ -1169,26 +1169,26 @@ namespace kosmos::app
                     {
                         if (ImGui::Selectable("External", mine && chase_now))
                             pick(si, false, false, -1, -1, 0);
-                        if (spec.cockpit.present && ImGui::Selectable(spec.building() ? "Interface (2D panel)" : spec.cockpit.mfds || !spec.cockpit.panel.empty() ? "Cockpit (2D panel)" : "Cockpit", mine && cockpit_view && !cockpit3d && interior_cam < 0 && base_view < 0))
+                        if (spec.cockpit.present && ImGui::Selectable(spec.building() ? "Interface (2D panel)" : spec.cockpit.mfds || !spec.cockpit.panel.empty() ? "Cockpit (2D panel)" : "Cockpit", mine && cockpit_view && !cockpit3d && rig.interior_cam < 0 && rig.base_view < 0))
                             pick(si, true, false, -1, -1, 0);
-                        if (spec.cockpit.present && spec.cockpit.mfds && ImGui::Selectable(spec.building() ? "Interface (3D)" : "Cockpit (3D, MFDs)", mine && cockpit_view && cockpit3d && interior_cam < 0 && base_view < 0))
+                        if (spec.cockpit.present && spec.cockpit.mfds && ImGui::Selectable(spec.building() ? "Interface (3D)" : "Cockpit (3D, MFDs)", mine && cockpit_view && cockpit3d && rig.interior_cam < 0 && rig.base_view < 0))
                             pick(si, true, true, -1, -1, 0);
                         for (std::size_t ci = 0; ci < spec.cameras.size(); ++ci)
-                            if (ImGui::Selectable(spec.cameras[ci].name.c_str(), mine && interior_cam == static_cast<int>(ci) && base_view < 0))
+                            if (ImGui::Selectable(spec.cameras[ci].name.c_str(), mine && rig.interior_cam == static_cast<int>(ci) && rig.base_view < 0))
                                 pick(si, false, false, static_cast<int>(ci), -1, 0);
                         ImGui::TreePop();
                     }
                     ImGui::PopID();
                 }
-                if (!user_cams.empty() && ImGui::TreeNodeEx("My cameras", ImGuiTreeNodeFlags_DefaultOpen))
+                if (!rig.user_cams.empty() && ImGui::TreeNodeEx("My cameras", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    for (std::size_t ui = 0; ui < user_cams.size(); ++ui)
+                    for (std::size_t ui = 0; ui < rig.user_cams.size(); ++ui)
                     {
                         ImGui::PushID(2000 + static_cast<int>(ui));
-                        if (ImGui::Selectable(user_cams[ui].name.c_str(), user_cam == static_cast<int>(ui)))
+                        if (ImGui::Selectable(rig.user_cams[ui].name.c_str(), rig.user_cam == static_cast<int>(ui)))
                         {
                             pick(-1, false, false, -1, -1, 0);
-                            user_cam = static_cast<int>(ui);
+                            rig.user_cam = static_cast<int>(ui);
                         }
                         ImGui::PopID();
                     }
@@ -1203,7 +1203,7 @@ namespace kosmos::app
                     if (ImGui::TreeNodeEx((bs.name + " base").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         for (std::size_t ci = 0; ci < bs.cameras.size(); ++ci)
-                            if (ImGui::Selectable(bs.cameras[ci].name.c_str(), base_view == static_cast<int>(bi) && base_view_cam == static_cast<int>(ci)))
+                            if (ImGui::Selectable(bs.cameras[ci].name.c_str(), rig.base_view == static_cast<int>(bi) && rig.base_view_cam == static_cast<int>(ci)))
                                 pick(-1, false, false, -1, static_cast<int>(bi), static_cast<int>(ci));
                         ImGui::TreePop();
                     }
@@ -1212,7 +1212,7 @@ namespace kosmos::app
                 ImGui::Separator();
                 ImGui::TextDisabled("C cycles the flown ship's views and your cameras. Right-drag looks around.");
                 if (ImGui::Button("Camera editor..."))
-                    camera_editor_window = true;
+                    windows.camera_editor_window = true;
             }
             ImGui::End();
         }

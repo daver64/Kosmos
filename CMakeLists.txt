@@ -61,7 +61,7 @@ add_executable(kosmos
     src/universe.cpp
     src/base.cpp
     src/galaxy.cpp
-    src/ship.cpp
+    src/ship.cpp src/ship_loader.cpp src/ship_placement.cpp src/ship_controls.cpp src/ship_environment.cpp src/ship_publish.cpp
     src/equipment.cpp
     src/ordnance.cpp
     src/camera_dynamics.cpp
@@ -154,7 +154,7 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 file(WRITE "${CMAKE_BINARY_DIR}/VERSION.txt" "${KOSMOS_VERSION}\n")
 
 # Ship systems (power, consumables, pressure vessels) tests: cmake --build build --target systems_test && build/systems_test
-add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/reentry.cpp src/interior.cpp src/part_kit.cpp src/universe.cpp
+add_executable(systems_test EXCLUDE_FROM_ALL tests/systems_test.cpp src/systems.cpp src/ship.cpp src/ship_loader.cpp src/ship_placement.cpp src/ship_controls.cpp src/ship_environment.cpp src/ship_publish.cpp src/reentry.cpp src/interior.cpp src/part_kit.cpp src/universe.cpp
     src/vsop87.cpp src/planet_data.cpp src/planet_gen.cpp src/planet_bake.cpp)
 target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)

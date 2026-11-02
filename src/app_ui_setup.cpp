@@ -9,30 +9,30 @@ namespace kosmos::app
         cockpit_mfd = 0;
         first_ship_seen = true;
         panel_index = options.panel; // which of the ship's 2D panels the 2D cockpit shows
-        mfd_mouse_prev = false;
+        drag.mfd_mouse_prev = false;
         cockpit3d = options.cockpit3d;
         // Camera selection (F2): a ship's interior camera or a base camera, besides the chase and cockpit views.
-        interior_cam = -1;
-        base_view = -1;
-        base_view_cam = 0;
+        rig.interior_cam = -1;
+        rig.base_view = -1;
+        rig.base_view_cam = 0;
         // Cameras from the Camera editor (an orbiting external view to begin with); user_cam is the one looked through, or -1.
-        user_cam_file = kosmos::user_camera_path(kosmos::Sim::user_dir());
-        user_cams = kosmos::load_user_cameras(user_cam_file);
-        user_cam = options.user_camera >= 0 && options.user_camera < static_cast<int>(user_cams.size()) ? options.user_camera : -1;
-        camera_editor_window = options.camera_editor;
-        camera_editor_pick = 0;
-        systems_window = options.systems_window;
-        camera_window = options.camera_window;
-        settings_window = options.settings_window;
-        performance_window = options.performance_window;
-        property_window = options.property_window;
-        lua_window = options.lua_window;
-        net_window = options.net_window;
+        rig.user_cam_file = kosmos::user_camera_path(kosmos::Sim::user_dir());
+        rig.user_cams = kosmos::load_user_cameras(rig.user_cam_file);
+        rig.user_cam = options.user_camera >= 0 && options.user_camera < static_cast<int>(rig.user_cams.size()) ? options.user_camera : -1;
+        windows.camera_editor_window = options.camera_editor;
+        rig.camera_editor_pick = 0;
+        windows.systems_window = options.systems_window;
+        windows.camera_window = options.camera_window;
+        windows.settings_window = options.settings_window;
+        windows.performance_window = options.performance_window;
+        windows.property_window = options.property_window;
+        windows.lua_window = options.lua_window;
+        windows.net_window = options.net_window;
         // Part editor: meshes are edited in Blender while the simulation waits (the pause property is restored afterwards).
-        part_window = options.part_window;
-        edit_paused = false;
-        edit_was_paused = false;
-        model_poll = 0.0;
+        windows.part_window = options.part_window;
+        part_tool.edit_paused = false;
+        part_tool.edit_was_paused = false;
+        part_tool.model_poll = 0.0;
         copy_text(net_ui.nick, sizeof net_ui.nick, options.net_name.empty() ? "Pilot" : options.net_name);
         copy_text(net_ui.irc_host, sizeof net_ui.irc_host, options.net_irc);
         copy_text(net_ui.channel, sizeof net_ui.channel, options.net_channel);
@@ -65,29 +65,29 @@ namespace kosmos::app
             const std::string id = options.view_base.substr(0, colon);
             for (std::size_t i = 0; i < sim.bases.size(); ++i)
                 if (sim.bases[i].id == id)
-                    base_view = static_cast<int>(i), base_view_cam = colon == std::string::npos ? 0 : std::atoi(options.view_base.c_str() + colon + 1);
+                    rig.base_view = static_cast<int>(i), rig.base_view_cam = colon == std::string::npos ? 0 : std::atoi(options.view_base.c_str() + colon + 1);
         }
         sl::gui_init();
-        mfd_target[0] = sl::create_render_target(mfd_target_size, mfd_target_size);
-        mfd_target[1] = sl::create_render_target(mfd_target_size, mfd_target_size);
-        hud_target = sl::create_render_target(mfd_target_size, mfd_target_size);
-        if (hud_target)
-            hud_target->smooth = true;
+        targets.mfd_target[0] = sl::create_render_target(mfd_target_size, mfd_target_size);
+        targets.mfd_target[1] = sl::create_render_target(mfd_target_size, mfd_target_size);
+        targets.hud_target = sl::create_render_target(mfd_target_size, mfd_target_size);
+        if (targets.hud_target)
+            targets.hud_target->smooth = true;
         // The boards are minified on screen; nearest sampling made thin lines shimmer as the ship rocked.
-        for (sl::Bitmap *t : mfd_target)
+        for (sl::Bitmap *t : targets.mfd_target)
             if (t)
                 t->smooth = true;
-        panel_target = nullptr;
-        panel_target_height = 0;
+        targets.panel_target = nullptr;
+        targets.panel_target_height = 0;
         vis.screen_quad = make_screen_quad();
         vis.cockpit_box = sl::create_cube_mesh(1.0f, {255, 255, 255, 255});
-        mfd_ship = nullptr;
-        look_yaw = 0.0f;
-        look_pitch = 0.0f;
-        eva_look_yaw = 0.0;
-        eva_look_pitch = 0.0;
-        eye_shift = sl::dvec3{0.0}; // the pilot's head moved from the seat with the arrow keys and Page Up/Down, in the ship's frame
-        eye_ship = nullptr;
+        targets.mfd_ship = nullptr;
+        rig.look_yaw = 0.0f;
+        rig.look_pitch = 0.0f;
+        rig.eva_look_yaw = 0.0;
+        rig.eva_look_pitch = 0.0;
+        rig.eye_shift = sl::dvec3{0.0}; // the pilot's head moved from the seat with the arrow keys and Page Up/Down, in the ship's frame
+        rig.eye_ship = nullptr;
         if (options.map_scale > 0.0)
             map.metres_per_pixel = options.map_scale;
         if (!options.map_focus.empty())
@@ -110,21 +110,21 @@ namespace kosmos::app
         }
         keys.load();
         setup_link();
-        joystick_window = false;
-        keys_window = options.keys_window;
-        cam_yaw = static_cast<float>(options.cam_yaw);
-        cam_pitch = static_cast<float>(options.cam_pitch);
+        windows.joystick_window = false;
+        windows.keys_window = options.keys_window;
+        rig.cam_yaw = static_cast<float>(options.cam_yaw);
+        rig.cam_pitch = static_cast<float>(options.cam_pitch);
         if (options.cockpit3d && (options.cam_yaw != 0.0 || options.cam_pitch != 0.0))
         {
-            look_yaw = static_cast<float>(glm::radians(options.cam_yaw));
-            look_pitch = static_cast<float>(glm::radians(options.cam_pitch));
+            rig.look_yaw = static_cast<float>(glm::radians(options.cam_yaw));
+            rig.look_pitch = static_cast<float>(glm::radians(options.cam_pitch));
         }
-        cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
+        rig.cam_distance = options.cam_distance > 0.0 ? options.cam_distance : ship->spec().camera_distance;
         // Right-drag in the chase view turns the camera on the spot; the ship moves across the screen instead of the camera swinging round it.
-        free_yaw = 0.0f;
-        free_pitch = 0.0f;
-        last_mouse_x = 0;
-        last_mouse_y = 0;
+        rig.free_yaw = 0.0f;
+        rig.free_pitch = 0.0f;
+        rig.last_mouse_x = 0;
+        rig.last_mouse_y = 0;
         screenshot_requested = false;
         // The menu item is clicked while its menu is open, so the shot waits a moment for the menu to close.
         screenshot_due_ms = 0;
@@ -134,7 +134,7 @@ namespace kosmos::app
         menu_bar.aircraft_autopilot_open = options.aircraft_autopilot;
         menu_bar.spacecraft_autopilot_open = options.spacecraft_autopilot;
         menu_bar.base_editor_open = options.base_editor;
-        menu_windows = {{"Part editor", "", &part_window}, {"Cameras", "F2", &camera_window}, {"Camera editor", "", &camera_editor_window}, {"Settings", "F3", &settings_window}, {"Performance settings", "", &performance_window}, {"ICBM targeting", "", &icbm_window}, {"Joystick", "", &joystick_window}, {"Keyboard", "", &keys_window}, {"Native addons", "", &link_window}, {"Ship systems", "F1", &systems_window}, {"Properties", "F4", &property_window}, {"Lua console", "F11", &lua_window}, {"Multiplayer", "F12", &net_window}, {"Quantum navigation", "", &quantum_window}};
+        menu_windows = {{"Part editor", "", &windows.part_window}, {"Cameras", "F2", &windows.camera_window}, {"Camera editor", "", &windows.camera_editor_window}, {"Settings", "F3", &windows.settings_window}, {"Performance settings", "", &windows.performance_window}, {"ICBM targeting", "", &windows.icbm_window}, {"Joystick", "", &windows.joystick_window}, {"Keyboard", "", &windows.keys_window}, {"Native addons", "", &windows.link_window}, {"Ship systems", "F1", &windows.systems_window}, {"Properties", "F4", &windows.property_window}, {"Lua console", "F11", &windows.lua_window}, {"Multiplayer", "F12", &windows.net_window}, {"Quantum navigation", "", &quantum.quantum_window}};
         menu_actions.start_scenario = [this](const kosmos::Scenario &sc) { menu_start_scenario(sc); };
         menu_actions.restart = [this]() { menu_restart(); };
     return keep_going;
@@ -193,24 +193,24 @@ namespace kosmos::app
         eva.active = false;
         sim.activate(best);
         ship = sim.active_ship();
-        cam_distance = ship->spec().camera_distance;
-        look_yaw = look_pitch = 0.0f;
+        rig.cam_distance = ship->spec().camera_distance;
+        rig.look_yaw = rig.look_pitch = 0.0f;
         sim.log("Back aboard " + ship->name);
     }
 
     void App::leave_eva()
     {
         const int door = building_at_door();
-        if (eva.building >= 0 && interior_panel >= 0)
+        if (eva.building >= 0 && walk.interior_panel >= 0)
         {
             // Use the panel: the building's own interface, with Enter to step back.
-            panel_return = eva.building;
+            walk.panel_return = eva.building;
             eva.active = false;
             sim.activate(eva.building);
             ship = sim.active_ship();
             cockpit_view = ship->spec().cockpit.present;
             cockpit3d = false;
-            look_yaw = look_pitch = 0.0f;
+            rig.look_yaw = rig.look_pitch = 0.0f;
             return;
         }
         if (eva.building >= 0)
@@ -223,12 +223,12 @@ namespace kosmos::app
             }
             if (!inside->spec().interior->airlock_name().empty())
             {
-                if (!in_airlock)
+                if (!walk.in_airlock)
                 {
                     sim.log("The way out is through the airlock");
                     return;
                 }
-                if (room_kpa > kosmos::airlock_safe_kpa)
+                if (walk.room_kpa > kosmos::airlock_safe_kpa)
                 {
                     inside->interior_state.airlock = kosmos::InteriorState::Airlock::venting;
                     sim.log("Airlock depressurising: wait, then press Enter again");
@@ -240,20 +240,20 @@ namespace kosmos::app
             const sl::dvec3 spot = door_world(*inside);
             eva.building = -1;
             eva.leave(sim.universe, bt.soi, spot, inside->body().velocity, inside->origin() - spot, terrain_of(bt.soi), true);
-            eva_look_yaw = eva_look_pitch = 0.0;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             sim.log("Outside " + inside->name);
             return;
         }
         if (door >= 0 && sim.ship(door)->spec().interior)
         {
             eva.building = door;
-            walker.place(*sim.ship(door)->spec().interior);
+            walk.walker.place(*sim.ship(door)->spec().interior);
             if (sim.ship(door)->interior_state.airlock == kosmos::InteriorState::Airlock::vacuum)
             {
                 sim.ship(door)->interior_state.airlock = kosmos::InteriorState::Airlock::normal;
                 sim.log("Airlock repressurising");
             }
-            eva_look_yaw = eva_look_pitch = 0.0;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             sim.log("Inside " + sim.ship(door)->name + ": Enter at the airlock hatch to go out");
             return;
         }
@@ -264,7 +264,7 @@ namespace kosmos::app
             ship = sim.active_ship();
             cockpit_view = ship->spec().cockpit.present;
             cockpit3d = false;
-            look_yaw = look_pitch = 0.0f;
+            rig.look_yaw = rig.look_pitch = 0.0f;
             sim.log("Inside " + ship->name);
             return;
         }
@@ -282,16 +282,16 @@ namespace kosmos::app
         Ship *flown = sim.active_ship();
         if (!flown)
             return;
-        if (flown->spec().building() && panel_return >= 0 && panel_return < sim.ship_count() && sim.ship(panel_return) == flown && flown->spec().interior)
+        if (flown->spec().building() && walk.panel_return >= 0 && walk.panel_return < sim.ship_count() && sim.ship(walk.panel_return) == flown && flown->spec().interior)
         {
             eva.active = true;
-            eva.building = panel_return;
-            panel_return = -1;
+            eva.building = walk.panel_return;
+            walk.panel_return = -1;
             cockpit_view = cockpit3d = false;
-            eva_look_yaw = eva_look_pitch = 0.0;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             return;
         }
-        panel_return = -1;
+        walk.panel_return = -1;
         if (flown->spec().building())
         {
             const kosmos::Telemetry &bt = flown->telemetry();
@@ -304,8 +304,8 @@ namespace kosmos::app
             arsenal.equip_person(sim, flown);
             sim.props.set_bool("/autopilot/enabled", false);
             cockpit_view = cockpit3d = false;
-            interior_cam = base_view = user_cam = -1;
-            eva_look_yaw = eva_look_pitch = 0.0;
+            rig.interior_cam = rig.base_view = rig.user_cam = -1;
+            rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
             sim.log("Outside " + flown->name + ": Enter at the door to go back in");
             return;
         }
@@ -343,8 +343,8 @@ namespace kosmos::app
         sim.props.set_double("/controls/throttle", 0.0);
         sim.props.set_double("/controls/hover", 0.0);
         cockpit_view = cockpit3d = false;
-        interior_cam = base_view = user_cam = -1;
-        eva_look_yaw = eva_look_pitch = 0.0;
+        rig.interior_cam = rig.base_view = rig.user_cam = -1;
+        rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
         sim.log("On foot: Enter near the ship to board");
     }
 
@@ -369,14 +369,14 @@ namespace kosmos::app
     int App::init_recording()
     {
         // Video capture: raw frames from the screen are piped to ffmpeg, which stamps them by wall clock and encodes 30 fps H.264.
-        record_pipe = nullptr;
-        record_pcm = nullptr;
-        record_frames = 0;
-        record_w = 0;
-        record_h = 0;
-        record_rate = 48000;
-        record_channels = 2;
-        menu_actions.recording = [&]() { return record_pipe != nullptr; };
+        rec.record_pipe = nullptr;
+        rec.record_pcm = nullptr;
+        rec.record_frames = 0;
+        rec.record_w = 0;
+        rec.record_h = 0;
+        rec.record_rate = 48000;
+        rec.record_channels = 2;
+        menu_actions.recording = [&]() { return rec.record_pipe != nullptr; };
         menu_actions.toggle_recording = [this]() { menu_toggle_recording(); };
     return keep_going;
     }
@@ -396,7 +396,7 @@ namespace kosmos::app
     void App::menu_start_scenario(const kosmos::Scenario &sc)
     {
         vis.clear_parts();
-        link_scenario = sc.id;
+        link_state.link_scenario = sc.id;
         const int previous_system = sim.system_index();
         bool world_rebuilt = false;
         // A scenario belongs to one star system (Sol unless it names another): go there first.
@@ -415,7 +415,7 @@ namespace kosmos::app
                 }
                 world_rebuilt = true;
                 map.focus = -1;
-                quantum_selected = -1;
+                quantum.quantum_selected = -1;
                 gview.refresh(sim.galaxy, sim.system_index());
             }
         }
@@ -437,10 +437,10 @@ namespace kosmos::app
         if (Ship *flown = apply_scenario(sim, sc, terrain_set))
         {
             ship = flown;
-            cam_distance = ship->spec().camera_distance;
+            rig.cam_distance = ship->spec().camera_distance;
             cockpit_view = cockpit3d = false;
-            interior_cam = base_view = user_cam = -1;
-            look_yaw = look_pitch = 0.0f;
+            rig.interior_cam = rig.base_view = rig.user_cam = -1;
+            rig.look_yaw = rig.look_pitch = 0.0f;
         }
         else if (world_rebuilt || sim.system_index() != previous_system)
         {
@@ -456,7 +456,7 @@ namespace kosmos::app
         eva.active = false;
         arsenal.reset();
         ship_weapons.reset();
-        cam_distance = ship->spec().camera_distance;
+        rig.cam_distance = ship->spec().camera_distance;
     }
 
     void App::menu_show_panel(int index)
@@ -471,94 +471,94 @@ namespace kosmos::app
         cockpit_view = true;
         cockpit3d = false;
         cockpit_mfd = 0;
-        interior_cam = base_view = -1;
+        rig.interior_cam = rig.base_view = -1;
         map_mode = galaxy_mode = false;
-        look_yaw = look_pitch = 0.0f;
+        rig.look_yaw = rig.look_pitch = 0.0f;
     }
 
     void App::flush_record_audio()
     {
         std::vector<std::int16_t> chunk;
         {
-            std::lock_guard<std::mutex> lock(record_audio_mutex);
-            chunk.swap(record_audio);
+            std::lock_guard<std::mutex> lock(rec.record_audio_mutex);
+            chunk.swap(rec.record_audio);
         }
-        if (record_pcm && !chunk.empty())
-            std::fwrite(chunk.data(), sizeof(std::int16_t), chunk.size(), record_pcm);
+        if (rec.record_pcm && !chunk.empty())
+            std::fwrite(chunk.data(), sizeof(std::int16_t), chunk.size(), rec.record_pcm);
     }
 
     void App::stop_recording()
     {
-        if (!record_pipe)
+        if (!rec.record_pipe)
             return;
         sl::audio_set_capture({});
 #ifdef _WIN32
         _pclose(record_pipe);
 #else
-        pclose(record_pipe);
+        pclose(rec.record_pipe);
 #endif
-        record_pipe = nullptr;
+        rec.record_pipe = nullptr;
         flush_record_audio();
         bool audio = false;
-        if (record_pcm)
+        if (rec.record_pcm)
         {
-            audio = std::ftell(record_pcm) > 0;
-            std::fclose(record_pcm);
-            record_pcm = nullptr;
+            audio = std::ftell(rec.record_pcm) > 0;
+            std::fclose(rec.record_pcm);
+            rec.record_pcm = nullptr;
         }
         bool ok = true;
         if (audio)
         {
-            const std::string mux = "ffmpeg -loglevel error -y -i \"" + record_video + "\" -f s16le -ar " + std::to_string(record_rate) +
-                                    " -ac " + std::to_string(record_channels) + " -i \"" + record_pcm_file +
-                                    "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + record_file + "\"";
+            const std::string mux = "ffmpeg -loglevel error -y -i \"" + rec.record_video + "\" -f s16le -ar " + std::to_string(rec.record_rate) +
+                                    " -ac " + std::to_string(rec.record_channels) + " -i \"" + rec.record_pcm_file +
+                                    "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + rec.record_file + "\"";
             ok = std::system(mux.c_str()) == 0;
         }
         if (!audio || !ok)
-            std::rename(record_video.c_str(), record_file.c_str());
+            std::rename(rec.record_video.c_str(), rec.record_file.c_str());
         else
-            std::remove(record_video.c_str());
-        std::remove(record_pcm_file.c_str());
-        sim.log("Saved " + record_file + " (" + std::to_string(record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
+            std::remove(rec.record_video.c_str());
+        std::remove(rec.record_pcm_file.c_str());
+        sim.log("Saved " + rec.record_file + " (" + std::to_string(rec.record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
     }
 
     void App::menu_toggle_recording()
     {
-        if (record_pipe)
+        if (rec.record_pipe)
         {
             stop_recording();
             return;
         }
-        record_w = sl::screen->width & ~1;
-        record_h = sl::screen->height & ~1;
-        record_file = "kosmos-" + std::to_string(sl::time_ms()) + ".mp4";
-        record_video = record_file + ".video.mp4";
-        record_pcm_file = record_file + ".pcm";
+        rec.record_w = sl::screen->width & ~1;
+        rec.record_h = sl::screen->height & ~1;
+        rec.record_file = "kosmos-" + std::to_string(sl::time_ms()) + ".mp4";
+        rec.record_video = rec.record_file + ".video.mp4";
+        rec.record_pcm_file = rec.record_file + ".pcm";
         const std::string command = "ffmpeg -loglevel error -y -use_wallclock_as_timestamps 1 -f rawvideo -pix_fmt rgba -s " +
                                     std::to_string(sl::screen->width) + "x" + std::to_string(sl::screen->height) +
-                                    " -i - -vf \"crop=" + std::to_string(record_w) + ":" + std::to_string(record_h) +
-                                    ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + record_video + "\"";
+                                    " -i - -vf \"crop=" + std::to_string(rec.record_w) + ":" + std::to_string(rec.record_h) +
+                                    ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + rec.record_video + "\"";
 #ifdef _WIN32
         record_pipe = _popen(command.c_str(), "w");
 #else
-        record_pipe = popen(command.c_str(), "w");
+        rec.record_pipe = popen(command.c_str(), "w");
 #endif
-        record_frames = 0;
-        if (record_pipe)
+        rec.record_frames = 0;
+        if (rec.record_pipe)
         {
-            record_pcm = std::fopen(record_pcm_file.c_str(), "wb");
-            if (record_pcm && !sl::audio_set_capture(
+            rec.record_pcm = std::fopen(rec.record_pcm_file.c_str(), "wb");
+            if (rec.record_pcm && !sl::audio_set_capture(
                                   [&](const std::int16_t *samples, std::size_t frames)
                                   {
-                                      std::lock_guard<std::mutex> lock(record_audio_mutex);
-                                      record_audio.insert(record_audio.end(), samples, samples + frames * static_cast<std::size_t>(record_channels));
+                                      std::lock_guard<std::mutex> lock(rec.record_audio_mutex);
+                                      rec.record_audio.insert(rec.record_audio.end(), samples, samples + frames * static_cast<std::size_t>(rec.record_channels));
                                   },
-                                  &record_rate, &record_channels))
+                                  &rec.record_rate, &rec.record_channels))
             {
-                std::fclose(record_pcm);
-                record_pcm = nullptr;
+                std::fclose(rec.record_pcm);
+                rec.record_pcm = nullptr;
             }
-            sim.log("Recording " + record_file);
+            sim.log("Recording " + rec.record_file);
         }
         else
             sim.log("Could not start ffmpeg");
