@@ -275,6 +275,57 @@ namespace cad
         }
     }
 
+    fs::path resolve_texture(const Scene &scene, const std::string &path)
+    {
+        fs::path p(path);
+        if (p.is_relative() && !scene.base_dir.empty())
+            p = fs::path(scene.base_dir) / p;
+        return p;
+    }
+
+    int localise_textures(Scene &scene, const fs::path &base)
+    {
+        std::error_code ec;
+        const fs::path root = fs::weakly_canonical(base, ec);
+        int copied = 0;
+        auto fix = [&](std::string &path)
+        {
+            if (path.empty())
+                return;
+            const fs::path src = resolve_texture(scene, path);
+            if (!fs::is_regular_file(src, ec))
+                return;
+            const fs::path real = fs::weakly_canonical(src, ec);
+            const fs::path rel = real.lexically_relative(root);
+            if (!rel.empty() && *rel.begin() != "..")
+            {
+                path = rel.generic_string();
+                return;
+            }
+            const fs::path dir = root / "textures";
+            fs::create_directories(dir, ec);
+            fs::path target = dir / real.filename();
+            for (int n = 2; fs::exists(target, ec) && !fs::equivalent(target, real, ec); ++n)
+                target = dir / (real.stem().string() + "_" + std::to_string(n) + real.extension().string());
+            if (!fs::exists(target, ec))
+            {
+                fs::copy_file(real, target, ec);
+                if (ec)
+                    return;
+                ++copied;
+            }
+            path = "textures/" + target.filename().string();
+        };
+        for (Material &m : scene.materials)
+        {
+            fix(m.texture);
+            fix(m.normal_map);
+            fix(m.spec_map);
+        }
+        scene.base_dir = base.string();
+        return copied;
+    }
+
     bool save_kmodel(const Scene &scene, const fs::path &file, std::string &error)
     {
         std::ofstream out(file);
@@ -428,13 +479,14 @@ namespace cad
             mtl << "Pm " << m.metallic << "\nPr " << m.roughness << "\nKe " << m.emissive.x << ' ' << m.emissive.y << ' ' << m.emissive.z << '\n';
             auto copy_map = [&](const std::string &src, const char *key)
             {
-                if (src.empty() || !fs::exists(src))
+                const fs::path from = src.empty() ? fs::path() : resolve_texture(scene, src);
+                if (from.empty() || !fs::exists(from))
                     return;
                 const fs::path tex_dir = dir / "textures";
                 fs::create_directories(tex_dir, ec);
-                const fs::path target = tex_dir / fs::path(src).filename();
+                const fs::path target = tex_dir / from.filename();
                 if (!fs::exists(target))
-                    fs::copy_file(src, target, ec);
+                    fs::copy_file(from, target, ec);
                 mtl << key << " textures/" << target.filename().string() << '\n';
             };
             copy_map(m.texture, "map_Kd");

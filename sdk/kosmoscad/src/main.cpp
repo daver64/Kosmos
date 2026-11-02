@@ -436,6 +436,7 @@ namespace
             return;
         }
         std::string err;
+        A->ed.scene().base_dir = A->edit_mesh.parent_path().string();
         if (write_mesh_file(A->ed.scene(), A->edit_mesh, err))
         {
             A->ed.doc.dirty = false;
@@ -445,6 +446,8 @@ namespace
         else
             say("Not sent: " + err);
     }
+    std::string texture_base();
+
     void act_save_kmodel(bool as)
     {
         if (!as && !A->edit_mesh.empty())
@@ -453,6 +456,7 @@ namespace
             return;
         }
         Editor &ed = A->ed;
+        const std::string old_base = texture_base();
         if (as || ed.doc.file.empty())
         {
             const std::string f = choose(GTK_FILE_CHOOSER_ACTION_SAVE, "Save scene", "*.kmodel", "model.kmodel");
@@ -460,6 +464,10 @@ namespace
                 return;
             ed.doc.file = f;
         }
+        // Resolve images against where the scene was, then keep them with the file: relative paths, outside images copied beside it.
+        ed.scene().base_dir = old_base;
+        if (const int n = localise_textures(ed.scene(), texture_base()))
+            say("Copied " + std::to_string(n) + " texture file(s) into " + texture_base() + "/textures");
         std::string err;
         if (save_kmodel(ed.scene(), ed.doc.file, err))
         {
@@ -485,6 +493,8 @@ namespace
             if (path.empty())
                 return;
         }
+        ed.scene().base_dir = texture_base();
+        localise_textures(ed.scene(), fs::path(path).parent_path());
         std::error_code ec;
         if (fs::exists(path, ec) && A->backed_up != path)
         {
@@ -526,6 +536,7 @@ namespace
             return;
         std::string err;
         const std::string name = A->ed.doc.file.empty() ? "model" : A->ed.doc.file.stem().string();
+        A->ed.scene().base_dir = texture_base();
         if (export_obj(A->ed.scene(), dir, name, err))
             say("Exported " + dir + "/" + name + ".obj");
         else
@@ -540,6 +551,7 @@ namespace
         if (f.size() < 4 || f.substr(f.size() - 4) != ".glb")
             f += ".glb";
         std::string err;
+        A->ed.scene().base_dir = texture_base();
         if (write_mesh_file(A->ed.scene(), f, err))
             say("Exported " + f);
         else
@@ -908,6 +920,7 @@ namespace
             A->drop_tex = false;
         }
         A->gl.base_dir = texture_base();
+        A->ed.scene().base_dir = A->gl.base_dir;
         A->gl.render(A->ed, A->cams, A->vs, W, H, sc);
         if (A->render_pending)
         {
@@ -1593,6 +1606,18 @@ namespace
         m.texture = gtk_entry_get_text(GTK_ENTRY(A->mat_tex));
         m.normal_map = gtk_entry_get_text(GTK_ENTRY(A->mat_normal));
         m.spec_map = gtk_entry_get_text(GTK_ENTRY(A->mat_spec));
+        // Once the model has a folder, its images live there: pick one from elsewhere and it is copied in.
+        if (!texture_base().empty())
+        {
+            A->ed.scene().base_dir = texture_base();
+            if (const int n = localise_textures(A->ed.scene(), texture_base()))
+                say("Copied " + std::to_string(n) + " texture file(s) into " + texture_base() + "/textures");
+            A->updating = true;
+            gtk_entry_set_text(GTK_ENTRY(A->mat_tex), m.texture.c_str());
+            gtk_entry_set_text(GTK_ENTRY(A->mat_normal), m.normal_map.c_str());
+            gtk_entry_set_text(GTK_ENTRY(A->mat_spec), m.spec_map.c_str());
+            A->updating = false;
+        }
         m.metallic = gtk_range_get_value(GTK_RANGE(A->mat_metal));
         m.roughness = gtk_range_get_value(GTK_RANGE(A->mat_rough));
         GdkRGBA ec;

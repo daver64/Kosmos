@@ -19,7 +19,7 @@ namespace cad
     {
         std::string name = "part"; // becomes the OBJ usemtl name, which Kosmos uses as the part name for animation
         V3 colour{0.7, 0.72, 0.75};
-        std::string texture;       // path to an image, absolute or relative to the scene file; empty for none
+        std::string texture;       // path to an image, relative to the model's folder (absolute only for an unsaved scene); empty for none
         std::string normal_map;    // tangent-space normal map (OBJ map_Bump, glTF normalTexture); empty for none
         std::string spec_map;      // glTF-style metallic-roughness image (G roughness, B metallic); empty for none
         double metallic = 0.0;     // 0..1
@@ -58,6 +58,7 @@ namespace cad
         std::vector<Marker> markers;
         std::string ship_note;     // free text kept in the .kmodel
         std::string ship_file;     // the ship.json this scene was opened from or last saved to
+        std::string base_dir;      // folder that relative texture paths are relative to (not saved; set by the app from the file location)
         json ship_root;            // that ship.json minus the parts, engines, ports... that became objects and markers (see ship_io.h)
     };
 
@@ -95,6 +96,13 @@ namespace cad
     bool import_obj(const fs::path &file, Scene &scene, std::string &error);
     /** Adds a triangle soup (such as a GLB read by ShipEdit's loader) as one object. */
     void add_triangles(Scene &scene, const std::string &name, const std::vector<float> &xyz, const std::vector<unsigned> &triangles);
+
+    /** The file a material's image path points at: absolute paths as they are, relative ones against `scene.base_dir`. */
+    fs::path resolve_texture(const Scene &scene, const std::string &path);
+    /** Makes every material image live in `base` or below it and stored as a relative path: images already under `base` just get
+     *  a relative path, others are copied to `<base>/textures/` (a clashing name gets a number). Sets `scene.base_dir = base`.
+     *  Returns how many files were copied; images that cannot be found are left alone. */
+    int localise_textures(Scene &scene, const fs::path &base);
 
     int find_material(const Scene &scene, const std::string &name);
     /** A material name that is not yet used: "part", "part_2", ... */

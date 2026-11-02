@@ -823,9 +823,7 @@ namespace cad
                 const std::string e = ext_of(path);
                 if (path.empty() || (e != ".png" && e != ".jpg" && e != ".jpeg"))
                     return -1;
-                fs::path tp(path);
-                if (tp.is_relative())
-                    tp = file.parent_path() / tp;
+                const fs::path tp = resolve_texture(scene, path);
                 std::vector<unsigned char> data;
                 if (!read_all(tp, data))
                     return -1;

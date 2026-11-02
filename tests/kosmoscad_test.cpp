@@ -198,6 +198,23 @@ int main()
         check(loaded.markers[0].props["thrust"] == 1000 && loaded.objects[0].xf.pos.y == 2, "kmodel keeps marker props and transforms");
         check(near(signed_volume(loaded.objects[0].mesh), signed_volume(doc.scene.objects[0].mesh), 1e-9) && loaded.objects[1].mesh.uv.size() == doc.scene.objects[1].mesh.uv.size(), "kmodel keeps meshes and UVs");
 
+        {
+            // Textures stay with the model: relative paths, outside images copied into <model>/textures.
+            fs::create_directories(tmp + "/elsewhere");
+            fs::create_directories(tmp + "/proj/sub");
+            std::ofstream(tmp + "/elsewhere/a.png") << "x";
+            std::ofstream(tmp + "/proj/sub/b.png") << "y";
+            Scene ts;
+            ts.materials.resize(2);
+            ts.materials[0].texture = tmp + "/elsewhere/a.png";
+            ts.materials[1].texture = tmp + "/proj/sub/b.png";
+            ts.base_dir = tmp;
+            check(localise_textures(ts, tmp + "/proj") == 1, "one outside texture is copied");
+            check(ts.materials[0].texture == "textures/a.png" && fs::exists(tmp + "/proj/textures/a.png"), "outside texture lands in textures/");
+            check(ts.materials[1].texture == "sub/b.png", "texture inside the tree becomes relative");
+            check(localise_textures(ts, tmp + "/proj") == 0 && ts.materials[0].texture == "textures/a.png", "localising again changes nothing");
+            check(resolve_texture(ts, "sub/b.png") == fs::path(tmp + "/proj") / "sub/b.png", "relative texture resolves against the model folder");
+        }
         check(export_obj(doc.scene, tmp + "/out", "thing", err), "export OBJ " + err);
         {
             std::ifstream written(tmp + "/out/thing.obj");
