@@ -30,6 +30,12 @@ namespace kosmos::app
                                 sys->set_crew(vi, on ? 0 : std::max(sys->vessels()[static_cast<std::size_t>(vi)].spec.crew, 2));
                         }
                     }
+                    if (sys->has_processing())
+                    {
+                        const bool mining = sys->processing_on();
+                        if (ImGui::Button(mining ? "Resource processing: stop" : "Resource processing: start (needs the ground and power)"))
+                            sys->set_processing(!mining);
+                    }
                     ImGui::SeparatorText("Power");
                     ImGui::Text("Supply %.0f W   Demand %.0f W   %s", sys->supply_w(), sys->demand_w(), sys->powered() ? "" : "SHORTAGE");
                     const double cap = sys->battery_capacity_wh();

@@ -112,9 +112,12 @@ namespace kosmos
             c.half_life_years = jc.value("half_life_years", c.half_life_years);
             c.age_years = jc.value("age_years", 0.0);
             c.kg_per_day = jc.value("kg_per_day", 0.0);
+            c.n2_kg_per_day = jc.value("n2_kg_per_day", 0.0);
+            c.regen_kg_per_day = jc.value("regen_kg_per_day", 0.0);
+            c.site = jc.value("site", false);
             c.wear_hours = jc.value("wear_hours", 0.0);
             c.wear = jc.value("wear", 0.0);
-            c.enabled = jc.value("enabled", c.type != "electrolyser" && c.type != "isru");
+            c.enabled = jc.value("enabled", c.type != "electrolyser" && c.type != "isru" && c.type != "refinery");
             c.priority = jc.value("priority", (c.type == "regulator" || c.type == "scrubber") ? 0 : 1);
             c.facing = vec3(jc.value("facing", nlohmann::json()), c.facing);
             c.tracking = jc.value("tracking", false);
@@ -453,7 +456,7 @@ namespace kosmos
         // Loads, in priority order.
         std::vector<SystemComponent *> loads;
         for (SystemComponent &c : components_)
-            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser" || c.type == "isru" || c.type == "comms") && c.wear < 1.0)
+            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser" || c.type == "isru" || c.type == "refinery" || c.type == "comms") && c.wear < 1.0)
                 loads.push_back(&c);
         std::stable_sort(loads.begin(), loads.end(), [](const SystemComponent *a, const SystemComponent *b) { return a->priority < b->priority; });
 
@@ -490,7 +493,7 @@ namespace kosmos
         instruments_powered_ = budget > 1e-9 || loads.empty();
 
         balance_supply(used - fixed, discharge_capacity, charge_room, dt);
-        run_processors(loads, dt);
+        run_processors(loads, dt, ctx);
     }
 
     // Generators and batteries cover a shortfall (need > 0); surplus power charges the batteries.
@@ -550,12 +553,45 @@ namespace kosmos
         }
     }
 
-    void Systems::run_processors(const std::vector<SystemComponent *> &loads, double dt)
+    void Systems::run_processors(const std::vector<SystemComponent *> &loads, double dt, const SystemsContext &ctx)
     {
-        // Regolith processing: water into the tank.
+        // Regolith processing: water into the tank. A "site" unit needs the ground and scales with the body's water.
         for (SystemComponent *c : loads)
             if (c->type == "isru" && c->powered)
-                give("water", c->kg_per_day / 86400.0 * dt);
+            {
+                const double k = c->site ? (ctx.landed ? ctx.water_richness : 0.0) : 1.0;
+                give("water", c->kg_per_day * k / 86400.0 * dt);
+                if (c->site && ctx.landed)
+                {
+                    give("nitrogen", c->n2_kg_per_day * ctx.nitrogen_richness / 86400.0 * dt);
+                    double regen = c->regen_kg_per_day / 86400.0 * dt;
+                    for (SystemComponent &s : components_)
+                        if (regen > 0.0 && s.alive && s.type == "scrubber" && s.capacity < 1e8 && s.amount < s.capacity)
+                        {
+                            const double n = std::min(regen, s.capacity - s.amount);
+                            s.amount += n;
+                            regen -= n;
+                        }
+                }
+            }
+
+        // Refinery: water into main propellant while the tank has room.
+        for (SystemComponent *c : loads)
+            if (c->type == "refinery" && c->powered)
+            {
+                // Keep a quarter of the water tank for the crew.
+                double capacity = 0.0;
+                for (const SystemComponent &t : components_)
+                    if (t.alive && t.type == "tank" && t.gas == "water")
+                        capacity += t.capacity;
+                const double spare = std::max(tank_kg("water") - 0.25 * capacity, 0.0);
+                const double want = std::min({c->kg_per_day / 86400.0 * dt, propellant_room_, spare});
+                if (want <= 0.0)
+                    continue;
+                const double water = take("water", want);
+                propellant_made_ += water;
+                propellant_room_ -= water;
+            }
 
         // Electrolyser output.
         for (SystemComponent *c : loads)
@@ -706,6 +742,29 @@ namespace kosmos
                 c.enabled = on;
     }
 
+    bool Systems::has_processing() const
+    {
+        for (const SystemComponent &c : components_)
+            if (c.alive && (c.type == "isru" || c.type == "electrolyser" || c.type == "refinery"))
+                return true;
+        return false;
+    }
+
+    void Systems::set_processing(bool on)
+    {
+        for (SystemComponent &c : components_)
+            if (c.type == "isru" || c.type == "electrolyser" || c.type == "refinery")
+                c.enabled = on;
+    }
+
+    bool Systems::processing_on() const
+    {
+        for (const SystemComponent &c : components_)
+            if (c.alive && c.enabled && (c.type == "isru" || c.type == "electrolyser" || c.type == "refinery"))
+                return true;
+        return false;
+    }
+
     bool Systems::consumers_on() const
     {
         for (const SystemComponent &c : components_)
@@ -718,6 +777,7 @@ namespace kosmos
     {
         if (dt <= 0.0 || crew_lost_)
             return;
+        propellant_room_ = ctx.propellant_room;
         const int n = std::clamp(static_cast<int>(std::ceil(dt / 10.0)), 1, 24);
         const double h = dt / n;
         for (int i = 0; i < n; ++i)
@@ -787,6 +847,7 @@ namespace kosmos
             tree.node(base + "/" + cb + "failed")->tie_double([this, i] { return components_[i].wear >= 1.0 ? 1.0 : 0.0; });
         }
         // Writing 1 or 0 switches every load, scrubber and regulator on or off.
+        tree.node(base + "/processing")->tie_double([this] { return processing_on() ? 1.0 : 0.0; }, [this](double v) { set_processing(v > 0.5); });
         tree.node(base + "/consumers")->tie_double([this] { return consumers_on() ? 1.0 : 0.0; }, [this](double v) { set_consumers(v > 0.5); });
         // Writing 1 here overhauls every component.
         tree.node(base + "/repair")->tie_double([] { return 0.0; }, [this](double v) {

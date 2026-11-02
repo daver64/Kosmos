@@ -63,6 +63,35 @@
    "vessel": "Cabin",
    "kg_per_day": 3,
    "sorbent_kg": 760
+  },
+  {
+   "type": "isru",
+   "name": "Ice miner",
+   "site": true,
+   "watts": 2500,
+   "kg_per_day": 900,
+   "n2_kg_per_day": 25,
+   "regen_kg_per_day": 8,
+   "priority": 2
+  },
+  {
+   "type": "electrolyser",
+   "name": "Electrolyser",
+   "watts": 800,
+   "priority": 2
+  },
+  {
+   "type": "refinery",
+   "name": "Propellant refinery",
+   "watts": 4000,
+   "kg_per_day": 5000,
+   "priority": 3
+  },
+  {
+   "type": "tank",
+   "gas": "hydrogen",
+   "capacity_kg": 60,
+   "kg": 0
   }
  ],
  "vessels": [

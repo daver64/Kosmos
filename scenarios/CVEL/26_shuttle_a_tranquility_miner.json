@@ -1,0 +1,20 @@
+{
+ "name": "CVEL: Shuttle-A ice mining, Tranquility Base",
+ "description": "A CVEL Shuttle-A landed at Tranquility Base on the Moon with its water tank nearly empty. The Moon is poor in water, so mining is slow: press Resource processing: start in the Ship systems window (F1) and use time warp. Compare with the Deltaglider at Gale Crater, where the ground is wetter.",
+ "active": 0,
+ "date": "2024-01-01 10:00:00",
+ "ships": [
+  {
+   "ship": "CVEL Shuttle-A",
+   "body": "Moon",
+   "surface": {
+    "base": "tranquility"
+   },
+   "systems": {
+    "tanks": {
+     "water": 0.1
+    }
+   }
+  }
+ ]
+}

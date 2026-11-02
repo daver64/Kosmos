@@ -596,6 +596,41 @@ namespace kosmos
         return true;
     }
 
+    namespace
+    {
+        // How much water ice (mined from regolith) and nitrogen air a body offers, 0..1. Known worlds are listed; other bodies are
+        // guessed from their density and distance from the star: icy bodies are wet, cold rocky ones hold some ice, hot rock is dry.
+        void surface_richness(const Universe &u, int index, double &water, double &nitrogen)
+        {
+            struct Known { const char *name; double water, nitrogen; };
+            static const Known known[] = {
+                {"Earth", 1.0, 0.78}, {"Moon", 0.15, 0.0}, {"Mars", 0.45, 0.03}, {"Mercury", 0.05, 0.0}, {"Venus", 0.0, 0.03},
+                {"Phobos", 0.1, 0.0}, {"Deimos", 0.1, 0.0}, {"Ceres", 0.8, 0.0}, {"Vesta", 0.05, 0.0},
+                {"Io", 0.0, 0.0}, {"Europa", 1.0, 0.0}, {"Ganymede", 0.9, 0.0}, {"Callisto", 0.9, 0.0},
+                {"Mimas", 1.0, 0.0}, {"Enceladus", 1.0, 0.0}, {"Tethys", 1.0, 0.0}, {"Dione", 1.0, 0.0}, {"Rhea", 1.0, 0.0},
+                {"Titan", 0.9, 0.95}, {"Iapetus", 0.9, 0.0}, {"Miranda", 0.8, 0.0}, {"Ariel", 0.8, 0.0}, {"Umbriel", 0.7, 0.0},
+                {"Titania", 0.8, 0.0}, {"Oberon", 0.8, 0.0}, {"Triton", 0.9, 0.1}, {"Pluto", 0.7, 0.1}, {"Charon", 0.8, 0.0}};
+            const Body &b = u.bodies[static_cast<std::size_t>(index)];
+            for (const Known &k : known)
+                if (b.name == k.name)
+                {
+                    water = k.water;
+                    nitrogen = k.nitrogen;
+                    return;
+                }
+            const double density = b.radius > 0.0 ? b.gm / 6.674e-11 / (4.0 / 3.0 * 3.14159265358979 * b.radius * b.radius * b.radius) : 3000.0;
+            double au = 1.0;
+            for (std::size_t i = 0; i < u.bodies.size(); ++i)
+                if (u.bodies[i].kind == BodyKind::star)
+                {
+                    au = std::max(glm::length(u.position(index) - u.position(static_cast<int>(i))) / 149597870700.0, 0.05);
+                    break;
+                }
+            water = density < 2600.0 ? 0.8 : au > 2.5 ? 0.4 : au > 1.2 ? 0.15 : 0.03;
+            nitrogen = 0.0;
+        }
+    } // namespace
+
     Ship::Ship(Universe &universe, ShipSpec spec) : name(spec.name), universe_(universe), spec_(std::move(spec))
     {
         build_body();
@@ -2046,6 +2081,15 @@ namespace kosmos
             mission_time_ += dt;
             SystemsContext ctx;
             ctx.mission_time = mission_time_;
+            ctx.landed = telemetry_.landed;
+            if (ctx.landed && telemetry_.soi >= 0 && telemetry_.soi < static_cast<int>(universe_.bodies.size()))
+                surface_richness(universe_, telemetry_.soi, ctx.water_richness, ctx.nitrogen_richness);
+            {
+                const auto &tanks = b.tanks;
+                const std::size_t stage = static_cast<std::size_t>(active_stage_);
+                if (stage < tanks.size())
+                    ctx.propellant_room = std::max(tanks[stage].capacity - tanks[stage].mass, 0.0);
+            }
             int star = -1;
             for (std::size_t i = 0; i < universe_.bodies.size(); ++i)
                 if (universe_.bodies[i].kind == BodyKind::star)
@@ -2077,6 +2121,8 @@ namespace kosmos
                 }
             }
             systems_->step(dt, ctx);
+            if (const double made = systems_->take_propellant_made(); made > 0.0 && static_cast<std::size_t>(active_stage_) < b.tanks.size())
+                b.tanks[static_cast<std::size_t>(active_stage_)].mass += made;
             if (systems_->crew_lost() && !crashed_)
             {
                 std::fprintf(stderr, "[kosmos] %s: crew lost\n", name.c_str());

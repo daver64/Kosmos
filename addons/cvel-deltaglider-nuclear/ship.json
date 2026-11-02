@@ -1,0 +1,3133 @@
+{
+ "name": "CVEL Deltaglider (Nuclear)",
+ "class": "aircraft",
+ "locker": [
+  "plasma_rifle",
+  "frag_charge"
+ ],
+ "torque_accel": 0.8,
+ "max_rate": 0.6,
+ "rcs_thrust": 10000,
+ "reverse_throttle": true,
+ "rcs_propellant": 2000,
+ "drag_area": 1.5,
+ "thermal": {
+  "nose_radius": 0.5,
+  "heat_area": 45,
+  "max_temp": 1900
+ },
+ "hypersonic": {
+  "area": 70,
+  "length": 19,
+  "cd_max": 1.6,
+  "trim_deg": 50
+ },
+ "weapons": [
+  {
+   "name": "Nose beam",
+   "weapon": "beam-yellow",
+   "group": "primary",
+   "position": [
+    0,
+    -0.3,
+    -9.5
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "name": "Sparkle port",
+   "weapon": "spark-green",
+   "group": "secondary",
+   "position": [
+    -8.9,
+    2.3,
+    4.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "name": "Sparkle starboard",
+   "weapon": "spark-green",
+   "group": "secondary",
+   "position": [
+    8.9,
+    2.3,
+    4.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ]
+  }
+ ],
+ "shield": {
+  "capacity": 0.5,
+  "recharge": 0.05,
+  "delay": 4,
+  "colour": [
+   90,
+   170,
+   255
+  ]
+ },
+ "camera_distance": 32,
+ "retractable_gear": true,
+ "gear_time": 6,
+ "rcs_modes": true,
+ "hybrid": true,
+ "ports": [
+  {
+   "name": "Nose",
+   "position": [
+    0,
+    -0.49,
+    -10.076
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "animation_controls": [
+  {
+   "name": "Nose hatch",
+   "property": "nose-cone",
+   "duration": 20
+  }
+ ],
+ "inertia": [
+  60000,
+  80000,
+  40000
+ ],
+ "damping": [
+  0.8,
+  1.0,
+  0.8
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 8,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 300,
+   "priority": 0
+  },
+  {
+   "type": "fission",
+   "name": "Fission reactor",
+   "watts": 8000,
+   "fuel_kg": 10
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 200,
+   "kg": 200
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 15,
+   "kg": 15
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "capacity_kg": 600,
+   "kg": 600
+  },
+  {
+   "type": "regulator",
+   "name": "Pressure regulator",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "CO2 scrubber",
+   "vessel": "Cabin",
+   "kg_per_day": 3,
+   "sorbent_kg": 200
+  },
+  {
+   "type": "isru",
+   "name": "Ice miner",
+   "site": true,
+   "watts": 1200,
+   "kg_per_day": 300,
+   "n2_kg_per_day": 10,
+   "regen_kg_per_day": 6,
+   "priority": 2
+  },
+  {
+   "type": "electrolyser",
+   "name": "Electrolyser",
+   "watts": 800,
+   "priority": 2
+  },
+  {
+   "type": "refinery",
+   "name": "Propellant refinery",
+   "watts": 2000,
+   "kg_per_day": 1500,
+   "priority": 3
+  },
+  {
+   "type": "tank",
+   "gas": "hydrogen",
+   "capacity_kg": 20,
+   "kg": 0
+  }
+ ],
+ "surfaces": [
+  {
+   "control": "",
+   "position": [
+    0,
+    0,
+    0.5
+   ],
+   "area": 70,
+   "cl0": 0.1,
+   "cl_alpha": 2.6,
+   "cd0": 0.02,
+   "induced_drag": 0.2,
+   "stall_deg": 30
+  },
+  {
+   "control": "flaps",
+   "position": [
+    0,
+    0,
+    1
+   ],
+   "area": 12,
+   "cl0": 0.1,
+   "cl_alpha": 2.6,
+   "cd0": 0.02,
+   "induced_drag": 0.2,
+   "stall_deg": 30,
+   "gain_deg": 10
+  },
+  {
+   "control": "aileron",
+   "position": [
+    5,
+    0,
+    2
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": 12
+  },
+  {
+   "control": "aileron",
+   "position": [
+    -5,
+    0,
+    2
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "elevator",
+   "position": [
+    0,
+    0,
+    5
+   ],
+   "area": 8,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": -12
+  },
+  {
+   "control": "rudder",
+   "position": [
+    0,
+    1.5,
+    5
+   ],
+   "area": 5,
+   "cl0": 0,
+   "cl_alpha": 3,
+   "cd0": 0.01,
+   "induced_drag": 0.08,
+   "stall_deg": 18,
+   "gain_deg": 15,
+   "forward": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    1,
+    0,
+    0
+   ]
+  }
+ ],
+ "wheels": [
+  {
+   "position": [
+    0,
+    -2.57,
+    -10
+   ],
+   "steer_deg": 40,
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    3.5,
+    -2.57,
+    3
+   ],
+   "rolling_resistance": 0.03
+  },
+  {
+   "position": [
+    -3.5,
+    -2.57,
+    3
+   ],
+   "rolling_resistance": 0.03
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "position": [
+    0,
+    0.3,
+    -4
+   ],
+   "size": [
+    2.2,
+    1.8,
+    3
+   ],
+   "crew": 2
+  }
+ ],
+ "stages": [
+  {
+   "name": "Deltaglider",
+   "dry_mass": 13200,
+   "propellant": 18400,
+   "z": -1,
+   "length": 19,
+   "radius": 1.5,
+   "engines": [
+    {
+     "position": [
+      1,
+      0,
+      7.7
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 200000,
+     "isp": 4077,
+     "plume": 14,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "scramjet",
+     "air_breathing": false,
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -1,
+      0,
+      7.7
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 200000,
+     "isp": 4077,
+     "plume": 14,
+     "plume_width": 1.2,
+     "plume_glow": 1.4,
+     "plume_density": 1.5,
+     "type": "scramjet",
+     "air_breathing": false,
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      0,
+      0,
+      0
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 390000,
+     "isp": 4077,
+     "plume": 6,
+     "plume_width": 1.5,
+     "plume_glow": 1.2,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    }
+   ],
+   "parts": [
+    {
+     "model": "../cvel-deltaglider/models/deltaglider.obj",
+     "animations": "../cvel-deltaglider/gear.json"
+    }
+   ]
+  }
+ ],
+ "cockpit": {
+  "vc_model": "../cvel-deltaglider/models/deltaglider_vc.obj",
+  "hud_modes": [
+   "orbit",
+   "surface",
+   "docking"
+  ],
+  "pitch": -18,
+  "eye": [
+   0,
+   1.467,
+   -6.782
+  ],
+  "mfds": true,
+  "mfd_filter": "none",
+  "mfd_hide": [
+   "altimeter",
+   "asi",
+   "vsi",
+   "dg",
+   "turn",
+   "engine",
+   "dg_aoa",
+   "dg_slip"
+  ],
+  "mfd_left": "orbit",
+  "mfd_right": "surface",
+  "layout": {
+   "name": "Main panel",
+   "width": 1152,
+   "height": 500,
+   "image": "../cvel-deltaglider/panel/panel1.png",
+   "size": 0.9,
+   "position": [
+    0,
+    -0.15,
+    -0.75
+   ],
+   "tilt": 25
+  },
+  "panels": [
+   {
+    "name": "Overhead",
+    "width": 1152,
+    "height": 282,
+    "image": "../cvel-deltaglider/panel/panel2.png",
+    "instruments": [],
+    "controls": [
+     {
+      "type": "toggle",
+      "property": "/controls/anim/nose-cone",
+      "label": "NOSE HATCH",
+      "x": 40,
+      "y": 150,
+      "w": 120,
+      "h": 30
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/outer-door",
+      "x": 240,
+      "y": 30,
+      "w": 25,
+      "h": 38
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/inner-door",
+      "x": 302,
+      "y": 30,
+      "w": 25,
+      "h": 38
+     },
+     {
+      "type": "toggle",
+      "property": "/controls/airlock/pressurize",
+      "x": 360,
+      "y": 30,
+      "w": 25,
+      "h": 38
+     }
+    ]
+   }
+  ],
+  "instruments": [
+   {
+    "mode": "orbit",
+    "x": 227,
+    "y": 61,
+    "size": 290
+   },
+   {
+    "mode": "surface",
+    "x": 636,
+    "y": 61,
+    "size": 290
+   },
+   {
+    "mode": "adi",
+    "x": 569,
+    "y": 394,
+    "size": 96
+   },
+   {
+    "mode": "dg_aoa",
+    "x": 206,
+    "y": 413,
+    "size": 56
+   },
+   {
+    "mode": "dg_slip",
+    "x": 305,
+    "y": 413,
+    "size": 56
+   },
+   {
+    "mode": "dg_slope",
+    "x": 389,
+    "y": 360,
+    "size": 161
+   },
+   {
+    "mode": "hsi",
+    "x": 0,
+    "y": 0,
+    "size": 96,
+    "vc_only": true
+   }
+  ],
+  "controls": [
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 0,
+    "x": 182,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 6,
+    "x": 536,
+    "y": 99.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 1,
+    "x": 182,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 7,
+    "x": 536,
+    "y": 140.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 2,
+    "x": 182,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 8,
+    "x": 536,
+    "y": 181.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 3,
+    "x": 182,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 9,
+    "x": 536,
+    "y": 223.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 4,
+    "x": 182,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 10,
+    "x": 536,
+    "y": 264.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 5,
+    "x": 182,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 11,
+    "x": 536,
+    "y": 305.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 12,
+    "x": 237,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 13,
+    "x": 450,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 0,
+    "button": 14,
+    "x": 481,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 0,
+    "x": 590,
+    "y": 99.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 6,
+    "x": 944,
+    "y": 99.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 1,
+    "x": 590,
+    "y": 140.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 7,
+    "x": 944,
+    "y": 140.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 2,
+    "x": 590,
+    "y": 181.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 8,
+    "x": 944,
+    "y": 181.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 3,
+    "x": 590,
+    "y": 223.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 9,
+    "x": 944,
+    "y": 223.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 4,
+    "x": 590,
+    "y": 264.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 10,
+    "x": 944,
+    "y": 264.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 5,
+    "x": 590,
+    "y": 305.0,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 11,
+    "x": 944,
+    "y": 305.0,
+    "w": 28,
+    "h": 18
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 12,
+    "x": 645,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 13,
+    "x": 859,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "mfd",
+    "unit": 1,
+    "button": 14,
+    "x": 890,
+    "y": 360,
+    "w": 28,
+    "h": 17
+   },
+   {
+    "type": "hud",
+    "value": "off",
+    "x": 15.0,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "orbit",
+    "x": 43.5,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "surface",
+    "x": 72.0,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "hud",
+    "value": "docking",
+    "x": 100.5,
+    "y": 16,
+    "w": 26,
+    "h": 18
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "stability",
+    "x": 37,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "prograde",
+    "x": 77,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "normal",
+    "x": 116,
+    "y": 247,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "level-horizon",
+    "x": 37,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "retrograde",
+    "x": 77,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "button",
+    "property": "/controls/sas",
+    "value": "antinormal",
+    "x": 116,
+    "y": 287,
+    "w": 38,
+    "h": 37
+   },
+   {
+    "type": "slider",
+    "property": "/controls/throttle",
+    "min": -0.377,
+    "x": 1000,
+    "y": 277,
+    "w": 50,
+    "h": 168
+   },
+   {
+    "type": "slider",
+    "property": "/controls/hover",
+    "x": 1078,
+    "y": 277,
+    "w": 30,
+    "h": 122
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "off",
+    "x": 92,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 127.5,
+    "cy": 216.5,
+    "r": 17,
+    "angle": -45
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "rot",
+    "x": 113,
+    "y": 182,
+    "w": 24,
+    "h": 14,
+    "style": "knob",
+    "cx": 127.5,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 0
+   },
+   {
+    "type": "button",
+    "property": "/controls/rcs-mode",
+    "value": "lin",
+    "x": 138,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 127.5,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 45
+   },
+   {
+    "type": "bar",
+    "property": "{ship}/stage-fuel-percent",
+    "max": 100,
+    "x": 43,
+    "y": 81,
+    "w": 101,
+    "h": 7
+   },
+   {
+    "type": "bar",
+    "property": "{ship}/rcs-fuel-percent",
+    "max": 100,
+    "x": 43,
+    "y": 89,
+    "w": 101,
+    "h": 7
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/stage-fuel-percent",
+    "format": "%.0f",
+    "x": 29,
+    "y": 102,
+    "w": 42
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/stage-fuel",
+    "format": "%.0f",
+    "x": 29,
+    "y": 124,
+    "w": 42
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/fuel-flow",
+    "format": "%.2f",
+    "x": 29,
+    "y": 146,
+    "w": 42
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/rcs-fuel-percent",
+    "format": "%.0f",
+    "x": 101,
+    "y": 102,
+    "w": 42
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/rcs-fuel",
+    "format": "%.0f",
+    "x": 101,
+    "y": 124,
+    "w": 42
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/rcs-flow",
+    "format": "%.2f",
+    "x": 101,
+    "y": 146,
+    "w": 42
+   },
+   {
+    "type": "bar",
+    "property": "/controls/throttle",
+    "x": 1027,
+    "y": 90,
+    "w": 8,
+    "h": 80
+   },
+   {
+    "type": "bar",
+    "property": "/controls/hover",
+    "x": 1077,
+    "y": 90,
+    "w": 8,
+    "h": 100
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "/controls/throttle",
+    "scale": 100,
+    "format": "%.0f",
+    "x": 1002,
+    "y": 199,
+    "w": 36
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/thrust",
+    "scale": 0.001,
+    "format": "%.0f",
+    "x": 1002,
+    "y": 220,
+    "w": 36
+   },
+   {
+    "type": "number",
+    "h": 12,
+    "property": "{ship}/acceleration-g",
+    "scale": 9.81,
+    "format": "%.1f",
+    "x": 1002,
+    "y": 241,
+    "w": 36
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "off",
+    "x": 7.5,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": -45
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "pitch",
+    "x": 28.5,
+    "y": 182,
+    "w": 24,
+    "h": 14,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 0
+   },
+   {
+    "type": "button",
+    "property": "/controls/af-mode",
+    "value": "on",
+    "x": 53.5,
+    "y": 196,
+    "w": 24,
+    "h": 18,
+    "style": "knob",
+    "cx": 43,
+    "cy": 216.5,
+    "r": 17,
+    "angle": 45
+   },
+   {
+    "type": "nudge",
+    "property": "/controls/trim",
+    "value": "-0.05",
+    "x": 1080,
+    "y": 431,
+    "w": 16,
+    "h": 27
+   },
+   {
+    "type": "nudge",
+    "property": "/controls/trim",
+    "value": "0.05",
+    "x": 1080,
+    "y": 458,
+    "w": 16,
+    "h": 27
+   }
+  ],
+  "vc_animations": [
+   {
+    "parts": [
+     "THROTTLE_MAIN_L",
+     "THROTTLE_MAIN_R"
+    ],
+    "source": "/controls/throttle",
+    "min": -1,
+    "pivot": [
+     0,
+     0.72,
+     -6.9856
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "angle": -33.333333333333336,
+    "initial": 0.1
+   },
+   {
+    "parts": [
+     "THROTTLE_HOVER"
+    ],
+    "source": "/controls/hover",
+    "pivot": [
+     -0.41,
+     0.85,
+     -6.9226
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "angle": -50,
+    "initial": 0.0
+   },
+   {
+    "parts": [
+     "GEAR_LEVER"
+    ],
+    "source": "gear",
+    "pivot": [
+     -0.374,
+     0.92634,
+     -7.20505
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "angle": 70,
+    "initial": 0.5
+   },
+   {
+    "parts": [
+     "NOSECONE_LEVER"
+    ],
+    "source": "anim:nose-cone",
+    "pivot": [
+     0.374,
+     0.92634,
+     -7.20505
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "angle": 70,
+    "initial": 0.5
+   },
+   {
+    "parts": [
+     "AIRBRAKE_LEVER"
+    ],
+    "source": "/controls/brake-latch",
+    "pivot": [
+     -0.315,
+     0.94718,
+     -7.25322
+    ],
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "angle": 40,
+    "initial": 0.8
+   }
+  ],
+  "vc_hotspots": [
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.2155,
+      -7.2751
+     ],
+     [
+      -0.2516,
+      1.2155,
+      -7.2751
+     ],
+     [
+      -0.2684,
+      1.19995,
+      -7.26944
+     ],
+     [
+      -0.2516,
+      1.19995,
+      -7.26944
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 0
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.19477,
+      -7.26755
+     ],
+     [
+      -0.2516,
+      1.19477,
+      -7.26755
+     ],
+     [
+      -0.2684,
+      1.17922,
+      -7.26189
+     ],
+     [
+      -0.2516,
+      1.17922,
+      -7.26189
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 1
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.17404,
+      -7.26
+     ],
+     [
+      -0.2516,
+      1.17404,
+      -7.26
+     ],
+     [
+      -0.2684,
+      1.15849,
+      -7.25434
+     ],
+     [
+      -0.2516,
+      1.15849,
+      -7.25434
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 2
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.15331,
+      -7.25246
+     ],
+     [
+      -0.2516,
+      1.15331,
+      -7.25246
+     ],
+     [
+      -0.2684,
+      1.13776,
+      -7.2468
+     ],
+     [
+      -0.2516,
+      1.13776,
+      -7.2468
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 3
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.13258,
+      -7.24491
+     ],
+     [
+      -0.2516,
+      1.13258,
+      -7.24491
+     ],
+     [
+      -0.2684,
+      1.11703,
+      -7.23925
+     ],
+     [
+      -0.2516,
+      1.11703,
+      -7.23925
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 4
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.2684,
+      1.11185,
+      -7.23736
+     ],
+     [
+      -0.2516,
+      1.11185,
+      -7.23736
+     ],
+     [
+      -0.2684,
+      1.0963,
+      -7.2317
+     ],
+     [
+      -0.2516,
+      1.0963,
+      -7.2317
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 5
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.2155,
+      -7.2751
+     ],
+     [
+      -0.0616,
+      1.2155,
+      -7.2751
+     ],
+     [
+      -0.0784,
+      1.19995,
+      -7.26944
+     ],
+     [
+      -0.0616,
+      1.19995,
+      -7.26944
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 6
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.19477,
+      -7.26755
+     ],
+     [
+      -0.0616,
+      1.19477,
+      -7.26755
+     ],
+     [
+      -0.0784,
+      1.17922,
+      -7.26189
+     ],
+     [
+      -0.0616,
+      1.17922,
+      -7.26189
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 7
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.17404,
+      -7.26
+     ],
+     [
+      -0.0616,
+      1.17404,
+      -7.26
+     ],
+     [
+      -0.0784,
+      1.15849,
+      -7.25434
+     ],
+     [
+      -0.0616,
+      1.15849,
+      -7.25434
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 8
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.15331,
+      -7.25246
+     ],
+     [
+      -0.0616,
+      1.15331,
+      -7.25246
+     ],
+     [
+      -0.0784,
+      1.13776,
+      -7.2468
+     ],
+     [
+      -0.0616,
+      1.13776,
+      -7.2468
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 9
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.13258,
+      -7.24491
+     ],
+     [
+      -0.0616,
+      1.13258,
+      -7.24491
+     ],
+     [
+      -0.0784,
+      1.11703,
+      -7.23925
+     ],
+     [
+      -0.0616,
+      1.11703,
+      -7.23925
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 10
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0784,
+      1.11185,
+      -7.23736
+     ],
+     [
+      -0.0616,
+      1.11185,
+      -7.23736
+     ],
+     [
+      -0.0784,
+      1.0963,
+      -7.2317
+     ],
+     [
+      -0.0616,
+      1.0963,
+      -7.2317
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 11
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.1844,
+      1.0745,
+      -7.2238
+     ],
+     [
+      -0.16777,
+      1.0745,
+      -7.2238
+     ],
+     [
+      -0.1844,
+      1.0587,
+      -7.218
+     ],
+     [
+      -0.16777,
+      1.0587,
+      -7.218
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 13,
+     "label": "Left MFD SEL"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.16223,
+      1.0745,
+      -7.2238
+     ],
+     [
+      -0.1456,
+      1.0745,
+      -7.2238
+     ],
+     [
+      -0.16223,
+      1.0587,
+      -7.218
+     ],
+     [
+      -0.1456,
+      1.0587,
+      -7.218
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 0,
+     "button": 14,
+     "label": "Left MFD MNU"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.2155,
+      -7.2751
+     ],
+     [
+      0.0784,
+      1.2155,
+      -7.2751
+     ],
+     [
+      0.0616,
+      1.19995,
+      -7.26944
+     ],
+     [
+      0.0784,
+      1.19995,
+      -7.26944
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 0
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.19477,
+      -7.26755
+     ],
+     [
+      0.0784,
+      1.19477,
+      -7.26755
+     ],
+     [
+      0.0616,
+      1.17922,
+      -7.26189
+     ],
+     [
+      0.0784,
+      1.17922,
+      -7.26189
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 1
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.17404,
+      -7.26
+     ],
+     [
+      0.0784,
+      1.17404,
+      -7.26
+     ],
+     [
+      0.0616,
+      1.15849,
+      -7.25434
+     ],
+     [
+      0.0784,
+      1.15849,
+      -7.25434
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 2
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.15331,
+      -7.25246
+     ],
+     [
+      0.0784,
+      1.15331,
+      -7.25246
+     ],
+     [
+      0.0616,
+      1.13776,
+      -7.2468
+     ],
+     [
+      0.0784,
+      1.13776,
+      -7.2468
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 3
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.13258,
+      -7.24491
+     ],
+     [
+      0.0784,
+      1.13258,
+      -7.24491
+     ],
+     [
+      0.0616,
+      1.11703,
+      -7.23925
+     ],
+     [
+      0.0784,
+      1.11703,
+      -7.23925
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 4
+    }
+   },
+   {
+    "quad": [
+     [
+      0.0616,
+      1.11185,
+      -7.23736
+     ],
+     [
+      0.0784,
+      1.11185,
+      -7.23736
+     ],
+     [
+      0.0616,
+      1.0963,
+      -7.2317
+     ],
+     [
+      0.0784,
+      1.0963,
+      -7.2317
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 5
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.2155,
+      -7.2751
+     ],
+     [
+      0.2684,
+      1.2155,
+      -7.2751
+     ],
+     [
+      0.2516,
+      1.19995,
+      -7.26944
+     ],
+     [
+      0.2684,
+      1.19995,
+      -7.26944
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 6
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.19477,
+      -7.26755
+     ],
+     [
+      0.2684,
+      1.19477,
+      -7.26755
+     ],
+     [
+      0.2516,
+      1.17922,
+      -7.26189
+     ],
+     [
+      0.2684,
+      1.17922,
+      -7.26189
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 7
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.17404,
+      -7.26
+     ],
+     [
+      0.2684,
+      1.17404,
+      -7.26
+     ],
+     [
+      0.2516,
+      1.15849,
+      -7.25434
+     ],
+     [
+      0.2684,
+      1.15849,
+      -7.25434
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 8
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.15331,
+      -7.25246
+     ],
+     [
+      0.2684,
+      1.15331,
+      -7.25246
+     ],
+     [
+      0.2516,
+      1.13776,
+      -7.2468
+     ],
+     [
+      0.2684,
+      1.13776,
+      -7.2468
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 9
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.13258,
+      -7.24491
+     ],
+     [
+      0.2684,
+      1.13258,
+      -7.24491
+     ],
+     [
+      0.2516,
+      1.11703,
+      -7.23925
+     ],
+     [
+      0.2684,
+      1.11703,
+      -7.23925
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 10
+    }
+   },
+   {
+    "quad": [
+     [
+      0.2516,
+      1.11185,
+      -7.23736
+     ],
+     [
+      0.2684,
+      1.11185,
+      -7.23736
+     ],
+     [
+      0.2516,
+      1.0963,
+      -7.2317
+     ],
+     [
+      0.2684,
+      1.0963,
+      -7.2317
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 11
+    }
+   },
+   {
+    "quad": [
+     [
+      0.1456,
+      1.0745,
+      -7.2238
+     ],
+     [
+      0.16223,
+      1.0745,
+      -7.2238
+     ],
+     [
+      0.1456,
+      1.0587,
+      -7.218
+     ],
+     [
+      0.16223,
+      1.0587,
+      -7.218
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 13,
+     "label": "Right MFD SEL"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.16777,
+      1.0745,
+      -7.2238
+     ],
+     [
+      0.1844,
+      1.0745,
+      -7.2238
+     ],
+     [
+      0.16777,
+      1.0587,
+      -7.218
+     ],
+     [
+      0.1844,
+      1.0587,
+      -7.218
+     ]
+    ],
+    "control": {
+     "type": "mfd",
+     "unit": 1,
+     "button": 14,
+     "label": "Right MFD MNU"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0284,
+      1.28605,
+      -7.268
+     ],
+     [
+      -0.00947,
+      1.28605,
+      -7.268
+     ],
+     [
+      -0.0284,
+      1.30047,
+      -7.268
+     ],
+     [
+      -0.00947,
+      1.30047,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "hud",
+     "value": "orbit",
+     "label": "HUD: orbit"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.00947,
+      1.28605,
+      -7.268
+     ],
+     [
+      0.00947,
+      1.28605,
+      -7.268
+     ],
+     [
+      -0.00947,
+      1.30047,
+      -7.268
+     ],
+     [
+      0.00947,
+      1.30047,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "hud",
+     "value": "surface",
+     "label": "HUD: surface"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.00947,
+      1.28605,
+      -7.268
+     ],
+     [
+      0.0284,
+      1.28605,
+      -7.268
+     ],
+     [
+      0.00947,
+      1.30047,
+      -7.268
+     ],
+     [
+      0.0284,
+      1.30047,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "hud",
+     "value": "docking",
+     "label": "HUD: docking"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.10191,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.10191,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.27175,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "stability",
+     "label": "Kill rotation"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.1273,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.27175,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "prograde",
+     "label": "Prograde hold"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.1527,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.17809,
+      1.2571,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.17809,
+      1.27175,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "normal",
+     "label": "Orbit normal hold"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.10191,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.10191,
+      1.2864,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.2864,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "level-horizon",
+     "label": "Level horizon"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.1273,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1273,
+      1.2864,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.2864,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "retrograde",
+     "label": "Retrograde hold"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.1527,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.17809,
+      1.27175,
+      -7.268
+     ],
+     [
+      0.1527,
+      1.2864,
+      -7.268
+     ],
+     [
+      0.17809,
+      1.2864,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/sas",
+     "value": "antinormal",
+     "label": "Orbit anti-normal hold"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.389,
+      0.90989,
+      -7.13172
+     ],
+     [
+      -0.359,
+      0.90989,
+      -7.13172
+     ],
+     [
+      -0.389,
+      1.00108,
+      -7.19712
+     ],
+     [
+      -0.359,
+      1.00108,
+      -7.19712
+     ]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/gear",
+     "label": "Landing gear lever"
+    },
+    "follow": "GEAR_LEVER"
+   },
+   {
+    "quad": [
+     [
+      0.359,
+      0.90989,
+      -7.13172
+     ],
+     [
+      0.389,
+      0.90989,
+      -7.13172
+     ],
+     [
+      0.359,
+      1.00108,
+      -7.19712
+     ],
+     [
+      0.389,
+      1.00108,
+      -7.19712
+     ]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/anim/nose-cone",
+     "label": "Nose cone lever"
+    },
+    "follow": "NOSECONE_LEVER"
+   },
+   {
+    "quad": [
+     [
+      -0.337,
+      0.97772,
+      -7.17631
+     ],
+     [
+      -0.293,
+      0.97772,
+      -7.17631
+     ],
+     [
+      -0.337,
+      1.04273,
+      -7.22293
+     ],
+     [
+      -0.293,
+      1.04273,
+      -7.22293
+     ]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/brake-latch",
+     "label": "Airbrake latch"
+    },
+    "follow": "AIRBRAKE_LEVER"
+   },
+   {
+    "quad": [
+     [
+      0.3045,
+      0.9166,
+      -7.13284
+     ],
+     [
+      0.3395,
+      0.9166,
+      -7.13284
+     ],
+     [
+      0.3045,
+      1.01412,
+      -7.20278
+     ],
+     [
+      0.3395,
+      1.01412,
+      -7.20278
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/dock/undock",
+     "value": "1",
+     "label": "Undock lever"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.05,
+      1.262,
+      -7.268
+     ],
+     [
+      0.08,
+      1.262,
+      -7.268
+     ],
+     [
+      0.05,
+      1.292,
+      -7.268
+     ],
+     [
+      0.08,
+      1.292,
+      -7.268
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/rcs-mode",
+     "value": "rot,lin,off",
+     "label": "RCS mode (rotation / linear / off)"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.09011,
+      1.6522,
+      -6.93405
+     ],
+     [
+      0.11011,
+      1.6522,
+      -6.93405
+     ],
+     [
+      0.09011,
+      1.66256,
+      -6.89541
+     ],
+     [
+      0.11011,
+      1.66256,
+      -6.89541
+     ]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/lighting/lamps",
+     "label": "Cockpit lamps"
+    }
+   },
+   {
+    "quad": [
+     [
+      0.13519,
+      1.6522,
+      -6.93405
+     ],
+     [
+      0.15519,
+      1.6522,
+      -6.93405
+     ],
+     [
+      0.13519,
+      1.66256,
+      -6.89541
+     ],
+     [
+      0.15519,
+      1.66256,
+      -6.89541
+     ]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/lighting/nav",
+     "label": "Navigation lights"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.372,
+      0.918,
+      -6.905
+     ],
+     [
+      -0.279,
+      0.918,
+      -6.905
+     ],
+     [
+      -0.372,
+      0.885,
+      -7.11
+     ],
+     [
+      -0.279,
+      0.885,
+      -7.11
+     ]
+    ],
+    "control": {
+     "type": "label",
+     "label": "Main throttle"
+    },
+    "drag": "/controls/throttle",
+    "drag_gain": 2.0,
+    "drag_min": -1.0
+   },
+   {
+    "quad": [
+     [
+      -0.44,
+      0.87,
+      -6.81
+     ],
+     [
+      -0.35,
+      0.87,
+      -6.81
+     ],
+     [
+      -0.44,
+      0.95,
+      -6.91
+     ],
+     [
+      -0.35,
+      0.95,
+      -6.91
+     ]
+    ],
+    "control": {
+     "type": "label",
+     "label": "Hover throttle"
+    },
+    "drag": "/controls/hover",
+    "drag_gain": 1.0
+   },
+   {
+    "quad": [
+     [
+      -0.323,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.308,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.323,
+      1.10605,
+      -7.24699
+     ],
+     [
+      -0.308,
+      1.10605,
+      -7.24699
+     ]
+    ],
+    "control": {
+     "type": "step",
+     "property": "/controls/af-mode",
+     "value": "off,pitch,on",
+     "button": -1,
+     "label": "AF CTRL dial: previous"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.308,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.293,
+      1.07786,
+      -7.23673
+     ],
+     [
+      -0.308,
+      1.10605,
+      -7.24699
+     ],
+     [
+      -0.293,
+      1.10605,
+      -7.24699
+     ]
+    ],
+    "control": {
+     "type": "step",
+     "property": "/controls/af-mode",
+     "value": "off,pitch,on",
+     "button": 1,
+     "label": "AF CTRL dial: next"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.346,
+      0.87841,
+      -7.10545
+     ],
+     [
+      -0.316,
+      0.87841,
+      -7.10545
+     ],
+     [
+      -0.346,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.316,
+      0.9231050000000001,
+      -7.137505
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/trim",
+     "value": "0.05",
+     "label": "Elevator trim: nose down"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.346,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.316,
+      0.9231050000000001,
+      -7.137505
+     ],
+     [
+      -0.346,
+      0.9678,
+      -7.16956
+     ],
+     [
+      -0.316,
+      0.9678,
+      -7.16956
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/trim",
+     "value": "-0.05",
+     "label": "Elevator trim: nose up"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22334,
+      1.00616,
+      -7.19708
+     ],
+     [
+      -0.2035,
+      1.00616,
+      -7.19708
+     ],
+     [
+      -0.22334,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.2035,
+      1.015685,
+      -7.2039100000000005
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-pitch",
+     "value": "-0.1",
+     "label": "Main gimbal pitch: down"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22334,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.2035,
+      1.015685,
+      -7.2039100000000005
+     ],
+     [
+      -0.22334,
+      1.02521,
+      -7.21074
+     ],
+     [
+      -0.2035,
+      1.02521,
+      -7.21074
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-pitch",
+     "value": "0.1",
+     "label": "Main gimbal pitch: up"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.22514,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.22514,
+      0.97686,
+      -7.17606
+     ],
+     [
+      -0.21342,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.21342,
+      0.97686,
+      -7.17606
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-yaw",
+     "value": "-0.1",
+     "label": "Main gimbal yaw: left"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.21342,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.21342,
+      0.97686,
+      -7.17606
+     ],
+     [
+      -0.2017,
+      0.99298,
+      -7.18762
+     ],
+     [
+      -0.2017,
+      0.97686,
+      -7.17606
+     ]
+    ],
+    "control": {
+     "type": "nudge",
+     "property": "/controls/gimbal-yaw",
+     "value": "0.1",
+     "label": "Main gimbal yaw: right"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.1315,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.1115,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.1315,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1115,
+      1.670995,
+      -6.86393
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/inner-door",
+     "value": "0",
+     "label": "Inner airlock door: close"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.1315,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1115,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.1315,
+      1.67617,
+      -6.84461
+     ],
+     [
+      -0.1115,
+      1.67617,
+      -6.84461
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/inner-door",
+     "value": "1",
+     "label": "Inner airlock door: open"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.10445,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.08445,
+      1.66582,
+      -6.88325
+     ],
+     [
+      -0.10445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.08445,
+      1.670995,
+      -6.86393
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/outer-door",
+     "value": "0",
+     "label": "Outer airlock door: close"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.10445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.08445,
+      1.670995,
+      -6.86393
+     ],
+     [
+      -0.10445,
+      1.67617,
+      -6.84461
+     ],
+     [
+      -0.08445,
+      1.67617,
+      -6.84461
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/outer-door",
+     "value": "1",
+     "label": "Outer airlock door: open"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0774,
+      1.68723,
+      -6.80334
+     ],
+     [
+      -0.0574,
+      1.68723,
+      -6.80334
+     ],
+     [
+      -0.0774,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0574,
+      1.692405,
+      -6.78402
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/pressurize",
+     "value": "0",
+     "label": "Airlock chamber: evacuate"
+    }
+   },
+   {
+    "quad": [
+     [
+      -0.0774,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0574,
+      1.692405,
+      -6.78402
+     ],
+     [
+      -0.0774,
+      1.69758,
+      -6.7647
+     ],
+     [
+      -0.0574,
+      1.69758,
+      -6.7647
+     ]
+    ],
+    "control": {
+     "type": "button",
+     "property": "/controls/airlock/pressurize",
+     "value": "1",
+     "label": "Airlock chamber: pressurize"
+    }
+   }
+  ],
+  "vc_hide": [
+   "instrument_DG_dg_instr__PROPELLANT_STATUS_NOSCRAM",
+   "SCRAM",
+   "inst1_6_DG_DG_VC3"
+  ],
+  "vc_instruments": [
+   {
+    "part": "ADI_DISPLAY",
+    "unit": 2
+   },
+   {
+    "part": "HSI_DISPLAY",
+    "unit": 6
+   }
+  ]
+ },
+ "lights": [
+  {
+   "position": [
+    -8.9,
+    2.3,
+    5.3
+   ],
+   "colour": [
+    255,
+    40,
+    30
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    8.9,
+    2.3,
+    5.3
+   ],
+   "colour": [
+    40,
+    255,
+    70
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    0,
+    0,
+    8.0
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 2.5,
+   "range": 60,
+   "glow": 0.5
+  },
+  {
+   "position": [
+    -8.9,
+    2.3,
+    5.25
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0
+  },
+  {
+   "position": [
+    8.9,
+    2.3,
+    5.25
+   ],
+   "colour": [
+    255,
+    255,
+    255
+   ],
+   "intensity": 5,
+   "range": 80,
+   "glow": 0.6,
+   "pattern": "strobe",
+   "period": 1.6,
+   "phase": 0.5
+  }
+ ],
+ "description": "Deltaglider fitted with an 8 kW fission reactor for the outer system, where sunlight is too weak to run its resource processing from the solar panels. Everything else is as the standard Deltaglider."
+}

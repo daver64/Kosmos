@@ -30,6 +30,10 @@ namespace kosmos
      *  fuel_cell    watts (draws hydrogen and oxygen tanks, fills water tanks)
      *  tank         gas (oxygen, nitrogen, water, hydrogen, deuterium), capacity_kg, kg
      *  electrolyser watts (splits water into oxygen and hydrogen)
+     *  isru         watts, kg_per_day (water from regolith). With "site": true it works only while the ship is on the ground and the yield
+     *               scales with how much water the body has; "n2_kg_per_day" adds nitrogen drawn from the body's air and
+     *               "regen_kg_per_day" restores CO2 scrubber sorbent
+     *  refinery     watts, kg_per_day (turns water from the water tank into main propellant, while there is room in the tank)
      *  scrubber     vessel, watts, kg_per_day, sorbent_kg
      *  regulator    vessel, watts (keeps a vessel at its pressure from the tanks)
      *  load         watts, priority (0 is shed last)
@@ -41,7 +45,9 @@ namespace kosmos
         int stage = -1;
         double watts = 0.0, max_w = 0.0, capacity = 0.0, amount = 0.0;
         double area = 0.0, efficiency = 0.28, half_life_years = 87.7, age_years = 0.0;
-        double kg_per_day = 0.0;
+        double kg_per_day = 0.0, n2_kg_per_day = 0.0, regen_kg_per_day = 0.0;
+        /** An in-situ unit that needs the ground and the body's resources (see `isru`). */
+        bool site = false;
         /** Hours of running before a "wear" component fails; 0 means it never wears out. Repairs reset `wear`. */
         double wear_hours = 0.0;
         int priority = 1;
@@ -110,6 +116,11 @@ namespace kosmos
         double mission_time = 0.0;
         /** Gas-grid cost control: above this timestep the grid only rescales, it does not diffuse. */
         double grid_dt_limit = 30.0;
+        /** Where the ship is, for in-situ resource units that set "site": on the ground, and how rich the body is (0..1) in water ice and in nitrogen air. */
+        bool landed = false;
+        double water_richness = 0.0, nitrogen_richness = 0.0;
+        /** Free space (kg) in the active stage's propellant tank, for a refinery. */
+        double propellant_room = 0.0;
     };
 
     class Systems
@@ -139,6 +150,12 @@ namespace kosmos
         bool set_crew(int vessel, int crew);
         /** Turn every load, CO2 scrubber and pressure regulator on or off together (a crew arriving or leaving). */
         void set_consumers(bool on);
+        /** Switch every in-situ resource unit (ISRU, electrolyser, refinery) on or off. */
+        void set_processing(bool on);
+        bool processing_on() const;
+        /** Propellant the refineries made since the last call; the ship adds it to its tank. */
+        double take_propellant_made() { const double m = propellant_made_; propellant_made_ = 0.0; return m; }
+        bool has_processing() const;
         bool consumers_on() const;
         LifeSupportMode mode() const { return mode_; }
 
@@ -185,13 +202,14 @@ namespace kosmos
         double update_fixed_sources(const SystemsContext &ctx);
         void wear_components(double dt);
         void balance_supply(double need, double discharge_capacity, double charge_room, double dt);
-        void run_processors(const std::vector<SystemComponent *> &loads, double dt);
+        void run_processors(const std::vector<SystemComponent *> &loads, double dt, const SystemsContext &ctx);
         void step_vessels(double dt, const SystemsContext &ctx);
         void step_links(double dt);
         SystemComponent *find_tank(const std::string &gas);
         double take(const std::string &gas, double kg);
         double give(const std::string &gas, double kg);
 
+        double propellant_made_ = 0.0, propellant_room_ = 0.0;
         std::vector<SystemComponent> components_;
         std::vector<Vessel> vessels_;
         LifeSupportMode mode_ = LifeSupportMode::warn;
