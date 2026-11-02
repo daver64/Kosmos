@@ -1,0 +1,14 @@
+{
+ "name": "CVEL: Energia-M, Kennedy",
+ "description": "CVEL Energia-M heavy launcher on the pad at Kennedy Space Center: two RD-170 strap-on boosters and a hydrogen core.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Energia-M",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

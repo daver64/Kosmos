@@ -493,7 +493,7 @@ namespace kosmos::app
             return;
         sl::audio_set_capture({});
 #ifdef _WIN32
-        _pclose(record_pipe);
+        _pclose(rec.record_pipe);
 #else
         pclose(rec.record_pipe);
 #endif
@@ -539,7 +539,7 @@ namespace kosmos::app
                                     " -i - -vf \"crop=" + std::to_string(rec.record_w) + ":" + std::to_string(rec.record_h) +
                                     ",format=yuv420p\" -r 30 -c:v libx264 -preset veryfast -crf 20 -movflags +faststart \"" + rec.record_video + "\"";
 #ifdef _WIN32
-        record_pipe = _popen(command.c_str(), "w");
+        rec.record_pipe = _popen(command.c_str(), "w");
 #else
         rec.record_pipe = popen(command.c_str(), "w");
 #endif

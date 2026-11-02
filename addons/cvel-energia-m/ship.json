@@ -1,0 +1,227 @@
+{
+ "name": "CVEL Energia-M",
+ "class": "launcher",
+ "script": "@launcher.lua",
+ "torque_accel": 0.05,
+ "max_rate": 0.2,
+ "rcs_thrust": 20000,
+ "drag_area": 60,
+ "camera_distance": 120,
+ "camera_target": [
+  0,
+  0,
+  0
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 6000,
+   "max_w": 3000
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 400,
+   "priority": 0
+  }
+ ],
+ "stages": [
+  {
+   "name": "Strap-on boosters",
+   "dry_mass": 70000,
+   "propellant": 694500,
+   "z": 0,
+   "length": 38,
+   "radius": 8.0,
+   "separation_speed": 2.6,
+   "engines": [
+    {
+     "position": [
+      5.95,
+      0,
+      20.25
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 7850806,
+     "isp": 337,
+     "isp_sl": 309,
+     "plume": 45,
+     "plume_width": 2.0,
+     "plume_glow": 1.6,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -5.95,
+      0,
+      20.25
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 7850806,
+     "isp": 337,
+     "isp_sl": 309,
+     "plume": 45,
+     "plume_width": 2.0,
+     "plume_glow": 1.6,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      0,
+      0,
+      20.25
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1961000,
+     "isp": 455,
+     "isp_sl": 352,
+     "plume": 30,
+     "plume_width": 1.6,
+     "plume_glow": 1.6,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "gear": [
+    [
+     5.95,
+     0,
+     19.0
+    ],
+    [
+     -5.95,
+     0,
+     19.0
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/boosterm1.obj",
+     "offset": [
+      5.95,
+      0,
+      0
+     ]
+    },
+    {
+     "model": "models/boosterm2.obj",
+     "offset": [
+      -5.95,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Core stage",
+   "dry_mass": 28000,
+   "propellant": 189500,
+   "z": 0,
+   "length": 28.6,
+   "radius": 4.0,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      20.25
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1961000,
+     "isp": 455,
+     "isp_sl": 352,
+     "plume": 30,
+     "plume_width": 1.6,
+     "plume_glow": 1.6,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/energiamcore.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Fairing half",
+   "dry_mass": 2500,
+   "propellant": 0,
+   "z": -26,
+   "length": 17,
+   "radius": 4.0,
+   "separation_speed": 2.5,
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/energiamfair_1.obj",
+     "offset": [
+      0,
+      0,
+      -16.65
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Fairing half 2",
+   "dry_mass": 2500,
+   "propellant": 0,
+   "z": -26,
+   "length": 17,
+   "radius": 4.0,
+   "separation_speed": 2.5,
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/energiamfair_2.obj",
+     "offset": [
+      0,
+      0,
+      -16.65
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "cvel-energia-m",
+  "name": "CVEL Energia-M",
+  "version": "0.1",
+  "author": "Erik Anderson (Energia-M meshes, CVE_GPDS Energia), David Henderson (CVE-Lite), Dave Rowbotham (booster and logic integration)",
+  "description": "Energia-M heavy launcher with two RD-170 strap-on boosters and a hydrogen core, converted from the CVEL Orbiter add-on. Module code is LGPL.",
+  "ships": [
+    "ship.json"
+  ]
+}
