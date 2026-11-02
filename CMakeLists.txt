@@ -142,7 +142,10 @@ if(WIN32)
 endif()
 target_include_directories(kosmos PRIVATE src)
 # A development build finds its data in the source tree; a packaged build looks beside the executable first.
-target_compile_definitions(kosmos PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_definitions(kosmos PRIVATE
+    $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>
+    $<$<PLATFORM_ID:Windows>:NOMINMAX>
+    KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # VERSION holds major.build: the number the next published build will carry (scripts/publish-web.sh bumps it).
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" KOSMOS_VERSION LIMIT_COUNT 1)

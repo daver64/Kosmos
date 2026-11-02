@@ -264,7 +264,11 @@ namespace kosmos
             return false;
         std::FILE *f = static_cast<std::FILE *>(file_.get());
         scratch_.resize(static_cast<std::size_t>(counts_[index]));
+#ifdef _WIN32
+        if (_fseeki64(f, static_cast<__int64>(offsets_[index]), SEEK_SET) != 0 ||
+#else
         if (fseeko(f, static_cast<off_t>(offsets_[index]), SEEK_SET) != 0 ||
+#endif
             std::fread(scratch_.data(), 1, scratch_.size(), f) != scratch_.size())
             return false;
         const std::size_t size = static_cast<std::size_t>(tile_w_) * tile_h_;
