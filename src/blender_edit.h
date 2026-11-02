@@ -14,6 +14,17 @@ namespace kosmos
      * be cancelled. Kosmos itself only starts the process and watches whether it is still running; the edited file is
      * picked up by the normal model reload.
      */
+    /** Which program edits a mesh: Blender (with data/blender/kosmos_edit.py) or KosmosCAD (`kosmoscad --edit-mesh FILE`). */
+    struct MeshEditorChoice
+    {
+        bool cad = false;
+        std::string exe;
+        std::filesystem::path script; // Blender's helper script; unused for KosmosCAD
+        std::string name() const { return cad ? "KosmosCAD" : "Blender"; }
+    };
+    /** `editor` is "blender" or "kosmoscad"; a blank KosmosCAD path means the copy in <root>/addons/kosmoscad/bin. */
+    MeshEditorChoice mesh_editor_choice(const std::string &editor, const std::string &blender, const std::string &cad, const std::filesystem::path &root);
+
     class BlenderEdit
     {
     public:
@@ -22,7 +33,9 @@ namespace kosmos
         BlenderEdit &operator=(const BlenderEdit &) = delete;
         ~BlenderEdit();
 
-        bool start(const std::string &blender, const std::filesystem::path &script, const std::filesystem::path &mesh, std::string &error);
+        bool start(const MeshEditorChoice &editor, const std::filesystem::path &mesh, std::string &error);
+        /** "Blender" or "KosmosCAD": the editor of the current or last session. */
+        const std::string &name() const { return name_; }
         /** True while Blender is running; polls the process. */
         bool active();
         /** Asks Blender to quit. */
@@ -33,6 +46,7 @@ namespace kosmos
 
     private:
         std::filesystem::path file_;
+        std::string name_ = "Blender";
         long long process_ = 0; // pid on Linux, process handle on Windows
         bool running_ = false;
     };
