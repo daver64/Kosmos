@@ -18,6 +18,7 @@ namespace cad
         double dist = 40;                   // perspective: metres from the target
         double fov = 45;                    // degrees, vertical
         bool wire = false;
+        bool textured = false;      // solid shading with each material's texture (or the checker) on
 
         bool ortho() const { return kind != Persp; }
 

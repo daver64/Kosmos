@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <set>
 
 namespace cad
 {
@@ -13,14 +15,17 @@ namespace cad
 in vec3 aPos;
 in vec3 aNormal;
 in vec3 aColour;
+in vec2 aUV;
 uniform mat4 uMVP;
 uniform mat4 uModel;
 uniform mat3 uNormal;
 uniform float uPoint;
 out vec3 vColour;
 out vec3 vNormal;
+out vec2 vUV;
 void main()
 {
+    vUV = aUV;
     gl_Position = uMVP * (uModel * vec4(aPos, 1.0));
     gl_PointSize = uPoint;
     vColour = aColour;
@@ -30,14 +35,25 @@ void main()
         const char *fragment_source = R"(#version 150 core
 in vec3 vColour;
 in vec3 vNormal;
+in vec2 vUV;
 uniform vec4 uMul;
+uniform sampler2D uTex;
+uniform int uMode;   // 0 plain colour, 1 texture, 2 checker
 out vec4 fragment;
 void main()
 {
+    vec3 base = vColour;
+    if (uMode == 1)
+        base = texture(uTex, vec2(vUV.x, 1.0 - vUV.y)).rgb;
+    else if (uMode == 2)
+    {
+        vec2 c = floor(vUV * 8.0);
+        base = vec3(mix(0.30, 0.80, mod(c.x + c.y, 2.0)));
+    }
     float lit = 1.0;
     if (dot(vNormal, vNormal) > 0.01)
         lit = 0.30 + 0.70 * abs(dot(normalize(vNormal), normalize(vec3(0.4, 0.8, 0.5))));
-    fragment = vec4(vColour * lit * uMul.rgb, uMul.a);
+    fragment = vec4(base * lit * uMul.rgb, uMul.a);
 }
 )";
 
@@ -58,10 +74,12 @@ void main()
 
         using Batch = std::vector<float>;
 
-        void push(Batch &d, const V3 &p, const V3 &c, const V3 &n = {})
+        constexpr int kStride = 11; // pos, normal, colour, uv
+
+        void push(Batch &d, const V3 &p, const V3 &c, const V3 &n = {}, double u = 0, double t = 0)
         {
-            const float v[9] = {float(p.x), float(p.y), float(p.z), float(n.x), float(n.y), float(n.z), float(c.x), float(c.y), float(c.z)};
-            d.insert(d.end(), v, v + 9);
+            const float v[kStride] = {float(p.x), float(p.y), float(p.z), float(n.x), float(n.y), float(n.z), float(c.x), float(c.y), float(c.z), float(u), float(t)};
+            d.insert(d.end(), v, v + kStride);
         }
         void line(Batch &d, const V3 &a, const V3 &b, const V3 &c)
         {
@@ -224,8 +242,17 @@ void main()
         }
     } // namespace
 
-    Rect view_rect(int view, int W, int H, int maximised)
+    Rect view_rect(int view, int W, int H, int maximised, bool uv)
     {
+        if (uv)
+        {
+            const int half = (W - 2) / 2;
+            if (view == 4)
+                return {0, 0, half, H};
+            return view == 3 ? Rect{half + 2, 0, W - half - 2, H} : Rect{};
+        }
+        if (view > 3)
+            return {};
         if (maximised >= 0)
             return view == maximised ? Rect{0, 0, W, H} : Rect{};
         const int gap = 2, cw = (W - gap) / 2, ch = (H - gap) / 2;
@@ -233,11 +260,11 @@ void main()
         return {col * (cw + gap), row * (ch + gap), col ? W - cw - gap : cw, row ? H - ch - gap : ch};
     }
 
-    int view_at(double x, double y, int W, int H, int maximised)
+    int view_at(double x, double y, int W, int H, int maximised, bool uv)
     {
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 5; ++i)
         {
-            const Rect r = view_rect(i, W, H, maximised);
+            const Rect r = view_rect(i, W, H, maximised, uv);
             if (r.w > 0 && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)
                 return i;
         }
@@ -255,6 +282,7 @@ void main()
         glBindAttribLocation(program_, 0, "aPos");
         glBindAttribLocation(program_, 1, "aNormal");
         glBindAttribLocation(program_, 2, "aColour");
+        glBindAttribLocation(program_, 3, "aUV");
         glLinkProgram(program_);
         glDeleteShader(vs);
         glDeleteShader(fs);
@@ -267,6 +295,9 @@ void main()
         u_normal_ = glGetUniformLocation(program_, "uNormal");
         u_mul_ = glGetUniformLocation(program_, "uMul");
         u_point_ = glGetUniformLocation(program_, "uPoint");
+        u_mode_ = glGetUniformLocation(program_, "uMode");
+        glUseProgram(program_);
+        glUniform1i(glGetUniformLocation(program_, "uTex"), 0);
         glGenVertexArrays(1, &scratch_vao_);
         glGenBuffers(1, &scratch_vbo_);
         return true;
@@ -289,6 +320,7 @@ void main()
     void GlView::release()
     {
         free_objects();
+        drop_textures();
         if (scratch_vbo_)
             glDeleteBuffers(1, &scratch_vbo_);
         if (scratch_vao_)
@@ -304,8 +336,10 @@ void main()
         for (int i = 0; i < 3; ++i)
         {
             glEnableVertexAttribArray(i);
-            glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), reinterpret_cast<void *>(i * 3 * sizeof(float)));
+            glVertexAttribPointer(i, 3, GL_FLOAT, GL_FALSE, kStride * sizeof(float), reinterpret_cast<void *>(i * 3 * sizeof(float)));
         }
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, kStride * sizeof(float), reinterpret_cast<void *>(9 * sizeof(float)));
     }
 
     void GlView::rebuild(const Editor &ed)
@@ -329,20 +363,43 @@ void main()
                 for (V3 &n : vn)
                     n = normalized(n);
             }
-            for (size_t f = 0; f < o.mesh.f.size(); ++f)
+            const int nmat = static_cast<int>(ed.scene().materials.size());
+            for (int mi = 0; mi < nmat; ++mi)
             {
-                const Face &face = o.mesh.f[f];
-                const int mat = std::clamp(face.mat, 0, static_cast<int>(ed.scene().materials.size()) - 1);
-                const V3 col = ed.scene().materials[mat].colour;
-                const V3 fn = face_normal(o.mesh, static_cast<int>(f));
-                for (const Tri &t : triangulate_face(o.mesh, static_cast<int>(f)))
-                    for (int k = 0; k < 3; ++k)
-                        push(tris, o.mesh.v[t[k]], col, o.smooth ? vn[t[k]] : fn);
+                const int first = static_cast<int>(tris.size() / kStride);
+                for (size_t f = 0; f < o.mesh.f.size(); ++f)
+                {
+                    const Face &face = o.mesh.f[f];
+                    if (std::clamp(face.mat, 0, nmat - 1) != mi)
+                        continue;
+                    const V3 col = ed.scene().materials[mi].colour;
+                    const V3 fn = face_normal(o.mesh, static_cast<int>(f));
+                    const bool has_uv = face.uv.size() == face.v.size();
+                    for (const Tri &t : triangulate_face(o.mesh, static_cast<int>(f)))
+                        for (int k = 0; k < 3; ++k)
+                        {
+                            double u = 0, w = 0;
+                            if (has_uv)
+                            {
+                                const size_t corner = std::find(face.v.begin(), face.v.end(), t[k]) - face.v.begin();
+                                const int ui = face.uv[corner];
+                                if (ui >= 0 && ui < static_cast<int>(o.mesh.uv.size()))
+                                {
+                                    u = o.mesh.uv[ui].u;
+                                    w = o.mesh.uv[ui].v;
+                                }
+                            }
+                            push(tris, o.mesh.v[t[k]], col, o.smooth ? vn[t[k]] : fn, u, w);
+                        }
+                }
+                const int count = static_cast<int>(tris.size() / kStride) - first;
+                if (count > 0)
+                    b.ranges.push_back({mi, first, count});
             }
             for (const auto &ef : edge_faces(o.mesh))
                 line(lines, o.mesh.v[ef.first.first], o.mesh.v[ef.first.second], V3(1, 1, 1));
-            b.tri_count = static_cast<int>(tris.size() / 9);
-            b.line_count = static_cast<int>(lines.size() / 9);
+            b.tri_count = static_cast<int>(tris.size() / kStride);
+            b.line_count = static_cast<int>(lines.size() / kStride);
             glGenVertexArrays(1, &b.vao);
             glGenBuffers(1, &b.tri);
             glGenBuffers(1, &b.line);
@@ -375,7 +432,7 @@ void main()
         glBindBuffer(GL_ARRAY_BUFFER, scratch_vbo_);
         glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), data.data(), GL_STREAM_DRAW);
         attribs();
-        glDrawArrays(mode, 0, static_cast<int>(data.size() / 9));
+        glDrawArrays(mode, 0, static_cast<int>(data.size() / kStride));
     }
 
     void GlView::draw_view(const Editor &ed, const Camera &cam, const Rect &r, int view, const ViewState &vs, int scale)
@@ -395,7 +452,7 @@ void main()
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
 
-        if (vs.grid)
+        if (vs.grid && !vs.clean)
         {
             Batch g;
             grid_lines(cam, r.w, r.h, g);
@@ -418,15 +475,28 @@ void main()
                 glPolygonOffset(1, 1);
                 glBindBuffer(GL_ARRAY_BUFFER, b.tri);
                 attribs();
-                if (selected)
+                if (selected && !vs.clean)
                     glUniform4f(u_mul_, 1.25f, 1.1f, 0.85f, 1);
                 else
                     glUniform4f(u_mul_, 1, 1, 1, 1);
                 glUniform1f(u_point_, 1);
-                glDrawArrays(GL_TRIANGLES, 0, b.tri_count);
+                if (cam.textured)
+                {
+                    for (const Range &rg : b.ranges)
+                    {
+                        const Tex *t = vs.checker ? nullptr : texture_for(ed, rg.material);
+                        if (t)
+                            glBindTexture(GL_TEXTURE_2D, t->id);
+                        glUniform1i(u_mode_, t ? 1 : 2);
+                        glDrawArrays(GL_TRIANGLES, rg.first, rg.count);
+                    }
+                    glUniform1i(u_mode_, 0);
+                }
+                else
+                    glDrawArrays(GL_TRIANGLES, 0, b.tri_count);
                 glDisable(GL_POLYGON_OFFSET_FILL);
             }
-            if (wire || vs.edges)
+            if (wire || (vs.edges && !cam.textured && !vs.clean))
             {
                 glBindBuffer(GL_ARRAY_BUFFER, b.line);
                 attribs();
@@ -453,9 +523,10 @@ void main()
             marker_lines(m, ml, sel ? V3(1.0, 0.62, 0.12) : (k ? k->colour : V3(0.9, 0.9, 0.2)));
         }
         glDisable(GL_DEPTH_TEST);
-        draw_batch(ml, GL_LINES, 1, 1, 1);
+        if (!vs.clean)
+            draw_batch(ml, GL_LINES, 1, 1, 1);
 
-        if (ed.mode != Mode::Object && ed.active_object())
+        if (!vs.clean && ed.mode != Mode::Object && ed.active_object())
         {
             const Object &o = *ed.active_object();
             const std::vector<V3> wv = ed.world_verts(-1);
@@ -484,7 +555,8 @@ void main()
             glDisable(GL_BLEND);
         }
 
-        overlay_2d(ed, cam, r, view, vs);
+        if (!vs.clean)
+            overlay_2d(ed, cam, r, view, vs);
     }
 
     // Gizmo, sketch, box-select and the active-view frame, drawn in pixel coordinates inside the view.
@@ -579,6 +651,141 @@ void main()
         glDisable(GL_BLEND);
     }
 
+    void GlView::drop_textures()
+    {
+        for (auto &t : textures_)
+            if (t.second.id)
+                glDeleteTextures(1, &t.second.id);
+        textures_.clear();
+    }
+
+    const GlView::Tex *GlView::texture_for(const Editor &ed, int material)
+    {
+        const auto &mats = ed.scene().materials;
+        if (material < 0 || material >= static_cast<int>(mats.size()) || mats[material].texture.empty() || !loader)
+            return nullptr;
+        std::string path = mats[material].texture;
+        const bool absolute = path[0] == '/' || (path.size() > 1 && path[1] == ':');
+        if (!absolute && !base_dir.empty() && !std::filesystem::exists(path)) // a path from an OBJ import is already relative to where it was opened
+            path = base_dir + "/" + path;
+        auto it = textures_.find(path);
+        if (it == textures_.end())
+        {
+            Tex t;
+            Image img;
+            if (loader(path, img) && img.w > 0 && img.h > 0)
+            {
+                glGenTextures(1, &t.id);
+                glBindTexture(GL_TEXTURE_2D, t.id);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, img.w, img.h, 0, GL_RGBA, GL_UNSIGNED_BYTE, img.rgba.data());
+                glGenerateMipmap(GL_TEXTURE_2D);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                t.w = img.w;
+                t.h = img.h;
+            }
+            it = textures_.emplace(path, t).first;
+        }
+        return it->second.id ? &it->second : nullptr;
+    }
+
+    void GlView::texture_size(const Editor &ed, int material, int &w, int &h)
+    {
+        const Tex *t = texture_for(ed, material);
+        w = t ? t->w : 0;
+        h = t ? t->h : 0;
+    }
+
+    // The UV editor: the material's image under the 0..1 square, the UV wireframe of the faces in scope and their UV points.
+    void GlView::draw_uv(const Editor &ed, const Rect &r, const ViewState &vs, int scale)
+    {
+        const int dx = r.x * scale, dy = (H_ - r.y - r.h) * scale, dw = r.w * scale, dh = r.h * scale;
+        glViewport(dx, dy, dw, dh);
+        glScissor(dx, dy, dw, dh);
+        glDisable(GL_DEPTH_TEST);
+        glClearColor(0.10f, 0.10f, 0.11f, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        float m[16] = {0};
+        m[0] = 2.0f / r.w;
+        m[5] = -2.0f / r.h;
+        m[10] = 1;
+        m[12] = -1;
+        m[13] = 1;
+        m[15] = 1;
+        set_matrices(m, nullptr);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        auto px = [&](double u) { return r.w / 2.0 + (u - vs.uv_cx) * vs.uv_zoom; };
+        auto py = [&](double v) { return r.h / 2.0 - (v - vs.uv_cy) * vs.uv_zoom; };
+
+        // the image (or checker) on the unit square
+        const Tex *t = vs.checker ? nullptr : texture_for(ed, vs.uv_material);
+        {
+            Batch q;
+            const V3 white(1, 1, 1);
+            const V3 c00{px(0), py(0), 0}, c10{px(1), py(0), 0}, c11{px(1), py(1), 0}, c01{px(0), py(1), 0};
+            push(q, c00, white, {}, 0, 0); push(q, c10, white, {}, 1, 0); push(q, c11, white, {}, 1, 1);
+            push(q, c00, white, {}, 0, 0); push(q, c11, white, {}, 1, 1); push(q, c01, white, {}, 0, 1);
+            if (t)
+                glBindTexture(GL_TEXTURE_2D, t->id);
+            glUniform1i(u_mode_, t ? 1 : 2);
+            draw_batch(q, GL_TRIANGLES, 1, 1, 1, 1);
+            glUniform1i(u_mode_, 0);
+        }
+
+        Batch border, wire, pts, sel_pts;
+        const V3 grey(0.7, 0.7, 0.7), cyan(0.45, 0.85, 1.0), blue(0.35, 0.65, 1.0), orange(1.0, 0.62, 0.12);
+        thick(border, px(0), py(0), px(1), py(0), 1.5, grey);
+        thick(border, px(1), py(0), px(1), py(1), 1.5, grey);
+        thick(border, px(1), py(1), px(0), py(1), 1.5, grey);
+        thick(border, px(0), py(1), px(0), py(0), 1.5, grey);
+        draw_batch(border, GL_TRIANGLES, 1, 1, 1, 0.9f);
+
+        std::set<std::pair<int, int>> seen;
+        for (const Editor::UvRef &ref : ed.uv_scope())
+        {
+            const Mesh &mesh = ed.scene().objects[ref.object].mesh;
+            const Face &f = mesh.f[ref.face];
+            if (f.uv.size() != f.v.size())
+                continue;
+            for (size_t k = 0; k < f.uv.size(); ++k)
+            {
+                const int a = f.uv[k], b = f.uv[(k + 1) % f.uv.size()];
+                if (a < 0 || b < 0 || a >= static_cast<int>(mesh.uv.size()) || b >= static_cast<int>(mesh.uv.size()))
+                    continue;
+                thick(wire, px(mesh.uv[a].u), py(mesh.uv[a].v), px(mesh.uv[b].u), py(mesh.uv[b].v), 1.2, cyan);
+                if (seen.insert({ref.object, a}).second)
+                    square(ed.uv_sel.count({ref.object, a}) ? sel_pts : pts, px(mesh.uv[a].u), py(mesh.uv[a].v), ed.uv_sel.count({ref.object, a}) ? 4.0 : 2.5, ed.uv_sel.count({ref.object, a}) ? orange : blue);
+            }
+        }
+        draw_batch(wire, GL_TRIANGLES, 1, 1, 1, 0.85f);
+        draw_batch(pts, GL_TRIANGLES, 1, 1, 1, 1);
+        draw_batch(sel_pts, GL_TRIANGLES, 1, 1, 1, 1);
+
+        Batch over;
+        if (vs.box && vs.active == 4)
+        {
+            const V3 c(1, 1, 1);
+            thick(over, vs.bx0, vs.by0, vs.bx1, vs.by0, 1, c);
+            thick(over, vs.bx1, vs.by0, vs.bx1, vs.by1, 1, c);
+            thick(over, vs.bx1, vs.by1, vs.bx0, vs.by1, 1, c);
+            thick(over, vs.bx0, vs.by1, vs.bx0, vs.by0, 1, c);
+        }
+        if (vs.active == 4)
+        {
+            const V3 c(0.35, 0.65, 1.0);
+            thick(over, 1, 1, r.w - 1, 1, 2, c);
+            thick(over, r.w - 1, 1, r.w - 1, r.h - 1, 2, c);
+            thick(over, r.w - 1, r.h - 1, 1, r.h - 1, 2, c);
+            thick(over, 1, r.h - 1, 1, 1, 2, c);
+        }
+        draw_batch(over, GL_TRIANGLES, 1, 1, 1, 0.9f);
+        glDisable(GL_BLEND);
+    }
+
     void GlView::render(const Editor &ed, const Camera cams[4], const ViewState &vs, int W, int H, int scale)
     {
         if (!program_)
@@ -592,10 +799,14 @@ void main()
         glScissor(0, 0, W * scale, H * scale);
         glClearColor(0.05f, 0.05f, 0.06f, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 5; ++i)
         {
-            const Rect r = view_rect(i, W, H, vs.maximised);
-            if (r.w > 0 && r.h > 0)
+            const Rect r = view_rect(i, W, H, vs.maximised, vs.uv);
+            if (r.w <= 0 || r.h <= 0)
+                continue;
+            if (i == 4)
+                draw_uv(ed, r, vs, scale);
+            else
                 draw_view(ed, cams[i], r, i, vs, scale);
         }
         glDisable(GL_SCISSOR_TEST);

@@ -10,7 +10,7 @@ pkg_check_modules(EPOXY REQUIRED IMPORTED_TARGET epoxy)
 set(KOSMOSCAD_JSON_INCLUDE "" CACHE PATH "Folder holding json.hpp (nlohmann)")
 set(KOSMOSCAD_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin" CACHE PATH "Where the kosmoscad program is written")
 
-add_executable(kosmoscad src/main.cpp src/gl_view.cpp src/editor.cpp src/mesh.cpp src/csg.cpp src/scene.cpp src/equipment.cpp src/ship_io.cpp)
+add_executable(kosmoscad src/main.cpp src/gl_view.cpp src/editor.cpp src/mesh.cpp src/csg.cpp src/scene.cpp src/equipment.cpp src/ship_io.cpp src/image.cpp)
 target_compile_features(kosmoscad PRIVATE cxx_std_17)
 target_include_directories(kosmoscad PRIVATE src ${KOSMOSCAD_JSON_INCLUDE})
 target_link_libraries(kosmoscad PRIVATE PkgConfig::GTK3 PkgConfig::EPOXY)

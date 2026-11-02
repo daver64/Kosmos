@@ -273,7 +273,7 @@ if(UNIX AND NOT APPLE)
 endif()
 # KosmosCAD's modelling core (no GTK, no GL): cmake --build build --target kosmoscad_test && build/kosmoscad_test
 add_executable(kosmoscad_test EXCLUDE_FROM_ALL tests/kosmoscad_test.cpp sdk/kosmoscad/src/mesh.cpp sdk/kosmoscad/src/csg.cpp sdk/kosmoscad/src/scene.cpp
-    sdk/kosmoscad/src/equipment.cpp sdk/kosmoscad/src/ship_io.cpp sdk/kosmoscad/src/editor.cpp)
+    sdk/kosmoscad/src/equipment.cpp sdk/kosmoscad/src/ship_io.cpp sdk/kosmoscad/src/editor.cpp sdk/kosmoscad/src/image.cpp)
 target_include_directories(kosmoscad_test PRIVATE sdk/kosmoscad/src ${KOSMOS_JSON_INCLUDE})
 target_compile_features(kosmoscad_test PRIVATE cxx_std_17)
 target_compile_definitions(kosmoscad_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")

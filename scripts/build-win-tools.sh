@@ -68,7 +68,7 @@ schemas "$SRC/addons/shipedit"
 # KosmosCAD (no simlib; only the json header; OpenGL through GTK's libepoxy).
 KC=$SRC/sdk/kosmoscad
 mkdir -p "$TMP/kc"
-printf '%s\n' main editor gl_view mesh csg scene equipment ship_io | xargs -P 4 -I{} sh -c \
+printf '%s\n' main editor gl_view mesh csg scene equipment ship_io image | xargs -P 4 -I{} sh -c \
     '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$KC"'/src" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$KC"'/src/{}.cpp" -o "$TMP/kc/{}.o"'
 mkdir -p "$SRC/addons/kosmoscad/bin"
 "$WINCXX" -static -mwindows -o "$SRC/addons/kosmoscad/bin/kosmoscad.exe" "$TMP"/kc/*.o $LIBS
