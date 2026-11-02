@@ -170,6 +170,7 @@ namespace kosmos::app
         frame = std::clamp(static_cast<double>(now - last_time) * 0.001, 0.001, 0.1);
         last_time = now;
         clock += frame;
+        smooth_frame += (frame - smooth_frame) * 0.1;
         kosmos::Universe &universe = sim.universe; universe_ref = &universe;
         sl::PropertyTree &props = sim.props; props_ref = &props;
         {

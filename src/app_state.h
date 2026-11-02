@@ -302,6 +302,7 @@ namespace kosmos::app
         double lightning_flash{};
         double cloud_veil{};
         std::uint32_t last_time{};
+        double smooth_frame{1.0 / 60.0};
         int applied_fps{};
         int gfx_style{};
         bool gfx_clouds{};

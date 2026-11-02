@@ -63,7 +63,7 @@ namespace kosmos::app
         if (lockstepped)
             sim.step(step_dt);
         else
-            props.set_int("/sim/physics-steps", sim.advance(frame));
+            props.set_int("/sim/physics-steps", sim.advance(sim.current_warp() > 4.0 ? smooth_frame : frame));
         {
             const bool storms = sim.props.get_bool("/sim/settings/weather", true) && sim.props.get_bool("/sim/settings/weather-rain", true);
             const double thunder = storms && sim.current_warp() <= 4.0 ? sim.props.get_double("/environment/thunder") : 0.0;
