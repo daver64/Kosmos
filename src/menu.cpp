@@ -781,6 +781,8 @@ namespace kosmos
         dbl("Pad x", b.pad_x, 0.5f);
         dbl("Pad z", b.pad_z, 0.5f);
         dbl("Pad heading", b.pad_heading, 1.0f, -360.0, 360.0, "%.0f deg");
+        dbl("Pad height m", b.pad_deck, 0.1f, -50.0, 200.0, "%.1f");
+        ImGui::TextDisabled("Height a ship stands above the levelled ground (0 = from the pad object). Restart to apply.");
         if (ImGui::Button("Pad at flown ship"))
             ship_xz(b.pad_x, b.pad_z);
         ImGui::TextWrapped("Objects and cameras change at once. Moving the site or its levelled ground takes effect after a restart.");
@@ -1060,7 +1062,33 @@ namespace kosmos
     {
         tick_blender(sim);
         if (!open)
+        {
+            was_open_ = false;
             return;
+        }
+        if (!was_open_)
+        {
+            was_open_ = true;
+            // Start on the base nearest the flown ship (on the body it is orbiting).
+            if (sim.ship_count() > 0)
+            {
+                const Ship *flown = sim.active_ship();
+                double best = 1.0e300;
+                for (std::size_t i = 0; i < sim.bases.size(); ++i)
+                {
+                    const Base &c = sim.bases[i];
+                    if (sim.universe.find(c.body) != flown->body_id())
+                        continue;
+                    double x, z;
+                    base_local_xz(sim.universe, c, flown->body().position, x, z);
+                    if (std::hypot(x, z) < best)
+                    {
+                        best = std::hypot(x, z);
+                        base_ = static_cast<int>(i);
+                    }
+                }
+            }
+        }
         ImGui::SetNextWindowPos(ImVec2(60.0f, 80.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(480.0f, 700.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowBgAlpha(0.92f);
@@ -1084,7 +1112,7 @@ namespace kosmos
                 ImGui::End();
                 return;
             }
-            combo("Base", base_, ids);
+            combo("Base (nearest to you on opening)", base_, ids);
             Base &b = sim.bases[static_cast<std::size_t>(base_)];
             if (ImGui::Button("New"))
             {

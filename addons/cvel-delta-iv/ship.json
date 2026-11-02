@@ -2,7 +2,7 @@
  "name": "CVEL Delta IV Heavy",
  "class": "launcher",
  "script": "@launcher.lua",
- "pad_turn": 90,
+ "pad_turn": 0,
  "torque_accel": 0.15,
  "max_rate": 0.25,
  "rcs_thrust": 0,

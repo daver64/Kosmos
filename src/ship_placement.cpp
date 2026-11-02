@@ -16,10 +16,12 @@ namespace kosmos
         const sl::dvec3 up = glm::normalize(direction);
         const sl::dvec3 east = glm::normalize(glm::cross(pb.spin_axis, up));
         const sl::dvec3 north = glm::cross(up, east);
-        const double heading = heading_degrees * pi / 180.0;
+        const bool level = spec_.aircraft() || spec_.horizontal;
+        // A rocket stands with its roof to the west, so pitching up (nose toward the roof) turns it east, with the body's spin;
+        // `pad_turn` swings it round from there.
+        const double heading = (level ? heading_degrees : 270.0 + spec_.pad_turn) * pi / 180.0;
         const sl::dvec3 roof = north * std::cos(heading) + east * std::sin(heading);
 
-        const bool level = spec_.aircraft() || spec_.horizontal;
         double lowest = 0.0;
         if (level)
         {

@@ -355,12 +355,14 @@ A base is a built-up site on a body's surface, defined in JSON so modders can ad
   "runways": [{"name": "Runway 1", "x": 560, "z": 0, "length": 1500, "width": 45,
     "ils": [{"frequency": 109.5}, {"frequency": 109.9, "reverse": true}]}],
   "cameras": [{"name": "Control tower", "x": 60, "y": 28, "z": -120, "fov": 40}],
-  "pad": {"x": 70, "z": 0, "heading": 0},
+  "pad": {"x": 70, "z": 0, "heading": 0, "deck": 8.7},
   "objects": [
     {"type": "hangar", "x": 140, "z": -60, "heading": 270, "width": 36, "depth": 40, "height": 14},
     {"type": "street_lamp", "count": 6, "x": 20, "z": -35, "step_x": 25}
   ]}]}
 ```
+
+`pad.deck` is how high (m) a ship stands above the levelled ground; it is also the Pad height field in the base editor. Rockets on a pad always stand with their roof to the west so pitching up turns them east.
 
 Object coordinates are metres in the base frame (x right of the heading, z along it; `y` lifts a prop). `heading` turns the prop, `scale` scales it, `count` with `step_x`/`step_z` makes rows. Optional `size`, `width`, `depth`, `height`, `length`, `radius`, `number`, `seed`, and `colour`/`colour2` as `[r,g,b]` override the builder defaults. Types: house, office, skyscraper, hangar, wall, fence, water_tower, radar, domed_radar, pressure_dome, habitat_tube, lunar_rover, landing_pad, control_tower, street_lamp, road, barrel, crate, container, tank, conifer, rock, tree, bush, rock_cluster, car, spaceship, aeroplane, launch_tower, launch_pad, saturn_v, rocket_stage, station_module, solar_array, solar_windmill, antenna_dish, satellite, skylab, rtg_house (RTG canisters on a hall), reactor (vessel, hall and radiator wing).
 
