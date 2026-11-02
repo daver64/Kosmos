@@ -1337,6 +1337,13 @@ namespace kosmos
         {
             apply_flight_controls(c);
             hold_hover_attitude(c);
+            // High in the air the surfaces have little bite, so the thrusters take over as in space.
+            if (b.mode == sl::FlightBodyMode::dynamic && telemetry_.dynamic_pressure < 500.0 && c.hover <= 0.02)
+            {
+                apply_attitude(c, dt);
+                apply_rcs(c);
+                use_rcs_propellant(dt);
+            }
             return;
         }
         if (b.mode == sl::FlightBodyMode::dynamic)

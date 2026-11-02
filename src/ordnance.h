@@ -209,6 +209,7 @@ namespace kosmos
             int body = -1;
             sl::dvec3 relative{0.0};
             double left = 0.0;
+            bool grounded = false; // a burst on the ground turns with the planet
         } aftermath_;
         void step_launched(ArsenalContext &context, double dt);
         std::vector<Shock> shocks_;

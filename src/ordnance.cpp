@@ -923,7 +923,7 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 r.age = l.age;
                 r.owner = l.owner;
                 detonate(context, r, r.position);
-                aftermath_ = {l.owner, r.body, r.position, 25.0};
+                aftermath_ = {l.owner, r.body, r.position, 25.0, true};
             }
             else
             {
@@ -1185,6 +1185,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             };
             if (particle_body_ >= 0 && (particles_.size() > 0 || !effects_.empty()))
                 anchor_ = spin_of(particle_body_, anchor_);
+            if (aftermath_.grounded && aftermath_.left > 0.0 && aftermath_.body >= 0)
+                aftermath_.relative = spin_of(aftermath_.body, aftermath_.relative);
             for (Scar &sc : scars_)
                 sc.position = spin_of(sc.body, sc.position);
             for (Shock &sh : shocks_)
