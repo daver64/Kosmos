@@ -1211,6 +1211,9 @@ namespace kosmos
     {
         if (rcs_dry())
             return;
+        // Once the air has hold of a capsule it flies itself shield-first; the thrusters would only fight it.
+        if (spec_.hypersonic.enabled && spec_.hypersonic.hold_low_speed && telemetry_.dynamic_pressure > 150.0)
+            return;
         sl::FlightBody &b = body();
         const sl::dvec3 w = b.angular_velocity;
         sl::dvec3 desired(0.0);
@@ -1398,7 +1401,10 @@ namespace kosmos
         if (spec_.rcs_modes)
         {
             if (c.rcs_mode == "off")
+            {
                 c.pitch = c.yaw = c.roll = c.rcs_x = c.rcs_y = c.rcs_z = 0.0;
+                c.sas = "off";
+            }
             else if (c.rcs_mode == "lin")
             {
                 // The rotation keys push instead: W/S forward and back, A/D left and right, Q/E up and down.
@@ -1799,14 +1805,17 @@ namespace kosmos
                 for (const sl::LiftingSurface &s : b.surfaces)
                     base_surface_area_.push_back(s.area);
             }
-            const AeroResult aero = hypersonic_aero(spec_.hypersonic, local, rho, b.angular_velocity);
+            const AeroResult aero = hypersonic_aero(spec_.hypersonic, local, rho, b.angular_velocity, std::max({b.inertia().x, b.inertia().y, b.inertia().z}));
             b.drag_area = base_drag_area_ * (1.0 - aero.blend);
             for (std::size_t i = 0; i < b.surfaces.size() && i < base_surface_area_.size(); ++i)
                 b.surfaces[i].area = base_surface_area_[i] * (1.0 - aero.blend);
-            if (aero.blend > 0.0)
+            // Under power the pilot holds the attitude; the trim moment would throw an ascending ship nose-up.
+            const bool powered = telemetry_.thrust > 0.0 && !spec_.hypersonic.hold_low_speed;
+            if (aero.blend > 0.0 || glm::length(aero.torque) > 0.0)
             {
                 universe_.world.apply_force(body_, b.direction_to_world(aero.force));
-                universe_.world.apply_torque(body_, b.direction_to_world(aero.torque));
+                if (!powered)
+                    universe_.world.apply_torque(body_, b.direction_to_world(aero.torque));
             }
         }
         if (spec_.thermal.enabled)
@@ -2149,13 +2158,23 @@ namespace kosmos
         double burning = 0.0;
         for (const sl::Thruster &t : b.thrusters)
             burning = std::max(burning, t.level);
-        const bool touching = spec_.orbital_only && !crashed_ && burning < 0.05 && b.mode == sl::FlightBodyMode::dynamic && (telemetry_.landed || telemetry_.altitude <= 0.3);
+        // A capsule has no gear either: it touches down when its hull, not its centre of mass, reaches the ground.
+        double hull_reach = 0.3;
+        const bool capsule_landing = !spec_.orbital_only && spec_.kind == "capsule" && b.gear.empty() && !spec_.aircraft() && !spec_.horizontal;
+        if (capsule_landing)
+        {
+            hull_reach = 0.0;
+            for (std::size_t s = static_cast<std::size_t>(std::max(active_stage_, 0)); s < spec_.stages.size(); ++s)
+                hull_reach = std::max(hull_reach, spec_.stages[s].z + spec_.stages[s].length * 0.5);
+        }
+        const bool touching = (spec_.orbital_only || capsule_landing) && !crashed_ && burning < 0.05 && b.mode == sl::FlightBodyMode::dynamic &&
+                              (telemetry_.landed || telemetry_.altitude <= hull_reach);
         const bool hard_landing = touching && approach_speed_ > spec_.crash_speed;
         if (hard_landing)
             std::fprintf(stderr, "[kosmos] %s: hit the ground at %.1f m/s\n", name.c_str(), approach_speed_);
         else if (touching)
         {
-            const double lift = -telemetry_.altitude;
+            const double lift = capsule_landing ? hull_reach - telemetry_.altitude : -telemetry_.altitude;
             if (lift > 0.0)
                 b.position += glm::normalize(b.position - universe_.position(telemetry_.soi)) * lift;
             pin_to_ground();

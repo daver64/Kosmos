@@ -390,6 +390,7 @@ namespace kosmos::app
         vis.glow = sl::create_sphere_mesh(1.0f, 14, 8, {255, 255, 255, 255});
         vis.quad = sl::create_plane_mesh(2.0f, 2.0f, {255, 255, 255, 255});
         vis.glow_texture = make_glow_texture();
+        vis.plasma_texture = make_plasma_texture();
         vis.star_surface = make_star_surface(0, 11);
         vis.star_filaments = make_star_surface(1, 29);
         vis.star_corona = make_star_corona(5, 5.0);
@@ -402,7 +403,7 @@ namespace kosmos::app
         vis.cloud_texture = fx::make_cloud_texture();
         vis.starfield = make_starfield();
         vis.tail = make_tail_mesh();
-        if (!vis.sphere || !vis.glow || !vis.quad || !vis.glow_texture || !vis.puff_texture || !vis.cloud_texture || !vis.starfield)
+        if (!vis.sphere || !vis.glow || !vis.quad || !vis.glow_texture || !vis.plasma_texture || !vis.puff_texture || !vis.cloud_texture || !vis.starfield)
         {
             std::fprintf(stderr, "Failed to create resources: %s\n", sl::last_error().c_str());
             sl::shutdown();

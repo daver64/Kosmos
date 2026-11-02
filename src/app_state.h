@@ -297,6 +297,16 @@ namespace kosmos::app
         std::mutex record_audio_mutex;
         std::vector<std::int16_t> record_audio;
         ExhaustFx exhaust_fx;
+        // Re-entry plasma: glowing puffs shed from the nose that stream back along the airstream, offset from the ship's origin in world axes.
+        struct PlasmaPuff
+        {
+            const kosmos::Ship *owner;
+            glm::vec3 position, velocity;
+            float age, life, size, bright;
+        };
+        std::vector<PlasmaPuff> plasma_puffs;
+        std::uint32_t plasma_seed = 1;
+        float plasma_carry = 0.0f;
         sl::Event event_discard;
         double clock{};
         double lightning_flash{};

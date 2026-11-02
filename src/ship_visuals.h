@@ -30,7 +30,7 @@ namespace kosmos::app
         std::vector<sl::Mesh *> rings;
         std::vector<sl::Mesh *> body_cloud_meshes;
         std::vector<sl::Bitmap *> body_cloud_textures;
-        sl::Bitmap *glow_texture = nullptr, *puff_texture = nullptr, *cloud_texture = nullptr, *lights_texture = nullptr;
+        sl::Bitmap *glow_texture = nullptr, *plasma_texture = nullptr, *puff_texture = nullptr, *cloud_texture = nullptr, *lights_texture = nullptr;
         sl::Bitmap *star_surface = nullptr, *star_filaments = nullptr, *star_corona = nullptr, *star_corona_far = nullptr, *star_rays = nullptr, *star_limb = nullptr, *sky = nullptr, *nebula_atlas = nullptr;
         // The nebula_atlas bitmap holds the current system's nebulae, rebuilt when the system changes.
         int nebulae_system = -1;

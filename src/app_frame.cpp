@@ -263,6 +263,7 @@ namespace kosmos::app
         ship_weapons.release_graphics();
         sl::destroy_bitmap(vis.lights_texture);
         sl::destroy_bitmap(vis.glow_texture);
+        sl::destroy_bitmap(vis.plasma_texture);
         for (sl::Bitmap *b : {vis.star_surface, vis.star_filaments, vis.star_corona, vis.star_corona_far, vis.star_rays, vis.star_limb, vis.sky})
             sl::destroy_bitmap(b);
         sl::destroy_bitmap(vis.puff_texture);

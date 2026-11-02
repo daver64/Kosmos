@@ -1082,7 +1082,13 @@ namespace kosmos::app
         glow.fog = false;
         glow.blend = sl::MaterialBlend::additive;
         glow.cull = sl::CullMode::none;
-        const float flicker = 0.9f + 0.1f * std::sin(static_cast<float>(sl::time_ms() % 100000) * 0.037f);
+        const float dt = std::min(static_cast<float>(frame), 0.1f);
+        for (PlasmaPuff &pf : plasma_puffs)
+        {
+            pf.age += dt;
+            pf.position += pf.velocity * dt;
+        }
+        plasma_puffs.erase(std::remove_if(plasma_puffs.begin(), plasma_puffs.end(), [](const PlasmaPuff &pf) { return pf.age >= pf.life; }), plasma_puffs.end());
         for (int s = 0; s < sim.ship_count(); ++s)
         {
             Ship &other = *sim.ship(s);
@@ -1103,7 +1109,7 @@ namespace kosmos::app
             if (look.brilliance <= 0.0f)
                 continue;
             const bool aboard = &other == ship && (in_cockpit || in_interior);
-            const float k = look.brilliance * flicker * (aboard ? 0.35f : 1.0f);
+            const float k = look.brilliance * (aboard ? 0.35f : 1.0f);
 
             // The frame trails the flow: +Z points back along the airstream.
             const glm::vec3 back = glm::vec3(-air / speed);
@@ -1121,7 +1127,7 @@ namespace kosmos::app
                 for (const float dz : {-0.5f, 0.5f})
                     for (const float sgn : {-1.0f, 1.0f})
                     {
-                        const glm::vec3 p = glm::vec3(0.0f, 0.0f, static_cast<float>(st.z + dz * st.length)) + lateral * static_cast<float>(st.radius) * sgn;
+                        const glm::vec3 p = glm::vec3(0.0f, 0.0f, static_cast<float>(st.z + dz * st.length)) + lateral * static_cast<float>(st.radius) * sgn * 0.3f;
                         const float d = glm::dot(p, flow_local);
                         if (d > lead)
                             lead = d, lead_point = p;
@@ -1133,41 +1139,60 @@ namespace kosmos::app
                                  glm::translate(glm::mat4(1.0f), lead_point) * glm::mat4(glm::mat3(glm::inverse(glm::mat3_cast(glm::quat(ob.orientation)))) * glm::mat3(basis));
             const float wake = look.length + depth * 0.8f;
 
-            // The glow stays orange-red and only turns yellow-white at the very hottest.
+            // Colour comes from the texture (white-yellow at the nose through orange to red); the tint only dulls the blue and green when it is cool.
             const float h = look.heat;
             const auto mix8 = [](float a, float b, float t) { return static_cast<std::uint8_t>(std::clamp(a + (b - a) * t, 0.0f, 255.0f)); };
-            const sl::Colour haze{235, mix8(32, 60, h), 5, 255};
-            const sl::Colour body{255, mix8(55, 125, h), mix8(10, 45, h), 255};
-            const sl::Colour core{255, mix8(110, 190, h), mix8(30, 110, h), 255};
-            const auto layer = [&](const sl::Colour &c, float alpha, const glm::vec3 &centre, const glm::vec3 &radii)
+            const glm::vec3 lead_rel = glm::vec3(at[3]);
+            const glm::vec3 mid_rel = lead_rel + back * (wake * 0.5f);
+            const glm::vec3 origin_rel = glm::vec3(other.origin() - eye_world);
+            glow.texture = vis.glow_texture;
+            const auto blob = [&](const glm::vec3 &at_rel, float half, const sl::Colour &c, float alpha)
             {
+                const glm::vec3 te = -glm::normalize(at_rel);
+                const glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), te));
+                const glm::vec3 up_v = glm::cross(te, right);
                 glow.tint = c;
                 glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(vis.glow, at * glm::translate(glm::mat4(1.0f), centre) * glm::scale(glm::mat4(1.0f), radii), glow);
+                sl::draw_mesh(vis.quad, glm::mat4(glm::vec4(right * half, 0.0f), glm::vec4(te, 0.0f), glm::vec4(up_v * half, 0.0f), glm::vec4(at_rel, 1.0f)), glow);
             };
-            // Many faint nested layers so no single outline shows.
-            constexpr int layers = 28;
-            for (int i = 0; i < layers; ++i)
+            // Puffs are shed across the nose and stream back, so they trace the wake; each is a soft white-yellow core fading through orange to red.
+            const float life = 0.9f, stream = wake / life;
+            const auto rnd = [&]()
             {
-                const float t = static_cast<float>(i) / (layers - 1);
-                const float grow = 1.0f + 1.2f * t;
-                layer(haze, 0.016f * k * (1.0f - 0.5f * t), glm::vec3(0, 0, wake * 0.45f * grow),
-                      glm::vec3(look.width * grow * 0.9f, look.width * grow * 0.9f, wake * 0.55f * grow));
-            }
-            for (int i = 0; i < layers; ++i)
+                plasma_seed = plasma_seed * 1664525u + 1013904223u;
+                return static_cast<float>(plasma_seed >> 8) / 16777216.0f;
+            };
+            const glm::vec3 ax1 = std::fabs(back.y) < 0.95f ? glm::normalize(glm::cross(glm::vec3(0, 1, 0), back)) : glm::vec3(1, 0, 0);
+            const glm::vec3 ax2 = glm::cross(back, ax1);
+            plasma_carry += std::clamp(wake * 14.0f, 160.0f, 700.0f) * dt;
+            for (; plasma_carry >= 1.0f; plasma_carry -= 1.0f)
             {
-                const float t = static_cast<float>(i) / (layers - 1);
-                layer(body, 0.024f * k, glm::vec3(0, 0, wake * 0.25f * (1.0f - t * 0.5f)),
-                      glm::vec3(look.width * (1.0f - 0.7f * t), look.width * (1.0f - 0.7f * t), wake * 0.4f * (1.0f - 0.6f * t)));
+                const float ang = rnd() * 6.2831853f, rad = std::sqrt(rnd()) * look.width * 0.35f;
+                const glm::vec3 spread = ax1 * std::cos(ang) + ax2 * std::sin(ang);
+                PlasmaPuff pf;
+                pf.owner = &other;
+                pf.position = lead_rel - origin_rel + spread * rad;
+                pf.velocity = back * stream * (0.75f + 0.5f * rnd()) + spread * (look.width * 0.08f * rnd());
+                pf.age = 0.0f;
+                pf.life = life * (0.6f + 0.4f * rnd());
+                pf.size = look.width * (0.3f + 0.25f * rnd());
+                pf.bright = 0.6f + 0.4f * rnd();
+                plasma_puffs.push_back(pf);
             }
-            // The shock cap ahead of the nose.
-            for (int i = 0; i < layers; ++i)
+            for (const PlasmaPuff &pf : plasma_puffs)
             {
-                const float t = static_cast<float>(i) / (layers - 1);
-                const float r = look.cap * (1.2f - 0.9f * t);
-                layer(i < layers / 2 ? body : core, 0.028f * k, glm::vec3(0, 0, -look.cap * 0.5f), glm::vec3(r, r, r * 0.7f));
+                if (pf.owner != &other)
+                    continue;
+                const float age = pf.age / pf.life;
+                const float fade = std::pow(1.0f - age, 1.5f);
+                const float cool = std::clamp(age * 1.2f - 0.15f, 0.0f, 1.0f);
+                const glm::vec3 where = origin_rel + pf.position;
+                blob(where, pf.size * (1.0f + 1.5f * age) * 2.2f, sl::Colour{255, mix8(200, 70, cool), mix8(120, 25, cool), 255}, 0.3f * pf.bright * fade * k * 1.2f);
+                blob(where, pf.size * (1.0f + age), sl::Colour{255, mix8(245, 140, cool), mix8(215, 60, cool), 255}, 0.5f * pf.bright * fade * k * (1.0f - cool * 0.6f));
             }
-        }
+            blob(lead_rel, look.cap * 1.8f, sl::Colour{255, mix8(110, 190, h), mix8(40, 110, h), 255}, 0.55f * k);
+            blob(lead_rel, look.cap * 0.9f, sl::Colour{255, 235, mix8(150, 215, h), 255}, 0.7f * k);
+                    }
     }
 
     void App::scene_exhaust_and_held()

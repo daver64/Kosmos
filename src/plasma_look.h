@@ -38,9 +38,11 @@ namespace kosmos
         const double mass = 0.2 + 0.8 * (0.7 * big + 0.3 * blunt);
         look.brilliance = static_cast<float>(std::clamp(glow * (0.2 + 0.8 * mass * mass), 0.0, 1.0));
         look.heat = static_cast<float>(std::clamp(0.15 + 0.85 * glow, 0.0, 1.0));
-        look.width = static_cast<float>(radius * (0.9 + 1.0 * mass));
-        look.length = static_cast<float>(radius * (8.0 + 22.0 * (1.0 - mass)) * (0.5 + 0.5 * glow));
-        look.cap = static_cast<float>(radius * (0.6 + 0.9 * mass) * (0.5 + 0.5 * glow));
+        // A very large vessel's sheath hugs the hull instead of growing in step with it.
+        const double sheath = radius > 3.0 ? 3.0 + 0.3 * (radius - 3.0) : radius;
+        look.width = static_cast<float>(sheath * (1.3 + 1.5 * mass));
+        look.length = static_cast<float>(radius * (32.0 + 88.0 * (1.0 - mass)) * (0.35 + 0.65 * glow));
+        look.cap = static_cast<float>(sheath * (0.8 + 1.2 * mass) * (0.5 + 0.5 * glow));
         return look;
     }
 }

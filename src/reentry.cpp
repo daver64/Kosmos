@@ -74,11 +74,11 @@ namespace kosmos
         return damage / dt;
     }
 
-    AeroResult hypersonic_aero(const HypersonicSpec &spec, const sl::dvec3 &velocity, double rho, const sl::dvec3 &rate)
+    AeroResult hypersonic_aero(const HypersonicSpec &spec, const sl::dvec3 &velocity, double rho, const sl::dvec3 &rate, double inertia)
     {
         AeroResult out;
         const double v = glm::length(velocity);
-        if (!spec.enabled || rho <= 0.0 || v < spec.blend_lo)
+        if (!spec.enabled || rho <= 0.0 || v < (spec.hold_low_speed ? 30.0 : spec.blend_lo))
             return out;
         const double t = std::clamp((v - spec.blend_lo) / std::max(spec.blend_hi - spec.blend_lo, 1.0), 0.0, 1.0);
         out.blend = t * t * (3.0 - 2.0 * t);
@@ -93,10 +93,19 @@ namespace kosmos
         const sl::dvec3 side = unit(spec.trim_dir - axis * glm::dot(spec.trim_dir, axis), sl::dvec3(0.0, 0.0, -1.0));
         const double angle = spec.trim_deg * pi / 180.0;
         const sl::dvec3 target = axis * std::cos(angle) + side * std::sin(angle);
-        sl::dvec3 torque = glm::cross(target, vhat) * (q * spec.area * spec.length * spec.cm);
-        torque -= rate * (spec.damping * q * spec.area * spec.length * spec.length / v);
+        double stiffness = q * spec.area * spec.length * spec.cm;
+        double damping = spec.damping * q * spec.area * spec.length * spec.length / v;
+        if (inertia > 0.0)
+        {
+            // The stiffness grows with the air; left alone a dense atmosphere makes it oscillate harder and harder.
+            const double w_max = 1.2;
+            stiffness = std::min(stiffness, inertia * w_max * w_max);
+            damping = 2.0 * 0.7 * std::sqrt(stiffness * inertia);
+        }
+        const sl::dvec3 torque = glm::cross(target, vhat) * stiffness - rate * damping;
         out.force = force * out.blend;
-        out.torque = torque * out.blend;
+        // The moment keeps working below the hypersonic range so a capsule holds its shield forward all the way down to the parachutes.
+        out.torque = torque;
         return out;
     }
 
@@ -153,6 +162,7 @@ namespace kosmos
         s.damping = j.value("damping", s.damping);
         s.blend_lo = j.value("blend_lo", s.blend_lo);
         s.blend_hi = j.value("blend_hi", s.blend_hi);
+        s.hold_low_speed = j.value("hold_low_speed", s.hold_low_speed);
     }
 
     void read_parachutes(const nlohmann::json &json, std::vector<ParachuteSpec> &list)

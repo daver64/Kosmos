@@ -86,6 +86,8 @@ namespace kosmos
         double cm = 0.25;
         double damping = 0.4;
         double blend_lo = 700.0, blend_hi = 1800.0;
+        /** A capsule keeps its restoring moment below the hypersonic range so it stays shield-first down to the parachutes. */
+        bool hold_low_speed = false;
     };
 
     struct AeroResult
@@ -96,7 +98,8 @@ namespace kosmos
     };
 
     /** Force and torque in the ship frame for a body moving at `velocity` (ship frame, m/s, relative to the air) turning at `rate` rad/s. */
-    AeroResult hypersonic_aero(const HypersonicSpec &spec, const sl::dvec3 &velocity, double rho, const sl::dvec3 &rate);
+    /** With `inertia` (kg m^2) given, the moment is limited to a stable oscillation of about a 5 s period and damped to match, however dense the air. */
+    AeroResult hypersonic_aero(const HypersonicSpec &spec, const sl::dvec3 &velocity, double rho, const sl::dvec3 &rate, double inertia = 0.0);
 
     /** A parachute (the "parachutes" list). */
     struct ParachuteSpec

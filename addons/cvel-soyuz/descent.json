@@ -5,8 +5,9 @@
  "max_rate": 0.5,
  "rcs_thrust": 120,
  "drag_area": 4,
+ "crash_speed": 15,
  "thermal": {"nose_radius": 2.8, "heat_area": 4, "shield_mass": 350, "ablation_heat": 1.2e7, "shield_axis": [0, 0, 1]},
- "hypersonic": {"area": 3.8, "length": 2.2, "cd_max": 1.4, "axis": [0, 0, 1], "trim_dir": [0, 1, 0], "trim_deg": 20},
+ "hypersonic": {"area": 3.8, "length": 2.2, "cd_max": 1.4, "axis": [0, 0, 1], "trim_dir": [0, 1, 0], "trim_deg": 20, "hold_low_speed": true},
  "parachutes": [
   {"name": "Main", "position": [0, 0, -56.4], "cd_area": 1500, "reef_cd_area": 60, "auto_altitude": 500, "auto_speed": 250, "max_q": 12000,
    "canopy_radius": 14, "model": "models/chute.obj", "model_radius": 17.75}

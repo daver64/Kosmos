@@ -34,6 +34,41 @@ namespace kosmos
         return bitmap;
     }
 
+    sl::Bitmap *make_plasma_texture(int across, int along)
+    {
+        sl::Bitmap *bitmap = sl::create_bitmap(across, along);
+        if (!bitmap)
+            return nullptr;
+        const auto mixc = [](const double a[3], const double b[3], double t, int k) { return a[k] + (b[k] - a[k]) * t; };
+        static const double stops[4][3] = {{255, 248, 215}, {255, 175, 70}, {240, 85, 40}, {150, 40, 90}};
+        static const double at[4] = {0.0, 0.2, 0.55, 1.0};
+        for (int y = 0; y < along; ++y)
+        {
+            const double v = (y + 0.5) / along;
+            int seg = 0;
+            while (seg < 2 && v > at[seg + 1])
+                ++seg;
+            const double t = std::clamp((v - at[seg]) / (at[seg + 1] - at[seg]), 0.0, 1.0);
+            const double lengthwise = fx::smoothstep(0.0, 0.04, v) * std::pow(1.0 - v, 1.5);
+            // Narrow near the nose, opening out into the wake.
+            const double half_width = 0.3 + 0.7 * fx::smoothstep(0.0, 0.45, v);
+            for (int x = 0; x < across; ++x)
+            {
+                const double u = (x + 0.5) / across * 2.0 - 1.0;
+                const double edge = std::abs(u) / half_width;
+                const double body = std::exp(-edge * edge * 3.2);
+                const double core = std::exp(-edge * edge * 14.0);
+                // Fine streaks run along the flow: the same ripple at every v, a little different further back.
+                const double ripple = 0.8 + 0.12 * std::sin(u * 21.0 + v * 2.0) + 0.08 * std::sin(u * 47.0 - v * 3.0);
+                const double a = std::clamp((0.65 * body * ripple + 0.6 * core) * lengthwise, 0.0, 1.0);
+                sl::putpixel(bitmap, x, y, {static_cast<std::uint8_t>(mixc(stops[seg], stops[seg + 1], t, 0)), static_cast<std::uint8_t>(mixc(stops[seg], stops[seg + 1], t, 1)),
+                                           static_cast<std::uint8_t>(mixc(stops[seg], stops[seg + 1], t, 2)), static_cast<std::uint8_t>(a * 255.0)});
+            }
+        }
+        bitmap->smooth = true;
+        return bitmap;
+    }
+
     // A star's photosphere as an equirectangular map, grey so the star's colour can tint it. Layer 0 is the opaque surface:
     // domain-warped granulation, broad swirls and dark spots. Layer 1 is white filaments in the alpha channel, drawn
     // additively on a second, counter-rotating shell so the surface seems to churn.

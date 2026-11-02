@@ -43,12 +43,21 @@ namespace kosmos::app
         return !v.empty() && (std::isdigit(static_cast<unsigned char>(v[0])) || v[0] == '-' || v[0] == '.');
     }
 
+    bool rcs_switched_off(kosmos::Sim &sim)
+    {
+        const kosmos::Ship *ship = sim.active_ship();
+        return ship && ship->spec().rcs_modes && sim.props.get_string("/controls/rcs-mode", "rot") == "off";
+    }
+
     bool control_lit(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c)
     {
         if (c.property.empty())
             return false;
         if (c.type == "toggle")
             return sim.props.get_double(c.property) > 0.5;
+        // With the RCS switch off nothing holds attitude, so no hold mode is lit.
+        if (rcs_switched_off(sim) && (c.property == "/controls/sas" || c.value == "level-horizon"))
+            return false;
         if (c.value == "level-horizon")
             return sim.props.get_string("/controls/sas") == "attitude" && std::fabs(sim.props.get_double("/controls/target-pitch")) < 0.5;
         if (control_is_numeric(c.value))
@@ -273,7 +282,10 @@ namespace kosmos::app
         {
             if (c.property == "/controls/sas")
                 sim.props.set_bool("/autopilot/enabled", false);
-            if (c.value == "level-horizon")
+            // Pressing the lit hold button again releases it, leaving no mode active.
+            if ((c.property == "/controls/sas" || c.value == "level-horizon") && control_lit(sim, c))
+                sim.props.set_string("/controls/sas", "off");
+            else if (c.value == "level-horizon")
             {
                 const kosmos::Ship *ship = sim.active_ship();
                 sim.props.set_double("/controls/target-pitch", 0.0);

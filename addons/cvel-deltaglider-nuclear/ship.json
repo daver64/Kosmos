@@ -14,7 +14,8 @@
  "thermal": {
   "nose_radius": 0.5,
   "heat_area": 45,
-  "max_temp": 1900
+  "max_temp": 1900,
+  "bare_max_temp": 1200
  },
  "hypersonic": {
   "area": 70,

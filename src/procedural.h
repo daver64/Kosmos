@@ -7,6 +7,8 @@ namespace kosmos
     // Procedural textures and meshes for stars, nebulae, sky, clouds, rain and rings: pure generators with no state.
 
     sl::Bitmap *make_glow_texture(int size = 256);
+    /** A re-entry wake: across is x (64 px), along is y (head at the top, tail at the bottom), colour white-yellow through orange to dark red, soft edges and fine streaks along the flow. */
+    sl::Bitmap *make_plasma_texture(int across = 64, int along = 256);
     sl::Bitmap *make_star_surface(int layer, std::uint32_t seed, int width = 512);
     sl::Bitmap *make_star_corona(std::uint32_t seed, double scale, int size = 256);
     sl::Bitmap *make_star_rays(int size = 256);
