@@ -103,6 +103,7 @@ namespace kosmos::app
             std::vector<glm::vec3> pos;
             std::vector<glm::vec2> tex;
             int side = -1;
+            std::string object, material;
             for (std::string line; std::getline(in, line);)
             {
                 std::istringstream ls(line);
@@ -120,11 +121,14 @@ namespace kosmos::app
                     ls >> v.x >> v.y;
                     tex.push_back(v);
                 }
-                else if (tag == "usemtl")
+                else if (tag == "usemtl" || tag == "o")
                 {
                     std::string name;
                     ls >> name;
-                    side = name.find("LMFD_DISPLAY") != std::string::npos ? 0 : name.find("RMFD_DISPLAY") != std::string::npos ? 1 : -1;
+                    (tag == "o" ? object : material) = name;
+                    // A part is named by its o object, or by its material when the file has no o lines, as in simlib's loader.
+                    const std::string &part = object.empty() ? material : object;
+                    side = part.find("LMFD_DISPLAY") != std::string::npos ? 0 : part.find("RMFD_DISPLAY") != std::string::npos ? 1 : -1;
                 }
                 else if (tag == "f" && side >= 0)
                 {

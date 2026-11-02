@@ -553,12 +553,12 @@ namespace
         std::vector<Field> f;
         switch (kind)
         {
-        case ShapeKind::Box: f = {{"Width (X)", 2, 0.01, 1000, 2}, {"Height (Y)", 2, 0.01, 1000, 2}, {"Length (Z)", 2, 0.01, 1000, 2}}; break;
-        case ShapeKind::Cylinder: f = {{"Radius", 1, 0.01, 1000, 2}, {"Height", 2, 0.01, 1000, 2}, {"Segments", 24, 3, 128, 0}}; break;
-        case ShapeKind::Cone: f = {{"Bottom radius", 1, 0, 1000, 2}, {"Top radius", 0, 0, 1000, 2}, {"Height", 2, 0.01, 1000, 2}, {"Segments", 24, 3, 128, 0}}; break;
-        case ShapeKind::Sphere: f = {{"Radius", 1, 0.01, 1000, 2}, {"Segments", 24, 4, 128, 0}}; break;
-        case ShapeKind::Torus: f = {{"Major radius", 2, 0.01, 1000, 2}, {"Minor radius", 0.5, 0.01, 1000, 2}, {"Segments", 32, 3, 128, 0}}; break;
-        case ShapeKind::Plane: f = {{"Width", 4, 0.01, 1000, 2}, {"Depth", 4, 0.01, 1000, 2}}; break;
+        case ShapeKind::Box: f = std::vector<Field>{{"Width (X)", 2, 0.01, 1000, 2}, {"Height (Y)", 2, 0.01, 1000, 2}, {"Length (Z)", 2, 0.01, 1000, 2}}; break;
+        case ShapeKind::Cylinder: f = std::vector<Field>{{"Radius", 1, 0.01, 1000, 2}, {"Height", 2, 0.01, 1000, 2}, {"Segments", 24, 3, 128, 0}}; break;
+        case ShapeKind::Cone: f = std::vector<Field>{{"Bottom radius", 1, 0, 1000, 2}, {"Top radius", 0, 0, 1000, 2}, {"Height", 2, 0.01, 1000, 2}, {"Segments", 24, 3, 128, 0}}; break;
+        case ShapeKind::Sphere: f = std::vector<Field>{{"Radius", 1, 0.01, 1000, 2}, {"Segments", 24, 4, 128, 0}}; break;
+        case ShapeKind::Torus: f = std::vector<Field>{{"Major radius", 2, 0.01, 1000, 2}, {"Minor radius", 0.5, 0.01, 1000, 2}, {"Segments", 32, 3, 128, 0}}; break;
+        case ShapeKind::Plane: f = std::vector<Field>{{"Width", 4, 0.01, 1000, 2}, {"Depth", 4, 0.01, 1000, 2}}; break;
         }
         if (!ask("Add shape", f))
             return;
@@ -1433,6 +1433,7 @@ namespace
             return TRUE;
         default: return FALSE;
         }
+        return FALSE;
     }
 
     // ---- property panels ------------------------------------------------------------------------------------------

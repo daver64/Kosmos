@@ -908,13 +908,14 @@ namespace kosmos
             glm::vec3 lo{1e30f}, hi{-1e30f};
         };
 
-        // Parsed directly so discovery needs no graphics context; OBJ parts are the usemtl groups.
+        // Parsed directly so discovery needs no graphics context; a part is named by its o object, or by its usemtl material when the file has no o lines (as simlib's loader does).
         std::vector<Box> obj_boxes(const std::filesystem::path &file)
         {
             std::ifstream in(file);
             std::vector<glm::vec3> verts;
             std::string line;
             Box *current = nullptr;
+            std::string object, material;
             std::vector<Box> groups;
             while (std::getline(in, line))
             {
@@ -927,15 +928,17 @@ namespace kosmos
                     if (words >> p.x >> p.y >> p.z)
                         verts.push_back(p);
                 }
-                else if (key == "usemtl")
+                else if (key == "usemtl" || key == "o")
                 {
                     std::string name;
                     words >> name;
+                    (key == "o" ? object : material) = name;
+                    const std::string &part = object.empty() ? material : object;
                     std::size_t at = 0;
-                    while (at < groups.size() && groups[at].name != name)
+                    while (at < groups.size() && groups[at].name != part)
                         ++at;
                     if (at == groups.size())
-                        groups.push_back(Box{name, glm::vec3(1e30f), glm::vec3(-1e30f)});
+                        groups.push_back(Box{part, glm::vec3(1e30f), glm::vec3(-1e30f)});
                     current = &groups[at];
                 }
                 else if (key == "f" && current)
