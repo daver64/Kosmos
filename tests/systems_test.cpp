@@ -214,6 +214,93 @@ int main()
         idle.step(100.0, c);
         assert(idle.tank_kg("water") == 10.0);
     }
+    {
+        // An Apollo-style stack: the service module's fuel cells and cryogenic tanks carry a 34.5 kPa pure-oxygen cabin for days;
+        // when the service module goes, the command module's own batteries and oxygen keep the crew healthy.
+        SystemsSpec s = parse(R"({"systems":[
+            {"type":"fuel_cell","watts":4200,"stage":"Lower"},
+            {"type":"tank","gas":"oxygen","capacity_kg":295,"stage":"Lower"},
+            {"type":"tank","gas":"hydrogen","capacity_kg":25.4,"stage":"Lower"},
+            {"type":"battery","capacity_wh":3360,"max_w":2000},
+            {"type":"tank","gas":"oxygen","capacity_kg":2},
+            {"type":"load","name":"avionics","watts":500,"priority":0},
+            {"type":"regulator","vessel":"Cabin"},
+            {"type":"scrubber","vessel":"Cabin","kg_per_day":6,"sorbent_kg":50}],
+          "vessels":[{"name":"Cabin","size":[2,1.9,1.62],"crew":3,"pressure_kpa":34.5,"o2_fraction":1.0}]})");
+        Systems sys(s, LifeSupportMode::fatal);
+        SystemsContext c;
+        double t = 0.0;
+        for (int i = 0; i < 4 * 8640; ++i)
+        {
+            t += 10.0;
+            c.mission_time = t;
+            sys.step(10.0, c);
+        }
+        assert(sys.powered() && !sys.crew_lost());
+        assert(sys.vessels()[0].health >= 0.999 && sys.vessels()[0].hazard.empty());
+        assert(std::fabs(sys.vessels()[0].pressure_kpa() - 34.5) < 1.0 && sys.vessels()[0].ppo2_kpa() > 33.0);
+        assert(sys.tank_kg("hydrogen") < 25.4 && sys.tank_kg("oxygen") < 295.0);
+
+        sys.drop_stage(0);
+        assert(sys.tank_kg("hydrogen") == 0.0);
+        for (int i = 0; i < 360; ++i)
+        {
+            t += 10.0;
+            c.mission_time = t;
+            sys.step(10.0, c);
+        }
+        assert(sys.powered() && !sys.crew_lost() && sys.vessels()[0].health >= 0.999);
+        assert(sys.battery_wh() > 0.0 && sys.tank_kg("oxygen") > 0.0);
+    }
+    {
+        // The shipped capsules keep their crew healthy for days on their own supplies; the Apollo stack does it from the service
+        // module until it is jettisoned and then from the command module alone.
+        struct Case
+        {
+            const char *file;
+            int drop_stage; // stage to jettison after the first stretch, or -1
+            double pressure_kpa;
+            double days;
+        };
+        const Case cases[] = {{"/addons/cvel-saturn-v/ship.json", 3, 34.5, 3.0},
+                              {"/addons/cvel-saturn-v/command_module.json", -1, 34.5, 0.1}, // entry batteries only
+                              {"/addons/cvel-soyuz/tma.json", 0, 101.3, 3.0},
+                              {"/addons/cvel-soyuz/descent.json", -1, 101.3, 0.1},
+                              {"/addons/cvel-soyuz/fg.json", -1, 101.3, 3.0}};
+        for (const Case &k : cases)
+        {
+            ShipSpec ship;
+            std::string error;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + k.file, ship, error));
+            assert(ship.systems.vessels.size() == 1 && ship.systems.vessels[0].crew == 3);
+            Systems sys(ship.systems, LifeSupportMode::fatal);
+            SystemsContext c;
+            c.sun_flux = 1.0;
+            c.sun_dir = {0.0, 1.0, 0.0};
+            double t = 0.0;
+            for (int i = 0; i < static_cast<int>(k.days * 8640); ++i)
+            {
+                t += 10.0;
+                c.mission_time = t;
+                sys.step(10.0, c);
+            }
+            assert(sys.powered() && !sys.crew_lost());
+            assert(sys.vessels()[0].health >= 0.999);
+            assert(std::fabs(sys.vessels()[0].pressure_kpa() - k.pressure_kpa) < 2.0);
+            if (k.drop_stage >= 0)
+            {
+                sys.drop_stage(k.drop_stage);
+                for (int i = 0; i < 360; ++i)
+                {
+                    t += 10.0;
+                    c.mission_time = t;
+                    sys.step(10.0, c);
+                }
+                assert(sys.powered() && !sys.crew_lost() && sys.vessels()[0].health >= 0.999);
+                assert(sys.vessels()[0].alive && sys.tank_kg("oxygen") > 0.0);
+            }
+        }
+    }
     std::puts("systems_test ok");
     return 0;
 }

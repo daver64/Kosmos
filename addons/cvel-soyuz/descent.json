@@ -15,16 +15,17 @@
  "camera_distance": 8,
  "camera_target": [0, 0, 0],
  "systems": [
-  { "type": "battery", "name": "Batteries", "capacity_wh": 1500, "max_w": 1000 },
+  { "type": "battery", "name": "Batteries", "capacity_wh": 1200, "max_w": 800 },
   { "type": "load", "name": "Avionics", "watts": 150, "priority": 0 },
   { "type": "load", "name": "Cabin lighting", "watts": 40, "priority": 2 },
-  { "type": "tank", "gas": "oxygen", "capacity_kg": 10 },
-  { "type": "tank", "gas": "nitrogen", "capacity_kg": 5 },
+  { "type": "tank", "gas": "oxygen", "capacity_kg": 3 },
+  { "type": "tank", "gas": "nitrogen", "capacity_kg": 1 },
+  { "type": "tank", "gas": "water", "capacity_kg": 10 },
   { "type": "regulator", "name": "Cabin regulator", "vessel": "Cabin" },
-  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 20 }
+  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 4 }
  ],
  "vessels": [
-  { "name": "Cabin", "stage": "Descent module", "position": [0, 0, 0], "size": [2.0, 2.0, 2.0], "crew": 3 }
+  { "name": "Cabin", "stage": "Descent module", "position": [0, 0, 0], "size": [1.8, 1.6, 1.4], "crew": 3 }
  ],
  "stages": [
   {

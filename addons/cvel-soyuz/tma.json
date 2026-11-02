@@ -16,18 +16,22 @@
  "camera_target": [0, 0, -1],
  "cockpit": { "eye": [0, -1.5, -1.5], "yaw": 0, "pitch": 0 },
  "systems": [
-  { "type": "battery", "name": "Batteries", "capacity_wh": 3000, "max_w": 1500 },
-  { "type": "solar", "name": "Solar panels", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0] },
-  { "type": "load", "name": "Avionics", "watts": 250, "priority": 0 },
-  { "type": "load", "name": "Cabin lighting", "watts": 60, "priority": 2 },
-  { "type": "tank", "gas": "oxygen", "capacity_kg": 20 },
-  { "type": "tank", "gas": "nitrogen", "capacity_kg": 10 },
-  { "type": "tank", "gas": "water", "capacity_kg": 30 },
-  { "type": "regulator", "name": "Cabin regulator", "vessel": "Cabin" },
-  { "type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 40 }
+  { "type": "solar", "name": "Solar arrays", "stage": "Service module", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0] },
+  { "type": "battery", "name": "Service module batteries", "stage": "Service module", "capacity_wh": 1800, "max_w": 1000 },
+  { "type": "tank", "gas": "oxygen", "name": "Oxygen bottles", "stage": "Service module", "capacity_kg": 14 },
+  { "type": "tank", "gas": "nitrogen", "name": "Nitrogen bottles", "stage": "Service module", "capacity_kg": 6 },
+  { "type": "load", "name": "Thermal control and propulsion heaters", "stage": "Service module", "watts": 120, "priority": 0 },
+  { "type": "load", "name": "Orbital module equipment", "stage": "Orbital module", "watts": 100, "priority": 1 },
+  { "type": "battery", "name": "Descent module batteries", "stage": "Descent module", "capacity_wh": 1200, "max_w": 800 },
+  { "type": "tank", "gas": "oxygen", "name": "Reserve oxygen", "stage": "Descent module", "capacity_kg": 1.5 },
+  { "type": "tank", "gas": "water", "name": "Water", "stage": "Descent module", "capacity_kg": 30 },
+  { "type": "load", "name": "Avionics", "stage": "Descent module", "watts": 250, "priority": 0 },
+  { "type": "load", "name": "Cabin lighting", "stage": "Descent module", "watts": 60, "priority": 2 },
+  { "type": "regulator", "name": "Cabin regulator", "stage": "Descent module", "vessel": "Cabin" },
+  { "type": "scrubber", "name": "CO2 scrubber", "stage": "Descent module", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 16 }
  ],
  "vessels": [
-  { "name": "Cabin", "stage": "Descent module", "position": [0, 0, -1.0], "size": [2.2, 2.2, 2.0], "crew": 3 }
+  { "name": "Cabin", "stage": "Descent module", "position": [0, 0, -1.0], "size": [2.2, 2.05, 2.0], "crew": 3 }
  ],
  "animation_controls": [
   {"name": "Panels and antennae", "property": "panels", "duration": 10}

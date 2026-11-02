@@ -723,9 +723,11 @@ namespace kosmos
             const double p = v.pressure_kpa(), po2 = v.ppo2_kpa(), pco2 = v.ppco2_kpa();
             v.hazard.clear();
             double rate = -1.0 / 3600.0; // recovery
-            if (po2 < 12.0 || p < 30.0 || pco2 > 8.0)
+            // A low-pressure cabin (Apollo's 34.5 kPa pure oxygen) is judged against its own design pressure.
+            const double scale = std::clamp(v.spec.pressure_kpa / 101.3, 0.1, 1.0);
+            if (po2 < 12.0 || p < 30.0 * scale || pco2 > 8.0)
                 rate = 1.0 / 180.0;
-            else if (po2 < 16.0 || p < 50.0 || pco2 > 4.0 || po2 > 50.0)
+            else if (po2 < 16.0 || p < 50.0 * scale || pco2 > 4.0 || po2 > 50.0)
                 rate = 1.0 / 1800.0;
             if (rate > 0.0 && crew > 0.0)
                 v.hazard = pco2 > 4.0 ? "CO2 HIGH" : (po2 > 50.0 ? "O2 HIGH" : (p < 50.0 ? "LOW PRESSURE" : "O2 LOW"));
