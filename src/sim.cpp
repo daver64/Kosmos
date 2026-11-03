@@ -620,7 +620,8 @@ namespace kosmos
         update_airlock(frame);
         if (script_loaded_)
         {
-            const sl::LuaScriptResult result = lua.emit("update", static_cast<float>(frame));
+            // Scripts see simulated seconds, so a ramp or a timer keeps its pace under time warp.
+            const sl::LuaScriptResult result = lua.emit("update", static_cast<float>(frame * std::max(current_warp_, 1.0)));
             if (!result.success)
             {
                 log("script error: " + result.error);
