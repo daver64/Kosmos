@@ -308,7 +308,9 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
 
         if (spec->kind == EquipKind::instrument)
         {
-            if (pressed)
+            if (pressed && spec->sensor == "tricorder")
+                page_ = (page_ + 1) % 4;
+            else if (pressed)
                 instrument(context, *spec, true);
             return;
         }
@@ -426,6 +428,7 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             lines.push_back(line);
             lines.push_back(rho > 0.6 && rho < 1.6 ? "ATMOS     BREATHABLE DENSITY" : rho > 0.001 ? "ATMOS     NOT BREATHABLE" : "ATMOS     VACUUM");
             readout_ = lines;
+            suit_ = eva.suit;
             return;
         }
         if (!pressed)
@@ -448,9 +451,10 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             lines.push_back(line);
             std::snprintf(line, sizeof line, "DENSITY   %.0f kg/m3", 1200.0 + std::fmod(std::fabs(h) * 7.0, 1800.0));
             lines.push_back(line);
-            readout_ = lines;
+            sample_lines_ = lines;
+            page_ = 2;
             Sample s;
-            s.text = readout_[1];
+            s.text = lines[1];
             s.body = eva.body;
             s.position = eva.position;
             survey_.push_back(s);
@@ -477,7 +481,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             }
             s.text = lines[0];
             survey_.push_back(s);
-            readout_ = lines;
+            sample_lines_ = lines;
+            page_ = 2;
             last_event_ = "Survey point marked";
             last_event_time_ = 0.0;
         }
@@ -1380,12 +1385,58 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         if (!screen_target_ || !sl::begin_render_target(screen_target_))
             return;
         sl::clear_render_target({6, 28, 18, 255});
-        int y = 12;
-        for (const std::string &line : readout_)
+        static const char *titles[] = {"ENVIRONMENT", "SUIT", "SAMPLES", "PACK"};
+        std::vector<std::string> page;
+        char line[96];
+        auto bar = [&](const char *label, double level)
         {
-            sl::gprintf(10, y, sl::Colour{140, 255, 170, 255}, "%s", line.c_str());
+            const int n = static_cast<int>(std::clamp(level, 0.0, 1.0) * 10.0 + 0.5);
+            std::snprintf(line, sizeof line, "%-6s[%s%s] %3.0f%%", label, std::string(static_cast<std::size_t>(n), '#').c_str(), std::string(static_cast<std::size_t>(10 - n), '.').c_str(), level * 100.0);
+            page.push_back(line);
+        };
+        if (page_ == 0)
+            page = readout_;
+        else if (page_ == 1)
+        {
+            page.push_back(suit_.environment ? "LIFE SUPPORT ACTIVE" : "AMBIENT AIR OK");
+            bar("O2", suit_.oxygen);
+            bar("POWER", suit_.battery);
+            bar("PRESS", suit_.pressure);
+            if (suit_.jetpack)
+                bar("RCS", suit_.propellant);
+            bar("HEALTH", suit_.health);
+            if (suit_.failed)
+                page.push_back("SUIT PRESSURE LOST");
+        }
+        else if (page_ == 2)
+        {
+            page = sample_lines_;
+            if (page.empty())
+                page.push_back("No sample taken");
+            page.push_back("");
+            std::snprintf(line, sizeof line, "LOG  %zu entries", survey_.size());
+            page.push_back(line);
+            for (std::size_t i = survey_.size() > 5 ? survey_.size() - 5 : 0; i < survey_.size(); ++i)
+                page.push_back(survey_[i].text.substr(0, 30));
+        }
+        else
+        {
+            for (std::size_t i = 0; i < pack_.size(); ++i)
+                if (const EquipmentSpec *item = sim.equipment.find(pack_[i].id))
+                {
+                    const bool counted = item->kind == EquipKind::explosive || (item->kind == EquipKind::weapon && item->ammo >= 0);
+                    std::snprintf(line, sizeof line, "%c%zu %s%s", static_cast<int>(i) == selected_ ? '>' : ' ', i + 1, item->name.c_str(), counted ? (" x" + std::to_string(pack_[i].count)).c_str() : "");
+                    page.push_back(line);
+                }
+        }
+        sl::gprintf(10, 8, sl::Colour{255, 210, 120, 255}, "%s  %d/4", titles[page_], page_ + 1);
+        int y = 34;
+        for (const std::string &text : page)
+        {
+            sl::gprintf(10, y, sl::Colour{140, 255, 170, 255}, "%s", text.c_str());
             y += 18;
         }
+        sl::gprintf(10, 268, sl::Colour{90, 150, 110, 255}, "Click: next page");
         sl::end_render_target();
     }
 
@@ -1434,26 +1485,6 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         else if (spec)
             sl::line(sl::screen, cx - 2, cy, cx + 2, cy, dim);
 
-        int y = screen_h - 26 - 18 * static_cast<int>(pack_.size());
-        for (std::size_t i = 0; i < pack_.size(); ++i, y += 18)
-        {
-            const EquipmentSpec *item = sim.equipment.find(pack_[i].id);
-            if (!item)
-                continue;
-            char count[24] = "";
-            if (item->kind == EquipKind::explosive || (item->kind == EquipKind::weapon && item->ammo >= 0))
-                std::snprintf(count, sizeof count, " x%d", pack_[i].count);
-            sl::gprintf(screen_w - 230, y, static_cast<int>(i) == selected_ ? green : dim, "%zu %s%s", i + 1, item->name.c_str(), count);
-        }
-        if (spec)
-            sl::gprintf(screen_w - 230, screen_h - 24, green, "%s", spec->description.substr(0, 28).c_str());
-
-        int ry = 120;
-        for (const std::string &line : readout_)
-        {
-            sl::gprintf(20, ry, green, "%s", line.c_str());
-            ry += 16;
-        }
         if (!last_event_.empty() && last_event_time_ < 3.0)
             sl::gprintf_center(screen_h / 2 + 60, green, "%s", last_event_.c_str());
     }

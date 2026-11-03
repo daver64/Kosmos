@@ -1,13 +1,88 @@
 {
  "name": "Mare Frigoris habitat",
  "class": "building",
- "locker": ["plasma_rifle", "frag_charge"],
- "door": [
-  6.2,
-  0,
-  3.0
+ "locker": [
+  "plasma_rifle",
+  "frag_charge"
  ],
  "door_radius": 4,
+ "interior": {
+  "cell": 0.5,
+  "height": 6,
+  "ground_z": 3.0,
+  "levels": [
+   [
+    "",
+    "       #####",
+    "     ##.....##",
+    "    #.........#",
+    "   #...........#",
+    "  #.............#",
+    "  #.............#",
+    " #...............#",
+    " #...............#",
+    " #...............#",
+    " #...............#",
+    " #...............#",
+    "  #.............#",
+    "  #...###dd###..#",
+    "   #..#......#.#",
+    "    #.#......##",
+    "     ##.....##",
+    "       ##AA#",
+    ""
+   ]
+  ],
+  "panels": [
+   {
+    "pos": [
+     4.75,
+     1.55,
+     1.0
+    ],
+    "facing": "+z",
+    "width": 1.4
+   }
+  ],
+  "airlock": "Airlock",
+  "rooms": [
+   {
+    "name": "Hab",
+    "at": [
+     9,
+     10
+    ]
+   },
+   {
+    "name": "Airlock",
+    "at": [
+     9,
+     16
+    ]
+   }
+  ],
+  "lights": [
+   {
+    "pos": [
+     4.75,
+     2.75,
+     3.3249999999999997
+    ]
+   },
+   {
+    "pos": [
+     4.75,
+     2.75,
+     6.175
+    ],
+    "colour": [
+     1.0,
+     0.8,
+     0.6
+    ]
+   }
+  ]
+ },
  "systems": [
   {
    "type": "battery",
@@ -58,6 +133,11 @@
    "vessel": "Hab",
    "kg_per_day": 8,
    "sorbent_kg": 60
+  },
+  {
+   "type": "regulator",
+   "name": "Airlock regulator",
+   "vessel": "Airlock"
   }
  ],
  "vessels": [
@@ -71,9 +151,23 @@
    "size": [
     8,
     5,
-    8
+    6
    ],
    "crew": 4
+  },
+  {
+   "name": "Airlock",
+   "position": [
+    0,
+    0,
+    1.0
+   ],
+   "size": [
+    3,
+    3,
+    1.5
+   ],
+   "crew": 0
   }
  ],
  "cockpit": {

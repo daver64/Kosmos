@@ -450,7 +450,8 @@
    "turn",
    "engine",
    "dg_aoa",
-   "dg_slip"
+   "dg_slip",
+   "icbm-target"
   ],
   "mfd_left": "orbit",
   "mfd_right": "surface",

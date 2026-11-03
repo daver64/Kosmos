@@ -243,6 +243,9 @@ namespace kosmos
         const Universe *context_universe_ = nullptr;
 
         std::vector<std::string> readout_;
+        std::vector<std::string> sample_lines_;
+        Suit suit_;
+        int page_ = 0;
         sl::Bitmap *screen_target_ = nullptr;
         struct Sample
         {

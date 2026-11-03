@@ -162,6 +162,8 @@ return {
     if not props.get("/target/in-plane-data") then
       g:colour(255, 200, 80)
       g:text(200, 200, "Target not in this orbit's frame", 1)
+      g:text(200, 224, "To leave for another body, use the", 1)
+      g:text(200, 242, "ORBITCOMP Plan page (it plans departures)", 1)
       return
     end
     local mu = soi_gm()

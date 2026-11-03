@@ -1264,7 +1264,7 @@ namespace kosmos
                                    "  Space jump  Ctrl crouch              Mouse or arrows   look (` or Alt frees the mouse)\n"
                                    "  F                manoeuvring pack on / off (airless worlds, orbit)\n"
                                    "  Q / E            roll (when floating free)\n"
-                                   "  1-9              pick a pack item   Left mouse   use it (tricorder, pistol, plasma rifle, charges)\n"
+                                   "  1-9              pick a pack item   Left mouse   use it (pistol, plasma rifle, charges; with the tricorder it flips its pages: environment, suit, samples, pack)\n"
                                    "Lights\n"
                                    "  Y                navigation lights and strobes on / off   Shift+Y   landing and nose lights (also View menu)\n"
                                    "Ordnance (flying a ship with hardpoints, such as the Vulcan)\n"

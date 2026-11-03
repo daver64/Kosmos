@@ -286,35 +286,40 @@ namespace kosmos
         const sl::Colour green{90, 255, 150, 255}, amber{255, 200, 70, 255}, red{255, 80, 70, 255}, dim{40, 90, 60, 200};
         const Suit &s = a.suit;
         const int margin = 24, bar_w = 150, bar_h = 12;
-        const int x0 = margin, y0 = screen_h - margin - 176;
+        const int x0 = margin, y0 = screen_h - margin - 240;
         char ship_line[160] = "";
         if (ship_name && ship_distance >= 0.0)
             std::snprintf(ship_line, sizeof ship_line, ship_distance < 30.0 ? "%s  %.0f m, %.1f m/s - Enter to board" : "%s  %.0f m, %.1f m/s", ship_name, ship_distance, ship_speed);
-        // The panel is as wide as its widest line, but never off the screen.
-        const int panel_w = std::min(std::max(bar_w + 300, sl::text_length(small, ship_line) + 24), screen_w - 2 * margin);
-        sl::rectfill(sl::screen, static_cast<float>(x0 - 12), static_cast<float>(y0 - 28), static_cast<float>(x0 - 12 + panel_w), static_cast<float>(y0 + 172), {0, 16, 8, 120});
-        sl::textout(font, x0, y0 - 26, green, s.environment ? "SUIT  LIFE SUPPORT" : "SUIT  AMBIENT AIR OK");
-        auto bar = [&](int row, const char *label, double level, bool low_is_bad = true)
+        // The full life-support panel only pops up when something is going wrong; otherwise it lives on the tricorder.
+        const bool critical = s.failed || (s.environment && (s.oxygen < 0.35 || s.battery < 0.35 || s.pressure < 0.6));
+        if (critical)
         {
-            const int y = y0 + row * 24;
-            const sl::Colour colour = !low_is_bad ? green : level < 0.15 ? red : level < 0.35 ? amber : green;
-            sl::textout(small, x0, y, green, label);
-            sl::rect(sl::screen, static_cast<float>(x0 + 64), static_cast<float>(y + 3), static_cast<float>(x0 + 64 + bar_w), static_cast<float>(y + 3 + bar_h), dim, 1.0f);
-            sl::rectfill(sl::screen, static_cast<float>(x0 + 64), static_cast<float>(y + 3), static_cast<float>(x0 + 64 + bar_w * std::clamp(level, 0.0, 1.0)), static_cast<float>(y + 3 + bar_h), colour);
-            char text[16];
-            std::snprintf(text, sizeof text, "%3.0f%%", level * 100.0);
-            sl::textout(small, x0 + 64 + bar_w + 8, y, colour, text);
-        };
-        bar(0, "O2", s.oxygen);
-        bar(1, "POWER", s.battery);
-        bar(2, "PRESS", s.pressure);
-        if (s.jetpack)
-        {
-            bar(3, "RCS", s.propellant);
-            sl::textout(small, x0, y0 + 100, a.pack ? amber : dim, a.pack ? "PACK ON  (F)" : "PACK OFF (F)");
+            // The panel is as wide as its widest line, but never off the screen.
+            const int panel_w = std::min(std::max(bar_w + 300, sl::text_length(small, ship_line) + 24), screen_w - 2 * margin);
+            sl::rectfill(sl::screen, static_cast<float>(x0 - 12), static_cast<float>(y0 - 28), static_cast<float>(x0 - 12 + panel_w), static_cast<float>(y0 + 172), {0, 16, 8, 120});
+            sl::textout(font, x0, y0 - 26, green, s.environment ? "SUIT  LIFE SUPPORT" : "SUIT  AMBIENT AIR OK");
+            auto bar = [&](int row, const char *label, double level, bool low_is_bad = true)
+            {
+                const int y = y0 + row * 24;
+                const sl::Colour colour = !low_is_bad ? green : level < 0.15 ? red : level < 0.35 ? amber : green;
+                sl::textout(small, x0, y, green, label);
+                sl::rect(sl::screen, static_cast<float>(x0 + 64), static_cast<float>(y + 3), static_cast<float>(x0 + 64 + bar_w), static_cast<float>(y + 3 + bar_h), dim, 1.0f);
+                sl::rectfill(sl::screen, static_cast<float>(x0 + 64), static_cast<float>(y + 3), static_cast<float>(x0 + 64 + bar_w * std::clamp(level, 0.0, 1.0)), static_cast<float>(y + 3 + bar_h), colour);
+                char text[16];
+                std::snprintf(text, sizeof text, "%3.0f%%", level * 100.0);
+                sl::textout(small, x0 + 64 + bar_w + 8, y, colour, text);
+            };
+            bar(0, "O2", s.oxygen);
+            bar(1, "POWER", s.battery);
+            bar(2, "PRESS", s.pressure);
+            if (s.jetpack)
+            {
+                bar(3, "RCS", s.propellant);
+                sl::textout(small, x0, y0 + 100, a.pack ? amber : dim, a.pack ? "PACK ON  (F)" : "PACK OFF (F)");
+            }
+            else
+                sl::textout(small, x0, y0 + 100, dim, "No manoeuvring pack in air");
         }
-        else
-            sl::textout(small, x0, y0 + 100, dim, "No manoeuvring pack in air");
 
         // Readouts on the right.
         const sl::dvec3 up = a.local_up();
@@ -328,23 +333,14 @@ namespace kosmos
         // Standing on the ground the height and vertical speed jitter by millimetres; show them as zero.
         const bool on_ground = a.height < 0.2;
         const double vertical = on_ground && std::fabs(vertical_raw) < 0.3 ? 0.0 : vertical_raw;
-        const int rx = x0 + bar_w + 130;
-        char line[96];
-        std::snprintf(line, sizeof line, "HDG %03.0f", heading);
-        sl::textout(small, rx, y0, green, line);
-        std::snprintf(line, sizeof line, "ALT %.1f m", on_ground ? 0.0 : a.height);
-        sl::textout(small, rx, y0 + 24, green, line);
-        std::snprintf(line, sizeof line, "SPD %.1f m/s", a.speed);
-        sl::textout(small, rx, y0 + 48, green, line);
-        std::snprintf(line, sizeof line, "VS  %+.1f m/s", vertical);
-        sl::textout(small, rx, y0 + 72, green, line);
+        char line[160];
         const Body &body = universe.bodies[static_cast<std::size_t>(a.body)];
         const double g = body.gm / std::max(1.0, glm::dot(a.position, a.position));
-        std::snprintf(line, sizeof line, "%s   %.2f g", body.name.c_str(), g / 9.80665);
-        sl::textout(small, x0, y0 + 124, green, line);
-
+        const int ly = screen_h - margin - 56 - (ship_line[0] ? 24 : 0);
+        std::snprintf(line, sizeof line, "%s %.2f g   HDG %03.0f   ALT %.1f m   SPD %.1f m/s   VS %+.1f m/s%s", body.name.c_str(), g / 9.80665, heading, on_ground ? 0.0 : a.height, a.speed, vertical, s.jetpack && a.pack ? "   PACK ON" : "");
+        sl::textout(small, x0, ly, green, line);
         if (ship_line[0])
-            sl::textout(small, x0, y0 + 148, ship_distance < 30.0 ? amber : green, ship_line);
+            sl::textout(small, x0, ly + 24, ship_distance < 30.0 ? amber : green, ship_line);
         if (s.environment && s.failed)
             sl::textout(font, (screen_w - sl::text_length(font, "SUIT PRESSURE LOST")) / 2, screen_h / 4, red, "SUIT PRESSURE LOST");
         else if (s.environment && (s.oxygen < 0.15 || s.battery < 0.1))

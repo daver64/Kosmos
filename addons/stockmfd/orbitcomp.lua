@@ -215,6 +215,15 @@ local function sibling_state(f)
   return { rt = sub(tp, sp), vt = sub(tv, sv), rp = sub(f.bp, sp), vp = sub(f.bv, sv), mu = smu }
 end
 
+-- Return: the target is the body the ship's body orbits (Moon to Earth).
+local function parent_state(f)
+  if not props.get("/target/valid") or props.get("/target/kind") ~= "body" or not f.parent or f.parent == "" then return nil end
+  local i = body_by_name(target_name())
+  if not i or i ~= body_by_name(f.parent) then return nil end
+  local pp, pv, pmu = body_state(i)
+  return { rm = sub(f.bp, pp), vm = sub(f.bv, pv), mu = pmu, radius = props.get("/universe/bodies/body[" .. i .. "]/radius") }
+end
+
 -- Formatting.
 local function fmt_len(m)
   local a = math.abs(m)
@@ -628,6 +637,29 @@ local function plan_ejection(f, s)
   return res
 end
 
+-- Return from the ship's orbit to the body its own body orbits: leave against the body's motion so the path falls to a
+-- periapsis 300 km above the surface. There is no window; the burn is when the ship reaches the ejection point.
+local function plan_return(f, s)
+  local o = f.o
+  local r1 = len(s.rm)
+  local rp = s.radius + 3.0e5
+  local a = (r1 + rp) / 2
+  local vm = len(s.vm)
+  local vinf = math.max(vm - math.sqrt(s.mu * (2 / r1 - 1 / a)), 1)
+  local tof = PI * math.sqrt(a ^ 3 / s.mu)
+  local rb = len(f.r)
+  local ecc = 1 + rb * vinf * vinf / f.mu
+  local nu_inf = math.acos(-1 / ecc)
+  local dv = math.sqrt(vinf * vinf + 2 * f.mu / rb) - math.sqrt(f.mu / rb)
+  local vdir = mul(unit(s.vm), -1)
+  local inplane = unit(sub(vdir, mul(o.W, dot(vdir, o.W))))
+  local burn_dir = rotate(inplane, o.W, -nu_inf)
+  local ang = atan2(dot(cross(f.r, burn_dir), o.W), dot(f.r, burn_dir)) % TAU
+  local t_burn = o.bound and ang / math.sqrt(f.mu / rb ^ 3) or 0
+  return { kind = "return", vinf = vinf, dv = dv, tof = tof, t_burn = t_burn, rp = rp,
+           plane = math.deg(math.asin(clamp(dot(vdir, o.W), -1, 1))) }
+end
+
 -- Plan diagram: the central body, your actual orbit (green) with a white dot where you are, the target's orbit
 -- (orange) with its dot, and for a near circular orbit the planned transfer ellipse (yellow). A hollow ring marks where
 -- the target must be when you burn. If you are already on an eccentric orbit (after burn 1) that ellipse is drawn instead
@@ -691,13 +723,15 @@ local function draw_plan(g, f, ot, tr, tv)
   g:colour(120, 255, 140)
   local plan
   local sib = (not ot) and sibling_state(f) or nil
+  local par = (not ot and not sib) and parent_state(f) or nil
   if ot then plan = plan_hohmann(f, ot, tr, tv)
-  elseif sib then plan = plan_ejection(f, sib) end
+  elseif sib then plan = plan_ejection(f, sib)
+  elseif par then plan = plan_return(f, par) end
   if not plan then
     g:colour(255, 200, 80)
     g:text(200, 190, "No transfer plan for this target", 1)
     g:text(200, 212, "Pick a body orbiting " .. f.soi, 1)
-    if f.parent and f.parent ~= "" then g:text(200, 230, "or another planet of " .. f.parent, 1) end
+    if f.parent and f.parent ~= "" then g:text(200, 230, "or " .. f.parent .. " itself, or another body of " .. f.parent, 1) end
     return nil
   end
   if not f.o.bound then
@@ -705,7 +739,20 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(200, 200, "Needs a bound orbit", 1)
     return nil
   end
-  if plan.kind == "hohmann" then
+  if plan.kind == "return" then
+    g:text(LX, 62, "Return to " .. target_name(), 0)
+    g:text(LX, 84, string.format("Departure dV  %.1f m/s", plan.dv), 0)
+    g:text(LX, 102, string.format("v inf %.0f m/s", plan.vinf), 0)
+    g:text(LX, 120, "Transfer time  " .. fmt_time(plan.tof), 0)
+    g:text(LX, 138, string.format("Arrival periapsis %.0f km", (plan.rp - props.get("/universe/bodies/body[" .. body_by_name(target_name()) .. "]/radius")) / 1000), 0)
+    g:colour(255, 200, 80)
+    g:text(LX, 164, "Departure burn in  " .. fmt_time(plan.t_burn), 0)
+    g:text(LX, 182, "Burn prograde (set the node, then fly it)", 0)
+    if math.abs(plan.plane) > 0.5 then
+      g:colour(255, 120, 80)
+      g:text(LX, 200, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
+    end
+  elseif plan.kind == "hohmann" then
     g:text(LX, 62, "Hohmann transfer", 0)
     g:text(LX, 84, "Burn 1  " .. fmt_dv(plan.dv1), 0)
     g:text(LX, 102, "Burn 2  " .. fmt_dv(plan.dv2), 0)
@@ -818,6 +865,9 @@ function M.button(self, i)
     if p.kind == "hohmann" then
       node.time = math.max(p.wait or 0, 0)
       node.dv = { p.dv1, 0, 0 }
+    elseif p.kind == "return" then
+      node.time = math.max(p.t_burn or 0, 0)
+      node.dv = { p.dv, 0, 0 }
     else
       node.time = math.max(p.t_burn or 0, 0)
       node.dv = { p.dv, 0, 0 }
