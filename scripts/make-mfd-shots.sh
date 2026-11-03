@@ -15,9 +15,9 @@ mkdir -p "$OUT"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-# The MFD overlay is 320 px square at 1280x720: the left display sits at 272,350 and the right at 685,350.
-LEFT='323x310+272+350'
-RIGHT='323x310+685+350'
+# The framed MFD is about 340 px square at 1280x720: the left display sits at 256,321 and the right at 684,321.
+LEFT='340x340+256+321'
+RIGHT='340x340+684+321'
 
 W='--hide-info --set /sim/settings/weather=1 --clean --mfd 1'
 STN="--scenario orbital_stations $W"

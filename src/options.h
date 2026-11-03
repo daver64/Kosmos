@@ -57,6 +57,7 @@ namespace kosmos::app
         std::string view_base; // "base:index" to start looking through a base camera
         bool interior_at = false;   // --interior-at X Z YAW PITCH: after walking into an interior, stand at this spot (metres, degrees)
         double interior_pos[4] = {};
+        std::string hold_item; // --hold ID: select this pack item (for example tricorder) once on foot
         std::string enter_building; // --enter-building TEXT: start inside the first building whose name contains TEXT
         std::string shot;
         double shot_at = 10.0;

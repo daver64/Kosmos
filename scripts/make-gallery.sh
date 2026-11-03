@@ -24,6 +24,9 @@ W='--set /sim/settings/weather=1 --set /sim/settings/gfx-cloud-style=2 --clean'
 ORB='--sunlit --sun-angle -90 --orbit-alt 4000 --cam-yaw 0 --cam-pitch 1.3'
 LAUNCH='--auto-stage --launch-at 2 --cam-yaw 0.8 --cam-pitch 0.08'
 SHOTS="launch_saturn_v|9.5|--scenario apollo11_saturn_v_t_minus_5 $W $LAUNCH --cam-distance 480
+launch_saturn_v_close|6|--scenario apollo11_saturn_v_t_minus_5 $W --cam-yaw 0.8 --cam-pitch 0.12 --cam-distance 75
+launch_proton|9|--scenario proton_k_baikonur $W $LAUNCH --cam-distance 200
+interior_quarters|14|--hide-info --scenario mare_quarters_on_foot $W --interior-at 3 3.5 0 -5
 launch_delta_iv_heavy|8.5|--scenario delta_iv_heavy_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 260
 launch_atlas|8|--scenario atlas_iii_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 200
 launch_soyuz|8|--scenario soyuz_fg_twickenham --date '2024-06-21 11:00:00' $W $LAUNCH --cam-distance 200
@@ -32,7 +35,7 @@ orbit_deltaglider|4|--ship 'CVEL Deltaglider' --orbit --alone $W $ORB --cam-dist
 orbit_dragonfly|4|--scenario dragonfly_orbit $W $ORB --cam-distance 60
 orbit_shuttle_a|4|--scenario shuttle_a_cargo_orbit $W $ORB --cam-distance 70
 orbit_soyuz|4|--scenario soyuz_tma_orbit $W $ORB --cam-distance 40
-orbit_mars_stack|5|--scenario dragonfly_deltaglider_mars $W $ORB --cam-distance 70
+orbit_mars_stack|5|--scenario dragonfly_deltaglider_mars $W --sunlit --sun-angle 40 --cam-yaw 0.5 --cam-pitch 0.2 --cam-distance 70
 flight_skylark_alps|16|--scenario-file '$SRC/scripts/promo/alps_skylark.json' $W --cam-yaw 0.6 --cam-pitch 0.2 --cam-distance 30
 flight_vulcan_alps|16|--scenario-file '$SRC/scripts/promo/alps_vulcan.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 45
 flight_cub_alps|16|--scenario-file '$SRC/scripts/promo/alps_cub.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 22

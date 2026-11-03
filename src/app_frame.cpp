@@ -153,6 +153,13 @@ namespace kosmos::app
                 }
             options.enter_building.clear();
         }
+        if (!options.hold_item.empty() && eva.active)
+        {
+            for (std::size_t i = 0; i < arsenal.pack().size(); ++i)
+                if (arsenal.pack()[i].id == options.hold_item)
+                    arsenal.select(static_cast<int>(i));
+            options.hold_item.clear();
+        }
         if (options.eva && clock > 1.0)
         {
             options.eva = false;

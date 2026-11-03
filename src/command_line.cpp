@@ -135,6 +135,7 @@ namespace kosmos::app
         {"--base-editor", 0, on(&Options::base_editor)},
         {"--property-window", 0, on(&Options::property_window)},
         {"--enter-building", 1, text(&Options::enter_building)},
+        {"--hold", 1, text(&Options::hold_item)},
         {"--base-cam", 1, text(&Options::view_base)},
         {"--selftest-throttle", 1, real(&Options::selftest_throttle)},
         {"--selftest-gear-up", 0, on(&Options::selftest_gear_up)},

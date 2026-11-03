@@ -279,13 +279,15 @@ with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. O
 
 ## MFDs (multi-function displays)
 
-Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
+Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. Each display has an **MNU** button (the mode list, paged, with short codes on the see-through displays) and a cross button that closes it; F5 brings it back. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
 
 Modes are Lua addons. An addon.json lists them:
 
 ```json
-{"id": "mymfd", "mfds": [{"id": "fuel", "script": "fuel.lua"}]}
+{"id": "mymfd", "mfds": [{"id": "fuel", "script": "fuel.lua", "short": "FUEL", "ships": ["myship"]}]}
 ```
+
+An entry may also carry `short` (up to 7 letters, for the compact mode list) and `ships` (addon folder names; the mode is then offered only on those ships).
 
 A script returns a table: `name`, `buttons` (12 labels, left column then right), `init(self)`, `update(self, dt)`, `draw(self, g, w, h)` and `button(self, i)` (1-based). Each MFD gets its own `self` table. `g` draws in a 400x400 box: `g:colour(r,g,b)`, `line`, `rect`, `fillrect`, `circle`, `disc`, `tri`, `arc(cx,cy,r,deg0,deg1)` `g:text(x,y,s,align)` with align 0 left, 1 centre, 2 right, and `g:image(file,cx,cy,w,h,angle,sx,sy,sw,sh)` for a PNG from the mode's folder (rotated, optionally a source region). `addons/instruments` has an Attitude Indicator and an Altimeter built from bitmaps (`tools/make_instrument_bitmaps.py` draws the placeholders; replace them with real artwork of the same size). Scripts read the property tree (`props.get`), for example `/ships/ship[0]/latitude`. See `addons/stockmfd` for Orbit, Surface and Map. 
 
@@ -336,7 +338,7 @@ Other bodies use the elements in the json.
 
 ## Bases
 
-**Active buildings.** A base object of type `building` places an addon building: a fixed ship (`"class": "building"` in a ship file listed under `"buildings"` in `addon.json`) with its own power, tanks, pressure vessels and 2D panel. Walk to its `door` on foot and press Enter to go inside, Enter again to leave. Gale Crater on Mars has a habitat, a power plant, a comms mast and an ISRU plant. Panel controls without artwork can be `label`, `readout`, `gauge` or `lamp`; components can be `isru` or `comms` and can have `wear_hours`. Press C inside to cycle chase, 2D panel and a clickable 3D interface board; `layout.image` gives the panel a background bitmap. `--enter-building TEXT` starts inside one.
+**Active buildings.** A base object of type `building` places an addon building: a fixed ship (`"class": "building"` in a ship file listed under `"buildings"` in `addon.json`) with its own power, tanks, pressure vessels and 2D panel. Walk to its `door` on foot and press Enter to go inside, Enter again to leave. Gale Crater on Mars has a habitat, a power plant, a comms mast and an ISRU plant. Panel controls without artwork can be `label`, `readout`, `gauge` or `lamp`; components can be `isru` or `comms` and can have `wear_hours`. Press C inside to cycle chase, 2D panel and a clickable 3D interface board; `layout.image` gives the panel a background bitmap. `--enter-building TEXT` starts inside one; add `--hold ID` (for example `--hold tricorder`) to start with a pack item selected.
 
 **Ship systems.** Ships can carry power sources (solar, RTG, fission, fusion, fuel cell), batteries, gas and water tanks and pressure vessels (cabins). A cabin is a box simulated on a 12x12x12 gas grid; vacuum is a sink, so a breach vents it. Press **F1** for the Ship systems window or select the Systems MFD; failure effects follow `--life-support` or a scenario's `life_support`. With no electricity left, MFDs and ship lights go dark. Declare equipment in a ship's `"systems"` list and `"vessels"` list, or tag mesh parts `vessel_NAME`, `crew_*` and `vent_*` (OBJ `usemtl` groups or GLB node names; they are not drawn). From Lua, writing an area in cm2 to `/ships/ship[N]/systems/vessel[i]/breach-cm2` opens a leak. The CVEL Apollo stack carries its fuel cells and cryogenic tanks on the service module and batteries, oxygen and LiOH in the command module, so life support carries on after the service module is jettisoned; a vessel's `pressure_kpa` and `o2_fraction` set its atmosphere (Apollo is pure oxygen at 34.5 kPa). Try `23_cabin_leak` and `24_oxygen_tank_failure`; `tests/systems_test.cpp` is the unit test (`cmake --build build --target systems_test`).
 
