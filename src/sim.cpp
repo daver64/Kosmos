@@ -639,7 +639,7 @@ namespace kosmos
         for (const std::unique_ptr<Ship> &ship : ships_)
         {
             const Telemetry &t = ship->telemetry();
-            if (!ship->spec().building() && (ship->on_rails() || !t.landed || t.surface_speed > 0.5 || t.thrust > 0.0))
+            if (!ship->spec().building() && !ship->crashed() && (ship->on_rails() || !t.landed || t.surface_speed > 0.5 || t.thrust > 0.0))
                 ground_hold = false;
         }
         const double phys_limit = ground_hold ? ground_warp : max_physics_warp;
@@ -648,7 +648,7 @@ namespace kosmos
             bool all_ok = !ships_.empty() && !ground_hold;
             std::string why;
             for (std::size_t i = 0; i < ships_.size(); ++i)
-                if (!ships_[i]->on_rails() && !ships_[i]->spec().building())
+                if (!ships_[i]->on_rails() && !ships_[i]->spec().building() && !ships_[i]->crashed())
                 {
                     const std::string b = ships_[i]->rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
                     if (!b.empty())

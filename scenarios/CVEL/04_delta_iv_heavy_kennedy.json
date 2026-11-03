@@ -1,7 +1,7 @@
 {
  "name": "CVEL: Delta IV Heavy, Kennedy",
- "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center, with a Centaur G upper stage and its probe under the payload fairing.",
- "date":"2003-07-08 17:45:00",
+ "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center, with a Centaur G upper stage and its probe under the payload fairing. The date, 18 May 2003, puts the Earth-Mars transfer window a few days after you reach orbit.",
+ "date":"2003-05-18 17:45:00",
  "active": 0,
  "ships": [
   {

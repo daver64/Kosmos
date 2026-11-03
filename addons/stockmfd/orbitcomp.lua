@@ -575,7 +575,7 @@ local function plan_hohmann(f, ot, tr, tv)
   local trp = sub(tr, mul(o.W, dot(tr, o.W)))
   local phase = atan2(dot(cross(f.r, trp), o.W), dot(f.r, trp)) % TAU
   local wait
-  if math.abs(ns - nt) > 1e-12 then wait = ((phase - lead) / (nt - ns)) % (TAU / math.abs(ns - nt)) end
+  if math.abs(ns - nt) > 1e-12 then wait = ((lead - phase) / (nt - ns)) % (TAU / math.abs(ns - nt)) end
   return { kind = "hohmann", dv1 = dv1, dv2 = dv2, tof = tof, lead = lead, phase = phase, wait = wait,
            plane = math.deg(math.acos(clamp(dot(ot.W, o.W), -1, 1))) }
 end
@@ -599,7 +599,7 @@ local function plan_ejection(f, s)
   local rtp = sub(s.rt, mul(wp, dot(s.rt, wp)))
   local phase = atan2(dot(cross(s.rp, rtp), wp), dot(s.rp, rtp)) % TAU
   local wait
-  if math.abs(np - nt) > 1e-12 then wait = ((phase - lead) / (nt - np)) % (TAU / math.abs(np - nt)) end
+  if math.abs(np - nt) > 1e-12 then wait = ((lead - phase) / (nt - np)) % (TAU / math.abs(np - nt)) end
 
   local rb = len(f.r)
   local vcirc = math.sqrt(f.mu / rb)

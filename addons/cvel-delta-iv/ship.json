@@ -14,7 +14,25 @@
   -24
  ],
  "ports": [
-  {"name":"Payload","position":[0,0,-30.8],"direction":[0,0,-1],"up":[0,1,0],"stage":4}
+  {
+   "name": "Payload",
+   "position": [
+    0,
+    0,
+    -30.8
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "stage": 4
+  }
  ],
  "systems": [
   {
@@ -207,7 +225,11 @@
    "length": 18.35,
    "radius": 2.6,
    "separation_speed": 2.5,
-   "separation_dir": [-1, 0, -0.2],
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
    "engines": [],
    "parts": [
     {
@@ -228,7 +250,11 @@
    "length": 18.35,
    "radius": 2.6,
    "separation_speed": 2.5,
-   "separation_dir": [1, 0, -0.2],
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
    "engines": [],
    "parts": [
     {
@@ -254,17 +280,17 @@
      "position": [
       0,
       0,
-      -6.4
+      -17.08
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 110088,
+     "thrust": 210088.0,
      "isp": 463.8,
-     "plume": 14,
-     "plume_width": 1.2,
+     "plume": 7.0,
+     "plume_width": 0.4,
      "plume_glow": 1.2,
      "plume_density": 1,
      "type": "rocket",
