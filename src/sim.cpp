@@ -224,7 +224,7 @@ namespace kosmos
         {
             std::string error;
             const std::string id = entry.value("id", "");
-            if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any")))
+            if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any"), entry.value("ships", std::vector<std::string>{}), entry.value("short", "")))
                 log("addon " + addon.id + ": " + error);
         }
         for (const nlohmann::json &file : json.value("navaids", nlohmann::json::array()))

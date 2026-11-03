@@ -288,6 +288,7 @@ namespace kosmos::app
             first_ship_seen = false;
             const auto &cockpit_spec = ship->spec().cockpit;
             sim.mfd.set_hidden(cockpit_spec.mfd_hide);
+            sim.mfd.set_ship(std::filesystem::path(ship->spec().directory).filename().string());
             sim.mfd.set_domain(ship->spec().mfd_domain());
             if (panel_index > 0 && panel_index < static_cast<int>(cockpit_spec.panels_2d().size()))
                 menu_actions.show_panel(panel_index);

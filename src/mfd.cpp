@@ -3,6 +3,7 @@
 #include "font.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -118,7 +119,7 @@ namespace kosmos
             "text", &MfdCanvas::text);
     }
 
-    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain)
+    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain, const std::vector<std::string> &ships, const std::string &short_name)
     {
         std::ifstream in(path);
         if (!in)
@@ -147,7 +148,9 @@ namespace kosmos
         mode.directory = std::filesystem::path(path).parent_path().string();
         mode.addon = addon;
         mode.domain = domain;
+        mode.ships = ships;
         mode.name = mode.table.get_or<std::string>("name", id);
+        mode.short_name = short_name.empty() ? mode.table.get_or<std::string>("short", "") : short_name;
         modes_.push_back(std::move(mode));
         return true;
     }
@@ -179,6 +182,9 @@ namespace kosmos
             return false;
         const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
         if (std::find(hidden_.begin(), hidden_.end(), modes_[static_cast<std::size_t>(mode)].id) != hidden_.end())
+            return false;
+        const std::vector<std::string> &only = modes_[static_cast<std::size_t>(mode)].ships;
+        if (!only.empty() && std::find(only.begin(), only.end(), ship_folder_) == only.end())
             return false;
         return domain_allowed(mode);
     }
@@ -397,7 +403,7 @@ namespace kosmos
         return n < count ? n : -2;
     }
 
-    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels)
+    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, bool compact)
     {
         g.set_colour(255, 240, 140);
         g.text(200, 20, "SELECT MODE", 1);
@@ -409,9 +415,21 @@ namespace kosmos
             const int n = select_slot(unit, i);
             std::string name;
             if (n == -1)
-                name = i == 5 ? "< PREV" : "NEXT >";
+                name = i == 5 ? "<PREV" : "NEXT>";
             else if (n >= 0)
-                name = modes_[static_cast<std::size_t>(visible_mode(n))].name;
+            {
+                const MfdMode &m = modes_[static_cast<std::size_t>(visible_mode(n))];
+                name = m.name;
+                if (compact)
+                {
+                    // The see-through display's buttons are narrow: use the mode's short code, or its first letters.
+                    name = m.short_name.empty() ? m.name.substr(0, 7) : m.short_name;
+                    if (name.size() > 7)
+                        name.resize(7);
+                    for (char &ch : name)
+                        ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                }
+            }
             if (!name.empty())
                 labels.text(i < 6 ? 4.0f : mfd_size - 4.0f, y, name, i < 6 ? 0 : 2);
         }
@@ -427,7 +445,7 @@ namespace kosmos
         if (!layout.hud)
             return layout;
         MfdLayout inner = layout;
-        const float margin = 50.0f * layout.size / mfd_size;
+        const float margin = 66.0f * layout.size / mfd_size;
         inner.x += margin;
         inner.y += margin;
         inner.size -= 2.0f * margin;
@@ -509,7 +527,7 @@ namespace kosmos
         if (mode)
             g.directory = mode->directory;
         if (u.selecting || !mode)
-            draw_select(u, g, lab);
+            draw_select(u, g, lab, layout.hud);
         else
         {
             sol::protected_function fn = mode->table["draw"];
@@ -615,7 +633,7 @@ namespace kosmos
     void MfdSystem::hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const
     {
         const float s = layout.size / mfd_size;
-        w = 50.0f * s;
+        w = 64.0f * s;
         h = layout.size / 6.0f * 0.6f;
         x = i < 6 ? layout.x : layout.x + layout.size - w;
         y = layout.y + (i % 6 + 0.5f) * layout.size / 6.0f - h / 2;

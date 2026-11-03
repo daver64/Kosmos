@@ -49,6 +49,9 @@ namespace kosmos
         std::string id, name, addon, directory;
         /** Where the mode makes sense: "any", "atmosphere" (aircraft instruments) or "space" (orbital instruments). */
         std::string domain = "any";
+        /** A short button label for the see-through displays, and the ship addon folders that offer the mode (empty: every ship). */
+        std::string short_name;
+        std::vector<std::string> ships;
         sol::table table;
     };
 
@@ -79,7 +82,7 @@ namespace kosmos
         MfdSystem() = default;
         void init(sl::LuaRuntime &lua, sl::PropertyTree &props);
         /** Load a mode script from an addon folder; returns false and sets error on failure. */
-        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any");
+        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any", const std::vector<std::string> &ships = {}, const std::string &short_name = "");
         /** Adds a page drawn by C++ code (a native addon's) instead of a Lua script. Image names are relative to @p directory. */
         void register_native(const std::string &addon, const std::string &id, const std::string &name, const std::string &directory, std::function<void(MfdCanvas &)> draw);
         const std::vector<MfdMode> &modes() const { return modes_; }
@@ -88,6 +91,8 @@ namespace kosmos
         void set_domain(const std::string &domain);
         /** Mode ids the current ship does not offer, on top of the domain filter. */
         void set_hidden(const std::vector<std::string> &ids);
+        /** The addon folder name of the flown ship; modes restricted to certain ships are only offered on those. */
+        void set_ship(const std::string &folder) { ship_folder_ = folder; }
         /** Whether a mode can be chosen by the player: the domain filter and the hidden list both apply. */
         bool allowed(int mode) const;
         /** Whether a mode can be shown at all (a panel can place a hidden mode on a fixed instrument). */
@@ -127,7 +132,7 @@ namespace kosmos
         void hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const;
         void draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons);
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
-        void draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels);
+        void draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, bool compact);
         /** The mode-list index a side button picks, -1 for the page buttons (shown when more than 12 modes are offered). */
         int select_slot(const MfdUnit &unit, int button) const;
         /** The square a mode draws into: the whole layout, or inside the button margins of a see-through display. */
@@ -142,6 +147,7 @@ namespace kosmos
         std::vector<MfdMode> modes_;
         std::string domain_ = "any";
         std::vector<std::string> hidden_;
+        std::string ship_folder_;
         std::vector<MfdUnit> units_ = std::vector<MfdUnit>(2);
         std::string error_;
     };

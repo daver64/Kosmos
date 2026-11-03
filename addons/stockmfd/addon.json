@@ -19,6 +19,7 @@
     },
     {
       "id": "attitude",
+      "short": "RCS",
       "script": "attitude.lua"
     },
     {
@@ -28,11 +29,13 @@
     },
     {
       "id": "align",
+      "short": "ALIGN",
       "domain": "space",
       "script": "align.lua"
     },
     {
       "id": "sync",
+      "short": "SYNC",
       "domain": "space",
       "script": "sync.lua"
     },
@@ -43,15 +46,18 @@
     },
     {
       "id": "orbitcomp",
+      "short": "OCOMP",
       "domain": "space",
       "script": "orbitcomp.lua"
     },
     {
       "id": "comnav",
+      "short": "COMNAV",
       "script": "comnav.lua"
     },
     {
       "id": "vor",
+      "short": "VOR",
       "script": "vor.lua"
     },
     {

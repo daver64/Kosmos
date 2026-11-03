@@ -5,34 +5,41 @@
   "mfds": [
     {
       "id": "adi",
+      "short": "ADI",
       "script": "adi.lua"
     },
     {
       "id": "altimeter",
+      "short": "ALT",
       "script": "altimeter.lua"
     },
     {
       "id": "asi",
+      "short": "ASI",
       "domain": "atmosphere",
       "script": "asi.lua"
     },
     {
       "id": "vsi",
+      "short": "VSI",
       "domain": "atmosphere",
       "script": "vsi.lua"
     },
     {
       "id": "dg",
+      "short": "HDG",
       "domain": "atmosphere",
       "script": "dg.lua"
     },
     {
       "id": "turn",
+      "short": "TURN",
       "domain": "atmosphere",
       "script": "turn.lua"
     },
     {
       "id": "engine",
+      "short": "ENG",
       "script": "engine.lua"
     }
   ]

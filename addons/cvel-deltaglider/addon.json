@@ -8,14 +8,20 @@
   "mfds": [
     {
       "id": "dg_aoa",
+      "ships": ["cvel-deltaglider", "cvel-deltaglider-nuclear"],
+      "short": "AOA",
       "script": "dg_aoa.lua"
     },
     {
       "id": "dg_slip",
+      "ships": ["cvel-deltaglider", "cvel-deltaglider-nuclear"],
+      "short": "SLIP",
       "script": "dg_slip.lua"
     },
     {
       "id": "dg_slope",
+      "ships": ["cvel-deltaglider", "cvel-deltaglider-nuclear"],
+      "short": "SLOPE",
       "script": "dg_slope.lua"
     }
   ]

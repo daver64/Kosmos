@@ -754,7 +754,7 @@ namespace kosmos::app
     void App::draw_mfd_overlay(bool dashboard, bool cockpit_mfd_overlay)
     {
             const bool show_hud = cockpit_mfd_overlay || mfd_display == 2;
-            const float size = show_hud ? std::min({440.0f, screen_h * 0.56f, screen_w * 0.34f}) : std::min(360.0f, screen_h * 0.4f);
+            const float size = show_hud ? std::min({480.0f, screen_h * 0.62f, screen_w * 0.36f}) : std::min(360.0f, screen_h * 0.4f);
             kosmos::MfdLayout left, right;
             left.size = right.size = size;
             left.hud = right.hud = show_hud;

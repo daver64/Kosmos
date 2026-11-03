@@ -4,6 +4,6 @@
  "version": "0.1",
  "ships": ["ship.json", "warhead.json"],
  "mfds": [
-  { "id": "icbm-target", "script": "targeting.lua" }
+  { "id": "icbm-target", "ships": ["cvel-icbm"], "short": "ICBM", "script": "targeting.lua" }
  ]
 }
