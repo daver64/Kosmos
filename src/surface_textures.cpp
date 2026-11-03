@@ -156,15 +156,42 @@ namespace kosmos::app
 
     int generated_texture_width = 0;
 
-    // The far-view image of an invented world, made the first time it is needed and then kept. Empty if it cannot be written.
+    int generated_target_width(const kosmos::Body &b)
+    {
+        const int width = generated_texture_width > 0 ? generated_texture_width : b.radius > 2.0e6 ? 2048 : 1024;
+        return std::max(width, 512) & ~1;
+    }
+
+    std::vector<int> generated_missing_widths(const kosmos::Body &b)
+    {
+        const int target = generated_target_width(b);
+        std::vector<int> missing;
+        for (const int width : {std::min(2048, target), target})
+        {
+            std::error_code ec;
+            if (width > 512 && std::find(missing.begin(), missing.end(), width) == missing.end() &&
+                !std::filesystem::exists(kosmos::far_image_path(b.style, width), ec))
+                missing.push_back(width);
+        }
+        return missing;
+    }
+
+    // The best far-view image of an invented world that is already cached, up to the chosen width. If there is none, a small one
+    // is made on the spot so there is always something to show; the larger ones are filled in later in the background.
     std::string generated_surface_image(const kosmos::Body &b)
     {
-        const bool large = b.radius > 2.0e6;
-        const int width = generated_texture_width > 0 ? generated_texture_width : large ? 2048 : 1024, height = width / 2;
-        const std::filesystem::path path = kosmos::far_image_path(b.style, width);
+        const int target = generated_target_width(b);
         std::error_code ec;
-        if (std::filesystem::exists(path, ec))
-            return path.string();
+        for (const int width : {target, 16384, 8192, 4096, 2048, 1024, 512})
+        {
+            if (width > target)
+                continue;
+            const std::filesystem::path cached = kosmos::far_image_path(b.style, width);
+            if (std::filesystem::exists(cached, ec))
+                return cached.string();
+        }
+        const int width = 512, height = width / 2;
+        const std::filesystem::path path = kosmos::far_image_path(b.style, width);
         loading.note("Generating the surface of " + b.name);
         const kosmos::PlanetSurface surface(b.style, b.radius);
         sl::Bitmap *bitmap = surface.make_texture(width, height);

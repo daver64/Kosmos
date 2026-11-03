@@ -100,6 +100,7 @@ namespace kosmos::app
         double map_scale = 0.0;
         std::string map_focus;
         std::string orbit_body;
+        bool portal_arrival = false; // start in front of the system's quantum portal, facing away from it, as after a jump
         double cam_pitch = 0.25;
         double cam_yaw = 0.7;
         double cam_distance = 0.0;
@@ -131,8 +132,8 @@ namespace kosmos::app
         std::string export_base, export_file;
         bool galaxy_view = false;
         bool quantum_window = false;
-        std::string test_jump_body; // --test-jump-body NAME: with --test-jump, arrive at that body
         std::string test_scenario; // --test-scenario ID: switch to that scenario a couple of seconds into the run (for testing)
+        int test_dial = -1; // --test-dial N: dial the portal to star N a second into the run (for testing)
         int test_jump = -1; // --test-jump N: quantum-jump to star N a second into the run (for testing)
     };
 } // namespace kosmos::app

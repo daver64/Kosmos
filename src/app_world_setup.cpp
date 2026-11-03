@@ -146,13 +146,16 @@ namespace kosmos::app
         return true;
     }
 
-    // Remakes the far-view image of every invented world at the width now chosen in the settings, without leaving the system.
+    // Swaps in the best cached far-view image of every invented world at the width now chosen in the settings; the larger widths
+    // that are missing are made in the background and swapped in as they finish.
     void App::reload_world_textures()
     {
         for (std::size_t i = 0; i < sim.universe.bodies.size() && i < vis.body_textures.size(); ++i)
         {
             const kosmos::Body &b = sim.universe.bodies[i];
             if (b.minor || !b.style.valid() || !b.texture.empty())
+                continue;
+            if (std::find(vis.surface_textured.begin(), vis.surface_textured.end(), static_cast<int>(i)) == vis.surface_textured.end())
                 continue;
             const std::string image = generated_surface_image(b);
             if (image.empty())
@@ -163,10 +166,63 @@ namespace kosmos::app
                 vis.body_textures[i] = image_bitmap;
             }
         }
+        world_jobs.cancel();
+        world_jobs_pending = true;
+    }
+
+    // Queues the missing larger images, nearest world first, and swaps in the ones the background jobs have finished.
+    void App::update_world_textures()
+    {
+        if (world_jobs_pending && ship)
+        {
+            world_jobs_pending = false;
+            const sl::dvec3 eye = ship->origin();
+            std::vector<std::pair<double, std::size_t>> order;
+            for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
+            {
+                const kosmos::Body &b = sim.universe.bodies[i];
+                if (b.minor || !b.style.valid() || !b.texture.empty() || generated_missing_widths(b).empty())
+                    continue;
+                order.push_back({glm::length(sim.universe.position(static_cast<int>(i)) - eye), i});
+            }
+            std::sort(order.begin(), order.end());
+            // Every world's 2k first, nearest first, then the full width.
+            for (const int pass : {0, 1})
+                for (const auto &entry : order)
+                {
+                    const kosmos::Body &b = sim.universe.bodies[entry.second];
+                    const std::vector<int> missing = generated_missing_widths(b);
+                    if (pass < static_cast<int>(missing.size()))
+                        world_jobs.add({sim.system_index(), b.name, missing[static_cast<std::size_t>(pass)],
+                                        kosmos::far_image_path(b.style, missing[static_cast<std::size_t>(pass)]).string()});
+                }
+        }
+        for (const kosmos::WorldTextureJobs::Job &job : world_jobs.poll())
+        {
+            if (job.system != sim.system_index())
+                continue;
+            const int id = sim.universe.find(job.body);
+            std::error_code ec;
+            if (id < 0 || !std::filesystem::exists(job.path, ec))
+                continue;
+            const std::size_t i = static_cast<std::size_t>(id);
+            const kosmos::Body &b = sim.universe.bodies[i];
+            // Only ever swap upwards, and never past the width chosen in the settings.
+            const std::string best = generated_surface_image(b);
+            if (best != job.path || i >= vis.body_textures.size())
+                continue;
+            if (sl::Bitmap *image_bitmap = load_surface_texture(job.path, options.max_texture))
+            {
+                sl::destroy_bitmap(vis.body_textures[i]);
+                vis.body_textures[i] = image_bitmap;
+            }
+        }
     }
 
     void App::load_planet_images()
     {
+        world_jobs.cancel();
+        world_jobs_pending = true;
         loading.note("Loading planet images");
         sl::Bitmap *shared_rock = nullptr;
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
@@ -432,11 +488,6 @@ namespace kosmos::app
         map_mode = options.map;
         galaxy_mode = options.galaxy_view;
         quantum.jump_to = -1;
-        quantum.jump_to_star_orbit = false;
-              // a body of the target system to arrive at; empty picks the best world
-              // the planet or moon chosen in the quantum window for quantum_selected
-        quantum.quantum_bodies_for = -1;
-         // name, description
         quantum.quantum_window = options.quantum_window;
         quantum.quantum_selected = -1;
         gview.refresh(sim.galaxy, sim.system_index());

@@ -102,6 +102,7 @@ add_executable(kosmos
     src/systems.cpp
     src/part_kit.cpp
     src/blender_edit.cpp
+    src/world_texture_jobs.cpp
     src/mfd.cpp
     src/nav.cpp
     src/planet_data.cpp

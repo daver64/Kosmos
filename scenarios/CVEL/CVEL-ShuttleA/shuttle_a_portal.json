@@ -1,0 +1,15 @@
+{
+ "name": "CVEL: Shuttle-A at the Sol quantum portal",
+ "description": "CVEL Shuttle-A in solar orbit, 1 km in front of Earth's quantum portal, which lies between Saturn and Uranus. Open the galaxy map (N), choose a star and press Enter to dial; when the disc opens, fly through the ring to emerge at that star's portal.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Shuttle-A",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000,
+    "portal_m": 1000
+   }
+  }
+ ]
+}

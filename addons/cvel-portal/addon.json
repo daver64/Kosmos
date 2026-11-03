@@ -1,0 +1,10 @@
+{
+ "id": "cvel-portal",
+ "name": "CVEL Quantum Portal",
+ "version": "0.1",
+ "author": "Dave Rowbotham (CVEL)",
+ "description": "The ring gate used for quantum travel between star systems.",
+ "ships": [
+  "ship.json"
+ ]
+}

@@ -63,6 +63,66 @@ namespace kosmos::app
         sim.nav.add_beacon(pad);
     }
 
+    static int star_body(Sim &sim)
+    {
+        for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
+            if (sim.universe.bodies[i].kind == kosmos::BodyKind::star && sim.universe.bodies[i].parent < 0)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    Ship *portal_ship(Sim &sim)
+    {
+        for (int i = 0; i < sim.ship_count(); ++i)
+            if (sim.ship(i)->spec().portal_radius > 0.0)
+                return sim.ship(i);
+        return nullptr;
+    }
+
+    sl::dvec3 portal_axis(const Ship &portal)
+    {
+        return portal.body().orientation * sl::dvec3(0.0, 0.0, 1.0);
+    }
+
+    // The system's quantum portal orbits its star beyond the middle of the planets, so reaching it is a real flight.
+    void spawn_portal(Sim &sim)
+    {
+        if (portal_ship(sim))
+            return;
+        const kosmos::ShipSpec *spec = sim.find_ship_spec("Quantum Portal");
+        const int star = star_body(sim);
+        if (!spec || star < 0)
+            return;
+        const sl::dvec3 centre = sim.universe.world.body(star)->position;
+        double outermost = 0.0;
+        for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
+            if (sim.universe.bodies[i].parent == star && sim.universe.bodies[i].kind == kosmos::BodyKind::planet)
+                outermost = std::max(outermost, glm::length(sim.universe.world.body(static_cast<int>(i))->position - centre));
+        const double radius = sim.universe.bodies[static_cast<std::size_t>(star)].radius;
+        const double orbit = std::max(outermost * 0.43, radius * 20.0);
+        Ship *portal = sim.spawn(*spec);
+        portal->place_in_orbit(star, orbit - radius, 0.0, 0.0);
+        // The disc faces along the radius, so a ship approaching from outside the system meets it face on.
+        const sl::dvec3 out = glm::normalize(portal->body().position - centre);
+        const sl::dvec3 z(0.0, 0.0, 1.0);
+        const sl::dvec3 turn = glm::cross(z, out);
+        const double sine = glm::length(turn);
+        portal->body().orientation = sine < 1.0e-9 ? sl::dquat(1.0, 0.0, 0.0, 0.0) : glm::angleAxis(std::atan2(sine, glm::dot(z, out)), turn / sine);
+        portal->body().angular_velocity = sl::dvec3(0.0);
+    }
+
+    void place_at_portal(Sim &sim, Ship &ship, double distance, double speed, bool facing_away)
+    {
+        Ship *portal = portal_ship(sim);
+        if (!portal)
+            return;
+        const int star = star_body(sim);
+        const sl::FlightBody &sb = *sim.universe.world.body(star);
+        const sl::dvec3 axis = portal_axis(*portal);
+        const sl::dquat facing = facing_away ? portal->body().orientation * glm::angleAxis(3.14159265358979, sl::dvec3(0.0, 1.0, 0.0)) : portal->body().orientation;
+        ship.place_relative(star, portal->body().position - sb.position + axis * distance, portal->body().velocity - sb.velocity + axis * speed, facing);
+    }
+
     // Every "building" object of every base becomes a fixed, enterable ship standing at its place.
     void spawn_buildings(Sim &sim)
     {
@@ -268,6 +328,10 @@ namespace kosmos::app
             return nullptr;
         sim.activate(std::min(sc.active, sim.ship_count() - 1));
         spawn_buildings(sim);
+        spawn_portal(sim);
+        for (std::size_t entry_index = 0; entry_index < sc.ships.size(); ++entry_index)
+            if (sc.ships[entry_index].portal_m > 0.0 && spawned[entry_index] >= 0)
+                place_at_portal(sim, *sim.ship(spawned[entry_index]), sc.ships[entry_index].portal_m, 0.0, false);
         apply_scenario_settings(sim, sc);
         return sim.active_ship();
     }
@@ -380,6 +444,9 @@ namespace kosmos::app
         if (options.sunlit && (options.orbit_start || target >= 0))
             rotate_fleet_to_sun(sim, ship, options.sun_angle);
         sim.activate(options.ship_index);
+        spawn_portal(sim);
+        if (options.portal_arrival)
+            place_at_portal(sim, *ship, 400.0, 60.0, true);
         sim.props.set_double("/controls/throttle", 0.0);
         sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");

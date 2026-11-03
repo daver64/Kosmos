@@ -326,10 +326,7 @@ namespace kosmos::app
         else if (galaxy_mode && key == sl::Event::Key::arrow_left)
             gview.step_selection(-1);
         else if (galaxy_mode && hit("enter_exit") && gview.selected >= 0 && gview.selected != sim.system_index())
-        {
-            quantum.jump_to = gview.selected;
-            quantum.jump_to_star_orbit = false;
-        }
+            dial_portal(gview.selected);
         else if (hit("cycle_camera"))
         {
         cycle_camera();

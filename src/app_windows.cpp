@@ -825,114 +825,72 @@ namespace kosmos::app
     {
         if (quantum.quantum_window)
         {
-            // The quantum drive: pick a star within range and arrive 1 AU above its surface.
-            double range_ly = 0.0;
-            for (const kosmos::StageSpec &st : ship->spec().stages)
-                for (const kosmos::EngineSpec &e : st.engines)
-                    if (e.type == kosmos::EngineType::hyperjump)
-                        range_ly = std::max(range_ly, e.range_ly);
+            // The portal console: pick a star in range and dial it from near the system's quantum portal.
+            const double range_ly = 50.0;
             ImGui::SetNextWindowPos(ImVec2(330.0f, 120.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowSize(ImVec2(420.0f, 400.0f), ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowBgAlpha(0.9f);
-            if (ImGui::Begin("Quantum navigation", &quantum.quantum_window))
+            if (ImGui::Begin("Quantum portal", &quantum.quantum_window))
             {
-                ImGui::Text("Ship: %s", ship->spec().name.c_str());
                 ImGui::Text("Position: %s", sim.galaxy.star(sim.system_index()).name.c_str());
-                if (range_ly <= 0.0)
-                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f), "This ship has no quantum jump drive.");
+                const kosmos::Ship *portal = portal_ship(sim);
+                if (!portal)
+                    ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.4f, 1.0f), "No portal in this system.");
                 else
                 {
-                    ImGui::Text("Drive range: %.0f light years", range_ly);
-                    ImGui::Separator();
-                    const std::vector<int> near = sim.galaxy.nearest(sim.system_index(), 64);
-                    if (ImGui::BeginChild("targets", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 3.0f)))
-                    {
-                        if (ImGui::BeginTable("stars", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
-                        {
-                            ImGui::TableSetupColumn("Star");
-                            ImGui::TableSetupColumn("Class");
-                            ImGui::TableSetupColumn("Planets");
-                            ImGui::TableSetupColumn("Distance");
-                            ImGui::TableHeadersRow();
-                            for (const int id : near)
-                            {
-                                const double d = sim.galaxy.distance_ly(sim.system_index(), id);
-                                if (d > range_ly)
-                                    break;
-                                const kosmos::Star &st = sim.galaxy.star(id);
-                                ImGui::TableNextRow();
-                                ImGui::TableNextColumn();
-                                if (ImGui::Selectable((st.name + "##" + std::to_string(id)).c_str(), quantum.quantum_selected == id, ImGuiSelectableFlags_SpanAllColumns))
-                                {
-                                    quantum.quantum_selected = id;
-                                    quantum.quantum_body.clear();
-                                }
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%c", st.spectral_class);
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%d", sim.galaxy.planet_count(id));
-                                ImGui::TableNextColumn();
-                                ImGui::Text("%.2f ly", d);
-                            }
-                            ImGui::EndTable();
-                        }
-                    }
-                    ImGui::EndChild();
-                    const bool ok = quantum.quantum_selected >= 0 && quantum.quantum_selected != sim.system_index() && sim.galaxy.distance_ly(sim.system_index(), quantum.quantum_selected) <= range_ly;
-                    if (quantum.quantum_selected >= 0)
-                    {
-                        const kosmos::Star &st = sim.galaxy.star(quantum.quantum_selected);
-                        ImGui::Text("%s: %.1f solar masses, %.2f solar radii, %.0f K", st.name.c_str(), st.mass, st.radius, st.temperature);
-                    }
-                    else
-                        ImGui::TextDisabled("Select a target star.");
-                    if (quantum.quantum_selected >= 0 && quantum.quantum_bodies_for != quantum.quantum_selected)
-                    {
-                        // The planets and moons of the chosen system, read from its description without building it.
-                        quantum.quantum_bodies.clear();
-                        quantum.quantum_bodies_for = quantum.quantum_selected;
-                        std::string text = quantum.quantum_selected == 0 ? std::string{} : sim.galaxy.system_json(quantum.quantum_selected);
-                        if (quantum.quantum_selected == 0)
-                        {
-                            std::ifstream in(sim.root() + "/data/sol.json");
-                            text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-                        }
-                        const nlohmann::json system = nlohmann::json::parse(text, nullptr, false);
-                        if (system.is_object() && system.contains("bodies"))
-                            for (const nlohmann::json &b : system["bodies"])
-                            {
-                                const std::string kind = b.value("kind", "");
-                                if (kind == "planet" || kind == "moon")
-                                    quantum.quantum_bodies.emplace_back(b.value("name", ""), (kind == "moon" ? "moon of " : "planet of ") + b.value("parent", ""));
-                            }
-                    }
-                    if (quantum.quantum_selected >= 0)
-                    {
-                        const std::string label = quantum.quantum_body.empty() ? "Best world (habitable first)" : quantum.quantum_body;
-                        ImGui::SetNextItemWidth(-1.0f);
-                        if (ImGui::BeginCombo("Arrive at", label.c_str()))
-                        {
-                            if (ImGui::Selectable("Best world (habitable first)", quantum.quantum_body.empty()))
-                                quantum.quantum_body.clear();
-                            for (const auto &entry : quantum.quantum_bodies)
-                                if (ImGui::Selectable((entry.first + "  (" + entry.second + ")").c_str(), quantum.quantum_body == entry.first))
-                                    quantum.quantum_body = entry.first;
-                            ImGui::EndCombo();
-                        }
-                    }
-                    if (!ok)
-                        ImGui::BeginDisabled();
-                    if (ImGui::Button("Engage quantum jump"))
-                    {
-                        quantum.jump_to = quantum.quantum_selected;
-                        quantum.jump_to_star_orbit = true;
-                        quantum.jump_to_body = quantum.quantum_body;
-                    }
-                    if (!ok)
-                        ImGui::EndDisabled();
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("Arrives in orbit of the chosen world.");
+                    const double distance = glm::length(portal->body().position - ship->body().position);
+                    ImGui::Text("Portal: %.1f %s away", distance >= 1.0e4 ? distance / 1000.0 : distance, distance >= 1.0e4 ? "km" : "m");
+                    if (quantum.dialled >= 0)
+                        ImGui::TextColored(ImVec4(0.5f, 0.9f, 1.0f, 1.0f), "%s: %s", sim.galaxy.star(quantum.dialled).name.c_str(), quantum.portal_open >= 1.0f ? "open, fly through the ring" : "dialling...");
                 }
+                ImGui::Separator();
+                const std::vector<int> near = sim.galaxy.nearest(sim.system_index(), 64);
+                if (ImGui::BeginChild("targets", ImVec2(0.0f, -ImGui::GetFrameHeightWithSpacing() * 3.0f)))
+                {
+                    if (ImGui::BeginTable("stars", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
+                    {
+                        ImGui::TableSetupColumn("Star");
+                        ImGui::TableSetupColumn("Class");
+                        ImGui::TableSetupColumn("Planets");
+                        ImGui::TableSetupColumn("Distance");
+                        ImGui::TableHeadersRow();
+                        for (const int id : near)
+                        {
+                            const double d = sim.galaxy.distance_ly(sim.system_index(), id);
+                            if (d > range_ly)
+                                break;
+                            const kosmos::Star &st = sim.galaxy.star(id);
+                            ImGui::TableNextRow();
+                            ImGui::TableNextColumn();
+                            if (ImGui::Selectable((st.name + "##" + std::to_string(id)).c_str(), quantum.quantum_selected == id, ImGuiSelectableFlags_SpanAllColumns))
+                                quantum.quantum_selected = id;
+                            ImGui::TableNextColumn();
+                            ImGui::Text("%c", st.spectral_class);
+                            ImGui::TableNextColumn();
+                            ImGui::Text("%d", sim.galaxy.planet_count(id));
+                            ImGui::TableNextColumn();
+                            ImGui::Text("%.2f ly", d);
+                        }
+                        ImGui::EndTable();
+                    }
+                }
+                ImGui::EndChild();
+                if (quantum.quantum_selected >= 0)
+                {
+                    const kosmos::Star &st = sim.galaxy.star(quantum.quantum_selected);
+                    ImGui::Text("%s: %.1f solar masses, %.2f solar radii, %.0f K", st.name.c_str(), st.mass, st.radius, st.temperature);
+                }
+                else
+                    ImGui::TextDisabled("Select a target star.");
+                const bool ok = portal && quantum.quantum_selected >= 0 && quantum.quantum_selected != sim.system_index();
+                if (!ok)
+                    ImGui::BeginDisabled();
+                if (ImGui::Button("Dial portal"))
+                    dial_portal(quantum.quantum_selected);
+                if (!ok)
+                    ImGui::EndDisabled();
+                ImGui::SameLine();
+                ImGui::TextDisabled("%s", quantum.status.empty() ? "Dial within 100 km of the ring." : quantum.status.c_str());
             }
             ImGui::End();
         }

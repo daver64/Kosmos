@@ -63,6 +63,7 @@ namespace kosmos
                     s.toward = o.value("toward", "");
                     s.escape_to = o.value("escape_to", "");
                     s.escape_days = o.value("escape_days", 0.0);
+                    s.portal_m = o.value("portal_m", 0.0);
                     if (js.contains("state"))
                     {
                         const nlohmann::json &st = js["state"];
@@ -198,6 +199,8 @@ namespace kosmos
                     js["orbit"]["apoapsis_km"] = s.apoapsis_km;
                 if (!s.toward.empty())
                     js["orbit"]["toward"] = s.toward;
+                if (s.portal_m > 0.0)
+                    js["orbit"]["portal_m"] = s.portal_m;
                 if (s.has_state)
                     js["state"] = {{"r", s.state_position}, {"v", s.state_velocity}, {"q", s.state_orientation}};
                 if (!s.escape_to.empty())

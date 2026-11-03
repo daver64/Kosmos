@@ -30,6 +30,15 @@ namespace kosmos::app
     // Every "building" object of every base becomes a fixed, enterable ship standing at its place.
     void spawn_buildings(Sim &sim);
 
+    // The quantum portal ship of the current system, or nullptr.
+    Ship *portal_ship(Sim &sim);
+    // The direction the portal's disc faces (its +Z axis in world coordinates).
+    sl::dvec3 portal_axis(const Ship &portal);
+    // Adds the system's portal in orbit of its star, unless it already has one.
+    void spawn_portal(Sim &sim);
+    // Puts a ship `distance` metres in front of the portal on its axis, moving `speed` m/s along it, facing the portal (or away from it).
+    void place_at_portal(Sim &sim, Ship &ship, double distance, double speed, bool facing_away);
+
     // Returns the ship to fly, or nullptr (with a message on stderr) if the scenario cannot be built.
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains);
 

@@ -27,6 +27,11 @@ namespace kosmos::app
 
 extern int generated_texture_width;
 
+    int generated_target_width(const kosmos::Body &b);
+
+    // Widths still to be made in the background for an invented world (empty when it is complete).
+    std::vector<int> generated_missing_widths(const kosmos::Body &b);
+
     std::string generated_surface_image(const kosmos::Body &b);
 
     std::string find_surface_image(const std::string &root, const kosmos::Body &b);

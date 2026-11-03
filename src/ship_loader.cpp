@@ -243,6 +243,7 @@ namespace kosmos
             read_hypersonic(json.value("hypersonic", nlohmann::json()), spec.hypersonic);
             read_parachutes(json.value("parachutes", nlohmann::json()), spec.parachutes);
             spec.hit_sphere = json.value("hit_sphere", spec.hit_sphere);
+            if (json.contains("portal")) spec.portal_radius = json["portal"].value("radius", 180.0);
             spec.inertia = vec3(json.value("inertia", nlohmann::json()), spec.inertia);
             spec.damping = vec3(json.value("damping", nlohmann::json()), spec.damping);
             for (const nlohmann::json &jl : json.value("lights", nlohmann::json::array()))

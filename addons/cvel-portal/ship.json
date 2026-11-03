@@ -1,0 +1,43 @@
+{
+ "name": "Quantum Portal",
+ "description": "A ring gate 400 m across. Dial a star from the galaxy map (N) within range of the ring, then fly through the open disc to emerge from the matching gate at the destination.",
+ "class": "station",
+ "torque_accel": 0.001,
+ "max_rate": 0.05,
+ "rcs_thrust": 1000,
+ "drag_area": 1000,
+ "camera_distance": 900,
+ "portal": {
+  "radius": 180
+ },
+ "stages": [
+  {
+   "name": "Portal",
+   "dry_mass": 50000000,
+   "propellant": 0,
+   "z": 0,
+   "length": 60,
+   "radius": 230,
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/ring.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "model": "models/nodes.obj",
+     "emissive": 1.0,
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  }
+ ]
+}

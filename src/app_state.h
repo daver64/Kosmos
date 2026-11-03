@@ -19,6 +19,7 @@
 #include "terrain_clutter.h"
 #include "planet_bake.h"
 #include "blender_edit.h"
+#include "world_texture_jobs.h"
 #include "usercam.h"
 #include "eva.h"
 #include "interior.h"
@@ -162,13 +163,16 @@ namespace kosmos::app
     struct QuantumState
     {
         int jump_to{};
-        bool jump_to_star_orbit{};
-        std::string jump_to_body;
-        std::string quantum_body;
-        int quantum_bodies_for{};
-        std::vector<std::pair<std::string, std::string>> quantum_bodies;
         bool quantum_window{};
         int quantum_selected{};
+        // The portal of the current system: the star dialled (-1 when idle), seconds since dialling, and how open the disc is (0 to 1).
+        int dialled{-1};
+        double portal_age{};
+        float portal_open{};
+        sl::dvec3 prev_local{};
+        bool prev_valid{};
+        const void *prev_ship{};
+        std::string status;
     };
 
     // Which tool windows are open.
@@ -318,6 +322,7 @@ namespace kosmos::app
         void place_worlds();
         bool change_date(double epoch_jd, std::string &error);
         void reload_world_textures();
+        void update_world_textures();
         void load_planet_images();
         void load_earth_tiles();
         bool build_terrains();
@@ -342,6 +347,8 @@ namespace kosmos::app
         kosmos::Astronaut eva;
         kosmos::Arsenal arsenal;
         kosmos::ShipWeapons ship_weapons;
+        kosmos::WorldTextureJobs world_jobs;
+        bool world_jobs_pending = false;
         bool mouse_captured{};
         bool pointer_free{};
         int mfd_display{};
@@ -453,6 +460,10 @@ namespace kosmos::app
         void cycle_mfd_display();
         void update_camera_dynamics(double sim_dt);
         void draw_reentry_plasma();
+        void draw_portals();
+        void update_portal(double dt);
+        // Starts the dialling sequence at the current system's portal; false (with quantum.status set) if it cannot.
+        bool dial_portal(int star);
         kosmos::HeadMotion head_motion() const;
         void step_fov(int direction);
         void cycle_camera();

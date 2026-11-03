@@ -29,6 +29,8 @@ namespace kosmos
         std::array<double, 4> state_orientation{1.0, 0.0, 0.0, 0.0};
         // With escape_to: the flight time in days, for a Lambert transfer that arrives at the planet then. Zero is a Hohmann transfer.
         double escape_days = 0.0;
+        // When above zero the ship starts this many metres in front of the system's quantum portal, facing it. The orbit above is ignored.
+        double portal_m = 0.0;
         // Surface: either latitude/longitude, or the home planet's launch pad when pad is set.
         bool pad = false;
         std::string base; // a base id: stand on that base's pad instead

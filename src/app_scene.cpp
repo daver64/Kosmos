@@ -1088,6 +1088,35 @@ namespace kosmos::app
         }
     }
 
+    // The shimmering disc of an open quantum portal, drawn as layered additive glows across the ring.
+    void App::draw_portals()
+    {
+        kosmos::Ship *portal = portal_ship(sim);
+        if (!portal || quantum.dialled < 0 || quantum.portal_open <= 0.01f)
+            return;
+        const sl::FlightBody &pb = portal->body();
+        const float radius = static_cast<float>(portal->spec().portal_radius);
+        const float open = quantum.portal_open;
+        const float t = static_cast<float>(sl::time_ms() % 100000u) * 0.001f;
+        sl::Material glow;
+        glow.lit = false;
+        glow.fog = false;
+        glow.blend = sl::MaterialBlend::additive;
+        glow.cull = sl::CullMode::none;
+        glow.texture = vis.glow_texture;
+        const glm::mat4 to_world = glm::translate(glm::mat4(1.0f), glm::vec3(portal->origin() - eye_world)) * glm::mat4(glm::mat3_cast(glm::quat(pb.orientation))) *
+                                   glm::mat4_cast(glm::angleAxis(1.5707963f, glm::vec3(1.0f, 0.0f, 0.0f)));
+        const float layers[5][3] = {{1.15f, 70.0f, 0.0f}, {0.95f, 90.0f, 1.3f}, {0.75f, 110.0f, 2.1f}, {0.5f, 140.0f, 3.4f}, {0.25f, 200.0f, 4.7f}};
+        for (const auto &l : layers)
+        {
+            const float pulse = 1.0f + 0.04f * std::sin(t * 2.0f + l[2]);
+            const float size = radius * open * l[0] * pulse;
+            glow.tint = {static_cast<std::uint8_t>(l[1] * 0.4f), static_cast<std::uint8_t>(l[1] * 0.7f), 255, static_cast<std::uint8_t>(255)};
+            sl::draw_mesh(vis.quad, glm::scale(to_world, glm::vec3(size, 1.0f, size)), glow);
+        }
+    }
+
+
     // The plasma sheath and wake of a ship falling fast through air, sized by the shape of the vehicle (see plasma_look).
     void App::draw_reentry_plasma()
     {
@@ -1230,6 +1259,7 @@ namespace kosmos::app
             exhaust_fx.draw(vis.glow, hull);
         }
         draw_reentry_plasma();
+        draw_portals();
         arsenal.draw_world(universe, eye_world, vis.glow);
         // Beams run for kilometres, and the ship camera's near plane is centimetres, which leaves no depth precision at that range
         // and cuts a beam off a couple of hundred metres out. Shots get a fresh depth buffer and a camera suited to their range.

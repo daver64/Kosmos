@@ -1256,7 +1256,7 @@ namespace kosmos
                                    "  Right-drag       look around\n"
                                    "  - =              zoom   X / Z  field of view (Ctrl: steps)\n"
                                    "  O                orbit line\n"
-                                   "  Ctrl+M / N       map / galaxy map   Ctrl+I  on-screen text\n"
+                                   "  Ctrl+M / N       map / galaxy map (Enter dials the quantum portal)   Ctrl+I  on-screen text\n"
                                    "Time\n"
                                    "  Ctrl+P           pause   Ctrl+C  record video   Ctrl+Q  quit\n"
                                    "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door; inside, face a wall panel and Enter to use it, and leave through the airlock hatch)\n"

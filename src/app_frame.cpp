@@ -64,21 +64,16 @@ namespace kosmos::app
             }
             options.scenario.clear();
             options.orbit_altitude = 0.0;
-            options.orbit_body = quantum.jump_to_star_orbit ? "auto" : "";
-            if (quantum.jump_to_star_orbit && !quantum.jump_to_body.empty())
-            {
-                const int chosen = sim.universe.find(quantum.jump_to_body);
-                if (chosen >= 0)
-                {
-                    options.orbit_body = quantum.jump_to_body;
-                    options.orbit_altitude = std::min(200.0, sim.universe.bodies[static_cast<std::size_t>(chosen)].radius * 0.5 / 1000.0);
-                }
-            }
-            quantum.jump_to_body.clear();
-            options.orbit_start = !quantum.jump_to_star_orbit;
-            if (quantum.jump_to_star_orbit && !flown_name.empty())
+            options.orbit_body.clear();
+            options.orbit_start = false;
+            options.portal_arrival = true;
+            if (!flown_name.empty())
                 options.ship_name = flown_name;
             ship = start_scenario(sim, options, terrain_set);
+            options.portal_arrival = false;
+            quantum.dialled = -1;
+            quantum.portal_open = 0.0f;
+            quantum.prev_valid = false;
             eva.active = false;
             arsenal.reset();
             ship_weapons.reset();
@@ -90,7 +85,6 @@ namespace kosmos::app
             rig.look_yaw = rig.look_pitch = 0.0f;
             map.focus = -1;
             quantum.quantum_selected = -1;
-            quantum.quantum_body.clear();
             galaxy_mode = false;
             exhaust_fx = ExhaustFx();
             gview.refresh(sim.galaxy, sim.system_index());
@@ -105,6 +99,7 @@ namespace kosmos::app
     // Reads the settings that change while running.
     void App::apply_settings()
     {
+        update_world_textures();
         // The setting is a property, so the settings window, the F4 browser and scripts all change it the same way.
         if (sim.props.get_int("/sim/settings/world-texture") != generated_texture_width)
         {
@@ -166,11 +161,14 @@ namespace kosmos::app
             if (!eva.active)
                 toggle_eva();
         }
+        if (options.test_dial >= 0 && clock > 1.0)
+        {
+            dial_portal(options.test_dial);
+            options.test_dial = -1;
+        }
         if (options.test_jump >= 0 && clock > 1.0)
         {
             quantum.jump_to = options.test_jump;
-            quantum.jump_to_star_orbit = true;
-            quantum.jump_to_body = options.test_jump_body;
             options.test_jump = -1;
         }
         const std::uint32_t now = sl::time_ms();
@@ -347,5 +345,68 @@ namespace kosmos::app
         present();
         Watchdog::frame_done(universe_ref->time(), props_ref->get_int("/sim/warp-index")); // WATCHDOG
         return true;
+    }
+
+    bool App::dial_portal(int star)
+    {
+        kosmos::Ship *portal = portal_ship(sim);
+        if (!portal || !ship)
+            quantum.status = "No portal in this system.";
+        else if (star < 0 || star == sim.system_index())
+            quantum.status = "Choose another star.";
+        else if (sim.galaxy.distance_ly(sim.system_index(), star) > 50.0)
+            quantum.status = "That star is out of the portal's 50 light year range.";
+        else if (glm::length(portal->body().position - ship->body().position) > 100000.0)
+            quantum.status = "Too far from the portal: dial from within 100 km.";
+        else
+        {
+            quantum.dialled = star;
+            quantum.portal_age = 0.0;
+            quantum.portal_open = 0.0f;
+            quantum.prev_valid = false;
+            quantum.status = "Dialling " + sim.galaxy.star(star).name + ".";
+            return true;
+        }
+        return false;
+    }
+
+    // Opens the portal a few seconds after dialling, and jumps when the flown ship passes through the open disc.
+    void App::update_portal(double dt)
+    {
+        kosmos::Ship *portal = portal_ship(sim);
+        if (!portal || !ship || quantum.dialled < 0)
+        {
+            quantum.prev_valid = false;
+            if (!portal)
+                quantum.portal_open = 0.0f;
+            return;
+        }
+        quantum.portal_age += dt;
+        const double charge = 3.0, opening = 6.0, stays = 600.0;
+        if (quantum.portal_age > charge + opening + stays)
+        {
+            quantum.dialled = -1;
+            quantum.portal_open = 0.0f;
+            quantum.status = "The portal closed.";
+            return;
+        }
+        quantum.portal_open = static_cast<float>(std::clamp((quantum.portal_age - charge) / opening, 0.0, 1.0));
+        const sl::FlightBody &pb = portal->body();
+        const sl::dvec3 local = glm::inverse(pb.orientation) * (ship->body().position - pb.position);
+        if (quantum.portal_open >= 1.0f && quantum.prev_valid && quantum.prev_ship == ship && ship != portal && quantum.prev_local.z * local.z <= 0.0 && quantum.prev_local.z != local.z)
+        {
+            const double k = quantum.prev_local.z / (quantum.prev_local.z - local.z);
+            const double x = quantum.prev_local.x + (local.x - quantum.prev_local.x) * k, y = quantum.prev_local.y + (local.y - quantum.prev_local.y) * k;
+            if (std::hypot(x, y) < portal->spec().portal_radius)
+            {
+                std::fprintf(stderr, "kosmos: through the portal to %s\n", sim.galaxy.star(quantum.dialled).name.c_str());
+                quantum.jump_to = quantum.dialled;
+                quantum.dialled = -1;
+                return;
+            }
+        }
+        quantum.prev_local = local;
+        quantum.prev_ship = ship;
+        quantum.prev_valid = true;
     }
 } // namespace kosmos::app

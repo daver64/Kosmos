@@ -338,6 +338,7 @@ namespace kosmos
         HypersonicSpec hypersonic;
         std::vector<ParachuteSpec> parachutes;
         bool hit_sphere = false; // weapons hit a sphere of the stage radius instead of the bounding box
+        double portal_radius = 0.0; // > 0: a quantum portal whose open disc has this radius (m); the ship nose axis (Z) is the disc normal
         /** Camera distance that frames the ship. */
         double camera_distance = 60.0;
         /** Point in the ship frame the external camera orbits and looks at; unset means the centre of mass. */

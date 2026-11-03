@@ -517,6 +517,7 @@ namespace kosmos::app
             if (sim.ship(i)->spec().interior)
                 kosmos::update_interior(*sim.ship(i), eva.active && eva.building == i ? &walk.walker.position : nullptr, frame);
         update_eva();
+        update_portal(frame);
         update_weapons(time_before_step);
         select_default_instruments();
         const kosmos::Telemetry &tm = ship->telemetry(); tm_ref = &tm;
