@@ -31,6 +31,7 @@ map-attitude|6|map|map|attitude|attitude|$STN
 ascent|40|ascent|ascent|-|-|--scenario delta_iv_heavy_kennedy $W --auto-stage --launch-at 2
 align|6|align|align|orbit|-|$STN --set /sim/target=Moon
 systems|6|systems|systems|orbit|-|$STN
+fuel|30|fuel|fuel|orbit|-|--scenario delta_iv_heavy_kennedy $W --auto-stage --launch-at 2
 air-comnav-vor|8|comnav|comnav|vor|vor|$AIR
 air-hsi-vtol|8|hsi|hsi|vtol|vtol|$AIR
 air-adf-surface|8|adf|adf|surface|surface-air|$AIR

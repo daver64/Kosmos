@@ -78,6 +78,11 @@
       "script": "docking.lua"
     },
     {
+      "id": "fuel",
+      "short": "FUEL",
+      "script": "fuel.lua"
+    },
+    {
       "id": "systems",
       "script": "systems.lua"
     }

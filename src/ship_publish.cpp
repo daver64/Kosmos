@@ -80,6 +80,18 @@ namespace kosmos
             return cap > 0.0 ? 100.0 * telemetry_.stage_fuel / cap : 0.0;
         });
         num("rcs-fuel-percent", [this] { return spec_.rcs_propellant > 0.0 ? 100.0 * rcs_fuel_ / spec_.rcs_propellant : 0.0; });
+        num("stage-count", [this] { return static_cast<double>(spec_.stages.size()); });
+        num("stage-index", [this] { return static_cast<double>(active_stage_); });
+        for (int i = 0; i < 8; ++i)
+        {
+            const std::string at = "stage[" + std::to_string(i) + "]/";
+            tree.node(base + "/" + at + "name")->tie_string([this, i] { return i < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(i)].name : std::string(); });
+            num((at + "capacity").c_str(), [this, i] { return i < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(i)].propellant : 0.0; });
+            num((at + "fuel").c_str(), [this, i] {
+                const auto &tanks = body().tanks;
+                return i < static_cast<int>(tanks.size()) && i >= active_stage_ ? tanks[static_cast<std::size_t>(i)].mass : 0.0;
+            });
+        }
         num("fuel-flow", [this] { return fuel_flow_; });
         num("rcs-fuel", [this] { return rcs_fuel_; });
         num("rcs-fuel-capacity", [this] { return spec_.rcs_propellant; });
