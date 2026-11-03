@@ -96,8 +96,24 @@ namespace kosmos
                 const Interior &room = *spec.interior;
                 auto feet = [&](const sl::dvec3 &p) { return room.from_ship(inverse * (p - origin)) + sl::dvec3(0.0, 0.3, 0.0); };
                 const double r = person_radius + margin;
-                if (room.blocked(feet(to), r, 1.4) && !room.blocked(feet(from), r, 1.4))
-                    return true;
+                const sl::dvec3 start = feet(from);
+                sl::dvec3 end = feet(to);
+                // Someone already overlapping a wall (just stepped out of the hatch) is free to walk away from it.
+                if (room.blocked(end, r, 1.4, &ship->interior_state, false) && !room.blocked(start, r, 1.4, &ship->interior_state, false))
+                {
+                    // Slide along the wall: keep whichever axis of the move is free.
+                    sl::dvec3 slide_x = end, slide_z = end;
+                    slide_x.z = start.z;
+                    slide_z.x = start.x;
+                    const bool free_x = !room.blocked(slide_x, r, 1.4, &ship->interior_state, false);
+                    const bool free_z = !room.blocked(slide_z, r, 1.4, &ship->interior_state, false);
+                    sl::dvec3 fixed = start;
+                    if (free_x && (!free_z || std::fabs(end.x - start.x) >= std::fabs(end.z - start.z)))
+                        fixed = slide_x;
+                    else if (free_z)
+                        fixed = slide_z;
+                    to += b.orientation * room.dir_to_ship(fixed - end);
+                }
                 continue;
             }
             for (const double h : heights)

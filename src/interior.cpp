@@ -339,7 +339,7 @@ namespace kosmos
         }
     }
 
-    bool Interior::blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state) const
+    bool Interior::blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state, bool outside_is_solid) const
     {
         const double eps = 1e-6;
         const int x0 = static_cast<int>(std::floor((feet.x - radius) / cell_)), x1 = static_cast<int>(std::floor((feet.x + radius) / cell_));
@@ -350,7 +350,13 @@ namespace kosmos
                 for (int x = x0; x <= x1; ++x)
                 {
                     // Beyond the plan is outdoors: nobody walks off the edge of the grid.
-                    if (x < 0 || z < 0 || x >= nx_ || z >= nz_ || y < 0 || y >= ny_ || solid(x, y, z))
+                    if (x < 0 || z < 0 || x >= nx_ || z >= nz_ || y < 0 || y >= ny_)
+                    {
+                        if (outside_is_solid)
+                            return true;
+                        continue;
+                    }
+                    if (solid(x, y, z))
                         return true;
                     if (state && y >= 1 && y <= door_cells && !door_at_.empty())
                     {

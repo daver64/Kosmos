@@ -118,8 +118,8 @@ namespace kosmos
         /** Name of the room behind the outside hatch (the airlock), if one is declared with "airlock". */
         const std::string &airlock_name() const { return airlock_name_; }
 
-        /** True if a person standing with feet at `feet` (interior metres), of the given radius and height, overlaps a solid cell. Doors count when `state` says they are shut. */
-        bool blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state = nullptr) const;
+        /** True if a person standing with feet at `feet` (interior metres), of the given radius and height, overlaps a solid cell. Doors count when `state` says they are shut. With `outside_is_solid` false, space beyond the plan is open (a person outdoors, walking up to the wall). */
+        bool blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state = nullptr, bool outside_is_solid = true) const;
 
         /** Faces of the walls seen from outdoors (lit by the Sun) and from inside, and of the window glass, in the ship frame. */
         void build_meshes(sl::MeshData &exterior, sl::MeshData &walls, sl::MeshData &floor, sl::MeshData &ceiling, sl::MeshData &glass) const;
