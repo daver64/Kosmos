@@ -12,6 +12,11 @@
  "hypersonic": {"area": 270, "length": 36, "cd_max": 1.6, "trim_deg": 40},
  "camera_distance": 60,
  "rcs_modes": true,
+ "retractable_gear": true,
+ "gear_time": 12,
+ "animation_controls": [
+  {"name": "Payload bay doors", "property": "bay-doors", "duration": 39}
+ ],
  "inertia": [480000, 620000, 77000],
  "damping": [0.8, 1.0, 0.8],
  "ports": [
@@ -28,6 +33,14 @@
   {"type": "regulator", "name": "Pressure regulator", "vessel": "Cabin"},
   {"type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 300}
  ],
+ "cockpit": {
+  "hud_modes": ["orbit", "surface", "docking"],
+  "eye": [0, 2.6, -14.5],
+  "mfds": true,
+  "mfd_filter": "none",
+  "mfd_left": "orbit",
+  "mfd_right": "surface"
+ },
  "surfaces": [
   {"control": "", "position": [0, 0, 4], "area": 250, "cl0": 0.05, "cl_alpha": 2.2, "cd0": 0.03, "induced_drag": 0.15, "stall_deg": 40},
   {"control": "flaps", "position": [0, 0, 8], "area": 30, "cl0": 0.1, "cl_alpha": 2.4, "cd0": 0.03, "induced_drag": 0.15, "stall_deg": 30, "gain_deg": 10},
@@ -57,7 +70,7 @@
     {"position": [-1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"}
    ],
    "parts": [
-    {"model": "models/buran.obj"}
+    {"model": "models/buran.obj", "animations": "animations.json"}
    ]
   }
  ]

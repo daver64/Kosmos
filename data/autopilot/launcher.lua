@@ -162,7 +162,8 @@ function update(dt)
     -- Half the burn before the apoapsis and half after, at the acceleration the remaining stage gives.
     local burn_time = dv / math.max(get("twr") * 9.81, 1.0)
     local lead = get("orbit/time-to-apoapsis") - burn_time * 0.5
-    if lead < 40.0 and props.get("/sim/warp-index") > 0 then
+    -- Leave warp well ahead of the burn: at high warp one frame skips many seconds.
+    if lead < 300.0 and props.get("/sim/warp-index") > 0 then
       props.set("/sim/warp-index", 0)
       props.set("/autopilot/status", "Preparing burn")
     end

@@ -172,7 +172,13 @@ namespace cad
             json &stage = stage_of(o.stage);
             if (!stage.contains("parts") || !stage["parts"].is_array())
                 stage["parts"] = json::array();
-            stage["parts"].push_back(std::move(out));
+            // An OBJ with several named objects imports as several objects that all point at the same model file.
+            bool duplicate = false;
+            for (const json &existing : stage["parts"])
+                if (existing == out)
+                    duplicate = true;
+            if (!duplicate)
+                stage["parts"].push_back(std::move(out));
         }
 
         for (const Marker &m : scene.markers)
