@@ -730,7 +730,11 @@ namespace kosmos
             if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
                 ship->set_surface_grip(grip);
         // On rails everything is analytic, so big substeps lose nothing and keep a 100000x frame cheap.
-        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? fixed_step : 0.1));
+        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? (warp > 100.0 ? 1.0e12 : fixed_step) : 0.1));
+        // Past 100x a motionless ship is held to the ground like a building, so one huge step cannot throw its gear springs.
+        for (const std::unique_ptr<Ship> &ship : ships_)
+            if (!ship->spec().building())
+                ship->hold_for_warp(ground_hold && warp > 100.0);
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 

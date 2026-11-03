@@ -689,6 +689,10 @@ namespace kosmos
         void apply_flight_controls(const Controls &controls);
         void apply_ground_controls(const Controls &controls);
         void drop_stage(int index);
+    public:
+        /** Pins a motionless landed ship to the ground (on) or lets it go again (off); used by very high ground warp. */
+        void hold_for_warp(bool on);
+    private:
         /** Moves the body's centre of mass to that of the stages left, keeping every point of the ship where it was. */
         void recentre();
 
@@ -717,6 +721,7 @@ namespace kosmos
         double payload_mass_ = 0.0;
         // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
         bool pinned_ = false;
+        bool warp_pinned_ = false;
         int pin_body_ = -1;
         sl::dvec3 pin_position_{0.0};
         sl::dquat pin_attitude_{1.0, 0.0, 0.0, 0.0};

@@ -14,13 +14,13 @@
   {
    "type": "battery",
    "name": "Batteries",
-   "capacity_wh": 6000,
-   "max_w": 3000
+   "capacity_wh": 12000,
+   "max_w": 6000
   },
   {
    "type": "solar",
    "name": "Solar",
-   "area_m2": 8,
+   "area_m2": 24,
    "efficiency": 0.28,
    "facing": [
     0,

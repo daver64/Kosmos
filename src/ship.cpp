@@ -449,6 +449,21 @@ namespace kosmos
         hold_pinned();
     }
 
+    void Ship::hold_for_warp(bool on)
+    {
+        if (on && !pinned_ && !crashed_ && !on_rails() && telemetry_.landed)
+        {
+            pin_to_ground();
+            warp_pinned_ = true;
+        }
+        else if (!on && warp_pinned_)
+        {
+            warp_pinned_ = false;
+            pinned_ = false;
+            body().mode = sl::FlightBodyMode::dynamic;
+        }
+    }
+
     void Ship::hold_pinned()
     {
         if (!pinned_ || pin_body_ < 0)

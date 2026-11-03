@@ -47,7 +47,7 @@ namespace kosmos
         static double warp_factor(int index);
         static constexpr double max_physics_warp = 4.0;
         /** Highest warp while every ship rests motionless on the ground (physics keeps running). */
-        static constexpr double ground_warp = 100.0;
+        static constexpr double ground_warp = 100000.0;
 
         /** `system` is a Galaxy index: 0 loads data/sol.json, anything else is generated. */
         bool init(const std::string &root, std::string &error, int system = 0);
