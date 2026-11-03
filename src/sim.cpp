@@ -642,7 +642,25 @@ namespace kosmos
             if (!ship->spec().building() && !ship->crashed() && (ship->on_rails() || !t.landed || t.surface_speed > 0.5 || t.thrust > 0.0))
                 ground_hold = false;
         }
-        const double phys_limit = ground_hold ? ground_warp : max_physics_warp;
+        // Burning in vacuum may be warped up to thrust_warp in physics; in or near the air, or on the ground, it may not.
+        bool vacuum_burn = false;
+        if (!ground_hold)
+        {
+            bool all_vacuum = !ships_.empty();
+            for (std::size_t i = 0; i < ships_.size() && all_vacuum; ++i)
+            {
+                const Ship &ship = *ships_[i];
+                if (ship.spec().building() || ship.crashed())
+                    continue;
+                const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
+                if (b == "engines are firing" && ship.rails_margin() > 0.0)
+                    vacuum_burn = true;
+                else if (!b.empty())
+                    all_vacuum = false;
+            }
+            vacuum_burn = vacuum_burn && all_vacuum;
+        }
+        const double phys_limit = ground_hold ? ground_warp : vacuum_burn ? thrust_warp : max_physics_warp;
         if (warp_factor(index) > phys_limit)
         {
             bool all_ok = !ships_.empty() && !ground_hold;
@@ -730,7 +748,7 @@ namespace kosmos
             if (ship->telemetry().soi == (active_ >= 0 && active_ < static_cast<int>(ships_.size()) ? ships_[static_cast<std::size_t>(active_)]->telemetry().soi : -1))
                 ship->set_surface_grip(grip);
         // On rails everything is analytic, so big substeps lose nothing and keep a 100000x frame cheap.
-        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? (warp > 100.0 ? 1.0e12 : fixed_step) : 0.1));
+        universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? (warp > 100.0 ? 1.0e12 : fixed_step) : 0.05));
         // Past 100x a motionless ship is held to the ground like a building, so one huge step cannot throw its gear springs.
         for (const std::unique_ptr<Ship> &ship : ships_)
             if (!ship->spec().building())
@@ -834,7 +852,7 @@ namespace kosmos
             return;
         }
         props.set_string("/autopilot/burn/state", "burn");
-        if (props.get_int("/sim/warp-index") > 0 && warp_factor(props.get_int("/sim/warp-index")) > max_physics_warp)
+        if (props.get_int("/sim/warp-index") > 0 && warp_factor(props.get_int("/sim/warp-index")) > thrust_warp)
             props.set_int("/sim/warp-index", 0);
         const sl::dvec3 v = me->relative_velocity();
         const sl::dvec3 nose = me->body().direction_to_world({0.0, 0.0, -1.0});

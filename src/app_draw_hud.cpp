@@ -754,7 +754,7 @@ namespace kosmos::app
     void App::draw_mfd_overlay(bool dashboard, bool cockpit_mfd_overlay)
     {
             const bool show_hud = cockpit_mfd_overlay || mfd_display == 2;
-            const float size = show_hud ? 300.0f : std::min(320.0f, screen_h * 0.38f);
+            const float size = show_hud ? std::min({440.0f, screen_h * 0.56f, screen_w * 0.34f}) : std::min(360.0f, screen_h * 0.4f);
             kosmos::MfdLayout left, right;
             left.size = right.size = size;
             left.hud = right.hud = show_hud;
@@ -769,22 +769,26 @@ namespace kosmos::app
             place_mfd(1, right);
             // A see-through display's buttons are its outlined labels; a side that is not shown gets an empty layout so it cannot be hit.
             kosmos::MfdLayout hit_left = left, hit_right = right;
-            if (show_hud)
-            {
-                if (!(hud_sides & 1))
-                    hit_left.size = 0.0f;
-                if (!(hud_sides & 2))
-                    hit_right.size = 0.0f;
-            }
+            if (!(hud_sides & 1))
+                hit_left.size = 0.0f;
+            if (!(hud_sides & 2))
+                hit_right.size = 0.0f;
             const bool consumed = sim.mfd.handle_mouse(hit_left, hit_right, pressed, sl::mouse_x(), sl::mouse_y());
-            if (!show_hud || (hud_sides & 1))
+            // The close button hides that display; F5 brings both back.
+            for (int side = 0; side < 2; ++side)
+                if (sim.mfd.unit(side).closed)
+                {
+                    sim.mfd.unit(side).closed = false;
+                    hud_sides &= ~(1 << side);
+                }
+            if (hud_sides & 1)
                 drag_mfd(0, left, down, pressed, consumed);
-            if (!show_hud || (hud_sides & 2))
+            if (hud_sides & 2)
                 drag_mfd(1, right, down, pressed, consumed);
             drag.mfd_mouse_prev = down;
-            if (!show_hud || (hud_sides & 1))
+            if (hud_sides & 1)
                 sim.mfd.draw(0, left);
-            if (!show_hud || (hud_sides & 2))
+            if (hud_sides & 2)
                 sim.mfd.draw(1, right);
     }
 

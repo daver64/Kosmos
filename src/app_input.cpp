@@ -70,6 +70,11 @@ namespace kosmos::app
                                   !map_mode && rig.interior_cam < 0 && rig.base_view < 0;
         // The see-through HUD steps through both displays, the left one and the right one before moving on.
         const bool in_hud = on_dashboard ? cockpit_mfd == 1 : mfd_display == 2;
+        if (hud_sides == 0 && (on_dashboard ? cockpit_mfd > 0 : mfd_display > 0))
+        {
+            hud_sides = 3;
+            return;
+        }
         if (in_hud && hud_sides == 3)
         {
             hud_sides = 1;

@@ -60,7 +60,8 @@ namespace kosmos
         int mode = -1;
         sol::table self;
         int select_scroll = 0;
-        float flash[15]{}; // seconds left of the press highlight on each button
+        bool closed = false; // the close button was pressed; the app hides the display
+        float flash[16]{}; // 0-14 the bezel buttons, 15 close // seconds left of the press highlight on each button
     };
 
     /** Where an MFD is drawn on screen and how the mouse hits its buttons. */
@@ -99,7 +100,7 @@ namespace kosmos
         int unit_count() const { return static_cast<int>(units_.size()); }
         MfdUnit &unit(int side) { return units_[static_cast<std::size_t>(side)]; }
         void set_mode(int side, int mode);
-        /** Press button 0..11 (left column top to bottom, then right column), 12 PWR, 13 SEL, 14 MNU. */
+        /** Press button 0..11 (left column top to bottom, then right column), 12 PWR, 13 SEL, 14 MNU, 15 close. */
         void press(int side, int button);
         /** Run each powered unit's update(self, dt). */
         void update(double dt);
@@ -119,11 +120,18 @@ namespace kosmos
 
     private:
         void draw_hud_buttons(const MfdUnit &u, const MfdLayout &layout) const;
+        void hud_menu_box(const MfdLayout &layout, float &x, float &y, float &w, float &h) const;
+        void close_box(const MfdLayout &layout, float &x, float &y, float &w, float &h) const;
+        void draw_cross(float x, float y, float w, float h, float s) const;
         bool hud_button_active(const MfdUnit &u, int i) const;
         void hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const;
         void draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons);
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
-        void draw_select(MfdUnit &unit, MfdCanvas &g);
+        void draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels);
+        /** The mode-list index a side button picks, -1 for the page buttons (shown when more than 12 modes are offered). */
+        int select_slot(const MfdUnit &unit, int button) const;
+        /** The square a mode draws into: the whole layout, or inside the button margins of a see-through display. */
+        MfdLayout content_layout(const MfdLayout &layout) const;
         void draw_frame(const MfdLayout &layout, const MfdUnit &unit, const MfdMode *mode);
         int visible_count() const;
         /** The n-th mode the current domain allows, as an index into modes_ (-1 when out of range). */

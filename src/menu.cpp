@@ -1248,7 +1248,7 @@ namespace kosmos
                                    "  Ctrl+D           undock\n"
                                    "  Home             reset cockpit view to forwards\n"
                                    "  Ctrl+Home/End    hover full / off\n"
-                                   "  R / T            time warp down / up\n"
+                                   "  R / T            time warp down / up (to 50x while thrusting in vacuum)\n"
                                    "  Shift+R          restart scenario\n"
                                    "View\n"
                                    "  C                chase / cockpit / 3D cockpit   View > Camera: Standard or Dynamic (cockpit eye sways with acceleration)\n"

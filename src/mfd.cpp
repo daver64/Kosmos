@@ -264,7 +264,12 @@ namespace kosmos
     void MfdSystem::press(int side, int button)
     {
         MfdUnit &u = unit(side);
-        u.flash[std::clamp(button, 0, 14)] = 0.3f;
+        u.flash[std::clamp(button, 0, 15)] = 0.3f;
+        if (button == 15)
+        {
+            u.closed = true;
+            return;
+        }
         if (button == 12)
         {
             u.power = !u.power;
@@ -275,13 +280,21 @@ namespace kosmos
         if (button == 13 || button == 14)
         {
             u.selecting = !u.selecting;
+            u.select_scroll = 0;
             return;
         }
         if (u.selecting)
         {
             // In the mode list the side buttons pick the n-th mode.
-            if (button < 12)
-                set_mode(side, visible_mode(u.select_scroll + button));
+            if (button >= 12)
+                return;
+            const int n = select_slot(u, button);
+            if (n >= 0)
+                set_mode(side, visible_mode(n));
+            else if (button == 5)
+                u.select_scroll = std::max(0, u.select_scroll - 10);
+            else if (u.select_scroll + 10 < visible_count())
+                u.select_scroll += 10;
             return;
         }
         if (u.mode < 0)
@@ -370,18 +383,55 @@ namespace kosmos
         }
     }
 
-    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g)
+    int MfdSystem::select_slot(const MfdUnit &unit, int button) const
+    {
+        const int count = visible_count();
+        int n = button;
+        if (count > 12)
+        {
+            if (button == 5 || button == 11)
+                return -1;
+            n = button < 5 ? button : button - 1;
+        }
+        n += unit.select_scroll;
+        return n < count ? n : -2;
+    }
+
+    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels)
     {
         g.set_colour(255, 240, 140);
         g.text(200, 20, "SELECT MODE", 1);
-        g.set_colour(120, 255, 140);
+        labels.set_colour(120, 255, 140);
         const int count = visible_count();
-        for (int i = 0; i < 12 && unit.select_scroll + i < count; ++i)
+        for (int i = 0; i < 12; ++i)
         {
             const float y = (i % 6 + 0.5f) * mfd_size / 6.0f;
-            const MfdMode &m = modes_[static_cast<std::size_t>(visible_mode(unit.select_scroll + i))];
-            g.text(i < 6 ? 14.0f : 386.0f, y, m.name, i < 6 ? 0 : 2);
+            const int n = select_slot(unit, i);
+            std::string name;
+            if (n == -1)
+                name = i == 5 ? "< PREV" : "NEXT >";
+            else if (n >= 0)
+                name = modes_[static_cast<std::size_t>(visible_mode(n))].name;
+            if (!name.empty())
+                labels.text(i < 6 ? 4.0f : mfd_size - 4.0f, y, name, i < 6 ? 0 : 2);
         }
+        if (count > 12)
+        {
+            g.set_colour(150, 160, 150);
+            g.text(200, 380, "page " + std::to_string(unit.select_scroll / 10 + 1) + "/" + std::to_string((count + 9) / 10), 1);
+        }
+    }
+
+    MfdLayout MfdSystem::content_layout(const MfdLayout &layout) const
+    {
+        if (!layout.hud)
+            return layout;
+        MfdLayout inner = layout;
+        const float margin = 50.0f * layout.size / mfd_size;
+        inner.x += margin;
+        inner.y += margin;
+        inner.size -= 2.0f * margin;
+        return inner;
     }
 
     void MfdSystem::draw_frame(const MfdLayout &layout, const MfdUnit &unit, const MfdMode *)
@@ -389,11 +439,19 @@ namespace kosmos
         const float s = layout.size / mfd_size;
         const float bw = 22.0f * s, bh = 18.0f * s;
         const float l = layout.x, t = layout.y, r = layout.x + layout.size, b = layout.y + layout.size;
-        sl::rectfill(sl::screen, l - bw - 14 * s, t - 10 * s, r + bw + 14 * s, b + bh + 24 * s, {22, 24, 30, 255});
+        const float top = layout.no_buttons ? 10.0f * s : 26.0f * s;
+        sl::rectfill(sl::screen, l - bw - 14 * s, t - top, r + bw + 14 * s, b + bh + 24 * s, {22, 24, 30, 255});
         sl::rectfill(sl::screen, l, t, r, b, {2, 6, 4, 255});
         sl::rect(sl::screen, l - 1, t - 1, r + 1, b + 1, {80, 90, 100, 255}, 2.0f);
         if (layout.no_buttons)
             return;
+        {
+            float cx, cy, cw, ch;
+            close_box(layout, cx, cy, cw, ch);
+            const float f = std::clamp(unit.flash[15] / 0.3f, 0.0f, 1.0f);
+            sl::rectfill(sl::screen, cx, cy, cx + cw, cy + ch, {static_cast<Uint8>(70 + 120 * f), 74, 84, 255});
+            draw_cross(cx, cy, cw, ch, s);
+        }
         for (int i = 0; i < 12; ++i)
         {
             const float y = t + (i % 6 + 0.5f) * layout.size / 6.0f;
@@ -445,13 +503,13 @@ namespace kosmos
             buttons->clear();
         if (!u.power || !bus_power)
             return;
-        MfdCanvas g;
+        MfdCanvas g, lab;
         g.set_colour(120, 255, 140);
         const MfdMode *mode = u.mode >= 0 ? &modes_[static_cast<std::size_t>(u.mode)] : nullptr;
         if (mode)
             g.directory = mode->directory;
         if (u.selecting || !mode)
-            draw_select(u, g);
+            draw_select(u, g, lab);
         else
         {
             sol::protected_function fn = mode->table["draw"];
@@ -465,20 +523,21 @@ namespace kosmos
                     error_ = e.what();
                 }
             }
-            if (sol::optional<sol::table> labels = mode->table["buttons"])
+            if (sol::optional<sol::table> names = mode->table["buttons"])
             {
-                g.set_colour(200, 210, 220);
+                lab.set_colour(200, 210, 220);
                 for (int i = 0; i < 12; ++i)
                 {
-                    const std::string label = labels->get_or<std::string>(i + 1, "");
+                    const std::string label = names->get_or<std::string>(i + 1, "");
                     if (label.empty())
                         continue;
                     const float y = (i % 6 + 0.5f) * mfd_size / 6.0f;
-                    g.text(i < 6 ? 4.0f : mfd_size - 4.0f, y, label, i < 6 ? 0 : 2);
+                    lab.text(i < 6 ? 4.0f : mfd_size - 4.0f, y, label, i < 6 ? 0 : 2);
                 }
             }
         }
-        render(g, layout);
+        render(g, content_layout(layout));
+        render(lab, layout);
         if (layout.hud)
             draw_hud_buttons(u, layout);
     }
@@ -499,6 +558,48 @@ namespace kosmos
                 sl::rectfill(sl::screen, x, y, x + w, y + h, {255, 60, 40, static_cast<Uint8>(110 * f)});
             sl::rect(sl::screen, x, y, x + w, y + h, edge, std::max(1.0f, 1.5f * s));
         }
+        // Menu (top left) and close (top right) sit in the margin above the content.
+        float x, y, w, h;
+        const sl::Colour edge{70, 230, 110, 255};
+        if (u.power && bus_power)
+        {
+            hud_menu_box(layout, x, y, w, h);
+            const float f = std::clamp(u.flash[14] / 0.3f, 0.0f, 1.0f);
+            if (f > 0.0f)
+                sl::rectfill(sl::screen, x, y, x + w, y + h, {255, 60, 40, static_cast<Uint8>(110 * f)});
+            sl::rect(sl::screen, x, y, x + w, y + h, edge, std::max(1.0f, 1.5f * s));
+            sl::gprintf(static_cast<int>(x + 6 * s), static_cast<int>(y + h / 2 - sl::text_height(font_for(static_cast<int>(11 * s * 1.2f))) / 2), font_for(static_cast<int>(11 * s * 1.2f)), {120, 255, 140}, "MNU");
+        }
+        close_box(layout, x, y, w, h);
+        sl::rect(sl::screen, x, y, x + w, y + h, edge, std::max(1.0f, 1.5f * s));
+        draw_cross(x, y, w, h, s);
+    }
+
+    void MfdSystem::hud_menu_box(const MfdLayout &layout, float &x, float &y, float &w, float &h) const
+    {
+        const float s = layout.size / mfd_size;
+        w = 50.0f * s;
+        h = 26.0f * s;
+        x = layout.x;
+        y = layout.y + 8.0f * s;
+    }
+
+    // The close button: a small square at the top right (in the bezel above a framed display, in the margin of a see-through one).
+    void MfdSystem::close_box(const MfdLayout &layout, float &x, float &y, float &w, float &h) const
+    {
+        const float s = layout.size / mfd_size;
+        w = 26.0f * s;
+        h = 22.0f * s;
+        x = layout.x + layout.size - w;
+        y = layout.hud ? layout.y + 8.0f * s : layout.y - 24.0f * s;
+    }
+
+    void MfdSystem::draw_cross(float x, float y, float w, float h, float s) const
+    {
+        const float m = 6.0f * s;
+        const sl::Colour c{235, 235, 235, 255};
+        sl::line(sl::screen, x + m, y + m, x + w - m, y + h - m, c, std::max(1.0f, 1.5f * s));
+        sl::line(sl::screen, x + m, y + h - m, x + w - m, y + m, c, std::max(1.0f, 1.5f * s));
     }
 
     bool MfdSystem::hud_button_active(const MfdUnit &u, int i) const
@@ -514,7 +615,7 @@ namespace kosmos
     void MfdSystem::hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const
     {
         const float s = layout.size / mfd_size;
-        w = 70.0f * s;
+        w = 50.0f * s;
         h = layout.size / 6.0f * 0.6f;
         x = i < 6 ? layout.x : layout.x + layout.size - w;
         y = layout.y + (i % 6 + 0.5f) * layout.size / 6.0f - h / 2;
@@ -522,8 +623,22 @@ namespace kosmos
 
     int MfdSystem::hit_test(int side, const MfdLayout &layout, float px, float py) const
     {
+        float cx, cy, cw, ch;
+        if (layout.hud || !(layout.bare || layout.no_buttons))
+        {
+            close_box(layout, cx, cy, cw, ch);
+            if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch)
+                return 15;
+        }
         if (layout.hud)
         {
+            const MfdUnit &mu = units_[static_cast<std::size_t>(side)];
+            if (mu.power && bus_power)
+            {
+                hud_menu_box(layout, cx, cy, cw, ch);
+                if (px >= cx && px <= cx + cw && py >= cy && py <= cy + ch)
+                    return 14;
+            }
             for (int i = 0; i < 12; ++i)
             {
                 float x, y, w, h;
