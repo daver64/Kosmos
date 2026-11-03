@@ -191,6 +191,8 @@ namespace kosmos
         std::string mfd_left = "orbit", mfd_right = "surface";
         /** A virtual cockpit mesh (OBJ, relative to the ship file) drawn around the eye in the 3D cockpit, in the hull's frame. */
         std::string vc_model;
+        /** The MFD screen parts of the vc_model have their texture coordinates the other way up from the Deltaglider's. */
+        bool vc_mfd_flip = false;
         std::vector<VcAnimation> vc_animations;
         /** VC parts (name substrings) that are never drawn, such as the alternate of two overlapping panel variants. */
         std::vector<std::string> vc_hide;

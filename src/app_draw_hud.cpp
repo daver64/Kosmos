@@ -513,7 +513,14 @@ namespace kosmos::app
                         const float t = glm::dot(q0 - origin_local, n) / denom;
                         const float v = glm::dot(origin_local + dir_local * t - q0, e2) / glm::dot(e2, e2);
                         const double level = std::clamp(props.get_double(hs.drag) + hs.drag_gain * (v - drag.vc_drag_v), hs.drag_min, hs.drag_max);
+                        const double moved = level - props.get_double(hs.drag);
                         props.set_double(hs.drag, level < 0.01 && level > -0.01 ? 0.0 : level);
+                        if (drag.vc_drag_twin)
+                        {
+                            const kosmos::Cockpit::VcHotspot &tw = *drag.vc_drag_twin;
+                            const double twin_level = std::clamp(props.get_double(tw.drag) + moved * (tw.drag_gain / hs.drag_gain), tw.drag_min, tw.drag_max);
+                            props.set_double(tw.drag, twin_level < 0.01 && twin_level > -0.01 ? 0.0 : twin_level);
+                        }
                         drag.vc_drag_v = v;
                     }
                 }
@@ -555,6 +562,31 @@ namespace kosmos::app
                         if (std::fabs(denom) > 1e-12f)
                         {
                             drag.vc_drag_spot = spot;
+                            drag.vc_drag_twin = nullptr;
+                            // Twin levers (pod-left and pod-right): a grab near the middle of the pair moves both.
+                            const std::string &name = spot->drag;
+                            const bool is_left = name.size() > 5 && name.compare(name.size() - 5, 5, "-left") == 0;
+                            const bool is_right = name.size() > 6 && name.compare(name.size() - 6, 6, "-right") == 0;
+                            if (is_left || is_right)
+                            {
+                                const std::string other = is_left ? name.substr(0, name.size() - 5) + "-right" : name.substr(0, name.size() - 6) + "-left";
+                                for (const kosmos::Cockpit::VcHotspot &h : ship->spec().cockpit.vc_hotspots)
+                                {
+                                    if (h.drag != other)
+                                        continue;
+                                    const glm::vec3 hit = origin_local + dir_local * spot_t;
+                                    const glm::vec3 s0(spot->quad[0][0], spot->quad[0][1], spot->quad[0][2]);
+                                    const glm::vec3 s1 = glm::vec3(spot->quad[1][0], spot->quad[1][1], spot->quad[1][2]) - s0;
+                                    const float along = glm::dot(hit - s0, s1) / glm::dot(s1, s1);
+                                    const glm::vec3 t0(h.quad[0][0], h.quad[0][1], h.quad[0][2]), t1 = glm::vec3(h.quad[1][0], h.quad[1][1], h.quad[1][2]) - t0;
+                                    // Which side of the pair this lever is on, from where the other one lies along the same edge.
+                                    const float toward = glm::dot(t0 + t1 * 0.5f - (s0 + s1 * 0.5f), s1);
+                                    const bool inner = toward > 0.0f ? along > 0.5f : along < 0.5f;
+                                    if (inner)
+                                        drag.vc_drag_twin = &h;
+                                    break;
+                                }
+                            }
                             drag.vc_drag_v = glm::dot(origin_local + dir_local * (glm::dot(q0 - origin_local, n) / denom) - q0, e2) / glm::dot(e2, e2);
                         }
                     }
@@ -608,7 +640,7 @@ namespace kosmos::app
                 }
             }
             if (!down)
-                drag.vc_drag_spot = nullptr;
+                drag.vc_drag_spot = nullptr, drag.vc_drag_twin = nullptr;
             drag.mfd_mouse_prev = down;
             if (!down && props.get_bool("/sim/settings/tooltips") && !ship->spec().cockpit.vc_model.empty() && !(sl::gui_available() && ImGui::GetIO().WantCaptureMouse))
             {
@@ -708,9 +740,13 @@ namespace kosmos::app
             if (pressed)
                 consumed = panel_click(sim, cp, ox, oy, scale, static_cast<float>(sl::mouse_x()), static_cast<float>(sl::mouse_y()));
             else if (down && panel_slider >= 0 && panel_slider < static_cast<int>(cp.controls.size()))
+            {
                 panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider)], oy, scale, static_cast<float>(sl::mouse_y()));
+                if (panel_slider_twin >= 0 && panel_slider_twin < static_cast<int>(cp.controls.size()))
+                    panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider_twin)], oy, scale, static_cast<float>(sl::mouse_y()));
+            }
             if (!down)
-                panel_slider = -1;
+                panel_slider = panel_slider_twin = -1;
             const float mx = static_cast<float>(sl::mouse_x()), my = static_cast<float>(sl::mouse_y());
             const bool inside = mx >= ox && mx <= ox + cp.panel_width * scale && my >= oy && my <= oy + cp.panel_height * scale;
             ui_drag(0, inside, down, pressed, consumed, drag.panel_offset[0], drag.panel_offset[1]);

@@ -123,7 +123,7 @@ namespace kosmos
             return std::clamp(stick - (damp ? gain * rate * q : 0.0), -1.0, 1.0);
         };
         const double af = c.af_mode == "off" ? 0.0 : 1.0, af_lateral = c.af_mode == "on" ? 1.0 : 0.0;
-        universe_.world.set_control(body_, "elevator", af * command(c.pitch + c.trim, w.x, spec_.damping.x));
+        universe_.world.set_control(body_, "elevator", af * command(c.pitch + 2.5 * c.trim, w.x, spec_.damping.x));
         universe_.world.set_control(body_, "rudder", af_lateral * command(c.yaw, w.y, spec_.damping.y));
         universe_.world.set_control(body_, "aileron", af_lateral * command(c.roll, w.z, spec_.damping.z));
         universe_.world.set_control(body_, "flaps", std::clamp(c.flaps, 0.0, 1.0));

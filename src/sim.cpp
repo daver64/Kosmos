@@ -61,7 +61,7 @@ namespace kosmos
         props.set_double("/controls/gimbal-pitch", 0.0);
         props.set_double("/controls/gimbal-yaw", 0.0);
         props.set_bool("/controls/lighting/lamps", true);
-        props.set_bool("/controls/lighting/nav", true);
+        props.set_bool("/controls/lighting/nav", false);
         props.set_double("/controls/brake-latch", 0.0);
         props.set_string("/controls/sas", "stability");
         props.set_double("/controls/target-pitch", 90.0);

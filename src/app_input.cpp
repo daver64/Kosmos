@@ -307,7 +307,7 @@ namespace kosmos::app
         else if (hit("nav_lights") || hit("lamps"))
         {
             const char *path = hit("lamps") ? "/controls/lighting/lamps" : "/controls/lighting/nav";
-            props.set_bool(path, !props.get_bool(path, true));
+            props.set_bool(path, !props.get_bool(path, hit("lamps")));
         }
         else if (hit("undock"))
             props.set_bool("/dock/undock", true);
@@ -621,6 +621,8 @@ namespace kosmos::app
         const bool aero = ship->flies_as_aircraft();
         const double rot_scale = (rcs_off || rcs_lin) && !aero ? 0.0 : fine;
         props.set_double("/controls/pitch", axis("pitch_up", "pitch_down") * rot_scale);
+        if (const double trim_move = axis("trim_up", "trim_down"); trim_move != 0.0)
+            props.set_double("/controls/trim", std::clamp(props.get_double("/controls/trim") + trim_move * 0.1 * frame, -1.0, 1.0));
         props.set_double("/controls/yaw", axis("yaw_left", "yaw_right") * rot_scale);
         props.set_double("/controls/roll", axis("roll_left", "roll_right") * rot_scale);
         const double lin_scale = rcs_lin && !aero ? fine : 0.0;

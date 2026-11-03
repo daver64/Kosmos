@@ -1,14 +1,86 @@
 {
- "name": "CVEL: Shuttle-A at the Sol quantum portal",
- "description": "CVEL Shuttle-A in solar orbit, 1 km in front of Earth's quantum portal, which lies between Saturn and Uranus. Open the galaxy map (N), choose a star and press Enter to dial; when the disc opens, fly through the ring to emerge at that star's portal.",
+ "name": "CVEL: Nuclear Shuttle-A expedition at the Sol quantum portal",
+ "description": "An expedition Shuttle-A (Nuclear) with two fuel pods and four life support pods docked, in solar orbit 1 km in front of Earth's quantum portal, which lies between Saturn and Uranus. Open the galaxy map (N), choose a star and press Enter to dial; when the disc opens, fly through the ring to emerge at that star's portal.",
  "active": 0,
  "ships": [
   {
-   "ship": "CVEL Shuttle-A",
+   "ship": "CVEL Shuttle-A (Nuclear)",
    "body": "Sun",
    "orbit": {
     "altitude_km": 1000000,
     "portal_m": 1000
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Fuel Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Fuel Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 1,
+    "own_port": 0
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Life Support Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 2,
+    "own_port": 0
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Life Support Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 3,
+    "own_port": 0
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Life Support Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 4,
+    "own_port": 0
+   }
+  },
+  {
+   "ship": "CVEL Shuttle-A Life Support Pod",
+   "body": "Sun",
+   "orbit": {
+    "altitude_km": 1000000
+   },
+   "dock": {
+    "to": 0,
+    "port": 5,
+    "own_port": 0
    }
   }
  ]

@@ -11,7 +11,7 @@
   "mfds": [
     {
       "id": "shuttlea_levels",
-      "ships": ["cvel-shuttle-a", "cvel-shuttle-aq"],
+      "ships": ["cvel-shuttle-a", "cvel-shuttle-a-nuclear", "cvel-shuttle-aq"],
       "short": "LEVELS",
       "script": "levels.lua"
     }

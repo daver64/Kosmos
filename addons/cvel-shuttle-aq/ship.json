@@ -1204,6 +1204,7 @@
    }
   ],
   "vc_model": "../cvel-shuttle-a/models/shuttlea_vc.obj",
+  "vc_mfd_flip": true,
   "pitch": -20
  },
  "cameras": [

@@ -412,14 +412,56 @@
      "position": [
       0,
       0,
-      0
+      -3
      ],
      "direction": [
       0,
       1,
       0
      ],
-     "thrust": 390000,
+     "thrust": 235000,
+     "isp": 4077,
+     "plume": 6,
+     "plume_width": 1.5,
+     "plume_glow": 1.2,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    },
+    {
+     "position": [
+      -3,
+      0,
+      4.55
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 77500,
+     "isp": 4077,
+     "plume": 6,
+     "plume_width": 1.5,
+     "plume_glow": 1.2,
+     "plume_density": 1.2,
+     "type": "rocket",
+     "fuel": "hydrogen",
+     "group": "hover"
+    },
+    {
+     "position": [
+      3,
+      0,
+      4.55
+     ],
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "thrust": 77500,
      "isp": 4077,
      "plume": 6,
      "plume_width": 1.5,
@@ -1147,7 +1189,7 @@
    {
     "type": "nudge",
     "property": "/controls/trim",
-    "value": "-0.05",
+    "value": "0.05",
     "x": 1080,
     "y": 431,
     "w": 16,
@@ -1156,7 +1198,7 @@
    {
     "type": "nudge",
     "property": "/controls/trim",
-    "value": "0.05",
+    "value": "-0.05",
     "x": 1080,
     "y": 458,
     "w": 16,
@@ -2698,7 +2740,7 @@
     "control": {
      "type": "nudge",
      "property": "/controls/trim",
-     "value": "0.05",
+     "value": "-0.05",
      "label": "Elevator trim: nose down"
     }
    },
@@ -2728,7 +2770,7 @@
     "control": {
      "type": "nudge",
      "property": "/controls/trim",
-     "value": "-0.05",
+     "value": "0.05",
      "label": "Elevator trim: nose up"
     }
    },

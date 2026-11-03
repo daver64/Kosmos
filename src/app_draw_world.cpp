@@ -60,7 +60,7 @@ namespace kosmos::app
     }
 
     // Halves the image in steps, so each bilinear tap is an exact box filter.
-    void App::downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear)
+    void App::downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear, bool invert)
     {
         const auto blit = [&](sl::Bitmap *from, sl::Bitmap *to, bool flip) {
             if (!sl::begin_render_target(to))
@@ -76,7 +76,7 @@ namespace kosmos::app
             blit(source, targets.ss_mid, sl::graphics_backend() == sl::GraphicsBackend::opengl);
             source = targets.ss_mid;
         }
-        blit(source, destination, true);
+        blit(source, destination, !invert);
     }
 
     void App::draw_cockpit_targets()
@@ -98,7 +98,7 @@ namespace kosmos::app
                     layout.y *= factor;
                     layout.size *= factor;
                     sim.mfd.draw_to_target(side, big, layout);
-                    downsample_target(big, targets.mfd_target[side], {18, 20, 26, 255});
+                    downsample_target(big, targets.mfd_target[side], {18, 20, 26, 255}, pcp.vc_mfd_flip);
                 }
                 else
                     sim.mfd.draw_to_target(side, targets.mfd_target[side], mfd_target_layout(!pcp.vc_model.empty()));

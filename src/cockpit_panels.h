@@ -46,6 +46,7 @@ namespace kosmos::app
     void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale);
 
 extern int panel_slider;
+extern int panel_slider_twin;
 
     /** What a panel control is called: its label, else a name made from its type and property. */
     std::string control_tooltip(const kosmos::Cockpit::PanelControl &c);

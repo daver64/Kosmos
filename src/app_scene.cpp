@@ -67,7 +67,7 @@ namespace kosmos::app
                         continue;
                     if (lit_ship.systems() && !lit_ship.systems()->instruments_powered())
                         continue;
-                    if (!sim.props.get_bool(spec.navigation ? "/controls/lighting/nav" : "/controls/lighting/lamps", true))
+                    if (!sim.props.get_bool(spec.navigation ? "/controls/lighting/nav" : "/controls/lighting/lamps", !spec.navigation))
                         continue;
                     for (int i = 0; i < spec.count; ++i)
                     {

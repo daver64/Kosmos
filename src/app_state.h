@@ -211,6 +211,7 @@ namespace kosmos::app
         bool mfd_mouse_prev{};
         const kosmos::Cockpit::VcHotspot *vc_drag_spot{};
         float vc_drag_v{};
+        const kosmos::Cockpit::VcHotspot *vc_drag_twin{};
         // ids: 0 the 2D panel, 1 and 2 the left and right MFD.
         int ui_drag_id = -1;
         float ui_drag_last_x{}, ui_drag_last_y{};
@@ -364,7 +365,7 @@ namespace kosmos::app
         int applied_volume{};
         int screen_supersample() const;
         sl::Bitmap * supersample_target(int factor);
-        void downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear);
+        void downsample_target(sl::Bitmap *source, sl::Bitmap *destination, sl::Colour clear, bool invert = false);
         int sas_index{};
         double earth_sphere_switch_m{};
         kosmos::Joystick joystick;

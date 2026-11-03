@@ -69,6 +69,7 @@ namespace kosmos
                 spec.cockpit.fov = jc.value("fov", 0.0);
                 spec.cockpit.mfds = jc.value("mfds", true);
                 spec.cockpit.vc_model = jc.value("vc_model", "");
+                spec.cockpit.vc_mfd_flip = jc.value("vc_mfd_flip", false);
                 if (jc.contains("vc_animations") && jc["vc_animations"].is_array())
                     for (const auto &ja : jc["vc_animations"])
                     {

@@ -250,8 +250,8 @@
     {
      "position": [
       -1.76,
-      0,
-      13.87
+      0.0,
+      15.0
      ],
      "direction": [
       0,
@@ -261,8 +261,8 @@
      "thrust": 1064360,
      "isp": 3364,
      "isp_sl": 3058,
-     "plume": 25,
-     "plume_width": 1.6,
+     "plume": 15.0,
+     "plume_width": 0.5,
      "plume_glow": 1.8,
      "plume_density": 2,
      "type": "rocket",
@@ -270,9 +270,9 @@
     },
     {
      "position": [
-      1.76,
-      0,
-      13.87
+      -1.76,
+      0.0,
+      15.0
      ],
      "direction": [
       0,
@@ -282,8 +282,8 @@
      "thrust": 1064360,
      "isp": 3364,
      "isp_sl": 3058,
-     "plume": 25,
-     "plume_width": 1.6,
+     "plume": 15.0,
+     "plume_width": 0.5,
      "plume_glow": 1.8,
      "plume_density": 2,
      "type": "rocket",
@@ -1207,6 +1207,7 @@
    }
   ],
   "vc_model": "../cvel-shuttle-a/models/shuttlea_vc.obj",
+  "vc_mfd_flip": true,
   "pitch": -20,
   "vc_hotspots": [
    {
@@ -2306,7 +2307,7 @@
       -16.358
      ],
      [
-      -0.74123,
+      -0.7412300000000001,
       2.12729,
       -16.35603
      ],
@@ -2316,7 +2317,7 @@
       -16.35025
      ],
      [
-      -0.74123,
+      -0.7412300000000001,
       2.11069,
       -16.3483
      ]

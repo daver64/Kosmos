@@ -201,6 +201,8 @@ namespace kosmos
         add("rcs_right", "Translate right (cockpit: head right)", hold, fly, true, {K::arrow_right});
         add("rcs_up", "Translate up (cockpit: head forward)", hold, fly, true, {K::arrow_up});
         add("rcs_down", "Translate down (cockpit: head back)", hold, fly, true, {K::arrow_down});
+        add("trim_up", "Elevator trim: nose up", hold, fly, true, {K::page_up, false, true});
+        add("trim_down", "Elevator trim: nose down", hold, fly, true, {K::page_down, false, true});
         add("head_up", "Cockpit head up", hold, fly, true, {K::page_up});
         add("head_down", "Cockpit head down", hold, fly, true, {K::page_down});
 

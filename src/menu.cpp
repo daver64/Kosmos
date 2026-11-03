@@ -1739,7 +1739,7 @@ namespace kosmos
         }
         ImGui::Separator();
         {
-            bool nav = sim.props.get_bool("/controls/lighting/nav", true), lamps = sim.props.get_bool("/controls/lighting/lamps", true);
+            bool nav = sim.props.get_bool("/controls/lighting/nav", false), lamps = sim.props.get_bool("/controls/lighting/lamps", true);
             if (ImGui::MenuItem("Navigation lights", actions.key_label ? actions.key_label("nav_lights").c_str() : nullptr, &nav))
                 sim.props.set_bool("/controls/lighting/nav", nav);
             if (ImGui::MenuItem("Landing and nose lights", actions.key_label ? actions.key_label("lamps").c_str() : nullptr, &lamps))

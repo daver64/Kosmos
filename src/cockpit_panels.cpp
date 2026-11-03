@@ -218,6 +218,23 @@ namespace kosmos::app
         }
     }
 
+    // The other lever of a twin pair ("/controls/pod-left" and "/controls/pod-right"), or -1.
+    int twin_slider(const kosmos::Cockpit &cp, int index)
+    {
+        const std::string &p = cp.controls[static_cast<std::size_t>(index)].property;
+        for (const auto &[a, b] : {std::pair<const char *, const char *>{"-left", "-right"}, {"-right", "-left"}})
+        {
+            const std::string suffix(a);
+            if (p.size() <= suffix.size() || p.compare(p.size() - suffix.size(), suffix.size(), suffix) != 0)
+                continue;
+            const std::string other = p.substr(0, p.size() - suffix.size()) + b;
+            for (std::size_t i = 0; i < cp.controls.size(); ++i)
+                if (cp.controls[i].type == "slider" && cp.controls[i].property == other)
+                    return static_cast<int>(i);
+        }
+        return -1;
+    }
+
     // Returns the slider under (px, py) so the caller can keep dragging it, or -1.
     int panel_slider_at(const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py)
     {
@@ -340,6 +357,7 @@ namespace kosmos::app
     }
 
     int panel_slider = -1;
+    int panel_slider_twin = -1;
 
     std::string control_tooltip(const kosmos::Cockpit::PanelControl &c)
     {
@@ -408,9 +426,38 @@ namespace kosmos::app
             return true;
         }
         panel_slider = panel_slider_at(cp, ox, oy, scale, px, py);
+        panel_slider_twin = -1;
+        if (panel_slider < 0)
+        {
+            // The gap between twin levers belongs to both of them.
+            for (std::size_t i = 0; i < cp.controls.size() && panel_slider < 0; ++i)
+            {
+                const auto &c = cp.controls[i];
+                const int other = c.type == "slider" ? twin_slider(cp, static_cast<int>(i)) : -1;
+                if (other < 0 || c.x > cp.controls[static_cast<std::size_t>(other)].x)
+                    continue;
+                const auto &o = cp.controls[static_cast<std::size_t>(other)];
+                if (px > ox + (c.x + c.w) * scale && px < ox + o.x * scale && py >= oy + c.y * scale && py <= oy + (c.y + c.h) * scale)
+                    panel_slider = static_cast<int>(i);
+            }
+        }
         if (panel_slider >= 0)
         {
-            panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider)], oy, scale, py);
+            const auto &c = cp.controls[static_cast<std::size_t>(panel_slider)];
+            const int other = twin_slider(cp, panel_slider);
+            if (other >= 0)
+            {
+                // Only the outer half of a lever picks it alone; the inner halves and the gap move the pair together.
+                const auto &o = cp.controls[static_cast<std::size_t>(other)];
+                const float middle = ox + (std::min(c.x, o.x) + (std::max(c.x + c.w, o.x + o.w) - std::min(c.x, o.x)) * 0.5f) * scale;
+                const float span_left = ox + std::min(c.x, o.x) * scale, span_right = ox + std::max(c.x + c.w, o.x + o.w) * scale;
+                const float quarter = (span_right - span_left) * 0.25f;
+                if (px > middle - quarter && px < middle + quarter)
+                    panel_slider_twin = other;
+            }
+            panel_slider_set(sim, c, oy, scale, py);
+            if (panel_slider_twin >= 0)
+                panel_slider_set(sim, cp.controls[static_cast<std::size_t>(panel_slider_twin)], oy, scale, py);
             return true;
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
