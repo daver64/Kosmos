@@ -1,0 +1,27 @@
+{
+ "name": "CVEL: Proton-K, Baikonur",
+ "description": "CVEL Proton-K with a split payload fairing and a Luna E3 probe on the pad at Baikonur.",
+ "date": "2003-05-18 06:00:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Proton-K",
+   "body": "Earth",
+   "surface": {
+    "base": "baikonur"
+   }
+  },
+  {
+   "ship": "Luna E3",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "baikonur"
+   }
+  }
+ ]
+}

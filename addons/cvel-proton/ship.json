@@ -1,0 +1,419 @@
+{
+  "name": "CVEL Proton-K",
+  "class": "launcher",
+  "script": "@launcher.lua",
+  "torque_accel": 0.15,
+  "max_rate": 0.25,
+  "rcs_thrust": 0,
+  "drag_area": 25,
+  "camera_distance": 90,
+  "camera_target": [
+    0,
+    0,
+    -5
+  ],
+  "systems": [
+    {
+      "type": "battery",
+      "name": "Batteries",
+      "capacity_wh": 6000,
+      "max_w": 2500
+    },
+    {
+      "type": "solar",
+      "name": "Solar",
+      "area_m2": 4,
+      "efficiency": 0.28,
+      "facing": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "load",
+      "name": "Avionics",
+      "watts": 250,
+      "priority": 0
+    }
+  ],
+  "ports": [
+    {
+      "name": "Payload",
+      "position": [
+        0,
+        0,
+        -20.1
+      ],
+      "direction": [
+        0,
+        0,
+        -1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "stage": 4
+    }
+  ],
+  "stages": [
+    {
+      "name": "Proton first stage",
+      "dry_mass": 31100,
+      "propellant": 419410,
+      "z": 13,
+      "length": 21.5,
+      "radius": 3.9,
+      "separation_speed": 2.0,
+      "engines": [
+        {
+          "position": [
+            -2.5,
+            0,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            2.5,
+            0,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            -1.25,
+            2.2,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            1.25,
+            2.2,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            -1.25,
+            -2.2,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            1.25,
+            -2.2,
+            24.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1612031,
+          "isp": 291.5,
+          "plume": 45,
+          "plume_width": 1.0,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        }
+      ],
+      "gear": [
+        [
+          3.0,
+          0,
+          23.5
+        ],
+        [
+          -3.0,
+          0,
+          23.5
+        ],
+        [
+          0,
+          3.0,
+          23.5
+        ],
+        [
+          0,
+          -3.0,
+          23.5
+        ]
+      ],
+      "parts": [
+        {
+          "model": "models/protonstg1.obj",
+          "offset": [
+            0,
+            0,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Proton second stage",
+      "dry_mass": 11715,
+      "propellant": 156113,
+      "z": -5.5,
+      "length": 18,
+      "radius": 2.9,
+      "separation_speed": 2.0,
+      "engines": [
+        {
+          "position": [
+            -0.7,
+            -0.7,
+            -3.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 600000,
+          "isp": 327,
+          "plume": 30,
+          "plume_width": 0.8,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            -0.7,
+            0.7,
+            -3.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 600000,
+          "isp": 327,
+          "plume": 30,
+          "plume_width": 0.8,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            0.7,
+            -0.7,
+            -3.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 600000,
+          "isp": 327,
+          "plume": 30,
+          "plume_width": 0.8,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        },
+        {
+          "position": [
+            0.7,
+            0.7,
+            -3.0
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 600000,
+          "isp": 327,
+          "plume": 30,
+          "plume_width": 0.8,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/protkstg2_uw.obj",
+          "offset": [
+            0,
+            0,
+            -5.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payload fairing half",
+      "dry_mass": 600,
+      "propellant": 0,
+      "z": -27,
+      "length": 15,
+      "radius": 2.2,
+      "separation_speed": 2.5,
+      "separation_dir": [
+        -1,
+        0,
+        -0.2
+      ],
+      "engines": [],
+      "parts": [
+        {
+          "model": "models/protonplfleft.obj",
+          "offset": [
+            0,
+            0,
+            -19.5
+          ]
+        }
+      ],
+      "with_next": true
+    },
+    {
+      "name": "Payload fairing half",
+      "dry_mass": 600,
+      "propellant": 0,
+      "z": -27,
+      "length": 15,
+      "radius": 2.2,
+      "separation_speed": 2.5,
+      "separation_dir": [
+        1,
+        0,
+        -0.2
+      ],
+      "engines": [],
+      "parts": [
+        {
+          "model": "models/protonplfright.obj",
+          "offset": [
+            0,
+            0,
+            -19.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Proton third stage",
+      "dry_mass": 4185,
+      "propellant": 46562,
+      "z": -16.2,
+      "length": 8,
+      "radius": 2.0,
+      "separation_speed": 1.0,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            -12.5
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 590390,
+          "isp": 325,
+          "plume": 15,
+          "plume_width": 0.9,
+          "plume_glow": 1.2,
+          "plume_density": 2,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/protonstg3.obj",
+          "offset": [
+            0,
+            0,
+            -16.2
+          ]
+        }
+      ]
+    }
+  ]
+}

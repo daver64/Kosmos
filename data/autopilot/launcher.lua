@@ -20,6 +20,9 @@ local vehicles = {
   ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3, inert_after = 0, inert = 1 },
   ["CVEL Energia-M"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },
   ["CVEL Saturn V"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },
+  ["CVEL Saturn V MLV3"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },
+  ["CVEL Saturn V-23L"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 3 },
+  ["CVEL Proton-K"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
 }
 local default = { kick_speed = 50, kick = 85, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 1 }
 local PITCH_RATE = 2.0 -- degrees per second the commanded pitch may change
