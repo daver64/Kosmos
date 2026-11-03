@@ -1,0 +1,76 @@
+{
+ "name": "NASA Pioneer 10",
+ "class": "probe",
+ "description": "Pioneer 10 (1972): the first spacecraft to cross the asteroid belt and fly past Jupiter. Spin-stabilised in reality; here it is three-axis controlled by its hydrazine thrusters. Four SNAP-19 RTGs on two booms, eleven instruments and a 2.74 m dish. Power and mass figures are from the mission's public fact sheets; the individual loads are approximate.",
+ "torque_accel": 0.06,
+ "max_rate": 0.25,
+ "rcs_thrust": 4.5,
+ "drag_area": 6,
+ "camera_distance": 14,
+ "ports": [
+  {"name": "Aft", "position": [0, 0, 0.7], "direction": [0, 0, 1], "up": [0, 1, 0]}
+ ],
+ "systems": [
+  {"type": "rtg", "name": "SNAP-19 RTG 1", "watts": 38.75, "half_life_years": 25},
+  {"type": "rtg", "name": "SNAP-19 RTG 2", "watts": 38.75, "half_life_years": 25},
+  {"type": "rtg", "name": "SNAP-19 RTG 3", "watts": 38.75, "half_life_years": 25},
+  {"type": "rtg", "name": "SNAP-19 RTG 4", "watts": 38.75, "half_life_years": 25},
+
+  {"type": "load", "name": "S-band transmitter (8 W TWTA)", "watts": 30, "priority": 0},
+  {"type": "load", "name": "Receivers and command decoder", "watts": 15, "priority": 0},
+  {"type": "load", "name": "Data handling and storage", "watts": 12, "priority": 0},
+  {"type": "load", "name": "Attitude sensors and thruster valves", "watts": 8, "priority": 0},
+  {"type": "load", "name": "Spacecraft heaters", "watts": 20, "priority": 0},
+
+  {"type": "load", "name": "Helium vector magnetometer", "watts": 2.2, "priority": 1},
+  {"type": "load", "name": "Plasma analyser", "watts": 5.6, "priority": 1},
+  {"type": "load", "name": "Charged particle instrument", "watts": 2.2, "priority": 1},
+  {"type": "load", "name": "Cosmic ray telescope", "watts": 3.5, "priority": 1},
+  {"type": "load", "name": "Geiger tube telescope", "watts": 1.5, "priority": 1},
+  {"type": "load", "name": "Trapped radiation detector", "watts": 1.5, "priority": 1},
+  {"type": "load", "name": "Ultraviolet photometer", "watts": 1.1, "priority": 2},
+  {"type": "load", "name": "Infrared radiometer", "watts": 2.0, "priority": 2},
+  {"type": "load", "name": "Imaging photopolarimeter", "watts": 4.7, "priority": 2},
+  {"type": "load", "name": "Asteroid / meteoroid detector", "watts": 3.0, "priority": 2},
+  {"type": "load", "name": "Meteoroid detectors", "watts": 1.2, "priority": 2}
+ ],
+ "stages": [
+  {
+   "name": "Pioneer 10",
+   "dry_mass": 231,
+   "propellant": 27,
+   "z": 0,
+   "length": 2.6,
+   "radius": 1.4,
+   "engines": [
+    {
+     "position": [0.3, 0, 0.7],
+     "direction": [0, 0, -1],
+     "thrust": 4.5,
+     "isp": 230,
+     "plume": 0.15,
+     "type": "rocket",
+     "fuel": "hypergolic",
+     "plume_width": 0.01,
+     "plume_glow": 0.05,
+     "plume_density": 0.3
+    },
+    {
+     "position": [-0.3, 0, 0.7],
+     "direction": [0, 0, -1],
+     "thrust": 4.5,
+     "isp": 230,
+     "plume": 0.15,
+     "type": "rocket",
+     "fuel": "hypergolic",
+     "plume_width": 0.01,
+     "plume_glow": 0.05,
+     "plume_density": 0.3
+    }
+   ],
+   "parts": [
+    {"model": "models/pioneer10.glb", "offset": [0, 0, -0.4]}
+   ]
+  }
+ ]
+}

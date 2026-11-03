@@ -44,6 +44,8 @@ namespace kosmos
         double latitude = 0.0, longitude = 0.0, heading = 90.0;
         // Systems state at the start (see the ship's "systems"): a cabin leak in cm2, tank fill fractions by gas, and battery charge (-1 keeps full).
         double leak_cm2 = 0.0, battery = -1.0;
+        /** Years the RTGs have already aged at the start. */
+        double rtg_age_years = 0.0;
         std::vector<std::pair<std::string, double>> tanks;
     };
 

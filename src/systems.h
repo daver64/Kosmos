@@ -145,6 +145,8 @@ namespace kosmos
          */
         void share_with(Systems &other, double dt, double power_w = 20000.0, double kg_per_s = 0.5);
         void set_battery_fraction(double fraction);
+        /** Adds years of age to every RTG, so a probe can start part-way through its mission. */
+        void add_rtg_age(double years);
         bool breach(int vessel, double area_cm2, const sl::dvec3 &at = {0.0, 0.5, 0.5});
         /** A controllable hole from vessel `index` to vacuum (an open hatch). `key` names it so it can be changed or closed with area 0. */
         void set_opening(int vessel, int key, double area_cm2);

@@ -1,0 +1,21 @@
+{
+ "name": "NASA: Voyager inbound to Jupiter",
+ "description": "5 March 1979, Voyager 1 approaching its closest approach to Jupiter (about 280,000 km above the cloud tops). The probe is 1.5 years into its mission, with its three MHW-RTGs slightly down from launch; use the Ship systems window (F1) to switch instruments off as the power budget requires.",
+ "active": 0,
+ "date": "1979-03-05 06:00:00",
+ "target": "Jupiter",
+ "ships": [
+  {
+   "ship": "NASA Voyager",
+   "body": "Jupiter",
+   "orbit": {
+    "altitude_km": 280000,
+    "apoapsis_km": 30000000,
+    "phase": 300
+   },
+   "systems": {
+    "rtg_age_years": 1.5
+   }
+  }
+ ]
+}

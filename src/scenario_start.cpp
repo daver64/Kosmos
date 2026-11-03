@@ -187,6 +187,8 @@ namespace kosmos::app
                 systems->set_tank_fraction(tank.first, tank.second);
             if (entry.battery >= 0.0)
                 systems->set_battery_fraction(entry.battery);
+            if (entry.rtg_age_years > 0.0)
+                systems->add_rtg_age(entry.rtg_age_years);
             if (entry.leak_cm2 > 0.0)
                 systems->breach(0, entry.leak_cm2);
         }

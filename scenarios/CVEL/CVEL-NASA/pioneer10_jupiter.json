@@ -1,0 +1,21 @@
+{
+ "name": "NASA: Pioneer 10 inbound to Jupiter",
+ "description": "3 December 1973, a few hours before Pioneer 10's closest approach to Jupiter (about 130,000 km above the cloud tops) on the first outer-planet encounter. The probe is 1.7 years into its mission, so its four RTGs have already faded a little; use the Ship systems window (F1) to switch instruments off as the power budget requires.",
+ "active": 0,
+ "date": "1973-12-03 02:00:00",
+ "target": "Jupiter",
+ "ships": [
+  {
+   "ship": "NASA Pioneer 10",
+   "body": "Jupiter",
+   "orbit": {
+    "altitude_km": 130000,
+    "apoapsis_km": 30000000,
+    "phase": 300
+   },
+   "systems": {
+    "rtg_age_years": 1.7
+   }
+  }
+ ]
+}

@@ -1,0 +1,82 @@
+{
+ "name": "NASA Voyager",
+ "class": "probe",
+ "description": "Voyager 1 and 2 (1977): the grand-tour outer-planet probes. Three MHW-RTGs on a boom, ten instruments (cameras and spectrometers on a scan platform, a 13 m magnetometer boom), a 3.7 m dish and 16 hydrazine thrusters. Power and mass figures are from the mission's public fact sheets; the individual loads are approximate. Switch instruments off in the Ship systems window (F1) as the RTGs fade, as the real mission team does.",
+ "torque_accel": 0.04,
+ "max_rate": 0.2,
+ "rcs_thrust": 3.6,
+ "drag_area": 12,
+ "camera_distance": 30,
+ "ports": [
+  {"name": "Aft", "position": [0, 0, 1.4], "direction": [0, 0, 1], "up": [0, 1, 0]}
+ ],
+ "systems": [
+  {"type": "rtg", "name": "MHW-RTG 1", "watts": 157, "half_life_years": 42},
+  {"type": "rtg", "name": "MHW-RTG 2", "watts": 157, "half_life_years": 42},
+  {"type": "rtg", "name": "MHW-RTG 3", "watts": 157, "half_life_years": 42},
+
+  {"type": "load", "name": "X-band transmitter (TWTA)", "watts": 60, "priority": 0},
+  {"type": "load", "name": "S-band transmitter", "watts": 25, "priority": 0},
+  {"type": "load", "name": "Receivers and command decoder", "watts": 15, "priority": 0},
+  {"type": "load", "name": "Computer Command Subsystem", "watts": 12, "priority": 0},
+  {"type": "load", "name": "Flight Data Subsystem", "watts": 14, "priority": 0},
+  {"type": "load", "name": "Attitude and Articulation Control", "watts": 20, "priority": 0},
+  {"type": "load", "name": "Gyros and Canopus star tracker", "watts": 15, "priority": 0},
+  {"type": "load", "name": "Spacecraft heaters", "watts": 70, "priority": 0},
+  {"type": "load", "name": "Power and bus electronics", "watts": 15, "priority": 0},
+
+  {"type": "load", "name": "Magnetometer (MAG)", "watts": 4, "priority": 1},
+  {"type": "load", "name": "Plasma Science (PLS)", "watts": 3.6, "priority": 1},
+  {"type": "load", "name": "Low-Energy Charged Particles (LECP)", "watts": 4.5, "priority": 1},
+  {"type": "load", "name": "Cosmic Ray Subsystem (CRS)", "watts": 5.5, "priority": 1},
+  {"type": "load", "name": "Plasma Wave (PWS)", "watts": 1.5, "priority": 1},
+  {"type": "load", "name": "Planetary Radio Astronomy (PRA)", "watts": 8, "priority": 1},
+  {"type": "load", "name": "Instrument heaters", "watts": 40, "priority": 1},
+
+  {"type": "load", "name": "Imaging Science (ISS) cameras", "watts": 45, "priority": 2},
+  {"type": "load", "name": "Infrared Interferometer (IRIS)", "watts": 15.6, "priority": 2},
+  {"type": "load", "name": "Ultraviolet Spectrometer (UVS)", "watts": 3, "priority": 2},
+  {"type": "load", "name": "Photopolarimeter (PPS)", "watts": 2.5, "priority": 2},
+  {"type": "load", "name": "Scan platform actuators", "watts": 20, "priority": 2},
+  {"type": "load", "name": "Digital tape recorder", "watts": 6, "priority": 2}
+ ],
+ "stages": [
+  {
+   "name": "Voyager",
+   "dry_mass": 722,
+   "propellant": 104,
+   "z": 0,
+   "length": 4,
+   "radius": 2,
+   "engines": [
+    {
+     "position": [0.4, 0, 1.2],
+     "direction": [0, 0, -1],
+     "thrust": 1.8,
+     "isp": 220,
+     "plume": 0.15,
+     "type": "rocket",
+     "fuel": "hypergolic",
+     "plume_width": 0.01,
+     "plume_glow": 0.05,
+     "plume_density": 0.3
+    },
+    {
+     "position": [-0.4, 0, 1.2],
+     "direction": [0, 0, -1],
+     "thrust": 1.8,
+     "isp": 220,
+     "plume": 0.15,
+     "type": "rocket",
+     "fuel": "hypergolic",
+     "plume_width": 0.01,
+     "plume_glow": 0.05,
+     "plume_density": 0.3
+    }
+   ],
+   "parts": [
+    {"model": "models/voyager.glb", "rotate": [-90, 0, 0], "offset": [0, 0, 0]}
+   ]
+  }
+ ]
+}

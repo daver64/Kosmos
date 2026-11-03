@@ -109,6 +109,7 @@ namespace kosmos
                     const nlohmann::json &o = js["systems"];
                     s.leak_cm2 = o.value("leak_cm2", 0.0);
                     s.battery = o.value("battery", -1.0);
+                    s.rtg_age_years = o.value("rtg_age_years", 0.0);
                     if (o.contains("tanks"))
                         for (auto it = o["tanks"].begin(); it != o["tanks"].end(); ++it)
                             s.tanks.emplace_back(it.key(), it.value().get<double>());
@@ -238,13 +239,15 @@ namespace kosmos
                 }
                 js["surface"] = o;
             }
-            if (s.leak_cm2 > 0.0 || s.battery >= 0.0 || !s.tanks.empty())
+            if (s.leak_cm2 > 0.0 || s.battery >= 0.0 || s.rtg_age_years > 0.0 || !s.tanks.empty())
             {
                 nlohmann::json o;
                 if (s.leak_cm2 > 0.0)
                     o["leak_cm2"] = s.leak_cm2;
                 if (s.battery >= 0.0)
                     o["battery"] = s.battery;
+                if (s.rtg_age_years > 0.0)
+                    o["rtg_age_years"] = s.rtg_age_years;
                 for (const auto &t : s.tanks)
                     o["tanks"][t.first] = t.second;
                 js["systems"] = o;

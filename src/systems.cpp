@@ -811,6 +811,13 @@ namespace kosmos
         bool is_consumer(const SystemComponent &c) { return c.type == "load" || c.type == "scrubber" || c.type == "regulator"; }
     } // namespace
 
+    void Systems::add_rtg_age(double years)
+    {
+        for (SystemComponent &c : components_)
+            if (c.type == "rtg")
+                c.age_years += years;
+    }
+
     void Systems::set_consumers(bool on)
     {
         for (SystemComponent &c : components_)
