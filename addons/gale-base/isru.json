@@ -1,13 +1,17 @@
 {
  "name": "Gale ISRU plant",
  "class": "building",
- "door_radius": 4,
+ "door_radius": 6.0,
  "interior": {
-  "cell": 0.5,
+  "cell": 0.75,
   "height": 6,
-  "ground_z": 3.5,
+  "ground_z": 5.25,
   "levels": [
    [
+    "",
+    "",
+    "",
+    "",
     "",
     "      #####",
     "    ##.....##",
@@ -23,19 +27,22 @@
     "  #...........#",
     "   #.........#",
     "    ##.....##",
-    "      ##AA#",
-    ""
+    "      ##dd#",
+    "      #....#",
+    "      #....#",
+    "      #....#",
+    "      ##AA##"
    ]
   ],
   "panels": [
    {
     "pos": [
-     4.25,
-     1.55,
-     1.0
+     6.375,
+     2.325,
+     4.5
     ],
     "facing": "+z",
-    "width": 1.4
+    "width": 2.1
    }
   ],
   "rooms": [
@@ -43,31 +50,49 @@
     "name": "Isru",
     "at": [
      8,
-     6
+     10
+    ]
+   },
+   {
+    "name": "Airlock",
+    "at": [
+     8,
+     21
     ]
    }
   ],
   "lights": [
    {
     "pos": [
-     4.25,
-     2.75,
-     2.9749999999999996
-    ]
+     6.375,
+     4.125,
+     7.4625
+    ],
+    "range": 10.5
    },
    {
     "pos": [
-     4.25,
-     2.75,
-     5.525
+     6.375,
+     4.125,
+     11.2875
     ],
     "colour": [
      1.0,
      0.8,
      0.6
-    ]
+    ],
+    "range": 10.5
+   },
+   {
+    "pos": [
+     6.75,
+     4.125,
+     15.75
+    ],
+    "range": 10.5
    }
-  ]
+  ],
+  "airlock": "Airlock"
  },
  "systems": [
   {
@@ -118,9 +143,41 @@
    "gas": "hydrogen",
    "capacity_kg": 25,
    "kg": 0
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 40,
+   "name": "Airlock oxygen"
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 30,
+   "name": "Airlock nitrogen"
+  },
+  {
+   "type": "regulator",
+   "name": "Airlock regulator",
+   "vessel": "Airlock"
   }
  ],
- "vessels": [],
+ "vessels": [
+  {
+   "name": "Airlock",
+   "position": [
+    0.0,
+    0.0,
+    1.5
+   ],
+   "size": [
+    3.0,
+    4.5,
+    2.25
+   ],
+   "crew": 0
+  }
+ ],
  "cockpit": {
   "present": true,
   "eye": [
@@ -296,27 +353,27 @@
    "name": "Gale ISRU plant",
    "dry_mass": 20000,
    "propellant": 0,
-   "z": 0,
-   "length": 7.0,
-   "radius": 4.0,
+   "z": 0.0,
+   "length": 10.5,
+   "radius": 6.0,
    "parts": [
     {
      "profile": [
       [
-       -3.5,
+       -5.25,
        0.0
       ],
       [
-       -3.5,
-       0.5
+       -5.25,
+       0.75
       ],
       [
-       -1.5,
-       4.0
+       -2.25,
+       6.0
       ],
       [
-       3.5,
-       4.0
+       5.25,
+       6.0
       ]
      ],
      "colour": [

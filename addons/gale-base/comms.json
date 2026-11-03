@@ -1,13 +1,17 @@
 {
  "name": "Gale comms mast",
  "class": "building",
- "door_radius": 4,
+ "door_radius": 6.0,
  "interior": {
-  "cell": 0.5,
+  "cell": 0.75,
   "height": 6,
-  "ground_z": 4.0,
+  "ground_z": 6.0,
   "levels": [
    [
+    "",
+    "",
+    "",
+    "",
     "",
     "",
     "   #####",
@@ -16,20 +20,22 @@
     "  #.....#",
     "  #.....#",
     "  #.....#",
-    "   ##AA#",
-    "",
-    ""
+    "   ##dd#",
+    "   #....#",
+    "   #....#",
+    "   #....#",
+    "   ##AA##"
    ]
   ],
   "panels": [
    {
     "pos": [
-     2.75,
-     1.55,
-     1.5
+     4.125,
+     2.325,
+     5.25
     ],
     "facing": "+z",
-    "width": 1.4
+    "width": 2.1
    }
   ],
   "rooms": [
@@ -37,31 +43,49 @@
     "name": "Comms",
     "at": [
      5,
-     3
+     7
+    ]
+   },
+   {
+    "name": "Airlock",
+    "at": [
+     5,
+     14
     ]
    }
   ],
   "lights": [
    {
     "pos": [
-     2.75,
-     2.75,
-     1.9249999999999998
-    ]
+     4.125,
+     4.125,
+     5.8875
+    ],
+    "range": 10.5
    },
    {
     "pos": [
-     2.75,
-     2.75,
-     3.575
+     4.125,
+     4.125,
+     8.3625
     ],
     "colour": [
      1.0,
      0.8,
      0.6
-    ]
+    ],
+    "range": 10.5
+   },
+   {
+    "pos": [
+     4.5,
+     4.125,
+     10.5
+    ],
+    "range": 10.5
    }
-  ]
+  ],
+  "airlock": "Airlock"
  },
  "systems": [
   {
@@ -99,9 +123,41 @@
    "name": "Beacon",
    "watts": 40,
    "priority": 0
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "capacity_kg": 40,
+   "name": "Airlock oxygen"
+  },
+  {
+   "type": "tank",
+   "gas": "nitrogen",
+   "capacity_kg": 30,
+   "name": "Airlock nitrogen"
+  },
+  {
+   "type": "regulator",
+   "name": "Airlock regulator",
+   "vessel": "Airlock"
   }
  ],
- "vessels": [],
+ "vessels": [
+  {
+   "name": "Airlock",
+   "position": [
+    0.0,
+    0.0,
+    1.5
+   ],
+   "size": [
+    3.0,
+    4.5,
+    2.25
+   ],
+   "crew": 0
+  }
+ ],
  "cockpit": {
   "present": true,
   "eye": [
@@ -300,23 +356,23 @@
    "name": "Gale comms mast",
    "dry_mass": 20000,
    "propellant": 0,
-   "z": 0,
-   "length": 8.0,
-   "radius": 2.2,
+   "z": 0.0,
+   "length": 12.0,
+   "radius": 3.3,
    "parts": [
     {
      "profile": [
       [
-       -3.0,
+       -4.5,
        0.0
       ],
       [
-       -3.0,
-       2.2
+       -4.5,
+       3.3
       ],
       [
-       4.0,
-       2.2
+       6.0,
+       3.3
       ]
      ],
      "colour": [
@@ -328,16 +384,16 @@
     {
      "profile": [
       [
-       -8.0,
+       -12.0,
        0.0
       ],
       [
-       -8.0,
-       0.25
+       -12.0,
+       0.375
       ],
       [
-       -3.0,
-       0.25
+       -4.5,
+       0.375
       ]
      ],
      "colour": [
@@ -349,16 +405,16 @@
     {
      "profile": [
       [
-       -5.0,
+       -7.5,
        0.0
       ],
       [
-       -5.0,
-       1.8
+       -7.5,
+       2.7
       ],
       [
-       -6.0,
-       2.4
+       -9.0,
+       3.6
       ]
      ],
      "colour": [

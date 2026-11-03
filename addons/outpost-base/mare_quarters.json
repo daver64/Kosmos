@@ -1,11 +1,11 @@
 {
  "name": "Mare Frigoris quarters",
  "class": "building",
- "door_radius": 3,
+ "door_radius": 4.5,
  "interior": {
-  "cell": 0.5,
+  "cell": 0.75,
   "height": 6,
-  "ground_z": 3.0,
+  "ground_z": 4.5,
   "levels": [
    [
     "###WW###WWW###",
@@ -23,12 +23,12 @@
   "panels": [
    {
     "pos": [
-     1.75,
-     1.55,
-     0.5
+     2.625,
+     2.325,
+     0.75
     ],
     "facing": "+z",
-    "width": 1.4
+    "width": 2.1
    }
   ],
   "airlock": "Airlock",
@@ -51,29 +51,32 @@
   "lights": [
    {
     "pos": [
-     2.0,
-     2.75,
-     1.25
-    ]
+     3.0,
+     4.125,
+     1.875
+    ],
+    "range": 10.5
    },
    {
     "pos": [
-     2.0,
-     2.75,
-     3.6
+     3.0,
+     4.125,
+     5.4
     ],
     "colour": [
      1.0,
      0.8,
      0.6
-    ]
+    ],
+    "range": 10.5
    },
    {
     "pos": [
-     5.0,
-     2.75,
-     2.5
-    ]
+     7.5,
+     4.125,
+     3.75
+    ],
+    "range": 10.5
    }
   ]
  },
@@ -82,9 +85,9 @@
    "name": "Mare Frigoris quarters",
    "dry_mass": 15000,
    "propellant": 0,
-   "z": 0,
-   "length": 6.0,
-   "radius": 4.0,
+   "z": 0.0,
+   "length": 9.0,
+   "radius": 6.0,
    "parts": []
   }
  ],
@@ -372,28 +375,28 @@
   {
    "name": "Hab",
    "position": [
-    0,
-    0,
-    1.5
+    0.0,
+    0.0,
+    2.25
    ],
    "size": [
-    5,
-    7,
-    3
+    7.5,
+    10.5,
+    4.5
    ],
    "crew": 4
   },
   {
    "name": "Airlock",
    "position": [
-    0,
-    0,
-    0.5
+    0.0,
+    0.0,
+    0.75
    ],
    "size": [
-    3,
-    3,
-    1.5
+    4.5,
+    4.5,
+    2.25
    ],
    "crew": 0
   }
