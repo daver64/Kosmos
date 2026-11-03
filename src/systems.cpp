@@ -2,6 +2,8 @@
 #include <fstream>
 #include "systems.h"
 
+#include <map>
+
 #include "ship.h"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -282,6 +284,57 @@ namespace kosmos
             }
         }
         return moved;
+    }
+
+    void Systems::share_with(Systems &other, double dt, double power_w, double kg_per_s)
+    {
+        auto key = [](const SystemComponent &c) {
+            if (c.type == "battery")
+                return std::string("battery");
+            if (c.type == "tank")
+                return "tank:" + c.gas;
+            if (c.type == "scrubber" && c.capacity < 1e8)
+                return std::string("sorbent");
+            return std::string();
+        };
+        std::map<std::string, int> kinds;
+        for (const SystemComponent &c : components_)
+            if (c.alive && !key(c).empty())
+                kinds[key(c)] = 1;
+        for (const auto &kind : kinds)
+        {
+            const std::string &k = kind.first;
+            double amount[2] = {0, 0}, capacity[2] = {0, 0};
+            Systems *side[2] = {this, &other};
+            for (int i = 0; i < 2; ++i)
+                for (const SystemComponent &c : side[i]->components_)
+                    if (c.alive && key(c) == k)
+                    {
+                        amount[i] += c.amount;
+                        capacity[i] += c.capacity;
+                    }
+            if (capacity[0] <= 0.0 || capacity[1] <= 0.0)
+                continue;
+            const double f0 = amount[0] / capacity[0], f1 = amount[1] / capacity[1];
+            const int from = f0 > f1 ? 0 : 1, to = 1 - from;
+            // Moving x lowers the donor's fraction and raises the receiver's equally when x = (f_from - f_to) / (1/C_from + 1/C_to).
+            double x = std::fabs(f0 - f1) / (1.0 / capacity[from] + 1.0 / capacity[to]);
+            x = std::min(x, (k == "battery" ? power_w / 3600.0 : kg_per_s) * dt);
+            for (int pass = 0; pass < 2; ++pass)
+            {
+                const int i = pass == 0 ? from : to;
+                double left = x;
+                for (SystemComponent &c : side[i]->components_)
+                {
+                    if (!c.alive || key(c) != k || left <= 0.0)
+                        continue;
+                    const double room = pass == 0 ? c.amount : c.capacity - c.amount;
+                    const double n = std::min(left, room);
+                    c.amount += pass == 0 ? -n : n;
+                    left -= n;
+                }
+            }
+        }
     }
 
     double Systems::take(const std::string &gas, double kg)

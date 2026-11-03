@@ -558,7 +558,7 @@ namespace kosmos
                 sl::rectfill(sl::screen, x, y, x + w, y + h, {255, 60, 40, static_cast<Uint8>(110 * f)});
             sl::rect(sl::screen, x, y, x + w, y + h, edge, std::max(1.0f, 1.5f * s));
         }
-        // Menu (top left) and close (top right) sit in the margin above the content.
+        // Menu (top left) and close (top right) sit just above the display, clear of the button boxes.
         float x, y, w, h;
         const sl::Colour edge{70, 230, 110, 255};
         if (u.power && bus_power)
@@ -579,9 +579,9 @@ namespace kosmos
     {
         const float s = layout.size / mfd_size;
         w = 50.0f * s;
-        h = 26.0f * s;
+        h = 22.0f * s;
         x = layout.x;
-        y = layout.y + 8.0f * s;
+        y = layout.y - 26.0f * s;
     }
 
     // The close button: a small square at the top right (in the bezel above a framed display, in the margin of a see-through one).
@@ -591,7 +591,7 @@ namespace kosmos
         w = 26.0f * s;
         h = 22.0f * s;
         x = layout.x + layout.size - w;
-        y = layout.hud ? layout.y + 8.0f * s : layout.y - 24.0f * s;
+        y = layout.y - (layout.hud ? 26.0f : 24.0f) * s;
     }
 
     void MfdSystem::draw_cross(float x, float y, float w, float h, float s) const

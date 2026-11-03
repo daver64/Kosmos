@@ -245,6 +245,14 @@ namespace kosmos
             if (pod.systems() && host.systems())
                 host.systems()->refill_from(*pod.systems(), 1.0 * dt);
         }
+        // Docked ships level out their batteries and life-support reserves, so one running low is helped by the other.
+        for (const Link &l : links_)
+        {
+            Ship &sa = *ships[static_cast<std::size_t>(l.a)], &sb = *ships[static_cast<std::size_t>(l.b)];
+            if (sa.spec().life_pod || sb.spec().life_pod || !sa.systems() || !sb.systems())
+                continue;
+            sa.systems()->share_with(*sb.systems(), dt);
+        }
         for (const Link &l : links_)
         {
             int from = -1, to = -1;
