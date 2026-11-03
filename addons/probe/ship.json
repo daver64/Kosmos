@@ -1,6 +1,23 @@
 {
  "ports": [
-  {"name":"Aft","position":[0,0,0.7],"direction":[0,0,1],"up":[0,1,0]}
+  {
+   "name": "Aft",
+   "position": [
+    0,
+    0,
+    0.7
+   ],
+   "direction": [
+    0,
+    0,
+    1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
  ],
  "systems": [
   {
@@ -51,9 +68,12 @@
      ],
      "thrust": 40,
      "isp": 347,
-     "plume": 0.6,
+     "plume": 0.3,
      "type": "rocket",
-     "fuel": "hypergolic"
+     "fuel": "hypergolic",
+     "plume_width": 0.02,
+     "plume_glow": 0.1,
+     "plume_density": 0.5
     }
    ],
    "parts": [

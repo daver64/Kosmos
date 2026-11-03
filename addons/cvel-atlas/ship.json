@@ -132,8 +132,59 @@
    ]
   },
   {
-   "name": "Centaur and fairing",
-   "dry_mass": 1905,
+   "name": "Payload fairing half",
+   "dry_mass": 200,
+   "propellant": 0,
+   "z": -28,
+   "length": 10.9,
+   "radius": 2.2,
+   "separation_speed": 2.5,
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/atlasiii_fairing1.obj",
+     "offset": [
+      0.9,
+      0,
+      -28
+     ]
+    }
+   ],
+   "with_next": true
+  },
+  {
+   "name": "Payload fairing half",
+   "dry_mass": 200,
+   "propellant": 0,
+   "z": -28,
+   "length": 10.9,
+   "radius": 2.2,
+   "separation_speed": 2.5,
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/atlasiii_fairing2.obj",
+     "offset": [
+      -0.9,
+      0,
+      -28
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Centaur",
+   "dry_mass": 1505,
    "propellant": 16880,
    "z": -19,
    "length": 10,
@@ -169,24 +220,29 @@
       0,
       -18.75
      ]
-    },
-    {
-     "model": "models/atlasiii_fairing1.obj",
-     "offset": [
-      0.9,
-      0,
-      -28
-     ]
-    },
-    {
-     "model": "models/atlasiii_fairing2.obj",
-     "offset": [
-      -0.9,
-      0,
-      -28
-     ]
     }
    ]
+  }
+ ],
+ "ports": [
+  {
+   "name": "Payload",
+   "position": [
+    0,
+    0,
+    -23.8
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "stage": 3
   }
  ]
 }
