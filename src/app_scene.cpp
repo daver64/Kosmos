@@ -632,7 +632,7 @@ namespace kosmos::app
                 if (inside_here)
                 {
                     sl::Light3D dim;
-                    dim.ambient = powered ? 0.22f : 0.06f;
+                    dim.ambient = powered ? 0.45f : 0.06f;
                     dim.colour = glm::vec3(0.0f);
                     sl::set_light_3d(dim);
                     std::vector<sl::LocalLight3D> room_lamps;
@@ -666,8 +666,23 @@ namespace kosmos::app
                         shell.tint = {170, 170, 170, 255};
                     }
                     shell.fog = false;
-                    if (rooms.inside)
-                        sl::draw_mesh(rooms.inside, model, shell);
+                    const auto &surfaces = vis.interior_textures(sim.root());
+                    sl::Mesh *const meshes[3] = {rooms.walls, rooms.floor, rooms.ceiling};
+                    for (std::size_t i = 0; i < 3; ++i)
+                        if (meshes[i])
+                        {
+                            sl::Material surface = shell;
+                            surface.texture = surfaces[i].colour;
+                            surface.normal_map = surfaces[i].normal;
+                            if (surfaces[i].metal_rough)
+                            {
+                                surface.pbr = true;
+                                surface.metallic = 0.12f;
+                                surface.roughness = 1.0f;
+                                surface.metallic_roughness = surfaces[i].metal_rough;
+                            }
+                            sl::draw_mesh(meshes[i], model, surface);
+                        }
                     if (rooms.glass)
                     {
                         sl::Material pane;

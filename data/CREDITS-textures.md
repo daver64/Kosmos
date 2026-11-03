@@ -29,3 +29,5 @@ Licensing note: the OpenGameArt textures are Creative Commons, which is fine for
 ## Main Belt Asteroids (not shipped)
 
 Asteroid textures and meshes (Ida, Gaspra, Kleopatra, Toutatis) come from the Orbiter Main Belt Asteroids add-on. They are not redistributed. `tools/mainbelt_import.py` converts a local copy into `data/textures-hires/`, which is git-ignored.
+
+- **Interior walls, ceilings and floors** (`textures/interior/`): the "Majestical" metal textures by Adam Foster, Randy Reddig and Robert Yang (Creative Commons Attribution-ShareAlike 4.0, <https://opengameart.org/>) for walls and ceilings, and the OpenGameArt floor plate texture and bump map for floors. Resized and repacked by `tools/bake_interior_textures.py`.

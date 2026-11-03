@@ -1,0 +1,115 @@
+{
+  "name": "CVEL Fregat",
+  "class": "tug",
+  "torque_accel": 0.25,
+  "max_rate": 0.35,
+  "rcs_thrust": 400,
+  "drag_area": 4,
+  "camera_distance": 14,
+  "systems": [
+    {
+      "type": "battery",
+      "name": "Batteries",
+      "capacity_wh": 3000,
+      "max_w": 1500
+    },
+    {
+      "type": "solar",
+      "name": "Solar",
+      "area_m2": 3,
+      "efficiency": 0.28,
+      "facing": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "type": "load",
+      "name": "Avionics",
+      "watts": 200,
+      "priority": 0
+    }
+  ],
+  "ports": [
+    {
+      "name": "Aft",
+      "position": [
+        0,
+        0,
+        0.8
+      ],
+      "direction": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "Payload",
+      "position": [
+        0,
+        0,
+        -0.97
+      ],
+      "direction": [
+        0,
+        0,
+        -1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "name": "Fregat",
+      "dry_mass": 1100,
+      "propellant": 5435,
+      "z": 0,
+      "length": 1.8,
+      "radius": 1.5,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            0.9
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 19613,
+          "isp": 327,
+          "isp_sl": 270,
+          "plume": 3,
+          "plume_width": 0.35,
+          "plume_glow": 1.0,
+          "plume_density": 1,
+          "type": "rocket",
+          "fuel": "hypergolic"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/fregat.obj",
+          "offset": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

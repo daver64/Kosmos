@@ -54,17 +54,41 @@ namespace kosmos::app
         }
         struct InteriorMeshes
         {
-            sl::Mesh *outside = nullptr, *inside = nullptr, *glass = nullptr;
+            sl::Mesh *outside = nullptr, *walls = nullptr, *floor = nullptr, *ceiling = nullptr, *glass = nullptr;
             sl::Model *model = nullptr; // a modder's mesh, which replaces the generated walls
         };
+        // Wall, floor and ceiling surfaces of generated interiors (data/textures/interior, see tools/bake_interior_textures.py).
+        struct InteriorSurface
+        {
+            sl::Bitmap *colour = nullptr, *normal = nullptr, *metal_rough = nullptr;
+        };
+        std::array<InteriorSurface, 3> interior_surfaces{}; // wall, floor, ceiling
+        bool interior_surfaces_loaded = false;
+        const std::array<InteriorSurface, 3> &interior_textures(const std::string &root)
+        {
+            if (!interior_surfaces_loaded)
+            {
+                interior_surfaces_loaded = true;
+                const char *names[3] = {"wall", "floor", "ceiling"};
+                for (int i = 0; i < 3; ++i)
+                {
+                    const std::string base = root + "/data/textures/interior/" + names[i];
+                    interior_surfaces[static_cast<std::size_t>(i)].colour = sl::load_bitmap((base + ".png").c_str());
+                    interior_surfaces[static_cast<std::size_t>(i)].normal = sl::load_bitmap((base + "_normal.png").c_str());
+                    if (i != 1)
+                        interior_surfaces[static_cast<std::size_t>(i)].metal_rough = sl::load_bitmap((base + "_mr.png").c_str());
+                }
+            }
+            return interior_surfaces;
+        }
         std::map<const kosmos::Interior *, InteriorMeshes> interiors;
         const InteriorMeshes &interior_meshes(const kosmos::Interior &interior)
         {
             auto found = interiors.find(&interior);
             if (found != interiors.end())
                 return found->second;
-            sl::MeshData outside, inside, glass;
-            interior.build_meshes(outside, inside, glass);
+            sl::MeshData outside, walls, floor, ceiling, glass;
+            interior.build_meshes(outside, walls, floor, ceiling, glass);
             InteriorMeshes made;
             if (!glass.indices.empty())
                 made.glass = sl::create_mesh(glass.vertices, glass.indices);
@@ -79,8 +103,12 @@ namespace kosmos::app
             }
             if (!outside.indices.empty())
                 made.outside = sl::create_mesh(outside.vertices, outside.indices);
-            if (!inside.indices.empty())
-                made.inside = sl::create_mesh(inside.vertices, inside.indices);
+            if (!walls.indices.empty())
+                made.walls = sl::create_mesh(walls.vertices, walls.indices);
+            if (!floor.indices.empty())
+                made.floor = sl::create_mesh(floor.vertices, floor.indices);
+            if (!ceiling.indices.empty())
+                made.ceiling = sl::create_mesh(ceiling.vertices, ceiling.indices);
             return interiors[&interior] = made;
         }
         std::map<const kosmos::Cockpit *, sl::Model *> vc_models;

@@ -11,7 +11,7 @@ python3 tools/orbiter_addon_import.py import/orbiter/CVELSoyuzTMA --id cvel-soyu
 
 It writes `addons/<id>/` with:
 
-- `models/`: every `Meshes/*.msh` as OBJ/MTL with textures as PNG (`tools/msh_import.py`; DDS decoding needs Pillow).
+- `models/`: every `Meshes/*.msh` as OBJ/MTL with textures as PNG (`tools/msh_import.py`; DDS decoding needs Pillow). If a model shows flickering stripes, run `python3 tools/obj_zfight.py MODEL.obj --dry-run`: ship parts are drawn two-sided, so coincident shells fight, and the tool (without `--dry-run`) drops them.
 - `addon.json`, with `TODO` for author and description.
 - `ship.json`: a draft. When the add-on ships its C++ source the tool reads, by pattern, the empty mass (`SetEmptyMass`
   and `#define`s in the headers beside the `.cpp`), `CreatePropellantResource`, `CreateThruster`, `CreateDock`,

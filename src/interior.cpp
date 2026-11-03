@@ -9,6 +9,24 @@ namespace kosmos
 {
     namespace
     {
+        constexpr double interior_tile_m = 3.0; // metres per repeat of the wall, floor and ceiling textures
+
+        // Simlib clamps mesh textures instead of repeating them, so a cell face gets the slice of the texture that its
+        // position in the tile selects; neighbouring faces then join up and the texture repeats every interior_tile_m.
+        void tile_uv(const sl::dvec3 &p, int axis, double cell, const sl::dvec3 (&quad)[4], float (&uv)[2])
+        {
+            const int count = std::max(1, static_cast<int>(std::lround(interior_tile_m / cell)));
+            const int along[2] = {axis == 1 ? 0 : axis == 0 ? 2 : 0, axis == 1 ? 2 : 1};
+            for (int k = 0; k < 2; ++k)
+            {
+                long lowest = std::lround(quad[0][along[k]] / cell);
+                for (const sl::dvec3 &q : quad)
+                    lowest = std::min(lowest, std::lround(q[along[k]] / cell));
+                const long phase = ((lowest % count) + count) % count;
+                const double slice = static_cast<double>(phase + std::lround(p[along[k]] / cell) - lowest) / count;
+                uv[k] = static_cast<float>(k == 1 && axis != 1 ? 1.0 - slice : slice);
+            }
+        }
         std::uint32_t hash3(int x, int y, int z)
         {
             std::uint32_t h = static_cast<std::uint32_t>(x) * 73856093u ^ static_cast<std::uint32_t>(y) * 19349663u ^ static_cast<std::uint32_t>(z) * 83492791u;
@@ -344,7 +362,7 @@ namespace kosmos
         return false;
     }
 
-    void Interior::build_meshes(sl::MeshData &exterior, sl::MeshData &inside, sl::MeshData &glass) const
+    void Interior::build_meshes(sl::MeshData &exterior, sl::MeshData &walls, sl::MeshData &floor, sl::MeshData &ceiling, sl::MeshData &glass) const
     {
         const double c = cell_;
         // Per face direction (axis, sign): the two tangent axes follow the cycle so that u x v points along the normal.
@@ -365,7 +383,7 @@ namespace kosmos
                             if (type == Cell::glass ? solid(n[0], n[1], n[2]) : solid(n[0], n[1], n[2]) && at(n[0], n[1], n[2]) != Cell::glass)
                                 continue;
                             const bool out = outdoors(n[0], n[1], n[2]);
-                            sl::MeshData &mesh = type == Cell::glass ? glass : out ? exterior : inside;
+                            sl::MeshData &mesh = type == Cell::glass ? glass : out ? exterior : axis != 1 ? walls : sign > 0 ? floor : ceiling;
                             const int ua = (axis + 1) % 3, va = (axis + 2) % 3;
                             sl::dvec3 corner(pos[0] * c, (pos[1] - 1) * c, pos[2] * c);
                             if (sign > 0)
@@ -379,9 +397,9 @@ namespace kosmos
 
                             float shade = 0.72f;
                             if (!out)
-                                shade = axis == 1 ? (sign > 0 ? 0.8f : 0.5f) : 0.68f;
+                                shade = axis == 1 ? (sign > 0 ? 1.0f : 0.85f) : 0.95f;
                             shade *= 0.92f + 0.08f * static_cast<float>(hash3(x, y, z) & 255u) / 255.0f;
-                            float colour[3] = {0.78f, 0.8f, 0.84f};
+                            float colour[3] = {1.0f, 1.0f, 1.0f};
                             float alpha = 1.0f;
                             if (type == Cell::glass)
                             {
@@ -399,9 +417,9 @@ namespace kosmos
                             }
                             else if (type == Cell::slab && axis == 1 && sign > 0 && !out)
                             {
-                                colour[0] = 0.55f;
-                                colour[1] = 0.58f;
-                                colour[2] = 0.62f;
+                                colour[0] = 1.0f;
+                                colour[1] = 1.0f;
+                                colour[2] = 1.0f;
                             }
                             const sl::dvec3 n_ship = dir_to_ship(normal);
                             const sl::dvec3 corners[4] = {corner, corner + u, corner + u + v, corner + v};
@@ -410,6 +428,7 @@ namespace kosmos
                             {
                                 sl::Vertex3D vert;
                                 const sl::dvec3 s = to_ship(p);
+                                tile_uv(p, axis, c, corners, vert.uv);
                                 for (int k = 0; k < 3; ++k)
                                 {
                                     vert.position[k] = static_cast<float>(s[k]);

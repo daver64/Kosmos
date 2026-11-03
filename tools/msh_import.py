@@ -173,6 +173,28 @@ def convert_texture(src_dir, name, out_dir):
         return None
 
 
+def triangle_key(positions):
+    # The winding counts: a reversed copy is a deliberate two-sided surface, not a duplicate.
+    ring = [(round(x, 4), round(y, 4), round(z, 4)) for x, y, z in positions]
+    start = ring.index(min(ring))
+    return tuple(ring[start:] + ring[:start])
+
+
+def hidden_triangles(mesh):
+    """Triangles an Orbiter mesh draws twice: the same triangle in a later group overwrites the earlier one there (draw order),
+    but a depth buffer z-fights the pair, so the earlier copy is dropped. Returns {group index: set of triangle indexes}."""
+    last = {}
+    for gi, g in enumerate(mesh.groups):
+        for ti, tri in enumerate(g.triangles):
+            last[triangle_key([g.vertices[i][:3] for i in tri])] = gi
+    hidden = {}
+    for gi, g in enumerate(mesh.groups):
+        for ti, tri in enumerate(g.triangles):
+            if last[triangle_key([g.vertices[i][:3] for i in tri])] != gi:
+                hidden.setdefault(gi, set()).add(ti)
+    return hidden
+
+
 def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False):
     """Writes out_base.obj/.mtl. Returns (vertex count, triangle count, textures written)."""
     out_dir = os.path.dirname(out_base) or "."
@@ -218,6 +240,7 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
     obj = [f"# converted from an Orbiter .msh by msh_import.py", f"mtllib {os.path.basename(out_base)}.mtl"]
     base_index = 1
     tris = 0
+    hidden = hidden_triangles(mesh)
     for gi, g in enumerate(mesh.groups):
         if not g.triangles:
             continue
@@ -234,11 +257,14 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
         is_display = bool(re.search(r"DISPLAY$|DISP$", g.label or ""))
         for v in g.vertices:
             obj.append("vt %.5f %.5f" % (v[6], v[7] if is_display else 1.0 - v[7]))
-        for a, b, c in g.triangles:
+        skip = hidden.get(gi, ())
+        for ti, (a, b, c) in enumerate(g.triangles):
+            if ti in skip:
+                continue
             a, b, c = (x + base_index for x in (a, b, c))
             obj.append(f"f {a}/{a}/{a} {b}/{b}/{b} {c}/{c}/{c}")
+            tris += 1
         base_index += len(g.vertices)
-        tris += len(g.triangles)
     with open(out_base + ".obj", "w") as f:
         f.write("\n".join(obj) + "\n")
     with open(out_base + ".mtl", "w") as f:

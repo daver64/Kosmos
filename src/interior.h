@@ -122,7 +122,7 @@ namespace kosmos
         bool blocked(const sl::dvec3 &feet, double radius, double height, const InteriorState *state = nullptr) const;
 
         /** Faces of the walls seen from outdoors (lit by the Sun) and from inside, and of the window glass, in the ship frame. */
-        void build_meshes(sl::MeshData &exterior, sl::MeshData &inside, sl::MeshData &glass) const;
+        void build_meshes(sl::MeshData &exterior, sl::MeshData &walls, sl::MeshData &floor, sl::MeshData &ceiling, sl::MeshData &glass) const;
 
     private:
         bool solid(int x, int y, int z) const;
