@@ -407,14 +407,30 @@ namespace
         {
             tree_->DeleteAllItems();
             const wxTreeItemId root = tree_->AddRoot("");
-            std::map<std::string, wxTreeItemId> groups;
+            std::map<std::string, wxTreeItemId> groups; // keyed by folder path, so nested folders become nested nodes
             wxTreeItemId select;
+            auto group_for = [&](const std::string &path) {
+                wxTreeItemId parent = root;
+                std::string key;
+                std::size_t start = 0;
+                while (start <= path.size())
+                {
+                    std::size_t end = path.find('/', start);
+                    if (end == std::string::npos)
+                        end = path.size();
+                    const std::string part = path.substr(start, end - start);
+                    key += (key.empty() ? "" : "/") + part;
+                    if (!groups.count(key))
+                        groups[key] = tree_->AppendItem(parent, W(part));
+                    parent = groups[key];
+                    start = end + 1;
+                }
+                return parent;
+            };
             for (const ScenarioInfo &s : scenarios_)
             {
-                const std::string group = s.category.empty() ? "Standard" : s.category;
-                if (!groups.count(group))
-                    groups[group] = tree_->AppendItem(root, W(group));
-                const wxTreeItemId item = tree_->AppendItem(groups[group], W(s.name), -1, -1, new IdData(s.id));
+                const wxTreeItemId parent = group_for(s.category.empty() ? "Standard" : s.category);
+                const wxTreeItemId item = tree_->AppendItem(parent, W(s.name), -1, -1, new IdData(s.id));
                 if (s.id == profile_.last_scenario)
                     select = item;
             }

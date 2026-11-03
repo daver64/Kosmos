@@ -20,15 +20,15 @@ LEFT='323x310+272+350'
 RIGHT='323x310+685+350'
 
 W='--hide-info --set /sim/settings/weather=1 --clean --mfd 1'
-STN="--scenario 23_orbital_stations $W"
-AIR="--scenario 06_deltaglider_chippenham $W"
-CUB="--scenario 16_piper_cub_chippenham $W"
+STN="--scenario orbital_stations $W"
+AIR="--scenario deltaglider_chippenham $W"
+CUB="--scenario piper_cub_chippenham $W"
 RUNS="transfer|6|transfer|transfer|orbitcomp|orbitcomp-orb|$STN --set /sim/target=Moon
 orbitcomp-man|6|orbit|-|orbitcomp|orbitcomp-man|$STN --set /sim/target=Moon --set /orbitcomp/page=2 --set /orbitcomp/prograde=250
 orbitcomp-pln|6|orbit|-|orbitcomp|orbitcomp-pln|$STN --set /sim/target=Mars --set /orbitcomp/page=3
 orbit-surface|6|orbit|orbit|surface|surface|$STN
 map-attitude|6|map|map|attitude|attitude|$STN
-ascent|40|ascent|ascent|-|-|--scenario 04_delta_iv_heavy_kennedy $W --auto-stage --launch-at 2
+ascent|40|ascent|ascent|-|-|--scenario delta_iv_heavy_kennedy $W --auto-stage --launch-at 2
 align|6|align|align|orbit|-|$STN --set /sim/target=Moon
 systems|6|systems|systems|orbit|-|$STN
 air-comnav-vor|8|comnav|comnav|vor|vor|$AIR

@@ -20,7 +20,7 @@ for t in systems_test reentry_test weather_test joystick_test equipment_test key
 done
 
 echo "== arsenal selftest (landed Vulcan: kit, pistol, plasma, charges, blast damage, bomb rack)"
-./kosmos --scenario 05_vulcan_wagga --selftest 1 --selftest-arsenal | tee arsenal_test.log
+./kosmos --scenario vulcan_wagga --selftest 1 --selftest-arsenal | tee arsenal_test.log
 if grep -q '^FAIL' arsenal_test.log; then echo "arsenal selftest failed"; exit 1; fi
 rm -f arsenal_test.log
 echo "== weapons selftest (Deltaglider in orbit: beam, shield, flak, light cap)"
@@ -30,6 +30,6 @@ rm -f weapons_test.log
 
 echo "== bombing selftest (regular and atom bomb detonate)"
 for atom in "" "--selftest-drop-atom"; do
-    ./kosmos --scenario 12_vulcan_atom_iceland --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
+    ./kosmos --scenario vulcan_atom_iceland --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
 done
 echo "all tests passed"

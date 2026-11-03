@@ -86,7 +86,7 @@ namespace launcher
                 s.description = str(j, "description");
                 s.file = file;
                 const fs::path rel = fs::relative(file.parent_path(), dir);
-                s.category = rel == "." ? std::string() : (*rel.begin()).generic_string(); // top-level folder only
+                s.category = rel == "." ? std::string() : rel.generic_string(); // the whole folder path, shown as a nested tree
                 // Only the vessel the player starts in is listed; docked pods and other payloads are left to the description.
                 const nlohmann::json &list = j["ships"];
                 const std::size_t active = j.contains("active") && j["active"].is_number_integer() && j["active"].get<int>() >= 0 && static_cast<std::size_t>(j["active"].get<int>()) < list.size()
@@ -102,7 +102,15 @@ namespace launcher
                 }
                 s.thumbnail = existing(file.parent_path(), str(j, "thumbnail"));
                 if (s.thumbnail.empty())
-                    s.thumbnail = guess_thumbnail(file.parent_path(), s.id);
+                {
+                    // Look in thumbs/ beside the file, then in each folder above it up to the scenarios root.
+                    for (fs::path d = file.parent_path(); s.thumbnail.empty(); d = d.parent_path())
+                    {
+                        s.thumbnail = guess_thumbnail(d, s.id);
+                        if (d == dir || d == d.parent_path())
+                            break;
+                    }
+                }
                 out.push_back(std::move(s));
             }
         }
