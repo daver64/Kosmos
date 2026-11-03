@@ -1,0 +1,60 @@
+{
+ "name": "CVEL Energia",
+ "class": "launcher",
+ "script": "@launcher.lua",
+ "description": "Energia: four RD-170 strap-on boosters around a hydrogen core (modelled as one RD-0120). The orbiter cradle on the core carries a Buran. Boosters and core burn together; undock the orbiter (Ctrl+D) after the core burns out.",
+ "torque_accel": 0.1,
+ "max_rate": 0.2,
+ "rcs_thrust": 0,
+ "drag_area": 90,
+ "camera_distance": 150,
+ "camera_target": [0, 0, 10],
+ "ports": [
+  {"name": "Orbiter cradle", "position": [0, 4.5, 15], "direction": [0, 1, 0], "up": [0, 0, -1], "stage": 1}
+ ],
+ "systems": [
+  {"type": "battery", "name": "Batteries", "capacity_wh": 5000, "max_w": 2000},
+  {"type": "solar", "name": "Solar", "area_m2": 4, "efficiency": 0.28, "facing": [0, 1, 0]},
+  {"type": "load", "name": "Avionics", "watts": 300, "priority": 0}
+ ],
+ "stages": [
+  {
+   "name": "Strap-on boosters",
+   "dry_mass": 140000,
+   "propellant": 1350000,
+   "z": 10.5,
+   "length": 38,
+   "radius": 7,
+   "separation_speed": 2.6,
+   "engines": [
+    {"position": [5, 2.75, 29.4], "direction": [0, 0, -1], "thrust": 7850806, "isp": 337, "isp_sl": 309, "plume": 45, "plume_width": 2.0, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene"},
+    {"position": [-5, -2.75, 29.4], "direction": [0, 0, -1], "thrust": 7850806, "isp": 337, "isp_sl": 309, "plume": 45, "plume_width": 2.0, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene"},
+    {"position": [5, -2.75, 29.4], "direction": [0, 0, -1], "thrust": 7850806, "isp": 337, "isp_sl": 309, "plume": 45, "plume_width": 2.0, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene"},
+    {"position": [-5, 2.75, 29.4], "direction": [0, 0, -1], "thrust": 7850806, "isp": 337, "isp_sl": 309, "plume": 45, "plume_width": 2.0, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "kerosene"},
+    {"position": [0, 0, 29.4], "direction": [0, 0, -1], "thrust": 1961000, "isp": 455, "isp_sl": 352, "plume": 30, "plume_width": 1.6, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "hydrogen"}
+   ],
+   "gear": [[5, 1.75, 31], [-5, -3.75, 31], [5, -3.75, 31], [-5, 1.75, 31]],
+   "parts": [
+    {"model": "models/booster1.obj", "offset": [5, 1.75, 10.55]},
+    {"model": "models/booster2.obj", "offset": [-5, -3.75, 10.55]},
+    {"model": "models/booster3.obj", "offset": [5, -3.75, 10.55]},
+    {"model": "models/booster4.obj", "offset": [-5, 1.75, 10.55]}
+   ]
+  },
+  {
+   "name": "Core stage",
+   "dry_mass": 85000,
+   "propellant": 750000,
+   "z": 0,
+   "length": 58.8,
+   "radius": 4.5,
+   "separation_speed": 1.5,
+   "engines": [
+    {"position": [0, 0, 29.4], "direction": [0, 0, -1], "thrust": 1961000, "isp": 455, "isp_sl": 352, "plume": 30, "plume_width": 1.6, "plume_glow": 1.6, "plume_density": 2, "type": "rocket", "fuel": "hydrogen"}
+   ],
+   "parts": [
+    {"model": "models/energia.obj", "offset": [0, 0, 0]}
+   ]
+  }
+ ]
+}

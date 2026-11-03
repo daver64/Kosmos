@@ -195,7 +195,7 @@ def hidden_triangles(mesh):
     return hidden
 
 
-def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False):
+def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False, objects=False):
     """Writes out_base.obj/.mtl. Returns (vertex count, triangle count, textures written)."""
     out_dir = os.path.dirname(out_base) or "."
     tex_out = tex_out or out_dir
@@ -247,7 +247,7 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
         # Orbiter does not draw a group whose user flag has bit 2 set ("obsolete"); display groups are switched on by the vessel.
         if g.flag & 2 and not re.search(r"DISPLAY$|DISP$", g.label or ""):
             continue
-        obj.append(f"g {re.sub(r'[^A-Za-z0-9_]+', '_', g.label) or 'group%d' % gi}")
+        obj.append(f"{'o' if objects else 'g'} {re.sub(r'[^A-Za-z0-9_]+', '_', g.label) or 'group%d' % gi}")
         obj.append(f"usemtl {material_for(g)}")
         for v in g.vertices:
             obj.append("v %.5f %.5f %.5f" % ((-v[0] if props else v[0]) * scale, v[1] * scale, (v[2] if props else -v[2]) * scale))
@@ -313,6 +313,7 @@ def main():
     ap.add_argument("--out", help="output folder (default: <path>/models)")
     ap.add_argument("--scale", type=float, default=1.0)
     ap.add_argument("--props", action="store_true", help="props-library frame (+Z forward, +X left) for base objects, instead of the ship frame (nose along -Z)")
+    ap.add_argument("--objects", action="store_true", help="write each Orbiter group as an OBJ object (`o`) named by its label or group<index>, so a ship.json animation can address it; the default `g` lines are ignored by Kosmos")
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
     if args.selftest:
@@ -324,7 +325,7 @@ def main():
     for f in files:
         name = os.path.splitext(os.path.basename(f))[0].lower()
         try:
-            nv, nt, ntex = write_obj(parse_msh(f), os.path.join(out, name), tex_dirs, args.scale, os.path.join(out, "textures"), args.props)
+            nv, nt, ntex = write_obj(parse_msh(f), os.path.join(out, name), tex_dirs, args.scale, os.path.join(out, "textures"), args.props, args.objects)
             print(f"{os.path.basename(f)}: {nv} vertices, {nt} triangles, {ntex} textures -> {out}/{name}.obj")
         except Exception as e:
             print(f"{os.path.basename(f)}: skipped ({e})", file=sys.stderr)

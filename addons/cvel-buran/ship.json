@@ -1,0 +1,64 @@
+{
+ "name": "CVEL Buran",
+ "class": "aircraft",
+ "description": "Buran orbiter: a delta-winged spaceplane with two orbital manoeuvring engines and a payload bay. Orbiter-sized lift surfaces; fixed landing gear. Launches on the CVEL Energia, or rides piggyback on another launcher.",
+ "torque_accel": 0.5,
+ "max_rate": 0.5,
+ "rcs_thrust": 15000,
+ "rcs_propellant": 1500,
+ "reverse_throttle": true,
+ "drag_area": 8,
+ "thermal": {"nose_radius": 1.0, "heat_area": 200, "max_temp": 1900, "bare_max_temp": 1200},
+ "hypersonic": {"area": 270, "length": 36, "cd_max": 1.6, "trim_deg": 40},
+ "camera_distance": 60,
+ "rcs_modes": true,
+ "inertia": [480000, 620000, 77000],
+ "damping": [0.8, 1.0, 0.8],
+ "ports": [
+  {"name": "Payload bay", "position": [0, 2.44, -10.44], "direction": [0, 1, 0], "up": [0, 0, -1]},
+  {"name": "Launcher cradle", "position": [0, -3, 0], "direction": [0, -1, 0], "up": [0, 0, -1]}
+ ],
+ "systems": [
+  {"type": "battery", "name": "Batteries", "capacity_wh": 30000, "max_w": 8000},
+  {"type": "solar", "name": "Solar", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0]},
+  {"type": "load", "name": "Avionics", "watts": 800, "priority": 0},
+  {"type": "tank", "gas": "oxygen", "capacity_kg": 300, "kg": 300},
+  {"type": "tank", "gas": "nitrogen", "capacity_kg": 40, "kg": 40},
+  {"type": "tank", "gas": "water", "capacity_kg": 1000, "kg": 1000},
+  {"type": "regulator", "name": "Pressure regulator", "vessel": "Cabin"},
+  {"type": "scrubber", "name": "CO2 scrubber", "vessel": "Cabin", "kg_per_day": 6, "sorbent_kg": 300}
+ ],
+ "surfaces": [
+  {"control": "", "position": [0, 0, 4], "area": 250, "cl0": 0.05, "cl_alpha": 2.2, "cd0": 0.03, "induced_drag": 0.15, "stall_deg": 40},
+  {"control": "flaps", "position": [0, 0, 8], "area": 30, "cl0": 0.1, "cl_alpha": 2.4, "cd0": 0.03, "induced_drag": 0.15, "stall_deg": 30, "gain_deg": 10},
+  {"control": "aileron", "position": [7, 0, 8], "area": 20, "cl0": 0, "cl_alpha": 3, "cd0": 0.01, "induced_drag": 0.08, "stall_deg": 18, "gain_deg": 12},
+  {"control": "aileron", "position": [-7, 0, 8], "area": 20, "cl0": 0, "cl_alpha": 3, "cd0": 0.01, "induced_drag": 0.08, "stall_deg": 18, "gain_deg": -12},
+  {"control": "elevator", "position": [0, 0, 15], "area": 30, "cl0": 0, "cl_alpha": 3, "cd0": 0.01, "induced_drag": 0.08, "stall_deg": 18, "gain_deg": -12},
+  {"control": "rudder", "position": [0, 3, 16], "area": 20, "cl0": 0, "cl_alpha": 3, "cd0": 0.01, "induced_drag": 0.08, "stall_deg": 18, "gain_deg": 15, "forward": [0, 0, -1], "up": [1, 0, 0]}
+ ],
+ "wheels": [
+  {"position": [0, -3.3, -8], "steer_deg": 40, "rolling_resistance": 0.03},
+  {"position": [3.5, -3.3, 6], "rolling_resistance": 0.03},
+  {"position": [-3.5, -3.3, 6], "rolling_resistance": 0.03}
+ ],
+ "vessels": [
+  {"name": "Cabin", "position": [0, 2.5, -12], "size": [3.5, 3, 5], "crew": 4}
+ ],
+ "stages": [
+  {
+   "name": "Buran",
+   "dry_mass": 105000,
+   "propellant": 16000,
+   "z": 0,
+   "length": 36,
+   "radius": 5,
+   "engines": [
+    {"position": [1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"},
+    {"position": [-1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"}
+   ],
+   "parts": [
+    {"model": "models/buran.obj"}
+   ]
+  }
+ ]
+}

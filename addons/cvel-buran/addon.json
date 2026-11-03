@@ -1,0 +1,11 @@
+{
+  "id": "cvel-buran",
+  "name": "CVEL Buran",
+  "version": "0.1",
+  "author": "Dave Rowbotham (Orbiter CVE Buran, after Atlantis by Martin Schweiger); Kosmos conversion",
+  "description": "Buran orbiter and the original four-booster Energia launcher.",
+  "ships": [
+    "ship.json",
+    "energia.json"
+  ]
+}
