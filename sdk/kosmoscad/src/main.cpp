@@ -381,7 +381,7 @@ namespace
         if (p.extension() != ".kmodel" && A->ed.doc.scene.objects.empty())
         {
             GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(A->window), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "No model in %s", fs::path(path).filename().string().c_str());
-            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", "None of this ship's parts has an OBJ model (GLB and generated props are not shown), so only its engines, gear and systems can be edited.");
+            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", "None of this ship's parts has an OBJ or glTF/GLB model (generated props are not shown), so only its engines, gear and systems can be edited.");
             gtk_dialog_run(GTK_DIALOG(d));
             gtk_widget_destroy(d);
         }

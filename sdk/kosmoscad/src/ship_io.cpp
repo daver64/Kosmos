@@ -1,6 +1,7 @@
 #include "ship_io.h"
 
 #include "equipment.h"
+#include "mesh_io.h"
 
 #include <fstream>
 #include <set>
@@ -78,10 +79,11 @@ namespace cad
                     {
                         const std::string model = part.value("model", "");
                         const fs::path file = dir / model;
-                        const bool obj = lower_ends_with(model, ".obj");
+                        // OBJ and glTF/GLB parts open as editable meshes; saving writes them back as OBJ.
+                        const bool obj = lower_ends_with(model, ".obj") || lower_ends_with(model, ".glb") || lower_ends_with(model, ".gltf");
                         const size_t before = s.objects.size();
                         std::string err;
-                        if (!model.empty() && obj && fs::exists(file) && import_obj(file, s, err))
+                        if (!model.empty() && obj && fs::exists(file) && import_mesh_file(file, s, err))
                         {
                             json rest = part;
                             for (const char *k : {"model", "offset", "rotate", "scale"})
@@ -102,7 +104,7 @@ namespace cad
                         else
                         {
                             if (!model.empty())
-                                warnings += "kept " + model + " as it is (" + (obj ? (err.empty() ? "missing" : err) : "not an OBJ") + ")\n";
+                                warnings += "kept " + model + " as it is (" + (obj ? (err.empty() ? "missing" : err) : "not an OBJ or glTF model") + ")\n";
                             kept.push_back(part);
                         }
                         ++pi;

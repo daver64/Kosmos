@@ -283,7 +283,10 @@ local function patched_encounter(f, nd)
     if beat > 1e-12 then span = math.min(TAU / beat, 10 * 365.25 * 86400) end
   end
   local distance, closest_in = closest(ship_parent, ship_parent.nu, target.orbit, target_nu, span)
-  return { distance = distance, time = exit_time + closest_in }
+  local sp, tp = state_at(ship_parent, advance(ship_parent, ship_parent.nu, closest_in)), state_at(target.orbit, advance(target.orbit, target_nu, closest_in))
+  return { distance = distance, time = exit_time + closest_in,
+           geo = { path = ship_parent, target_orbit = target.orbit, planet_orbit = catalog[f.idx + 1].orbit,
+                   ship_at = sp, target_at = tp, exit_at = (state_at(ship_parent, ship_parent.nu)) } }
 end
 
 local function target_state(f)
@@ -484,7 +487,7 @@ local function scan(f, ot, nd)
   elseif nd then
     local patched = patched_encounter(f, nd)
     if patched then
-      res.man_d, res.man_t, res.patched = patched.distance, patched.time, true
+      res.man_d, res.man_t, res.patched, res.geo = patched.distance, patched.time, true, patched.geo
     end
   end
   scan_cache = res
@@ -512,11 +515,16 @@ end
 
 -- A point beyond the plot area is pinned to its edge along the same bearing, so a marker never leaves the display.
 local PLOT_EDGE = 135
-local function plot_point(g, v, P, Q, cx, cy, scale, rad, edge)
+local function pin(v, P, Q, scale, edge)
   edge = edge or PLOT_EDGE
   local dx, dy = dot(v, P) * scale, -dot(v, Q) * scale
   local d = math.sqrt(dx * dx + dy * dy)
   if d > edge then dx, dy = dx * edge / d, dy * edge / d end
+  return dx, dy
+end
+
+local function plot_point(g, v, P, Q, cx, cy, scale, rad, edge)
+  local dx, dy = pin(v, P, Q, scale, edge)
   g:disc(cx + dx, cy + dy, rad)
 end
 
@@ -524,13 +532,20 @@ local M = { name = "OrbitComp" }
 M.buttons = { "ORB", "MAN", "PLN", "TGT+", "TGT-", "HEL", "", "", "", "", "", "" }
 
 local auto_on = false -- the burn autopilot was armed from this page (see auto_arm)
+local DAY = 86400
+local FAST_LABELS = { "FAST", "FLIGHT", "DEPART", "BEST" }
+-- Fast ejection: mode 0 is the Hohmann plan, 1 adjusts the flight time, 2 the departure date and 3 finds the cheapest
+-- departure for a flight no longer than the one set.
+local fast = { mode = 0, target = nil }
+local fast_ok = false -- the PLN page shows an ejection that can be made fast
 
 local function set_buttons()
   local right = { "", "", "", "", "", "" }
   if page == 1 or page == 4 then right = { "ZOOM+", "ZOOM-", "FIT", "", "", "" }
   elseif page == 2 then right = { "FIELD", "+", "-", "STEP", "NODE", "ZERO" }
   else right = { "TO MAN", M.plan and M.plan.kind == "lambert" and "" or (auto_on and "AUTO*" or "AUTO"),
-                 "ABORT", "", "", "" } end
+                 "ABORT", fast_ok and FAST_LABELS[fast.mode + 1] or "", fast_ok and fast.mode > 0 and (fast.mode == 3 and "FIND" or "+") or "",
+                 fast_ok and fast.mode > 0 and fast.mode < 3 and "-" or "" } end
   for i = 1, 6 do M.buttons[6 + i] = right[i] end
 end
 
@@ -667,6 +682,36 @@ local function publish_burn(centre_in, burn, label)
   props.set("/plan/orbitcomp/stamp", props.get("/sim/frame"))
 end
 
+-- The heliocentric view of a patched encounter: the planet's and the target's orbits, the path the burn gives, and where the
+-- ship and the target are when they pass closest. Changing the node moves the path, so the miss distance can be walked to zero.
+local function draw_arrival(g, geo, cx, cy)
+  local pl = geo.planet_orbit
+  local P, Q = pl.P, pl.Q
+  local ta, pa = geo.target_orbit, geo.path
+  local extent = math.max(pl.ra or pl.rp * 2, ta.ra or ta.rp * 2)
+  local scale = 78 / extent
+  local limit = 78 / scale * 1.5
+  g:colour(255, 220, 90)
+  g:disc(cx, cy, 3)
+  g:colour(60, 110, 255)
+  draw_orbit(g, pl, P, Q, cx, cy, scale, limit)
+  g:colour(255, 140, 60)
+  draw_orbit(g, ta, P, Q, cx, cy, scale, limit)
+  g:colour(255, 255, 255)
+  draw_orbit(g, pa, P, Q, cx, cy, scale, limit)
+  plot_point(g, geo.exit_at, P, Q, cx, cy, scale, 3, 82)
+  g:colour(255, 255, 255)
+  plot_point(g, geo.ship_at, P, Q, cx, cy, scale, 4, 82)
+  g:colour(255, 140, 60)
+  plot_point(g, geo.target_at, P, Q, cx, cy, scale, 4, 82)
+  local sx, sy = pin(geo.ship_at, P, Q, scale, 82)
+  local tx, ty = pin(geo.target_at, P, Q, scale, 82)
+  g:colour(255, 90, 90)
+  g:line(cx + sx, cy + sy, cx + tx, cy + ty)
+  g:colour(255, 255, 255)
+  g:text(cx + sx + 6, cy + sy - 12, "You", 0)
+end
+
 local function draw_man(g, f, ot, tr)
   title(g, f)
   local o = f.o
@@ -721,6 +766,10 @@ local function draw_man(g, f, ot, tr)
     g:text(LX, 191, "Target is not in " .. f.soi .. "'s orbit frame; PLN plans the ejection", 0)
   end
 
+  if scanned and scanned.geo then
+    draw_arrival(g, scanned.geo, 200, 305)
+    return
+  end
   -- Current orbit dim, post-burn orbit bright, and the node.
   local cx, cy = 200, 305
   local extent = o.bound and o.ra or o.rp * 4
@@ -771,11 +820,13 @@ local function plan_hohmann(f, ot, tr, tv)
            plane = math.deg(math.acos(clamp(dot(ot.W, o.W), -1, 1))) }
 end
 
--- Short-way, single-revolution Lambert solution using universal variables.
-local function lambert_velocity(r1, r2, tof, mu)
+-- Single-revolution Lambert solution using universal variables.
+-- With `normal` (the direction the body orbits about), a transfer that has to sweep more than half a turn goes the long way.
+local function lambert_velocity(r1, r2, tof, mu, normal)
   local r1m, r2m = len(r1), len(r2)
   local cosine = clamp(dot(r1, r2) / (r1m * r2m), -1, 1)
   local angle = math.acos(cosine)
+  if normal and dot(cross(r1, r2), normal) < 0 then angle = TAU - angle end
   local sine = math.sin(angle)
   if math.abs(sine) < 1e-8 then return nil end
   local A = sine * math.sqrt(r1m * r2m / (1 - cosine))
@@ -796,7 +847,7 @@ local function lambert_velocity(r1, r2, tof, mu)
     if C <= 0 or C ~= C then return math.huge, 0 end
     local y = r1m + r2m + A * (z * S - 1) / math.sqrt(C)
     if y < 0 or y ~= y then return -1, y end
-    return (math.pow(y / C, 1.5) * S + A * math.sqrt(y)) / math.sqrt(mu), y
+    return ((y / C) ^ 1.5 * S + A * math.sqrt(y)) / math.sqrt(mu), y
   end
 
   local lo, hi = -4 * PI * PI + 1e-6, 4 * PI * PI - 1e-6
@@ -899,6 +950,109 @@ local function plan_ejection(f, s)
     res.burn_dir, res.planet_dir, res.wp = burn_dir, planet_dir, wp
   end
   return res
+end
+
+-- Fast ejection: the flight time and the departure date are chosen (FLIGHT / DEPART with + and -) instead of taking the
+-- Hohmann ones. A Lambert arc about the star joins the planet at departure to the target at arrival; the excess velocity
+-- it needs over the planet's own gives the ejection, flown from the ship's orbit as in plan_ejection.
+
+-- Departure excess speed of the Lambert arc that leaves the ship's planet T seconds from now and arrives tof seconds later.
+local function fast_vinf(catalog, pidx, f, tidx, mu, T, tof)
+  local c1, c2 = {}, {}
+  local planet_p, planet_v = body_at(catalog, f.idx, T, c1)
+  local sun_1, sun_v = body_at(catalog, pidx, T, c1)
+  local r1, pv = sub(planet_p, sun_1), sub(planet_v, sun_v)
+  local r2 = sub(body_at(catalog, tidx, T + tof, c2), (body_at(catalog, pidx, T + tof, c2)))
+  local v1 = lambert_velocity(r1, r2, tof, mu, unit(cross(r1, pv)))
+  return v1 and len(sub(v1, pv)) or nil
+end
+
+-- Porkchop search: the departure date and flight time (no longer than `max_days`) that need the least departure v-infinity
+-- over the next synodic period. A coarse grid picks the valley and a finer grid around it settles the answer.
+local function search_fast(f, s, max_days)
+  local catalog = body_catalog()
+  local pidx, tidx = body_by_name(f.parent), body_by_name(target_name())
+  if not pidx or not tidx then return nil end
+  local po, to = catalog[f.idx + 1].orbit, catalog[tidx + 1].orbit
+  if not po or not to or not po.n or not to.n then return nil end
+  local beat = math.abs(po.n - to.n)
+  local span = math.min(beat > 1e-12 and TAU / beat or 800 * DAY, 800 * DAY)
+  local hohmann = PI * math.sqrt(((po.a + to.a) / 2) ^ 3 / s.mu) / DAY
+  local tof_hi = math.max(max_days, 20)
+  local tof_lo = math.min(0.3 * hohmann, tof_hi * 0.5)
+  local best
+  local function try(d, t)
+    local v = fast_vinf(catalog, pidx, f, tidx, s.mu, d * DAY, t * DAY)
+    if v and (not best or v < best.vinf) then best = { vinf = v, depart = d, tof = t } end
+  end
+  local nd, nt = 40, 20
+  for i = 0, nd do
+    for j = 0, nt do try(0.2 + (span / DAY - 0.2) * i / nd, tof_lo + (tof_hi - tof_lo) * j / nt) end
+  end
+  if not best then return nil end
+  local cd, ct = (span / DAY) / nd, (tof_hi - tof_lo) / nt
+  local d0, t0 = best.depart, best.tof
+  for i = -5, 5 do
+    for j = -5, 5 do
+      local d, t = d0 + cd * i / 5, t0 + ct * j / 5
+      if d >= 0.2 and t >= 10 and t <= tof_hi then try(d, t) end
+    end
+  end
+  return best
+end
+
+local function plan_ejection_fast(f, s)
+  local catalog = body_catalog()
+  local pidx, tidx = body_by_name(f.parent), body_by_name(target_name())
+  if not pidx or not tidx then return nil end
+  local now = props.get("/sim/time")
+  local T, tof = fast.depart_at - now, fast.tof * DAY
+  if T < 0 or tof < 5 * DAY then return nil end
+  local c1, c2 = {}, {}
+  local planet_p, planet_v = body_at(catalog, f.idx, T, c1)
+  local sun_1 = body_at(catalog, pidx, T, c1)
+  local target_p = body_at(catalog, tidx, T + tof, c2)
+  local sun_2 = body_at(catalog, pidx, T + tof, c2)
+  local sun_v = select(2, body_at(catalog, pidx, T, c1))
+  local r1, r2, pv = sub(planet_p, sun_1), sub(target_p, sun_2), sub(planet_v, sun_v)
+  local v1 = lambert_velocity(r1, r2, tof, s.mu, unit(cross(r1, pv)))
+  if not v1 then return nil end
+  local transfer = make_orbit(r1, v1, s.mu)
+  if not transfer then return nil end
+
+  local o = f.o
+  local vinf_vec = sub(v1, pv)
+  local vinf = len(vinf_vec)
+  local rb = len(f.r)
+  local vdir = unit(vinf_vec)
+  local inplane = unit(sub(vdir, mul(o.W, dot(vdir, o.W))))
+  local ecc = 1 + rb * vinf * vinf / f.mu
+  local nu_inf = math.acos(-1 / ecc)
+  local burn_dir = rotate(inplane, o.W, -nu_inf)
+  local vb = math.sqrt(vinf * vinf + 2 * f.mu / rb)
+  local dv = vb - math.sqrt(f.mu / rb)
+  -- The burn comes ahead of the departure by the climb out of the sphere of influence.
+  local hyper = make_orbit(mul(burn_dir, rb), mul(unit(cross(o.W, burn_dir)), vb), f.mu)
+  local soi = catalog[f.idx + 1].soi
+  local climb = 0
+  if hyper and soi and soi > rb then
+    climb = time_to(hyper, hyper.nu, math.acos(clamp((hyper.p / soi - 1) / hyper.e, -1, 1))) or 0
+  end
+  local tref = math.max(T - climb, 0)
+  local rw = state_at(o, advance(o, o.nu, tref))
+  local ang = atan2(dot(cross(rw, burn_dir), o.W), dot(rw, burn_dir)) % TAU
+  local t_burn = tref + (o.bound and ang / math.sqrt(f.mu / rb ^ 3) or 0)
+  local planet_dir = unit(pv)
+  local arrive_v = select(2, state_at(transfer, advance(transfer, transfer.nu, tof)))
+  local target_v = select(2, body_at(catalog, tidx, T + tof, c2))
+  local tvel = sub(target_v, select(2, body_at(catalog, pidx, T + tof, c2)))
+  return { kind = "ejection", fast = true, vinf = vinf, dv = dv, tof = tof, t_burn = t_burn, wait = T, c3 = vinf * vinf,
+           outward = len(r2) > len(r1), nu_inf = nu_inf, again = TAU * math.sqrt(rb ^ 3 / f.mu),
+           plane = math.deg(math.asin(clamp(dot(vdir, o.W), -1, 1))), arrive_vinf = len(sub(arrive_v, tvel)),
+           eject_angle = math.deg(math.acos(clamp(dot(burn_dir, planet_dir), -1, 1))),
+           eject_signed = atan2(dot(cross(planet_dir, burn_dir), o.W), dot(planet_dir, burn_dir)),
+           transfer = transfer, planet_orbit = catalog[f.idx + 1].orbit, target_orbit = catalog[tidx + 1].orbit,
+           planet_at = r1, target_at = r2 }
 end
 
 -- Return from the ship's orbit to the body its own body orbits: leave against the body's motion so the path falls to a
@@ -1054,6 +1208,27 @@ local function draw_escape(g, f, vinf)
   auto_status(g, 190)
 end
 
+-- The Lambert arc about the star with the planet at departure and the target at arrival.
+local function draw_fast_diagram(g, pl, cx, cy, R)
+  local po, to, tr = pl.planet_orbit, pl.target_orbit, pl.transfer
+  local P, Q = po.P, po.Q
+  local extent = math.max(po.ra or po.rp * 2, to.ra or to.rp * 2, tr.ra or tr.rp * 2)
+  local scale = R / extent
+  local limit = R / scale * 1.5
+  g:colour(255, 220, 90)
+  g:disc(cx, cy, 3)
+  g:colour(60, 110, 255)
+  draw_orbit(g, po, P, Q, cx, cy, scale, limit)
+  g:colour(255, 140, 60)
+  draw_orbit(g, to, P, Q, cx, cy, scale, limit)
+  g:colour(255, 255, 255)
+  draw_orbit(g, tr, P, Q, cx, cy, scale, limit)
+  g:colour(110, 170, 255)
+  plot_point(g, pl.planet_at, P, Q, cx, cy, scale, 4, R + 4)
+  g:colour(255, 140, 60)
+  plot_point(g, pl.target_at, P, Q, cx, cy, scale, 4, R + 4)
+end
+
 local function draw_plan(g, f, ot, tr, tv)
   title(g, f)
   if not props.get("/target/valid") then need_target(g, 200); return nil end
@@ -1067,6 +1242,7 @@ local function draw_plan(g, f, ot, tr, tv)
     return nil
   end
   local par = (not ot and not sib) and parent_state(f) or nil
+  fast_ok = false
   if ot then
     local plane = math.deg(math.acos(clamp(dot(ot.W, f.o.W), -1, 1)))
     if f.o.e > 0.05 or ot.e > 0.05 or plane > 2 then
@@ -1074,7 +1250,22 @@ local function draw_plan(g, f, ot, tr, tv)
     else
       plan = plan_hohmann(f, ot, tr, tv)
     end
-  elseif sib then plan = plan_ejection(f, sib)
+  elseif sib then
+    plan = plan_ejection(f, sib)
+    fast_ok = f.o.bound
+    if fast.target ~= target_name() then fast.mode, fast.target, fast.depart_at = 0, target_name(), nil end
+    fast.failed = false
+    M.sib, M.frame = sib, f
+    if fast.pending_find then
+      fast.pending_find = false
+      local best = search_fast(f, sib, fast.tof)
+      if best then fast.tof, fast.depart_at, fast.found = best.tof, props.get("/sim/time") + best.depart * DAY, true
+      else fast.found = false end
+    end
+    if plan and fast.mode > 0 and fast.depart_at then
+      local fp = plan_ejection_fast(f, sib)
+      if fp then plan = fp else fast.failed = true end
+    end
   elseif par then plan = plan_return(f, par) end
   if not plan then
     g:colour(255, 200, 80)
@@ -1092,6 +1283,10 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(200, 200, "Needs a bound orbit", 1)
     return nil
   end
+  if fast.failed then
+    g:colour(255, 120, 80)
+    g:text(LX, 36, "No flight for that time; Hohmann shown", 0)
+  end
   if plan.kind == "return" then
     g:text(LX, 62, "Return to " .. target_name(), 0)
     dv_warning(g, plan.dv)
@@ -1106,7 +1301,7 @@ local function draw_plan(g, f, ot, tr, tv)
     auto_status(g, 254)
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
-      g:text(LX, 200, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
+      g:text(LX, 200, string.format("Orbit plane is %.1f deg off", math.abs(plan.plane)), 0)
     end
   elseif plan.kind == "lambert" then
     g:text(LX, 62, "Lambert intercept", 0)
@@ -1140,6 +1335,33 @@ local function draw_plan(g, f, ot, tr, tv)
     end
     transfer_diagram(g, 200, 318, 56, len(f.r), len(tr), plan.phase, plan.lead, f.soi, "You", target_name(),
       { a = ship("orbit/semi-major-axis"), e = ship("orbit/eccentricity"), nu = ship("orbit/true-anomaly") })
+  elseif plan.fast then
+    local now = props.get("/sim/time")
+    g:text(LX, 62, "Fast ejection to " .. target_name(), 0)
+    dv_warning(g, plan.dv)
+    g:text(LX, 80, string.format("Ejection dV  %.1f m/s", plan.dv), 0)
+    g:text(LX, 96, string.format("v inf %.0f m/s   C3 %.1f km2/s2", plan.vinf, plan.c3 / 1e6), 0)
+    if fast.mode == 3 then
+      g:colour(255, 240, 140)
+      g:text(LX, 234, fast.found == false and "No flight found; raise FLIGHT" or "BEST: FIND picks the cheapest date", 0)
+      g:colour(120, 255, 140)
+    end
+    if fast.mode == 2 then g:colour(255, 240, 140) end
+    g:text(LX, 114, (fast.mode == 2 and ">" or " ") .. "Depart in  " .. fmt_time(plan.wait), 0)
+    g:colour(120, 255, 140)
+    if fast.mode == 1 or fast.mode == 3 then g:colour(255, 240, 140) end
+    g:text(LX, 130, ((fast.mode == 1 or fast.mode == 3) and ">" or " ") .. string.format("Flight  %.0f days", plan.tof / DAY), 0)
+    g:colour(120, 255, 140)
+    g:text(LX, 146, string.format("Arrival v inf %.0f m/s", plan.arrive_vinf), 0)
+    g:colour(255, 200, 80)
+    g:text(LX, 164, "Ejection burn in  " .. fmt_time(plan.t_burn), 0)
+    if not burn_left_line(g, LX, 198, plan.dv) then g:text(LX, 198, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
+    auto_status(g, 216)
+    if math.abs(plan.plane) > 0.5 then
+      g:colour(255, 120, 80)
+      g:text(LX, 182, string.format("Orbit plane is %.1f deg off", math.abs(plan.plane)), 0)
+    end
+    draw_fast_diagram(g, plan, 200, 312, 72)
   else
     g:text(LX, 62, plan.outward and "Ejection to an outer planet" or "Ejection to an inner planet", 0)
     dv_warning(g, plan.dv)
@@ -1155,7 +1377,7 @@ local function draw_plan(g, f, ot, tr, tv)
     if plan.eject_angle then g:text(LX, 200, string.format("Ejection angle %.1f deg from %s", plan.eject_angle, plan.outward and "prograde" or "retrograde"), 0) end
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
-      g:text(LX, 218, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
+      g:text(LX, 218, string.format("Orbit plane is %.1f deg off", math.abs(plan.plane)), 0)
     end
     transfer_diagram(g, 120, 322, 50, len(sib.rp), len(sib.rt), plan.phase, plan.lead, f.parent, f.soi, target_name())
     -- The planet's path, with the burn point at the ejection angle from its direction of travel.
@@ -1188,6 +1410,17 @@ local function apply_script()
   node.time = tonumber(props.get("/orbitcomp/time")) or node.time
   node.dv = { tonumber(props.get("/orbitcomp/prograde")) or 0, tonumber(props.get("/orbitcomp/radial")) or 0,
               tonumber(props.get("/orbitcomp/normal")) or 0 }
+  -- The fast ejection can be set the same way: /orbitcomp/fast (1-3), /orbitcomp/flight-days and /orbitcomp/depart-days.
+  local fm = tonumber(props.get("/orbitcomp/fast"))
+  if fm and fm > 0 then
+    fast.mode = clamp(math.floor(fm), 1, 3)
+    fast.target = target_name()
+    fast.tof = tonumber(props.get("/orbitcomp/flight-days")) or 500
+    fast.depart_at = props.get("/sim/time") + (tonumber(props.get("/orbitcomp/depart-days")) or 1) * DAY
+    fast.pending_find = fast.mode == 3 and props.get("/orbitcomp/find") == 1
+    props.set("/orbitcomp/find", 0)
+    props.set("/orbitcomp/fast", 0)
+  end
   props.set("/orbitcomp/page", 0)
 end
 
@@ -1256,6 +1489,31 @@ function M.button(self, i)
         node.dv[node.field] = node.dv[node.field] + sgn * DV_STEPS[step]
       end
     end
+  elseif i >= 10 and fast_ok then
+    if i == 10 then
+      fast.mode = (fast.mode + 1) % 4
+      local p = M.plan
+      if fast.mode == 0 then fast.depart_at = nil
+      elseif not fast.depart_at and p then
+        fast.tof = p.tof / DAY
+        fast.depart_at = props.get("/sim/time") + math.max(p.t_burn or 0, 0.1 * DAY)
+      end
+    elseif not fast.depart_at then
+      return
+    elseif fast.mode == 3 then
+      if i == 11 and M.sib and M.frame then
+        local best = search_fast(M.frame, M.sib, fast.tof)
+        if best then
+          fast.tof, fast.depart_at, fast.found = best.tof, props.get("/sim/time") + best.depart * DAY, true
+        else
+          fast.found = false
+        end
+      end
+    elseif fast.mode == 1 then
+      fast.tof = clamp(fast.tof + (i == 11 and 10 or -10), 10, 5000)
+    elseif fast.mode == 2 then
+      fast.depart_at = math.max(fast.depart_at + (i == 11 and DAY or -DAY), props.get("/sim/time") + 0.1 * DAY)
+    end
   elseif i == 8 then
     if M.plan then auto_arm(M.plan) end
   elseif i == 9 then
@@ -1284,6 +1542,6 @@ end
 M._test = { make_orbit = make_orbit, advance = advance, state_at = state_at, time_to = time_to, closest = closest,
             plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, plan_lambert = plan_lambert,
             lambert_velocity = lambert_velocity, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
-            body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter }
+            plan_ejection_fast = plan_ejection_fast, body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter }
 
 return M
