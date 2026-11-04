@@ -80,7 +80,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
 | Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes (also B) |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |

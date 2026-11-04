@@ -1,0 +1,27 @@
+{
+ "name": "CVEL: Titan IIIB, Vandenberg",
+ "description": "CVEL Titan IIIB on the pad at Vandenberg with a Luna E3 probe as payload. Press P for the launcher autopilot.",
+ "date": "1970-01-01 18:00:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Titan IIIB",
+   "body": "Earth",
+   "surface": {
+    "base": "vandenberg"
+   }
+  },
+  {
+   "ship": "Luna E3",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "vandenberg"
+   }
+  }
+ ]
+}

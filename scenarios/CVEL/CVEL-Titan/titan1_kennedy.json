@@ -1,0 +1,27 @@
+{
+ "name": "CVEL: Titan I, Kennedy",
+ "description": "CVEL Titan I on the pad at Kennedy with a Luna E3 probe as payload. Press P for the launcher autopilot.",
+ "date": "1962-02-01 15:00:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Titan I",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "ship": "Luna E3",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

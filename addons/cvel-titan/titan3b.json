@@ -1,0 +1,298 @@
+{
+ "name": "CVEL Titan IIIB",
+ "class": "launcher",
+ "script": "@launcher.lua",
+ "description": "Titan IIIB: Titan 34 core stages and an Agena upper stage, with no solid motors. The fairing halves jettison after stage 1.",
+ "torque_accel": 0.15,
+ "max_rate": 0.3,
+ "rcs_thrust": 0,
+ "drag_area": 14,
+ "camera_distance": 100,
+ "camera_target": [
+  0,
+  0,
+  10
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 4,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ],
+ "ports": [
+  {
+   "name": "Payload",
+   "position": [
+    0,
+    0,
+    -1.29
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "stage": 4
+  }
+ ],
+ "stages": [
+  {
+   "name": "Stage 1",
+   "dry_mass": 4443,
+   "propellant": 113423,
+   "z": 29.36,
+   "length": 22,
+   "radius": 1.55,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0.7,
+      39.31
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1044000,
+     "isp": 296,
+     "isp_sl": 258,
+     "plume": 20,
+     "plume_width": 1.0,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    },
+    {
+     "position": [
+      0,
+      -0.7,
+      39.31
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1044000,
+     "isp": 296,
+     "isp_sl": 258,
+     "plume": 20,
+     "plume_width": 1.0,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/titan34_stage1.obj",
+     "offset": [
+      0.0,
+      0,
+      29.36
+     ]
+    },
+    {
+     "model": "models/titan2i.obj",
+     "offset": [
+      0.0,
+      0,
+      14.615
+     ]
+    }
+   ],
+   "gear": [
+    [
+     1.5,
+     0,
+     39.31
+    ],
+    [
+     -1.5,
+     0,
+     39.31
+    ],
+    [
+     0,
+     1.5,
+     39.31
+    ],
+    [
+     0,
+     -1.5,
+     39.31
+    ]
+   ]
+  },
+  {
+   "name": "Fairing segment",
+   "dry_mass": 60,
+   "propellant": 0,
+   "z": -2.0,
+   "length": 9,
+   "radius": 0.8,
+   "separation_speed": 3.0,
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/fairing102a.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "with_next": true
+  },
+  {
+   "name": "Fairing segment",
+   "dry_mass": 60,
+   "propellant": 0,
+   "z": -2.0,
+   "length": 9,
+   "radius": 0.8,
+   "separation_speed": 3.0,
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/fairing102b.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Stage 2",
+   "dry_mass": 2404,
+   "propellant": 26535,
+   "z": 9.67,
+   "length": 9.5,
+   "radius": 1.55,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      14.44
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 444900,
+     "isp": 316,
+     "isp_sl": 160,
+     "plume": 8,
+     "plume_width": 0.8,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/titan34_stage2.obj",
+     "offset": [
+      0.0,
+      0,
+      9.67
+     ]
+    },
+    {
+     "model": "models/tentofiveftinterstage.obj",
+     "offset": [
+      0,
+      0,
+      3.75
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Agena",
+   "dry_mass": 1950,
+   "propellant": 12000,
+   "z": 1.0,
+   "length": 6.7,
+   "radius": 0.8,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      5.15
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 95549,
+     "isp": 296,
+     "plume": 4,
+     "plume_width": 0.5,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/cvelagena.obj",
+     "offset": [
+      0,
+      0,
+      1.0
+     ]
+    }
+   ]
+  }
+ ]
+}

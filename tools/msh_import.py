@@ -283,6 +283,10 @@ def find_meshes(path):
                 files = sorted(os.path.join(d, f) for d, _, fs in os.walk(mdir)
                                for f in fs if f.lower().endswith(".msh"))
                 tex = [os.path.join(root, t) for t in os.listdir(root) if t.lower() == "textures"]
+                # a shared Textures folder beside the add-on (import/orbiter/Textures) is searched last
+                parent = os.path.dirname(os.path.abspath(root))
+                tex += [os.path.join(parent, t) for t in os.listdir(parent)
+                        if t.lower() == "textures" and os.path.join(parent, t) not in tex]
                 return files, tex
     raise SystemExit(f"no Meshes folder under {path}")
 

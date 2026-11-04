@@ -1,0 +1,250 @@
+{
+ "name": "CVEL Titan I",
+ "class": "launcher",
+ "script": "@launcher.lua",
+ "description": "Titan I: the first US two-stage ICBM turned light launcher, kerosene and LOX in both stages. Payload port on top of stage 2; the fairing halves jettison automatically after stage 1.",
+ "torque_accel": 0.15,
+ "max_rate": 0.3,
+ "rcs_thrust": 0,
+ "drag_area": 14,
+ "camera_distance": 100,
+ "camera_target": [
+  0,
+  0,
+  10
+ ],
+ "systems": [
+  {
+   "type": "battery",
+   "name": "Batteries",
+   "capacity_wh": 4000,
+   "max_w": 2000
+  },
+  {
+   "type": "solar",
+   "name": "Solar",
+   "area_m2": 4,
+   "efficiency": 0.28,
+   "facing": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "type": "load",
+   "name": "Avionics",
+   "watts": 200,
+   "priority": 0
+  }
+ ],
+ "ports": [
+  {
+   "name": "Payload",
+   "position": [
+    0,
+    0,
+    4.6
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ],
+   "stage": 3
+  }
+ ],
+ "stages": [
+  {
+   "name": "Stage 1",
+   "dry_mass": 4000,
+   "propellant": 72203,
+   "z": 25.85,
+   "length": 22,
+   "radius": 1.55,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0.7,
+      0,
+      36.5
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1055300,
+     "isp": 290,
+     "isp_sl": 256,
+     "plume": 20,
+     "plume_width": 1.0,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -0.7,
+      0,
+      36.5
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1055300,
+     "isp": 290,
+     "isp_sl": 256,
+     "plume": 20,
+     "plume_width": 1.0,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "kerosene"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/titan21.obj",
+     "offset": [
+      0.0,
+      0,
+      25.85
+     ]
+    },
+    {
+     "model": "models/int10_8.obj",
+     "offset": [
+      0.0,
+      0,
+      13.615
+     ]
+    }
+   ],
+   "gear": [
+    [
+     1.5,
+     0,
+     36.5
+    ],
+    [
+     -1.5,
+     0,
+     36.5
+    ],
+    [
+     0,
+     1.5,
+     36.5
+    ],
+    [
+     0,
+     -1.5,
+     36.5
+    ]
+   ]
+  },
+  {
+   "name": "Fairing segment",
+   "dry_mass": 150,
+   "propellant": 0,
+   "z": -2.0,
+   "length": 9,
+   "radius": 1.25,
+   "separation_speed": 3.0,
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/fairing201a.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
+   "with_next": true
+  },
+  {
+   "name": "Fairing segment",
+   "dry_mass": 150,
+   "propellant": 0,
+   "z": -2.0,
+   "length": 9,
+   "radius": 1.25,
+   "separation_speed": 3.0,
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
+   "engines": [],
+   "parts": [
+    {
+     "model": "models/fairing201b.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Stage 2",
+   "dry_mass": 1725,
+   "propellant": 27214,
+   "z": 9.82,
+   "length": 9.5,
+   "radius": 1.55,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      14.24
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 356000,
+     "isp": 308,
+     "isp_sl": 210,
+     "plume": 8,
+     "plume_width": 0.8,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "kerosene"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/titani_stage2.obj",
+     "offset": [
+      0.0,
+      0,
+      9.82
+     ]
+    }
+   ]
+  }
+ ]
+}
