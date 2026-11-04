@@ -74,6 +74,45 @@ namespace kosmos
     sl::FlightBody &Ship::body() { return *universe_.world.body(body_); }
     const sl::FlightBody &Ship::body() const { return *universe_.world.body(body_); }
 
+    ShipPropellantState Ship::propellant_state() const
+    {
+        ShipPropellantState state;
+        state.active_stage = active_stage_;
+        state.stage_propellant.reserve(body().tanks.size());
+        for (const auto &tank : body().tanks)
+            state.stage_propellant.push_back(tank.mass);
+        state.rcs_propellant = rcs_fuel_;
+        state.gear_position = gear_position_;
+        return state;
+    }
+
+    void Ship::restore_propellant_state(const ShipPropellantState &state)
+    {
+        sl::FlightBody &b = body();
+        const int target_stage = std::clamp(state.active_stage, 0, std::max(0, stage_count() - 1));
+        for (int stage = 0; stage < target_stage; ++stage)
+        {
+            for (int i = stage_first_thruster_[static_cast<std::size_t>(stage)]; i < stage_first_thruster_[static_cast<std::size_t>(stage) + 1]; ++i)
+            {
+                b.thrusters[static_cast<std::size_t>(i)].max_thrust = 0.0;
+                b.thrusters[static_cast<std::size_t>(i)].level = 0.0;
+            }
+            if (static_cast<std::size_t>(stage) < b.tanks.size())
+                b.tanks[static_cast<std::size_t>(stage)] = {0.0, 0.0};
+            if (systems_)
+                systems_->drop_stage(stage);
+            const std::size_t gear_count = spec_.stages[static_cast<std::size_t>(stage)].gear.size();
+            b.gear.erase(b.gear.begin(), b.gear.begin() + static_cast<std::ptrdiff_t>(std::min(gear_count, b.gear.size())));
+        }
+        active_stage_ = target_stage;
+        for (std::size_t stage = static_cast<std::size_t>(target_stage); stage < b.tanks.size() && stage < state.stage_propellant.size(); ++stage)
+            b.tanks[stage].mass = std::clamp(state.stage_propellant[stage], 0.0, b.tanks[stage].capacity);
+        rcs_fuel_ = std::clamp(state.rcs_propellant, 0.0, spec_.rcs_propellant);
+        gear_position_ = std::clamp(state.gear_position, 0.0, 1.0);
+        recentre();
+        refresh_mass_properties();
+    }
+
     void Ship::build_body()
     {
         body_ = universe_.world.create_body(name);

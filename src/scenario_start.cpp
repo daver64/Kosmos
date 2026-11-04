@@ -363,7 +363,7 @@ namespace kosmos::app
         }
     }
 
-    Ship *start_scenario(Sim &sim, const Options &options, const TerrainSet &terrains)
+    Ship *start_scenario(Sim &sim, const Options &options, const TerrainSet &terrains, const ShipPropellantState *propellant_state)
     {
         if (!options.scenario.empty())
             if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
@@ -449,6 +449,8 @@ namespace kosmos::app
         spawn_portal(sim);
         if (options.portal_arrival)
             place_at_portal(sim, *ship, 400.0, 60.0, true);
+        if (propellant_state)
+            ship->restore_propellant_state(*propellant_state);
         sim.props.set_double("/controls/throttle", 0.0);
         sim.props.set_double("/controls/hover", 0.0);
         sim.props.set_string("/controls/sas", "stability");

@@ -23,6 +23,7 @@ namespace kosmos::app
             const std::string target_name = sim.galaxy.star(target_system).name;
             // change_system deletes every ship, so the flown ship's name is taken now.
             const std::string flown_name = ship ? ship->spec().name : std::string();
+            const ShipPropellantState propellant_state = ship ? ship->propellant_state() : ShipPropellantState{};
             auto warp_frame = [&](float t)
             {
                 while (sl::poll_event(&event_discard))
@@ -69,7 +70,7 @@ namespace kosmos::app
             options.portal_arrival = true;
             if (!flown_name.empty())
                 options.ship_name = flown_name;
-            ship = start_scenario(sim, options, terrain_set);
+            ship = start_scenario(sim, options, terrain_set, flown_name.empty() ? nullptr : &propellant_state);
             options.portal_arrival = false;
             quantum.dialled = -1;
             quantum.portal_open = 0.0f;

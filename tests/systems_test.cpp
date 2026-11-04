@@ -25,6 +25,37 @@ namespace
 
 int main()
 {
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        spec.name = "PropellantStateTest";
+        spec.rcs_propellant = 12.0;
+        StageSpec lower;
+        lower.name = "Lower";
+        lower.propellant = 100.0;
+        lower.gear.push_back({0.0, -1.0, 0.0});
+        StageSpec upper;
+        upper.name = "Upper";
+        upper.propellant = 50.0;
+        spec.stages = {lower, upper};
+
+        Ship source(universe, spec);
+        assert(source.stage_once());
+        source.body().tanks[1].mass = 20.0;
+        source.set_gear_position(0.25);
+        const ShipPropellantState state = source.propellant_state();
+
+        Ship arrival(universe, spec);
+        arrival.restore_propellant_state(state);
+        assert(arrival.active_stage() == 1);
+        assert(arrival.body().tanks[0].mass == 0.0);
+        assert(arrival.body().tanks[1].mass == 20.0);
+        assert(arrival.propellant_state().rcs_propellant == 12.0);
+        assert(arrival.gear_position() == 0.25);
+    }
+
     // Parsing: stages default to the last one, tanks start full, vessels read their box.
     SystemsSpec spec = parse(R"({
       "systems": [
