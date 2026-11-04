@@ -510,8 +510,14 @@ local function draw_orbit(g, o, P, Q, cx, cy, scale, limit)
   end
 end
 
-local function plot_point(g, v, P, Q, cx, cy, scale, rad)
-  g:disc(cx + dot(v, P) * scale, cy - dot(v, Q) * scale, rad)
+-- A point beyond the plot area is pinned to its edge along the same bearing, so a marker never leaves the display.
+local PLOT_EDGE = 135
+local function plot_point(g, v, P, Q, cx, cy, scale, rad, edge)
+  edge = edge or PLOT_EDGE
+  local dx, dy = dot(v, P) * scale, -dot(v, Q) * scale
+  local d = math.sqrt(dx * dx + dy * dy)
+  if d > edge then dx, dy = dx * edge / d, dy * edge / d end
+  g:disc(cx + dx, cy + dy, rad)
 end
 
 local M = { name = "OrbitComp" }
@@ -548,6 +554,8 @@ local function draw_orb(g, f, ot, tr)
   local extent = o.bound and o.ra or o.rp * 4
   -- A far larger target orbit (the Moon from low orbit) would squash the ship's own to a dot; ZOOM- brings it in.
   if ot and (ot.ra or ot.rp * 2) < 6 * extent then extent = math.max(extent, ot.ra or ot.rp * 2) end
+  -- The ship itself always stays on the plot, whatever the orbit shape (an escape, or a long way out on a hyperbola).
+  extent = math.max(extent, len(f.r) * 0.95)
   local scale = 125 / math.max(extent, body_r * 1.05) * zoom
   local limit = 125 / scale * 1.5
   local P, Q = o.P, o.Q
@@ -717,6 +725,7 @@ local function draw_man(g, f, ot, tr)
   local cx, cy = 200, 305
   local extent = o.bound and o.ra or o.rp * 4
   if a then extent = math.max(extent, a.bound and a.ra or a.rp * 4) end
+  extent = math.max(extent, len(f.r) * 0.95, nd.r and len(nd.r) * 0.95 or 0)
   local scale = 80 / math.max(extent, body_r * 1.05) * zoom
   local limit = 80 / scale * 1.5
   g:colour(60, 110, 255)
@@ -732,9 +741,9 @@ local function draw_man(g, f, ot, tr)
     draw_orbit(g, ot, o.P, o.Q, cx, cy, scale, limit)
   end
   g:colour(255, 255, 255)
-  plot_point(g, f.r, o.P, o.Q, cx, cy, scale, 3)
+  plot_point(g, f.r, o.P, o.Q, cx, cy, scale, 3, 82)
   g:colour(255, 200, 80)
-  plot_point(g, nd.r, o.P, o.Q, cx, cy, scale, 4)
+  plot_point(g, nd.r, o.P, o.Q, cx, cy, scale, 4, 82)
   if not props.get("/target/valid") then
     g:colour(120, 160, 120)
     g:text(LX, 385, "TGT+ sets a target for AN/DN and close approach", 0)
