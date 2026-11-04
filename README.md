@@ -325,6 +325,8 @@ JSON files in `scenarios/` (and `scenarios/` inside any addon) describe a start 
  "ships": [{"ship": "Wren", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 51.6, "phase": 0}}]}
 ```
 
+File ▸ Set time to T-5:00 before burn moves the clock to just before the burn the Transfer or OrbitComp MFD is showing; with neither showing a plan it uses a circular, coplanar Hohmann estimate to the target. File ▸ Transfer windows lists the next departures to the target and skips to any of them, and sets the lead time (default 5 minutes). It is refused while any ship is landed, in the atmosphere or burning, and in multiplayer; consumables do not drain over the skipped time. MFD modes publish `/plan/<mode>/at`, `label` and `stamp` (the `/sim/frame` they last drew, -1 for none) for this.
+
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.

@@ -92,6 +92,34 @@ namespace kosmos
         /** Runs `frame` seconds of wall time as constant physics steps and returns how many ran. Above 4x warp, or paused, it is a single step of the frame. */
         int advance(double frame);
         double current_warp() const { return current_warp_; }
+
+        /** A burn the player could plan for, as the Transfer or OrbitComp MFD (when showing it) or the built-in Hohmann estimate gives it. */
+        struct PlannedBurn
+        {
+            bool valid = false;
+            /** Seconds from now to ignition (the burn starts half its length before its middle). */
+            double ignition_in = 0.0;
+            /** Where it came from: "Transfer MFD", "OrbitComp MFD" or "Hohmann estimate". */
+            std::string source;
+            /** The reason there is none, when !valid. */
+            std::string why;
+        };
+        PlannedBurn planned_burn();
+
+        /** One Hohmann departure window from the flown ship to the target. */
+        struct TransferWindow
+        {
+            double ignition_in = 0.0, burn_length = 0.0, dv1 = 0.0, flight_time = 0.0;
+        };
+        /** The next `count` windows with ignition still ahead; empty (and `why` set) when there is no target or no phasing to wait for. */
+        std::vector<TransferWindow> transfer_windows(int count, std::string &why);
+        /**
+         * Moves the clock forward by `seconds` at once. Every ship goes on rails for the jump, so none may be landed, in the air or
+         * burning; false (with `why`) when the jump is refused. Consumables do not drain over the skipped time.
+         */
+        bool skip_time(double seconds, std::string &why);
+        /** Seconds before ignition that "set time" lands on (/sim/settings/burn-lead-min, default 5 minutes). */
+        double burn_lead_seconds() const;
         /** Frame time the fixed physics steps have not yet used (0 when warped or paused). */
         double step_remainder() const { return step_accumulator_; }
         const std::vector<std::string> &messages() const { return messages_; }
@@ -146,6 +174,7 @@ namespace kosmos
         int active_ = 0;
         double current_warp_ = 1.0;
         double step_accumulator_ = 0.0;
+        long frame_count_ = 0;
         bool script_loaded_ = false;
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;

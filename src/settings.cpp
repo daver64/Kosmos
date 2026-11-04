@@ -68,6 +68,7 @@ namespace kosmos
         props.set_int("/sim/settings/gfx-light-radius", 8000);
         props.set_int("/sim/settings/gfx-weapon-lights", 4);
         props.set_int("/sim/settings/gfx-max-fps", 60);
+        props.set_int("/sim/settings/burn-lead-min", 5);
         props.set_int("/sim/settings/gfx-msaa", 4);
         props.set_int("/sim/settings/gfx-screen-ss", 2);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
@@ -104,6 +105,7 @@ namespace kosmos
         load_int("gfx-light-radius", 500, 20000);
         load_int("gfx-weapon-lights", 0, 8);
         load_int("gfx-max-fps", 10, 240);
+        load_int("burn-lead-min", 0, 120);
         load_int("gfx-msaa", 1, 8);
         load_int("gfx-screen-ss", 1, 4);
         load_int("gfx-terrain-detail", 0, 3);
@@ -153,6 +155,7 @@ namespace kosmos
         for (const char *key : {"labels", "ship-labels", "help-text", "tooltips", "orbit-line", "sound", "clock"})
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
+        j["burn-lead-min"] = props.get_int("/sim/settings/burn-lead-min", 5);
         j["blender"] = props.get_string("/sim/settings/blender", "blender");
         j["mesh-editor"] = props.get_string("/sim/settings/mesh-editor", "blender");
         j["kosmoscad"] = props.get_string("/sim/settings/kosmoscad", "");

@@ -1277,6 +1277,7 @@ namespace kosmos
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim\n"
+                                   "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";
     }
@@ -1294,7 +1295,7 @@ namespace kosmos
             return true;
         }
         bool any = false;
-        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open, &aircraft_autopilot_open, &spacecraft_autopilot_open})
+        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open, &aircraft_autopilot_open, &spacecraft_autopilot_open, &transfer_windows_open})
             if (*flag)
             {
                 *flag = false;
@@ -1530,6 +1531,8 @@ namespace kosmos
             draw_aircraft_autopilot(sim, aircraft_autopilot_open);
         if (spacecraft_autopilot_open)
             draw_spacecraft_autopilot(sim, spacecraft_autopilot_open);
+        if (transfer_windows_open)
+            draw_transfer_windows(sim, actions, transfer_windows_open);
         if (help_open)
         {
             ImGui::SetNextWindowPos(ImVec2(80.0f, 100.0f), ImGuiCond_FirstUseEver);
@@ -1571,6 +1574,130 @@ namespace kosmos
         for (const Scenario &sc : all)
             if (sc.group == prefix && ImGui::MenuItem(sc.name.c_str()))
                 chosen = &sc;
+    }
+
+    namespace
+    {
+        std::string date_after(Sim &sim, double seconds)
+        {
+            int y = 0, mo = 0, d = 0;
+            double hours = 0.0;
+            civil_from_julian(sim.universe.julian_date() + seconds / 86400.0, y, mo, d, hours);
+            const int total_min = static_cast<int>(hours * 60.0);
+            char buf[48];
+            std::snprintf(buf, sizeof buf, "%04d-%02d-%02d %02d:%02d", y, mo, d, total_min / 60, total_min % 60);
+            return buf;
+        }
+
+        std::string span_text(double s)
+        {
+            char buf[48];
+            const double a = std::fabs(s);
+            if (a >= 86400.0)
+                std::snprintf(buf, sizeof buf, "%.1f d", a / 86400.0);
+            else if (a >= 3600.0)
+                std::snprintf(buf, sizeof buf, "%dh %02dm", static_cast<int>(a / 3600.0), static_cast<int>(std::fmod(a, 3600.0) / 60.0));
+            else
+                std::snprintf(buf, sizeof buf, "%dm %02ds", static_cast<int>(a / 60.0), static_cast<int>(std::fmod(a, 60.0)));
+            return buf;
+        }
+
+        // Skips to `lead` seconds before the ignition `ignition_in` seconds ahead; the reason goes to the log when it cannot.
+        void skip_to_burn(Sim &sim, const MenuActions &actions, double ignition_in)
+        {
+            std::string why;
+            if (actions.multiplayer && actions.multiplayer())
+                why = "The clock cannot be skipped in a multiplayer session";
+            else if (sim.skip_time(ignition_in - sim.burn_lead_seconds(), why))
+                return;
+            sim.log(why);
+        }
+
+        std::string lead_text(Sim &sim)
+        {
+            return span_text(sim.burn_lead_seconds());
+        }
+    } // namespace
+
+    void file_menu_time_skip(Sim &sim, const MenuActions &actions, bool &windows_open)
+    {
+        const Sim::PlannedBurn burn = sim.planned_burn();
+        const double skip = burn.ignition_in - sim.burn_lead_seconds();
+        std::string blocked;
+        if (!burn.valid)
+            blocked = burn.why;
+        else if (actions.multiplayer && actions.multiplayer())
+            blocked = "Not available in multiplayer";
+        else if (skip <= 0.0)
+            blocked = "Already within the lead time of the burn";
+        const std::string label = "Set time to T-" + lead_text(sim) + " before burn";
+        if (ImGui::MenuItem(label.c_str(), nullptr, false, blocked.empty()))
+            skip_to_burn(sim, actions, burn.ignition_in);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::BeginTooltip();
+            if (blocked.empty())
+                ImGui::Text("%s: ignition in %s, on %s.\nSkips to %s.", burn.source.c_str(), span_text(burn.ignition_in).c_str(),
+                            date_after(sim, burn.ignition_in).c_str(), date_after(sim, skip).c_str());
+            else
+                ImGui::TextUnformatted(blocked.c_str());
+            ImGui::EndTooltip();
+        }
+        if (ImGui::MenuItem("Transfer windows..."))
+            windows_open = true;
+    }
+
+    void draw_transfer_windows(Sim &sim, const MenuActions &actions, bool &open)
+    {
+        ImGui::SetNextWindowPos(ImVec2(120.0f, 120.0f), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("Transfer windows", &open, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::End();
+            return;
+        }
+        int lead = std::clamp(sim.props.get_int("/sim/settings/burn-lead-min", 5), 0, 120);
+        ImGui::SetNextItemWidth(90.0f);
+        if (ImGui::InputInt("Lead (minutes before ignition)", &lead))
+            sim.props.set_int("/sim/settings/burn-lead-min", std::clamp(lead, 0, 120));
+        std::string why;
+        const std::vector<Sim::TransferWindow> windows = sim.transfer_windows(8, why);
+        if (windows.empty())
+            ImGui::TextDisabled("%s", why.c_str());
+        else
+        {
+            ImGui::TextDisabled("Hohmann departures to %s (circular, coplanar estimate)", sim.props.get_string("/sim/target").c_str());
+            if (ImGui::BeginTable("windows", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
+            {
+                for (const char *h : {"Ignition", "In", "dV", "Burn", "Arrival", ""})
+                    ImGui::TableSetupColumn(h);
+                ImGui::TableHeadersRow();
+                int id = 0;
+                for (const Sim::TransferWindow &w : windows)
+                {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(date_after(sim, w.ignition_in).c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(span_text(w.ignition_in).c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%.0f m/s", w.dv1);
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(w.burn_length > 0.0 ? span_text(w.burn_length).c_str() : "--");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(date_after(sim, w.ignition_in + w.burn_length / 2.0 + w.flight_time).c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(id++);
+                    const bool multi = actions.multiplayer && actions.multiplayer();
+                    ImGui::BeginDisabled(multi || w.ignition_in - sim.burn_lead_seconds() <= 0.0);
+                    if (ImGui::SmallButton(("Go to T-" + lead_text(sim)).c_str()))
+                        skip_to_burn(sim, actions, w.ignition_in);
+                    ImGui::EndDisabled();
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
     }
 
     void MenuBar::menu_file(Sim &sim, const MenuActions &actions)
@@ -1615,6 +1742,9 @@ namespace kosmos
                     std::fprintf(stderr, "kosmos: %s\n", error.c_str());
             });
         }
+        ImGui::Separator();
+        file_menu_time_skip(sim, actions, transfer_windows_open);
+        ImGui::Separator();
         if (ImGui::MenuItem("Restart scenario", "R") && actions.restart)
             actions.restart();
         ImGui::Separator();

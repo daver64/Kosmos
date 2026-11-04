@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cctype>
 #include "sim.h"
+#include "transfer_plan.h"
 
 #include "json.hpp"
 
@@ -88,6 +89,7 @@ namespace kosmos
         props.set_bool("/target/valid", false);
         props.node("/sim/warp")->tie_double([this] { return current_warp_; });
         props.node("/sim/time")->tie_double([this] { return universe.time(); });
+        props.node("/sim/frame")->tie_int([this] { return static_cast<int>(frame_count_ & 0x3fffffff); });
         props.set_bool("/autopilot/burn/armed", false);
         props.set_string("/autopilot/burn/state", "");
 
@@ -561,6 +563,7 @@ namespace kosmos
 
     int Sim::advance(double frame)
     {
+        ++frame_count_;
         if (current_warp_ > 4.0 || props.get_bool("/sim/paused"))
         {
             step_accumulator_ = 0.0;
@@ -795,6 +798,145 @@ namespace kosmos
             return wrap_two_pi(mean(wrap_two_pi(to)) - mean(wrap_two_pi(from))) / n;
         }
     } // namespace
+
+    double Sim::burn_lead_seconds() const
+    {
+        return std::clamp(props.get_int("/sim/settings/burn-lead-min", 5), 0, 120) * 60.0;
+    }
+
+    std::vector<Sim::TransferWindow> Sim::transfer_windows(int count, std::string &why)
+    {
+        std::vector<TransferWindow> out;
+        const Ship *me = active_ship();
+        if (!me || !props.get_bool("/target/valid"))
+        {
+            why = "No target selected";
+            return out;
+        }
+        if (!props.get_bool("/target/in-plane-data"))
+        {
+            why = "Target is not orbiting the same body";
+            return out;
+        }
+        const Telemetry &t = me->telemetry();
+        if (!t.bound || t.soi < 0 || t.soi >= static_cast<int>(universe.bodies.size()))
+        {
+            why = "Not in a bound orbit";
+            return out;
+        }
+        const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
+        const double r1 = props.get_double("/target/ship-radius");
+        const double r2 = props.get_double("/target/radius");
+        const double phase = props.get_double("/target/phase-angle") * 3.14159265358979323846 / 180.0;
+        const HohmannPlan plan = plan_hohmann(mu, r1, r2, phase);
+        if (!plan.has_window)
+        {
+            why = "Orbits have the same period, so there is no window to wait for";
+            return out;
+        }
+        const double burn = t.max_thrust > 0.0 ? std::fabs(plan.dv1) * t.mass / t.max_thrust : 0.0;
+        for (int k = 0; k < count + 64 && static_cast<int>(out.size()) < count; ++k)
+        {
+            const double ignition = window_wait(plan, k) - 0.5 * burn;
+            if (ignition <= 0.0)
+                continue;
+            out.push_back({ignition, burn, plan.dv1, plan.tof});
+        }
+        if (out.empty())
+            why = "No window ahead";
+        return out;
+    }
+
+    Sim::PlannedBurn Sim::planned_burn()
+    {
+        PlannedBurn result;
+        const double now = universe.time();
+        // A mode publishes its plan while it is drawing; a stale stamp means it is closed or has no plan.
+        struct Candidate { const char *prefix, *name; };
+        long best_stamp = -1;
+        for (const Candidate &c : {Candidate{"/plan/transfer", "Transfer MFD"}, Candidate{"/plan/orbitcomp", "OrbitComp MFD"}})
+        {
+            const long stamp = props.get_int(std::string(c.prefix) + "/stamp", -1);
+            if (stamp < 0 || frame_count_ - stamp > 5 || stamp < best_stamp)
+                continue;
+            const double at = props.get_double(std::string(c.prefix) + "/at");
+            best_stamp = stamp;
+            result.valid = true;
+            result.source = c.name;
+            result.ignition_in = at - now;
+        }
+        if (result.valid)
+            return result;
+        std::string why;
+        const std::vector<TransferWindow> windows = transfer_windows(1, why);
+        if (windows.empty())
+        {
+            result.why = why;
+            return result;
+        }
+        result.valid = true;
+        result.source = "Hohmann estimate";
+        result.ignition_in = windows.front().ignition_in;
+        return result;
+    }
+
+    bool Sim::skip_time(double seconds, std::string &why)
+    {
+        if (seconds <= 0.0)
+        {
+            why = "Already within the lead time of the burn";
+            return false;
+        }
+        if (ships_.empty())
+        {
+            why = "No vessels";
+            return false;
+        }
+        const Controls controls = read_controls();
+        Controls idle;
+        idle.sas = "off";
+        for (std::size_t i = 0; i < ships_.size(); ++i)
+        {
+            const Ship &ship = *ships_[i];
+            if (ship.spec().building() || ship.crashed() || ship.on_rails())
+                continue;
+            const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
+            if (!b.empty())
+            {
+                why = (static_cast<int>(i) == active_ ? std::string() : ship.spec().name + ": ") + b;
+                return false;
+            }
+        }
+        std::vector<bool> was_dynamic(ships_.size(), false);
+        for (std::size_t i = 0; i < ships_.size(); ++i)
+        {
+            Ship &ship = *ships_[i];
+            was_dynamic[i] = !ship.on_rails();
+            if (!ship.spec().building() && !ship.crashed())
+                ship.go_rails();
+        }
+        const double saved_substep = universe.world.max_substep;
+        universe.world.max_substep = 1.0e12;
+        universe.world.step(seconds);
+        universe.world.max_substep = saved_substep;
+        nav.couple(universe, ships_, active_, seconds);
+        for (std::size_t i = 0; i < ships_.size(); ++i)
+        {
+            Ship &ship = *ships_[i];
+            ship.after_step(seconds);
+            if (ship.on_rails() && ship.body().rails_parent != ship.telemetry().soi)
+            {
+                ship.go_dynamic();
+                ship.after_step(0.0);
+            }
+            if (was_dynamic[i] && ship.on_rails())
+                ship.go_dynamic();
+        }
+        update_target();
+        nav.update(universe, ships_, active_);
+        log("Time advanced " + std::to_string(static_cast<long long>(seconds)) + " s");
+        return true;
+    }
 
     void Sim::run_burn()
     {

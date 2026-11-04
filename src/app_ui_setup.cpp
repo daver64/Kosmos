@@ -359,6 +359,7 @@ namespace kosmos::app
         refresh_menu_keys();
         menu_actions.on_foot = [&]() { return eva.active; };
         menu_actions.in_building = [&]() { return !eva.active && sim.active_ship() && sim.active_ship()->spec().building(); };
+        menu_actions.multiplayer = [this] { return netplay.joined(); };
         menu_actions.show_panel = [this](int index) { menu_show_panel(index); };
         menu_actions.quit = [&]() { running = false; };
         menu_actions.screenshot = [&]() { screenshot_requested = true; screenshot_due_ms = sl::time_ms() + 300; };

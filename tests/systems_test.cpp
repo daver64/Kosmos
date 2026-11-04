@@ -2,6 +2,7 @@
 #include "systems.h"
 
 #include "ship.h"
+#include "transfer_plan.h"
 
 #include <filesystem>
 #include <fstream>
@@ -341,6 +342,23 @@ int main()
                 assert(sys.vessels()[0].alive && sys.tank_kg("oxygen") > 0.0);
             }
         }
+    }
+    {
+        // Earth to Mars about the Sun: the textbook Hohmann numbers, and windows one synodic period apart.
+        const double mu = 1.32712440018e20, r1 = 1.496e11, r2 = 2.279e11;
+        const HohmannPlan plan = plan_hohmann(mu, r1, r2, 0.5);
+        assert(plan.has_window);
+        assert(std::fabs(plan.dv1 - 2945.0) < 30.0 && std::fabs(plan.dv2 - 2650.0) < 30.0);
+        assert(std::fabs(plan.tof / 86400.0 - 259.0) < 2.0);
+        assert(std::fabs(plan.synodic / 86400.0 - 780.0) < 5.0);
+        assert(plan.wait >= 0.0 && plan.wait < plan.synodic);
+        const double ns = std::sqrt(mu / (r1 * r1 * r1)), nt = std::sqrt(mu / (r2 * r2 * r2));
+        const double gap = std::remainder(plan.phase + (nt - ns) * plan.wait - plan.lead, 2.0 * 3.14159265358979323846);
+        assert(std::fabs(gap) < 1e-6);
+        assert(std::fabs(window_wait(plan, 2) - plan.wait - 2.0 * plan.synodic) < 1e-3);
+        assert(plan_hohmann(mu, r1, r1, 0.0).has_window == false);
+        assert(plan_hohmann(0.0, r1, r2, 0.0).has_window == false);
+        assert(plan_hohmann(mu, r2, r1, 0.0).dv1 < 0.0);
     }
     std::puts("systems_test ok");
     return 0;

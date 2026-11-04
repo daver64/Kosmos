@@ -525,6 +525,13 @@ local function draw_hel(g, f)
   draw_orb(g, h, ot, tr)
 end
 
+-- Tells the sim when the burn this page shows begins, so File > Set time can skip to just before it.
+local function publish_burn(centre_in, burn, label)
+  props.set("/plan/orbitcomp/at", props.get("/sim/time") + centre_in - (burn or 0) / 2)
+  props.set("/plan/orbitcomp/label", label)
+  props.set("/plan/orbitcomp/stamp", props.get("/sim/frame"))
+end
+
 local function draw_man(g, f, ot, tr)
   title(g, f)
   local o = f.o
@@ -550,6 +557,7 @@ local function draw_man(g, f, ot, tr)
   if nd.burn then
     g:colour(255, 200, 80)
     g:text(240, 102, "Ignite T-" .. fmt_time(nd.t - nd.burn / 2), 0)
+    if nd.dv > 0 then publish_burn(nd.t, nd.burn, "manoeuvre node") end
     burn_left_line(g, 240, 119, nd.dv)
   end
   local a = nd.after
@@ -852,6 +860,7 @@ end
 
 function M.draw(self, g, w, h)
   frame_count = frame_count + 1
+  props.set("/plan/orbitcomp/stamp", -1)
   track_burn()
   apply_script()
   set_buttons()
@@ -868,7 +877,15 @@ function M.draw(self, g, w, h)
   if page == 1 then draw_orb(g, f, ot, tr)
   elseif page == 2 then draw_man(g, f, ot, tr)
   elseif page == 4 then draw_hel(g, f)
-  else M.plan = draw_plan(g, f, ot, tr, tv) end
+  else
+    M.plan = draw_plan(g, f, ot, tr, tv)
+    local pl = M.plan
+    if pl then
+      local centre = pl.kind == "hohmann" and pl.wait or pl.t_burn
+      local dv = pl.kind == "hohmann" and pl.dv1 or pl.dv
+      if centre and dv and dv > 0 then publish_burn(centre, burn_time(dv), pl.kind .. " transfer") end
+    end
+  end
 end
 
 function M.button(self, i)

@@ -154,6 +154,7 @@ return {
   init = function(self) end,
 
   draw = function(self, g, w, h)
+    props.set("/plan/transfer/stamp", -1)
     g:colour(255, 240, 140)
     g:text(200, 14, "TRANSFER", 1)
     if not props.get("/target/valid") then
@@ -214,6 +215,12 @@ return {
       g:text(52, 128, "Burn 1 time  " .. (burn1 and minsec(burn1) or "--"), 0)
     end
     g:text(52, 150, "Flight time  " .. fmt_time(tof), 0)
+    -- Tells the sim when the burn begins, so File > Set time can skip to just before it.
+    if wait and dv1 > 0 then
+      props.set("/plan/transfer/at", props.get("/sim/time") + wait - (burn1 or 0) / 2)
+      props.set("/plan/transfer/label", "Hohmann burn")
+      props.set("/plan/transfer/stamp", props.get("/sim/frame"))
+    end
     g:text(52, 168, string.format("Needed phase  %.1f deg", math.deg(lead)), 0)
     g:text(52, 186, string.format("Current phase %.1f deg", math.deg(phase)), 0)
     g:colour(255, 200, 80)
