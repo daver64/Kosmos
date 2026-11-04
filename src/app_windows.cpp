@@ -1123,13 +1123,34 @@ namespace kosmos::app
                     map_mode = galaxy_mode = false;
                 };
                 const bool chase_now = !cockpit_view && rig.interior_cam < 0 && rig.base_view < 0 && rig.user_cam < 0;
+                // Only the node holding the current camera starts unfolded; the others stay as the user leaves them.
+                const bool in_ship_node = rig.base_view < 0 && rig.user_cam < 0;
                 for (int si = 0; si < sim.ship_count(); ++si)
                 {
                     const Ship &other = *sim.ship(si);
                     const kosmos::ShipSpec &spec = other.spec();
                     const bool mine = si == active;
                     ImGui::PushID(si);
-                    if (ImGui::TreeNodeEx((other.name + (mine ? "  (flying)" : "")).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                    ImGui::SetNextItemOpen(mine && in_ship_node, ImGuiCond_Appearing);
+                    // Say where the vessel is, unless its name already does (the scenario labels read "Mir (Mars)").
+                    std::string title = other.name;
+                    const int soi = other.telemetry().soi;
+                    if (soi >= 0 && soi < static_cast<int>(sim.universe.bodies.size()))
+                    {
+                        const std::string &where = sim.universe.bodies[static_cast<std::size_t>(soi)].name;
+                        if (!where.empty() && title.find(where) == std::string::npos)
+                            title += " (" + where + ")";
+                    }
+                    std::string partners;
+                    for (const std::array<int, 4> &l : sim.nav.dock_links())
+                    {
+                        const int other_index = l[0] == si ? l[2] : l[2] == si ? l[0] : -1;
+                        if (other_index >= 0 && other_index < sim.ship_count())
+                            partners += (partners.empty() ? "" : ", ") + sim.ship(other_index)->name;
+                    }
+                    if (!partners.empty())
+                        title += " - docked to " + partners;
+                    if (ImGui::TreeNodeEx((title + (mine ? "  (flying)" : "")).c_str()))
                     {
                         if (ImGui::Selectable("External", mine && chase_now))
                             pick(si, false, false, -1, -1, 0);
@@ -1144,7 +1165,9 @@ namespace kosmos::app
                     }
                     ImGui::PopID();
                 }
-                if (!rig.user_cams.empty() && ImGui::TreeNodeEx("My cameras", ImGuiTreeNodeFlags_DefaultOpen))
+                if (!rig.user_cams.empty())
+                    ImGui::SetNextItemOpen(rig.user_cam >= 0, ImGuiCond_Appearing);
+                if (!rig.user_cams.empty() && ImGui::TreeNodeEx("My cameras"))
                 {
                     for (std::size_t ui = 0; ui < rig.user_cams.size(); ++ui)
                     {
@@ -1158,21 +1181,63 @@ namespace kosmos::app
                     }
                     ImGui::TreePop();
                 }
+                // Base cameras, grouped by body. By default only the flown ship's body is listed, nearest base first.
+                static bool all_bodies = false;
+                struct BaseEntry { std::size_t index; double distance; };
+                std::map<std::string, std::vector<BaseEntry>> by_body;
+                const kosmos::Universe &uni = sim.universe;
+                const Ship *flown = sim.active_ship();
+                const int flown_soi = flown ? flown->telemetry().soi : -1;
+                const std::string here = flown_soi >= 0 && flown_soi < static_cast<int>(uni.bodies.size()) ? uni.bodies[static_cast<std::size_t>(flown_soi)].name : std::string();
                 for (std::size_t bi = 0; bi < sim.bases.size(); ++bi)
                 {
                     const kosmos::Base &bs = sim.bases[bi];
                     if (bs.cameras.empty())
                         continue;
-                    ImGui::PushID(1000 + static_cast<int>(bi));
-                    if (ImGui::TreeNodeEx((bs.name + " base").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                    const bool current = rig.base_view == static_cast<int>(bi);
+                    if (!all_bodies && bs.body != here && !current)
+                        continue;
+                    const int body = uni.find(bs.body);
+                    double distance = 0.0;
+                    if (body >= 0 && flown)
+                        distance = glm::length(flown->origin() - (uni.position(body) + bs.direction * (uni.bodies[static_cast<std::size_t>(body)].radius + bs.height)));
+                    by_body[bs.body].push_back({bi, distance});
+                }
+                std::vector<std::string> order;
+                for (auto &entry : by_body)
+                    order.push_back(entry.first);
+                std::stable_sort(order.begin(), order.end(), [&](const std::string &x, const std::string &y) { return (x == here) > (y == here); });
+                for (const std::string &body_name : order)
+                {
+                    std::vector<BaseEntry> &list = by_body[body_name];
+                    std::sort(list.begin(), list.end(), [](const BaseEntry &x, const BaseEntry &y) { return x.distance < y.distance; });
+                    const bool holds_current = std::any_of(list.begin(), list.end(), [&](const BaseEntry &e) { return rig.base_view == static_cast<int>(e.index); });
+                    ImGui::PushID(body_name.c_str());
+                    ImGui::SetNextItemOpen(holds_current, ImGuiCond_Appearing);
+                    if (ImGui::TreeNodeEx(("Bases on " + body_name + " (" + std::to_string(list.size()) + ")").c_str()))
                     {
-                        for (std::size_t ci = 0; ci < bs.cameras.size(); ++ci)
-                            if (ImGui::Selectable(bs.cameras[ci].name.c_str(), rig.base_view == static_cast<int>(bi) && rig.base_view_cam == static_cast<int>(ci)))
-                                pick(-1, false, false, -1, static_cast<int>(bi), static_cast<int>(ci));
+                        for (const BaseEntry &e : list)
+                        {
+                            const kosmos::Base &bs = sim.bases[e.index];
+                            ImGui::PushID(1000 + static_cast<int>(e.index));
+                            ImGui::SetNextItemOpen(rig.base_view == static_cast<int>(e.index), ImGuiCond_Appearing);
+                            char dist[32] = "";
+                            if (flown && body_name == here)
+                                std::snprintf(dist, sizeof dist, e.distance >= 1.0e6 ? "  %.0f km" : "  %.1f km", e.distance / 1000.0);
+                            if (ImGui::TreeNodeEx((bs.name + dist).c_str()))
+                            {
+                                for (std::size_t ci = 0; ci < bs.cameras.size(); ++ci)
+                                    if (ImGui::Selectable(bs.cameras[ci].name.c_str(), rig.base_view == static_cast<int>(e.index) && rig.base_view_cam == static_cast<int>(ci)))
+                                        pick(-1, false, false, -1, static_cast<int>(e.index), static_cast<int>(ci));
+                                ImGui::TreePop();
+                            }
+                            ImGui::PopID();
+                        }
                         ImGui::TreePop();
                     }
                     ImGui::PopID();
                 }
+                ImGui::Checkbox("Bases on all bodies", &all_bodies);
                 ImGui::Separator();
                 ImGui::TextDisabled("C cycles the flown ship's views and your cameras. Right-drag looks around.");
                 if (ImGui::Button("Camera editor..."))

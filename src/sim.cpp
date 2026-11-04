@@ -564,6 +564,7 @@ namespace kosmos
     int Sim::advance(double frame)
     {
         ++frame_count_;
+        follow_burn_plan();
         if (current_warp_ > 4.0 || props.get_bool("/sim/paused"))
         {
             step_accumulator_ = 0.0;
@@ -880,6 +881,61 @@ namespace kosmos
         return result;
     }
 
+    // The planner's idea of the burn drifts by up to about a fifth of any skip (it assumes circular orbits), so a long gap is
+    // approached in fractions that cannot overshoot; the last couple of minutes are taken at once.
+    static double seek_step(bool follow, double gap)
+    {
+        return follow && gap > 120.0 ? gap * 0.7 : gap;
+    }
+
+    bool Sim::skip_to_burn(double ignition_in, bool follow, std::string &why)
+    {
+        seek_ = BurnSeek{};
+        const double gap = ignition_in - burn_lead_seconds();
+        const double step = seek_step(follow, gap);
+        if (!skip_time(step, why))
+            return false;
+        if (follow)
+        {
+            const PlannedBurn plan = planned_burn();
+            seek_ = BurnSeek{true, 30, 3, gap - step, plan.valid ? plan.source : std::string()};
+        }
+        return true;
+    }
+
+    void Sim::follow_burn_plan()
+    {
+        if (!seek_.active)
+            return;
+        if (seek_.wait > 0)
+        {
+            --seek_.wait;
+            return;
+        }
+        const PlannedBurn plan = planned_burn();
+        const double gap = plan.ignition_in - burn_lead_seconds();
+        // A different source, or a gap that grew by more than drift explains (a jump to the next window), means the plan changed under us: leave the date where it is.
+        if (!plan.valid || plan.source != seek_.source || gap > seek_.previous_gap * 1.25 + 3600.0 || --seek_.passes < 0)
+        {
+            seek_.active = false;
+            return;
+        }
+        if (gap < 20.0)
+        {
+            seek_.active = false;
+            return;
+        }
+        std::string why;
+        const double step = seek_step(true, gap);
+        if (!skip_time(step, why))
+        {
+            seek_.active = false;
+            return;
+        }
+        seek_.previous_gap = gap - step;
+        seek_.wait = 3;
+    }
+
     bool Sim::skip_time(double seconds, std::string &why)
     {
         if (seconds <= 0.0)
@@ -919,11 +975,12 @@ namespace kosmos
         universe.world.max_substep = 1.0e12;
         universe.world.step(seconds);
         universe.world.max_substep = saved_substep;
-        nav.couple(universe, ships_, active_, seconds);
+        // Only the position and the date move: a zero step keeps consumables, systems, mission time and nav timers exactly as they were.
+        nav.couple(universe, ships_, active_, 0.0);
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
             Ship &ship = *ships_[i];
-            ship.after_step(seconds);
+            ship.after_step(0.0);
             if (ship.on_rails() && ship.body().rails_parent != ship.telemetry().soi)
             {
                 ship.go_dynamic();

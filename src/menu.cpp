@@ -1603,12 +1603,12 @@ namespace kosmos
         }
 
         // Skips to `lead` seconds before the ignition `ignition_in` seconds ahead; the reason goes to the log when it cannot.
-        void skip_to_burn(Sim &sim, const MenuActions &actions, double ignition_in)
+        void skip_to_burn(Sim &sim, const MenuActions &actions, double ignition_in, bool follow)
         {
             std::string why;
             if (actions.multiplayer && actions.multiplayer())
                 why = "The clock cannot be skipped in a multiplayer session";
-            else if (sim.skip_time(ignition_in - sim.burn_lead_seconds(), why))
+            else if (sim.skip_to_burn(ignition_in, follow, why))
                 return;
             sim.log(why);
         }
@@ -1632,7 +1632,7 @@ namespace kosmos
             blocked = "Already within the lead time of the burn";
         const std::string label = "Set time to T-" + lead_text(sim) + " before burn";
         if (ImGui::MenuItem(label.c_str(), nullptr, false, blocked.empty()))
-            skip_to_burn(sim, actions, burn.ignition_in);
+            skip_to_burn(sim, actions, burn.ignition_in, true);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         {
             ImGui::BeginTooltip();
@@ -1690,7 +1690,7 @@ namespace kosmos
                     const bool multi = actions.multiplayer && actions.multiplayer();
                     ImGui::BeginDisabled(multi || w.ignition_in - sim.burn_lead_seconds() <= 0.0);
                     if (ImGui::SmallButton(("Go to T-" + lead_text(sim)).c_str()))
-                        skip_to_burn(sim, actions, w.ignition_in);
+                        skip_to_burn(sim, actions, w.ignition_in, false);
                     ImGui::EndDisabled();
                     ImGui::PopID();
                 }

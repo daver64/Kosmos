@@ -115,9 +115,15 @@ namespace kosmos
         std::vector<TransferWindow> transfer_windows(int count, std::string &why);
         /**
          * Moves the clock forward by `seconds` at once. Every ship goes on rails for the jump, so none may be landed, in the air or
-         * burning; false (with `why`) when the jump is refused. Consumables do not drain over the skipped time.
+         * burning; false (with `why`) when the jump is refused. Nothing but position and date changes: consumables, systems, mission time and nav timers are untouched.
          */
         bool skip_time(double seconds, std::string &why);
+        /**
+         * Skips to `burn_lead_seconds()` before an ignition `ignition_in` seconds ahead. With `follow`, the plan the MFD shows is
+         * re-read a few frames after each skip and the remaining gap skipped in turn, because a planner that assumes circular orbits
+         * drifts over a long skip; the date then lands on the plan as it reads at the end.
+         */
+        bool skip_to_burn(double ignition_in, bool follow, std::string &why);
         /** Seconds before ignition that "set time" lands on (/sim/settings/burn-lead-min, default 5 minutes). */
         double burn_lead_seconds() const;
         /** Frame time the fixed physics steps have not yet used (0 when warped or paused). */
@@ -175,6 +181,14 @@ namespace kosmos
         double current_warp_ = 1.0;
         double step_accumulator_ = 0.0;
         long frame_count_ = 0;
+        struct BurnSeek
+        {
+            bool active = false;
+            int passes = 0, wait = 0;
+            double previous_gap = 0.0;
+            std::string source;
+        } seek_;
+        void follow_burn_plan();
         bool script_loaded_ = false;
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;

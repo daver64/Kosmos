@@ -81,6 +81,13 @@ namespace kosmos
             sl::Bitmap *loaded = sl::load_bitmap(path);
             if (!loaded)
                 error_ = "cannot load image " + path;
+            else
+            {
+                // Panel artwork is drawn smaller than its pixels; nearest sampling shimmers and breaks up thin lines.
+                loaded->smooth = true;
+                loaded->mipmaps = true;
+                loaded->anisotropy = 4.0f;
+            }
             found = bitmaps_.emplace(path, loaded).first;
         }
         return found->second;
@@ -376,12 +383,17 @@ namespace kosmos
             case MfdCommand::Kind::text:
             {
                 int x = static_cast<int>(X(c.a));
-                const int w = sl::text_length(font, c.text);
+                std::string str = c.text;
+                const int left = static_cast<int>(layout.x), room = static_cast<int>(layout.size);
+                while (str.size() > 1 && sl::text_length(font, str) > room)
+                    str.pop_back();
+                const int w = sl::text_length(font, str);
                 if (c.align == 1)
                     x -= w / 2;
                 else if (c.align == 2)
                     x -= w;
-                sl::gprintf(x, static_cast<int>(Y(c.b)) - sl::text_height(font) / 2, font, c.colour, "%s", c.text.c_str());
+                x = std::clamp(x, left, std::max(left, left + room - w));
+                sl::gprintf(x, static_cast<int>(Y(c.b)) - sl::text_height(font) / 2, font, c.colour, "%s", str.c_str());
                 break;
             }
             }
@@ -402,7 +414,15 @@ namespace kosmos
         return n < count ? n : -2;
     }
 
-    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, bool compact)
+    // Where button i's label sits, in MFD units down the display.
+    static float label_row(const MfdLayout &layout, int i)
+    {
+        if (layout.button_y.size() == 12)
+            return (layout.button_y[static_cast<std::size_t>(i)] - layout.y) * mfd_size / layout.size;
+        return (i % 6 + 0.5f) * mfd_size / 6.0f;
+    }
+
+    void MfdSystem::draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, const MfdLayout &layout)
     {
         g.set_colour(255, 240, 140);
         g.text(200, 20, "SELECT MODE", 1);
@@ -410,7 +430,7 @@ namespace kosmos
         const int count = visible_count();
         for (int i = 0; i < 12; ++i)
         {
-            const float y = (i % 6 + 0.5f) * mfd_size / 6.0f;
+            const float y = label_row(layout, i);
             const int n = select_slot(unit, i);
             std::string name;
             if (n == -1)
@@ -419,7 +439,7 @@ namespace kosmos
             {
                 const MfdMode &m = modes_[static_cast<std::size_t>(visible_mode(n))];
                 name = m.name;
-                if (compact)
+                if (layout.hud)
                 {
                     // The see-through display's buttons are narrow: use the mode's short code, or its first letters.
                     name = m.short_name.empty() ? m.name.substr(0, 7) : m.short_name;
@@ -526,7 +546,7 @@ namespace kosmos
         if (mode)
             g.directory = mode->directory;
         if (u.selecting || !mode)
-            draw_select(u, g, lab, layout.hud);
+            draw_select(u, g, lab, layout);
         else
         {
             sol::protected_function fn = mode->table["draw"];
@@ -548,7 +568,7 @@ namespace kosmos
                     const std::string label = names->get_or<std::string>(i + 1, "");
                     if (label.empty())
                         continue;
-                    const float y = (i % 6 + 0.5f) * mfd_size / 6.0f;
+                    const float y = label_row(layout, i);
                     lab.text(i < 6 ? 4.0f : mfd_size - 4.0f, y, label, i < 6 ? 0 : 2);
                 }
             }

@@ -62,7 +62,7 @@ namespace kosmos
             {
                 ScenarioShip s;
                 s.ship = js.at("ship").get<std::string>();
-                s.label = js.value("name", "");
+                s.label = js.value("name", js.value("label", ""));
                 s.body = js.value("body", "Earth");
                 if (js.contains("orbit"))
                 {

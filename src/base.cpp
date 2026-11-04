@@ -851,11 +851,15 @@ namespace kosmos
         const int body = universe.find(base.body);
         const double radius = body >= 0 ? universe.bodies[static_cast<std::size_t>(body)].radius : 0.0;
         const sl::dvec3 centre = body >= 0 ? universe.position(body) : sl::dvec3(0.0);
-        const Frame f = local_frame(base.direction, base.pole);
+        // The base's stored direction is refreshed later in the frame than the camera is placed; the scenery is drawn from
+        // the fresh one, so the camera must use it too or the buildings jitter against it as the body turns.
+        const sl::dvec3 direction = body >= 0 ? base_direction(universe, body, base) : base.direction;
+        const sl::dvec3 pole = body >= 0 ? universe.pole(body) : base.pole;
+        const Frame f = local_frame(direction, pole);
         sl::dvec3 base_forward, base_right;
         base_axes(f, base.heading, base_forward, base_right);
         up = f.up;
-        eye = centre + base.direction * (radius + base.height) + base_right * camera.x + up * camera.y + base_forward * camera.z;
+        eye = centre + direction * (radius + base.height) + base_right * camera.x + up * camera.y + base_forward * camera.z;
         if (camera.track)
         {
             // Follow the ship while it can be seen: close by, or above the local horizon within a few thousand km.
@@ -870,7 +874,10 @@ namespace kosmos
                     return;
                 }
             }
-            const sl::dvec3 pad = centre + base_point(base, radius, base.pad_x, base.pad_z) * (radius + base.height + 15.0);
+            sl::dvec3 pad_forward, pad_right;
+            base_axes(f, base.heading, pad_forward, pad_right);
+            const sl::dvec3 pad_dir = glm::normalize(direction + (pad_right * base.pad_x + pad_forward * base.pad_z) / radius);
+            const sl::dvec3 pad = centre + pad_dir * (radius + base.height + 15.0);
             forward = glm::normalize(pad - eye);
             return;
         }

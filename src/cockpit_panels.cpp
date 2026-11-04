@@ -1,5 +1,6 @@
 #include "cockpit_panels.h"
 
+#include <algorithm>
 #include <cctype>
 #include <map>
 #include <string>
@@ -28,13 +29,21 @@ namespace kosmos::app
         return glm::mat3(glm::vec3(1.0f, 0.0f, 0.0f), up, normal);
     }
 
-    kosmos::MfdLayout panel_layout(const kosmos::Cockpit::PanelInstrument &inst, float ox, float oy, float scale)
+    kosmos::MfdLayout panel_layout(const kosmos::Cockpit &cp, std::size_t unit, float ox, float oy, float scale)
     {
+        const kosmos::Cockpit::PanelInstrument &inst = cp.instruments[unit];
         kosmos::MfdLayout layout;
         layout.x = ox + inst.x * scale;
         layout.y = oy + inst.y * scale;
         layout.size = inst.size * scale;
         layout.bare = !inst.frame;
+        // The bezel buttons are part of the artwork, so the labels follow the panel's button boxes.
+        std::vector<float> rows(12, -1.0f);
+        for (const kosmos::Cockpit::PanelControl &c : cp.controls)
+            if (c.type == "mfd" && c.unit == static_cast<int>(unit) && c.button >= 0 && c.button < 12)
+                rows[static_cast<std::size_t>(c.button)] = oy + (c.y + c.h * 0.5f) * scale;
+        if (std::none_of(rows.begin(), rows.end(), [](float v) { return v < 0.0f; }))
+            layout.button_y = rows;
         return layout;
     }
 
@@ -349,7 +358,7 @@ namespace kosmos::app
         }
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
             if (sim.mfd.domain_allowed(cp.instruments[i].mode) && !cp.instruments[i].vc_only)
-                sim.mfd.draw(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale));
+                sim.mfd.draw(static_cast<int>(i), panel_layout(cp, i, ox, oy, scale));
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_cover(c, ox, oy, scale);
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
@@ -403,7 +412,7 @@ namespace kosmos::app
         {
             if (!sim.mfd.domain_allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
                 continue;
-            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
+            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp, i, ox, oy, scale), px, py);
             if (button >= 0)
             {
                 kosmos::Cockpit::PanelControl mfd;
@@ -464,7 +473,7 @@ namespace kosmos::app
         {
             if (!sim.mfd.domain_allowed(cp.instruments[i].mode) || cp.instruments[i].vc_only)
                 continue;
-            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp.instruments[i], ox, oy, scale), px, py);
+            const int button = sim.mfd.hit_test(static_cast<int>(i), panel_layout(cp, i, ox, oy, scale), px, py);
             if (button >= 0)
             {
                 sim.mfd.press(static_cast<int>(i), button);

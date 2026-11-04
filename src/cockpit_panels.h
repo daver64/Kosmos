@@ -27,7 +27,7 @@ namespace kosmos::app
     // pixels across; on the 2D screen it is drawn straight onto the display. Either way `scale` converts panel units to pixels.
     constexpr int panel_target_width = 2048;
 
-    kosmos::MfdLayout panel_layout(const kosmos::Cockpit::PanelInstrument &pi, float ox, float oy, float scale);
+    kosmos::MfdLayout panel_layout(const kosmos::Cockpit &cp, std::size_t unit, float ox, float oy, float scale);
 
     bool control_is_numeric(const std::string &v);
 

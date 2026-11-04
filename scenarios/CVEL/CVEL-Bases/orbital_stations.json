@@ -1,7 +1,8 @@
 {
  "name": "CVEL: Orbital stations",
  "description": "Dormant ISS stations around Earth, Jupiter and Saturn, Mir stations around every planet, Earth's Moon, Europa and Ganymede, and a Wheel station at the Moon and Mars. Each carries a month of life support for two people: when a crew arrives, press the crew button in the Ship systems window (F1) to switch on systems and life support, and again when they leave. Cycle ships to visit them all. The Mir at Earth has a fully fuelled Deltaglider docked to its fore port and a Shuttle-A to its aft port. At Earth the ISS and Mir share a 400 km orbit about 2 km apart. Every station beyond Mars's orbit (the ISS at Jupiter and Saturn, and the Mirs from Jupiter outward including Europa and Ganymede) is a Nuclear variant with a fission reactor (10 kW for Mir, 20 kW for the ISS), since sunlight there is too weak for solar arrays.",
- "active": 0,
+ "active": 15,
+ "view": "cockpit",
  "ships": [
   {
    "ship": "ISS",

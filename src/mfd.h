@@ -74,6 +74,7 @@ namespace kosmos
         bool hud = false; // no background or frame, shapes and text only; the side buttons are the outlined labels
         bool no_buttons = false; // the bezel buttons are on a 3D model instead: none drawn or hit-tested
         bool bare = false; // a panel gauge: a plain backing square instead of the MFD frame and buttons
+        std::vector<float> button_y; // screen y of each button's centre when the artwork spaces them unevenly; empty means six even rows
     };
 
     class MfdSystem
@@ -132,7 +133,7 @@ namespace kosmos
         void hud_button_box(const MfdLayout &layout, int i, float &x, float &y, float &w, float &h) const;
         void draw_unit(int side, const MfdLayout &layout, std::vector<float> *buttons);
         void render(const MfdCanvas &canvas, const MfdLayout &layout);
-        void draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, bool compact);
+        void draw_select(MfdUnit &unit, MfdCanvas &g, MfdCanvas &labels, const MfdLayout &layout);
         /** The mode-list index a side button picks, -1 for the page buttons (shown when more than 12 modes are offered). */
         int select_slot(const MfdUnit &unit, int button) const;
         /** The square a mode draws into: the whole layout, or inside the button margins of a see-through display. */

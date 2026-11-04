@@ -579,7 +579,7 @@ local function draw_man(g, f, ot, tr)
     g:text(LX, 191, line, 0)
   elseif props.get("/target/valid") then
     g:colour(255, 200, 80)
-    g:text(LX, 191, "Target not around " .. f.soi, 0)
+    g:text(LX, 191, "Target is not in " .. f.soi .. "'s orbit frame; PLN plans the ejection", 0)
   end
 
   -- Current orbit dim, post-burn orbit bright, and the node.
@@ -648,10 +648,14 @@ local function plan_ejection(f, s)
   local lead = (PI - nt * tof) % TAU
   local rtp = sub(s.rt, mul(wp, dot(s.rt, wp)))
   local phase = atan2(dot(cross(s.rp, rtp), wp), dot(s.rp, rtp)) % TAU
-  local wait
-  if math.abs(np - nt) > 1e-12 then wait = ((lead - phase) / (nt - np)) % (TAU / math.abs(np - nt)) end
-
   local rb = len(f.r)
+  -- The burn comes up to one parking orbit after the window, so the window may be that far in the past without
+  -- the plan jumping to the next synodic period (which a time skip to just before the burn would otherwise trigger).
+  local park = TAU * math.sqrt(rb ^ 3 / f.mu)
+  local wait
+  if math.abs(np - nt) > 1e-12 then wait = ((lead - phase) / (nt - np) + park) % (TAU / math.abs(np - nt)) - park end
+
+
   local vcirc = math.sqrt(f.mu / rb)
   local ecc = 1 + rb * vinf * vinf / f.mu
   local nu_inf = math.acos(-1 / ecc)
@@ -670,6 +674,7 @@ local function plan_ejection(f, s)
     local ang = atan2(dot(cross(rw, burn_dir), o.W), dot(rw, burn_dir)) % TAU
     local to_burn = o.bound and ang / math.sqrt(f.mu / rb ^ 3) or 0
     res.t_burn = wait + to_burn
+    if res.t_burn < 0 then res.t_burn = res.t_burn + park end
     local planet_dir = unit(rotate(dirp, wp, np * wait))
     res.eject_angle = math.deg(math.acos(clamp(dot(burn_dir, planet_dir), -1, 1)))
     res.eject_signed = atan2(dot(cross(planet_dir, burn_dir), o.W), dot(planet_dir, burn_dir))
@@ -771,6 +776,10 @@ local function draw_plan(g, f, ot, tr, tv)
   if not plan then
     g:colour(255, 200, 80)
     g:text(200, 190, "No transfer plan for this target", 1)
+    if props.get("/target/kind") == "ship" then
+      g:text(200, 168, "A ship in another body's orbit; for a planet", 1)
+      g:text(200, 180, "press TGT+ on past the ships to the planet", 1)
+    end
     g:text(200, 212, "Pick a body orbiting " .. f.soi, 1)
     if f.parent and f.parent ~= "" then g:text(200, 230, "or " .. f.parent .. " itself, or another body of " .. f.parent, 1) end
     return nil
@@ -882,8 +891,8 @@ function M.draw(self, g, w, h)
     local pl = M.plan
     if pl then
       local centre = pl.kind == "hohmann" and pl.wait or pl.t_burn
-      local dv = pl.kind == "hohmann" and pl.dv1 or pl.dv
-      if centre and dv and dv > 0 then publish_burn(centre, burn_time(dv), pl.kind .. " transfer") end
+      local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
+      if centre and dv > 0 then publish_burn(centre, burn_time(dv), pl.kind .. " transfer") end
     end
   end
 end
