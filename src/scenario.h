@@ -73,6 +73,11 @@ namespace kosmos
         double throttle = 0.0;
         bool autopilot = false;
         std::string mfd_left, mfd_right;
+        /** Which MFD units start powered (-1 leaves them as the ship has them, 0 off, 1 on), the head-up display mode ("off", "orbit", "surface", "docking"; empty keeps it) and how the MFDs are shown ("panels", "hud" for see-through, or "off"; empty keeps it). */
+        int mfd_left_on = -1, mfd_right_on = -1;
+        std::string hud, mfd_display;
+        /** The starting camera: "chase", "cockpit" (2D panel) or "cockpit3d"; empty keeps the default. */
+        std::string view;
         /** Properties set when the scenario starts, as "path=value" (a number, true/false or text); written as an object in the JSON. */
         std::vector<std::string> sets;
         /** Start inside the building of this name (a base's building), looking at its panel. */

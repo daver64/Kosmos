@@ -276,6 +276,49 @@ namespace kosmos::app
         }
     }
 
+    // The scenario's power, head-up display and MFD display choices; each is applied once, then cleared so changing ships keeps the player's settings.
+    void App::apply_scenario_display()
+    {
+        sl::PropertyTree &props = *props_ref;
+        int sides = 3;
+        bool power_given = false;
+        for (int side = 0; side < 2 && side < sim.mfd.unit_count(); ++side)
+        {
+            const std::string key = side == 0 ? "/sim/scenario-mfd-left-on" : "/sim/scenario-mfd-right-on";
+            const int on = props.get_int(key, -1);
+            if (on >= 0)
+            {
+                power_given = true;
+                sim.mfd.unit(side).power = on == 1;
+                if (on == 0)
+                    sides &= ~(1 << side);
+            }
+            props.set_int(key, -1);
+        }
+        const std::string display = props.get_string("/sim/scenario-mfd-display");
+        if (display == "hud" || display == "panels" || display == "off")
+        {
+            mfd_display = display == "off" ? 0 : display == "panels" ? 1 : 2;
+            cockpit_mfd = display == "off" ? 2 : display == "panels" ? 0 : 1;
+        }
+        else if (!display.empty())
+            std::fprintf(stderr, "unknown scenario mfd_display '%s' (panels, hud, off)\n", display.c_str());
+        // A unit the scenario powers down is also left out of the see-through display.
+        if (power_given)
+            hud_sides = sides;
+        props.set_string("/sim/scenario-mfd-display", "");
+        const std::string hud_name = props.get_string("/sim/scenario-hud");
+        if (!hud_name.empty())
+        {
+            sl::HudMode mode = sl::HudMode::off;
+            if (sl::hud_parse_mode(hud_name, mode))
+                hud.set_mode(mode);
+            else
+                std::fprintf(stderr, "unknown scenario hud mode '%s' (off, orbit, surface, docking)\n", hud_name.c_str());
+            props.set_string("/sim/scenario-hud", "");
+        }
+    }
+
     void App::select_default_instruments()
     {
     sl::PropertyTree &props = *props_ref;
@@ -284,6 +327,19 @@ namespace kosmos::app
             // Each ship brings its own default instruments whenever it becomes the flown one.
             targets.mfd_ship = ship;
             targets.mfd_ship_id = ship->spec().name;
+            if (const std::string view = props.get_string("/sim/scenario-view"); !view.empty())
+            {
+                props.set_string("/sim/scenario-view", "");
+                if (view == "cockpit" || view == "cockpit3d")
+                {
+                    cockpit_view = ship->spec().cockpit.present;
+                    cockpit3d = cockpit_view && view == "cockpit3d" && ship->spec().cockpit.mfds;
+                }
+                else if (view == "chase")
+                    cockpit_view = cockpit3d = false;
+                else
+                    std::fprintf(stderr, "unknown scenario view '%s' (chase, cockpit, cockpit3d)\n", view.c_str());
+            }
             panel_index = first_ship_seen ? options.panel : 0;
             first_ship_seen = false;
             const auto &cockpit_spec = ship->spec().cockpit;
@@ -311,6 +367,7 @@ namespace kosmos::app
                     if (!wanted.empty() && sim.mfd.allowed(wanted))
                         sim.mfd.set_mode(side, std::max(0, sim.mfd.mode_by_id(wanted)));
                 }
+                apply_scenario_display();
             }
         }
     }

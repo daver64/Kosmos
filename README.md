@@ -329,6 +329,10 @@ File ▸ Set time to T-5:00 before burn moves the clock to just before the burn 
 
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
+A scenario can set up the instruments: `mfd_left` / `mfd_right` (mode ids such as `surface`, `orbit`), `mfd_power` (`{"left": true, "right": false}` powers each unit on or off), `mfd_display` (`panels`, `hud` for the see-through MFDs, or `off`) `hud` (`off`, `orbit`, `surface` or `docking`) and `view` (`chase`, `cockpit` or `cockpit3d`, the starting camera). Anything left out keeps the ship's defaults.
+
+Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS Attitude, `ascent` Ascent Profile, `align` Align Planes, `sync` Sync Orbit, `transfer` Transfer, `orbitcomp` OrbitComp, `comnav` COM/NAV, `vor` VOR/ILS, `vtol` VTOL, `adf` ADF, `hsi` HSI, `docking` Docking, `fuel` Fuel, `systems` Systems; panel instruments `adi`, `altimeter`, `asi`, `vsi`, `dg`, `turn`, `engine`; ship-specific `dg_aoa`, `dg_slip`, `dg_slope`, `icbm-target`, `shuttlea_levels`. The full table, and how an MFD publishes its burn for File ▸ Set time (`/plan/<mode>/at`, `label`, `stamp`), is in the website's modding page.
+
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 
 A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead of `orbit`. Run with `--scenario NAME`, list with `--list-scenarios`, and press F10 to load the next one. The defaults cover Earth, Moon, Mars, Venus and Mercury, plus an orbit scenario (`23_phobos` to `43_proteus`) for every other moon, including Io and Titan.

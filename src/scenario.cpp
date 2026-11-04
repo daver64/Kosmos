@@ -32,6 +32,17 @@ namespace kosmos
             out.autopilot = json.value("autopilot", false);
             out.mfd_left = json.value("mfd_left", "");
             out.mfd_right = json.value("mfd_right", "");
+            out.hud = json.value("hud", "");
+            out.view = json.value("view", "");
+            out.mfd_display = json.value("mfd_display", "");
+            if (json.contains("mfd_power") && json["mfd_power"].is_object())
+            {
+                const nlohmann::json &power = json["mfd_power"];
+                if (power.contains("left"))
+                    out.mfd_left_on = power["left"].get<bool>() ? 1 : 0;
+                if (power.contains("right"))
+                    out.mfd_right_on = power["right"].get<bool>() ? 1 : 0;
+            }
             out.enter_building = json.value("enter_building", "");
             if (json.contains("set"))
                 for (auto it = json["set"].begin(); it != json["set"].end(); ++it)
@@ -168,6 +179,16 @@ namespace kosmos
             json["mfd_left"] = sc.mfd_left;
         if (!sc.mfd_right.empty())
             json["mfd_right"] = sc.mfd_right;
+        if (!sc.hud.empty())
+            json["hud"] = sc.hud;
+        if (!sc.view.empty())
+            json["view"] = sc.view;
+        if (!sc.mfd_display.empty())
+            json["mfd_display"] = sc.mfd_display;
+        if (sc.mfd_left_on >= 0)
+            json["mfd_power"]["left"] = sc.mfd_left_on == 1;
+        if (sc.mfd_right_on >= 0)
+            json["mfd_power"]["right"] = sc.mfd_right_on == 1;
         if (!sc.enter_building.empty())
             json["enter_building"] = sc.enter_building;
         for (const std::string &assignment : sc.sets)

@@ -2,6 +2,10 @@
  "name": "Default start",
  "description": "Loaded when Kosmos is run with no arguments. Copy this file to ~/.config/kosmos/scenarios/default.json to change it.",
  "active": 0,
+  "view": "cockpit",
+ "mfd_left": "orbit",
+ "mfd_power": {"right": false},
+ "mfd_display": "hud",
  "ships": [
   {
    "ship": "Kestrel",

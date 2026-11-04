@@ -288,6 +288,11 @@ namespace kosmos::app
             sim.props.set_string("/sim/scenario-mfd-left", sc.mfd_left);
             sim.props.set_string("/sim/enter-building", sc.enter_building);
             sim.props.set_string("/sim/scenario-mfd-right", sc.mfd_right);
+            sim.props.set_int("/sim/scenario-mfd-left-on", sc.mfd_left_on);
+            sim.props.set_int("/sim/scenario-mfd-right-on", sc.mfd_right_on);
+            sim.props.set_string("/sim/scenario-hud", sc.hud);
+            sim.props.set_string("/sim/scenario-view", sc.view);
+            sim.props.set_string("/sim/scenario-mfd-display", sc.mfd_display);
             sim.props.set_int("/sim/warp-index", 0);
             apply_sets(sim.props, sc.sets);
         }

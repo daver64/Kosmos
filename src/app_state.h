@@ -461,6 +461,7 @@ namespace kosmos::app
         void drop_bomb(bool special);
         void next_scenario();
         void cycle_mfd_display();
+        void apply_scenario_display();
         void update_camera_dynamics(double sim_dt);
         void draw_reentry_plasma();
         void draw_portals();
