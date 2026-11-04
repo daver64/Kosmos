@@ -275,7 +275,10 @@ namespace kosmos::app
             // Event cues: one-shots on the edge of a state change. The first frame only records the state.
             const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = props.get_bool("/dock/docked");
             const bool alarm_now = ship->systems() && !ship->systems()->alarms().empty();
-            if (memory.cues_seen && sound_on)
+            // Landing and docking state settle over the first moments after a start, so cues wait a couple of seconds.
+            if (!memory.cues_seen)
+                memory.cues_from = sl::time_ms() / 1000.0 + 2.0;
+            if (memory.cues_seen && sound_on && sl::time_ms() / 1000.0 >= memory.cues_from)
             {
                 if (crashed_now && !memory.was_crashed)
                     sound.play("crash", 255);

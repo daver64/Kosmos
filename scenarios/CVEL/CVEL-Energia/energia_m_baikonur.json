@@ -1,0 +1,26 @@
+{
+ "name": "CVEL: Energia-M, Baikonur",
+ "description": "CVEL Energia-M heavy launcher on the pad at Baikonur Cosmodrome: two RD-170 strap-on boosters and a hydrogen core, with a nuclear Deltaglider riding piggyback on the core like Buran. Undock (Ctrl+D) after the core burns out.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Energia-M",
+   "body": "Earth",
+   "surface": {
+    "base": "baikonur"
+   }
+  },
+  {
+   "ship": "CVEL Deltaglider (Nuclear)",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "baikonur"
+   }
+  }
+ ]
+}

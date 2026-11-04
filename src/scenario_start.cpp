@@ -318,7 +318,7 @@ namespace kosmos::app
             if (!entry.label.empty())
                 ship->name = entry.label;
             apply_ship_systems(*ship, entry);
-            if (!entry.landed || entry.altitude > 0.0)
+            if (!entry.landed || entry.altitude > 0.0 || entry.dock_to >= 0)
                 ship->set_gear_position(0.0);
             if (!entry.landed)
                 place_in_space(sim, *ship, entry, body);
