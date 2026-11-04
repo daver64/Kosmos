@@ -59,7 +59,11 @@ return {
     g:text(x, y + 44, string.format("STEP        %6.2f deg", STEPS[self.step]), 0)
     g:colour(255, 220, 120)
     g:text(x, y + 78, string.format("RANGE       %6.0f km  (%.0f mi)", range, range / 1.609), 0)
-    if in_range() then
+    if phase ~= "idle" then
+      local tt = num("/icbm/time-to-impact", -1)
+      g:colour(255, 160, 90)
+      g:text(x, y + 100, tt >= 0 and string.format("TIME TO DET %d:%02d", tt // 60, math.floor(tt % 60)) or "TIME TO DET  (burning)", 0)
+    elseif in_range() then
       g:colour(120, 255, 140)
       g:text(x, y + 100, "IN RANGE", 0)
     else
@@ -73,7 +77,9 @@ return {
     g:colour(255, 255, 255)
     g:text(x, y + 212, "STATUS  " .. num("/icbm/status", "Safe"), 0)
     if phase ~= "idle" then
-      g:text(x, y + 234, string.format("MISS PREDICTED  %.1f km", num("/icbm/miss-km", 0)), 0)
+      local miss = num("/icbm/miss-km", -1)
+      g:text(x, y + 252, string.format("IMPACT  %+8.3f %+9.3f", num("/icbm/impact-lat", 0), num("/icbm/impact-lon", 0)), 0)
+      g:text(x, y + 234, miss < 0 and "IMPACT PREDICTION  --" or string.format("PREDICTED MISS  %.1f km", miss), 0)
     end
     if armed then
       g:colour(255, 60, 60)

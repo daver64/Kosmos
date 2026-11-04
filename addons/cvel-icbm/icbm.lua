@@ -112,6 +112,8 @@ function update(dt)
   props.set("/icbm/range-km", distance(lat, lon, tlat, tlon, radius) / 1000.0)
 
   if phase == "idle" then
+    props.set("/icbm/time-to-impact", -1.0)
+    props.set("/icbm/miss-km", -1.0)
     if props.get("/icbm/launch") and props.get("/icbm/armed") then
       props.set("/icbm/launch", false)
       pitch_cmd = 90.0
@@ -128,6 +130,19 @@ function update(dt)
     end
     return
   end
+
+  -- The ballistic time only means something once the engines have cut: under power it grows as the missile speeds up.
+  local plat0, plon0, t_impact = predict()
+  -- Miss distance of the present trajectory; -1 while there is no usable prediction (off the pad, under the first stage burn).
+  if plat0 and (phase ~= "liftoff") and (phase ~= "boost" or get("stage") >= 1) then
+    props.set("/icbm/miss-km", distance(plat0, plon0, tlat, tlon, radius) / 1000.0)
+    props.set("/icbm/impact-lat", plat0)
+    props.set("/icbm/impact-lon", plon0)
+  else
+    props.set("/icbm/miss-km", -1.0)
+  end
+  local coasting = phase ~= "liftoff" and phase ~= "boost" and phase ~= "staging"
+  props.set("/icbm/time-to-impact", (coasting and t_impact) or -1.0)
 
   phase_time = phase_time + dt
   local altitude = get("altitude")
@@ -172,7 +187,6 @@ function update(dt)
         local th13 = rad(bearing(lat, lon, tlat, rlon))
         local cross = math.asin(math.max(-1.0, math.min(1.0, math.sin(d13) * math.sin(th13 - rad(az or brg))))) * radius / 1000.0
         trim = math.max(-8.0, math.min(8.0, trim + 0.003 * cross * dt))
-        props.set("/icbm/miss-km", miss / 1000.0)
         local needed = distance(lat, lon, tlat, tlon + deg(OMEGA * t), radius)
         props.set("/icbm/predicted-range-km", travel / 1000.0)
         if travel >= needed and altitude > 60000.0 then
