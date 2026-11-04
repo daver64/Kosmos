@@ -514,11 +514,17 @@ namespace kosmos::app
                                     "\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart \"" + rec.record_file + "\"";
             ok = std::system(mux.c_str()) == 0;
         }
+        bool saved = true;
         if (!audio || !ok)
-            std::rename(rec.record_video.c_str(), rec.record_file.c_str());
+            saved = std::rename(rec.record_video.c_str(), rec.record_file.c_str()) == 0;
         else
             std::remove(rec.record_video.c_str());
         std::remove(rec.record_pcm_file.c_str());
+        if (!saved)
+        {
+            sim.log("Could not save " + rec.record_file + "; the recording is in " + rec.record_video);
+            return;
+        }
         sim.log("Saved " + rec.record_file + " (" + std::to_string(rec.record_frames) + " frames" + (audio && ok ? ", with sound)" : ")"));
     }
 

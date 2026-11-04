@@ -1,6 +1,7 @@
 #include "planet_data.h"
 
 #include "dds.h"
+#include "bitmap_release.h"
 #include "draw.h"
 
 #include <algorithm>
@@ -108,6 +109,14 @@ namespace kosmos
             error = "unexpected .tree header size in " + path;
             return false;
         }
+        file_.seekg(0, std::ios::end);
+        const std::uint64_t file_size = static_cast<std::uint64_t>(std::max<std::streamoff>(0, file_.tellg()));
+        file_.seekg(sizeof head);
+        if (static_cast<std::uint64_t>(count) * sizeof(Node) > file_size)
+        {
+            error = "node table larger than " + path;
+            return false;
+        }
         nodes_.resize(count);
         file_.read(reinterpret_cast<char *>(nodes_.data()), static_cast<std::streamsize>(count) * sizeof(Node));
         if (!file_)
@@ -126,15 +135,20 @@ namespace kosmos
         if (level == 4)
             return ilat == 0 && ilng >= 0 && ilng < 2 ? root4_[ilng] : none;
         const std::uint32_t parent = find(level - 1, ilat / 2, ilng / 2);
-        return parent == none ? none : nodes_[parent].child[((ilat & 1) << 1) | (ilng & 1)];
+        return parent >= nodes_.size() ? none : nodes_[parent].child[((ilat & 1) << 1) | (ilng & 1)];
     }
 
     bool OrbiterTree::read(std::uint32_t node, std::vector<std::uint8_t> &out) const
     {
         if (!has_data(node))
             return false;
+        // A tile is at most a few MB; the cap and range checks keep a corrupt table from sizing huge buffers.
+        constexpr std::uint32_t max_tile_bytes = 256u << 20;
         const std::int64_t pos = nodes_[node].pos;
-        const std::int64_t end = node + 1 < nodes_.size() ? nodes_[node + 1].pos : data_length_;
+        const std::int64_t end = node + 1 < nodes_.size() ? nodes_[node + 1].pos : static_cast<std::int64_t>(data_length_);
+        if (pos < 0 || end < pos || end > static_cast<std::int64_t>(data_length_) || nodes_[node].size > max_tile_bytes ||
+            static_cast<std::uint64_t>(end - pos) > max_tile_bytes)
+            return false;
         std::vector<std::uint8_t> packed(static_cast<std::size_t>(end - pos));
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -348,7 +362,7 @@ namespace kosmos
         struct Tile
         {
             sl::Bitmap *bitmap = nullptr;
-            ~Tile() { delete bitmap; } // CPU-only pixels; may be freed on a terrain worker thread, where GL calls are unsafe
+            ~Tile() { discard_bitmap(bitmap); } // may run on a terrain worker thread; discard_bitmap defers the GL-touching work to the main thread
         };
 
         struct TileSet
@@ -555,7 +569,7 @@ namespace kosmos
                 tile->bitmap = sl::load_bitmap(path);
             if (tile->bitmap && (tile->bitmap->compressed || tile->bitmap->pixels.empty()))
             {
-                delete tile->bitmap;
+                discard_bitmap(tile->bitmap);
                 tile->bitmap = nullptr;
             }
             constexpr int max_image_size = 4096;
@@ -575,7 +589,7 @@ namespace kosmos
                             const std::size_t destination = (static_cast<std::size_t>(y) * width + x) * 4;
                             std::copy_n(tile->bitmap->pixels.data() + source, 4, smaller->pixels.data() + destination);
                         }
-                    delete tile->bitmap;
+                    discard_bitmap(tile->bitmap);
                     tile->bitmap = smaller;
                 }
             }

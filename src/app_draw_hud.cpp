@@ -221,11 +221,6 @@ namespace kosmos::app
 
     void App::draw_overlays()
     {
-    kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
-    const kosmos::Telemetry &tm = *tm_ref;
-    sl::FlightBody &fb = *fb_ref;
-    const kosmos::Body &soi_body = *soi_body_ref;
         // Orbit line about the sphere-of-influence body, hidden where the body covers it.
         draw_orbit_line();
 
@@ -836,8 +831,6 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
-    const kosmos::Telemetry &tm = *tm_ref;
-    sl::FlightBody &fb = *fb_ref;
     const kosmos::Body &soi_body = *soi_body_ref;
         // HUD.
         const std::string soi_name = soi_body.name;

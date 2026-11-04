@@ -542,12 +542,15 @@ namespace kosmos
         bool landed = false;
     };
 
-    struct ShipPropellantState
+    struct ShipCarryState
     {
         int active_stage = 0;
         std::vector<double> stage_propellant;
         double rcs_propellant = 0.0;
         double gear_position = 1.0;
+        double health = 1.0, shield = 0.0;
+        Systems::State systems;
+        bool has_systems = false;
     };
 
     struct Debris
@@ -584,8 +587,8 @@ namespace kosmos
         sl::dvec3 origin() const { return body().position - body().direction_to_world(com_); }
         const sl::dvec3 &com_offset() const { return com_; }
         int active_stage() const { return active_stage_; }
-        ShipPropellantState propellant_state() const;
-        void restore_propellant_state(const ShipPropellantState &state);
+        ShipCarryState carry_state() const;
+        void restore_carry_state(const ShipCarryState &state);
         /** False once the stage carrying docking port `index` has been jettisoned. */
         bool port_attached(int index) const { return spec_.ports[static_cast<std::size_t>(index)].stage >= active_stage_; }
         /** The camera's focus in the ship frame: `camera_target` moved along the axis by however far the middle of the stages still attached has shifted from the middle of the full stack. */

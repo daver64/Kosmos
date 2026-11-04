@@ -454,6 +454,8 @@ namespace kosmos::app
         int init_recording();
         int init_loop();
         bool begin_frame();
+        bool perform_quantum_jump();
+        void draw_warp_frame(float t, const std::string &target_name);
         void apply_settings();
         void restart_scenario();
         void drop_bomb(bool special);

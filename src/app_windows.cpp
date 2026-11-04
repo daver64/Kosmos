@@ -749,10 +749,10 @@ namespace kosmos::app
     // Window menu hints follow the player's key bindings.
     void App::refresh_menu_keys()
     {
-        static const std::pair<const char *, const char *> windows[] = {{"Cameras", "window_cameras"}, {"Settings", "window_settings"}, {"Ship systems", "window_systems"},
-                                                                       {"Properties", "window_properties"}, {"Lua console", "window_lua"}, {"Multiplayer", "window_multiplayer"}};
+        static const std::pair<const char *, const char *> window_actions[] = {{"Cameras", "window_cameras"}, {"Settings", "window_settings"}, {"Ship systems", "window_systems"},
+                                                                              {"Properties", "window_properties"}, {"Lua console", "window_lua"}, {"Multiplayer", "window_multiplayer"}};
         for (kosmos::MenuWindow &w : menu_windows)
-            for (const auto &[label, action] : windows)
+            for (const auto &[label, action] : window_actions)
                 if (w.label == label)
                     w.key = keys.label_for(action);
     }
@@ -1064,7 +1064,6 @@ namespace kosmos::app
 
     void App::draw_camera_editor_window()
     {
-        kosmos::Universe &universe = *universe_ref;
         if (windows.camera_editor_window)
         {
             ImGui::SetNextWindowPos(ImVec2(330.0f, 120.0f), ImGuiCond_FirstUseEver);

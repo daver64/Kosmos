@@ -40,19 +40,29 @@ int main()
         upper.name = "Upper";
         upper.propellant = 50.0;
         spec.stages = {lower, upper};
+        SystemComponent battery;
+        battery.type = "battery";
+        battery.capacity = 1000.0;
+        battery.amount = 1000.0;
+        battery.stage = 1;
+        spec.systems.components.push_back(battery);
 
         Ship source(universe, spec);
         assert(source.stage_once());
         source.body().tanks[1].mass = 20.0;
         source.set_gear_position(0.25);
-        const ShipPropellantState state = source.propellant_state();
+        assert(source.systems());
+        source.systems()->set_battery_fraction(0.3);
+        const ShipCarryState state = source.carry_state();
 
         Ship arrival(universe, spec);
-        arrival.restore_propellant_state(state);
+        assert(arrival.systems());
+        arrival.restore_carry_state(state);
+        assert(std::abs(arrival.systems()->components()[0].amount - 300.0) < 1e-9);
         assert(arrival.active_stage() == 1);
         assert(arrival.body().tanks[0].mass == 0.0);
         assert(arrival.body().tanks[1].mass == 20.0);
-        assert(arrival.propellant_state().rcs_propellant == 12.0);
+        assert(arrival.carry_state().rcs_propellant == 12.0);
         assert(arrival.gear_position() == 0.25);
     }
 

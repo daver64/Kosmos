@@ -213,10 +213,8 @@ namespace kosmos::app
 
     void App::setup_environment()
     {
-        kosmos::Universe &universe = *universe_ref;
-        sl::PropertyTree &props = *props_ref;
         const kosmos::Telemetry &tm = *tm_ref;
-        const kosmos::Body &soi_body = *soi_body_ref;
+        sl::PropertyTree &props = *props_ref;
         environment = sl::Environment3D();
         environment.sun_direction = -to_sun;
         environment.up = glm::vec3(glm::normalize(eye_from_earth));

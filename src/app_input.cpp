@@ -372,8 +372,6 @@ namespace kosmos::app
     // Window and input events.
     void App::poll_events()
     {
-    kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
         while (sl::poll_event(&event))
         {
             sl::gui_handle_event(event);

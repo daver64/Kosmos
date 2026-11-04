@@ -45,5 +45,5 @@ namespace kosmos::app
     // Swings every ship about the planet's axis until the active one is on the Sun side, keeping the fleet's layout intact.
     void rotate_fleet_to_sun(Sim &sim, Ship *flown);
 
-    Ship *start_scenario(Sim &sim, const Options &options, const TerrainSet &terrains, const ShipPropellantState *propellant_state = nullptr);
+    Ship *start_scenario(Sim &sim, const Options &options, const TerrainSet &terrains, const ShipCarryState *carry_state = nullptr);
 } // namespace kosmos::app

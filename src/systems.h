@@ -206,6 +206,25 @@ namespace kosmos
 
         void publish(sl::PropertyTree &tree, const std::string &base);
 
+        /** The consumable and wear levels of a ship's equipment, to carry it into a freshly built copy of the same ship. */
+        struct State
+        {
+            struct Component
+            {
+                double amount = 0.0, age_years = 0.0, wear = 0.0;
+                bool enabled = true, alive = true;
+            };
+            struct VesselLevels
+            {
+                double o2 = 0.0, n2 = 0.0, co2 = 0.0, leak_k = 0.0, health = 1.0;
+            };
+            std::vector<Component> components;
+            std::vector<VesselLevels> vessels;
+        };
+        State state() const;
+        /** Applies a state taken from the same ship design; a mismatched layout is ignored. */
+        void restore(const State &state);
+
     private:
         void solve_bus(double dt, const SystemsContext &ctx);
         /** Zeroes and recomputes solar and RTG output; returns the total fixed supply in watts. */

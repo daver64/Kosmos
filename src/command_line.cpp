@@ -250,7 +250,7 @@ namespace kosmos::app
     {
         options.net_host = true;
         if (i + 1 < argc && std::isdigit(static_cast<unsigned char>(argv[i + 1][0])))
-            options.net_port = std::atoi(argv[++i]);
+            options.net_port = std::clamp(std::atoi(argv[++i]), 1, 65535);
     }
 
     // Applies the flag at argv[i] from the table and moves i past its arguments. Returns 0 if it was applied, 1 if it failed, -1 if it is not a known flag.

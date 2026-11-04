@@ -404,6 +404,45 @@ namespace kosmos
             }
     }
 
+    Systems::State Systems::state() const
+    {
+        State s;
+        s.components.reserve(components_.size());
+        for (const SystemComponent &c : components_)
+            s.components.push_back({c.amount, c.age_years, c.wear, c.enabled, c.alive});
+        s.vessels.reserve(vessels_.size());
+        for (const Vessel &v : vessels_)
+            s.vessels.push_back({v.o2, v.n2, v.co2, v.leak_k, v.health});
+        return s;
+    }
+
+    void Systems::restore(const State &state)
+    {
+        if (state.components.size() != components_.size() || state.vessels.size() != vessels_.size())
+            return;
+        for (std::size_t i = 0; i < components_.size(); ++i)
+        {
+            SystemComponent &c = components_[i];
+            const State::Component &saved = state.components[i];
+            c.amount = c.capacity > 0.0 ? std::clamp(saved.amount, 0.0, c.capacity) : saved.amount;
+            c.age_years = saved.age_years;
+            c.wear = saved.wear;
+            c.enabled = saved.enabled;
+            if (!saved.alive)
+                c.alive = false, c.output_w = 0.0;
+        }
+        for (std::size_t i = 0; i < vessels_.size(); ++i)
+        {
+            Vessel &v = vessels_[i];
+            const State::VesselLevels &saved = state.vessels[i];
+            v.o2 = saved.o2;
+            v.n2 = saved.n2;
+            v.co2 = saved.co2;
+            v.leak_k = saved.leak_k;
+            v.health = saved.health;
+        }
+    }
+
     void Systems::set_tank_fraction(const std::string &gas, double fraction)
     {
         for (SystemComponent &c : components_)

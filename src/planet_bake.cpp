@@ -9,6 +9,7 @@
 #include <cmath>
 #include <png.h>
 
+#include "bitmap_release.h"
 #include "sl.h"
 
 namespace kosmos
@@ -131,7 +132,7 @@ namespace kosmos
                         // Written under a temporary name so an interrupted bake never leaves a half tile that looks finished.
                         const fs::path partial = path.string() + ".part";
                         const bool saved = write_png(*tile, partial);
-                        delete tile;
+                        discard_bitmap(tile);
                         if (!saved)
                         {
                             error = "cannot write " + path.string() + " (disk full?)";
@@ -197,7 +198,7 @@ namespace kosmos
             bitmap = sl::load_bitmap(path.string());
         if (!bitmap || bitmap->width != bake_tile_size)
         {
-            delete bitmap;
+            discard_bitmap(bitmap);
             bitmap = surface_->make_region(0.5 - static_cast<double>(column) / cols, static_cast<double>(row) / rows,
                                            0.5 - static_cast<double>(column + 1) / cols, static_cast<double>(row + 1) / rows, bake_tile_size, bake_tile_size);
             if (bitmap)
@@ -214,7 +215,7 @@ namespace kosmos
             result->rgb.resize(static_cast<std::size_t>(bake_tile_size) * bake_tile_size * 3);
             for (std::size_t i = 0; i < static_cast<std::size_t>(bake_tile_size) * bake_tile_size; ++i)
                 std::copy_n(bitmap->pixels.data() + i * 4, 3, result->rgb.data() + i * 3);
-            delete bitmap;
+            discard_bitmap(bitmap);
         }
         if (cache_.size() >= 96)
             cache_.erase(cache_.begin());

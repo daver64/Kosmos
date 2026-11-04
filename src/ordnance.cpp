@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <random>
 
 namespace kosmos
 {
@@ -343,7 +344,9 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             sl::dvec3 aim = fwd;
             if (spec->spread > 0.0)
             {
-                const auto noise = [&]() { return (static_cast<double>(std::rand()) / RAND_MAX - 0.5) * 2.0; };
+                static thread_local std::mt19937 rng{std::random_device{}()};
+                std::uniform_real_distribution<double> unit_noise(-1.0, 1.0);
+                const auto noise = [&]() { return unit_noise(rng); };
                 aim = unit(fwd + (right * noise() + glm::cross(right, fwd) * noise()) * spec->spread, fwd);
             }
             const sl::dvec3 muzzle = eye + fwd * 0.7 + right * 0.15 - up * 0.12;

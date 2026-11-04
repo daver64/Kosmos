@@ -180,7 +180,6 @@ namespace kosmos
     {
         if (mode < 0 || mode >= static_cast<int>(modes_.size()))
             return false;
-        const std::string &d = modes_[static_cast<std::size_t>(mode)].domain;
         if (std::find(hidden_.begin(), hidden_.end(), modes_[static_cast<std::size_t>(mode)].id) != hidden_.end())
             return false;
         const std::vector<std::string> &only = modes_[static_cast<std::size_t>(mode)].ships;

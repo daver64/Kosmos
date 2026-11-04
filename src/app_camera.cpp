@@ -507,7 +507,6 @@ namespace kosmos::app
     void App::advance_time()
     {
     kosmos::Universe &universe = *universe_ref;
-    sl::PropertyTree &props = *props_ref;
         govern_time_warp();
         poll_blender_edit();
         const double time_before_step = step_simulation();
@@ -818,13 +817,13 @@ namespace kosmos::app
                 // Scatter only where it can matter: within 50 km of a base, or of a ship flying below 5 km.
                 const glm::dquat unturn = glm::inverse(glm::angleAxis(bt.terrain->rotation(), bt.terrain->rotation_axis()));
                 const sl::dvec3 eye_dir = glm::normalize(unturn * eye_rel);
-                constexpr double clutter_range = 50.0e3;
-                bool near = kosmos::distance_to_zones(bt.clutter_zones, eye_dir, b.radius) < clutter_range;
+                constexpr double zone_range = 50.0e3;
+                bool near = kosmos::distance_to_zones(bt.clutter_zones, eye_dir, b.radius) < zone_range;
                 const kosmos::Telemetry &tel = ship->telemetry();
                 if (!near && tel.soi == bt.body && tel.altitude < 5000.0)
                 {
                     const sl::dvec3 ship_dir = glm::normalize(unturn * (ship->origin() - universe.position(bt.body)));
-                    near = std::acos(std::clamp(glm::dot(eye_dir, ship_dir), -1.0, 1.0)) * b.radius < clutter_range;
+                    near = std::acos(std::clamp(glm::dot(eye_dir, ship_dir), -1.0, 1.0)) * b.radius < zone_range;
                 }
                 bt.clutter_live = near;
             }

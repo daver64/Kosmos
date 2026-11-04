@@ -671,17 +671,17 @@ namespace kosmos::app
                     for (std::size_t i = 0; i < 3; ++i)
                         if (meshes[i])
                         {
-                            sl::Material surface = shell;
-                            surface.texture = surfaces[i].colour;
-                            surface.normal_map = surfaces[i].normal;
+                            sl::Material shell_surface = shell;
+                            shell_surface.texture = surfaces[i].colour;
+                            shell_surface.normal_map = surfaces[i].normal;
                             if (surfaces[i].metal_rough)
                             {
-                                surface.pbr = true;
-                                surface.metallic = 0.12f;
-                                surface.roughness = 1.0f;
-                                surface.metallic_roughness = surfaces[i].metal_rough;
+                                shell_surface.pbr = true;
+                                shell_surface.metallic = 0.12f;
+                                shell_surface.roughness = 1.0f;
+                                shell_surface.metallic_roughness = surfaces[i].metal_rough;
                             }
-                            sl::draw_mesh(meshes[i], model, surface);
+                            sl::draw_mesh(meshes[i], model, shell_surface);
                         }
                     if (rooms.glass)
                     {
@@ -1191,7 +1191,6 @@ namespace kosmos::app
             const float h = look.heat;
             const auto mix8 = [](float a, float b, float t) { return static_cast<std::uint8_t>(std::clamp(a + (b - a) * t, 0.0f, 255.0f)); };
             const glm::vec3 lead_rel = glm::vec3(at[3]);
-            const glm::vec3 mid_rel = lead_rel + back * (wake * 0.5f);
             const glm::vec3 origin_rel = glm::vec3(other.origin() - eye_world);
             glow.texture = vis.glow_texture;
             const auto blob = [&](const glm::vec3 &at_rel, float half, const sl::Colour &c, float alpha)

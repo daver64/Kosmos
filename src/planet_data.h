@@ -29,7 +29,7 @@ namespace kosmos
         /** Node of a tile, or none. */
         std::uint32_t find(int level, int ilat, int ilng) const;
         /** True when the node carries tile data of its own. */
-        bool has_data(std::uint32_t node) const { return node != none && nodes_[node].size != 0; }
+        bool has_data(std::uint32_t node) const { return node < nodes_.size() && nodes_[node].size != 0; }
         std::uint32_t child(std::uint32_t node, int quadrant) const { return nodes_[node].child[quadrant]; }
         bool read(std::uint32_t node, std::vector<std::uint8_t> &out) const;
         explicit operator bool() const { return opened_; }

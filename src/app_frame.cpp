@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "bitmap_release.h"
 #include "watchdog.h" // WATCHDOG
 
 namespace kosmos::app
@@ -6,6 +7,7 @@ namespace kosmos::app
     // The start of a frame, and the quantum jump between star systems.
     bool App::begin_frame()
     {
+        kosmos::drain_released_bitmaps();
         // The command-line style wins for this run without being saved.
         gfx_style = options.render_style >= 0 ? options.render_style : sim.props.get_int("/sim/settings/gfx-style");
         gfx_clouds = sim.props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0;
@@ -16,85 +18,93 @@ namespace kosmos::app
             applied_fps = fps;
         }
         if (quantum.jump_to >= 0)
+            return perform_quantum_jump();
+        return true;
+    }
+
+    // One frame of the hyperspace effect, t running 0..1.
+    void App::draw_warp_frame(float t, const std::string &target_name)
+    {
+        while (sl::poll_event(&event_discard))
         {
-            // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
-            const int target_system = quantum.jump_to;
-            quantum.jump_to = -1;
-            const std::string target_name = sim.galaxy.star(target_system).name;
-            // change_system deletes every ship, so the flown ship's name is taken now.
-            const std::string flown_name = ship ? ship->spec().name : std::string();
-            const ShipPropellantState propellant_state = ship ? ship->propellant_state() : ShipPropellantState{};
-            auto warp_frame = [&](float t)
-            {
-                while (sl::poll_event(&event_discard))
-                {
-                }
-                sl::clear_to_colour(sl::screen, {0, 0, 0});
-                const float cx = screen_w * 0.5f, cy = screen_h * 0.5f;
-                std::uint32_t seed = 12345u;
-                for (int i = 0; i < 260; ++i)
-                {
-                    seed = seed * 1664525u + 1013904223u;
-                    const float a = static_cast<float>(seed >> 8) * (6.2831853f / 16777216.0f);
-                    seed = seed * 1664525u + 1013904223u;
-                    const float r0 = 0.05f + 0.95f * static_cast<float>(seed >> 8) / 16777216.0f;
-                    const float r1 = r0 + t * (0.15f + r0) * 1.6f, r2 = r0 + t * 0.3f * r0;
-                    const int shade = static_cast<int>(std::min(1.0f, 0.3f + t) * 255.0f * (0.4f + 0.6f * r0));
-                    sl::line(sl::screen, static_cast<int>(cx + std::cos(a) * r2 * screen_w * 0.5f), static_cast<int>(cy + std::sin(a) * r2 * screen_h * 0.5f),
-                                  static_cast<int>(cx + std::cos(a) * r1 * screen_w * 0.5f), static_cast<int>(cy + std::sin(a) * r1 * screen_h * 0.5f), {static_cast<std::uint8_t>(shade * 0.7f), static_cast<std::uint8_t>(shade * 0.85f), static_cast<std::uint8_t>(shade)});
-                }
-                const int fade = static_cast<int>(255.0f * std::clamp((t - 0.7f) / 0.3f, 0.0f, 1.0f));
-                if (fade > 0)
-                    sl::rectfill(sl::screen, 0, 0, screen_w, screen_h, {static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade)});
-                sl::gprintf_center(screen_h / 2 - 8, {200, 220, 255}, "Quantum jump to %s", target_name.c_str());
-                sl::show_video_bitmap();
-                sl::end_frame();
-            };
-            const std::uint32_t begin = sl::time_ms();
-            warp_frame(0.0f);
-            if (netplay.joined())
-                netplay.leave();
-            vis.clear_parts();
-            leave_system();
-            std::string jump_error;
-            bool loaded = sim.change_system(target_system, jump_error) && enter_system();
-            if (!loaded)
-            {
-                std::fprintf(stderr, "kosmos: quantum jump failed: %s\n", jump_error.c_str());
-                return false;
-            }
-            options.scenario.clear();
-            options.orbit_altitude = 0.0;
-            options.orbit_body.clear();
-            options.orbit_start = false;
-            options.portal_arrival = true;
-            if (!flown_name.empty())
-                options.ship_name = flown_name;
-            ship = start_scenario(sim, options, terrain_set, flown_name.empty() ? nullptr : &propellant_state);
-            options.portal_arrival = false;
-            quantum.dialled = -1;
-            quantum.portal_open = 0.0f;
-            quantum.prev_valid = false;
-            eva.active = false;
-            arsenal.reset();
-            ship_weapons.reset();
-            if (!ship)
-                return false;
-            rig.cam_distance = ship->spec().camera_distance;
-            cockpit_view = cockpit3d = false;
-            rig.interior_cam = rig.base_view = -1;
-            rig.look_yaw = rig.look_pitch = 0.0f;
-            map.focus = -1;
-            quantum.quantum_selected = -1;
-            galaxy_mode = false;
-            exhaust_fx = ExhaustFx();
-            gview.refresh(sim.galaxy, sim.system_index());
-            // Hold the effect for at least a couple of seconds, fading to black before the new sky appears.
-            for (std::uint32_t t = sl::time_ms() - begin; t < 2500; t = sl::time_ms() - begin)
-                warp_frame(static_cast<float>(t) / 2500.0f);
-            last_time = sl::time_ms();
         }
-    return true;
+        sl::clear_to_colour(sl::screen, {0, 0, 0});
+        const float cx = screen_w * 0.5f, cy = screen_h * 0.5f;
+        std::uint32_t seed = 12345u;
+        for (int i = 0; i < 260; ++i)
+        {
+            seed = seed * 1664525u + 1013904223u;
+            const float a = static_cast<float>(seed >> 8) * (6.2831853f / 16777216.0f);
+            seed = seed * 1664525u + 1013904223u;
+            const float r0 = 0.05f + 0.95f * static_cast<float>(seed >> 8) / 16777216.0f;
+            const float r1 = r0 + t * (0.15f + r0) * 1.6f, r2 = r0 + t * 0.3f * r0;
+            const int shade = static_cast<int>(std::min(1.0f, 0.3f + t) * 255.0f * (0.4f + 0.6f * r0));
+            sl::line(sl::screen, static_cast<int>(cx + std::cos(a) * r2 * screen_w * 0.5f), static_cast<int>(cy + std::sin(a) * r2 * screen_h * 0.5f),
+                     static_cast<int>(cx + std::cos(a) * r1 * screen_w * 0.5f), static_cast<int>(cy + std::sin(a) * r1 * screen_h * 0.5f),
+                     {static_cast<std::uint8_t>(shade * 0.7f), static_cast<std::uint8_t>(shade * 0.85f), static_cast<std::uint8_t>(shade)});
+        }
+        const int fade = static_cast<int>(255.0f * std::clamp((t - 0.7f) / 0.3f, 0.0f, 1.0f));
+        if (fade > 0)
+            sl::rectfill(sl::screen, 0, 0, screen_w, screen_h, {static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade)});
+        sl::gprintf_center(screen_h / 2 - 8, {200, 220, 255}, "Quantum jump to %s", target_name.c_str());
+        sl::show_video_bitmap();
+        sl::end_frame();
+    }
+
+    // Carries the flown ship through a portal into the dialled system. False when the new system or ship could not be set up.
+    bool App::perform_quantum_jump()
+    {
+        // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
+        const int target_system = quantum.jump_to;
+        quantum.jump_to = -1;
+        const std::string target_name = sim.galaxy.star(target_system).name;
+        // change_system deletes every ship, so the flown ship's name and state are taken now.
+        const std::string flown_name = ship ? ship->spec().name : std::string();
+        const ShipCarryState carry_state = ship ? ship->carry_state() : ShipCarryState{};
+        const std::uint32_t begin = sl::time_ms();
+        draw_warp_frame(0.0f, target_name);
+        if (netplay.joined())
+            netplay.leave();
+        vis.clear_parts();
+        leave_system();
+        std::string jump_error;
+        const bool loaded = sim.change_system(target_system, jump_error) && enter_system();
+        if (!loaded)
+        {
+            std::fprintf(stderr, "kosmos: quantum jump failed: %s\n", jump_error.c_str());
+            return false;
+        }
+        options.scenario.clear();
+        options.orbit_altitude = 0.0;
+        options.orbit_body.clear();
+        options.orbit_start = false;
+        options.portal_arrival = true;
+        if (!flown_name.empty())
+            options.ship_name = flown_name;
+        ship = start_scenario(sim, options, terrain_set, flown_name.empty() ? nullptr : &carry_state);
+        options.portal_arrival = false;
+        quantum.dialled = -1;
+        quantum.portal_open = 0.0f;
+        quantum.prev_valid = false;
+        eva.active = false;
+        arsenal.reset();
+        ship_weapons.reset();
+        if (!ship)
+            return false;
+        rig.cam_distance = ship->spec().camera_distance;
+        cockpit_view = cockpit3d = false;
+        rig.interior_cam = rig.base_view = -1;
+        rig.look_yaw = rig.look_pitch = 0.0f;
+        map.focus = -1;
+        quantum.quantum_selected = -1;
+        galaxy_mode = false;
+        exhaust_fx = ExhaustFx();
+        gview.refresh(sim.galaxy, sim.system_index());
+        // Hold the effect for at least a couple of seconds, fading to black before the new sky appears.
+        for (std::uint32_t t = sl::time_ms() - begin; t < 2500; t = sl::time_ms() - begin)
+            draw_warp_frame(static_cast<float>(t) / 2500.0f, target_name);
+        last_time = sl::time_ms();
+        return true;
     }
 
     // Reads the settings that change while running.
@@ -276,11 +286,13 @@ namespace kosmos::app
         sl::destroy_bitmap(vis.cloud_texture);
         sl::destroy_bitmap(vis.nebula_atlas);
         sl::destroy_surface_3d(surface);
+        kosmos::drain_released_bitmaps();
         sl::gamepad_shutdown();
         sl::shutdown();
     }
     int App::run(int argc, char **argv)
     {
+        kosmos::claim_bitmap_thread();
         if (const int code = init_sim(argc, argv); code != keep_going)
             return code;
         if (const int code = init_start_date(); code != keep_going)

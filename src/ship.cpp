@@ -74,19 +74,26 @@ namespace kosmos
     sl::FlightBody &Ship::body() { return *universe_.world.body(body_); }
     const sl::FlightBody &Ship::body() const { return *universe_.world.body(body_); }
 
-    ShipPropellantState Ship::propellant_state() const
+    ShipCarryState Ship::carry_state() const
     {
-        ShipPropellantState state;
+        ShipCarryState state;
         state.active_stage = active_stage_;
         state.stage_propellant.reserve(body().tanks.size());
         for (const auto &tank : body().tanks)
             state.stage_propellant.push_back(tank.mass);
         state.rcs_propellant = rcs_fuel_;
         state.gear_position = gear_position_;
+        state.health = health_;
+        state.shield = shield_;
+        if (systems_)
+        {
+            state.systems = systems_->state();
+            state.has_systems = true;
+        }
         return state;
     }
 
-    void Ship::restore_propellant_state(const ShipPropellantState &state)
+    void Ship::restore_carry_state(const ShipCarryState &state)
     {
         sl::FlightBody &b = body();
         const int target_stage = std::clamp(state.active_stage, 0, std::max(0, stage_count() - 1));
@@ -109,6 +116,10 @@ namespace kosmos
             b.tanks[stage].mass = std::clamp(state.stage_propellant[stage], 0.0, b.tanks[stage].capacity);
         rcs_fuel_ = std::clamp(state.rcs_propellant, 0.0, spec_.rcs_propellant);
         gear_position_ = std::clamp(state.gear_position, 0.0, 1.0);
+        health_ = std::clamp(state.health, 0.0, 1.0);
+        shield_ = std::clamp(state.shield, 0.0, spec_.shield.capacity);
+        if (systems_ && state.has_systems)
+            systems_->restore(state.systems);
         recentre();
         refresh_mass_properties();
     }
