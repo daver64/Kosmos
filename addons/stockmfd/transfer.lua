@@ -25,6 +25,11 @@ local function fmt_time(s)
   return string.format("%d:%02d:%02d", math.floor(s / 3600), math.floor((s % 3600) / 60), math.floor(s % 60))
 end
 
+local function minsec(seconds)
+  seconds = math.floor(seconds + 0.5)
+  return string.format("%d min %02d s", seconds // 60, seconds % 60)
+end
+
 local function ship(path)
   return props.get("/ships/ship[" .. props.get("/sim/active-ship") .. "]/" .. path)
 end
@@ -186,9 +191,31 @@ return {
     g:text(52, 70, string.format("Burn 1   %+8.1f m/s", dv1), 0)
     g:text(52, 90, string.format("Burn 2   %+8.1f m/s", dv2), 0)
     g:text(52, 110, string.format("Total    %8.1f m/s", math.abs(dv1) + math.abs(dv2)), 0)
-    g:text(52, 140, "Flight time  " .. fmt_time(tof), 0)
-    g:text(52, 160, string.format("Needed phase  %.1f deg", math.deg(lead)), 0)
-    g:text(52, 180, string.format("Current phase %.1f deg", math.deg(phase)), 0)
+    local thrust, mass = ship("max-thrust"), math.max(ship("mass"), 1)
+    local accel = thrust > 0 and thrust / mass or 0
+    -- Burn 1 time at the present thrust, and the time still to burn: from the autopilot's dV left, or when flying by hand
+    -- from the speed the transfer ellipse needs at the present radius against the speed now.
+    local burn1 = accel > 0 and math.abs(dv1) / accel or nil
+    local left_dv = nil
+    if state == "burn" and armed then
+      left_dv = props.get("/autopilot/burn/remaining")
+    elseif ship("thrust") > 0 and dv1 > 0 then
+      local sa = ship("orbit/semi-major-axis")
+      local rs = r1
+      if sa and rs and rs > 0 and sa > 0 and sa < a then
+        left_dv = math.max(0, math.sqrt(mu * (2 / rs - 1 / a)) - math.sqrt(mu * (2 / rs - 1 / sa)))
+      end
+    end
+    if left_dv and accel > 0 then
+      g:colour(255, 120, 90)
+      g:text(52, 128, string.format("Burn left  %s  (dV %.0f m/s)", minsec(left_dv / accel), left_dv), 0)
+      g:colour(120, 255, 140)
+    else
+      g:text(52, 128, "Burn 1 time  " .. (burn1 and minsec(burn1) or "--"), 0)
+    end
+    g:text(52, 150, "Flight time  " .. fmt_time(tof), 0)
+    g:text(52, 168, string.format("Needed phase  %.1f deg", math.deg(lead)), 0)
+    g:text(52, 186, string.format("Current phase %.1f deg", math.deg(phase)), 0)
     g:colour(255, 200, 80)
     if armed and state == "wait" then
       local t = props.get("/autopilot/burn/ignition-in")
