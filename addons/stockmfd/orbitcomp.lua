@@ -244,6 +244,38 @@ local function fmt_time(s)
   return string.format("%s%d:%02d:%02d", sign, h, m, math.floor(s % 60))
 end
 
+-- dV delivered by the engines since the current burn began (the burn ends after 10 s without thrust); the burn-left lines use it.
+local burn = { done = 0, last = nil, idle = 0 }
+local function track_burn()
+  local now = props.get("/sim/time")
+  local dt = burn.last and math.max(0, math.min(now - burn.last, 1)) or 0
+  burn.last = now
+  local thrust, mass = ship("thrust"), math.max(ship("mass"), 1)
+  if thrust > 0 then
+    burn.done = burn.done + thrust / mass * dt
+    burn.idle = 0
+  else
+    burn.idle = burn.idle + dt
+    if burn.idle > 10 then burn.done = 0 end
+  end
+end
+
+local function burn_time(dv)
+  local thrust, mass = ship("max-thrust"), math.max(ship("mass"), 1)
+  if thrust <= 0 then return nil end
+  return dv * mass / thrust
+end
+
+-- Burn left for a planned dV, shown once the engines have fired.
+local function burn_left_line(g, x, y, dv)
+  if burn.done <= 0.5 then return false end
+  local left = math.max(0, dv - burn.done)
+  local t = burn_time(left)
+  g:colour(255, 120, 90)
+  g:text(x, y, string.format("Burn left %s  dV %.0f", t and fmt_time(t) or "--", left), 0)
+  return true
+end
+
 local function fmt_dv(x) return string.format("%+.1f m/s", x) end
 
 -- Target selection, as in the other MFDs.
@@ -518,6 +550,7 @@ local function draw_man(g, f, ot, tr)
   if nd.burn then
     g:colour(255, 200, 80)
     g:text(240, 102, "Ignite T-" .. fmt_time(nd.t - nd.burn / 2), 0)
+    burn_left_line(g, 240, 119, nd.dv)
   end
   local a = nd.after
   g:colour(120, 255, 140)
@@ -748,6 +781,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:colour(255, 200, 80)
     g:text(LX, 164, "Departure burn in  " .. fmt_time(plan.t_burn), 0)
     g:text(LX, 182, "Burn prograde (set the node, then fly it)", 0)
+    if not burn_left_line(g, LX, 218, plan.dv) then g:text(LX, 218, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
       g:text(LX, 200, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
@@ -761,6 +795,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 164, string.format("Phase now %.1f  need %.1f deg", math.deg(plan.phase), math.deg(plan.lead)), 0)
     g:colour(255, 200, 80)
     g:text(LX, 190, "Burn 1 in  " .. fmt_time(plan.wait), 0)
+    if not burn_left_line(g, LX, 226, plan.dv1) then g:text(LX, 226, "Burn 1 time  " .. fmt_time(burn_time(plan.dv1)), 0) end
     if plan.plane > 0.5 then
       g:colour(255, 120, 80)
       g:text(LX, 208, string.format("Planes differ by %.1f deg", plan.plane), 0)
@@ -776,6 +811,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:colour(255, 200, 80)
     g:text(LX, 164, "Window in  " .. fmt_time(plan.wait), 0)
     g:text(LX, 182, "Ejection burn in  " .. fmt_time(plan.t_burn), 0)
+    if not burn_left_line(g, LX, 236, plan.dv) then g:text(LX, 236, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
     if plan.eject_angle then g:text(LX, 200, string.format("Ejection angle %.1f deg from %s", plan.eject_angle, plan.outward and "prograde" or "retrograde"), 0) end
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
@@ -816,6 +852,7 @@ end
 
 function M.draw(self, g, w, h)
   frame_count = frame_count + 1
+  track_burn()
   apply_script()
   set_buttons()
   local f = ship("landed") and nil or ship_frame()
