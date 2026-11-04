@@ -40,13 +40,15 @@ return {
     g:text(200, 14, "ORBIT  " .. ship("soi"), 1)
 
     local cx, cy = 200, 205
-    local extent = bound and ra or rp * 4
+    local p = (e < 1) and (a * (1 - e * e)) or (-a * (e * e - 1))
+    local sr = p / (1 + e * math.cos(nu))
+    -- On an escape path the plot grows to keep the ship on the display instead of letting it run off.
+    local extent = bound and ra or math.max(rp * 4, sr * 1.15)
     local scale = 135 / math.max(extent, radius * 1.05)
     g:colour(60, 110, 255)
     g:circle(cx, cy, radius * scale)
 
     g:colour(120, 255, 140)
-    local p = (e < 1) and (a * (1 - e * e)) or (-a * (e * e - 1))
     local lo, hi = 0, 2 * math.pi
     if not bound and e > 1 then hi = math.acos(-1 / e) * 0.97; lo = -hi end
     local px, py
@@ -70,7 +72,6 @@ return {
       g:circle(cx - ra * scale, cy, 4)
       g:text(cx - ra * scale - 8, cy - 8, "Ap", 2)
     end
-    local sr = p / (1 + e * math.cos(nu))
     local sx, sy = cx + sr * math.cos(nu) * scale, cy - sr * math.sin(nu) * scale
     g:colour(255, 255, 255)
     g:disc(sx, sy, 4)
@@ -82,6 +83,14 @@ return {
     }
     for i, row in ipairs(rows) do
       g:text(70 + (i - 1) % 2 * 190, 360 + math.floor((i - 1) / 2) * 16, row[1] .. " " .. row[2], 0)
+    end
+    if not bound and e > 1 then
+      g:colour(255, 200, 80)
+      local v = ship("orbital-speed")
+      local mu = v * v / (2 / sr - 1 / a)
+      g:text(30, 68, "ESCAPING", 0)
+      g:text(30, 84, string.format("v inf %.0f m/s", math.sqrt(math.max(-mu / a, 0))), 0)
+      g:colour(120, 255, 140)
     end
     g:text(30, 36, "T " .. fmt_time(ship("orbit/period")), 0)
     g:text(30, 52, "Tpe " .. fmt_time(ship("orbit/time-to-periapsis")), 0)

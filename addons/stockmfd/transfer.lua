@@ -78,6 +78,7 @@ local function arm()
   local wait = p.wait
   -- A window too close to leave time for the pre-burn turn waits for the next one.
   if wait < dur / 2 + 60 then wait = wait + p.synodic end
+  props.set("/autopilot/burn/mode", "radius")
   props.set("/autopilot/burn/target-radius", p.r2)
   props.set("/autopilot/burn/start", props.get("/sim/time") + wait)
   props.set("/autopilot/burn/state", "wait")

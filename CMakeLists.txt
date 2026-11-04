@@ -172,6 +172,14 @@ target_compile_definitions(reentry_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAI
 add_executable(plasma_look_test EXCLUDE_FROM_ALL tests/plasma_look_test.cpp)
 target_include_directories(plasma_look_test PRIVATE src)
 
+# PNG texture check with libpng, as the game loads them: cmake --build build --target png_check && build/png_check [--fix] [PATH...]
+find_package(PNG QUIET)
+if(PNG_FOUND)
+    add_executable(png_check EXCLUDE_FROM_ALL tests/png_check.cpp)
+    target_link_libraries(png_check PRIVATE PNG::PNG ${KOSMOS_SIMLIB_LIBS})
+    target_compile_features(png_check PRIVATE cxx_std_17)
+endif()
+
 # ShipEdit's document model (no GTK): cmake --build build --target shipedit_model_test && build/shipedit_model_test
 add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/mesh.cpp)
 target_include_directories(shipedit_model_test PRIVATE sdk/shipedit/src)

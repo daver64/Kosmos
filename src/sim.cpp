@@ -632,6 +632,43 @@ namespace kosmos
                 script_loaded_ = false;
             }
         }
+        if (std::getenv("KOSMOS_TMPPROBE")) // TMPPROBE
+        {
+            static int n = 0;
+            static bool skipped = false, autoed = false, done = false;
+            ++n;
+            if (n == 30) props.set_bool("/dock/undock", true);
+            if (n == 90) { props.set_string("/sim/target", "Ceres"); props.set_int("/orbitcomp/page", 3); }
+            if (n > 200 && !skipped && n % 20 == 0) { const PlannedBurn pb = planned_burn(); if (pb.valid) { std::string w; skipped = skip_to_burn(pb.ignition_in, true, w); } }
+            if (skipped && !autoed && !seek_.active && n % 20 == 0) { props.set_int("/orbitcomp/auto", 1); autoed = true; }
+            static std::string last;
+            const std::string st = props.get_string("/autopilot/burn/state", "");
+            if (st != last) { std::fprintf(stderr, "TMP state -> %s (n=%d)\n", st.c_str(), n); last = st; }
+            if (autoed && !done && st == "burn") props.set_int("/sim/warp-index", 6);
+            if (autoed && !done && st == "burn" && n % 40 == 0 && ships_.size() > 15)
+            {
+                const Telemetry &t = ships_[15]->telemetry();
+                std::fprintf(stderr, "TMP burn n=%d speed=%.1f vs=%.1f fuel=%.0f ecc=%.4f\n", n, t.orbital_speed, t.vertical_speed, t.stage_fuel, t.eccentricity);
+            }
+            if (autoed && !done && st != "burn" && st != "wait" && st != "")
+            {
+                done = true;
+                const Telemetry &t = ships_[15]->telemetry();
+                std::fprintf(stderr, "TMP DONE n=%d soi=%d speed=%.1f ecc=%.4f fuel=%.0f vinf_plan=%.1f\n", n, t.soi, t.orbital_speed, t.eccentricity, t.stage_fuel, props.get_double("/autopilot/burn/target-vinf"));
+                {
+                    const sl::dvec3 rr = ships_[15]->body().position - universe.position(3), vv = ships_[15]->body().velocity - universe.world.body(3)->velocity;
+                    const double mu = universe.bodies[3].gm, r = glm::length(rr);
+                    const sl::dvec3 ev = (rr * (glm::dot(vv, vv) - mu / r) - vv * glm::dot(rr, vv)) / mu;
+                    const double e = glm::length(ev);
+                    const sl::dvec3 W = glm::normalize(glm::cross(rr, vv)), P = ev / e, Q = glm::cross(W, P);
+                    const sl::dvec3 u = -P / e + Q * std::sqrt(1.0 - 1.0 / (e * e));
+                    const sl::dvec3 ve = glm::normalize(universe.world.body(3)->velocity - universe.world.body(0)->velocity);
+                    const double inplane = std::asin(std::clamp(glm::dot(ve, W), -1.0, 1.0)) * 180.0 / 3.14159265;
+                    std::fprintf(stderr, "TMP angle(vinf, earth_vel)=%.1f deg; earth_vel out of orbit plane by %.1f deg; vinf=%.0f\n", std::acos(std::clamp(glm::dot(u, ve), -1.0, 1.0)) * 180.0 / 3.14159265, inplane, std::sqrt(-mu / (mu / (2.0 / r - glm::dot(vv, vv) / mu) * 0 + 1) * 0 + 0.0));
+                }
+                props.set_int("/sim/warp-index", 0);
+            }
+        }
         run_burn();
         release_payload_on_stage();
         const Controls controls = read_controls();
@@ -697,6 +734,13 @@ namespace kosmos
             for (const std::unique_ptr<Ship> &ship : ships_)
                 if (!ship->spec().building() && !ship->crashed())
                 {
+                    // Leaving on an escape path, the air is behind the ship however fast it goes.
+                    const Telemetry &tm = ship->telemetry();
+                    if (!tm.bound && tm.vertical_speed > 0.0)
+                        continue;
+                    // An orbit whose lowest point clears the air never reaches it, so there is nothing to slow down for.
+                    if (tm.bound && tm.periapsis > tm.altitude - ship->rails_margin())
+                        continue;
                     const double speed = std::max(1.0, glm::length(ship->relative_velocity()));
                     allowed = std::min(allowed, std::max(0.0, ship->rails_margin()) / (2.0 * speed * std::max(frame, 1.0 / 60.0)));
                 }
@@ -1013,16 +1057,23 @@ namespace kosmos
             return;
         }
         const Telemetry &t = me->telemetry();
-        if (!t.bound || t.max_thrust <= 0.0 || t.mass <= 0.0)
+        // "escape" burns to a hyperbolic excess speed and carries on through escape; the default raises the apoapsis.
+        const bool escape = props.get_string("/autopilot/burn/mode") == "escape";
+        if ((!t.bound && !escape) || t.max_thrust <= 0.0 || t.mass <= 0.0 || t.soi < 0)
         {
-            finish("abort", "Burn autopilot stopped: " + std::string(t.bound ? "no thrust available" : "not in a bound orbit"));
+            finish("abort", "Burn autopilot stopped: " + std::string(t.max_thrust > 0.0 && t.soi >= 0 ? "not in a bound orbit" : "no thrust available"));
             return;
         }
         const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
         const double r = glm::length(me->body().position - universe.position(t.soi));
         const double target = props.get_double("/autopilot/burn/target-radius");
-        const double apo = t.apoapsis + t.body_radius;
-        const double needed = std::sqrt(mu * (2.0 / r - 2.0 / (r + target)));
+        const double apo = escape ? 0.0 : t.apoapsis + t.body_radius;
+        double needed = std::sqrt(mu * (2.0 / r - 2.0 / (r + target)));
+        if (escape)
+        {
+            const double vinf = props.get_double("/autopilot/burn/target-vinf");
+            needed = std::sqrt(vinf * vinf + 2.0 * mu / r);
+        }
         const double remaining = std::max(needed - t.orbital_speed, 0.0);
         const double accel = t.max_thrust / t.mass;
         const double duration = remaining / accel;
@@ -1046,9 +1097,10 @@ namespace kosmos
             props.set_int("/sim/warp-index", index);
             return;
         }
-        if (apo >= target || remaining < 0.05)
+        if ((!escape && apo >= target) || remaining < 0.05)
         {
-            finish("done", "Burn complete: apoapsis " + std::to_string(static_cast<int>(apo / 1000.0)) + " km");
+            finish("done", escape ? std::string("Burn complete: escape speed reached")
+                                  : "Burn complete: apoapsis " + std::to_string(static_cast<int>(apo / 1000.0)) + " km");
             return;
         }
         props.set_string("/autopilot/burn/state", "burn");

@@ -16,7 +16,7 @@
    "dock": {
     "to": 0,
     "port": 0,
-    "own_port": 0
+    "own_port": 1
    },
    "surface": {
     "base": "baikonur"

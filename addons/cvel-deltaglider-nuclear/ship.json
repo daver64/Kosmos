@@ -86,7 +86,6 @@
  "rcs_modes": true,
  "hybrid": true,
  "ports": [
-  {"name":"Cradle","position":[0,-2.3,0],"direction":[0,-1,0],"up":[0,0,-1]},
   {
    "name": "Nose",
    "position": [
@@ -104,7 +103,8 @@
     1,
     0
    ]
-  }
+  },
+  {"name":"Cradle","position":[0,-2.3,0],"direction":[0,-1,0],"up":[0,0,-1]}
  ],
  "animation_controls": [
   {

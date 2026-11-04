@@ -136,25 +136,81 @@ local function max_nu(o)
   return o.e < 1 and PI or math.acos(-1 / o.e) * 0.999
 end
 
+local function body_catalog()
+  local bodies, by_name, count = {}, {}, props.get("/universe/bodies/count")
+  for i = 0, count - 1 do
+    local p, v, mu, parent = body_state(i)
+    local name = props.get("/universe/bodies/body[" .. i .. "]/name")
+    by_name[name] = i
+    bodies[i + 1] = {
+      name = name,
+      p = p, v = v, mu = mu, soi = props.get("/universe/bodies/body[" .. i .. "]/soi"),
+      parent_name = parent
+    }
+  end
+  for i, b in ipairs(bodies) do
+    b.parent = b.parent_name ~= "" and by_name[b.parent_name] or nil
+    b.parent_name = nil
+    if b.parent then
+      local parent = bodies[b.parent + 1]
+      b.orbit = make_orbit(sub(b.p, parent.p), sub(b.v, parent.v), parent.mu)
+    end
+  end
+  return bodies
+end
+
+local function body_at(bodies, i, dt, cache)
+  local cached = cache[i + 1]
+  if cached then return cached[1], cached[2] end
+  local b = bodies[i + 1]
+  local p, v
+  -- Propagate each body on its current parent-relative osculating conic.
+  if b.parent and b.orbit then
+    local rp, rv = state_at(b.orbit, advance(b.orbit, b.orbit.nu, dt))
+    local pp, pv = body_at(bodies, b.parent, dt, cache)
+    p, v = add(pp, rp), add(pv, rv)
+  else
+    p, v = add(b.p, mul(b.v, dt)), b.v
+  end
+  cache[i + 1] = { p, v }
+  return p, v
+end
+
 -- Closest approach of two orbits about the same body, from the given anomalies, within `span` seconds.
+-- A coarse search selects the encounter; relative-velocity time corrections then refine it.
 local function closest(os, nus, ot, nut, span)
-  local function dist(t)
-    local a = state_at(os, advance(os, nus, t))
-    local b = state_at(ot, advance(ot, nut, t))
-    return len(sub(a, b))
+  local function relative(t)
+    local a, va = state_at(os, advance(os, nus, t))
+    local b, vb = state_at(ot, advance(ot, nut, t))
+    return sub(a, b), sub(va, vb)
   end
   local n, best, bt = 240, 1e300, 0
   for i = 0, n do
-    local d = dist(span * i / n)
+    local d = len(relative(span * i / n))
     if d < best then best, bt = d, span * i / n end
   end
   local lo, hi = math.max(0, bt - span / n), math.min(span, bt + span / n)
+  local gain, last_correction = 1, 0
   for _ = 1, 30 do
-    local m1, m2 = lo + (hi - lo) / 3, hi - (hi - lo) / 3
-    if dist(m1) < dist(m2) then hi = m2 else lo = m1 end
+    local position, velocity = relative(bt)
+    local speed2 = dot(velocity, velocity)
+    if speed2 < 1e-18 then break end
+    local correction = -dot(position, velocity) / speed2
+    if correction * last_correction < 0 and math.abs(correction / span) > 0.0001 then
+      gain = gain * 0.5
+    else
+      gain = math.min(gain * 1.1, 1)
+    end
+    last_correction = correction
+    if correction < 0 then hi = bt else lo = bt end
+    local next_t = clamp(bt + correction * gain, lo, hi)
+    if math.abs(next_t - bt) < math.max(1e-6, span * 1e-12) then
+      bt = next_t
+      break
+    end
+    bt = next_t
   end
-  bt = (lo + hi) / 2
-  return dist(bt), bt
+  return len(relative(bt)), bt
 end
 
 -- How far ahead to look for a closest approach: one orbit, or for an escape orbit until it leaves the target's orbit.
@@ -180,6 +236,55 @@ local function ship_frame()
 end
 
 local function target_name() return props.get("/sim/target") end
+
+-- Patch an escaping post-burn conic onto its parent's orbit, then refine the encounter against a sibling body.
+local function patched_encounter(f, nd)
+  if not nd or not nd.after or nd.after.e <= 1 or not f.parent or f.parent == "" or
+     props.get("/target/kind") ~= "body" then return nil end
+  local catalog = body_catalog()
+  local parent_idx = body_by_name(f.parent)
+  local target_idx = body_by_name(target_name())
+  if not parent_idx or not target_idx or target_idx == f.idx then return nil end
+  local soi = catalog[f.idx + 1].soi
+  if not soi or soi <= len(nd.r) then return nil end
+  if f.o.e > 1e-7 and f.o.p / (1 + f.o.e * math.cos(f.o.nu)) < soi then
+    local nu_exit = math.acos(clamp((f.o.p / soi - 1) / f.o.e, -1, 1))
+    local current_exit = time_to(f.o, f.o.nu, nu_exit)
+    if current_exit and current_exit < nd.t then return nil end
+  end
+
+  local after, nu0 = nd.after, nd.after.nu
+  local cos_exit = clamp((after.p / soi - 1) / after.e, -1, 1)
+  local nu_exit = math.acos(cos_exit)
+  local exit_in = time_to(after, nu0, nu_exit)
+  if not exit_in then return nil end
+  local exit_nu = advance(after, nu0, exit_in)
+  local exit_r, exit_v = state_at(after, exit_nu)
+  local exit_time = nd.t + exit_in
+  local cache = {}
+  local body_p, body_v = body_at(catalog, f.idx, exit_time, cache)
+  local parent_p, parent_v = body_at(catalog, parent_idx, exit_time, cache)
+  local ship_parent = make_orbit(sub(add(body_p, exit_r), parent_p), sub(add(body_v, exit_v), parent_v),
+                                 catalog[parent_idx + 1].mu)
+  if target_idx == parent_idx then
+    if not ship_parent or not ship_parent.n then return nil end
+    local closest_in = time_to(ship_parent, ship_parent.nu, 0)
+    if not closest_in then return nil end
+    return { distance = ship_parent.rp, time = exit_time + closest_in }
+  end
+  if catalog[target_idx + 1].parent ~= parent_idx then return nil end
+  local target = catalog[target_idx + 1]
+  if not ship_parent or not ship_parent.n or not target.orbit or not target.orbit.n then return nil end
+
+  local target_nu = advance(target.orbit, target.orbit.nu, exit_time)
+  local span = look_span(ship_parent, ship_parent.nu, target.orbit)
+  if ship_parent.bound and target.orbit.bound then
+    local beat = math.abs(ship_parent.n - target.orbit.n)
+    if beat > 1e-12 then span = math.min(TAU / beat, 10 * 365.25 * 86400) end
+  end
+  local distance, closest_in = closest(ship_parent, ship_parent.nu, target.orbit, target_nu, span)
+  return { distance = distance, time = exit_time + closest_in }
+end
 
 local function target_state(f)
   if not props.get("/target/valid") then return nil end
@@ -351,17 +456,23 @@ end
 
 -- Closest approach of the ship, on its current or its post-burn orbit, to the target, refreshed a few times a second.
 local function scan(f, ot, nd)
-  if not ot then scan_cache = nil; return nil end
   if scan_cache and frame_count - scan_cache.at < 12 then return scan_cache end
   local res = { at = frame_count }
-  local span = look_span(f.o, f.o.nu, ot)
-  res.now_d, res.now_t = closest(f.o, f.o.nu, ot, ot.nu, span)
-  if nd and nd.after and nd.dv > 0 then
-    local nut = advance(ot, ot.nu, nd.t)
-    local nus = nd.after.nu
-    local sp = look_span(nd.after, nus, ot)
-    local d, t = closest(nd.after, nus, ot, nut, sp)
-    res.man_d, res.man_t = d, nd.t + t
+  if ot then
+    local span = look_span(f.o, f.o.nu, ot)
+    res.now_d, res.now_t = closest(f.o, f.o.nu, ot, ot.nu, span)
+    if nd and nd.after and nd.dv > 0 then
+      local nut = advance(ot, ot.nu, nd.t)
+      local nus = nd.after.nu
+      local sp = look_span(nd.after, nus, ot)
+      local d, t = closest(nd.after, nus, ot, nut, sp)
+      res.man_d, res.man_t = d, nd.t + t
+    end
+  elseif nd then
+    local patched = patched_encounter(f, nd)
+    if patched then
+      res.man_d, res.man_t, res.patched = patched.distance, patched.time, true
+    end
   end
   scan_cache = res
   return res
@@ -393,11 +504,13 @@ end
 local M = { name = "OrbitComp" }
 M.buttons = { "ORB", "MAN", "PLN", "TGT+", "TGT-", "HEL", "", "", "", "", "", "" }
 
+local auto_on = false -- the burn autopilot was armed from this page (see auto_arm)
+
 local function set_buttons()
   local right = { "", "", "", "", "", "" }
   if page == 1 or page == 4 then right = { "ZOOM+", "ZOOM-", "FIT", "", "", "" }
   elseif page == 2 then right = { "FIELD", "+", "-", "STEP", "NODE", "ZERO" }
-  else right = { "TO MAN", "", "", "", "", "" } end
+  else right = { "TO MAN", auto_on and "AUTO*" or "AUTO", "ABORT", "", "", "" } end
   for i = 1, 6 do M.buttons[6 + i] = right[i] end
 end
 
@@ -572,10 +685,14 @@ local function draw_man(g, f, ot, tr)
     end
   end
   local scanned = scan(f, ot, nd)
-  if ot and scanned then
+  if scanned and scanned.man_d then
     g:colour(255, 140, 60)
-    local line = scanned.man_d and ("Close " .. fmt_len(scanned.man_d) .. " in " .. fmt_time(scanned.man_t))
-      or ("Close " .. fmt_len(scanned.now_d) .. " (no burn)")
+    local line = "Close " .. fmt_len(scanned.man_d) .. " in " .. fmt_time(scanned.man_t)
+    if scanned.patched then line = line .. " (SOI patched)" end
+    g:text(LX, 191, line, 0)
+  elseif ot and scanned then
+    g:colour(255, 140, 60)
+    local line = scanned.now_d and ("Close " .. fmt_len(scanned.now_d) .. " (no burn)") or "No close approach"
     g:text(LX, 191, line, 0)
   elseif props.get("/target/valid") then
     g:colour(255, 200, 80)
@@ -626,21 +743,26 @@ local function plan_hohmann(f, ot, tr, tv)
   local phase = atan2(dot(cross(f.r, trp), o.W), dot(f.r, trp)) % TAU
   local wait
   if math.abs(ns - nt) > 1e-12 then wait = ((lead - phase) / (nt - ns)) % (TAU / math.abs(ns - nt)) end
-  return { kind = "hohmann", dv1 = dv1, dv2 = dv2, tof = tof, lead = lead, phase = phase, wait = wait,
+  local synodic = math.abs(ns - nt) > 1e-12 and TAU / math.abs(ns - nt) or nil
+  return { kind = "hohmann", dv1 = dv1, dv2 = dv2, tof = tof, lead = lead, phase = phase, wait = wait, r2 = r2, again = synodic,
            plane = math.deg(math.acos(clamp(dot(ot.W, o.W), -1, 1))) }
 end
 
 -- Ejection from the ship's orbit around a planet onto a transfer to a sibling planet. The star's gravity is taken
 -- as acting on circular, coplanar planet orbits; the burn is at the hyperbola's periapsis at the ship's present radius.
+local function ejection_vinf(s)
+  local r1, r2 = len(s.rp), len(s.rt)
+  return math.abs(math.sqrt(s.mu * (2 / r1 - 2 / (r1 + r2))) - len(s.vp))
+end
+
 local function plan_ejection(f, s)
   local o = f.o
   local r1, r2 = len(s.rp), len(s.rt)
   local a = (r1 + r2) / 2
-  local v_dep = math.sqrt(s.mu * (2 / r1 - 1 / a))
   local vp = len(s.vp)
   local dirp = unit(s.vp)
   local out = r2 > r1 and 1 or -1
-  local vinf = math.abs(v_dep - vp)
+  local vinf = ejection_vinf(s)
   local tof = PI * math.sqrt(a ^ 3 / s.mu)
   local wp = unit(cross(s.rp, s.vp))
   local np = vp / r1
@@ -661,7 +783,7 @@ local function plan_ejection(f, s)
   local nu_inf = math.acos(-1 / ecc)
   local dv = math.sqrt(vinf * vinf + 2 * f.mu / rb) - vcirc
   local res = { kind = "ejection", vinf = vinf, dv = dv, tof = tof, lead = lead, phase = phase, wait = wait,
-                outward = out > 0, c3 = vinf * vinf, nu_inf = nu_inf }
+                outward = out > 0, c3 = vinf * vinf, nu_inf = nu_inf, again = park }
   local vdir = mul(dirp, out)
   res.plane = math.deg(math.asin(clamp(dot(vdir, o.W), -1, 1)))
   if wait then
@@ -702,7 +824,7 @@ local function plan_return(f, s)
   local burn_dir = rotate(inplane, o.W, -nu_inf)
   local ang = atan2(dot(cross(f.r, burn_dir), o.W), dot(f.r, burn_dir)) % TAU
   local t_burn = o.bound and ang / math.sqrt(f.mu / rb ^ 3) or 0
-  return { kind = "return", vinf = vinf, dv = dv, tof = tof, t_burn = t_burn, rp = rp,
+  return { kind = "return", vinf = vinf, dv = dv, tof = tof, t_burn = t_burn, rp = rp, again = TAU * math.sqrt(rb ^ 3 / f.mu),
            plane = math.deg(math.asin(clamp(dot(vdir, o.W), -1, 1))) }
 end
 
@@ -727,7 +849,10 @@ local function transfer_diagram(g, cx, cy, R, r1, r2, phase, lead, centre, from_
   g:text(cx, cy + 8, centre, 1)
   g:colour(255, 140, 60)
   g:circle(cx, cy, d2)
-  local w = so and math.rad(-so.nu) or 0
+  -- With the ship's own orbit drawn, the orbit stays fixed (periapsis to the right) and the ship travels along it, so
+  -- the ship and the target both visibly move; otherwise the ship sits at angle 0 and the target is shown relative to it.
+  local w = 0
+  local me = actual and math.rad(so.nu) or 0
   g:colour(120, 255, 140)
   if actual then
     local px, py
@@ -754,11 +879,81 @@ local function transfer_diagram(g, cx, cy, R, r1, r2, phase, lead, centre, from_
   end
   g:colour(255, 140, 60)
   if not actual then g:circle(cx + d2 * math.cos(lead), cy - d2 * math.sin(lead), 5) end
-  g:disc(cx + d2 * math.cos(phase), cy - d2 * math.sin(phase), 4)
-  g:text(cx + d2 * math.cos(phase) + 7, cy - d2 * math.sin(phase) - 12, to_name, 0)
+  local tx, ty = cx + d2 * math.cos(me + phase), cy - d2 * math.sin(me + phase)
+  g:disc(tx, ty, 4)
+  g:text(tx + 7, ty - 12, to_name, 0)
   g:colour(255, 255, 255)
-  g:disc(cx + d1, cy, 4)
-  g:text(cx + d1 + 7, cy - 12, from_name, 0)
+  local sx, sy = cx + d1 * math.cos(me), cy - d1 * math.sin(me)
+  g:disc(sx, sy, 4)
+  g:text(sx + 7, sy - 12, from_name, 0)
+end
+
+-- The burn autopilot, armed from the plan on screen. While it waits, the start time is refreshed from the live plan each
+-- frame this page draws, so the drift of the circular-orbit assumption over a long wait does not move the burn.
+local function auto_apply(pl)
+  local centre = pl.kind == "hohmann" and pl.wait or pl.t_burn
+  if not centre then return nil end
+  if pl.kind == "hohmann" then
+    props.set("/autopilot/burn/mode", "radius")
+    props.set("/autopilot/burn/target-radius", pl.r2)
+  else
+    props.set("/autopilot/burn/mode", "escape")
+    props.set("/autopilot/burn/target-vinf", pl.vinf)
+  end
+  props.set("/autopilot/burn/start", props.get("/sim/time") + centre)
+  return centre
+end
+
+local function auto_arm(pl)
+  local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
+  local dur = burn_time(dv)
+  if not dur or dv <= 0 then return end
+  local centre = auto_apply(pl)
+  if not centre then return end
+  -- Too close to leave time for the pre-burn turn: wait for the next pass.
+  if centre < dur / 2 + 60 and pl.again then
+    props.set("/autopilot/burn/start", props.get("/sim/time") + centre + pl.again)
+  end
+  props.set("/autopilot/burn/state", "wait")
+  props.set("/autopilot/burn/armed", true)
+  auto_on = true
+end
+
+local function auto_abort()
+  props.set("/autopilot/burn/armed", false)
+  props.set("/autopilot/burn/state", "")
+  props.set("/controls/throttle", 0)
+  auto_on = false
+end
+
+local function auto_status(g, y)
+  if not auto_on then return end
+  g:colour(110, 220, 255)
+  if props.get("/autopilot/burn/state") == "burn" then
+    g:text(LX, y, string.format("AUTO burning  dV left %.0f m/s", props.get("/autopilot/burn/remaining")), 0)
+  else
+    g:text(LX, y, "AUTO armed  ignition in " .. fmt_time(props.get("/autopilot/burn/ignition-in")), 0)
+  end
+end
+
+-- Once the burn has taken the ship out of a bound orbit there is no orbit to plan from; what is left to do is reach the
+-- planned excess speed, which depends only on the speed and radius now.
+local function draw_escape(g, f, vinf)
+  local need = math.sqrt(vinf * vinf + 2 * f.mu / len(f.r))
+  local left = math.max(need - len(f.v), 0)
+  local now = f.o.bound and 0 or math.sqrt(-f.o.mu / f.o.a)
+  g:text(LX, 62, "Ejection to " .. target_name(), 0)
+  g:text(LX, 84, string.format("Target v inf  %.0f m/s", vinf), 0)
+  g:text(LX, 102, f.o.bound and "Still bound" or string.format("Now v inf     %.0f m/s", now), 0)
+  g:colour(255, 200, 80)
+  if left < 1 then
+    g:text(LX, 138, "Escape speed reached - cut the engines", 0)
+  else
+    local t = burn_time(left)
+    g:text(LX, 138, string.format("dV left  %.0f m/s", left), 0)
+    g:text(LX, 156, "Burn left  " .. (t and fmt_time(t) or "--"), 0)
+  end
+  auto_status(g, 190)
 end
 
 local function draw_plan(g, f, ot, tr, tv)
@@ -769,6 +964,10 @@ local function draw_plan(g, f, ot, tr, tv)
   g:colour(120, 255, 140)
   local plan
   local sib = (not ot) and sibling_state(f) or nil
+  if sib and not f.o.bound then
+    draw_escape(g, f, ejection_vinf(sib))
+    return nil
+  end
   local par = (not ot and not sib) and parent_state(f) or nil
   if ot then plan = plan_hohmann(f, ot, tr, tv)
   elseif sib then plan = plan_ejection(f, sib)
@@ -799,6 +998,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 164, "Departure burn in  " .. fmt_time(plan.t_burn), 0)
     g:text(LX, 182, "Burn prograde (set the node, then fly it)", 0)
     if not burn_left_line(g, LX, 218, plan.dv) then g:text(LX, 218, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
+    auto_status(g, 254)
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
       g:text(LX, 200, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
@@ -813,6 +1013,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:colour(255, 200, 80)
     g:text(LX, 190, "Burn 1 in  " .. fmt_time(plan.wait), 0)
     if not burn_left_line(g, LX, 226, plan.dv1) then g:text(LX, 226, "Burn 1 time  " .. fmt_time(burn_time(plan.dv1)), 0) end
+    auto_status(g, 244)
     if plan.plane > 0.5 then
       g:colour(255, 120, 80)
       g:text(LX, 208, string.format("Planes differ by %.1f deg", plan.plane), 0)
@@ -829,6 +1030,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 164, "Window in  " .. fmt_time(plan.wait), 0)
     g:text(LX, 182, "Ejection burn in  " .. fmt_time(plan.t_burn), 0)
     if not burn_left_line(g, LX, 236, plan.dv) then g:text(LX, 236, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
+    auto_status(g, 254)
     if plan.eject_angle then g:text(LX, 200, string.format("Ejection angle %.1f deg from %s", plan.eject_angle, plan.outward and "prograde" or "retrograde"), 0) end
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
@@ -856,6 +1058,7 @@ end
 function M.init(self) end
 
 -- Scripts (and --set) can drive the planner: set /orbitcomp/page to 1-4 and the node values, and it is applied once.
+-- Setting /orbitcomp/auto to 1 while the PLN page shows a plan arms the burn autopilot, as the AUTO button does.
 local function apply_script()
   local p = tonumber(props.get("/orbitcomp/page")) or 0
   if p < 1 then return end
@@ -889,6 +1092,14 @@ function M.draw(self, g, w, h)
   else
     M.plan = draw_plan(g, f, ot, tr, tv)
     local pl = M.plan
+    if pl and props.get("/orbitcomp/auto") == 1 then
+      props.set("/orbitcomp/auto", 0)
+      auto_arm(pl)
+    end
+    if auto_on then
+      if not props.get("/autopilot/burn/armed") then auto_on = false
+      elseif pl and props.get("/autopilot/burn/state") == "wait" then auto_apply(pl) end
+    end
     if pl then
       local centre = pl.kind == "hohmann" and pl.wait or pl.t_burn
       local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
@@ -921,6 +1132,10 @@ function M.button(self, i)
         node.dv[node.field] = node.dv[node.field] + sgn * DV_STEPS[step]
       end
     end
+  elseif i == 8 then
+    if M.plan then auto_arm(M.plan) end
+  elseif i == 9 then
+    auto_abort()
   elseif i == 7 and M.plan then
     local p = M.plan
     node.mode = 1
@@ -940,6 +1155,7 @@ function M.button(self, i)
 end
 
 M._test = { make_orbit = make_orbit, advance = advance, state_at = state_at, time_to = time_to, closest = closest,
-            plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean }
+            plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
+            body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter }
 
 return M

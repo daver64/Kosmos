@@ -280,6 +280,10 @@ namespace
         gtk_widget_set_halign(lab, GTK_ALIGN_START);
         gtk_grid_attach(GTK_GRID(grid), lab, 0, row, 1, 1);
         const bool is_vec_node = n->is_array(); // gear: the node is the vector
+        // A field commits only while the node it was built for is still selected: clicking another tree item moves the
+        // selection first and then the old entry loses focus, which would otherwise write its text into the new node.
+        const Selection at = app->sel;
+        auto here = [at] { return app->sel.kind == at.kind && app->sel.stage == at.stage && app->sel.item == at.item; };
         const json *cv = is_vec_node ? n : (n->contains(key) ? &(*n)[key] : nullptr);
 
         if (f.kind == Field::Bool)
@@ -296,7 +300,9 @@ namespace
                 gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(c), s.c_str());
             GtkWidget *e = gtk_bin_get_child(GTK_BIN(c));
             gtk_entry_set_text(GTK_ENTRY(e), cv && cv->is_string() ? cv->get<std::string>().c_str() : "");
-            auto apply = [e, key] {
+            auto apply = [e, key, here] {
+                if (!here())
+                    return;
                 const std::string t = gtk_entry_get_text(GTK_ENTRY(e));
                 if (t.empty())
                     commit_value(key.c_str(), json(), true);
@@ -320,7 +326,9 @@ namespace
                 entries->push_back(e);
                 gtk_box_pack_start(GTK_BOX(box), e, TRUE, TRUE, 0);
             }
-            auto apply = [entries, key, is_vec_node] {
+            auto apply = [entries, key, is_vec_node, here] {
+                if (!here())
+                    return;
                 double v[3];
                 bool any = false, all = true;
                 for (int i = 0; i < 3; ++i)
@@ -392,9 +400,9 @@ namespace
                                           return FALSE;
                                       }),
                                       nullptr, nullptr, static_cast<GConnectFlags>(0));
-                on_signal(sc, "value-changed", [sc, i, key, entries, is_vec_node] {
+                on_signal(sc, "value-changed", [sc, i, key, entries, is_vec_node, here] {
                     json *n = cur();
-                    if (!n)
+                    if (!n || !here())
                         return;
                     json *target = is_vec_node ? n : &(*n)[key];
                     if (!target->is_array() || target->size() < 3)
@@ -417,7 +425,9 @@ namespace
             if (cv)
                 gtk_entry_set_text(GTK_ENTRY(e), cv->is_string() ? cv->get<std::string>().c_str() : cv->is_number() ? fmt(cv->get<double>()).c_str() : "");
             const Field::Kind kind = f.kind;
-            auto apply = [e, key, kind] {
+            auto apply = [e, key, kind, here] {
+                if (!here())
+                    return;
                 const std::string t = gtk_entry_get_text(GTK_ENTRY(e));
                 if (t.empty())
                 {
@@ -461,9 +471,9 @@ namespace
                                               return FALSE;
                                           }),
                                           nullptr, nullptr, static_cast<GConnectFlags>(0));
-                on_signal(sc, "value-changed", [sc, e, key, fill] {
+                on_signal(sc, "value-changed", [sc, e, key, fill, here] {
                     json *n = cur();
-                    if (!n)
+                    if (!n || !here())
                         return;
                     const double v = fill ? std::round(gtk_range_get_value(GTK_RANGE(sc)) * 100.0) / 100.0 : std::round(gtk_range_get_value(GTK_RANGE(sc)));
                     if (n->contains(key) && (*n)[key] == v)
