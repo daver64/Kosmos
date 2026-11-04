@@ -30,8 +30,37 @@ end
 
 local function wrap_lon(v) return (v + 540.0) % 360.0 - 180.0 end
 
+local function active_ship(path)
+  local id = props.get("/sim/active-ship") or 0
+  return props.get("/ships/ship[" .. id .. "]/" .. path)
+end
+
+local function rad(d) return d * math.pi / 180.0 end
+
+local function distance(lat1, lon1, lat2, lon2, radius)
+  local p1, p2 = rad(lat1), rad(lat2)
+  local dl = rad(lon2 - lon1)
+  local a = math.sin((p2 - p1) / 2.0) ^ 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2.0) ^ 2
+  return 2.0 * radius * math.asin(math.min(1.0, math.sqrt(math.max(0.0, a))))
+end
+
+local function calc_range()
+  local lat = active_ship("latitude")
+  local lon = active_ship("longitude")
+  local radius = active_ship("body-radius")
+  if lat == nil or lon == nil then
+    return num("/icbm/range-km", 0)
+  end
+  if radius == nil or radius <= 1.0 then radius = 6371000.0 end
+  local tlat = num("/icbm/target/lat", 0.0)
+  local tlon = num("/icbm/target/lon", 0.0)
+  local r_km = distance(lat, lon, tlat, tlon, radius) / 1000.0
+  props.set("/icbm/range-km", r_km)
+  return r_km
+end
+
 local function in_range()
-  local r = num("/icbm/range-km", 0)
+  local r = calc_range()
   return r >= MIN_RANGE_KM and r <= MAX_RANGE_KM
 end
 
@@ -47,39 +76,66 @@ return {
   draw = function(self, g, w, h)
     local air = num("/controls/ordnance/mode", "air") == "air"
     local armed = props.get("/icbm/armed") and true or false
-    local range = num("/icbm/range-km", 0)
+    local range = calc_range()
     local phase = num("/icbm/phase", "idle")
     g:colour(255, 120, 90)
     g:text(200, 14, "ICBM TARGETING", 1)
     g:colour(120, 255, 140)
-    local x = 40
-    local y = 50
+    local x = 55
+    local y = 48
     g:text(x, y, string.format("TARGET LAT  %+9.4f", num("/icbm/target/lat", 0)), 0)
     g:text(x, y + 22, string.format("TARGET LON  %+9.4f", num("/icbm/target/lon", 0)), 0)
     g:text(x, y + 44, string.format("STEP        %6.2f deg", STEPS[self.step]), 0)
     g:colour(255, 220, 120)
-    g:text(x, y + 78, string.format("RANGE       %6.0f km  (%.0f mi)", range, range / 1.609), 0)
+    g:text(x, y + 74, string.format("RANGE       %6.0f km  (%.0f mi)", range, range / 1.609), 0)
     if phase ~= "idle" then
       local tt = num("/icbm/time-to-impact", -1)
+      if tt < 0 and active_ship("map/impact") == 1.0 then
+        tt = active_ship("map/impact-time") or -1
+      end
       g:colour(255, 160, 90)
-      g:text(x, y + 100, tt >= 0 and string.format("TIME TO DET %d:%02d", tt // 60, math.floor(tt % 60)) or "TIME TO DET  (burning)", 0)
+      g:text(x, y + 96, tt >= 0 and string.format("TIME TO DET %d:%02d", tt // 60, math.floor(tt % 60)) or "TIME TO DET  (burning)", 0)
     elseif in_range() then
       g:colour(120, 255, 140)
-      g:text(x, y + 100, "IN RANGE", 0)
+      g:text(x, y + 96, "IN RANGE", 0)
     else
       g:colour(255, 90, 90)
-      g:text(x, y + 100, range < MIN_RANGE_KM and "TOO CLOSE" or "OUT OF RANGE", 0)
+      g:text(x, y + 96, range < MIN_RANGE_KM and "TOO CLOSE" or "OUT OF RANGE", 0)
     end
     g:colour(120, 200, 255)
-    g:text(x, y + 134, string.format("BURST       %s", air and "AIR" or "GROUND"), 0)
-    g:text(x, y + 156, string.format("HEIGHT      %6.0f m%s", num("/controls/ordnance/burst-height", 500), air and "" or "  (unused)"), 0)
-    g:text(x, y + 178, string.format("YIELD       %6.0f kt", num("/controls/ordnance/yield-kt", 20)), 0)
+    g:text(x, y + 126, string.format("BURST       %s", air and "AIR" or "GROUND"), 0)
+    g:text(x, y + 148, string.format("HEIGHT      %6.0f m%s", num("/controls/ordnance/burst-height", 500), air and "" or "  (unused)"), 0)
+    g:text(x, y + 170, string.format("YIELD       %6.0f kt", num("/controls/ordnance/yield-kt", 20)), 0)
     g:colour(255, 255, 255)
-    g:text(x, y + 212, "STATUS  " .. num("/icbm/status", "Safe"), 0)
+    g:text(x, y + 200, "STATUS  " .. num("/icbm/status", "Safe"), 0)
     if phase ~= "idle" then
       local miss = num("/icbm/miss-km", -1)
-      g:text(x, y + 252, string.format("IMPACT  %+8.3f %+9.3f", num("/icbm/impact-lat", 0), num("/icbm/impact-lon", 0)), 0)
-      g:text(x, y + 234, miss < 0 and "IMPACT PREDICTION  --" or string.format("PREDICTED MISS  %.1f km", miss), 0)
+      local ilat = num("/icbm/impact-lat", nil)
+      local ilon = num("/icbm/impact-lon", nil)
+      if miss < 0 and active_ship("map/impact") == 1.0 then
+        ilat = active_ship("map/impact-latitude")
+        ilon = active_ship("map/impact-longitude")
+        local radius = active_ship("body-radius") or 6371000.0
+        local tlat = num("/icbm/target/lat", 0.0)
+        local tlon = num("/icbm/target/lon", 0.0)
+        miss = distance(ilat, ilon, tlat, tlon, radius) / 1000.0
+      end
+      if miss >= 0 then
+        if miss < 0.1 then
+          g:colour(120, 255, 140)
+          g:text(x, y + 222, string.format("PREDICTED MISS  %.1f km (ON TARGET)", miss), 0)
+        else
+          g:colour(255, 220, 120)
+          g:text(x, y + 222, string.format("PREDICTED MISS  %.1f km", miss), 0)
+        end
+        if ilat and ilon then
+          g:colour(200, 200, 200)
+          g:text(x, y + 242, string.format("IMPACT  %+8.3f %+9.3f", ilat, ilon), 0)
+        end
+      else
+        g:colour(180, 180, 180)
+        g:text(x, y + 222, "IMPACT PREDICTION  --", 0)
+      end
     end
     if armed then
       g:colour(255, 60, 60)

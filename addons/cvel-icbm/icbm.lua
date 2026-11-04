@@ -187,9 +187,10 @@ function update(dt)
         local th13 = rad(bearing(lat, lon, tlat, rlon))
         local cross = math.asin(math.max(-1.0, math.min(1.0, math.sin(d13) * math.sin(th13 - rad(az or brg))))) * radius / 1000.0
         trim = math.max(-8.0, math.min(8.0, trim + 0.003 * cross * dt))
-        local needed = distance(lat, lon, tlat, tlon + deg(OMEGA * t), radius)
-        props.set("/icbm/predicted-range-km", travel / 1000.0)
-        if travel >= needed and altitude > 60000.0 then
+        local d_target = distance(lat, lon, tlat, tlon, radius)
+        local d_impact = distance(lat, lon, plat, plon, radius)
+        props.set("/icbm/predicted-range-km", d_impact / 1000.0)
+        if d_impact >= d_target and altitude > 50000.0 then
           props.set("/controls/throttle", 0.0)
           set_phase("cutoff", "Burnout")
         end
