@@ -74,6 +74,24 @@ namespace kosmos
         num("max-thrust", [this] { return telemetry_.max_thrust; });
         num("acceleration-g", [this] { return telemetry_.acceleration_g; });
         num("stage-fuel", [this] { return telemetry_.stage_fuel; });
+        // Delta-v left in the active stage by the rocket equation, at the stage's thrust-weighted Isp.
+        num("stage-delta-v", [this] {
+            const auto &b = body();
+            if (b.thrusters.empty() || active_stage_ >= static_cast<int>(stage_first_thruster_.size()) - 1)
+                return 0.0;
+            double thrust = 0.0, flow = 0.0;
+            for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+            {
+                const sl::Thruster &th = b.thrusters[static_cast<std::size_t>(i)];
+                if (th.isp > 0.0)
+                {
+                    thrust += th.max_thrust;
+                    flow += th.max_thrust / th.isp;
+                }
+            }
+            const double m0 = telemetry_.mass, m1 = m0 - telemetry_.stage_fuel;
+            return flow > 0.0 && m1 > 0.0 && m0 > m1 ? 9.80665 * thrust / flow * std::log(m0 / m1) : 0.0;
+        });
         num("stage-fuel-capacity", [this] { return active_stage_ < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(active_stage_)].propellant : 0.0; });
         num("stage-fuel-percent", [this] {
             const double cap = active_stage_ < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(active_stage_)].propellant : 0.0;

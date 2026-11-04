@@ -632,43 +632,6 @@ namespace kosmos
                 script_loaded_ = false;
             }
         }
-        if (std::getenv("KOSMOS_TMPPROBE")) // TMPPROBE
-        {
-            static int n = 0;
-            static bool skipped = false, autoed = false, done = false;
-            ++n;
-            if (n == 30) props.set_bool("/dock/undock", true);
-            if (n == 90) { props.set_string("/sim/target", "Ceres"); props.set_int("/orbitcomp/page", 3); }
-            if (n > 200 && !skipped && n % 20 == 0) { const PlannedBurn pb = planned_burn(); if (pb.valid) { std::string w; skipped = skip_to_burn(pb.ignition_in, true, w); } }
-            if (skipped && !autoed && !seek_.active && n % 20 == 0) { props.set_int("/orbitcomp/auto", 1); autoed = true; }
-            static std::string last;
-            const std::string st = props.get_string("/autopilot/burn/state", "");
-            if (st != last) { std::fprintf(stderr, "TMP state -> %s (n=%d)\n", st.c_str(), n); last = st; }
-            if (autoed && !done && st == "burn") props.set_int("/sim/warp-index", 6);
-            if (autoed && !done && st == "burn" && n % 40 == 0 && ships_.size() > 15)
-            {
-                const Telemetry &t = ships_[15]->telemetry();
-                std::fprintf(stderr, "TMP burn n=%d speed=%.1f vs=%.1f fuel=%.0f ecc=%.4f\n", n, t.orbital_speed, t.vertical_speed, t.stage_fuel, t.eccentricity);
-            }
-            if (autoed && !done && st != "burn" && st != "wait" && st != "")
-            {
-                done = true;
-                const Telemetry &t = ships_[15]->telemetry();
-                std::fprintf(stderr, "TMP DONE n=%d soi=%d speed=%.1f ecc=%.4f fuel=%.0f vinf_plan=%.1f\n", n, t.soi, t.orbital_speed, t.eccentricity, t.stage_fuel, props.get_double("/autopilot/burn/target-vinf"));
-                {
-                    const sl::dvec3 rr = ships_[15]->body().position - universe.position(3), vv = ships_[15]->body().velocity - universe.world.body(3)->velocity;
-                    const double mu = universe.bodies[3].gm, r = glm::length(rr);
-                    const sl::dvec3 ev = (rr * (glm::dot(vv, vv) - mu / r) - vv * glm::dot(rr, vv)) / mu;
-                    const double e = glm::length(ev);
-                    const sl::dvec3 W = glm::normalize(glm::cross(rr, vv)), P = ev / e, Q = glm::cross(W, P);
-                    const sl::dvec3 u = -P / e + Q * std::sqrt(1.0 - 1.0 / (e * e));
-                    const sl::dvec3 ve = glm::normalize(universe.world.body(3)->velocity - universe.world.body(0)->velocity);
-                    const double inplane = std::asin(std::clamp(glm::dot(ve, W), -1.0, 1.0)) * 180.0 / 3.14159265;
-                    std::fprintf(stderr, "TMP angle(vinf, earth_vel)=%.1f deg; earth_vel out of orbit plane by %.1f deg; vinf=%.0f\n", std::acos(std::clamp(glm::dot(u, ve), -1.0, 1.0)) * 180.0 / 3.14159265, inplane, std::sqrt(-mu / (mu / (2.0 / r - glm::dot(vv, vv) / mu) * 0 + 1) * 0 + 0.0));
-                }
-                props.set_int("/sim/warp-index", 0);
-            }
-        }
         run_burn();
         release_payload_on_stage();
         const Controls controls = read_controls();
@@ -846,7 +809,8 @@ namespace kosmos
 
     double Sim::burn_lead_seconds() const
     {
-        return std::clamp(props.get_int("/sim/settings/burn-lead-min", 5), 0, 120) * 60.0;
+        // Never closer than five minutes: the planner drifts, and landing past the ignition jumps the plan to the next window.
+        return std::max(300.0, std::clamp(props.get_int("/sim/settings/burn-lead-min", 5), 0, 120) * 60.0);
     }
 
     std::vector<Sim::TransferWindow> Sim::transfer_windows(int count, std::string &why)
@@ -942,7 +906,7 @@ namespace kosmos
         if (follow)
         {
             const PlannedBurn plan = planned_burn();
-            seek_ = BurnSeek{true, 30, 3, gap - step, plan.valid ? plan.source : std::string()};
+            seek_ = BurnSeek{true, 30, 12, gap - step, plan.valid ? plan.source : std::string()};
         }
         return true;
     }

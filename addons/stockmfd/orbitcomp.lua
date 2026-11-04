@@ -381,6 +381,19 @@ local function burn_left_line(g, x, y, dv)
   return true
 end
 
+-- Warns when the active stage cannot deliver the planned dV; the burn would stop short and the transfer fall short of the target.
+local function dv_short(dv)
+  local have = ship("stage-delta-v")
+  return have > 0 and dv > have * 1.02, have
+end
+
+local function dv_warning(g, dv)
+  local short, have = dv_short(dv)
+  if not short then return end
+  g:colour(255, 70, 70)
+  g:text(LX, 46, string.format("NOT ENOUGH dV: need %.0f, stage has %.0f", dv, have), 0)
+end
+
 local function fmt_dv(x) return string.format("%+.1f m/s", x) end
 
 -- Target selection, as in the other MFDs.
@@ -981,6 +994,7 @@ end
 local function auto_arm(pl)
   if pl.kind == "lambert" then return end
   local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
+  if dv_short(dv) then return end
   local dur = burn_time(dv)
   if not dur or dv <= 0 then return end
   local centre = auto_apply(pl)
@@ -1071,6 +1085,7 @@ local function draw_plan(g, f, ot, tr, tv)
   end
   if plan.kind == "return" then
     g:text(LX, 62, "Return to " .. target_name(), 0)
+    dv_warning(g, plan.dv)
     g:text(LX, 84, string.format("Departure dV  %.1f m/s", plan.dv), 0)
     g:text(LX, 102, string.format("v inf %.0f m/s", plan.vinf), 0)
     g:text(LX, 120, "Transfer time  " .. fmt_time(plan.tof), 0)
@@ -1086,6 +1101,7 @@ local function draw_plan(g, f, ot, tr, tv)
     end
   elseif plan.kind == "lambert" then
     g:text(LX, 62, "Lambert intercept", 0)
+    dv_warning(g, plan.dv)
     g:text(LX, 84, string.format("Departure dV  %.1f m/s", plan.dv), 0)
     g:text(LX, 102, string.format("Pro %+7.1f  Rad %+7.1f m/s", plan.components[1], plan.components[2]), 0)
     g:text(LX, 120, string.format("Normal %+7.1f m/s", plan.components[3]), 0)
@@ -1099,6 +1115,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 218, "Two-body intercept; no arrival capture burn", 0)
   elseif plan.kind == "hohmann" then
     g:text(LX, 62, "Hohmann transfer", 0)
+    dv_warning(g, math.abs(plan.dv1))
     g:text(LX, 84, "Burn 1  " .. fmt_dv(plan.dv1), 0)
     g:text(LX, 102, "Burn 2  " .. fmt_dv(plan.dv2), 0)
     g:text(LX, 120, string.format("Total   %.1f m/s", math.abs(plan.dv1) + math.abs(plan.dv2)), 0)
@@ -1116,6 +1133,7 @@ local function draw_plan(g, f, ot, tr, tv)
       { a = ship("orbit/semi-major-axis"), e = ship("orbit/eccentricity"), nu = ship("orbit/true-anomaly") })
   else
     g:text(LX, 62, plan.outward and "Ejection to an outer planet" or "Ejection to an inner planet", 0)
+    dv_warning(g, plan.dv)
     g:text(LX, 84, string.format("Ejection dV  %.1f m/s", plan.dv), 0)
     g:text(LX, 102, string.format("v inf %.0f m/s   C3 %.2f km2/s2", plan.vinf, plan.c3 / 1e6), 0)
     g:text(LX, 120, "Transfer time  " .. fmt_time(plan.tof), 0)

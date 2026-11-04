@@ -1657,7 +1657,7 @@ namespace kosmos
         }
         int lead = std::clamp(sim.props.get_int("/sim/settings/burn-lead-min", 5), 0, 120);
         ImGui::SetNextItemWidth(90.0f);
-        if (ImGui::InputInt("Lead (minutes before ignition)", &lead))
+        if (ImGui::InputInt("Lead (minutes before ignition, at least 5)", &lead))
             sim.props.set_int("/sim/settings/burn-lead-min", std::clamp(lead, 0, 120));
         std::string why;
         const std::vector<Sim::TransferWindow> windows = sim.transfer_windows(8, why);
