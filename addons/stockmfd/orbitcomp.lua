@@ -4,9 +4,9 @@
 --        the burn length, and how close you would pass the target.
 --   HEL  the orbit about the star the ship would follow after leaving the sphere of influence it is in (an escape
 --        orbit), with the planet's orbit and the target's, and closest approach.
---   PLN  a transfer plan to the target: a Hohmann transfer for a target around the same body, or an ejection burn
---        for a planet around the same star. TO MAN loads the plan into the manoeuvre page to fine tune.
--- It only advises; the burn is flown by hand. Planning assumes near circular, coplanar orbits.
+--   PLN  a Hohmann transfer for near-circular, coplanar orbits, an ejection burn for a planet around the same star,
+--        or a Lambert intercept for eccentric/inclined same-frame orbits. TO MAN loads the plan into a node.
+--   Lambert intercepts use two-body propagation; no arrival capture burn is planned.
 
 local TAU, PI = 2 * math.pi, math.pi
 local LX = 40 -- text margin, clear of the side button labels
@@ -510,7 +510,8 @@ local function set_buttons()
   local right = { "", "", "", "", "", "" }
   if page == 1 or page == 4 then right = { "ZOOM+", "ZOOM-", "FIT", "", "", "" }
   elseif page == 2 then right = { "FIELD", "+", "-", "STEP", "NODE", "ZERO" }
-  else right = { "TO MAN", auto_on and "AUTO*" or "AUTO", "ABORT", "", "", "" } end
+  else right = { "TO MAN", M.plan and M.plan.kind == "lambert" and "" or (auto_on and "AUTO*" or "AUTO"),
+                 "ABORT", "", "", "" } end
   for i = 1, 6 do M.buttons[6 + i] = right[i] end
 end
 
@@ -748,6 +749,79 @@ local function plan_hohmann(f, ot, tr, tv)
            plane = math.deg(math.acos(clamp(dot(ot.W, o.W), -1, 1))) }
 end
 
+-- Short-way, single-revolution Lambert solution using universal variables.
+local function lambert_velocity(r1, r2, tof, mu)
+  local r1m, r2m = len(r1), len(r2)
+  local cosine = clamp(dot(r1, r2) / (r1m * r2m), -1, 1)
+  local angle = math.acos(cosine)
+  local sine = math.sin(angle)
+  if math.abs(sine) < 1e-8 then return nil end
+  local A = sine * math.sqrt(r1m * r2m / (1 - cosine))
+  if math.abs(A) < 1e-8 then return nil end
+
+  local function stumpff(z)
+    if math.abs(z) < 1e-8 then return 0.5, 1 / 6 end
+    if z > 0 then
+      local q = math.sqrt(z)
+      return (1 - math.cos(q)) / z, (q - math.sin(q)) / (q * q * q)
+    end
+    local q = math.sqrt(-z)
+    return (cosh(q) - 1) / -z, (sinh(q) - q) / (q * q * q)
+  end
+
+  local function flight_time(z)
+    local C, S = stumpff(z)
+    if C <= 0 or C ~= C then return math.huge, 0 end
+    local y = r1m + r2m + A * (z * S - 1) / math.sqrt(C)
+    if y < 0 or y ~= y then return -1, y end
+    return (math.pow(y / C, 1.5) * S + A * math.sqrt(y)) / math.sqrt(mu), y
+  end
+
+  local lo, hi = -4 * PI * PI + 1e-6, 4 * PI * PI - 1e-6
+  if flight_time(hi) < tof then return nil end
+  for _ = 1, 80 do
+    local mid = (lo + hi) / 2
+    if flight_time(mid) < tof then lo = mid else hi = mid end
+  end
+  local _, y = flight_time((lo + hi) / 2)
+  if y <= 0 or y ~= y then return nil end
+  local g = A * math.sqrt(y / mu)
+  if g == 0 or g ~= g then return nil end
+  local velocity = mul(sub(r2, mul(r1, 1 - y / r1m)), 1 / g)
+  if velocity[1] ~= velocity[1] or velocity[2] ~= velocity[2] or velocity[3] ~= velocity[3]
+    or math.abs(velocity[1]) == math.huge or math.abs(velocity[2]) == math.huge or math.abs(velocity[3]) == math.huge then
+    return nil
+  end
+  return velocity
+end
+
+-- Solve a heliocentric (or other shared-frame) intercept using the live osculating states, not circular-orbit radii.
+local function plan_lambert(f, ot)
+  if not f.o.bound or not ot.bound then return nil end
+  local scale = (f.o.a + ot.a) / 2
+  if scale <= 0 then return nil end
+  local nominal = PI * math.sqrt(scale ^ 3 / f.mu)
+  local best
+  for i = 0, 20 do
+    local tof = nominal * (0.5 + i * 0.05)
+    local target_r = state_at(ot, advance(ot, ot.nu, tof))
+    local departure_v = lambert_velocity(f.r, target_r, tof, f.mu)
+    if departure_v then
+      local delta_v = sub(departure_v, f.v)
+      local magnitude = len(delta_v)
+      if not best or magnitude < best.dv then
+        local pro = unit(f.v)
+        local normal = unit(cross(f.r, f.v))
+        local radial = cross(pro, normal)
+        best = { kind = "lambert", dv = magnitude, components = {
+          dot(delta_v, pro), dot(delta_v, radial), dot(delta_v, normal)
+        }, tof = tof, wait = 0, target_r = target_r }
+      end
+    end
+  end
+  return best
+end
+
 -- Ejection from the ship's orbit around a planet onto a transfer to a sibling planet. The star's gravity is taken
 -- as acting on circular, coplanar planet orbits; the burn is at the hyperbola's periapsis at the ship's present radius.
 local function ejection_vinf(s)
@@ -905,6 +979,7 @@ local function auto_apply(pl)
 end
 
 local function auto_arm(pl)
+  if pl.kind == "lambert" then return end
   local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
   local dur = burn_time(dv)
   if not dur or dv <= 0 then return end
@@ -969,7 +1044,13 @@ local function draw_plan(g, f, ot, tr, tv)
     return nil
   end
   local par = (not ot and not sib) and parent_state(f) or nil
-  if ot then plan = plan_hohmann(f, ot, tr, tv)
+  if ot then
+    local plane = math.deg(math.acos(clamp(dot(ot.W, f.o.W), -1, 1)))
+    if f.o.e > 0.05 or ot.e > 0.05 or plane > 2 then
+      plan = plan_lambert(f, ot)
+    else
+      plan = plan_hohmann(f, ot, tr, tv)
+    end
   elseif sib then plan = plan_ejection(f, sib)
   elseif par then plan = plan_return(f, par) end
   if not plan then
@@ -1003,6 +1084,19 @@ local function draw_plan(g, f, ot, tr, tv)
       g:colour(255, 120, 80)
       g:text(LX, 200, string.format("Orbit plane is %.1f deg off the departure line", math.abs(plan.plane)), 0)
     end
+  elseif plan.kind == "lambert" then
+    g:text(LX, 62, "Lambert intercept", 0)
+    g:text(LX, 84, string.format("Departure dV  %.1f m/s", plan.dv), 0)
+    g:text(LX, 102, string.format("Pro %+7.1f  Rad %+7.1f m/s", plan.components[1], plan.components[2]), 0)
+    g:text(LX, 120, string.format("Normal %+7.1f m/s", plan.components[3]), 0)
+    g:text(LX, 146, "Flight time  " .. fmt_time(plan.tof), 0)
+    g:colour(255, 200, 80)
+    g:text(LX, 164, "Burn now; TO MAN loads the vector", 0)
+    if not burn_left_line(g, LX, 200, plan.dv) then
+      g:text(LX, 200, "Burn time  " .. (burn_time(plan.dv) and fmt_time(burn_time(plan.dv)) or "--"), 0)
+    end
+    g:colour(255, 120, 80)
+    g:text(LX, 218, "Two-body intercept; no arrival capture burn", 0)
   elseif plan.kind == "hohmann" then
     g:text(LX, 62, "Hohmann transfer", 0)
     g:text(LX, 84, "Burn 1  " .. fmt_dv(plan.dv1), 0)
@@ -1075,13 +1169,14 @@ function M.draw(self, g, w, h)
   props.set("/plan/orbitcomp/stamp", -1)
   track_burn()
   apply_script()
-  set_buttons()
   local f = ship("landed") and nil or ship_frame()
   if not f then
     g:colour(255, 240, 140)
     g:text(200, 14, "ORBITCOMP", 1)
     g:colour(255, 200, 80)
     g:text(200, 200, "No orbit", 1)
+    M.plan = nil
+    set_buttons()
     return
   end
   local ot, tr, tv = target_state(f)
@@ -1101,11 +1196,13 @@ function M.draw(self, g, w, h)
       elseif pl and props.get("/autopilot/burn/state") == "wait" then auto_apply(pl) end
     end
     if pl then
-      local centre = pl.kind == "hohmann" and pl.wait or pl.t_burn
+      local centre = pl.kind == "lambert" and (burn_time(pl.dv) or 0) / 2
+        or (pl.kind == "hohmann" and pl.wait or pl.t_burn)
       local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
       if centre and dv > 0 then publish_burn(centre, burn_time(dv), pl.kind .. " transfer") end
     end
   end
+  set_buttons()
 end
 
 function M.button(self, i)
@@ -1140,7 +1237,10 @@ function M.button(self, i)
     local p = M.plan
     node.mode = 1
     node.field = 1
-    if p.kind == "hohmann" then
+    if p.kind == "lambert" then
+      node.time = 0
+      node.dv = { p.components[1], p.components[2], p.components[3] }
+    elseif p.kind == "hohmann" then
       node.time = math.max(p.wait or 0, 0)
       node.dv = { p.dv1, 0, 0 }
     elseif p.kind == "return" then
@@ -1155,7 +1255,8 @@ function M.button(self, i)
 end
 
 M._test = { make_orbit = make_orbit, advance = advance, state_at = state_at, time_to = time_to, closest = closest,
-            plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
+            plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, plan_lambert = plan_lambert,
+            lambert_velocity = lambert_velocity, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
             body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter }
 
 return M

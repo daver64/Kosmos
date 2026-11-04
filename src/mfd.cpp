@@ -292,7 +292,6 @@ namespace kosmos
         if (button == 13 || button == 14)
         {
             u.selecting = !u.selecting;
-            u.select_scroll = 0;
             return;
         }
         if (u.selecting)
