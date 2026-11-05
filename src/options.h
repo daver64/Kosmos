@@ -116,6 +116,8 @@ namespace kosmos::app
         bool cam_sunward = false;
         /** Put the camera on the far side of the ship from the star, turned aside, so the star is in view (for pictures). */
         bool cam_antisun = false;
+        double cam_planet = 0.0; // --cam-planet R: look at the centre of the body being orbited from R body radii away, ignoring the ship
+        double cam_phase = 0.0;  // --cam-phase DEG: with --cam-planet, the angle at the planet between the camera and the Sun (0 = full face, 180 = new)
         double cam_fov = 50.0;
         double orbit_altitude = 0.0;
         bool orbit_half = false;

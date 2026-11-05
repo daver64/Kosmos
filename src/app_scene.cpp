@@ -463,7 +463,7 @@ namespace kosmos::app
                    glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                    glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
         };
-        if (!veil_only && static_cast<int>(i) == earth_id && vis.lights_texture)
+        if (false && static_cast<int>(i) == earth_id && vis.lights_texture)
         {
             // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
             sl::Light3D night;
@@ -476,10 +476,15 @@ namespace kosmos::app
             lights.blend = sl::MaterialBlend::additive;
             // Drawn on the same single-image sphere as the surface, so it takes the same mirroring.
             lights.cull = sl::CullMode::front;
-            sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
+            // The night-light image is reduced at load so its points survive minification. An extra pass or two adds the
+            // light again from high up, where the mips thin it out.
+            const double light_altitude = (distance - b.radius) * 6.371e6 / b.radius;
+            const int passes = 1 + static_cast<int>(std::lround(2.0 * fx::smoothstep(30.0e3, 2000.0e3, light_altitude)));
+            for (int pass = 0; pass < passes; ++pass)
+                sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
             sl::set_light_3d(body_light);
         }
-        if (b.atmosphere_density > 0.005 && b.atmosphere_density < 5.0 && b.radius < 2.0e7)
+        if (b.atmosphere_density > 0.005 && b.atmosphere_density < 5.0)
         {
             // Single-scattering haze over the surface: blue lift and attenuation along the line of sight, an orange terminator, a bright limb.
             float strength = 1.0f;
@@ -568,6 +573,7 @@ namespace kosmos::app
         rock.texture = vis.body_textures[i];
         rock.normal_map = vis.body_normals[i];
         rock.fog = false;
+        rock.airless = b.atmosphere_density < 0.005;
         const glm::mat4 body_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
         const glm::mat4 model = body_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                                 glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));

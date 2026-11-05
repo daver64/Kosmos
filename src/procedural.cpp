@@ -635,7 +635,10 @@ namespace kosmos
     {
         // Zenith optical depth: 0.3 in blue for Earth's air column, rising gently with the column (dust keeps thin atmospheres visible).
         const double column = density * scale_height / (1.225 * 8500.0);
-        const float zenith_depth = 0.3f * static_cast<float>(std::clamp(std::pow(column, 0.45), 0.0, 6.0));
+        float zenith_depth = 0.3f * static_cast<float>(std::clamp(std::pow(column, 0.45), 0.0, 6.0));
+        // A giant's visible surface is its cloud tops, under a deep atmosphere: it always has a thick scattering layer.
+        if (radius > 2.0e7)
+            zenith_depth = std::max(zenith_depth, 0.9f);
         glm::vec3 tint = colour * colour;
         tint /= std::max({tint.x, tint.y, tint.z, 1.0e-3f});
         const glm::vec3 tau0 = tint * zenith_depth;
@@ -643,6 +646,7 @@ namespace kosmos
         const float below_eye = 1.0f - std::exp(-eye_altitude / static_cast<float>(scale_height));
         const float inv_radius = 1.0f / static_cast<float>(radius);
         const glm::vec3 eye_n = eye * inv_radius;
+        const bool giant = radius > 2.0e7;
         bool any = false;
         for (sl::Vertex3D &v : haze.vertices)
         {
@@ -650,17 +654,21 @@ namespace kosmos
             const glm::vec3 to_eye = eye_n - n;
             const float distance = glm::length(to_eye);
             const glm::vec3 view = to_eye / std::max(distance, 1.0e-6f);
-            const float facing = std::max(glm::dot(n, view), 0.03f);
+            const float true_facing = glm::dot(n, view);
+            const float facing = std::max(true_facing, 0.03f);
+            // The limb itself is drawn by the limb glow; fade the haze out to nothing there so its silhouette leaves no bright rim.
+            const float edge = glm::smoothstep(0.0f, 0.12f, true_facing);
             // Vertices just past the limb keep a grazing colour, so the silhouette fades smoothly instead of breaking into dots.
             const float sun_cos = glm::dot(n, to_sun);
             const float twilight = glm::smoothstep(-0.14f, -0.01f, sun_cos);
             const glm::vec3 path = tau0 * air_mass(facing) * below_eye;
             const glm::vec3 view_transmittance = glm::exp(-path);
-            const glm::vec3 sun_transmittance = glm::exp(-tau0 * air_mass(sun_cos)) * twilight;
+            // A giant's haze takes its colour from the cloud tops, so its sunlight is not reddened; it only fades at the terminator.
+            const glm::vec3 sun_transmittance = giant ? glm::vec3(twilight) : glm::exp(-tau0 * air_mass(sun_cos)) * twilight;
             // Rayleigh phase, normalised to a mean of one, and a little forward Mie towards the Sun.
             const float cos_scatter = glm::dot(-view, to_sun);
             const float phase = 0.75f * (1.0f + cos_scatter * cos_scatter) + 0.35f * std::pow(std::max(cos_scatter, 0.0f), 6.0f);
-            const glm::vec3 scattered = sun_transmittance * (glm::vec3(1.0f) - view_transmittance) * phase * 1.6f;
+            const glm::vec3 scattered = sun_transmittance * (glm::vec3(1.0f) - view_transmittance) * phase * 1.6f * edge;
             // Tone-mapped as Orbiter does, so a grazing line of sight saturates smoothly instead of clipping.
             const glm::vec3 c = glm::vec3(1.0f) - glm::exp(-scattered);
             const float alpha = std::clamp(1.0f - (view_transmittance.x + view_transmittance.y + view_transmittance.z) / 3.0f, 0.0f, 0.9f);
@@ -670,7 +678,7 @@ namespace kosmos
             v.colour[3] = 1.0f;
             sl::Vertex3D &d = haze.dark_vertices[static_cast<std::size_t>(&v - haze.vertices.data())];
             d.colour[0] = d.colour[1] = d.colour[2] = 0.0f;
-            d.colour[3] = alpha * 0.6f;
+            d.colour[3] = alpha * 0.6f * edge;
             any = any || c.x + c.y + c.z > 0.01f;
         }
         if (any)

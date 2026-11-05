@@ -645,6 +645,22 @@ namespace kosmos::app
         ship_rel = glm::vec3(focus - eye_world);
         if (options.cam_antisun)
             ship_rel = glm::vec3(glm::normalize(universe.position(0) - eye_world) * 1000.0);
+        if (options.cam_planet > 0.0 && tm_ref->soi > 0)
+        {
+            // A fixed view of the body being orbited, for comparing renders: the camera sits on a circle round the planet at the
+            // requested phase angle from the Sun and looks at its centre, wherever the ship is.
+            const sl::dvec3 centre = universe.position(tm_ref->soi);
+            const double radius = universe.bodies[static_cast<std::size_t>(tm_ref->soi)].radius;
+            const sl::dvec3 sun_dir = glm::normalize(universe.position(0) - centre);
+            sl::dvec3 side = glm::cross(sun_dir, sl::dvec3(0.0, 0.0, 1.0));
+            if (glm::length(side) < 1e-6)
+                side = glm::cross(sun_dir, sl::dvec3(0.0, 1.0, 0.0));
+            side = glm::normalize(side);
+            const double phase = options.cam_phase * 3.14159265358979 / 180.0;
+            eye_world = centre + (sun_dir * std::cos(phase) + side * std::sin(phase)) * (options.cam_planet * radius);
+            ship_rel = glm::vec3(glm::normalize(centre - eye_world) * 1000.0);
+            up = glm::normalize(glm::cross(side, sun_dir));
+        }
         if (!in_cockpit && !in_interior && !in_base_cam && !map_mode && !galaxy_mode && (rig.free_yaw != 0.0f || rig.free_pitch != 0.0f))
         {
             const sl::dvec3 fwd = glm::normalize(sl::dvec3(ship_rel));

@@ -181,6 +181,8 @@ namespace kosmos::app
         {"--cam-fov", 1, real(&Options::cam_fov)},
         {"--cam-antisun", 0, on(&Options::cam_antisun)},
         {"--cam-sunward", 0, on(&Options::cam_sunward)},
+        {"--cam-planet", 1, real(&Options::cam_planet)},
+        {"--cam-phase", 1, real(&Options::cam_phase)},
         {"--cam-distance", 1, real(&Options::cam_distance)},
         {"--orbit-phase", 1, real(&Options::orbit_phase)},
         {"--sunlit", 0, on(&Options::sunlit)},

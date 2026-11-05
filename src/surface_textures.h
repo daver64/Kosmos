@@ -14,6 +14,9 @@ namespace kosmos::app
 
     sl::Bitmap *load_optional_texture(const std::string &path, int max_size);
 
+    // Night-light image reduced so the bright points survive minification (see surface_textures.cpp).
+    sl::Bitmap *load_night_lights(const std::string &path, int max_size);
+
     std::string find_texture_in_directory(const std::string &root, const std::string &directory, const std::string &name,
                                           std::initializer_list<const char *> extensions);
 

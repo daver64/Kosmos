@@ -79,6 +79,63 @@ namespace kosmos::app
         return finish_cpu_texture(bitmap, path, max_size);
     }
 
+    // Night lights are a few bright pixels on black, and mip averaging leaves almost nothing of them from orbit. The image is read at full
+    // size, then reduced by `factor` keeping the brightest texel of each block (lifted by the block's mean), so cities survive the reduction.
+    sl::Bitmap *load_night_lights(const std::string &path, int max_size)
+    {
+        if (!std::filesystem::exists(path))
+            return nullptr;
+        sl::DdsOptions options;
+        options.allow_compressed_upload = false;
+        sl::Bitmap *bitmap = path.size() > 4 && !std::strcmp(path.c_str() + path.size() - 4, ".dds") ? sl::load_dds(path, options) : sl::load_bitmap(path);
+        if (!bitmap || bitmap->pixels.empty())
+        {
+            if (bitmap)
+                sl::destroy_bitmap(bitmap);
+            return load_optional_texture(path, max_size);
+        }
+        const int factor = std::max(1, bitmap->width / std::max(1, std::min(max_size, 4096)));
+        if (factor > 1)
+        {
+            const int w = bitmap->width / factor, h = bitmap->height / factor;
+            std::vector<std::uint8_t> out(static_cast<std::size_t>(w) * h * 4);
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                {
+                    int peak[3] = {0, 0, 0}, sum[3] = {0, 0, 0};
+                    for (int dy = 0; dy < factor; ++dy)
+                        for (int dx = 0; dx < factor; ++dx)
+                        {
+                            const std::uint8_t *px = &bitmap->pixels[(static_cast<std::size_t>(y * factor + dy) * bitmap->width + x * factor + dx) * 4];
+                            for (int c = 0; c < 3; ++c)
+                            {
+                                peak[c] = std::max<int>(peak[c], px[c]);
+                                sum[c] += px[c];
+                            }
+                        }
+                    std::uint8_t *dst = &out[(static_cast<std::size_t>(y) * w + x) * 4];
+                    for (int c = 0; c < 3; ++c)
+                        dst[c] = static_cast<std::uint8_t>(std::min(255, peak[c] / 2 + sum[c] * 2 / (factor * factor)));
+                    dst[3] = 255;
+                }
+            bitmap->pixels = std::move(out);
+            bitmap->width = w;
+            bitmap->height = h;
+        }
+        bitmap->smooth = true;
+        bitmap->mipmaps = true;
+        bitmap->anisotropy = 4.0f;
+        if (!sl::upload_bitmap(bitmap))
+        {
+            sl::destroy_bitmap(bitmap);
+            return nullptr;
+        }
+        bitmap->pixels.clear();
+        bitmap->pixels.shrink_to_fit();
+        bitmap->ram_dirty = false;
+        return bitmap;
+    }
+
     sl::Bitmap *load_optional_texture(const std::string &path, int max_size)
     {
         return std::filesystem::exists(path) ? load_surface_texture(path, max_size) : nullptr;

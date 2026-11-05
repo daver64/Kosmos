@@ -425,7 +425,7 @@ namespace kosmos::app
             sl::destroy_bitmap(vis.cloud_texture);
             vis.cloud_texture = clouds;
         }
-        vis.lights_texture = load_optional_texture(find_texture_file(sim.root(), "earth_lights", {".dds", ".jpg", ".png"}), options.max_texture);
+        vis.lights_texture = load_night_lights(find_texture_file(sim.root(), "earth_lights", {".dds", ".jpg", ".png"}), options.max_texture);
         earth_id = -1;
         earth_body = nullptr;
         terrain = nullptr;
