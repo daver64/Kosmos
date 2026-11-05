@@ -293,6 +293,13 @@ add_executable(kosmoscad_test EXCLUDE_FROM_ALL tests/kosmoscad_test.cpp sdk/kosm
 target_include_directories(kosmoscad_test PRIVATE sdk/kosmoscad/src ${KOSMOS_JSON_INCLUDE})
 target_compile_features(kosmoscad_test PRIVATE cxx_std_17)
 target_compile_definitions(kosmoscad_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+# KosmosMission's planning core (no GTK, no GL): cmake --build build --target missioncore_test && build/missioncore_test
+set(KOSMOSMISSION_CORE sdk/kosmosmission/core/orbit.cpp sdk/kosmosmission/core/bodies.cpp sdk/kosmosmission/core/transfer.cpp
+    sdk/kosmosmission/core/budget.cpp sdk/kosmosmission/core/mission.cpp)
+add_executable(missioncore_test EXCLUDE_FROM_ALL tests/missioncore_test.cpp ${KOSMOSMISSION_CORE})
+target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOSMOS_JSON_INCLUDE})
+target_compile_features(missioncore_test PRIVATE cxx_std_17)
+target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)
@@ -304,6 +311,11 @@ if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     set(KOSMOSCAD_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/kosmoscad)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmoscad)
+    # KosmosMission (sdk/kosmosmission), the mission planner, needs GTK 3 and OpenGL 3.2 too (Linux only for now).
+    set(KOSMOSMISSION_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosmission/bin" CACHE PATH "" FORCE)
+    set(KOSMOSMISSION_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
+    add_subdirectory(sdk/kosmosmission)
+    list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosmission)
 endif()
 # KosmosAV, the pilot's program for the KosmosAV freight network (kav/client), is a GTK 3 program too and also needs libcurl (the Windows program is built by scripts/build-win-tools.sh with WinHTTP).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
@@ -334,7 +346,7 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/planetbake/bin/planetbake$")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")
 else()
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
         "/addons/shipedit/bin/shipedit\\.exe$" "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit|kosmoscad)/share(/|$)")

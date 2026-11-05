@@ -1,0 +1,16 @@
+{
+  "id": "kosmosmission",
+  "name": "KosmosMission",
+  "version": "0.1",
+  "native": {
+    "run": {
+      "linux": "bin/kosmosmission"
+    },
+    "capabilities": [
+      "read",
+      "write"
+    ],
+    "autostart": false,
+    "restart": false
+  }
+}

@@ -9,12 +9,12 @@ JOBS=${JOBS:-4}
 # Tooling never uses more than 4 jobs at once, whatever -j or JOBS says.
 if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test
 cd "$OUT"
 export HOME=$(mktemp -d)
 trap 'rm -rf "$HOME"' EXIT
 
-for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test; do
+for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test; do
     echo "== $t"
     ./$t
 done
