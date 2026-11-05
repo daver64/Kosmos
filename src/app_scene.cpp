@@ -449,7 +449,7 @@ namespace kosmos::app
         }
     }
 
-    void App::draw_body_layers(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, double distance, const glm::dquat &sphere_flip, const sl::Light3D &body_light)
+    void App::draw_body_layers(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, double distance, const glm::dquat &sphere_flip, const sl::Light3D &body_light, bool veil_only)
     {
         kosmos::Universe &universe = *universe_ref;
         // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
@@ -462,7 +462,7 @@ namespace kosmos::app
                    glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                    glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
         };
-        if (static_cast<int>(i) == earth_id && vis.lights_texture)
+        if (!veil_only && static_cast<int>(i) == earth_id && vis.lights_texture)
         {
             // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
             sl::Light3D night;
@@ -478,17 +478,24 @@ namespace kosmos::app
             sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
             sl::set_light_3d(body_light);
         }
-        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0 && distance - b.radius < 0.003 * b.radius)
+        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0 && distance - b.radius < 0.12 * b.radius)
         {
             // Rayleigh scattering over the sunlit side: a faint, lit blue veil that lifts the oceans and hazes the land.
             sl::Material veil;
             veil.lit = true;
             veil.fog = false;
             veil.blend = sl::MaterialBlend::additive;
-            veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * 0.5f), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * 0.5f),
-                         static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * 0.5f), 255};
+            // Full strength near the surface, thinning with altitude as less of the haze lies below the eye.
+            float haze_k = 0.5f * static_cast<float>(1.0 - std::clamp((distance - b.radius) / (0.12 * b.radius), 0.0, 1.0) * 0.6);
+            // Over the tiled terrain the veil fades out towards the ground, where the terrain's own air takes over.
+            if (veil_only)
+                haze_k *= static_cast<float>(fx::smoothstep(20.0e3, 100.0e3, (distance - b.radius) * 6.371e6 / b.radius));
+            veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * haze_k), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * haze_k),
+                         static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * haze_k), 255};
             sl::draw_mesh(vis.sphere, lifted(0.5) * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
         }
+        if (veil_only)
+            return;
         if (i < vis.body_cloud_meshes.size() && vis.body_cloud_meshes[i])
         {
             sl::Material weather;
@@ -521,8 +528,15 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
         const kosmos::Body &b = universe.bodies[i];
-        if (b.kind == kosmos::BodyKind::star || (static_cast<int>(i) == earth_id && near_earth && !earth_as_sphere))
+        if (b.kind == kosmos::BodyKind::star)
             return;
+        if (static_cast<int>(i) == earth_id && near_earth && !earth_as_sphere)
+        {
+            // The terrain tiles are drawn elsewhere; give them the same blue haze the sphere has.
+            const sl::dvec3 earth_rel = universe.position(static_cast<int>(i)) - eye_world;
+            draw_body_layers(i, b, earth_rel, glm::length(earth_rel), glm::angleAxis(pi, sl::dvec3(0.0, 1.0, 0.0)), body_light, true);
+            return;
+        }
         bool terrain_drawn = false;
         for (std::size_t k = 1; k < body_terrains.size(); ++k)
             terrain_drawn = terrain_drawn || (body_terrains[k]->body == static_cast<int>(i) && body_terrains[k]->active);
