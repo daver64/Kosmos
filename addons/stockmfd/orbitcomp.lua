@@ -399,15 +399,31 @@ end
 
 local function fmt_dv(x) return string.format("%+.1f m/s", x) end
 
--- Target selection, as in the other MFDs.
+-- Target selection: the central star, the planets and the quantum portal are always offered. Moons, stations and other
+-- ships appear only when we orbit the body they orbit (or we orbit the moon itself).
 local function target_list()
   local list = {}
   local active = props.get("/sim/active-ship")
+  local here = props.get("/ships/ship[" .. active .. "]/soi") or ""
   for i = 0, props.get("/ships/count") - 1 do
-    if i ~= active then list[#list + 1] = props.get("/ships/ship[" .. i .. "]/name") end
+    if i ~= active then
+      local base = "/ships/ship[" .. i .. "]/"
+      if props.get(base .. "is-portal") or props.get(base .. "soi") == here then
+        list[#list + 1] = props.get(base .. "name")
+      end
+    end
   end
-  for i = 0, props.get("/universe/bodies/count") - 1 do
-    list[#list + 1] = props.get("/universe/bodies/body[" .. i .. "]/name")
+  local parents = {}
+  local n = props.get("/universe/bodies/count")
+  for i = 0, n - 1 do
+    local b = "/universe/bodies/body[" .. i .. "]/"
+    parents[props.get(b .. "name")] = props.get(b .. "parent") or ""
+  end
+  for i = 0, n - 1 do
+    local name = props.get("/universe/bodies/body[" .. i .. "]/name")
+    local parent = parents[name]
+    local is_moon = parent ~= "" and (parents[parent] or "") ~= ""
+    if not is_moon or parent == here or name == here then list[#list + 1] = name end
   end
   return list
 end

@@ -46,6 +46,7 @@ namespace kosmos
         tree.node(base + "/crashed")->tie_bool([this] { return crashed_; });
         tree.node(base + "/landed")->tie_bool([this] { return telemetry_.landed; });
         tree.node(base + "/on-rails")->tie_bool([this] { return on_rails(); });
+        tree.node(base + "/is-portal")->set_bool(spec_.portal_radius > 0.0);
         tree.node(base + "/soi")->tie_string([this] { return universe_.bodies[static_cast<std::size_t>(telemetry_.soi)].name; });
         num("x", [this] { return body().position.x; });
         num("y", [this] { return body().position.y; });

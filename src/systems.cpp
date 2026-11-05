@@ -958,11 +958,15 @@ namespace kosmos
             const double cap = battery_capacity_wh();
             return cap > 0.0 ? 100.0 * battery_wh() / cap : 0.0;
         });
+        num("component-count", [this] { return static_cast<double>(components_.size()); });
         for (std::size_t i = 0; i < components_.size(); ++i)
         {
             const std::string cb = "component[" + std::to_string(i) + "]/";
             tree.node(base + "/" + cb + "name")->tie_string([this, i] { return components_[i].name; });
             tree.node(base + "/" + cb + "enabled")->tie_double([this, i] { return components_[i].enabled ? 1.0 : 0.0; }, [this, i](double v) { components_[i].enabled = v > 0.5; });
+            tree.node(base + "/" + cb + "type")->tie_string([this, i] { return components_[i].type; });
+            tree.node(base + "/" + cb + "watts")->tie_double([this, i] { return components_[i].watts; });
+            tree.node(base + "/" + cb + "priority")->tie_double([this, i] { return static_cast<double>(components_[i].priority); });
             tree.node(base + "/" + cb + "powered")->tie_double([this, i] { return components_[i].enabled && components_[i].powered && components_[i].wear < 1.0 ? 1.0 : 0.0; });
             tree.node(base + "/" + cb + "wear")->tie_double([this, i] { return components_[i].wear; });
             tree.node(base + "/" + cb + "output-w")->tie_double([this, i] { return components_[i].output_w; });

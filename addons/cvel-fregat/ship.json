@@ -26,10 +26,13 @@
     },
     {
       "type": "load",
-      "name": "Avionics",
-      "watts": 200,
+      "name": "Guidance computer",
+      "watts": 90,
       "priority": 0
-    }
+    },
+    {"type": "load", "name": "Telemetry and radio", "watts": 50, "priority": 0},
+    {"type": "load", "name": "Tank heaters and pressurisation", "watts": 35, "priority": 1},
+    {"type": "load", "name": "Attitude thruster drivers", "watts": 25, "priority": 1}
   ],
   "ports": [
     {

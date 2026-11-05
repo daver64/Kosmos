@@ -20,25 +20,18 @@
   }
  ],
  "systems": [
-  {
-   "type": "rtg",
-   "name": "RTG",
-   "watts": 160,
-   "half_life_years": 87.7
-  },
-  {
-   "type": "battery",
-   "name": "Battery",
-   "capacity_wh": 500,
-   "max_w": 200
-  },
-  {
-   "type": "load",
-   "name": "Instruments",
-   "watts": 90,
-   "priority": 0
-  }
+  {"type": "solar", "name": "Body-mounted solar cells", "area_m2": 0.5, "efficiency": 0.09, "tracking": true},
+  {"type": "battery", "name": "Storage batteries", "capacity_wh": 300, "max_w": 80},
+  {"type": "load", "name": "Command receiver", "watts": 6, "priority": 0},
+  {"type": "load", "name": "Radio transmitters and telemetry", "watts": 14, "priority": 0},
+  {"type": "load", "name": "Thermal control fans", "watts": 6, "priority": 0},
+  {"type": "load", "name": "Gyro units and Sun sensors", "watts": 4, "priority": 1},
+  {"type": "load", "name": "Cosmic ray and micrometeoroid counters", "watts": 4, "priority": 1},
+  {"type": "load", "name": "Three-axis orientation system", "watts": 10, "priority": 1, "enabled": false},
+  {"type": "load", "name": "Camera and film processing", "watts": 22, "priority": 2, "enabled": false},
+  {"type": "load", "name": "Phototelegraph scanner", "watts": 12, "priority": 2, "enabled": false}
  ],
+ "description": "A Luna 3 style Automatic Interplanetary Station (1959): a 280 kg spin-stabilised cylinder that photographed the Moon's far side. It runs on solar cells charging storage batteries (no RTG), with a radio transmitter, gyro units, circulating fans for thermal control, a three-axis orientation system and a film camera with on-board processing. The orientation system, camera and scanner start off: switch them on in the Systems MFD (LOADS) or Ship systems window (F1) for a photography pass, then off again to save the batteries. Power figures are approximate.",
  "name": "Luna E3",
  "class": "probe",
  "torque_accel": 0.4,
