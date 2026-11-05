@@ -28,4 +28,11 @@ cat > "$out.new" <<EOF
 }
 EOF
 mv "$out.new" "$out"
+# The download page lists the pack's size (GB from 1000 MB up).
+page=$WEB_ROOT/kosmos/download.html
+if [ -f "$page" ]; then
+    mb=$(( (size + 524288) / 1048576 ))
+    if [ "$mb" -ge 1000 ]; then label=$(awk -v s="$size" 'BEGIN { printf "%.1f GB", s / 1073741824 }'); else label="$mb MB"; fi
+    sed -i -E "s#(>kosmos-hires.tar.gz</a></td><td>)[0-9.]+ [MG]B#\\1$label#" "$page"
+fi
 echo "make-packs-json: wrote $out"

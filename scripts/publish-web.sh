@@ -45,6 +45,11 @@ for f in "$@"; do
     old=$(grep -s "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" | cut -d' ' -f1 || true)
     [ "$new" = "$old" ] || changed=1
 done
+# A hi-res pack built in the repo root (scripts/pack-hires.sh) replaces an older published one.
+if [ -f "$SRC/kosmos-hires.tar.gz" ] && [ "$SRC/kosmos-hires.tar.gz" -nt "$DOWNLOAD/kosmos-hires.tar.gz" ]; then
+    mkdir -p "$DOWNLOAD"
+    cp "$SRC/kosmos-hires.tar.gz" "$DOWNLOAD/kosmos-hires.tar.gz.new" && mv "$DOWNLOAD/kosmos-hires.tar.gz.new" "$DOWNLOAD/kosmos-hires.tar.gz"
+fi
 "$SRC/scripts/make-packs-json.sh"
 if [ $changed -eq 0 ]; then
     echo "$APP: checksums unchanged, still at the published build (next build will be $VER)"
