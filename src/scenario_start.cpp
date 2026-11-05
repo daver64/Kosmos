@@ -322,6 +322,7 @@ namespace kosmos::app
             spawned[entry_index] = sim.ship_count() - 1;
             if (!entry.label.empty())
                 ship->name = entry.label;
+            ship->skin = entry.skin;
             apply_ship_systems(*ship, entry);
             if (!entry.landed || entry.altitude > 0.0 || entry.dock_to >= 0)
                 ship->set_gear_position(0.0);

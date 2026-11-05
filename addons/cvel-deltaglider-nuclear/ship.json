@@ -1,7 +1,11 @@
 {
  "name": "CVEL Deltaglider (Nuclear)",
  "class": "aircraft",
- "payload_size": [18, 5, 19],
+ "payload_size": [
+  18,
+  5,
+  19
+ ],
  "locker": [
   "plasma_rifle",
   "frag_charge"
@@ -15,8 +19,8 @@
  "thermal": {
   "nose_radius": 0.5,
   "heat_area": 45,
-  "max_temp": 1900,
-  "bare_max_temp": 1200
+  "max_temp": 3200,
+  "bare_max_temp": 2400
  },
  "hypersonic": {
   "area": 70,
@@ -105,7 +109,24 @@
     0
    ]
   },
-  {"name":"Cradle","position":[0,-2.3,0],"direction":[0,-1,0],"up":[0,0,-1]}
+  {
+   "name": "Cradle",
+   "position": [
+    0,
+    -2.3,
+    0
+   ],
+   "direction": [
+    0,
+    -1,
+    0
+   ],
+   "up": [
+    0,
+    0,
+    -1
+   ]
+  }
  ],
  "animation_controls": [
   {
@@ -476,7 +497,12 @@
    "parts": [
     {
      "model": "../cvel-deltaglider/models/deltaglider.obj",
-     "animations": "../cvel-deltaglider/gear.json"
+     "animations": "../cvel-deltaglider/gear.json",
+     "offset": [
+      0.0,
+      0.56,
+      0.0
+     ]
     }
    ]
   }

@@ -2,8 +2,7 @@
  "name": "CVEL: Nuclear Deltaglider, Gale Crater",
  "description": "The CVEL Deltaglider (Nuclear) on the pad at Gale Crater, Mars, with its tanks low. Its 8 kW fission reactor runs the ice miner whatever the sunlight. Open the Ship systems window (F1), press Resource processing: start, and use time warp: the water tank refills, the electrolyser makes oxygen and the refinery turns water into propellant.",
  "active": 0,
- "date": "2024-01-01 10:00:00",
- "ships": [
+ "date": "2013-11-18 19:30:00",
   {
    "ship": "CVEL Deltaglider (Nuclear)",
    "body": "Mars",

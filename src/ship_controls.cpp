@@ -123,9 +123,12 @@ namespace kosmos
             return std::clamp(stick - (damp ? gain * rate * q : 0.0), -1.0, 1.0);
         };
         const double af = c.af_mode == "off" ? 0.0 : 1.0, af_lateral = c.af_mode == "on" ? 1.0 : 0.0;
-        universe_.world.set_control(body_, "elevator", af * command(c.pitch + 2.5 * c.trim, w.x, spec_.damping.x));
-        universe_.world.set_control(body_, "rudder", af_lateral * command(c.yaw, w.y, spec_.damping.y));
-        universe_.world.set_control(body_, "aileron", af_lateral * command(c.roll, w.z, spec_.damping.z));
+        // Surface force grows with dynamic pressure, so a full key press is violent in dense, fast air. Authority falls as
+        // 1/sqrt(q) beyond about 100 m/s at sea level, which keeps some control feel while taming the twitch; slow flight is untouched.
+        const double authority = std::clamp(std::sqrt(6000.0 / std::max(telemetry_.dynamic_pressure, 1.0)), 0.2, 1.0);
+        universe_.world.set_control(body_, "elevator", af * command((c.pitch + 2.5 * c.trim) * authority, w.x, spec_.damping.x));
+        universe_.world.set_control(body_, "rudder", af_lateral * command(c.yaw * authority, w.y, spec_.damping.y));
+        universe_.world.set_control(body_, "aileron", af_lateral * command(c.roll * authority, w.z, spec_.damping.z));
         universe_.world.set_control(body_, "flaps", std::clamp(c.flaps, 0.0, 1.0));
 
         // Nose-wheel steering follows the yaw input; the wheels roll along their own heading.

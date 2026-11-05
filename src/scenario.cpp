@@ -63,6 +63,7 @@ namespace kosmos
                 ScenarioShip s;
                 s.ship = js.at("ship").get<std::string>();
                 s.label = js.value("name", js.value("label", ""));
+                s.skin = js.value("skin", "");
                 s.body = js.value("body", "Earth");
                 if (js.contains("orbit"))
                 {
@@ -211,6 +212,8 @@ namespace kosmos
             js["ship"] = s.ship;
             if (!s.label.empty())
                 js["name"] = s.label;
+            if (!s.skin.empty())
+                js["skin"] = s.skin;
             js["body"] = s.body;
             if (s.dock_to >= 0)
                 js["dock"] = {{"to", s.dock_to}, {"port", s.dock_port}, {"own_port", s.own_port}};

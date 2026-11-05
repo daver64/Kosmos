@@ -258,10 +258,13 @@ namespace kosmos::app
             const double base = props.get_double(p + "base"), top = props.get_double(p + "top"), cover = props.get_double(p + "cover");
             const int type = std::clamp(props.get_int(p + "type"), 0, 5);
             sl::CloudLayer layer = sl::cloud_layer(static_cast<sl::CloudType>(type));
-            layer.enabled = cover > 0.04;
+            // Far above a layer it is seen edge-on at the horizon as streaks, and the planet's own cloud map shows the weather from up there, so the layer fades out above its top.
+            const double above = environment.camera_altitude - (ground + top);
+            const double visible = 1.0 - fx::smoothstep(3000.0, 20000.0, above);
+            layer.enabled = cover * visible > 0.04;
             layer.altitude = static_cast<float>(ground + base);
             layer.thickness = static_cast<float>(std::max(100.0, top - base));
-            layer.coverage = static_cast<float>(std::clamp(cover, 0.0, 1.0));
+            layer.coverage = static_cast<float>(std::clamp(cover * visible, 0.0, 1.0));
             layer.wind = glm::vec2(static_cast<float>(wind_e), static_cast<float>(wind_n));
             layer.volumetric = style == 2 && (type == 0 || type == 1 || type == 5);
             (i == 0 ? environment.clouds : environment.more_clouds[i - 1]) = layer;

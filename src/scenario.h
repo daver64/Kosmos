@@ -12,6 +12,7 @@ namespace kosmos
     {
         std::string ship;  // ship spec name, from any addon
         std::string label; // optional replacement display name
+        std::string skin;  // optional skin folder of the ship (see ship_skins)
         std::string body;  // Earth, Moon, ...
         bool landed = false;
         // Orbit.

@@ -497,6 +497,11 @@ namespace kosmos
 
     bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error);
 
+    /** The folder holding a ship's skins: "Skins" beside the folder of its first model, which a variant ship shares with the ship it borrows the model from. Empty when it has no model. */
+    std::string ship_skins_directory(const ShipSpec &spec);
+    /** The names of the skins available for a ship, each a sub-folder of its skins directory. */
+    std::vector<std::string> ship_skins(const ShipSpec &spec);
+
     /** Control inputs applied to the active ship each frame. */
     struct Controls
     {
@@ -591,6 +596,8 @@ namespace kosmos
         /** For the part editor, which swaps a procedural part for an exported mesh while the ship flies. */
         ShipSpec &editable_spec() { return spec_; }
         std::string name;
+        /** The skin in use, a folder name from ship_skins(); empty for the model's own textures. */
+        std::string skin;
         /** Set for ships a KosmosLink addon created, which are the only ones an addon may remove. */
         bool from_link = false;
         int body_id() const { return body_; }

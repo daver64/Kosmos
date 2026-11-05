@@ -190,6 +190,7 @@ namespace kosmos
             s.ship = ship.spec().name;
             if (ship.name != ship.spec().name)
                 s.label = ship.name;
+            s.skin = ship.skin;
             const int soi = std::clamp(t.soi, 0, static_cast<int>(sim.universe.bodies.size()) - 1);
             s.body = sim.universe.bodies[static_cast<std::size_t>(soi)].name;
             // A ship low and slow over the ground is "surface"; anything else is saved as a circular orbit.
@@ -494,6 +495,17 @@ namespace kosmos
         if (combo("Ship", ship_index, ships) && ship_index >= 0)
             s.ship = ships[static_cast<std::size_t>(ship_index)];
         text("Label", s.label);
+        if (const ShipSpec *spec = sim.find_ship_spec(s.ship))
+        {
+            std::vector<std::string> skins = ship_skins(*spec);
+            if (!skins.empty())
+            {
+                skins.insert(skins.begin(), "(default)");
+                int skin_index = std::max(0, index_of(skins, s.skin));
+                if (combo("Skin", skin_index, skins))
+                    s.skin = skin_index == 0 ? "" : skins[static_cast<std::size_t>(skin_index)];
+            }
+        }
         dbl("Cabin leak cm2", s.leak_cm2, 0.1f, 0.0, 1000.0, "%.1f");
         if (s.battery < 0.0)
             s.battery = -1.0;

@@ -254,6 +254,9 @@ namespace kosmos::app
             models[&part] = loaded;
             return loaded.model;
         }
+        // A part's model with a skin's textures laid over it, loaded once per part and skin.
+        std::map<std::pair<const kosmos::PartSpec *, std::string>, sl::Model *> skinned_models;
+        sl::Model *skinned_part_model(const kosmos::PartSpec &part, const kosmos::ShipSpec &spec, const std::string &skin);
         // Drops models whose file changed on disk so the next draw loads them again; this is how an edit made in
         // Blender appears. A file is left alone until it has stopped changing, as exporters write it in pieces.
         int reload_models()
@@ -282,6 +285,10 @@ namespace kosmos::app
                 if (entry.second.model)
                     sl::destroy_model(entry.second.model);
             models.clear();
+            for (auto &entry : skinned_models)
+                if (entry.second)
+                    sl::destroy_model(entry.second);
+            skinned_models.clear();
             for (auto &entry : parts)
                 if (entry.second)
                     sl::destroy_mesh(entry.second);

@@ -1,10 +1,11 @@
 {
  "name": "CVEL: Deltaglider, Chippenham",
- "description": "CVEL Deltaglider parked on the Chippenham runway.",
+ "description": "CVEL Nuclear Deltaglider (British Shuttle skin) parked on the Chippenham runway.",
  "active": 0,
  "ships": [
   {
-   "ship": "CVEL Deltaglider",
+   "ship": "CVEL Deltaglider (Nuclear)",
+   "skin": "Shuttle_BRI",
    "body": "Earth",
    "surface": {
     "base": "chippenham",

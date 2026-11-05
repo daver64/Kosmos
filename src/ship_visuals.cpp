@@ -176,6 +176,84 @@ namespace kosmos::app
         }
     }
 
+    namespace
+    {
+        std::string lower_case(std::string text)
+        {
+            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return text;
+        }
+
+        // The base name (lower case, no folder or extension) of each material's diffuse texture, read from the OBJ's .mtl.
+        std::map<std::string, std::string> material_texture_names(const std::filesystem::path &obj)
+        {
+            std::map<std::string, std::string> names;
+            std::filesystem::path mtl = obj;
+            mtl.replace_extension(".mtl");
+            std::ifstream in(mtl);
+            std::string line, material;
+            while (std::getline(in, line))
+            {
+                std::istringstream words(line);
+                std::string key, value;
+                words >> key;
+                std::getline(words >> std::ws, value);
+                while (!value.empty() && (value.back() == '\r' || value.back() == ' '))
+                    value.pop_back();
+                if (key == "newmtl")
+                    material = value;
+                else if (key == "map_Kd" && !material.empty())
+                    names[material] = lower_case(std::filesystem::path(value).stem().string());
+            }
+            return names;
+        }
+    } // namespace
+
+    sl::Model *Visuals::skinned_part_model(const kosmos::PartSpec &part, const kosmos::ShipSpec &spec, const std::string &skin)
+    {
+        const auto key = std::make_pair(&part, skin);
+        const auto found = skinned_models.find(key);
+        if (found != skinned_models.end())
+            return found->second;
+        const std::filesystem::path obj = std::filesystem::path(spec.directory) / part.model;
+        const std::filesystem::path folder = std::filesystem::path(kosmos::ship_skins_directory(spec)) / skin;
+        sl::Model *model = sl::load_model(obj.string());
+        if (model)
+        {
+            for (sl::ModelPart &mp : model->parts)
+            {
+                mp.material.cull = sl::CullMode::none;
+                if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
+                    mp.visible = false;
+            }
+            if (!part.animations.empty())
+                sl::load_model_animations_json(model, (std::filesystem::path(spec.directory) / part.animations).string());
+            const std::map<std::string, std::string> names = material_texture_names(obj);
+            std::map<std::string, sl::Bitmap *> loaded;
+            std::error_code ec;
+            for (const auto &file : std::filesystem::directory_iterator(folder, ec))
+                if (lower_case(file.path().extension().string()) == ".dds" && lower_case(file.path().stem().string()).find("_norm") == std::string::npos)
+                {
+                    const std::string stem = lower_case(file.path().stem().string());
+                    if (sl::Bitmap *bitmap = sl::load_dds(file.path().string()))
+                    {
+                        model->textures.push_back(bitmap);
+                        loaded[stem] = bitmap;
+                    }
+                }
+            for (sl::ModelPart &mp : model->parts)
+            {
+                const auto name = names.find(mp.material_name);
+                const auto bitmap = name == names.end() ? loaded.end() : loaded.find(name->second);
+                if (bitmap != loaded.end())
+                    mp.material.texture = bitmap->second;
+            }
+        }
+        else
+            std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
+        return skinned_models[key] = model;
+    }
+
     void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit, double gear, double pod_left, double pod_right, const kosmos::Ship *ship)
     {
         if (ship && !spec.parachutes.empty())
@@ -185,7 +263,12 @@ namespace kosmos::app
             {
                 if (!part.model.empty())
                 {
-                    if (sl::Model *part_model = v.part_model(part, spec.directory))
+                    sl::Model *part_model = nullptr;
+                    if (ship && !ship->skin.empty())
+                        part_model = v.skinned_part_model(part, spec, ship->skin);
+                    if (!part_model)
+                        part_model = v.part_model(part, spec.directory);
+                    if (part_model)
                     {
                         glm::mat4 place = glm::translate(glm::mat4(1.0f), glm::vec3(part.offset));
                         if (part.rotate != sl::dvec3(0.0))

@@ -781,4 +781,30 @@ namespace kosmos
         }
     }
 
+
+    std::string ship_skins_directory(const ShipSpec &spec)
+    {
+        for (const StageSpec &stage : spec.stages)
+            for (const PartSpec &part : stage.parts)
+                if (!part.model.empty())
+                {
+                    const std::filesystem::path model = (std::filesystem::path(spec.directory) / part.model).lexically_normal();
+                    return (model.parent_path().parent_path() / "Skins").string();
+                }
+        return "";
+    }
+
+    std::vector<std::string> ship_skins(const ShipSpec &spec)
+    {
+        std::vector<std::string> names;
+        const std::string directory = ship_skins_directory(spec);
+        std::error_code ec;
+        if (!directory.empty())
+            for (const auto &entry : std::filesystem::directory_iterator(directory, ec))
+                if (entry.is_directory(ec))
+                    names.push_back(entry.path().filename().string());
+        std::sort(names.begin(), names.end());
+        return names;
+    }
+
 } // namespace kosmos

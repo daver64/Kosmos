@@ -338,6 +338,8 @@ Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS
 
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 
+A ship entry can name a texture set with `"skin": "Shuttle_BRI"`: the folder of that name inside the `Skins/` folder next to the ship's `models/` folder (the CVEL Deltaglider and Nuclear Deltaglider share the Deltaglider's). Its `.dds` files replace the model textures of the same name (`*_norm` files are ignored). The scenario editor has a Skin selector for ships that have skins.
+
 A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead of `orbit`. Run with `--scenario NAME`, list with `--list-scenarios`, and press F10 to load the next one. The defaults cover Earth, Moon, Mars, Venus and Mercury, plus an orbit scenario (`23_phobos` to `43_proteus`) for every other moon, including Io and Titan.
 
 ## Planet ephemeris
