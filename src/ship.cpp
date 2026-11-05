@@ -54,6 +54,82 @@ namespace kosmos
         shield_ = spec_.shield.capacity;
         if (!spec_.systems.empty())
             systems_ = std::make_unique<Systems>(spec_.systems, life_support_);
+        instrument_state_.resize(spec_.instruments.size());
+        for (std::size_t i = 0; i < instrument_state_.size(); ++i)
+            instrument_state_[i].frames = spec_.instruments[i].frames;
+    }
+
+    namespace
+    {
+        // The unit direction `forward` turned by `az` (to the right) and `el` (up), with the ship's +Y as the reference for "up".
+        sl::dvec3 pointed(const sl::dvec3 &forward, double az, double el)
+        {
+            sl::dvec3 hint(0.0, 1.0, 0.0);
+            if (std::abs(glm::dot(forward, hint)) > 0.95)
+                hint = sl::dvec3(1.0, 0.0, 0.0);
+            const sl::dvec3 right = glm::normalize(glm::cross(hint, forward));
+            const sl::dvec3 up = glm::cross(forward, right);
+            return glm::normalize(forward * (std::cos(az) * std::cos(el)) + right * (std::sin(az) * std::cos(el)) + up * std::sin(el));
+        }
+    } // namespace
+
+    sl::dvec3 Ship::instrument_direction(std::size_t i) const
+    {
+        if (i >= spec_.instruments.size())
+            return body().direction_to_world(sl::dvec3(0.0, 0.0, 1.0));
+        const InstrumentState &st = instrument_state_[i];
+        return body().direction_to_world(pointed(spec_.instruments[i].direction, st.az, st.el));
+    }
+
+    sl::dvec3 Ship::instrument_position(std::size_t i) const
+    {
+        const sl::dvec3 local = i < spec_.instruments.size() ? spec_.instruments[i].position : sl::dvec3(0.0);
+        return origin() + body().direction_to_world(local);
+    }
+
+    void Ship::instrument_shoot(std::size_t i)
+    {
+        if (i >= instrument_state_.size())
+            return;
+        InstrumentState &st = instrument_state_[i];
+        if (st.frames > 0 && st.pending == 0)
+            st.pending = 1;
+    }
+
+    void Ship::step_instruments(double dt, const sl::dvec3 &sun_local, bool sunlit)
+    {
+        for (std::size_t i = 0; i < instrument_state_.size(); ++i)
+        {
+            const ShipSpec::Instrument &in = spec_.instruments[i];
+            InstrumentState &st = instrument_state_[i];
+            st.powered = true;
+            if (!in.load.empty() && systems_)
+            {
+                st.powered = false;
+                for (const SystemComponent &c : systems_->components())
+                    if (c.name == in.load)
+                    {
+                        st.powered = c.enabled && c.powered && c.wear < 1.0;
+                        break;
+                    }
+            }
+            if (!st.powered)
+                st.pending = 0;
+            const double limit = glm::radians(in.max_slew);
+            st.target_az = std::clamp(st.target_az, -limit, limit);
+            st.target_el = std::clamp(st.target_el, -limit, limit);
+            if (st.powered && dt > 0.0)
+            {
+                const double step = glm::radians(in.slew) * dt;
+                st.az += std::clamp(st.target_az - st.az, -step, step);
+                st.el += std::clamp(st.target_el - st.el, -step, step);
+            }
+            const double c = std::clamp(glm::dot(pointed(in.direction, st.az, st.el), sun_local), -1.0, 1.0);
+            st.sun_angle = glm::degrees(std::acos(c));
+            st.shutter = in.type != "radar" && sunlit && st.sun_angle < in.sun_limit;
+            if (st.shutter)
+                st.pending = 0;
+        }
     }
 
     void Ship::set_life_support(LifeSupportMode mode)
@@ -595,6 +671,7 @@ namespace kosmos
                 }
             }
             systems_->step(dt, ctx);
+            step_instruments(dt, ctx.sun_dir, ctx.sun_flux > 0.0);
             if (const double made = systems_->take_propellant_made(); made > 0.0 && static_cast<std::size_t>(active_stage_) < b.tanks.size())
                 b.tanks[static_cast<std::size_t>(active_stage_)].mass += made;
             if (systems_->crew_lost() && !crashed_)

@@ -40,6 +40,12 @@
   {"type": "load", "name": "Scan platform actuators", "watts": 20, "priority": 2},
   {"type": "load", "name": "Digital tape recorder", "watts": 6, "priority": 2}
  ],
+ "instruments": [
+  {"id": "nac", "type": "visual", "name": "ISS narrow-angle camera", "load": "Imaging Science (ISS) cameras", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 0.5, "slew": 3, "max_slew": 180, "sun_limit": 20, "resolution": 800, "frames": 400},
+  {"id": "wac", "type": "visual", "name": "ISS wide-angle camera", "load": "Imaging Science (ISS) cameras", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 3.2, "slew": 3, "max_slew": 180, "sun_limit": 20, "resolution": 800, "frames": 400},
+  {"id": "iris", "type": "ir", "name": "IRIS infrared interferometer", "load": "Infrared Interferometer (IRIS)", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 0.6, "slew": 3, "max_slew": 180, "sun_limit": 20, "resolution": 256, "frames": 200},
+  {"id": "uvs", "type": "spectrometer", "name": "UVS ultraviolet spectrometer", "load": "Ultraviolet Spectrometer (UVS)", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 0.1, "slew": 3, "max_slew": 180, "sun_limit": 20, "resolution": 128, "frames": 200}
+ ],
  "stages": [
   {
    "name": "Voyager",

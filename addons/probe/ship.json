@@ -31,6 +31,9 @@
   {"type": "load", "name": "Camera and film processing", "watts": 22, "priority": 2, "enabled": false},
   {"type": "load", "name": "Phototelegraph scanner", "watts": 12, "priority": 2, "enabled": false}
  ],
+ "instruments": [
+  {"id": "cam", "type": "visual", "name": "Film camera", "load": "Camera and film processing", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 20, "slew": 5, "max_slew": 60, "sun_limit": 25, "resolution": 512, "frames": 40}
+ ],
  "description": "A Luna 3 style Automatic Interplanetary Station (1959): a 280 kg spin-stabilised cylinder that photographed the Moon's far side. It runs on solar cells charging storage batteries (no RTG), with a radio transmitter, gyro units, circulating fans for thermal control, a three-axis orientation system and a film camera with on-board processing. The orientation system, camera and scanner start off: switch them on in the Systems MFD (LOADS) or Ship systems window (F1) for a photography pass, then off again to save the batteries. Power figures are approximate.",
  "name": "Luna E3",
  "class": "probe",

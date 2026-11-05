@@ -75,6 +75,12 @@ namespace kosmos
 
     sl::Bitmap *MfdSystem::bitmap(const std::string &path)
     {
+        const std::string leaf = std::filesystem::path(path).filename().string();
+        if (leaf.rfind("live:", 0) == 0)
+        {
+            const auto live = live_bitmaps_.find(leaf.substr(5));
+            return live == live_bitmaps_.end() ? nullptr : live->second;
+        }
         auto found = bitmaps_.find(path);
         if (found == bitmaps_.end())
         {

@@ -360,6 +360,21 @@ int main()
         assert(plan_hohmann(0.0, r1, r2, 0.0).has_window == false);
         assert(plan_hohmann(mu, r2, r1, 0.0).dv1 < 0.0);
     }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec voyager;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/nasa-voyager/ship.json", voyager, error));
+        assert(voyager.instruments.size() == 4);
+        assert(voyager.instruments[0].type == "visual" && voyager.instruments[2].type == "ir" && voyager.instruments[3].type == "spectrometer");
+        assert(voyager.instruments[0].fov > 0.0 && voyager.instruments[0].resolution >= 64 && !voyager.instruments[0].load.empty());
+        Ship ship(universe, voyager);
+        assert(ship.instruments().size() == 4 && ship.instruments()[0].frames == voyager.instruments[0].frames);
+        ship.instrument_shoot(0);
+        assert(ship.instruments()[0].pending == 1);
+        assert(std::fabs(glm::length(ship.instrument_direction(0)) - 1.0) < 1e-9);
+    }
     std::puts("systems_test ok");
     return 0;
 }

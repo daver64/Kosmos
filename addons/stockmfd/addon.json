@@ -83,6 +83,11 @@
       "script": "fuel.lua"
     },
     {
+      "id": "instrument",
+      "short": "INST",
+      "script": "instrument.lua"
+    },
+    {
       "id": "systems",
       "script": "systems.lua"
     }

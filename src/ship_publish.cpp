@@ -37,6 +37,32 @@ namespace kosmos
                 n += c.state == ChuteState::stowed ? 1 : 0;
             return chutes_.empty() ? static_cast<int>(spec_.parachutes.size()) : n;
         });
+        tree.node(base + "/instruments/count")->tie_int([this] { return static_cast<int>(spec_.instruments.size()); });
+        for (std::size_t i = 0; i < spec_.instruments.size(); ++i)
+        {
+            const std::string ib = base + "/instruments/instrument[" + std::to_string(i) + "]/";
+            const ShipSpec::Instrument &in = spec_.instruments[i];
+            tree.node(ib + "name")->tie_string([&in] { return in.name; });
+            tree.node(ib + "type")->tie_string([&in] { return in.type; });
+            tree.node(ib + "fov")->set_double(in.fov);
+            tree.node(ib + "resolution")->set_int(in.resolution);
+            tree.node(ib + "max-slew")->set_double(in.max_slew);
+            tree.node(ib + "sun-limit")->set_double(in.sun_limit);
+            tree.node(ib + "powered")->tie_bool([this, i] { return instrument_state_[i].powered; });
+            tree.node(ib + "shutter")->tie_bool([this, i] { return instrument_state_[i].shutter; });
+            tree.node(ib + "sun-angle")->tie_double([this, i] { return instrument_state_[i].sun_angle; });
+            tree.node(ib + "frames")->tie_int([this, i] { return instrument_state_[i].frames; });
+            tree.node(ib + "shots")->tie_int([this, i] { return instrument_state_[i].shots; });
+            tree.node(ib + "az")->tie_double([this, i] { return glm::degrees(instrument_state_[i].az); });
+            tree.node(ib + "el")->tie_double([this, i] { return glm::degrees(instrument_state_[i].el); });
+            // Degrees; written by the Instrument MFD. Reads back what was asked for.
+            tree.node(ib + "target-az")->tie_double([this, i] { return glm::degrees(instrument_state_[i].target_az); }, [this, i](double v) { instrument_state_[i].target_az = glm::radians(v); });
+            tree.node(ib + "target-el")->tie_double([this, i] { return glm::degrees(instrument_state_[i].target_el); }, [this, i](double v) { instrument_state_[i].target_el = glm::radians(v); });
+            tree.node(ib + "shoot")->tie_double([this, i] { return instrument_state_[i].pending ? 1.0 : 0.0; }, [this, i](double v) {
+                if (v > 0.5)
+                    instrument_shoot(i);
+            });
+        }
         for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
             tree.node(base + "/anim/" + spec_.animation_controls[i].property)->tie_double([this, i] { return animation_position(i); });
         tree.node(base + "/pod-angle-left")->tie_double([this] { return pod_angle_[0] / 3.14159265358979; });

@@ -500,6 +500,17 @@ namespace kosmos::app
         void set_terrain_view();
         void place_camera();
         void prepare_scene();
+        // Science instruments on the flown ship (see app_instruments.cpp).
+        void update_instruments();
+        bool render_instrument_scene(std::size_t index, sl::Surface3D *target);
+        void make_radar_image(std::size_t index, int size, sl::Bitmap *out);
+        void update_spectrum(std::size_t index);
+        sl::Surface3D *instrument_surface(int size);
+        std::map<int, sl::Surface3D *> instrument_surfaces;
+        sl::Bitmap *instrument_live = nullptr;
+        double instrument_live_time = 0.0;
+        std::string instrument_gallery_ship;
+        std::vector<std::string> instrument_gallery;
         void update_terrains();
         void update_clutter();
         void report_clutter_perf();

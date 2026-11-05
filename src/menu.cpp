@@ -1271,6 +1271,8 @@ namespace kosmos
                                    "  K                drop the next bomb   Shift+K   drop the special store (atom bomb)\n"
                                    "Animations\n"
                                    "  View > Animations lists the ship's hatches, doors and other moving parts; click one to open or close it.\n"
+"Instruments\n"
+"  Probes with cameras, radar or a spectrometer have an INST MFD: switch the instrument LOAD on in Systems, point it with AZ/EL, SHOOT saves a picture or spectrum, GALLERY browses them\n"
 "Planets\n"
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"

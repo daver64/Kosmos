@@ -353,6 +353,31 @@ namespace kosmos
                     if (!h.equipment.empty())
                         spec.hardpoints.push_back(h);
                 }
+            if (json.contains("instruments"))
+                for (const auto &ji : json["instruments"])
+                {
+                    ShipSpec::Instrument in;
+                    in.type = ji.value("type", in.type);
+                    if (in.type != "visual" && in.type != "ir" && in.type != "uv" && in.type != "radar" && in.type != "spectrometer")
+                        continue;
+                    in.name = ji.value("name", in.type);
+                    in.id = ji.value("id", in.name);
+                    in.load = ji.value("load", "");
+                    if (ji.contains("position"))
+                        in.position = vec3(ji["position"]);
+                    if (ji.contains("direction"))
+                        in.direction = vec3(ji["direction"]);
+                    if (glm::dot(in.direction, in.direction) < 1e-9)
+                        in.direction = sl::dvec3(0.0, 0.0, 1.0);
+                    in.direction = glm::normalize(in.direction);
+                    in.fov = std::clamp(ji.value("fov", in.fov), 0.2, 120.0);
+                    in.slew = std::max(0.0, ji.value("slew", in.slew));
+                    in.max_slew = std::clamp(ji.value("max_slew", in.max_slew), 0.0, 180.0);
+                    in.sun_limit = std::clamp(ji.value("sun_limit", in.sun_limit), 0.0, 90.0);
+                    in.resolution = std::clamp(ji.value("resolution", in.resolution), 64, 2048);
+                    in.frames = std::max(0, ji.value("frames", in.frames));
+                    spec.instruments.push_back(in);
+                }
             if (json.contains("weapons"))
                 for (const auto &jw : json["weapons"])
                 {

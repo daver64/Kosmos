@@ -390,6 +390,20 @@ namespace kosmos
         };
         std::vector<Hardpoint> hardpoints;
         /**
+         * A science instrument (the "instruments" list): a camera (`visual`, `ir`, `uv`), `radar` or `spectrometer` driven from the Instrument MFD.
+         * `position` and `direction` are in the ship frame; `load` names the systems load that powers it (empty means always powered), `fov` is the
+         * field of view in degrees, `resolution` the picture width in pixels, `slew` the pointing rate in degrees per second, `max_slew` how far
+         * from `direction` it can point, `sun_limit` the angle in degrees to the Sun inside which the shutter closes, and `frames` the film or storage.
+         */
+        struct Instrument
+        {
+            std::string id, type = "visual", name, load;
+            sl::dvec3 position{0.0}, direction{0.0, 0.0, 1.0};
+            double fov = 10.0, slew = 2.0, max_slew = 30.0, sun_limit = 20.0;
+            int resolution = 400, frames = 64;
+        };
+        std::vector<Instrument> instruments;
+        /**
          * A gun on the ship (the "weapons" list): `weapon` is a weapon id from an addon's weapons folder, `position` and `direction` are in the ship
          * frame, and `group` is the fire control that triggers it (`/controls/weapons/<group>/fire` for the flown ship).
          */
@@ -624,6 +638,21 @@ namespace kosmos
         /** Power, life-support and pressure-vessel state; null for ships that declare none. */
         /** Doors and airlock of a building with an interior. */
         InteriorState interior_state;
+        /** Runtime state of one `ShipSpec::Instrument`. Pointing is an offset from the mounting direction, in radians. */
+        struct InstrumentState
+        {
+            double az = 0.0, el = 0.0, target_az = 0.0, target_el = 0.0;
+            double sun_angle = 180.0;
+            int frames = 0, shots = 0, pending = 0;
+            bool powered = false, shutter = false;
+        };
+        std::vector<InstrumentState> &instruments() { return instrument_state_; }
+        const std::vector<InstrumentState> &instruments() const { return instrument_state_; }
+        /** The camera direction of an instrument in the world frame, or the ship's mounting direction when out of range. */
+        sl::dvec3 instrument_direction(std::size_t i) const;
+        sl::dvec3 instrument_position(std::size_t i) const;
+        /** Asks for a shot: it is taken (and film used) by the renderer on its next frame. */
+        void instrument_shoot(std::size_t i);
         Systems *systems() { return systems_.get(); }
         const Systems *systems() const { return systems_.get(); }
         /** Whether failing life support only warns, can kill the crew (ending the flight), or is ignored. */
@@ -744,6 +773,7 @@ namespace kosmos
         void pin_to_ground();
         void hold_pinned();
         void step_systems(double dt);
+        void step_instruments(double dt, const sl::dvec3 &sun_local, bool sunlit);
         void step_reentry(double dt);
         void step_parachutes(double dt, const sl::dvec3 &air_velocity, double rho);
         ThermalState thermal_;
@@ -782,6 +812,7 @@ namespace kosmos
         std::vector<bool> thruster_hover_;
         sl::dvec3 rcs_torque_{0.0}, rcs_push_{0.0};
         std::unique_ptr<Systems> systems_;
+        std::vector<InstrumentState> instrument_state_;
         LifeSupportMode life_support_ = LifeSupportMode::warn;
         double mission_time_ = 0.0;
     };

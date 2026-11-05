@@ -343,6 +343,8 @@ namespace kosmos::app
         update_link();
         Watchdog::stage("advance_time"); // WATCHDOG
         advance_time();
+        Watchdog::stage("instruments"); // WATCHDOG
+        update_instruments();
         Watchdog::stage("place_camera"); // WATCHDOG
         place_camera();
         Watchdog::stage("prepare_scene"); // WATCHDOG
