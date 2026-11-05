@@ -1,6 +1,7 @@
 {
  "name": "CVEL Deltaglider",
  "class": "aircraft",
+ "payload_size": [18, 5, 19],
  "locker": [
   "plasma_rifle",
   "frag_charge"

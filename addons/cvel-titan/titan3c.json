@@ -1,6 +1,9 @@
 {
  "name": "CVEL Titan IIIC",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 1.5, "length": 8, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "description": "Titan IIIC: two UA1205 solid motors, the Titan 34 core and a Transtage. The solid motors burn first and the core lights after they are jettisoned; the fairing halves go after stage 1.",
  "torque_accel": 0.15,

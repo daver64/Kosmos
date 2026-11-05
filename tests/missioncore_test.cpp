@@ -2,6 +2,7 @@
 #include "bodies.h"
 #include "budget.h"
 #include "mission.h"
+#include "json.hpp"
 #include "orbit.h"
 #include "transfer.h"
 
@@ -211,6 +212,48 @@ int main()
         std::string perr;
         CHECK(from_scenario_json(to_scenario_json(m), back, perr) && back.payloads.size() == 1 && back.payloads[0].count == 12 &&
               back.payloads[0].size.known && back.payloads[0].size.round);
+    }
+
+    // Stacks and spawning: a Centaur carrying a Fregat carrying a probe, on a Titan IVA, becomes four docked ships in the scenario.
+    {
+        const std::vector<ShipSpec> ships = list_ships(root);
+        auto find = [&](const std::string &name) -> const ShipSpec * {
+            for (const ShipSpec &sp : ships)
+                if (sp.name == name)
+                    return &sp;
+            return nullptr;
+        };
+        const ShipSpec *titan = find("CVEL Titan IVA"), *centaur = find("CVEL Centaur G"), *fregat = find("CVEL Fregat"), *luna = find("Luna E3");
+        CHECK(titan && centaur && fregat && luna); // ships listed from addon.json, not only ship.json
+        CHECK(find("CVEL Ariane 5 ECA") != nullptr && find("CVEL Energia") != nullptr);
+        if (titan && centaur && fregat && luna)
+        {
+            CHECK(!titan->bays.empty() && titan->bays[0].port == "Payload");
+            const PayloadItem stack = make_payload({*centaur, *fregat, *luna}, 1, true);
+            CHECK(stack.members.size() == 3 && stack.members[1].mount_port == 0 && stack.members[0].carry_port == 1);
+            NEAR(stack.mass, centaur->mass() + fregat->mass() + luna->mass(), 1e-6);
+            CHECK(stack.size.known && stack.size.round && stack.size.diameter >= 2 * 2.1 - 1e-9);
+            CHECK(stack.dv > 0 && stack.label == "CVEL Centaur G > CVEL Fregat > Luna E3");
+            Mission m;
+            m.name = "Stack";
+            m.ship = titan->name;
+            m.start.base = "kennedy";
+            m.payloads = {stack};
+            NEAR(powered_dv(m.payloads), stack.dv, 1e-9);
+            m.payloads[0].powered = false;
+            NEAR(powered_dv(m.payloads), 0, 1e-9);
+            const nlohmann::json j = nlohmann::json::parse(to_scenario_json(m, titan));
+            CHECK(j["ships"].size() == 4);
+            CHECK(j["ships"][1]["dock"]["to"] == 0 && j["ships"][2]["dock"]["to"] == 1 && j["ships"][3]["dock"]["to"] == 2);
+            CHECK(j["ships"][2]["dock"]["port"] == 1 && j["ships"][3]["ship"] == "Luna E3");
+            Mission back;
+            std::string e2;
+            CHECK(from_scenario_json(to_scenario_json(m, titan), back, e2) && back.payloads.size() == 1 && back.payloads[0].members.size() == 3);
+            // Twelve probes: only the first can take the bay's port, and the scenario says the rest were left out.
+            m.payloads = {make_payload({*luna}, 12)};
+            const nlohmann::json j2 = nlohmann::json::parse(to_scenario_json(m, titan));
+            CHECK(j2["ships"].size() == 2 && j2["description"].get<std::string>().find("11") != std::string::npos);
+        }
     }
 
     std::printf(failures ? "%d failure(s)\n" : "missioncore_test: all passed\n", failures);

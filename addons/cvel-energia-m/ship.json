@@ -1,6 +1,9 @@
 {
  "name": "CVEL Energia-M",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Orbiter cradle", "shape": "box", "size": [20, 8, 22], "port": "Orbiter cradle"}
+ ],
  "script": "@launcher.lua",
  "torque_accel": 0.12,
  "max_rate": 0.2,

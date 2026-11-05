@@ -1,6 +1,9 @@
 {
  "name": "CVEL Delta IV Heavy",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Fairing", "shape": "cylinder", "radius": 2.4, "length": 14, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "pad_turn": 0,
  "torque_accel": 0.15,

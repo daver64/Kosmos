@@ -1,6 +1,9 @@
 {
  "name": "CVEL Titan IIID",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 2.0, "length": 9, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "description": "Titan IIID: two UA1205 solid motors and the two-stage Titan 34 core with no upper stage, for heavy low-orbit payloads.",
  "torque_accel": 0.15,

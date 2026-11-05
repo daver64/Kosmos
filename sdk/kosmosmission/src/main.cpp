@@ -76,7 +76,8 @@ namespace
 
         GtkWidget *window, *gl, *status, *info, *tree, *budget_label;
         GtkWidget *start_body, *start_base, *start_alt, *start_inc, *ship_combo, *payload, *margin;
-        GtkWidget *pl_ship, *pl_count, *pl_bay, *pl_tree, *fit_label;
+        GtkWidget *pl_ship, *pl_count, *pl_bay, *pl_tree, *fit_label, *pl_powered, *stack_label;
+        std::vector<ShipSpec> pending_stack; // bottom to top, being built for Add stack
         GtkListStore *pl_store;
         GtkWidget *kind, *target_combo, *alt_entry, *angle_entry, *dv_entry, *name_entry;
         GtkWidget *view_toggle;
@@ -104,7 +105,7 @@ namespace
     double available_dv()
     {
         const ShipSpec *s = current_ship();
-        return s ? budget(*s, app.mission.payload_mass()).total : 0.0;
+        return s ? budget(*s, app.mission.payload_mass()).total + powered_dv(app.mission.payloads) : 0.0;
     }
 
     // The payload list and whether it fits the ship's payload volumes.
@@ -114,11 +115,13 @@ namespace
         for (const PayloadItem &p : app.mission.payloads)
         {
             GtkTreeIter it;
-            char a[32], b[32];
+            char a[32], b[32], c[32] = "";
             std::snprintf(a, sizeof a, "%d", p.count);
             std::snprintf(b, sizeof b, "%.0f", p.mass * p.count);
+            if (p.powered && p.count == 1)
+                std::snprintf(c, sizeof c, "+%.0f", p.dv);
             gtk_list_store_append(app.pl_store, &it);
-            gtk_list_store_set(app.pl_store, &it, 0, p.label.c_str(), 1, a, 2, b, 3, p.bay.empty() ? "auto" : p.bay.c_str(), -1);
+            gtk_list_store_set(app.pl_store, &it, 0, p.label.c_str(), 1, a, 2, b, 3, p.bay.empty() ? "auto" : p.bay.c_str(), 4, c, -1);
         }
         const ShipSpec *s = current_ship();
         std::string text;
@@ -323,7 +326,7 @@ namespace
             const Budget bud = budget(*s, app.mission.payload_mass());
             char buf[256];
             std::snprintf(buf, sizeof buf, "%s: %.0f m/s from %zu stage(s), %.0f kg payload carried. Mission needs %.0f m/s (%.0f%% reserve held).", s->name.c_str(),
-                          bud.total, s->stages.size(), app.mission.payload_mass(), app.mission.total_dv(), app.mission.margin * 100);
+                          bud.total + powered_dv(app.mission.payloads), s->stages.size(), app.mission.payload_mass(), app.mission.total_dv(), app.mission.margin * 100);
             text = buf;
         }
         gtk_label_set_text(GTK_LABEL(app.budget_label), text.c_str());
@@ -653,18 +656,15 @@ namespace
         gtk_combo_box_set_active(GTK_COMBO_BOX(app.pl_bay), 0);
     }
 
-    void on_add_payload(GtkWidget *, gpointer)
+    const ShipSpec *picked_payload_ship()
     {
         const int i = gtk_combo_box_get_active(GTK_COMBO_BOX(app.pl_ship));
-        if (i < 0 || i >= static_cast<int>(app.ships.size()))
-            return;
-        const ShipSpec &p = app.ships[i];
-        PayloadItem item;
-        item.label = p.name;
-        item.ship_file = p.file;
-        item.count = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(app.pl_count));
-        item.mass = p.mass();
-        item.size = p.size;
+        return i >= 0 && i < static_cast<int>(app.ships.size()) ? &app.ships[i] : nullptr;
+    }
+
+    void commit_payload(const std::vector<ShipSpec> &stack, int count, bool powered)
+    {
+        PayloadItem item = make_payload(stack, count, powered);
         if (gtk_combo_box_get_active(GTK_COMBO_BOX(app.pl_bay)) > 0)
             if (gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(app.pl_bay)))
             {
@@ -673,6 +673,49 @@ namespace
             }
         app.mission.payloads.push_back(item);
         refresh_ledger();
+    }
+
+    void refresh_stack_label()
+    {
+        std::string text = "Stack being built (bottom to top): ";
+        for (size_t i = 0; i < app.pending_stack.size(); ++i)
+            text += (i ? " > " : "") + app.pending_stack[i].name;
+        if (app.pending_stack.empty())
+            text = "No stack being built. Add to stack puts the ship above the last one; Add stack carries it.";
+        gtk_label_set_text(GTK_LABEL(app.stack_label), text.c_str());
+    }
+
+    void on_add_payload(GtkWidget *, gpointer)
+    {
+        if (const ShipSpec *p = picked_payload_ship())
+            commit_payload({*p}, gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(app.pl_count)),
+                           gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(app.pl_powered)));
+    }
+
+    void on_stack_add(GtkWidget *, gpointer)
+    {
+        if (const ShipSpec *p = picked_payload_ship())
+            app.pending_stack.push_back(*p);
+        refresh_stack_label();
+    }
+
+    void on_stack_clear(GtkWidget *, gpointer)
+    {
+        app.pending_stack.clear();
+        refresh_stack_label();
+    }
+
+    // A stack is carried once, and its stages' delta-v is counted: that is what a Centaur and a Fregat under a probe are for.
+    void on_stack_commit(GtkWidget *, gpointer)
+    {
+        if (app.pending_stack.empty())
+        {
+            say("Add ships to the stack first (bottom first).");
+            return;
+        }
+        commit_payload(app.pending_stack, 1, true);
+        app.pending_stack.clear();
+        refresh_stack_label();
     }
 
     void on_remove_payload(GtkWidget *, gpointer)
@@ -745,7 +788,7 @@ namespace
         if (path.empty())
             return;
         std::string err;
-        say(save_mission(path, app.mission, err) ? "Saved " + path : err);
+        say(save_mission(path, app.mission, err, current_ship()) ? "Saved " + path : err);
     }
 
     void on_load(GtkWidget *, gpointer)
@@ -819,7 +862,7 @@ namespace
             sync_mission_from_ui();
             std::string werr;
             const std::string file = (fs::path(g_get_tmp_dir()) / "kosmosmission-start.json").string();
-            if (save_mission(file, app.mission, werr))
+            if (save_mission(file, app.mission, werr, current_ship()))
             {
                 args.push_back("--scenario-file");
                 args.push_back(file);
@@ -1077,6 +1120,17 @@ namespace
                     gtk_combo_box_set_active(GTK_COMBO_BOX(app.ship_combo), int(i));
                     break;
                 }
+        if (std::getenv("KM_STACK")) // a Centaur carrying a Fregat carrying a probe
+        {
+            for (const char *name : {"Centaur", "Fregat", "Luna E3"})
+                for (const ShipSpec &sp : app.ships)
+                    if (sp.name.find(name) != std::string::npos)
+                    {
+                        app.pending_stack.push_back(sp);
+                        break;
+                    }
+            on_stack_commit(nullptr, nullptr);
+        }
         if (std::getenv("KM_PAYLOAD")) // a Dragonfly and a dozen probes
         {
             for (const char *name : {"Dragonfly", "Luna E3"})
@@ -1153,15 +1207,27 @@ namespace
             gtk_combo_box_set_active(GTK_COMBO_BOX(app.pl_ship), 0);
         app.pl_count = labelled(left, "How many", gtk_spin_button_new_with_range(1, 999, 1));
         app.pl_bay = labelled(left, "Into", gtk_combo_box_text_new());
+        app.pl_powered = gtk_check_button_new_with_label("Count its own stages' delta-v (one ship)");
+        gtk_box_pack_start(GTK_BOX(left), app.pl_powered, FALSE, FALSE, 0);
         GtkWidget *plrow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         gtk_box_pack_start(GTK_BOX(plrow), button("Add payload", G_CALLBACK(on_add_payload)), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(plrow), button("Remove selected", G_CALLBACK(on_remove_payload)), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(left), plrow, FALSE, FALSE, 0);
-        app.pl_store = gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+        GtkWidget *strow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+        gtk_box_pack_start(GTK_BOX(strow), button("Add to stack", G_CALLBACK(on_stack_add)), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(strow), button("Add stack", G_CALLBACK(on_stack_commit)), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(strow), button("Clear stack", G_CALLBACK(on_stack_clear)), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(left), strow, FALSE, FALSE, 0);
+        app.stack_label = gtk_label_new("");
+        gtk_label_set_line_wrap(GTK_LABEL(app.stack_label), TRUE);
+        gtk_label_set_xalign(GTK_LABEL(app.stack_label), 0);
+        gtk_box_pack_start(GTK_BOX(left), app.stack_label, FALSE, FALSE, 0);
+        refresh_stack_label();
+        app.pl_store = gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
         app.pl_tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(app.pl_store));
         {
             int col = 0;
-            for (const char *title : {"Payload", "No.", "kg", "Bay"})
+            for (const char *title : {"Payload", "No.", "kg", "Bay", "dv"})
             {
                 GtkCellRenderer *r = gtk_cell_renderer_text_new();
                 gtk_tree_view_append_column(GTK_TREE_VIEW(app.pl_tree), gtk_tree_view_column_new_with_attributes(title, r, "text", col++, nullptr));

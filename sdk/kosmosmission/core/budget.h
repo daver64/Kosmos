@@ -23,6 +23,7 @@ namespace km
         bool round = true;                // cylinder (radius, length) or box (width, height, length)
         double radius = 0, width = 0, height = 0, length = 0;
         double max_mass = 0;              // kg; 0 means no limit
+        std::string port;                 // the launcher port a payload docks to in a spawned scenario (default: "Payload")
         double position[3] = {0, 0, 0};   // where the bay's centre sits on the ship, for placing the payload in the game
     };
 
@@ -37,6 +38,7 @@ namespace km
     struct ShipSpec
     {
         std::vector<PayloadBay> bays;
+        std::vector<std::string> ports; // port names, in ship.json order (a scenario refers to them by index)
         PayloadSize size; // "payload_size" in ship.json, else a cylinder from the stages' radius and length
         std::string name, file;
         std::vector<StageSpec> stages; // in firing order

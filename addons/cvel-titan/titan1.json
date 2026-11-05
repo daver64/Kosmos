@@ -1,6 +1,9 @@
 {
  "name": "CVEL Titan I",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 1.5, "length": 3, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "description": "Titan I: the first US two-stage ICBM turned light launcher, kerosene and LOX in both stages. Payload port on top of stage 2; the fairing halves jettison automatically after stage 1.",
  "torque_accel": 0.15,

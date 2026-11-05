@@ -75,10 +75,10 @@ namespace km
     std::vector<LedgerRow> ledger(const Mission &m, double available);
 
     /** The scenario JSON text for `m`; `ship_name` and the start are written as the scenario's ship and position. */
-    std::string to_scenario_json(const Mission &m);
+    std::string to_scenario_json(const Mission &m, const ShipSpec *launcher = nullptr);
     /** Reads a scenario (or a plain mission file); returns false if it has no "mission" block. */
     bool from_scenario_json(const std::string &text, Mission &out, std::string &err);
-    bool save_mission(const std::string &path, const Mission &m, std::string &err);
+    bool save_mission(const std::string &path, const Mission &m, std::string &err, const ShipSpec *launcher = nullptr);
     bool load_mission(const std::string &path, Mission &out, std::string &err);
 
     /** A plain-text summary and a CSV of the legs. */

@@ -1,6 +1,9 @@
 {
   "name": "CVEL Proton-K",
   "class": "launcher",
+ "payload_bays": [
+  {"name": "Fairing", "shape": "cylinder", "radius": 1.95, "length": 11, "port": "Payload"}
+ ],
   "script": "@launcher.lua",
   "torque_accel": 0.15,
   "max_rate": 0.25,

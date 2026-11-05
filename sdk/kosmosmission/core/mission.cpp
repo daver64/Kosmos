@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <map>
 #include "json.hpp"
 #include <sstream>
 
@@ -56,7 +57,68 @@ namespace km
         return rows;
     }
 
-    std::string to_scenario_json(const Mission &m)
+    // The payloads that can be attached are docked to the launcher's ports in the scenario: the first unit placed in each bay goes
+    // to that bay's port, and each further member of a stack to the port above it. Anything else is left out and said so in the notes.
+    static void add_payload_ships(const Mission &m, const ShipSpec &launcher, const nlohmann::json &base, nlohmann::json &ships, nlohmann::json &j)
+    {
+        if (m.payloads.empty())
+            return;
+        const FitReport fit = check_fit(launcher.bays, m.payloads);
+        std::vector<bool> used(launcher.bays.size(), false);
+        std::map<std::string, int> skipped; // "what (why)" -> how many units
+        auto skip = [&](const std::string &why, const std::string &what) { ++skipped[what + " (" + why + ")"]; };
+        std::vector<int> counted(m.payloads.size(), 0);
+        for (const Placement &pl : fit.placed)
+        {
+            const PayloadItem &item = m.payloads[static_cast<size_t>(pl.item)];
+            ++counted[static_cast<size_t>(pl.item)];
+            const PayloadBay &bay = launcher.bays[static_cast<size_t>(pl.bay)];
+            int host_port = -1;
+            for (size_t i = 0; i < launcher.ports.size(); ++i)
+                if (launcher.ports[i] == bay.port)
+                    host_port = static_cast<int>(i);
+            if (item.members.empty() || host_port < 0)
+            {
+                skip(host_port < 0 ? "bay has no docking port" : "no ship data", item.label);
+                continue;
+            }
+            if (used[static_cast<size_t>(pl.bay)])
+            {
+                skip("the bay's port is already taken", item.label);
+                continue;
+            }
+            used[static_cast<size_t>(pl.bay)] = true;
+            int below = 0, below_port = host_port;
+            for (const StackMember &sm : item.members)
+            {
+                nlohmann::json s = base;
+                s["ship"] = sm.ship;
+                s["dock"] = {{"to", below}, {"port", below_port}, {"own_port", sm.mount_port}};
+                ships.push_back(s);
+                below = static_cast<int>(ships.size()) - 1;
+                below_port = sm.carry_port;
+                if (below_port < 0 && &sm != &item.members.back())
+                {
+                    skip("no port to stack the next ship on", item.label);
+                    break;
+                }
+            }
+        }
+        for (size_t i = 0; i < m.payloads.size(); ++i)
+        {
+            const int missing = m.payloads[i].count - counted[i];
+            if (missing > 0)
+                for (int n = 0; n < missing; ++n)
+                    skip("did not fit or has no bay", m.payloads[i].label);
+        }
+        std::string left_out;
+        for (const auto &kv : skipped)
+            left_out += (left_out.empty() ? "" : "; ") + std::to_string(kv.second) + " x " + kv.first;
+        if (!left_out.empty())
+            j["description"] = j["description"].get<std::string>() + " Payloads not placed in the scenario: " + left_out + ".";
+    }
+
+    std::string to_scenario_json(const Mission &m, const ShipSpec *launcher)
     {
         nlohmann::json j;
         j["name"] = m.name;
@@ -72,6 +134,8 @@ namespace km
         else
             ship["surface"] = {{"base", m.start.base}};
         j["ships"] = nlohmann::json::array({ship});
+        if (launcher)
+            add_payload_ships(m, *launcher, ship, j["ships"], j);
 
         nlohmann::json mi;
         mi["version"] = 1;
@@ -80,10 +144,14 @@ namespace km
         nlohmann::json items = nlohmann::json::array();
         for (const PayloadItem &p : m.payloads)
         {
-            nlohmann::json o = {{"label", p.label}, {"ship_file", p.ship_file}, {"count", p.count}, {"mass", p.mass}, {"bay", p.bay}};
+            nlohmann::json o = {{"label", p.label}, {"count", p.count}, {"mass", p.mass}, {"bay", p.bay}, {"powered", p.powered}, {"dv", p.dv}};
             if (p.size.known)
                 o["size"] = p.size.round ? nlohmann::json{{"diameter", p.size.diameter}, {"length", p.size.length}}
                                          : nlohmann::json{{"width", p.size.width}, {"height", p.size.height}, {"length", p.size.length}};
+            nlohmann::json members = nlohmann::json::array();
+            for (const StackMember &sm : p.members)
+                members.push_back({{"ship", sm.ship}, {"ship_file", sm.ship_file}, {"mass", sm.mass}, {"mount_port", sm.mount_port}, {"carry_port", sm.carry_port}});
+            o["members"] = members;
             items.push_back(o);
         }
         mi["payloads"] = items;
@@ -124,7 +192,18 @@ namespace km
         {
             PayloadItem p;
             p.label = o.value("label", "Payload");
-            p.ship_file = o.value("ship_file", "");
+            p.powered = o.value("powered", false);
+            p.dv = o.value("dv", 0.0);
+            for (const nlohmann::json &sm : o.value("members", nlohmann::json::array()))
+            {
+                StackMember m;
+                m.ship = sm.value("ship", "");
+                m.ship_file = sm.value("ship_file", "");
+                m.mass = sm.value("mass", 0.0);
+                m.mount_port = sm.value("mount_port", 0);
+                m.carry_port = sm.value("carry_port", -1);
+                p.members.push_back(m);
+            }
             p.count = std::max(1, o.value("count", 1));
             p.mass = o.value("mass", 0.0);
             p.bay = o.value("bay", "");
@@ -167,7 +246,7 @@ namespace km
         return true;
     }
 
-    bool save_mission(const std::string &path, const Mission &m, std::string &err)
+    bool save_mission(const std::string &path, const Mission &m, std::string &err, const ShipSpec *launcher)
     {
         std::ofstream f(path, std::ios::binary);
         if (!f)
@@ -175,7 +254,7 @@ namespace km
             err = "cannot write " + path;
             return false;
         }
-        f << to_scenario_json(m);
+        f << to_scenario_json(m, launcher);
         return bool(f);
     }
 

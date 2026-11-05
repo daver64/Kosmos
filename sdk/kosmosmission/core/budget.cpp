@@ -59,6 +59,8 @@ namespace km
             }
             out.stages.push_back(st);
         }
+        for (const nlohmann::json &p : j.value("ports", nlohmann::json::array()))
+            out.ports.push_back(p.value("name", "Port"));
         double stack_length = 0, max_radius = 0;
         for (const StageSpec &st : out.stages)
         {
@@ -84,6 +86,7 @@ namespace km
             bay.round = b.value("shape", "cylinder") != "box";
             bay.length = b.value("length", 0.0);
             bay.max_mass = b.value("max_mass", 0.0);
+            bay.port = b.value("port", "Payload");
             if (bay.round)
                 bay.radius = b.value("radius", b.value("diameter", 0.0) / 2);
             else if (b.contains("size") && b["size"].is_array() && b["size"].size() == 3)
@@ -108,11 +111,27 @@ namespace km
         std::error_code ec;
         for (const auto &dir : std::filesystem::directory_iterator(std::filesystem::path(root) / "addons", ec))
         {
-            const std::filesystem::path f = dir.path() / "ship.json";
-            ShipSpec s;
-            std::string err;
-            if (std::filesystem::exists(f, ec) && load_ship(f.string(), s, err))
-                ships.push_back(s);
+            // An addon lists its ships in addon.json ("ships": ["a.json", ...]); one without a list has a ship.json.
+            std::vector<std::string> files;
+            std::ifstream in(dir.path() / "addon.json");
+            if (in)
+            {
+                const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+                if (!j.is_discarded() && j.contains("ships") && j["ships"].is_array())
+                    for (const nlohmann::json &f : j["ships"])
+                        if (f.is_string())
+                            files.push_back(f.get<std::string>());
+            }
+            if (std::find(files.begin(), files.end(), "ship.json") == files.end())
+                files.push_back("ship.json");
+            for (const std::string &file : files)
+            {
+                const std::filesystem::path f = dir.path() / file;
+                ShipSpec s;
+                std::string err;
+                if (std::filesystem::exists(f, ec) && load_ship(f.string(), s, err))
+                    ships.push_back(s);
+            }
         }
         std::sort(ships.begin(), ships.end(), [](const ShipSpec &a, const ShipSpec &b) { return a.name < b.name; });
         return ships;

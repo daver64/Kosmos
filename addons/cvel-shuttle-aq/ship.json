@@ -1,6 +1,15 @@
 {
  "name": "CVEL Shuttle-AQ",
  "class": "transfer",
+ "payload_bays": [
+  {"name": "Starboard forward", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Starboard forward"},
+  {"name": "Starboard middle", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Starboard middle"},
+  {"name": "Starboard aft", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Starboard aft"},
+  {"name": "Port forward", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Port forward"},
+  {"name": "Port middle", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Port middle"},
+  {"name": "Port aft", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Port aft"}
+ ],
+ "payload_size": [15.4, 6.9, 35],
  "locker": [
   "plasma_rifle",
   "frag_charge"

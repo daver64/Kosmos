@@ -1,6 +1,9 @@
 {
  "name": "CVEL Titan IIIB",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 1.5, "length": 8, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "description": "Titan IIIB: Titan 34 core stages and an Agena upper stage, with no solid motors. The fairing halves jettison after stage 1.",
  "torque_accel": 0.15,

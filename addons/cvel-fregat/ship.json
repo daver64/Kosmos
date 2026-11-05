@@ -1,6 +1,9 @@
 {
   "name": "CVEL Fregat",
   "class": "tug",
+ "payload_bays": [
+  {"name": "Payload adapter", "shape": "cylinder", "radius": 1.4, "length": 3, "port": "Payload"}
+ ],
   "torque_accel": 0.25,
   "max_rate": 0.35,
   "rcs_thrust": 400,

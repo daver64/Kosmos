@@ -390,7 +390,7 @@ A scenario stands a ship on a base with `"surface": {"base": "mysite"}`, optiona
 
 Every ship feels atmospheric drag (`drag_area`) and wind; weapons hit a ship's bounding box, or a ball of the stage radius with `"hit_sphere": true`; a ship with `"class": "aircraft"` also flies on simlib's aerodynamic model of lifting surfaces. Besides `stages` and `engines` (give a jet `"type": "jet"` so thrust fades with air density), it describes:
 
-- `payload_bays` and `payload_size`: where a launcher carries cargo (cylinders or boxes with `length`, `radius` or `size`, optional `max_mass`) and how big a ship is as cargo. KosmosMission uses them to check that the ships it is asked to carry fit.
+- `payload_bays` and `payload_size`: where a launcher carries cargo (cylinders or boxes with `length`, `radius` or `size`, optional `max_mass`) and how big a ship is as cargo. KosmosMission uses them to check that the ships it is asked to carry fit. A bay's optional `"port"` names the launcher port a payload docks to when KosmosMission spawns it (default "Payload"). KosmosMission can also build 2-3 stage payload stacks.
 
 - `surfaces`: lifting surfaces in the ship frame (nose is -Z, roof +Y). Each has `position`, `area`, `cl0`, `cl_alpha`, `cd0`, `induced_drag`, `stall_deg`, optional `forward`/`up` (a fin has `up: [1,0,0]`), and a `control` of `elevator` (pitch), `aileron` (roll), `rudder` (yaw) or `flaps`, with `gain_deg` the angle change at full deflection. W/S, Q/E and A/D drive the surfaces; with SAS on, a rate damper (`damping`) steadies them.
 - `wheels`: contact points (`position`, optional `steer_deg` for the nose wheel, `rolling_resistance`, and `drive` for a driven wheel of a ground vehicle). `,` brakes; a parked aircraft holds its brakes.

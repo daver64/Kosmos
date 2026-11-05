@@ -1,6 +1,9 @@
 {
  "name": "CVEL Centaur G",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Payload adapter", "shape": "cylinder", "radius": 2.0, "length": 8, "port": "Payload"}
+ ],
  "torque_accel": 0.3,
  "max_rate": 0.4,
  "rcs_thrust": 0,

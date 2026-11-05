@@ -1,6 +1,10 @@
 {
  "name": "CVEL Buran",
  "class": "aircraft",
+ "payload_bays": [
+  {"name": "Payload bay", "shape": "cylinder", "radius": 2.3, "length": 17.5, "port": "Payload bay"}
+ ],
+ "payload_size": [24, 8, 36],
  "description": "Buran orbiter: a delta-winged spaceplane with two orbital manoeuvring engines and a payload bay. Orbiter-sized lift surfaces; fixed landing gear. Launches on the CVEL Energia, or rides piggyback on another launcher.",
  "torque_accel": 0.5,
  "max_rate": 0.5,

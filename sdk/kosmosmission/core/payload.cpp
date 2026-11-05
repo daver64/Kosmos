@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cctype>
 #include <cstdio>
+#include <initializer_list>
 #include <map>
 #include <set>
 
@@ -196,6 +198,70 @@ namespace km
         }
     } // namespace
 
+    namespace
+    {
+        std::string lower(std::string s)
+        {
+            for (char &c : s)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return s;
+        }
+
+        int port_named(const std::vector<std::string> &ports, std::initializer_list<const char *> names, int skip = -1)
+        {
+            for (const char *want : names)
+                for (size_t i = 0; i < ports.size(); ++i)
+                    if (static_cast<int>(i) != skip && lower(ports[i]) == want)
+                        return static_cast<int>(i);
+            return -1;
+        }
+    } // namespace
+
+    PayloadItem make_payload(const std::vector<ShipSpec> &stack, int count, bool powered)
+    {
+        PayloadItem item;
+        item.count = std::max(1, count);
+        item.powered = powered;
+        ShipSpec all;
+        bool known = !stack.empty(), round = true;
+        double dia = 0, w = 0, h = 0, len = 0;
+        for (const ShipSpec &s : stack)
+        {
+            StackMember m;
+            m.ship = s.name;
+            m.ship_file = s.file;
+            m.mass = s.mass();
+            int mount = port_named(s.ports, {"aft", "launcher", "launcher cradle", "cradle", "shuttle end", "docking"});
+            m.mount_port = mount >= 0 ? mount : 0;
+            m.carry_port = port_named(s.ports, {"payload", "nose", "top", "fore"}, m.mount_port);
+            item.members.push_back(m);
+            item.label += (item.label.empty() ? "" : " > ") + s.name;
+            item.mass += m.mass;
+            all.stages.insert(all.stages.end(), s.stages.begin(), s.stages.end());
+            known = known && s.size.known;
+            if (!s.size.known)
+                continue;
+            round = round && s.size.round;
+            dia = std::max(dia, s.size.round ? s.size.diameter : std::max(s.size.width, s.size.height));
+            w = std::max(w, s.size.round ? s.size.diameter : s.size.width);
+            h = std::max(h, s.size.round ? s.size.diameter : s.size.height);
+            len += s.size.length;
+        }
+        if (known)
+            item.size = round ? PayloadSize{true, true, dia, 0, 0, len} : PayloadSize{true, false, 0, w, h, len};
+        item.dv = budget(all, 0.0).total;
+        return item;
+    }
+
+    double powered_dv(const std::vector<PayloadItem> &items)
+    {
+        double best = 0;
+        for (const PayloadItem &i : items)
+            if (i.powered && i.count == 1)
+                best = std::max(best, i.dv);
+        return best;
+    }
+
     double items_mass(const std::vector<PayloadItem> &items)
     {
         double m = 0;
@@ -218,12 +284,13 @@ namespace km
         struct Unit
         {
             const PayloadItem *item;
+            int index;
         };
         std::vector<Unit> units;
-        for (const PayloadItem &i : items)
-            if (i.size.known && i.size.length > 0)
-                for (int n = 0; n < i.count; ++n)
-                    units.push_back({&i});
+        for (size_t k = 0; k < items.size(); ++k)
+            if (items[k].size.known && items[k].size.length > 0)
+                for (int n = 0; n < items[k].count; ++n)
+                    units.push_back({&items[k], static_cast<int>(k)});
         if (units.empty())
             return rep;
         if (bays.empty())
@@ -239,12 +306,14 @@ namespace km
         {
             const PayloadItem &item = *u.item;
             bool done = false;
-            for (BayState &st : states)
+            for (size_t bi = 0; bi < states.size(); ++bi)
             {
+                BayState &st = states[bi];
                 if (!item.bay.empty() && item.bay != st.bay.name)
                     continue;
                 if (place_in_bay(st, item.size, item.mass, item.label))
                 {
+                    rep.placed.push_back({u.index, static_cast<int>(bi)});
                     done = true;
                     break;
                 }

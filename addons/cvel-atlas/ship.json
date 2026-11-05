@@ -1,14 +1,14 @@
 {
  "name": "CVEL Atlas III",
  "class": "launcher",
+ "payload_bays": [
+  {"name": "Fairing", "shape": "cylinder", "radius": 1.8, "length": 8.5, "port": "Payload"}
+ ],
  "script": "@launcher.lua",
  "torque_accel": 0.2,
  "max_rate": 0.3,
  "rcs_thrust": 0,
  "drag_area": 12,
-  "payload_bays": [
-    {"name": "Fairing", "shape": "cylinder", "radius": 1.8, "length": 8.5, "position": [0, 0, -26]}
-  ],
  "camera_distance": 60,
  "camera_target": [
   0,
