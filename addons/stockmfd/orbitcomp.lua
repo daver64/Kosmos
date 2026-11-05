@@ -884,30 +884,46 @@ local function lambert_velocity(r1, r2, tof, mu, normal)
   return velocity
 end
 
--- Solve a heliocentric (or other shared-frame) intercept using the live osculating states, not circular-orbit radii.
+-- Solve an intercept of an orbiting target using the live osculating states, not circular-orbit radii. The burn can be
+-- delayed by up to one ship orbit: a coarse grid of (wait, flight time) finds the cheapest valley and a finer grid settles it,
+-- so the dV is the best the ship's own orbit offers, not the cost of burning wherever it happens to be now.
 local function plan_lambert(f, ot)
   if not f.o.bound or not ot.bound then return nil end
   local scale = (f.o.a + ot.a) / 2
   if scale <= 0 then return nil end
   local nominal = PI * math.sqrt(scale ^ 3 / f.mu)
+  local period = f.o.period or TAU / f.o.n
+
+  local function attempt(wait, tof)
+    local r, v = f.r, f.v
+    if wait > 0 then r, v = state_at(f.o, advance(f.o, f.o.nu, wait)) end
+    local target_r = state_at(ot, advance(ot, ot.nu, wait + tof))
+    local departure_v = lambert_velocity(r, target_r, tof, f.mu)
+    if not departure_v then return nil end
+    local delta_v = sub(departure_v, v)
+    return { kind = "lambert", dv = len(delta_v), tof = tof, wait = wait, target_r = target_r, r = r, v = v, delta_v = delta_v }
+  end
+
   local best
-  for i = 0, 20 do
-    local tof = nominal * (0.5 + i * 0.05)
-    local target_r = state_at(ot, advance(ot, ot.nu, tof))
-    local departure_v = lambert_velocity(f.r, target_r, tof, f.mu)
-    if departure_v then
-      local delta_v = sub(departure_v, f.v)
-      local magnitude = len(delta_v)
-      if not best or magnitude < best.dv then
-        local pro = unit(f.v)
-        local normal = unit(cross(f.r, f.v))
-        local radial = cross(pro, normal)
-        best = { kind = "lambert", dv = magnitude, components = {
-          dot(delta_v, pro), dot(delta_v, radial), dot(delta_v, normal)
-        }, tof = tof, wait = 0, target_r = target_r }
+  local function scan(w0, w1, wsteps, t0, t1, tsteps)
+    for i = 0, wsteps do
+      local wait = w0 + (w1 - w0) * i / wsteps
+      if wait >= 0 then
+        for j = 0, tsteps do
+          local c = attempt(wait, t0 + (t1 - t0) * j / tsteps)
+          if c and (not best or c.dv < best.dv) then best = c end
+        end
       end
     end
   end
+  scan(0, period, 24, nominal * 0.5, nominal * 1.5, 10)
+  if not best then return nil end
+  scan(best.wait - period / 24, best.wait + period / 24, 8, best.tof - nominal * 0.05, best.tof + nominal * 0.05, 8)
+
+  local pro = unit(best.v)
+  local normal = unit(cross(best.r, best.v))
+  local radial = cross(pro, normal)
+  best.components = { dot(best.delta_v, pro), dot(best.delta_v, radial), dot(best.delta_v, normal) }
   return best
 end
 
@@ -1327,7 +1343,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 120, string.format("Normal %+7.1f m/s", plan.components[3]), 0)
     g:text(LX, 146, "Flight time  " .. fmt_time(plan.tof), 0)
     g:colour(255, 200, 80)
-    g:text(LX, 164, "Burn now; TO MAN loads the vector", 0)
+    g:text(LX, 164, (plan.wait or 0) > 1 and ("Burn in  " .. fmt_time(plan.wait) .. "; TO MAN loads it") or "Burn now; TO MAN loads the vector", 0)
     if not burn_left_line(g, LX, 200, plan.dv) then
       g:text(LX, 200, "Burn time  " .. (burn_time(plan.dv) and fmt_time(burn_time(plan.dv)) or "--"), 0)
     end
@@ -1539,7 +1555,7 @@ function M.button(self, i)
     node.mode = 1
     node.field = 1
     if p.kind == "lambert" then
-      node.time = 0
+      node.time = math.max(p.wait or 0, 0)
       node.dv = { p.components[1], p.components[2], p.components[3] }
     elseif p.kind == "hohmann" then
       node.time = math.max(p.wait or 0, 0)
