@@ -1086,6 +1086,29 @@ namespace
         return e;
     }
 
+    void on_guide(GtkWidget *, gpointer)
+    {
+        static const char *text =
+            "A complete mission, step by step\n\n"
+            "1. Start: pick the Body and a Base (or leave the base empty and give an orbit).\n"
+            "2. Ship: pick the launcher (for example CVEL Titan IVA).\n"
+            "3. Payload stack: in Carry pick the lowest stage (Centaur G) and press Add to stack; "
+            "then Fregat, then the probe (Luna E3), each Add to stack. Press Add stack. "
+            "Use Add payload (not the stack buttons) only for separate cargo. The green line says whether it fits.\n"
+            "4. Legs, in order: Ascent (to your parking orbit); then Transfer to body (Mars, altitude) "
+            "for a Lambert transfer, or Hohmann for a change of orbit around one body. "
+            "Each leg shows in the ledger; a negative remainder means the ship cannot do it.\n"
+            "5. Tune the date: tick Porkchop and read the departure and flight time under the view.\n"
+            "6. Save, then Start Kosmos with this mission. The stack is spawned docked on the launcher.\n"
+            "7. Fly: launch and reach the parking orbit. Select the transfer leg and press To game; "
+            "OrbitComp shows a node of that size. Use OrbitComp to place the burn at the departure window, "
+            "fly it, then select the capture leg, To game, and burn at the target.\n"
+            "Full guide: the KosmosMission page on the Kosmos website.";
+        GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app.window), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, "%s", text);
+        gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+    }
+
     GtkWidget *button(const char *text, GCallback cb)
     {
         GtkWidget *b = gtk_button_new_with_label(text);
@@ -1272,6 +1295,7 @@ namespace
         gtk_box_pack_start(GTK_BOX(row2), button("To game", G_CALLBACK(on_push)), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(left), row2, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(left), button("Start Kosmos with this mission", G_CALLBACK(on_start_game)), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(left), button("Guide: a complete mission", G_CALLBACK(on_guide)), FALSE, FALSE, 0);
         app.status = gtk_label_new("");
         gtk_label_set_line_wrap(GTK_LABEL(app.status), TRUE);
         gtk_label_set_xalign(GTK_LABEL(app.status), 0);

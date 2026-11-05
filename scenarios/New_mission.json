@@ -1,0 +1,84 @@
+{
+ "active": 0,
+ "description": "Mission planned in KosmosMission. Payloads not placed in the scenario: 1 x Luna E3 (the bay's port is already taken).",
+ "mission": {
+  "legs": [],
+  "margin": 0.03,
+  "payload": 0.0,
+  "payloads": [
+   {
+    "bay": "Fairing",
+    "count": 1,
+    "dv": 1042.3936926644592,
+    "label": "Luna E3",
+    "mass": 379.0,
+    "members": [
+     {
+      "carry_port": -1,
+      "mass": 379.0,
+      "mount_port": 0,
+      "ship": "Luna E3",
+      "ship_file": "/home/dave/Documents/Projects/kosmos/addons/probe/ship.json"
+     }
+    ],
+    "powered": true,
+    "size": {
+     "diameter": 1.6,
+     "length": 1.8
+    }
+   },
+   {
+    "bay": "Fairing",
+    "count": 1,
+    "dv": 5714.030249615244,
+    "label": "CVEL Fregat",
+    "mass": 6535.0,
+    "members": [
+     {
+      "carry_port": 1,
+      "mass": 6535.0,
+      "mount_port": 0,
+      "ship": "CVEL Fregat",
+      "ship_file": "/home/dave/Documents/Projects/kosmos/addons/cvel-fregat/ship.json"
+     }
+    ],
+    "powered": true,
+    "size": {
+     "diameter": 3.0,
+     "length": 1.8
+    }
+   }
+  ],
+  "ship_file": "/home/dave/Documents/Projects/kosmos/addons/cvel-atlas/ship.json",
+  "start": {
+   "altitude": 200000.0,
+   "base": "chippenham",
+   "body": "Earth",
+   "inclination": 57.0,
+   "latitude": 51.4585
+  },
+  "version": 1
+ },
+ "name": "New mission",
+ "ships": [
+  {
+   "body": "Earth",
+   "ship": "CVEL Atlas III",
+   "surface": {
+    "base": "chippenham"
+   }
+  },
+  {
+   "body": "Earth",
+   "dock": {
+    "own_port": 0,
+    "port": 0,
+    "to": 0
+   },
+   "ship": "CVEL Fregat",
+   "surface": {
+    "base": "chippenham"
+   }
+  }
+ ]
+}

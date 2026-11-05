@@ -9,6 +9,7 @@ Build: `cmake --build build --target kosmosmission` (the program lands in `addon
 - Missions save as normal scenarios with a `"mission"` block (`version`, `ship_file`, `payload`, `payloads`, `margin`, `start`, `legs`).
 - `data/mission/ascent.json` holds measured launch costs (`{"ship", "body", "dv", "note"}`) that replace the ascent estimate.
 - Tests: `cmake --build build --target missioncore_test && build/missioncore_test`.
+- The **Guide** button in the window walks through a complete mission (stack, ascent, Lambert or Hohmann, flying it with OrbitComp); the KosmosMission web page has the longer version.
 - `--demo` plans a launch to Mars; `KM_PORKCHOP=1 kosmosmission --demo` opens on the porkchop. `--shot FILE` draws the window to a PNG and exits; `KM_SHIP=name` picks the demo ship and `KM_PAYLOAD=1` adds a Dragonfly and twelve Luna probes.
 - Payload ships: a ship declares where it carries cargo with `"payload_bays": [{"name", "shape": "cylinder"|"box", "radius" (or "size": [width, height, length] for a box), "length", "max_mass" (optional), "position" (optional)}]` (the bay axis is the ship's z axis), and how big it is as cargo with `"payload_size": {"diameter", "length"}` or `[width, height, length]` (default: a cylinder from the stages' largest radius and total length). The fit check is conservative and tries each item every way round. Stacks (2-3 ships carried one on another) are built with Add to stack / Add stack. Bays take an optional `"port"`; saving a scenario docks the first unit of each bay to that port and notes what was left out.
 
