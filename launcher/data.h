@@ -48,6 +48,7 @@ namespace launcher
     // The folder that holds data/, addons/ and the kosmos executable: beside the launcher, or the source tree in development.
     fs::path find_root(const fs::path &launcher_dir);
     fs::path find_kosmos(const fs::path &root);
+    fs::path find_addon_program(const fs::path &root, const std::string &addon, const std::string &program); // addons/<addon>/bin/<program>[.exe]
     fs::path user_dir(); // ~/.config/kosmos or %APPDATA%\kosmos
     std::string installed_version(const fs::path &root);
 

@@ -699,13 +699,86 @@ namespace
         say(f ? "Exported " + path : "Could not write " + path);
     }
 
-    void on_push(GtkWidget *, gpointer)
+    // The game, started by this program when none is running. --link makes it listen for KosmosLink at once; the mission is
+    // handed over as a scenario file so the ship and start are already in place.
+    std::string find_game()
     {
-        if (app.mission.legs.empty())
+        std::error_code ec;
+        const fs::path root(app.root);
+        for (const fs::path &p : {root / "kosmos", root / "kosmos.exe", root / "build" / "kosmos", root / "build" / "kosmos.exe"})
+            if (fs::is_regular_file(p, ec))
+                return p.string();
+        return {};
+    }
+
+    bool start_game(std::string &err)
+    {
+        const std::string exe = find_game();
+        if (exe.empty())
         {
-            say("There are no legs to push.");
-            return;
+            err = "Kosmos was not found in " + app.root;
+            return false;
         }
+        std::vector<std::string> args = {exe, "--link"};
+        if (!app.mission.ship.empty())
+        {
+            sync_mission_from_ui();
+            std::string werr;
+            const std::string file = (fs::path(g_get_tmp_dir()) / "kosmosmission-start.json").string();
+            if (save_mission(file, app.mission, werr))
+            {
+                args.push_back("--scenario-file");
+                args.push_back(file);
+            }
+        }
+        std::vector<char *> argv;
+        for (std::string &a : args)
+            argv.push_back(a.data());
+        argv.push_back(nullptr);
+        const std::string dir = fs::path(exe).parent_path().string();
+        GError *error = nullptr;
+        if (!g_spawn_async(dir.c_str(), argv.data(), nullptr,
+                           static_cast<GSpawnFlags>(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL), nullptr, nullptr, nullptr, &error))
+        {
+            err = std::string("Could not start Kosmos: ") + (error ? error->message : "unknown error");
+            g_clear_error(&error);
+            return false;
+        }
+        return true;
+    }
+
+    // True when a running game answers. A stale connection (the game was closed) is dropped first.
+    bool connect_game(std::string &why)
+    {
+        if (app.link && !app.link->poll(0))
+            app.link.reset();
+        if (!app.link)
+        {
+            try
+            {
+                app.link = std::make_unique<kosmos::Link>("kosmosmission", "KosmosMission", KL_CAP_READ | KL_CAP_WRITE, "0.1");
+            }
+            catch (const std::exception &e)
+            {
+                why = e.what();
+                return false;
+            }
+            app.link->poll(100);
+        }
+        return true;
+    }
+
+    bool game_allows_writes()
+    {
+        app.link->poll(0);
+        return (app.link->granted() & KL_CAP_WRITE) != 0;
+    }
+
+    const char *allow_hint = "Kosmos is running but has not allowed KosmosMission yet: in the game open View > Native addons and allow it, then try again.";
+
+    // OrbitComp's manoeuvre node: T+ mode, a prograde burn. The game must have the OrbitComp MFD to show it.
+    void send_leg()
+    {
         GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(app.tree));
         GtkTreeModel *model;
         GtkTreeIter it;
@@ -717,26 +790,105 @@ namespace
             gtk_tree_path_free(p);
         }
         const Leg &leg = app.mission.legs[std::min(index, app.mission.legs.size() - 1)];
-        try
+        app.link->set("/orbitcomp/page", 1.0);
+        app.link->set("/orbitcomp/node-mode", 1.0);
+        app.link->set("/orbitcomp/time", 600.0);
+        app.link->set("/orbitcomp/prograde", leg.dv);
+        app.link->set("/orbitcomp/radial", 0.0);
+        app.link->set("/orbitcomp/normal", 0.0);
+        char buf[160];
+        std::snprintf(buf, sizeof buf, "Sent '%s' (%.0f m/s prograde at T+600 s) to the game's OrbitComp node.", leg.name.c_str(), leg.dv);
+        say(buf);
+    }
+
+    // After starting the game: look for it once a second (loading takes a while) and send the leg when it answers.
+    struct Waiting
+    {
+        bool push = false;
+        int tries = 0;
+        guint timer = 0;
+    } waiting;
+
+    gboolean wait_for_game(gpointer)
+    {
+        std::string why;
+        if (!connect_game(why))
         {
-            if (!app.link)
-                app.link = std::make_unique<kosmos::Link>("kosmosmission", "KosmosMission", KL_CAP_READ | KL_CAP_WRITE, "0.1");
-            // OrbitComp's manoeuvre node: T+ mode, a prograde burn. The game must have the OrbitComp MFD to show it.
-            app.link->set("/orbitcomp/page", 1.0);
-            app.link->set("/orbitcomp/node-mode", 1.0);
-            app.link->set("/orbitcomp/time", 600.0);
-            app.link->set("/orbitcomp/prograde", leg.dv);
-            app.link->set("/orbitcomp/radial", 0.0);
-            app.link->set("/orbitcomp/normal", 0.0);
-            char buf[160];
-            std::snprintf(buf, sizeof buf, "Sent '%s' (%.0f m/s prograde at T+600 s) to the game's OrbitComp node.", leg.name.c_str(), leg.dv);
-            say(buf);
+            if (++waiting.tries < 120)
+                return G_SOURCE_CONTINUE;
+            waiting.timer = 0;
+            say("Kosmos did not connect (" + why + "). Check that it started.");
+            return G_SOURCE_REMOVE;
         }
-        catch (const std::exception &e)
+        waiting.timer = 0;
+        if (!game_allows_writes())
+            say(allow_hint);
+        else if (waiting.push)
+            send_leg();
+        else
+            say("Connected to Kosmos.");
+        return G_SOURCE_REMOVE;
+    }
+
+    void begin_waiting(bool push)
+    {
+        waiting.push = push;
+        waiting.tries = 0;
+        if (!waiting.timer)
+            waiting.timer = g_timeout_add(1000, wait_for_game, nullptr);
+    }
+
+    void on_start_game(GtkWidget *, gpointer)
+    {
+        std::string why;
+        if (connect_game(why))
         {
-            app.link.reset();
-            say(std::string("Not connected to Kosmos: ") + e.what() + " (start the game and launch this from Add-ons)");
+            say(game_allows_writes() ? "Kosmos is already running and connected." : allow_hint);
+            return;
         }
+        if (waiting.timer)
+        {
+            say("Kosmos is already starting.");
+            return;
+        }
+        if (!start_game(why))
+        {
+            say(why);
+            return;
+        }
+        say("Starting Kosmos with this mission...");
+        begin_waiting(false);
+    }
+
+    void on_push(GtkWidget *, gpointer)
+    {
+        if (app.mission.legs.empty())
+        {
+            say("There are no legs to push.");
+            return;
+        }
+        std::string why;
+        if (connect_game(why))
+        {
+            if (game_allows_writes())
+                send_leg();
+            else
+                say(allow_hint);
+            return;
+        }
+        if (waiting.timer)
+        {
+            waiting.push = true;
+            say("Kosmos is still starting; the leg will be sent when it is ready.");
+            return;
+        }
+        if (!start_game(why))
+        {
+            say(why);
+            return;
+        }
+        say("Kosmos was not running: starting it with this mission. The leg is sent when it is ready.");
+        begin_waiting(true);
     }
 
     // ---- GL area ------------------------------------------------------------------------------------------------------------------------------
@@ -911,6 +1063,7 @@ namespace
         gtk_box_pack_start(GTK_BOX(row2), button("Export", G_CALLBACK(on_export)), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row2), button("To game", G_CALLBACK(on_push)), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(left), row2, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(left), button("Start Kosmos with this mission", G_CALLBACK(on_start_game)), FALSE, FALSE, 0);
         app.status = gtk_label_new("");
         gtk_label_set_line_wrap(GTK_LABEL(app.status), TRUE);
         gtk_label_set_xalign(GTK_LABEL(app.status), 0);
@@ -985,6 +1138,11 @@ namespace
 
 int main(int argc, char **argv)
 {
+#if GLIB_CHECK_VERSION(2, 74, 0)
+    const GApplicationFlags app_flags = G_APPLICATION_DEFAULT_FLAGS;
+#else
+    const GApplicationFlags app_flags = G_APPLICATION_FLAGS_NONE;
+#endif
     int kept = 1;
     for (int i = 1; i < argc; ++i)
     {
@@ -997,7 +1155,7 @@ int main(int argc, char **argv)
             argv[kept++] = argv[i];
     }
     argc = kept;
-    GtkApplication *a = gtk_application_new("org.kosmos.mission", G_APPLICATION_FLAGS_NONE);
+    GtkApplication *a = gtk_application_new("org.kosmos.mission", app_flags);
     g_signal_connect(a, "activate", G_CALLBACK(activate), nullptr);
     const int status = g_application_run(G_APPLICATION(a), argc, argv);
     g_object_unref(a);

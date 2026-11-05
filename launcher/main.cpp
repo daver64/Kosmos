@@ -341,6 +341,11 @@ namespace
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(launch_, 0, wxALL, 8);
             buttons->Add(resume_, 0, wxALL, 8);
+            mission_ = new wxButton(page, wxID_ANY, "KosmosMission");
+            mission_->SetToolTip("Plan a mission (transfers, burns, payloads). It starts Kosmos itself when you send a leg to the game.");
+            mission_->Enable(!find_addon_program(root_, "kosmosmission", "kosmosmission").empty());
+            buttons->Add(mission_, 0, wxALL, 8);
+            mission_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { LaunchMission(); });
             right->Add(buttons, 0);
             row->Add(tree_, 0, wxEXPAND | wxALL, 8);
             row->Add(right, 1, wxEXPAND);
@@ -1135,6 +1140,22 @@ namespace
                 Launch(s->id);
         }
 
+        void LaunchMission()
+        {
+            const fs::path exe = find_addon_program(root_, "kosmosmission", "kosmosmission");
+            if (exe.empty())
+            {
+                wxMessageBox("KosmosMission was not found in addons/kosmosmission/bin.", "KosmosMission", wxICON_ERROR);
+                return;
+            }
+            wxExecuteEnv env;
+            env.cwd = Wp(exe.parent_path());
+            wxGetEnvMap(&env.env);
+            env.env["KOSMOS_ROOT"] = Wp(root_);
+            if (wxExecute("\"" + Wp(exe) + "\"", wxEXEC_ASYNC, nullptr, &env) == 0)
+                wxMessageBox("KosmosMission could not be started.", "KosmosMission", wxICON_ERROR);
+        }
+
         void Launch(const std::string &scenario)
         {
             if (run_)
@@ -1243,7 +1264,7 @@ namespace
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
-        wxButton *launch_ = nullptr, *resume_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
+        wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
         Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;
         wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;

@@ -144,6 +144,18 @@ namespace launcher
         return {};
     }
 
+    fs::path find_addon_program(const fs::path &root, const std::string &addon, const std::string &program)
+    {
+        std::error_code ec;
+        for (const char *ext : {"", ".exe"})
+        {
+            const fs::path p = root / "addons" / addon / "bin" / (program + ext);
+            if (fs::is_regular_file(p, ec))
+                return p;
+        }
+        return {};
+    }
+
     std::string read_text(const fs::path &file)
     {
         std::ifstream in(file, std::ios::binary);

@@ -85,6 +85,15 @@ namespace kosmos::link
         return nullptr;
     }
 
+    // The tools that ship with Kosmos are trusted from the start; any other addon still needs the player's approval.
+    static bool is_bundled_tool(const std::string &id)
+    {
+        for (const char *tool : {"kosmosmission", "kosmosmap", "kosmoscad", "kosmosav", "shipedit"})
+            if (id == tool)
+                return true;
+        return false;
+    }
+
     void NativeAddons::scan(const std::vector<AddonRef> &addons)
     {
         for (const AddonRef &addon : addons)
@@ -102,6 +111,7 @@ namespace kosmos::link
             e.directory = addon.directory;
             e.autostart = n.value("autostart", true);
             e.restart = n.value("restart", false);
+            e.allowed = is_bundled_tool(e.id);
             for (const nlohmann::json &cap : n.value("capabilities", nlohmann::json::array()))
                 if (cap.is_string())
                     e.caps |= capability_from_name(cap.get<std::string>());
