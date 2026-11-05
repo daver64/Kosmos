@@ -268,7 +268,8 @@
    ],
    "parts": [
     {
-     "model": "models/aresspider1config3.obj"
+     "model": "models/aresspider1config3.obj",
+     "animations": "animations.json"
     }
    ]
   }
@@ -293,5 +294,17 @@
    ]
   }
  ],
- "rcs_effects": false
+ "rcs_effects": false,
+ "animation_controls": [
+  {
+   "name": "Landing legs (stow)",
+   "property": "legs",
+   "duration": 8,
+   "initial": 0.0
+  }
+ ],
+ "payload_size": {
+  "diameter": 7.6,
+  "length": 8.8
+ }
 }

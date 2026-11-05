@@ -1,0 +1,309 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg1ArmLow"
+   ],
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "center": [
+    0.0,
+    -2.1,
+    0.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg1ArmUp"
+   ],
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "center": [
+    0.0,
+    -2.1,
+    -1.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "translate",
+   "property": "legs",
+   "objects": [
+    "Leg1Strut"
+   ],
+   "axis": [
+    0.0,
+    1.1,
+    -1.847
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg2ArmLow"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    2.1,
+    0.0,
+    0.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg2ArmUp"
+   ],
+   "axis": [
+    0,
+    1,
+    0
+   ],
+   "center": [
+    2.1,
+    0.0,
+    -1.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "translate",
+   "property": "legs",
+   "objects": [
+    "Leg2Strut"
+   ],
+   "axis": [
+    -1.1,
+    0.0,
+    -1.847
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg3ArmLow"
+   ],
+   "axis": [
+    -1,
+    0,
+    0
+   ],
+   "center": [
+    0.0,
+    2.1,
+    0.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg3ArmUp"
+   ],
+   "axis": [
+    -1,
+    0,
+    0
+   ],
+   "center": [
+    0.0,
+    2.1,
+    -1.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "translate",
+   "property": "legs",
+   "objects": [
+    "Leg3Strut"
+   ],
+   "axis": [
+    0.0,
+    -1.1,
+    -1.847
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg4ArmLow"
+   ],
+   "axis": [
+    0,
+    -1,
+    0
+   ],
+   "center": [
+    -2.1,
+    0.0,
+    0.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "rotate",
+   "property": "legs",
+   "objects": [
+    "Leg4ArmUp"
+   ],
+   "axis": [
+    0,
+    -1,
+    0
+   ],
+   "center": [
+    -2.1,
+    0.0,
+    -1.35
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     61.6
+    ]
+   ]
+  },
+  {
+   "type": "translate",
+   "property": "legs",
+   "objects": [
+    "Leg4Strut"
+   ],
+   "axis": [
+    1.1,
+    0.0,
+    -1.847
+   ],
+   "interpolation": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  }
+ ]
+}
