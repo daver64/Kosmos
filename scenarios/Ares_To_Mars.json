@@ -1,0 +1,101 @@
+{
+ "active": 0,
+ "description": "Mission planned in KosmosMission.",
+ "mission": {
+  "legs": [],
+  "margin": 0.05,
+  "payload": 0.0,
+  "payloads": [
+   {
+    "bay": "",
+    "count": 1,
+    "dv": 5166.784893646345,
+    "label": "CVEL Centaur G > Ares Spider > CVEL Apollo Command Module",
+    "mass": 60240.0,
+    "members": [
+     {
+      "carry_port": 1,
+      "mass": 24580.0,
+      "mount_port": 0,
+      "ship": "CVEL Centaur G",
+      "ship_file": "/home/dave/Documents/Projects/kosmos/addons/cvel-centaur/ship.json"
+     },
+     {
+      "carry_port": 0,
+      "mass": 30000.0,
+      "mount_port": 1,
+      "ship": "Ares Spider",
+      "ship_file": "/home/dave/Documents/Projects/kosmos/addons/ares/ship.json"
+     },
+     {
+      "carry_port": -1,
+      "mass": 5660.0,
+      "mount_port": 0,
+      "ship": "CVEL Apollo Command Module",
+      "ship_file": "/home/dave/Documents/Projects/kosmos/addons/cvel-saturn-v/command_module.json"
+     }
+    ],
+    "powered": true,
+    "size": {
+     "diameter": 7.6,
+     "length": 21.5
+    }
+   }
+  ],
+  "ship_file": "/home/dave/Documents/Projects/kosmos/addons/cvel-saturn-mlv3/payload.json",
+  "start": {
+   "altitude": 200000.0,
+   "base": "kennedy",
+   "body": "Earth",
+   "inclination": 57.0,
+   "latitude": 28.6081
+  },
+  "version": 1
+ },
+ "name": "Ares To Mars",
+ "ships": [
+  {
+   "body": "Earth",
+   "ship": "CVEL Saturn V MLV3 Payload",
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "body": "Earth",
+   "dock": {
+    "own_port": 0,
+    "port": 0,
+    "to": 0
+   },
+   "ship": "CVEL Centaur G",
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "body": "Earth",
+   "dock": {
+    "own_port": 1,
+    "port": 1,
+    "to": 1
+   },
+   "ship": "Ares Spider",
+   "surface": {
+    "base": "kennedy"
+   }
+  },
+  {
+   "body": "Earth",
+   "dock": {
+    "own_port": 0,
+    "port": 0,
+    "to": 2
+   },
+   "ship": "CVEL Apollo Command Module",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}
