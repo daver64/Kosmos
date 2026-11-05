@@ -3,6 +3,7 @@
 #pragma once
 
 #include "budget.h"
+#include "payload.h"
 
 #include <string>
 #include <vector>
@@ -52,7 +53,9 @@ namespace km
         Start start;
         std::string ship;       // Ship name (as in the ship picker)
         std::string ship_file;  // path to its ship.json, if known
-        double payload = 0;     // kg carried to the end of the mission
+        double payload = 0;     // kg of loose extra mass carried to the end of the mission
+        std::vector<PayloadItem> payloads; // ships and cargo carried, checked against the ship's payload volumes
+        double payload_mass() const { return payload + items_mass(payloads); }
         std::vector<Leg> legs;
         double margin = 0.05;   // fraction of reserve held back from the ship's delta-v
 

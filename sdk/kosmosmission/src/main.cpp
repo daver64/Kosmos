@@ -76,6 +76,8 @@ namespace
 
         GtkWidget *window, *gl, *status, *info, *tree, *budget_label;
         GtkWidget *start_body, *start_base, *start_alt, *start_inc, *ship_combo, *payload, *margin;
+        GtkWidget *pl_ship, *pl_count, *pl_bay, *pl_tree, *fit_label;
+        GtkListStore *pl_store;
         GtkWidget *kind, *target_combo, *alt_entry, *angle_entry, *dv_entry, *name_entry;
         GtkWidget *view_toggle;
         GtkListStore *store;
@@ -102,7 +104,50 @@ namespace
     double available_dv()
     {
         const ShipSpec *s = current_ship();
-        return s ? budget(*s, app.mission.payload).total : 0.0;
+        return s ? budget(*s, app.mission.payload_mass()).total : 0.0;
+    }
+
+    // The payload list and whether it fits the ship's payload volumes.
+    void refresh_payload()
+    {
+        gtk_list_store_clear(app.pl_store);
+        for (const PayloadItem &p : app.mission.payloads)
+        {
+            GtkTreeIter it;
+            char a[32], b[32];
+            std::snprintf(a, sizeof a, "%d", p.count);
+            std::snprintf(b, sizeof b, "%.0f", p.mass * p.count);
+            gtk_list_store_append(app.pl_store, &it);
+            gtk_list_store_set(app.pl_store, &it, 0, p.label.c_str(), 1, a, 2, b, 3, p.bay.empty() ? "auto" : p.bay.c_str(), -1);
+        }
+        const ShipSpec *s = current_ship();
+        std::string text;
+        std::string colour = "#80c080";
+        if (app.mission.payloads.empty())
+            text = "No payload ships. Pick one above and press Add.";
+        else if (!s)
+            text = "No ship.";
+        else
+        {
+            const FitReport r = check_fit(s->bays, app.mission.payloads);
+            if (!r.checked)
+            {
+                colour = "#c0c080";
+                text = r.problems.empty() ? "Nothing to check." : r.problems[0];
+            }
+            else
+            {
+                text = r.ok ? "Everything fits.\n" : "DOES NOT FIT\n";
+                if (!r.ok)
+                    colour = "#ff8080";
+                text += r.text();
+            }
+        }
+        gchar *esc = g_markup_escape_text(text.c_str(), -1);
+        gchar *markup = g_strdup_printf("<span foreground=\"%s\">%s</span>", colour.c_str(), esc);
+        gtk_label_set_markup(GTK_LABEL(app.fit_label), markup);
+        g_free(esc);
+        g_free(markup);
     }
 
     std::string find_root()
@@ -257,6 +302,7 @@ namespace
     void refresh_ledger()
     {
         gtk_list_store_clear(app.store);
+        refresh_payload();
         const double avail = available_dv();
         const std::vector<LedgerRow> rows = ledger(app.mission, avail);
         for (size_t i = 0; i < rows.size(); ++i)
@@ -274,10 +320,10 @@ namespace
         std::string text = "No ship";
         if (s)
         {
-            const Budget bud = budget(*s, app.mission.payload);
+            const Budget bud = budget(*s, app.mission.payload_mass());
             char buf[256];
-            std::snprintf(buf, sizeof buf, "%s: %.0f m/s from %zu stage(s), %.0f kg payload. Mission needs %.0f m/s (%.0f%% reserve held).", s->name.c_str(),
-                          bud.total, s->stages.size(), app.mission.payload, app.mission.total_dv(), app.mission.margin * 100);
+            std::snprintf(buf, sizeof buf, "%s: %.0f m/s from %zu stage(s), %.0f kg payload carried. Mission needs %.0f m/s (%.0f%% reserve held).", s->name.c_str(),
+                          bud.total, s->stages.size(), app.mission.payload_mass(), app.mission.total_dv(), app.mission.margin * 100);
             text = buf;
         }
         gtk_label_set_text(GTK_LABEL(app.budget_label), text.c_str());
@@ -597,6 +643,53 @@ namespace
         refresh_all();
     }
 
+    void on_ship_changed(GtkWidget *, gpointer)
+    {
+        gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(app.pl_bay));
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app.pl_bay), "Auto");
+        if (const ShipSpec *s = current_ship())
+            for (const PayloadBay &b : s->bays)
+                gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app.pl_bay), b.name.c_str());
+        gtk_combo_box_set_active(GTK_COMBO_BOX(app.pl_bay), 0);
+    }
+
+    void on_add_payload(GtkWidget *, gpointer)
+    {
+        const int i = gtk_combo_box_get_active(GTK_COMBO_BOX(app.pl_ship));
+        if (i < 0 || i >= static_cast<int>(app.ships.size()))
+            return;
+        const ShipSpec &p = app.ships[i];
+        PayloadItem item;
+        item.label = p.name;
+        item.ship_file = p.file;
+        item.count = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(app.pl_count));
+        item.mass = p.mass();
+        item.size = p.size;
+        if (gtk_combo_box_get_active(GTK_COMBO_BOX(app.pl_bay)) > 0)
+            if (gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(app.pl_bay)))
+            {
+                item.bay = t;
+                g_free(t);
+            }
+        app.mission.payloads.push_back(item);
+        refresh_ledger();
+    }
+
+    void on_remove_payload(GtkWidget *, gpointer)
+    {
+        GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(app.pl_tree));
+        GtkTreeModel *model;
+        GtkTreeIter it;
+        if (!gtk_tree_selection_get_selected(sel, &model, &it))
+            return;
+        GtkTreePath *path = gtk_tree_model_get_path(model, &it);
+        const size_t index = static_cast<size_t>(gtk_tree_path_get_indices(path)[0]);
+        gtk_tree_path_free(path);
+        if (index < app.mission.payloads.size())
+            app.mission.payloads.erase(app.mission.payloads.begin() + static_cast<long>(index));
+        refresh_ledger();
+    }
+
     void on_param_changed(GtkWidget *, gpointer)
     {
         sync_mission_from_ui();
@@ -674,6 +767,7 @@ namespace
         for (size_t i = 0; i < app.ships.size(); ++i)
             if (app.ships[i].name == m.ship)
                 gtk_combo_box_set_active(GTK_COMBO_BOX(app.ship_combo), static_cast<int>(i));
+        app.mission.payloads = m.payloads;
         char buf[32];
         std::snprintf(buf, sizeof buf, "%.0f", m.start.altitude / 1000);
         gtk_entry_set_text(GTK_ENTRY(app.start_alt), buf);
@@ -979,7 +1073,21 @@ namespace
         if (const char *want = std::getenv("KM_SHIP"))
             for (size_t i = 0; i < app.ships.size(); ++i)
                 if (app.ships[i].name.find(want) != std::string::npos)
+                {
                     gtk_combo_box_set_active(GTK_COMBO_BOX(app.ship_combo), int(i));
+                    break;
+                }
+        if (std::getenv("KM_PAYLOAD")) // a Dragonfly and a dozen probes
+        {
+            for (const char *name : {"Dragonfly", "Luna E3"})
+                for (size_t i = 0; i < app.ships.size(); ++i)
+                    if (app.ships[i].name.find(name) != std::string::npos)
+                    {
+                        gtk_combo_box_set_active(GTK_COMBO_BOX(app.pl_ship), int(i));
+                        gtk_spin_button_set_value(GTK_SPIN_BUTTON(app.pl_count), name[0] == 'D' ? 1 : 12);
+                        on_add_payload(nullptr, nullptr);
+                    }
+        }
         gtk_combo_box_set_active(GTK_COMBO_BOX(app.start_base), 1);
         gtk_combo_box_set_active(GTK_COMBO_BOX(app.kind), 0);
         on_add(nullptr, nullptr);
@@ -1017,8 +1125,12 @@ namespace
 
         // Left: start, ship and legs.
         GtkWidget *left = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        gtk_widget_set_size_request(left, 360, -1);
-        gtk_box_pack_start(GTK_BOX(main_box), left, FALSE, FALSE, 0);
+        GtkWidget *left_scroll = gtk_scrolled_window_new(nullptr, nullptr);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(left_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(left_scroll), TRUE);
+        gtk_widget_set_size_request(left_scroll, 380, -1);
+        gtk_container_add(GTK_CONTAINER(left_scroll), left);
+        gtk_box_pack_start(GTK_BOX(main_box), left_scroll, FALSE, FALSE, 0);
         app.name_entry = labelled(left, "Mission", entry("New mission"));
         gtk_box_pack_start(GTK_BOX(left), gtk_label_new("Start"), FALSE, FALSE, 0);
         app.start_body = labelled(left, "Body", gtk_combo_box_text_new());
@@ -1032,7 +1144,37 @@ namespace
         app.ship_combo = labelled(left, "Ship", gtk_combo_box_text_new());
         for (const ShipSpec &s : app.ships)
             gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app.ship_combo), s.name.c_str());
-        app.payload = labelled(left, "Payload (kg)", gtk_spin_button_new_with_range(0, 1e7, 50));
+        app.payload = labelled(left, "Extra mass (kg)", gtk_spin_button_new_with_range(0, 1e7, 50));
+        gtk_box_pack_start(GTK_BOX(left), gtk_label_new("Payload ships"), FALSE, FALSE, 0);
+        app.pl_ship = labelled(left, "Carry", gtk_combo_box_text_new());
+        for (const ShipSpec &s : app.ships)
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app.pl_ship), s.name.c_str());
+        if (!app.ships.empty())
+            gtk_combo_box_set_active(GTK_COMBO_BOX(app.pl_ship), 0);
+        app.pl_count = labelled(left, "How many", gtk_spin_button_new_with_range(1, 999, 1));
+        app.pl_bay = labelled(left, "Into", gtk_combo_box_text_new());
+        GtkWidget *plrow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+        gtk_box_pack_start(GTK_BOX(plrow), button("Add payload", G_CALLBACK(on_add_payload)), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(plrow), button("Remove selected", G_CALLBACK(on_remove_payload)), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(left), plrow, FALSE, FALSE, 0);
+        app.pl_store = gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+        app.pl_tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(app.pl_store));
+        {
+            int col = 0;
+            for (const char *title : {"Payload", "No.", "kg", "Bay"})
+            {
+                GtkCellRenderer *r = gtk_cell_renderer_text_new();
+                gtk_tree_view_append_column(GTK_TREE_VIEW(app.pl_tree), gtk_tree_view_column_new_with_attributes(title, r, "text", col++, nullptr));
+            }
+        }
+        GtkWidget *plsw = gtk_scrolled_window_new(nullptr, nullptr);
+        gtk_widget_set_size_request(plsw, -1, 80);
+        gtk_container_add(GTK_CONTAINER(plsw), app.pl_tree);
+        gtk_box_pack_start(GTK_BOX(left), plsw, FALSE, FALSE, 0);
+        app.fit_label = gtk_label_new("");
+        gtk_label_set_line_wrap(GTK_LABEL(app.fit_label), TRUE);
+        gtk_label_set_xalign(GTK_LABEL(app.fit_label), 0);
+        gtk_box_pack_start(GTK_BOX(left), app.fit_label, FALSE, FALSE, 2);
         app.margin = labelled(left, "Reserve (%)", gtk_spin_button_new_with_range(0, 50, 1));
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(app.margin), 5);
         app.budget_label = gtk_label_new("");
@@ -1106,6 +1248,7 @@ namespace
         g_signal_connect(app.view_toggle, "toggled", G_CALLBACK(on_view_toggle), nullptr);
         g_signal_connect(app.start_body, "changed", G_CALLBACK(on_body_changed), nullptr);
         g_signal_connect(app.ship_combo, "changed", G_CALLBACK(on_param_changed), nullptr);
+        g_signal_connect(app.ship_combo, "changed", G_CALLBACK(on_ship_changed), nullptr);
         g_signal_connect(app.payload, "value-changed", G_CALLBACK(on_param_changed), nullptr);
         g_signal_connect(app.margin, "value-changed", G_CALLBACK(on_param_changed), nullptr);
 

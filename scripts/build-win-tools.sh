@@ -77,7 +77,7 @@ schemas "$SRC/addons/kosmoscad"
 # KosmosMission (no simlib; only the json header; OpenGL through GTK's libepoxy; the KosmosLink client for "To game").
 KMS=$SRC/sdk/kosmosmission
 mkdir -p "$TMP/kms"
-printf '%s\n' src/main src/gl_view core/orbit core/bodies core/transfer core/budget core/mission | xargs -P 4 -I{} sh -c \
+printf '%s\n' src/main src/gl_view core/orbit core/bodies core/transfer core/budget core/payload core/mission | xargs -P 4 -I{} sh -c \
     '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$KMS"'/src" -I"'"$KMS"'/core" -I"$SRC/sdk/include" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$KMS"'/{}.cpp" -o "$TMP/kms/$(basename {}).o"'
 "$WINCC" -O2 -I"$SRC/sdk/include" -c "$SRC/sdk/src/kosmos_link.c" -o "$TMP/kms/kosmos_link.o"
 mkdir -p "$SRC/addons/kosmosmission/bin"

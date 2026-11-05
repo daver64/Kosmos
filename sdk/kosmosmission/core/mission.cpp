@@ -1,5 +1,6 @@
 #include "mission.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 #include "json.hpp"
@@ -76,6 +77,16 @@ namespace km
         mi["version"] = 1;
         mi["ship_file"] = m.ship_file;
         mi["payload"] = m.payload;
+        nlohmann::json items = nlohmann::json::array();
+        for (const PayloadItem &p : m.payloads)
+        {
+            nlohmann::json o = {{"label", p.label}, {"ship_file", p.ship_file}, {"count", p.count}, {"mass", p.mass}, {"bay", p.bay}};
+            if (p.size.known)
+                o["size"] = p.size.round ? nlohmann::json{{"diameter", p.size.diameter}, {"length", p.size.length}}
+                                         : nlohmann::json{{"width", p.size.width}, {"height", p.size.height}, {"length", p.size.length}};
+            items.push_back(o);
+        }
+        mi["payloads"] = items;
         mi["margin"] = m.margin;
         mi["start"] = {{"body", m.start.body}, {"base", m.start.base}, {"altitude", m.start.altitude}, {"inclination", m.start.inclination},
                        {"latitude", m.start.latitude}};
@@ -109,6 +120,26 @@ namespace km
             out.ship = j["ships"][0].value("ship", "");
         out.ship_file = mi.value("ship_file", "");
         out.payload = mi.value("payload", 0.0);
+        for (const nlohmann::json &o : mi.value("payloads", nlohmann::json::array()))
+        {
+            PayloadItem p;
+            p.label = o.value("label", "Payload");
+            p.ship_file = o.value("ship_file", "");
+            p.count = std::max(1, o.value("count", 1));
+            p.mass = o.value("mass", 0.0);
+            p.bay = o.value("bay", "");
+            if (o.contains("size") && o["size"].is_object())
+            {
+                const nlohmann::json &z = o["size"];
+                p.size.known = true;
+                p.size.round = !z.contains("width");
+                p.size.diameter = z.value("diameter", 0.0);
+                p.size.width = z.value("width", 0.0);
+                p.size.height = z.value("height", 0.0);
+                p.size.length = z.value("length", 0.0);
+            }
+            out.payloads.push_back(p);
+        }
         out.margin = mi.value("margin", 0.05);
         if (mi.contains("start"))
         {
@@ -166,7 +197,9 @@ namespace km
         std::ostringstream o;
         char buf[256];
         o << m.name << "\n";
-        o << "Ship: " << m.ship << ", payload " << m.payload << " kg\n";
+        o << "Ship: " << m.ship << ", payload " << m.payload_mass() << " kg\n";
+        for (const PayloadItem &p : m.payloads)
+            o << "  " << p.count << " x " << p.label << " (" << p.mass << " kg each)\n";
         o << "Start: " << m.start.body << (m.start.in_orbit() ? " orbit" : " base " + m.start.base) << "\n\n";
         for (const LedgerRow &r : ledger(m, available))
         {

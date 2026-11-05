@@ -15,7 +15,7 @@ endif()
 set(KOSMOSMISSION_JSON_INCLUDE "" CACHE PATH "Folder holding json.hpp (nlohmann)")
 set(KOSMOSMISSION_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/bin" CACHE PATH "Where the kosmosmission program is written")
 
-add_executable(kosmosmission src/main.cpp src/gl_view.cpp core/orbit.cpp core/bodies.cpp core/transfer.cpp core/budget.cpp core/mission.cpp)
+add_executable(kosmosmission src/main.cpp src/gl_view.cpp core/orbit.cpp core/bodies.cpp core/transfer.cpp core/budget.cpp core/payload.cpp core/mission.cpp)
 target_compile_features(kosmosmission PRIVATE cxx_std_17)
 target_include_directories(kosmosmission PRIVATE src core ${KOSMOSMISSION_JSON_INCLUDE})
 target_link_libraries(kosmosmission PRIVATE kosmos::link PkgConfig::GTK3 PkgConfig::EPOXY)

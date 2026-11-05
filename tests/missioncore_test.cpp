@@ -158,6 +158,61 @@ int main()
         CHECK(summary_text(m, 15500).find("SHORT") != std::string::npos);
     }
 
+    // Payload fit: a cylinder bay takes a stack of probes beside nothing it cannot hold, and turns a long item to fit.
+    {
+        PayloadBay bay;
+        bay.name = "Fairing";
+        bay.round = true;
+        bay.radius = 4.5;
+        bay.length = 20;
+        PayloadItem big, probe;
+        big.label = "Dragonfly";
+        big.mass = 11000;
+        big.size = {true, true, 7.4, 0, 0, 15};
+        probe.label = "Probe";
+        probe.mass = 380;
+        probe.count = 12;
+        probe.size = {true, true, 1.6, 0, 0, 1.8};
+        FitReport r = check_fit({bay}, {big, probe});
+        CHECK(r.checked && r.ok);
+        NEAR(items_mass({big, probe}), 11000 + 12 * 380, 1e-9);
+        big.count = 2;
+        CHECK(!check_fit({bay}, {big, probe}).ok); // 30 m of Dragonfly in a 20 m bay (lying across is 7.4 m wide, 15 m tall: no)
+        PayloadItem wide = big;
+        wide.count = 1;
+        wide.size = {true, true, 9.5, 0, 0, 3};
+        CHECK(!check_fit({bay}, {wide}).ok); // wider than the bay
+        PayloadBay box;
+        box.name = "Cargo";
+        box.round = false;
+        box.width = 4;
+        box.height = 4;
+        box.length = 6;
+        PayloadItem crate;
+        crate.label = "Crate";
+        crate.count = 4;
+        crate.size = {true, false, 0, 2, 2, 3};
+        CHECK(check_fit({box}, {crate}).ok); // 2x2 across, one layer
+        crate.count = 5;
+        CHECK(check_fit({box}, {crate}).ok); // a second layer behind (3 + 3 m)
+        crate.count = 9;
+        CHECK(!check_fit({box}, {crate}).ok);
+        PayloadItem heavy = crate;
+        heavy.count = 1;
+        heavy.mass = 500;
+        box.max_mass = 100;
+        CHECK(!check_fit({box}, {heavy}).ok);
+        CHECK(check_fit({}, {heavy}).problems.size() == 1 && !check_fit({}, {heavy}).checked);
+        Mission m;
+        m.payload = 100;
+        m.payloads = {probe};
+        NEAR(m.payload_mass(), 100 + 12 * 380, 1e-9);
+        Mission back;
+        std::string perr;
+        CHECK(from_scenario_json(to_scenario_json(m), back, perr) && back.payloads.size() == 1 && back.payloads[0].count == 12 &&
+              back.payloads[0].size.known && back.payloads[0].size.round);
+    }
+
     std::printf(failures ? "%d failure(s)\n" : "missioncore_test: all passed\n", failures);
     return failures ? 1 : 0;
 }

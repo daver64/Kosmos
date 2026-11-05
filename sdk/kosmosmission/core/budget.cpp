@@ -40,6 +40,8 @@ namespace km
             st.name = s.value("name", "");
             st.dry_mass = s.value("dry_mass", 0.0);
             st.propellant = s.value("propellant", 0.0);
+            st.length = s.value("length", 0.0);
+            st.radius = s.value("radius", 0.0);
             double isp_weighted = 0, sl_weighted = 0;
             if (s.contains("engines"))
                 for (const nlohmann::json &e : s["engines"])
@@ -56,6 +58,46 @@ namespace km
                 st.isp_sl = sl_weighted / st.thrust;
             }
             out.stages.push_back(st);
+        }
+        double stack_length = 0, max_radius = 0;
+        for (const StageSpec &st : out.stages)
+        {
+            stack_length += st.length;
+            max_radius = std::max(max_radius, st.radius);
+        }
+        if (j.contains("payload_size"))
+        {
+            const nlohmann::json &p = j["payload_size"];
+            if (p.is_array() && p.size() == 3)
+            {
+                out.size = {true, false, 0, p[0].get<double>(), p[1].get<double>(), p[2].get<double>()};
+            }
+            else if (p.is_object())
+                out.size = {true, true, p.value("diameter", 0.0), 0, 0, p.value("length", 0.0)};
+        }
+        if (!out.size.known && max_radius > 0 && stack_length > 0)
+            out.size = {true, true, 2 * max_radius, 0, 0, stack_length};
+        for (const nlohmann::json &b : j.value("payload_bays", nlohmann::json::array()))
+        {
+            PayloadBay bay;
+            bay.name = b.value("name", "Payload bay");
+            bay.round = b.value("shape", "cylinder") != "box";
+            bay.length = b.value("length", 0.0);
+            bay.max_mass = b.value("max_mass", 0.0);
+            if (bay.round)
+                bay.radius = b.value("radius", b.value("diameter", 0.0) / 2);
+            else if (b.contains("size") && b["size"].is_array() && b["size"].size() == 3)
+            {
+                bay.width = b["size"][0].get<double>();
+                bay.height = b["size"][1].get<double>();
+                bay.length = b["size"][2].get<double>();
+            }
+            if (b.contains("position") && b["position"].is_array() && b["position"].size() == 3)
+                for (int i = 0; i < 3; ++i)
+                    bay.position[i] = b["position"][i].get<double>();
+            const bool valid = bay.length > 0 && (bay.round ? bay.radius > 0 : bay.width > 0 && bay.height > 0);
+            if (valid)
+                out.bays.push_back(bay);
         }
         return true;
     }

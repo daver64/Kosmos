@@ -295,7 +295,7 @@ target_compile_features(kosmoscad_test PRIVATE cxx_std_17)
 target_compile_definitions(kosmoscad_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # KosmosMission's planning core (no GTK, no GL): cmake --build build --target missioncore_test && build/missioncore_test
 set(KOSMOSMISSION_CORE sdk/kosmosmission/core/orbit.cpp sdk/kosmosmission/core/bodies.cpp sdk/kosmosmission/core/transfer.cpp
-    sdk/kosmosmission/core/budget.cpp sdk/kosmosmission/core/mission.cpp)
+    sdk/kosmosmission/core/budget.cpp sdk/kosmosmission/core/payload.cpp sdk/kosmosmission/core/mission.cpp)
 add_executable(missioncore_test EXCLUDE_FROM_ALL tests/missioncore_test.cpp ${KOSMOSMISSION_CORE})
 target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOSMOS_JSON_INCLUDE})
 target_compile_features(missioncore_test PRIVATE cxx_std_17)

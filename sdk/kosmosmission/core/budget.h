@@ -13,10 +13,31 @@ namespace km
     {
         std::string name;
         double dry_mass = 0, propellant = 0, thrust = 0, isp = 0, isp_sl = 0;
+        double length = 0, radius = 0; // m, as drawn
+    };
+
+    /** A volume on a ship that carries payload, from "payload_bays" in ship.json. The bay's axis is the ship's z axis. */
+    struct PayloadBay
+    {
+        std::string name;
+        bool round = true;                // cylinder (radius, length) or box (width, height, length)
+        double radius = 0, width = 0, height = 0, length = 0;
+        double max_mass = 0;              // kg; 0 means no limit
+        double position[3] = {0, 0, 0};   // where the bay's centre sits on the ship, for placing the payload in the game
+    };
+
+    /** How big a ship is as cargo: a cylinder (diameter, length) or a box (width, height, length). */
+    struct PayloadSize
+    {
+        bool known = false;
+        bool round = true;
+        double diameter = 0, width = 0, height = 0, length = 0;
     };
 
     struct ShipSpec
     {
+        std::vector<PayloadBay> bays;
+        PayloadSize size; // "payload_size" in ship.json, else a cylinder from the stages' radius and length
         std::string name, file;
         std::vector<StageSpec> stages; // in firing order
         double rcs_propellant = 0, rcs_isp = 0;

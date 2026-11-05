@@ -4,6 +4,7 @@
  "torque_accel": 0.2,
  "max_rate": 0.5,
  "drag_area": 10,
+  "payload_size": {"diameter": 7.4, "length": 14.8},
  "camera_distance": 26,
  "systems": [
   {

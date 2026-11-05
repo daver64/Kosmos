@@ -41,6 +41,7 @@
  "max_rate": 0.8,
  "rcs_thrust": 20,
  "drag_area": 2,
+  "payload_size": {"diameter": 1.6, "length": 1.8},
  "camera_distance": 6,
  "stages": [
   {
