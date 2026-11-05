@@ -274,6 +274,11 @@ namespace kosmos::app
                 sl::destroy_bitmap(b);
         for (sl::Mesh *m : vis.limb_pool)
             sl::destroy_mesh(m);
+        for (kosmos::HazeMesh &h : vis.haze_pool)
+        {
+            sl::destroy_mesh(h.mesh);
+            sl::destroy_mesh(h.dark);
+        }
         for (sl::Mesh *m : {vis.sphere, vis.glow, vis.quad, vis.starfield, vis.tail})
             sl::destroy_mesh(m);
         ship_weapons.release_graphics();

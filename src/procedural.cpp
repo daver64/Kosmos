@@ -584,4 +584,100 @@ namespace kosmos
             }
         return sl::create_mesh(vertices, indices);
     }
+
+    // Atmospheric haze after Orbiter's planet shader: light scattered towards the eye along each line of sight to the surface, with the sunlight reddened
+    // and dimmed by its own slant path through the air (which gives the orange terminator and the blue limb), and the surface dimmed along the view path.
+    // Coefficients per channel follow the atmosphere's colour, scaled by how much air there is above a square metre.
+    constexpr int haze_rings = 96, haze_segments = 192;
+    HazeMesh make_haze_mesh()
+    {
+        HazeMesh haze;
+        haze.vertices.resize((haze_rings + 1) * (haze_segments + 1));
+        for (int ring = 0; ring <= haze_rings; ++ring)
+            for (int segment = 0; segment <= haze_segments; ++segment)
+            {
+                const float phi = 3.14159265f * static_cast<float>(ring) / haze_rings, theta = 6.2831853f * static_cast<float>(segment) / haze_segments;
+                const glm::vec3 n{std::sin(phi) * std::cos(theta), std::cos(phi), std::sin(phi) * std::sin(theta)};
+                sl::Vertex3D &v = haze.vertices[static_cast<std::size_t>(ring * (haze_segments + 1) + segment)];
+                for (int k = 0; k < 3; ++k)
+                {
+                    v.position[k] = n[k];
+                    v.normal[k] = n[k];
+                }
+                v.colour[0] = v.colour[1] = v.colour[2] = v.colour[3] = 0.0f;
+            }
+        std::vector<std::uint32_t> indices;
+        for (int i = 0; i < haze_rings; ++i)
+            for (int j = 0; j < haze_segments; ++j)
+            {
+                const std::uint32_t a = static_cast<std::uint32_t>(i * (haze_segments + 1) + j), b = a + haze_segments + 1;
+                for (const std::uint32_t k : {a, b, a + 1, a + 1, b, b + 1})
+                    indices.push_back(k);
+            }
+        haze.dark_vertices = haze.vertices;
+        haze.mesh = sl::create_mesh(haze.vertices, indices);
+        haze.dark = sl::create_mesh(haze.dark_vertices, indices);
+        return haze;
+    }
+
+    namespace
+    {
+        // Relative air mass along a path at zenith angle with cosine `c` (Kasten and Young), finite at the horizon.
+        float air_mass(float c)
+        {
+            c = std::clamp(c, -0.2f, 1.0f);
+            const float zenith_deg = std::acos(c) * 57.29578f;
+            return 1.0f / (c + 0.50572f * std::pow(std::max(96.07995f - zenith_deg, 0.5f), -1.6364f));
+        }
+    } // namespace
+
+    bool update_haze_mesh(HazeMesh &haze, const glm::vec3 &eye, double radius, double scale_height, double density, const glm::vec3 &colour, const glm::vec3 &to_sun)
+    {
+        // Zenith optical depth: 0.3 in blue for Earth's air column, rising gently with the column (dust keeps thin atmospheres visible).
+        const double column = density * scale_height / (1.225 * 8500.0);
+        const float zenith_depth = 0.3f * static_cast<float>(std::clamp(std::pow(column, 0.45), 0.0, 6.0));
+        glm::vec3 tint = colour * colour;
+        tint /= std::max({tint.x, tint.y, tint.z, 1.0e-3f});
+        const glm::vec3 tau0 = tint * zenith_depth;
+        const float eye_altitude = std::max(glm::length(eye) - static_cast<float>(radius), 0.0f);
+        const float below_eye = 1.0f - std::exp(-eye_altitude / static_cast<float>(scale_height));
+        const float inv_radius = 1.0f / static_cast<float>(radius);
+        const glm::vec3 eye_n = eye * inv_radius;
+        bool any = false;
+        for (sl::Vertex3D &v : haze.vertices)
+        {
+            const glm::vec3 n(v.normal[0], v.normal[1], v.normal[2]);
+            const glm::vec3 to_eye = eye_n - n;
+            const float distance = glm::length(to_eye);
+            const glm::vec3 view = to_eye / std::max(distance, 1.0e-6f);
+            const float facing = std::max(glm::dot(n, view), 0.03f);
+            // Vertices just past the limb keep a grazing colour, so the silhouette fades smoothly instead of breaking into dots.
+            const float sun_cos = glm::dot(n, to_sun);
+            const float twilight = glm::smoothstep(-0.14f, -0.01f, sun_cos);
+            const glm::vec3 path = tau0 * air_mass(facing) * below_eye;
+            const glm::vec3 view_transmittance = glm::exp(-path);
+            const glm::vec3 sun_transmittance = glm::exp(-tau0 * air_mass(sun_cos)) * twilight;
+            // Rayleigh phase, normalised to a mean of one, and a little forward Mie towards the Sun.
+            const float cos_scatter = glm::dot(-view, to_sun);
+            const float phase = 0.75f * (1.0f + cos_scatter * cos_scatter) + 0.35f * std::pow(std::max(cos_scatter, 0.0f), 6.0f);
+            const glm::vec3 scattered = sun_transmittance * (glm::vec3(1.0f) - view_transmittance) * phase * 1.6f;
+            // Tone-mapped as Orbiter does, so a grazing line of sight saturates smoothly instead of clipping.
+            const glm::vec3 c = glm::vec3(1.0f) - glm::exp(-scattered);
+            const float alpha = std::clamp(1.0f - (view_transmittance.x + view_transmittance.y + view_transmittance.z) / 3.0f, 0.0f, 0.9f);
+            v.colour[0] = c.x;
+            v.colour[1] = c.y;
+            v.colour[2] = c.z;
+            v.colour[3] = 1.0f;
+            sl::Vertex3D &d = haze.dark_vertices[static_cast<std::size_t>(&v - haze.vertices.data())];
+            d.colour[0] = d.colour[1] = d.colour[2] = 0.0f;
+            d.colour[3] = alpha * 0.6f;
+            any = any || c.x + c.y + c.z > 0.01f;
+        }
+        if (any)
+        {
+            sl::update_mesh_vertices(haze.mesh, haze.vertices);
+            sl::update_mesh_vertices(haze.dark, haze.dark_vertices);
+        }
+        return any;
+    }
 } // namespace kosmos

@@ -347,6 +347,7 @@ namespace kosmos::app
 
         // A sunlit limb: a camera-facing disc whose opacity follows the atmosphere's thickness along each grazing ray.
         limb_used = 0;
+        haze_used = 0;
         draw_atmosphere_glow = [&](const sl::dvec3 &rel, const kosmos::Body &b)
         {
             if (b.atmosphere_density <= 0.0)
@@ -478,21 +479,33 @@ namespace kosmos::app
             sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
             sl::set_light_3d(body_light);
         }
-        if (b.atmosphere_density > 0.5 && b.atmosphere_density < 5.0 && distance - b.radius < 0.12 * b.radius)
+        if (b.atmosphere_density > 0.005 && b.atmosphere_density < 5.0 && b.radius < 2.0e7)
         {
-            // Rayleigh scattering over the sunlit side: a faint, lit blue veil that lifts the oceans and hazes the land.
-            sl::Material veil;
-            veil.lit = true;
-            veil.fog = false;
-            veil.blend = sl::MaterialBlend::additive;
-            // Full strength near the surface, thinning with altitude as less of the haze lies below the eye.
-            float haze_k = 0.5f * static_cast<float>(1.0 - std::clamp((distance - b.radius) / (0.12 * b.radius), 0.0, 1.0) * 0.6);
-            // Over the tiled terrain the veil fades out towards the ground, where the terrain's own air takes over.
+            // Single-scattering haze over the surface: blue lift and attenuation along the line of sight, an orange terminator, a bright limb.
+            float strength = 1.0f;
+            // Over the tiled terrain the haze fades out towards the ground, where the terrain's own air takes over.
             if (veil_only)
-                haze_k *= static_cast<float>(fx::smoothstep(20.0e3, 100.0e3, (distance - b.radius) * 6.371e6 / b.radius));
-            veil.tint = {static_cast<std::uint8_t>(b.atmosphere_colour[0] * 255.0f * haze_k), static_cast<std::uint8_t>(b.atmosphere_colour[1] * 255.0f * haze_k),
-                         static_cast<std::uint8_t>(b.atmosphere_colour[2] * 255.0f * haze_k), 255};
-            sl::draw_mesh(vis.sphere, lifted(0.5) * glm::scale(glm::mat4(1.0f), glm::vec3(1.003f)), veil);
+                strength = static_cast<float>(fx::smoothstep(20.0e3, 100.0e3, (distance - b.radius) * 6.371e6 / b.radius));
+            if (strength > 0.0f)
+            {
+                if (haze_used == vis.haze_pool.size())
+                    vis.haze_pool.push_back(make_haze_mesh());
+                HazeMesh &haze = vis.haze_pool[haze_used++];
+                if (update_haze_mesh(haze, -glm::vec3(rel), b.radius, b.atmosphere_scale_height, b.atmosphere_density, glm::vec3(b.atmosphere_colour[0], b.atmosphere_colour[1], b.atmosphere_colour[2]), to_sun))
+                {
+                    sl::Material veil;
+                    veil.lit = false;
+                    veil.fog = false;
+                    const float lift = static_cast<float>(1.0 - depth_gap * 0.5 / distance);
+                    const glm::mat4 frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel) * lift) * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift * 1.001f));
+                    veil.blend = sl::MaterialBlend::alpha;
+                    veil.tint.alpha = static_cast<std::uint8_t>(255.0f * strength);
+                    sl::draw_mesh(haze.dark, frame, veil);
+                    veil.blend = sl::MaterialBlend::additive;
+                    veil.tint = {static_cast<std::uint8_t>(255.0f * strength), static_cast<std::uint8_t>(255.0f * strength), static_cast<std::uint8_t>(255.0f * strength), 255};
+                    sl::draw_mesh(haze.mesh, frame, veil);
+                }
+            }
         }
         if (veil_only)
             return;

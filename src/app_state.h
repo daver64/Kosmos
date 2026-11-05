@@ -528,6 +528,7 @@ namespace kosmos::app
         bool depth_layers_work = true;
         double backdrop{};
         std::size_t limb_used{};
+        std::size_t haze_used{};
         bool layered{};
         double physics_time_before{}; // universe time at the start of this frame's simulation step
         double near_plane{};

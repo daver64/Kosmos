@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app.h"
+#include "procedural.h"
 
 #include <array>
 #include <fstream>
@@ -20,6 +21,7 @@ namespace kosmos::app
     struct Visuals
     {
         std::vector<sl::Mesh *> limb_pool;
+        std::vector<kosmos::HazeMesh> haze_pool;
         sl::Mesh *bolt_meshes[kosmos::Lightning::max_bolts] = {}; // one lightning bolt each, rebuilt each frame it shows
         sl::Bitmap *bolt_bitmaps[kosmos::Lightning::bolt_textures] = {};
         bool bolt_bitmaps_tried = false;
