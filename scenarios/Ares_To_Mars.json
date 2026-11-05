@@ -2,8 +2,31 @@
  "active": 0,
  "description": "Mission planned in KosmosMission.",
  "mission": {
-  "legs": [],
-  "margin": 0.05,
+  "legs": [
+   {
+    "altitude": 200000.0,
+    "body": "Earth",
+    "depart_days": 457.89702312269065,
+    "duration": 17262297.182711907,
+    "dv": 3682.833436771918,
+    "name": "Eject Earth to Mars",
+    "note": "Ejection from a circular parking orbit; plane of the parking orbit is free.",
+    "to_body": "Mars",
+    "type": "transfer"
+   },
+   {
+    "altitude": 200000.0,
+    "body": "Mars",
+    "depart_days": 657.6921294040785,
+    "duration": 0.0,
+    "dv": 2552.2557269127255,
+    "name": "Capture at Mars",
+    "note": "Circular capture orbit.",
+    "to_body": "",
+    "type": "arrival"
+   }
+  ],
+  "margin": 0.08,
   "payload": 0.0,
   "payloads": [
    {
@@ -47,7 +70,7 @@
    "altitude": 200000.0,
    "base": "kennedy",
    "body": "Earth",
-   "inclination": 57.0,
+   "inclination": 0.0,
    "latitude": 28.6081
   },
   "version": 1

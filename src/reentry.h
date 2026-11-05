@@ -115,6 +115,9 @@ namespace kosmos
         double max_q = 15000.0;
         /** Deploys itself below this altitude and speed (0 means never automatically). */
         double auto_altitude = 0.0, auto_speed = 0.0;
+        /** The automatic deployment is armed once the ship has been above this altitude (m), so a capsule on the pad or on top of a
+         *  rocket never opens its chute. The default is three times `auto_altitude`, at least 20 km. */
+        double arm_altitude = 0.0;
         /** Canopy size for drawing, in metres. */
         double canopy_radius = 0.0;
         /** Frees itself on touchdown. */

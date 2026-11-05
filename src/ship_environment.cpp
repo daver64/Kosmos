@@ -43,7 +43,9 @@ namespace kosmos
         {
             const ParachuteSpec &spec = spec_.parachutes[i];
             ChuteRuntime &c = chutes_[i];
-            if (c.state == ChuteState::stowed && spec.auto_altitude > 0.0 && telemetry_.altitude < spec.auto_altitude &&
+            if (telemetry_.altitude > spec.arm_altitude)
+                chutes_armed_ = true;
+            if (chutes_armed_ && c.state == ChuteState::stowed && spec.auto_altitude > 0.0 && telemetry_.altitude < spec.auto_altitude &&
                 (spec.auto_speed <= 0.0 || speed < spec.auto_speed))
                 deploy_parachute();
             if (c.state == ChuteState::stowed || c.state == ChuteState::gone)

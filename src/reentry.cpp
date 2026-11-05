@@ -181,6 +181,7 @@ namespace kosmos
             s.max_q = j.value("max_q", s.max_q);
             s.auto_altitude = j.value("auto_altitude", s.auto_altitude);
             s.auto_speed = j.value("auto_speed", s.auto_speed);
+            s.arm_altitude = j.value("arm_altitude", std::max(20000.0, 3.0 * s.auto_altitude));
             s.canopy_radius = j.value("canopy_radius", std::sqrt(s.cd_area / 1.5 / pi));
             s.cut_on_landing = j.value("cut_on_landing", s.cut_on_landing);
             s.model = j.value("model", s.model);

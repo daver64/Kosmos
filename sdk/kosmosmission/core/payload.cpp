@@ -232,7 +232,7 @@ namespace km
             m.ship_file = s.file;
             m.mass = s.mass();
             int mount = port_named(s.ports, {"aft", "launcher", "launcher cradle", "cradle", "shuttle end", "docking"});
-            m.mount_port = mount >= 0 ? mount : 0;
+            m.mount_port = s.ports.empty() ? -1 : (mount >= 0 ? mount : 0); // -1: no port to dock with
             m.carry_port = port_named(s.ports, {"payload", "nose", "top", "fore"}, m.mount_port);
             item.members.push_back(m);
             item.label += (item.label.empty() ? "" : " > ") + s.name;

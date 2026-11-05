@@ -778,6 +778,7 @@ namespace kosmos
         void step_parachutes(double dt, const sl::dvec3 &air_velocity, double rho);
         ThermalState thermal_;
         std::vector<ChuteRuntime> chutes_;
+        bool chutes_armed_ = false; // set once the ship has climbed above a chute's arm_altitude
         double base_drag_area_ = 0.0;
         std::vector<double> base_surface_area_;
         bool aero_scaled_ = false;

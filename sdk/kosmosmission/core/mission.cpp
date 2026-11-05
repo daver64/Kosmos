@@ -91,6 +91,11 @@ namespace km
             int below = 0, below_port = host_port;
             for (const StackMember &sm : item.members)
             {
+                if (sm.mount_port < 0)
+                {
+                    skip("has no docking port to attach with", sm.ship);
+                    break;
+                }
                 nlohmann::json s = base;
                 s["ship"] = sm.ship;
                 s["dock"] = {{"to", below}, {"port", below_port}, {"own_port", sm.mount_port}};

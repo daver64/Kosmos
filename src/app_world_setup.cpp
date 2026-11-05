@@ -366,6 +366,8 @@ namespace kosmos::app
         clouds.segments = 16;
         clouds.max_cached_tiles = 384;
         clouds.fade_seconds = 0.6f;
+        // A thin shell seen edge-on at the limb would smear into streaks above the horizon, so it fades as the view grazes it.
+        clouds.limb_fade = 0.3f;
         vis.earth_cloud_tiles = sl::PlanetTiles::create(clouds);
         if (!vis.earth_cloud_tiles)
             std::fprintf(stderr, "kosmos: tiled clouds unavailable: %s\n", sl::last_error().c_str());
