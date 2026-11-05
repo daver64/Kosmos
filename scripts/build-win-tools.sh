@@ -1,6 +1,6 @@
 #!/bin/sh
 # Cross-builds the Windows GTK 3 programs for the game package: addons/planetbake/bin/planetbake.exe and
-# addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe and addons/shipedit/bin/shipedit.exe and addons/kosmoscad/bin/kosmoscad.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
+# addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe and addons/shipedit/bin/shipedit.exe and addons/kosmoscad/bin/kosmoscad.exe and addons/kosmosmission/bin/kosmosmission.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
 # Usage: build-win-tools.sh
 # Needs mingw-w64 and GTK 3 in vcpkg's x64-mingw-posix tree (see README, "Windows GTK"), plus the overlays in ~/mingw-triplets.
 # Overrides (env): VCPKG_MINGW (default ~/vcpkg-mingw), MINGW_PKGCONFIG_EXTRA (default ~/mingw-triplets/pkgconfig), FASTNOISE_DIR, GLM_INCLUDE_DIR
@@ -74,6 +74,16 @@ mkdir -p "$SRC/addons/kosmoscad/bin"
 "$WINCXX" -static -mwindows -o "$SRC/addons/kosmoscad/bin/kosmoscad.exe" "$TMP"/kc/*.o $LIBS
 schemas "$SRC/addons/kosmoscad"
 
+# KosmosMission (no simlib; only the json header; OpenGL through GTK's libepoxy; the KosmosLink client for "To game").
+KMS=$SRC/sdk/kosmosmission
+mkdir -p "$TMP/kms"
+printf '%s\n' src/main src/gl_view core/orbit core/bodies core/transfer core/budget core/mission | xargs -P 4 -I{} sh -c \
+    '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$KMS"'/src" -I"'"$KMS"'/core" -I"$SRC/sdk/include" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$KMS"'/{}.cpp" -o "$TMP/kms/$(basename {}).o"'
+"$WINCC" -O2 -I"$SRC/sdk/include" -c "$SRC/sdk/src/kosmos_link.c" -o "$TMP/kms/kosmos_link.o"
+mkdir -p "$SRC/addons/kosmosmission/bin"
+"$WINCXX" -static -mwindows -o "$SRC/addons/kosmosmission/bin/kosmosmission.exe" "$TMP"/kms/*.o $LIBS -lws2_32
+schemas "$SRC/addons/kosmosmission"
+
 # KosmosAV (WinHTTP, no libcurl).
 KAV=$SRC/kav/client/src
 mkdir -p "$TMP/av"
@@ -83,4 +93,4 @@ printf '%s\n' main agent http | xargs -P 4 -I{} sh -c \
 mkdir -p "$SRC/addons/kosmosav/bin"
 "$WINCXX" -static -mwindows -o "$SRC/addons/kosmosav/bin/kosmosav.exe" "$TMP"/av/*.o $LIBS -lws2_32 -lwinhttp
 schemas "$SRC/addons/kosmosav"
-ls -la "$SRC/addons/kosmosav/bin/kosmosav.exe" "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$SRC/addons/shipedit/bin/shipedit.exe" "$SRC/addons/kosmoscad/bin/kosmoscad.exe"
+ls -la "$SRC/addons/kosmosav/bin/kosmosav.exe" "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$SRC/addons/shipedit/bin/shipedit.exe" "$SRC/addons/kosmoscad/bin/kosmoscad.exe" "$SRC/addons/kosmosmission/bin/kosmosmission.exe"

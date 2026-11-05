@@ -4,7 +4,8 @@
   "version": "0.1",
   "native": {
     "run": {
-      "linux": "bin/kosmosmission"
+      "linux": "bin/kosmosmission",
+      "windows": "bin/kosmosmission.exe"
     },
     "capabilities": [
       "read",

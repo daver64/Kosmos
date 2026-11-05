@@ -17,7 +17,11 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
+#endif
 
 using namespace km;
 namespace fs = std::filesystem;
@@ -106,8 +110,12 @@ namespace
         if (const char *e = std::getenv("KOSMOS_ROOT"))
             return e;
         char buf[4096];
-        const ssize_t n = readlink("/proc/self/exe", buf, sizeof buf - 1);
-        fs::path p = n > 0 ? fs::path(std::string(buf, n)).parent_path() : fs::current_path();
+#ifdef _WIN32
+        const long n = static_cast<long>(GetModuleFileNameA(nullptr, buf, sizeof buf - 1));
+#else
+        const long n = static_cast<long>(readlink("/proc/self/exe", buf, sizeof buf - 1));
+#endif
+        fs::path p = n > 0 ? fs::path(std::string(buf, static_cast<size_t>(n))).parent_path() : fs::current_path();
         for (int i = 0; i < 6; ++i, p = p.parent_path())
             if (fs::exists(p / "data" / "sol.json"))
                 return p.string();
@@ -617,7 +625,7 @@ namespace
         GtkWidget *d = gtk_file_chooser_dialog_new(title, GTK_WINDOW(app.window), action, "_Cancel", GTK_RESPONSE_CANCEL,
                                                    action == GTK_FILE_CHOOSER_ACTION_SAVE ? "_Save" : "_Open", GTK_RESPONSE_ACCEPT, nullptr);
         const fs::path dir = fs::path(app.root) / "scenarios";
-        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(d), dir.c_str());
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(d), dir.string().c_str());
         if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
         {
             gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(d), name);
@@ -797,10 +805,29 @@ namespace
     }
 
     bool g_demo = false;
+    std::string g_shot;
+
+    // --shot FILE draws the window to a PNG a few seconds after start and quits.
+    gboolean take_shot(gpointer)
+    {
+        const int w = gtk_widget_get_allocated_width(app.window), h = gtk_widget_get_allocated_height(app.window);
+        cairo_surface_t *surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, w, h);
+        cairo_t *cr = cairo_create(surf);
+        gtk_widget_draw(app.window, cr);
+        cairo_surface_write_to_png(surf, g_shot.c_str());
+        cairo_destroy(cr);
+        cairo_surface_destroy(surf);
+        g_application_quit(g_application_get_default());
+        return G_SOURCE_REMOVE;
+    }
 
     // --demo plans a launch from the first Earth base to Mars, for screenshots and smoke tests.
     void run_demo()
     {
+        if (const char *want = std::getenv("KM_SHIP"))
+            for (size_t i = 0; i < app.ships.size(); ++i)
+                if (app.ships[i].name.find(want) != std::string::npos)
+                    gtk_combo_box_set_active(GTK_COMBO_BOX(app.ship_combo), int(i));
         gtk_combo_box_set_active(GTK_COMBO_BOX(app.start_base), 1);
         gtk_combo_box_set_active(GTK_COMBO_BOX(app.kind), 0);
         on_add(nullptr, nullptr);
@@ -951,17 +978,25 @@ namespace
         gtk_widget_show_all(app.window);
         if (g_demo)
             run_demo();
+        if (!g_shot.empty())
+            g_timeout_add(2500, take_shot, nullptr);
     }
 } // namespace
 
 int main(int argc, char **argv)
 {
+    int kept = 1;
     for (int i = 1; i < argc; ++i)
-        if (std::string(argv[i]) == "--demo")
-        {
+    {
+        const std::string arg = argv[i];
+        if (arg == "--demo")
             g_demo = true;
-            argv[i] = argv[--argc];
-        }
+        else if (arg == "--shot" && i + 1 < argc)
+            g_shot = argv[++i];
+        else
+            argv[kept++] = argv[i];
+    }
+    argc = kept;
     GtkApplication *a = gtk_application_new("org.kosmos.mission", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(a, "activate", G_CALLBACK(activate), nullptr);
     const int status = g_application_run(G_APPLICATION(a), argc, argv);

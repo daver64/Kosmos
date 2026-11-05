@@ -1,6 +1,6 @@
 # KosmosMission
 
-A GTK 3 mission planner for Kosmos (Linux). The views are OpenGL (a GtkGLArea, libepoxy).
+A GTK 3 mission planner for Kosmos (Linux and Windows). The views are OpenGL (a GtkGLArea, libepoxy).
 
 Build: `cmake --build build --target kosmosmission` (the program lands in `addons/kosmosmission/bin`). Run it from the add-ons menu, or directly; it finds the Kosmos folder from its own location (`KOSMOS_ROOT` overrides).
 
@@ -9,6 +9,6 @@ Build: `cmake --build build --target kosmosmission` (the program lands in `addon
 - Missions save as normal scenarios with a `"mission"` block (`version`, `ship_file`, `payload`, `margin`, `start`, `legs`).
 - `data/mission/ascent.json` holds measured launch costs (`{"ship", "body", "dv", "note"}`) that replace the ascent estimate.
 - Tests: `cmake --build build --target missioncore_test && build/missioncore_test`.
-- `--demo` plans a launch to Mars; `KM_PORKCHOP=1 kosmosmission --demo` opens on the porkchop.
+- `--demo` plans a launch to Mars; `KM_PORKCHOP=1 kosmosmission --demo` opens on the porkchop. `--shot FILE` draws the window to a PNG and exits; `KM_SHIP=name` picks the demo ship.
 
 Limits: transfers between a moon and a planet are not planned directly (go through the parent); sibling-body transfers use a circular parking orbit with a free plane; local moon transfers assume the parking orbit lies in the moon's orbital plane.

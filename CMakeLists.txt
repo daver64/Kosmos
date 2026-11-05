@@ -349,7 +349,7 @@ if(WIN32)
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")
 else()
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
-        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit|kosmoscad)/share(/|$)")
+        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/kosmosmission/bin/kosmosmission\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit|kosmoscad|kosmosmission)/share(/|$)")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------
