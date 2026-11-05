@@ -614,7 +614,8 @@ namespace kosmos::app
             const double resolution = altitude_now * altitude_now / (near_plane * 1.68e7);
             double shell_height = earth_as_sphere ? home_cloud_height : std::clamp(2.0 * resolution, home_cloud_height, 600.0e3);
             // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it well beyond that plane, as the plane also cuts off-axis parts of a wide view.
-            shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - shell_clearance));
+            shell_height = std::min(shell_height, std::max(1.0, altitude_now - shell_clearance));
+            std::fprintf(stderr,"SHELL alt=%.0f h=%.0f clr=%.0f near=%.0f sphere=%d\n",altitude_now,shell_height,shell_clearance,near_plane,(int)earth_as_sphere);
             const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
             if (vis.earth_cloud_tiles && !home_cloud_texture)
             {
