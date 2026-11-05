@@ -143,6 +143,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--no-clutter` | Leave out trees, buildings and rocks on the ground |
 | `--perf` | Print frame rate and ground-scatter CPU time every few seconds |
 | `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
+| `--cam-planet R`, `--cam-phase DEG` | Planet-only camera at R planet radii, with the given sun phase angle (for screenshots) |
 | `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `I`). The bottom warp and time line is separate (View menu) |
 | `--clean` | Like `--hide-info`, and also hides the on-foot HUD (suit panel, door markers, prompts, log lines, held item) for promotional shots |
 | `--interior-at X Z YAW PITCH` | After walking into an interior building, stand at this spot (metres in the plan, degrees) |
@@ -211,7 +212,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 
 ## Textures
 
-`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there.
+`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.

@@ -102,7 +102,7 @@ namespace kosmos::app
             for (int y = 0; y < h; ++y)
                 for (int x = 0; x < w; ++x)
                 {
-                    int peak[3] = {0, 0, 0}, sum[3] = {0, 0, 0};
+                    int peak[3] = {0, 0, 0}, floor_[3] = {255, 255, 255}, sum[3] = {0, 0, 0};
                     for (int dy = 0; dy < factor; ++dy)
                         for (int dx = 0; dx < factor; ++dx)
                         {
@@ -110,10 +110,18 @@ namespace kosmos::app
                             for (int c = 0; c < 3; ++c)
                             {
                                 peak[c] = std::max<int>(peak[c], px[c]);
+                                floor_[c] = std::min<int>(floor_[c], px[c]);
                                 sum[c] += px[c];
                             }
                         }
                     std::uint8_t *dst = &out[(static_cast<std::size_t>(y) * w + x) * 4];
+                    // Flat non-black cells are damaged blocks in the source (real lights are never uniform), so they are dropped.
+                    if (peak[0] == floor_[0] && peak[1] == floor_[1] && peak[2] == floor_[2])
+                    {
+                        dst[0] = dst[1] = dst[2] = 0;
+                        dst[3] = 255;
+                        continue;
+                    }
                     for (int c = 0; c < 3; ++c)
                         dst[c] = static_cast<std::uint8_t>(std::min(255, peak[c] / 2 + sum[c] * 2 / (factor * factor)));
                     dst[3] = 255;

@@ -326,6 +326,7 @@ namespace kosmos::app
         void update_world_textures();
         void load_planet_images();
         void load_earth_tiles();
+        void load_earth_cloud_tiles();
         bool build_terrains();
         void build_cloud_layers();
         bool enter_system();

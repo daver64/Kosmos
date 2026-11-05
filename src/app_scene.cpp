@@ -436,7 +436,7 @@ namespace kosmos::app
             const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
             const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
-            vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, 300.0e3, glint_altitude)));
+            vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, earth_sphere_switch_m + 150.0e3, glint_altitude)));
             vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
             vis.earth_tiles->draw(tile_model, rock);
         }
@@ -463,7 +463,7 @@ namespace kosmos::app
                    glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                    glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius) * lift));
         };
-        if (false && static_cast<int>(i) == earth_id && vis.lights_texture)
+        if (static_cast<int>(i) == earth_id && vis.lights_texture)
         {
             // City lights: lit by a light shining from the night side, so they glow only where the Sun is not.
             sl::Light3D night;
@@ -484,7 +484,7 @@ namespace kosmos::app
                 sl::draw_mesh(vis.sphere, lifted(0.25) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0005f, 1.0005f, -1.0005f)), lights);
             sl::set_light_3d(body_light);
         }
-        if (b.atmosphere_density > 0.005 && b.atmosphere_density < 5.0)
+        if (b.atmosphere_density > 0.005)
         {
             // Single-scattering haze over the surface: blue lift and attenuation along the line of sight, an orange terminator, a bright limb.
             float strength = 1.0f;
@@ -616,6 +616,19 @@ namespace kosmos::app
             // A shell nearer the eye than the near plane is sliced off along a line across the view, so keep it well beyond that plane, as the plane also cuts off-axis parts of a wide view.
             shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - shell_clearance));
             const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
+            if (vis.earth_cloud_tiles && !home_cloud_texture)
+            {
+                // The tiles run east the opposite way to the shell's sphere mesh, so they are mirrored (and the culling swapped to match).
+                const glm::mat4 tile_model = glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) *
+                                             glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, -static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale));
+                const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
+                const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+                vis.earth_cloud_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+                cloud.cull = sl::CullMode::front;
+                vis.earth_cloud_tiles->draw(tile_model, cloud);
+            }
+            else
+            {
             // The shell would end on a hard line at its own limb, so it fades out over the last few degrees before it.
             if (!cloud_shell_vertices.empty() && altitude_now > 3.0e3)
             {
@@ -636,6 +649,7 @@ namespace kosmos::app
                 sl::update_mesh_vertices(cloud_shell, cloud_shell_vertices);
             }
             sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
+            }
         }
 
         if (earth_id >= 0 && near_earth)

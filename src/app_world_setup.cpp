@@ -80,6 +80,7 @@ namespace kosmos::app
                 sl::destroy_model(m);
         vis.body_meshes.clear();
         vis.earth_tiles.reset();
+        vis.earth_cloud_tiles.reset();
         vis.rings.clear();
         vis.surface_textured.clear();
     }
@@ -350,6 +351,26 @@ namespace kosmos::app
         }
     }
 
+    // The cloud layer as tiles, when the pack has them: Orbiter's cloud tree reaches about 600 m a pixel, far past one image.
+    void App::load_earth_cloud_tiles()
+    {
+        vis.earth_cloud_tiles.reset();
+        if (options.no_tiles || options.no_clouds)
+            return;
+        const std::string source = find_tile_source(sim.root() + "/data/textures-hires/earth_clouds");
+        if (source.empty())
+            return;
+        sl::PlanetTilesOptions clouds;
+        clouds.colour = source;
+        clouds.skirt = 0.0f;
+        clouds.segments = 16;
+        clouds.max_cached_tiles = 384;
+        clouds.fade_seconds = 0.6f;
+        vis.earth_cloud_tiles = sl::PlanetTiles::create(clouds);
+        if (!vis.earth_cloud_tiles)
+            std::fprintf(stderr, "kosmos: tiled clouds unavailable: %s\n", sl::last_error().c_str());
+    }
+
     bool App::build_terrains()
     {
         try
@@ -397,6 +418,7 @@ namespace kosmos::app
     {
         load_planet_images();
         load_earth_tiles();
+        load_earth_cloud_tiles();
 
         // The home planet is a streaming procedural terrain whose heights the launch gear also collides with.
         earth_id = sim.universe.home_id();

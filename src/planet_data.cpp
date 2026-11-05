@@ -166,22 +166,45 @@ namespace kosmos
     std::string OrbiterTree::find_layer(const std::string &root, const std::string &body, const std::string &layer)
     {
         namespace fs = std::filesystem;
-        std::string lower = body;
-        for (char &c : lower)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        auto lowered = [](std::string text)
+        {
+            for (char &c : text)
+                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return text;
+        };
+        const std::string lower = lowered(body);
         std::error_code ec;
+        // A pack folder ends in the body's name ("Orbiter High Res Titan"); a folder that groups several bodies ("... Minor Bodies")
+        // holds one folder per body. The tree sits in the folder itself or in its Archive folder.
+        auto in_folder = [&](const fs::path &folder) -> std::string
+        {
+            for (const char *sub : {"", "Archive"})
+            {
+                const fs::path file = folder / sub / (layer + ".tree");
+                if (fs::exists(file, ec))
+                    return file.string();
+            }
+            return {};
+        };
         for (const fs::directory_entry &entry : fs::directory_iterator(root, ec))
         {
             if (!entry.is_directory())
                 continue;
-            std::string name = entry.path().filename().string();
-            for (char &c : name)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            if (name.size() < lower.size() || name.compare(name.size() - lower.size(), lower.size(), lower) != 0)
-                continue;
-            const fs::path file = entry.path() / (layer + ".tree");
-            if (fs::exists(file, ec))
-                return file.string();
+            const std::string name = lowered(entry.path().filename().string());
+            if (name.size() >= lower.size() && name.compare(name.size() - lower.size(), lower.size(), lower) == 0)
+            {
+                const std::string found = in_folder(entry.path());
+                if (!found.empty())
+                    return found;
+            }
+            std::error_code inner_ec;
+            for (const fs::directory_entry &child : fs::directory_iterator(entry.path(), inner_ec))
+                if (child.is_directory() && lowered(child.path().filename().string()) == lower)
+                {
+                    const std::string found = in_folder(child.path());
+                    if (!found.empty())
+                        return found;
+                }
         }
         return {};
     }

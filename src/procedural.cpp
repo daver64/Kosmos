@@ -636,8 +636,9 @@ namespace kosmos
         // Zenith optical depth: 0.3 in blue for Earth's air column, rising gently with the column (dust keeps thin atmospheres visible).
         const double column = density * scale_height / (1.225 * 8500.0);
         float zenith_depth = 0.3f * static_cast<float>(std::clamp(std::pow(column, 0.45), 0.0, 6.0));
-        // A giant's visible surface is its cloud tops, under a deep atmosphere: it always has a thick scattering layer.
-        if (radius > 2.0e7)
+        // A giant, Venus or Titan shows its cloud or haze tops, not a ground under thin air: it always has a thick scattering layer.
+        const bool giant = radius > 2.0e7 || density >= 5.0;
+        if (giant)
             zenith_depth = std::max(zenith_depth, 0.9f);
         glm::vec3 tint = colour * colour;
         tint /= std::max({tint.x, tint.y, tint.z, 1.0e-3f});
@@ -646,7 +647,6 @@ namespace kosmos
         const float below_eye = 1.0f - std::exp(-eye_altitude / static_cast<float>(scale_height));
         const float inv_radius = 1.0f / static_cast<float>(radius);
         const glm::vec3 eye_n = eye * inv_radius;
-        const bool giant = radius > 2.0e7;
         bool any = false;
         for (sl::Vertex3D &v : haze.vertices)
         {
@@ -663,7 +663,7 @@ namespace kosmos
             const float twilight = glm::smoothstep(-0.14f, -0.01f, sun_cos);
             const glm::vec3 path = tau0 * air_mass(facing) * below_eye;
             const glm::vec3 view_transmittance = glm::exp(-path);
-            // A giant's haze takes its colour from the cloud tops, so its sunlight is not reddened; it only fades at the terminator.
+            // A deep atmosphere takes its colour from the cloud tops, so its sunlight is not reddened; it only fades at the terminator.
             const glm::vec3 sun_transmittance = giant ? glm::vec3(twilight) : glm::exp(-tau0 * air_mass(sun_cos)) * twilight;
             // Rayleigh phase, normalised to a mean of one, and a little forward Mie towards the Sun.
             const float cos_scatter = glm::dot(-view, to_sun);
