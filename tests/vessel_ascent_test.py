@@ -37,6 +37,9 @@ def main():
     if not variants_only and not additional_only:
         checks = run(["--scenario", "ares_spider_gale_crater", "--selftest-vessel-ascent"], 1)
         assert "vessel ascent selftest: 0 failure(s)" in checks.stdout, checks.stdout + checks.stderr
+        for args in (["--ship", "CVEL Deltaglider"], ["--scenario", "deltaglider_chippenham"]):
+            checks = run([*args, "--selftest-vessel-ascent"], 1)
+            assert "vessel ascent selftest: 0 failure(s)" in checks.stdout, checks.stdout + checks.stderr
 
     standard = [
         ("Ares", ["--scenario", "ares_spider_gale_crater"], "Mars", 200, 90),

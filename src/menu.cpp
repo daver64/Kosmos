@@ -1305,6 +1305,16 @@ namespace kosmos
                                    "  Esc closes menus and windows; with none open it quits.";
     }
 
+    bool MenuBar::has_open_window(const std::vector<MenuWindow> &windows) const
+    {
+        if (dialog.active() || scenario_editor_open || base_editor_open || help_open || about_open ||
+            aircraft_autopilot_open || spacecraft_autopilot_open || transfer_windows_open)
+            return true;
+        return std::any_of(windows.begin(), windows.end(), [](const MenuWindow &window) {
+            return window.open && *window.open;
+        });
+    }
+
     bool MenuBar::dismiss(std::vector<MenuWindow> &windows)
     {
         if (menu_open_ || ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId))

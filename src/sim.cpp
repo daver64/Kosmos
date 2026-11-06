@@ -1112,9 +1112,12 @@ namespace kosmos
         props.set_string("/autopilot/burn/state", "burn");
         if (props.get_int("/sim/warp-index") > 0 && warp_factor(props.get_int("/sim/warp-index")) > thrust_warp)
             props.set_int("/sim/warp-index", 0);
-        const sl::dvec3 v = me->relative_velocity();
+        Controls attitude;
+        attitude.sas = "prograde";
+        bool valid = false;
+        const sl::dvec3 prograde = me->sas_direction(attitude, valid);
         const sl::dvec3 nose = me->body().direction_to_world({0.0, 0.0, -1.0});
-        const double alignment = glm::length(v) > 1.0 ? glm::dot(nose, glm::normalize(v)) : 1.0;
+        const double alignment = valid ? glm::dot(nose, prograde) : -1.0;
         const double level = std::clamp(remaining / (2.0 * accel), 0.03, 1.0);
         props.set_double("/controls/throttle", alignment > 0.985 ? level : 0.0);
     }

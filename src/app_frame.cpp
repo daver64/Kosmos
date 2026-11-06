@@ -1,5 +1,6 @@
 #include "app_state.h"
 #include "bitmap_release.h"
+#include "gui_input.h"
 #include "watchdog.h" // WATCHDOG
 
 namespace kosmos::app
@@ -27,6 +28,7 @@ namespace kosmos::app
     {
         while (sl::poll_event(&event_discard))
         {
+            sync_gui_input_during_transition(event_discard);
         }
         sl::clear_to_colour(sl::screen, {0, 0, 0});
         const float cx = screen_w * 0.5f, cy = screen_h * 0.5f;
@@ -362,6 +364,8 @@ namespace kosmos::app
         draw_link_3d();
         Watchdog::stage("update_sound"); // WATCHDOG
         update_sound();
+        if (sl::gui_available())
+            sl::gui_new_frame();
         Watchdog::stage("draw_hud"); // WATCHDOG
         draw_hud();
         Watchdog::stage("draw_gui"); // WATCHDOG

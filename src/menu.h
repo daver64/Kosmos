@@ -138,6 +138,8 @@ namespace kosmos
         void draw_windows(Sim &sim, const MenuActions &actions);
         /** Escape: closes an open menu, the dialog, or the editor windows. Returns false when there was nothing to close. */
         bool dismiss(std::vector<MenuWindow> &windows);
+        /** Whether a menu-owned or registered tool window needs the mouse pointer. */
+        bool has_open_window(const std::vector<MenuWindow> &windows) const;
 
         void open_scenario_editor() { scenario_editor_open = true; }
         void open_base_editor() { base_editor_open = true; }

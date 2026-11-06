@@ -33,9 +33,15 @@ namespace kosmos
         valid = true;
         sl::dvec3 up, east, north;
         local_frame(up, east, north);
-        const sl::dvec3 v = relative_velocity();
-        const sl::dvec3 r = body().position - universe_.world.body(telemetry_.soi)->position;
-        const sl::dvec3 h = glm::cross(r, body().velocity - universe_.world.body(telemetry_.soi)->velocity);
+        const sl::FlightBody *central = universe_.world.body(telemetry_.soi);
+        if (!central)
+        {
+            valid = false;
+            return up;
+        }
+        const sl::dvec3 v = body().velocity - central->velocity;
+        const sl::dvec3 r = body().position - central->position;
+        const sl::dvec3 h = glm::cross(r, v);
         const std::string &mode = c.sas;
         if (mode == "prograde" || mode == "retrograde")
         {
@@ -443,9 +449,10 @@ namespace kosmos
         else if (spec_.rcs_thrust > 0.0)
         {
             const sl::dvec3 push(c.rcs_x, c.rcs_y, -c.rcs_z);
-            rcs_push_ = glm::length(push) > 0.0 ? glm::normalize(push) : push;
-            if (glm::length(push) > 0.0)
-                universe_.world.apply_force(body_, b.direction_to_world(glm::normalize(push) * spec_.rcs_thrust));
+            const double magnitude = glm::length(push);
+            rcs_push_ = magnitude > 1.0 ? push / magnitude : push;
+            if (magnitude > 0.0)
+                universe_.world.apply_force(body_, b.direction_to_world(rcs_push_ * spec_.rcs_thrust));
         }
     }
 } // namespace kosmos

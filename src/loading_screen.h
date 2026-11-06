@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app.h"
+#include "gui_input.h"
 
 namespace kosmos::app
 {
@@ -65,6 +66,7 @@ namespace kosmos::app
             sl::Event event;
             while (sl::poll_event(&event))
             {
+                sync_gui_input_during_transition(event);
                 if (event.type() == sl::Event::Type::key_down || event.type() == sl::Event::Type::key_up)
                 {
                     if (event.key() == sl::Event::Key::left_alt)

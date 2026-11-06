@@ -142,6 +142,8 @@ namespace kosmos::app
         {"--selftest-drop", 1, real(&Options::selftest_drop)},
         {"--selftest-weapons", 0, on(&Options::selftest_weapons)},
         {"--selftest-timed-burn", 0, on(&Options::selftest_timed_burn)},
+        {"--selftest-orbital-sas", 0, on(&Options::selftest_orbital_sas)},
+        {"--selftest-ui-windows", 0, on(&Options::selftest_ui_windows)},
         {"--selftest-vessel-ascent", 0, on(&Options::selftest_vessel_ascent)},
         {"--selftest-arsenal", 0, on(&Options::selftest_arsenal)},
         {"--selftest-drop-atom", 0, on(&Options::selftest_drop_atom)},

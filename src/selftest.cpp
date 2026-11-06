@@ -1,5 +1,7 @@
 #include "selftest.h"
 
+#include "gui_input.h"
+#include "menu.h"
 #include "ordnance.h"
 #include "ship_weapons.h"
 
@@ -316,6 +318,142 @@ namespace kosmos
         return failures ? 1 : 0;
     }
 
+    static int run_ui_windows_test()
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        MenuBar bar;
+        bool tool = false;
+        const std::vector<MenuWindow> windows = {{"tool", "", &tool}, {"empty", "", nullptr}};
+        check(!bar.has_open_window(windows), "no windows leaves EVA look enabled");
+        tool = true;
+        check(bar.has_open_window(windows), "registered window releases EVA mouse");
+        tool = false;
+        for (bool *flag : {&bar.scenario_editor_open, &bar.base_editor_open, &bar.help_open, &bar.about_open,
+                           &bar.aircraft_autopilot_open, &bar.spacecraft_autopilot_open, &bar.transfer_windows_open})
+        {
+            *flag = true;
+            check(bar.has_open_window(windows), "menu window releases EVA mouse");
+            *flag = false;
+        }
+        bar.dialog.show(FileDialog::Mode::open, "test", ".", "", {});
+        check(bar.has_open_window(windows), "file dialog releases EVA mouse");
+        bar.dialog.close();
+        check(!bar.has_open_window(windows), "closing windows restores EVA look");
+        check(app::gui_input_release_event(sl::Event::Type::mouse_button_up) &&
+                  app::gui_input_release_event(sl::Event::Type::key_up) &&
+                  app::gui_input_release_event(sl::Event::Type::window),
+              "transition forwards input releases and focus changes");
+        check(!app::gui_input_release_event(sl::Event::Type::mouse_button_down) &&
+                  !app::gui_input_release_event(sl::Event::Type::key_down) &&
+                  !app::gui_input_release_event(sl::Event::Type::mouse_wheel),
+              "transition does not replay clicks or keystrokes");
+        std::printf("UI windows selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
+    static int run_orbital_sas_test(Sim &sim, Ship *ship)
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        sim.advance(0.05);
+        const int soi = ship->telemetry().soi;
+        const sl::FlightBody *central = soi >= 0 ? sim.universe.world.body(soi) : nullptr;
+        if (!central)
+        {
+            check(false, "orbital SAS test has a central body");
+            return 1;
+        }
+        const sl::dvec3 velocity = ship->body().velocity - central->velocity;
+        const double speed = glm::length(velocity);
+        Controls controls;
+        controls.sas = "prograde";
+        bool valid = false;
+        const sl::dvec3 prograde = ship->sas_direction(controls, valid);
+        check(speed > 2.0 && valid && glm::dot(prograde, velocity / speed) > 0.999999999,
+              "prograde follows orbital velocity");
+        controls.sas = "retrograde";
+        const sl::dvec3 target = ship->sas_direction(controls, valid);
+        check(speed > 2.0 && valid && glm::dot(target, velocity / speed) < -0.999999999,
+              "retrograde opposes orbital velocity");
+        if (!valid)
+            return 1;
+        const sl::dvec3 prograde_up = std::abs(prograde.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+        ship->body().orientation = glm::quatLookAt(prograde, prograde_up);
+        sim.props.set_double("/autopilot/burn/target-radius",
+                             ship->telemetry().body_radius + ship->telemetry().apoapsis + 1000000.0);
+        sim.props.set_string("/autopilot/burn/state", "burn");
+        sim.props.set_bool("/autopilot/burn/armed", true);
+        sim.advance(0.05);
+        check(sim.props.get_bool("/autopilot/burn/armed") && sim.props.get_double("/controls/throttle") > 0.0,
+              "orbital burn alignment accepts prograde orientation");
+        sim.props.set_bool("/autopilot/burn/armed", false);
+        sim.props.set_double("/controls/throttle", 0.0);
+        const sl::dvec3 reference = std::abs(target.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+        ship->body().orientation = glm::quatLookAt(target, reference);
+        ship->body().angular_velocity = sl::dvec3(0.0);
+        const double initial_periapsis = ship->telemetry().periapsis;
+        sim.props.set_string("/controls/rcs-mode", "rot");
+        sim.props.set_string("/controls/sas", "retrograde");
+        sim.props.set_double("/controls/throttle", 0.4);
+        double minimum_alignment = 1.0;
+        for (int i = 0; i < 600; ++i)
+        {
+            sim.advance(0.1);
+            const sl::dvec3 desired = ship->sas_direction(controls, valid);
+            if (!valid)
+            {
+                minimum_alignment = -1.0;
+                break;
+            }
+            minimum_alignment = std::min(minimum_alignment,
+                glm::dot(ship->body().direction_to_world(sl::dvec3(0, 0, -1)), desired));
+        }
+        std::printf("retrograde burn: min alignment %.6f, angular rate %.6f rad/s, periapsis change %.0f m\n",
+                    minimum_alignment, glm::length(ship->body().angular_velocity),
+                    ship->telemetry().periapsis - initial_periapsis);
+        check(minimum_alignment > 0.985, "retrograde remains aligned through a powered burn");
+        check(ship->telemetry().periapsis < initial_periapsis - 100000.0,
+              "retrograde burn lowers Mars periapsis");
+        const sl::dvec3 r = ship->body().position - central->position;
+        const sl::dvec3 v = ship->body().velocity - central->velocity;
+        const sl::dvec3 normal = glm::normalize(glm::cross(r, v));
+        ship->body().orientation = glm::quatLookAt(glm::normalize(v), normal);
+        ship->body().angular_velocity = sl::dvec3(0.0);
+        sim.props.set_double("/controls/throttle", 0.0);
+        sim.props.set_string("/controls/sas", "off");
+        sim.props.set_string("/controls/rcs-mode", "lin");
+        sim.props.set_int("/sim/warp-index", 0);
+        sim.props.set_double("/controls/rcs-y", 0.1);
+        const double initial_speed = glm::dot(ship->body().velocity - central->velocity, normal);
+        for (int i = 0; i < 10; ++i)
+            sim.advance(0.1);
+        const double low_speed = glm::dot(ship->body().velocity - central->velocity, normal);
+        sim.props.set_double("/controls/rcs-y", 1.0);
+        for (int i = 0; i < 10; ++i)
+            sim.advance(0.1);
+        const double high_speed = glm::dot(ship->body().velocity - central->velocity, normal);
+        const double low_delta = low_speed - initial_speed;
+        const double high_delta = high_speed - low_speed;
+        std::printf("linear RCS delta-v: 10%% %.6f m/s, 100%% %.6f m/s\n", low_delta, high_delta);
+        check(low_delta > 0.0 && high_delta > low_delta * 7.0 && high_delta < low_delta * 13.0,
+              "linear RCS thrust follows input magnitude");
+        sim.props.set_string("/controls/rcs-mode", "off");
+        for (int i = 0; i < 10; ++i)
+            sim.advance(0.1);
+        const double off_speed = glm::dot(ship->body().velocity - central->velocity, normal);
+        check(std::abs(off_speed - high_speed) < low_delta * 0.01,
+              "RCS off prevents manual translation");
+        std::printf("orbital SAS selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
     static int run_vessel_ascent_test(Sim &sim)
     {
         int failures = 0;
@@ -324,6 +462,56 @@ namespace kosmos
             failures += ok ? 0 : 1;
         };
         sim.step(0.05);
+        Ship *ship = sim.active_ship();
+        if (ship && (ship->spec().name == "CVEL Deltaglider" || ship->spec().name == "CVEL Deltaglider (Nuclear)"))
+        {
+            const int mode = sim.mfd.mode_by_id("dg_ascent");
+            sim.mfd.set_domain("any");
+            sim.mfd.set_ship(ship->spec().name == "CVEL Deltaglider" ? "cvel-deltaglider" : "cvel-deltaglider-nuclear");
+            check(mode >= 0 && sim.mfd.allowed(mode), "Deltaglider ascent MFD available");
+            if (mode < 0)
+                return 1;
+            sim.mfd.set_mode(0, mode);
+            const auto displays = [&](const std::string &text) {
+                MfdCanvas canvas;
+                const MfdMode &m = sim.mfd.modes()[static_cast<std::size_t>(mode)];
+                sol::protected_function draw = m.table["draw"];
+                if (!draw.valid() || !draw(m.table, std::ref(canvas), mfd_size, mfd_size).valid())
+                    return false;
+                for (const MfdCommand &command : canvas.commands)
+                    if (command.kind == MfdCommand::Kind::text && command.text == text)
+                        return true;
+                return false;
+            };
+            check(displays("Off"), "MFD shows ascent is off before START");
+            sim.props.set_double("/autopilot/vessel-ascent/target-km", 149.0);
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(!sim.vessel_ascent_active() && displays("Not started: invalid target or heading"),
+                  "MFD displays rejected start");
+            sim.props.set_double("/autopilot/vessel-ascent/target-km", 200.0);
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(sim.vessel_ascent_active() && displays("Liftoff") && sim.props.get_double("/controls/throttle") > 0.0,
+                  "MFD START engages Deltaglider ascent");
+            for (int i = 0; i < 400; ++i)
+                sim.advance(0.1);
+            check(sim.vessel_ascent_active() && displays("Climb") && ship->telemetry().altitude > 100.0 &&
+                      ship->telemetry().vertical_speed > 0.0,
+                  "Deltaglider MFD shows active climb after takeoff");
+            for (int i = 0; i < 1900; ++i)
+                sim.advance(0.1);
+            check(sim.vessel_ascent_active() && displays("Climb") && ship->telemetry().altitude > 20000.0 &&
+                      ship->telemetry().vertical_speed > 0.0,
+                  "Deltaglider MFD ascent climbs through 20 km");
+            sim.mfd.press(0, 1);
+            sim.step(0.05);
+            check(!sim.vessel_ascent_active() && displays("Ascent cancelled") &&
+                      sim.props.get_double("/controls/throttle") == 0.0,
+                  "MFD STOP cancels Deltaglider ascent");
+            std::printf("vessel ascent selftest: %d failure(s)\n", failures);
+            return failures ? 1 : 0;
+        }
         const char *ids[] = {"ares_ascent", "dg_ascent", "shuttle_ascent"};
         const char *names[] = {"Ares Ascent", "Deltaglider Ascent", "Shuttle-A Ascent"};
         const char *folders[] = {"cvel-ares", "cvel-deltaglider", "cvel-shuttle-a"};
@@ -412,6 +600,10 @@ namespace kosmos
     {
         if (options.timed_burn)
             return run_timed_burn_test(sim, ship);
+        if (options.orbital_sas)
+            return run_orbital_sas_test(sim, ship);
+        if (options.ui_windows)
+            return run_ui_windows_test();
         if (options.vessel_ascent)
             return run_vessel_ascent_test(sim);
         if (options.weapons)

@@ -421,7 +421,9 @@ namespace kosmos::app
         rig.last_mouse_y = my;
         {
             // On foot the mouse steers the view like a first-person game; the ` key, Alt, or any open window gives the pointer back.
-            const bool windows_open = windows.camera_window || windows.settings_window || windows.performance_window || windows.icbm_window || windows.property_window || windows.lua_window || windows.net_window || windows.systems_window || windows.camera_editor_window || windows.part_window || windows.joystick_window || quantum.quantum_window;
+            const bool windows_open = menu_bar.has_open_window(menu_windows) ||
+                                      (in_eva && link_state.link_server && link_state.link_server->running() &&
+                                       !link_state.link_server->ui_windows().empty());
             const bool free_pointer = windows_open || pointer_free || sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt) || (sl::gui_available() && ImGui::GetIO().WantTextInput);
             const bool capture = in_eva && options.shot.empty() && !free_pointer;
             if (capture != mouse_captured)
