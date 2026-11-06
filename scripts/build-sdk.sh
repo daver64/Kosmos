@@ -11,6 +11,7 @@
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WEB_ROOT=${WEB_ROOT:-/var/www/html}
+. "$SRC/scripts/release-web-common.sh"
 OUT=$SRC/build/package
 STAGE=$OUT/sdk-stage/kosmos-sdk
 VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
@@ -91,6 +92,7 @@ if [ "$1" = "--publish" ]; then
         sums=$(grep -s -v "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" || true)
         { [ -z "$sums" ] || echo "$sums"; (cd "$OUT" && sha256sum "$name"); } | sort -k2 > "$DOWNLOAD/SHA256SUMS.txt.new"
         mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
+        update_download_size "$WEB_ROOT/kosmos/download.html" "$DOWNLOAD/$name"
     done
     python3 "$SRC/scripts/sdk-manual-html.py" "$SRC/sdk/docs/MANUAL.md" "$WEB_ROOT/kosmos"
     echo "published to $DOWNLOAD"

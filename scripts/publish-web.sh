@@ -14,6 +14,7 @@
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WEB_ROOT=${WEB_ROOT:-/var/www/html}
+. "$SRC/scripts/release-web-common.sh"
 
 stamp() {
     find "$WEB_ROOT" -maxdepth 2 -name '*.html' -print0 |
@@ -63,10 +64,7 @@ for f in "$@"; do
     sums=$(grep -s -v "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" || true)
     { [ -z "$sums" ] || echo "$sums"; sha256sum "$f" | sed "s|  .*|  $name|"; } | sort -k2 > "$DOWNLOAD/SHA256SUMS.txt.new"
     mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
-    # Only the latest archive of each platform is kept.
-    for old in "$DOWNLOAD"/kosmos-beta-*-"${name##*-}" "$DOWNLOAD/kosmos-beta-${name##*-}"; do
-        [ -e "$old" ] && [ "$old" != "$DOWNLOAD/$name" ] && { rm -f "$old"; sed -i "\|  $(basename "$old")\$|d" "$DOWNLOAD/SHA256SUMS.txt"; }
-    done
+    prune_release_archives "$DOWNLOAD" "$name"
 done
 echo "$VER" > "$DOWNLOAD/VERSION.txt"
 # RELEASE_NOTES.md on the site is every version's notes, newest first
@@ -80,9 +78,7 @@ ls "$DOWNLOAD"/notes/*.md | sed -E 's|.*/([0-9.]+)\.md$|\1|' | sort -t. -k1,1nr 
 stamp "$VER"
 # The download page lists each archive's size
 for f in "$@"; do
-    name=$(basename "$f")
-    mb=$(( ($(stat -c %s "$f") + 524288) / 1048576 ))
-    sed -i -E "s#(>$name</a></td><td>)[0-9]+ MB#\1$mb MB#" "$WEB_ROOT/kosmos/download.html"
+    update_download_size "$WEB_ROOT/kosmos/download.html" "$f"
 done
 echo "$MAJOR.$((BUILD + 1))" > "$VERSION_FILE"
 echo "$APP: published $VER; the next build will be $MAJOR.$((BUILD + 1))"

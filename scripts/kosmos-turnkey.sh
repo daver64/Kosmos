@@ -67,6 +67,7 @@ step "Copy the site to $HOST"
 # Sync only known site directories. Never recurse over WEB_ROOT: it also contains large unrelated downloads.
 # kav/ is root-owned (the KosmosAV install writes it with sudo), so it is left to deploy-kav.sh.
 rsync -rlt --omit-dir-times --exclude=/kav/ --partial --info=progress2 $del "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
+sh "$SRC/scripts/sync-release-archives.sh" "$WEB_ROOT/kosmos/download" "$HOST:$WEB_ROOT/kosmos/download"
 for game in exinvaders exbomberman exdefender exasteroids; do
     rsync -rlt --omit-dir-times --partial --info=progress2 $del "$WEB_ROOT/$game/" "$HOST:$WEB_ROOT/$game/"
 done
