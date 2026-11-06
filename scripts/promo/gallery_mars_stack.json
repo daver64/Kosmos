@@ -1,0 +1,19 @@
+{
+ "name": "Gallery: Mars expedition stack",
+ "description": "The Dragonfly and nuclear Deltaglider docked in Earth orbit.",
+ "active": 0,
+ "date": "2013-11-18 19:30:00",
+ "ships": [
+  {
+   "ship": "CVEL Dragonfly",
+   "body": "Earth",
+   "orbit": { "altitude_km": 400, "inclination": 0, "phase": 12 }
+  },
+  {
+   "ship": "CVEL Deltaglider (Nuclear)",
+   "body": "Earth",
+   "dock": { "to": 0, "port": 0, "own_port": 0 },
+   "orbit": { "altitude_km": 400, "inclination": 0, "phase": 12 }
+  }
+ ]
+}

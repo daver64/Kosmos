@@ -31,11 +31,11 @@ launch_delta_iv_heavy|8.5|--scenario delta_iv_heavy_kennedy --date '2024-06-21 1
 launch_atlas|8|--scenario atlas_iii_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 200
 launch_soyuz|8|--scenario soyuz_fg_twickenham --date '2024-06-21 11:00:00' $W $LAUNCH --cam-distance 200
 launch_kestrel|7|--ship Kestrel $W $LAUNCH --cam-distance 150
-orbit_deltaglider|4|--ship 'CVEL Deltaglider' --orbit --alone $W $ORB --cam-distance 45
-orbit_dragonfly|4|--scenario dragonfly_orbit $W $ORB --cam-distance 60
-orbit_shuttle_a|4|--scenario shuttle_a_cargo_orbit $W $ORB --cam-distance 70
+orbit_deltaglider|8|--ship 'CVEL Deltaglider' --orbit --alone --hide-info --date '2024-06-21 11:00:00' $W --sunlit --sun-angle -70 --orbit-alt 400 --cam-yaw -1.5 --cam-pitch 0.4 --cam-distance 40
+orbit_dragonfly|8|--scenario dragonfly_orbit --hide-info --date '2024-06-21 11:00:00' $W --sunlit --sun-angle 20 --orbit-alt 600 --cam-yaw -0.5 --cam-pitch 0.65 --cam-distance 25
+orbit_shuttle_a|8|--scenario shuttle_a_cargo_orbit --hide-info --date '2024-06-21 11:00:00' $W --sunlit --sun-angle 20 --orbit-alt 400 --cam-yaw 0.8 --cam-pitch 0.6 --cam-distance 55
 orbit_soyuz|4|--scenario soyuz_tma_orbit $W $ORB --cam-distance 40
-orbit_mars_stack|5|--scenario dragonfly_deltaglider_mars $W --sunlit --sun-angle 40 --cam-yaw 0.5 --cam-pitch 0.2 --cam-distance 70
+orbit_mars_stack|8|--scenario-file '$SRC/scripts/promo/gallery_mars_stack.json' --hide-info $W --sunlit --sun-angle -70 --cam-yaw -0.6 --cam-pitch 0.55 --cam-distance 50
 flight_skylark_alps|16|--scenario-file '$SRC/scripts/promo/alps_skylark.json' $W --cam-yaw 0.6 --cam-pitch 0.2 --cam-distance 30
 flight_vulcan_alps|16|--scenario-file '$SRC/scripts/promo/alps_vulcan.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 45
 flight_cub_alps|16|--scenario-file '$SRC/scripts/promo/alps_cub.json' $W --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 22
