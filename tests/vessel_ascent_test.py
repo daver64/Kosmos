@@ -31,6 +31,23 @@ def run(args, seconds):
 
 
 def main():
+    if "--cargo" in sys.argv[2:]:
+        scenario = ["--scenario", "shuttle_a_cargo_helsinki"]
+        checks = run([*scenario, "--selftest-vessel-ascent"], 1)
+        assert "vessel ascent selftest: 0 failure(s)" in checks.stdout, checks.stdout + checks.stderr
+        result = run([*scenario, "--set", "/autopilot/vessel-ascent/request=Shuttle-A"], 2700)
+        output = result.stdout + result.stderr
+        achieved = RESULT.search(result.stdout)
+        final = FINAL.search(result.stdout)
+        assert achieved and final, output
+        ap, pe, fuel = map(float, achieved.group(1, 2, 4))
+        assert achieved.group(3) == "1" and 195 <= ap <= 215 and 194.9 <= pe <= 205 and fuel > 100, output
+        assert final.group(5) == "0" and final.group(6) == "Earth", output
+        reports = re.findall(r"^t=.*?m=\s*(\d+).*?docked=(\d+) links=(\d+)", result.stdout, re.M)
+        assert reports and int(reports[0][0]) > 200000, output
+        assert all(docked == "1" and links == "6" for _, docked, links in reports), output
+        print(f"Shuttle-A Helsinki cargo: Earth orbit {pe:.1f} x {ap:.1f} km, fuel {fuel:.0f}")
+        return
     variants_only = "--variants" in sys.argv[2:]
     additional_only = "--additional" in sys.argv[2:]
     standard_only = "--standard" in sys.argv[2:]

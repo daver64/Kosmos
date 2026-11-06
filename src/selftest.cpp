@@ -463,6 +463,57 @@ namespace kosmos
         };
         sim.step(0.05);
         Ship *ship = sim.active_ship();
+        const auto docks = sim.nav.dock_links();
+        if (ship && ship->spec().name == "CVEL Shuttle-A" && docks.size() == 6 &&
+            sim.nav.docked(sim.active_index()))
+        {
+            const int payload = docks[0][0] == sim.active_index() ? docks[0][2] : docks[0][0];
+            sim.mfd.set_domain("any");
+            sim.mfd.set_ship("cvel-shuttle-a");
+            const int mode = sim.mfd.mode_by_id("shuttle_ascent");
+            check(mode >= 0 && sim.mfd.allowed(mode), "Shuttle-A ascent MFD available");
+            if (mode < 0)
+                return 1;
+            sim.mfd.set_mode(0, mode);
+            check(ship->telemetry().mass > 200000.0, "docked payload mass included");
+            sim.link_claims[payload] = {};
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(!sim.vessel_ascent_active() &&
+                      sim.props.get_string("/autopilot/vessel-ascent/state") == "Not started: docked vessel or controlled payload",
+                  "addon-controlled payload rejected");
+            sim.link_claims.erase(payload);
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") > 0.0,
+                  "MFD starts ascent with docked cargo");
+            sim.link_claims[payload] = {};
+            sim.step(0.05);
+            check(!sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") == 0.0 &&
+                      sim.props.get_string("/autopilot/vessel-ascent/state") == "Ascent aborted: unsafe docking or payload control",
+                  "payload control claim aborts active ascent");
+            sim.link_claims.erase(payload);
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(sim.vessel_ascent_active(), "ascent restarts after payload control released");
+            Ship *other = sim.spawn(ship->spec());
+            check(other && !other->spec().ports.empty(), "second vessel spawned");
+            if (other && !other->spec().ports.empty())
+            {
+                sim.nav.link(payload, 1, sim.ship_count() - 1, 0);
+                sim.step(0.05);
+                check(!sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") == 0.0 &&
+                          sim.props.get_string("/autopilot/vessel-ascent/state") == "Ascent aborted: unsafe docking or payload control",
+                      "indirectly docked spacecraft aborts active ascent");
+                sim.mfd.press(0, 0);
+                sim.step(0.05);
+                check(!sim.vessel_ascent_active() &&
+                          sim.props.get_string("/autopilot/vessel-ascent/state") == "Not started: docked vessel or controlled payload",
+                      "indirectly docked spacecraft rejected");
+            }
+            std::printf("vessel ascent selftest: %d failure(s)\n", failures);
+            return failures ? 1 : 0;
+        }
         if (ship && (ship->spec().name == "CVEL Deltaglider" || ship->spec().name == "CVEL Deltaglider (Nuclear)"))
         {
             const int mode = sim.mfd.mode_by_id("dg_ascent");
@@ -663,10 +714,11 @@ namespace kosmos
                 if (ship->spec().aircraft() && sim.props.get_bool("/nav/nav[0]/valid"))
                     std::printf("   nav0: loc %.2f gs %.2f dist %.0f\n", sim.props.get_double("/nav/nav[0]/ils/localizer"), sim.props.get_double("/nav/nav[0]/ils/glideslope"), sim.props.get_double("/nav/nav[0]/distance"));
                 if (!ship->spec().aircraft())
-                std::printf("t=%6.0f %-24s alt=%8.4f km speed=%7.1f vs=%7.1f ap=%8.1f pe=%8.1f pitch=%5.1f stage=%d fuel=%8.0f m=%7.0f warp=%g active=%d docked=%d%s\n",
+                std::printf("t=%6.0f %-24s alt=%8.4f km speed=%7.1f vs=%7.1f ap=%8.1f pe=%8.1f pitch=%5.1f stage=%d fuel=%8.0f m=%7.0f warp=%g active=%d docked=%d links=%zu%s\n",
                             sim.universe.time(), sim.props.get_string("/autopilot/status").c_str(), tm.altitude / km, tm.surface_speed,
                             tm.vertical_speed, tm.apoapsis / km, tm.periapsis / km, tm.pitch, ship->active_stage(), tm.stage_fuel,
                             tm.mass, sim.current_warp(), sim.props.get_int("/sim/active-ship"), sim.nav.docked(sim.props.get_int("/sim/active-ship")) ? 1 : 0,
+                            sim.nav.dock_links().size(),
                             ship->crashed() ? " CRASHED" : "");
                 if (sim.vessel_ascent_active())
                     std::printf("   ascent: %s q=%.1f Pa throttle=%.3f hover=%.3f ap=%.1f km pe=%.1f km heading=%.1f\n",

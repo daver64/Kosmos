@@ -5,6 +5,33 @@
 
 namespace kosmos
 {
+    namespace
+    {
+        bool ascent_docking_allowed(Sim &sim, int active)
+        {
+            if (!sim.nav.docked(active))
+                return true;
+            std::vector<int> group{active};
+            const auto links = sim.nav.dock_links();
+            for (std::size_t i = 0; i < group.size(); ++i)
+                for (const auto &link : links)
+                {
+                    const int other = link[0] == group[i] ? link[2] : link[2] == group[i] ? link[0] : -1;
+                    if (other < 0 || std::find(group.begin(), group.end(), other) != group.end())
+                        continue;
+                    if (other >= sim.ship_count())
+                        return false;
+                    const Ship *ship = sim.ship(other);
+                    if (!ship || ship->spec().kind != "payload" || sim.link_claims.count(other) ||
+                        std::any_of(ship->spec().stages.begin(), ship->spec().stages.end(),
+                                    [](const StageSpec &stage) { return !stage.engines.empty(); }))
+                        return false;
+                    group.push_back(other);
+                }
+            return true;
+        }
+    }
+
     void Sim::cancel_vessel_ascent(const std::string &reason)
     {
         if (ascent_ship_ < 0)
@@ -59,8 +86,12 @@ namespace kosmos
                     error = "start near the surface and at rest";
                 else if (!ship->attitude_control_available() || (ship->spec().rcs_modes && props.get_string("/controls/rcs-mode", "rot") == "off"))
                     error = "attitude control unavailable";
-                else if (ship->telemetry().stage_fuel < 1 || nav.docked(active_) || link_claims.count(active_))
-                    error = "fuel, docking or addon control";
+                else if (ship->telemetry().stage_fuel < 1)
+                    error = "insufficient fuel";
+                else if (!ascent_docking_allowed(*this, active_))
+                    error = "docked vessel or controlled payload";
+                else if (link_claims.count(active_))
+                    error = "addon controls vessel";
                 else if (ship->active_stage() < 0 || ship->active_stage() >= static_cast<int>(ship->spec().stages.size()))
                     error = "no active engine stage";
                 else
@@ -143,9 +174,14 @@ namespace kosmos
             std::abs(props.get_double("/controls/rcs-x")) + std::abs(props.get_double("/controls/rcs-y")) +
                 std::abs(props.get_double("/controls/rcs-z")) > 0.02 ||
             std::abs(props.get_double("/controls/pod-left")) + std::abs(props.get_double("/controls/pod-right")) > 0.02 ||
-            link_claims.count(active_) || nav.docked(active_))
+            link_claims.count(active_))
         {
             cancel_vessel_ascent("Ascent aborted: control, vessel or fuel unavailable");
+            return;
+        }
+        if (!ascent_docking_allowed(*this, active_))
+        {
+            cancel_vessel_ascent("Ascent aborted: unsafe docking or payload control");
             return;
         }
         const Telemetry &t = ship->telemetry();

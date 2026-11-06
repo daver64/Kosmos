@@ -309,6 +309,7 @@ namespace kosmos::app
     // The 3D scene.
     void App::draw_world()
     {
+        bool cockpit_weather_drawn = false;
         setup_depth_layers();
         setup_environment();
         draw_building_panel_target();
@@ -328,12 +329,80 @@ namespace kosmos::app
             scene_lightning();
             scene_lamp_bulbs();
             scene_exhaust_and_held();
+            if (in_cockpit3d)
+            {
+                // Composite weather over the world before drawing the virtual cockpit in its own depth layer.
+                const auto clear_cockpit_depth = [&]() {
+                    if (sl::clear_depth_3d())
+                        return true;
+                    static bool reported = false;
+                    if (!reported)
+                    {
+                        sim.log("Cannot clear depth for the virtual cockpit");
+                        reported = true;
+                    }
+                    return false;
+                };
+                if (!map_mode && !galaxy_mode && (cloud_veil > 0.02 || lightning_flash > 0.02) && clear_cockpit_depth())
+                {
+                    sl::set_camera_3d(layered ? ship_camera : camera);
+                    const sl::Camera &view = layered ? ship_camera : camera;
+                    const float distance = std::max(2.0f, view.near_plane * 2.0f);
+                    const float height = 2.0f * distance * std::tan(glm::radians(view.field_of_view * 0.5f));
+                    const glm::mat4 quad = glm::inverse(view.view_matrix()) *
+                                           glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -distance)) *
+                                           glm::scale(glm::mat4(1.0f), glm::vec3(height * screen_w / screen_h, height, 1.0f));
+                    sl::Material veil;
+                    veil.lit = false;
+                    veil.fog = false;
+                    veil.cull = sl::CullMode::none;
+                    veil.blend = sl::MaterialBlend::alpha;
+                    if (cloud_veil > 0.02)
+                    {
+                        veil.tint = {112, 118, 128, static_cast<std::uint8_t>(cloud_veil * 190.0)};
+                        sl::draw_mesh(vis.screen_quad, quad, veil);
+                    }
+                    if (lightning_flash > 0.02)
+                    {
+                        veil.blend = sl::MaterialBlend::additive;
+                        veil.tint = {static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 70.0),
+                                     static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 75.0),
+                                     static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 95.0), 255};
+                        sl::draw_mesh(vis.screen_quad, quad, veil);
+                    }
+                    cockpit_weather_drawn = true;
+                }
+                if (clear_cockpit_depth())
+                    sl::set_camera_3d(layered ? ship_camera : camera);
+                const sl::FlightBody &body = ship->body();
+                const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(ship->origin() - eye_world)) *
+                                        glm::mat4(glm::mat3_cast(glm::quat(body.orientation)));
+                draw_ship_cockpit3d(*ship, body, model);
+            }
             sl::end_surface_3d();
         }
         sl::clear_to_colour(sl::screen, {0, 0, 0});
         sl::draw_sprite(sl::surface_3d_bitmap(surface), 0, 0);
         if (map_mode)
             map.draw(*universe_ref, *ship, *tm_ref);
+        if ((!in_cockpit3d || !cockpit_weather_drawn) && !map_mode && !galaxy_mode)
+        {
+            if (cloud_veil > 0.02)
+            {
+                sl::set_blend_mode(sl::BlendMode::normal);
+                sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
+                             {112, 118, 128, static_cast<std::uint8_t>(cloud_veil * 190.0)});
+            }
+            if (lightning_flash > 0.02)
+            {
+                sl::set_blend_mode(sl::BlendMode::additive);
+                sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
+                             {static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 70.0),
+                              static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 75.0),
+                              static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 95.0), 255});
+                sl::set_blend_mode(sl::BlendMode::normal);
+            }
+        }
 
         view_proj = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix();
     }

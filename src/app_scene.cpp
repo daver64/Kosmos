@@ -811,6 +811,7 @@ namespace kosmos::app
                 sl::Material console;
                 console.tint = {38, 40, 46, 255};
                 console.cull = sl::CullMode::none;
+                console.fog = false;
                 const bool has_vc = !cp.vc_model.empty();
                 if (has_vc)
                 {
@@ -955,10 +956,6 @@ namespace kosmos::app
             }
             if (!((in_cockpit || in_interior) && &other == ship))
                 draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
-            else if (in_cockpit3d)
-            {
-        draw_ship_cockpit3d(other, ob, model);
-            }
             for (const kosmos::Debris &d : other.debris())
             {
                 const sl::FlightBody *db = universe.world.body(d.body);

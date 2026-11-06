@@ -894,19 +894,6 @@ namespace kosmos::app
         {
         draw_mfd_overlay(dashboard, cockpit_mfd_overlay);
         }
-        if (cloud_veil > 0.02 && !map_mode && !galaxy_mode)
-        {
-            sl::set_blend_mode(sl::BlendMode::normal);
-            sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
-                         {112, 118, 128, static_cast<std::uint8_t>(cloud_veil * 190.0)});
-        }
-        if (lightning_flash > 0.02 && !map_mode && !galaxy_mode)
-        {
-            sl::set_blend_mode(sl::BlendMode::additive);
-            sl::rectfill(sl::screen, 0.0f, 0.0f, static_cast<float>(screen_w), static_cast<float>(screen_h),
-                         {static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 70.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 75.0), static_cast<std::uint8_t>(std::min(1.0, lightning_flash) * 95.0), 255});
-            sl::set_blend_mode(sl::BlendMode::normal);
-        }
         // The weather line is a notice: it shows for a few seconds when the METAR (or station) changes.
         {
             const std::string key = props.get_string("/environment/station") + "|" + props.get_string("/environment/metar");
