@@ -234,6 +234,22 @@ namespace kosmos
         add("look_down", "Look down", walk, foot, true, {K::arrow_down});
     }
 
+    std::vector<KeyActionGroup> KeyBindings::action_groups() const
+    {
+        std::vector<KeyActionGroup> groups;
+        for (const KeyAction &action : actions_)
+        {
+            auto group = std::find_if(groups.begin(), groups.end(), [&](const KeyActionGroup &g) { return g.name == action.group; });
+            if (group == groups.end())
+            {
+                groups.push_back({action.group, {}});
+                group = groups.end() - 1;
+            }
+            group->actions.push_back(&action);
+        }
+        return groups;
+    }
+
     const KeyAction *KeyBindings::find(const std::string &id) const
     {
         for (const KeyAction &a : actions_)

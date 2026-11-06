@@ -1,15 +1,102 @@
 #undef NDEBUG
 #include "keybindings.h"
+#include <imgui.h>
 
 #include <cassert>
 #include <cstdio>
+#include <set>
 
 using namespace kosmos;
 using K = sl::Key;
 
+static void check_imgui_ids(const KeyBindings &bindings)
+{
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+    io.DisplaySize = ImVec2(1000, 100000);
+    io.DeltaTime = 1.0f / 60.0f;
+    unsigned char *pixels;
+    int width, height;
+    io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+    const auto groups = bindings.action_groups();
+    assert(groups.size() < 16);
+    for (unsigned int mask = 0; mask < (1u << groups.size()); ++mask)
+    {
+        ImGui::NewFrame();
+        ImGui::SetNextWindowSize(ImVec2(900, 99000));
+        ImGui::Begin("Keyboard test");
+        std::set<ImGuiID> ids;
+        for (std::size_t group_index = 0; group_index < groups.size(); ++group_index)
+        {
+            const auto &group = groups[group_index];
+            ImGui::PushID(static_cast<int>(group_index));
+            assert(ids.insert(ImGui::GetID(group.name.c_str())).second);
+            ImGui::SetNextItemOpen((mask & (1u << group_index)) != 0, ImGuiCond_Always);
+            const bool open = ImGui::CollapsingHeader(group.name.c_str());
+            assert(open == ((mask & (1u << group_index)) != 0));
+            if (open)
+                for (std::size_t action_index = 0; action_index < group.actions.size(); ++action_index)
+                {
+                    ImGui::PushID(static_cast<int>(action_index));
+                    for (int slot = 0; slot < 2; ++slot)
+                    {
+                        ImGui::PushID(slot);
+                        const std::string label = KeyBindings::chord_name(group.actions[action_index]->chord[slot]);
+                        assert(ids.insert(ImGui::GetID(label.c_str())).second);
+                        ImGui::Button(label.c_str());
+                        ImGui::PopID();
+                    }
+                    ImGui::PopID();
+                }
+            ImGui::PopID();
+        }
+        ImGui::End();
+        ImGui::Render();
+    }
+    ImGui::DestroyContext();
+}
+
 int main()
 {
     KeyBindings keys;
+
+    const auto check_groups = [](const KeyBindings &bindings) {
+        const auto groups = bindings.action_groups();
+        std::set<std::string> names, ids;
+        for (const auto &group : groups)
+        {
+            assert(names.insert(group.name).second);
+            assert(!group.actions.empty());
+            for (const KeyAction *action : group.actions)
+            {
+                assert(action->group == group.name);
+                assert(ids.insert(action->id).second);
+            }
+        }
+        assert(ids.size() == bindings.actions().size());
+        for (const auto &action : bindings.actions())
+            assert(ids.count(action.id) == 1);
+        return groups;
+    };
+    const auto groups = check_groups(keys);
+    assert(groups.size() >= 3 && groups[0].name == "Windows" && groups[1].name == "View and time" && groups[2].name == "Ship controls");
+    bool found_hover_off = false, found_rcs_mode = false;
+    for (const KeyAction *action : groups[2].actions)
+    {
+        found_hover_off |= action->id == "hover_off";
+        found_rcs_mode |= action->id == "rcs_mode";
+    }
+    assert(found_hover_off && found_rcs_mode);
+    KeyBindings grouped_addons;
+    assert(grouped_addons.add_from_json(R"({"actions":[{"id":"test.one","group":"Ship controls","property":"/one"},{"id":"test.two","group":"New category","property":"/two"},{"id":"test.three","group":"Ship controls","property":"/three"}]})", "test").empty());
+    assert(grouped_addons.add_from_json(R"({"actions":[{"id":"test.four","group":"First###shared","property":"/four"},{"id":"test.five","group":"Second###shared","property":"/five"}]})", "test").empty());
+    const auto addon_groups = check_groups(grouped_addons);
+    assert(addon_groups[2].actions[addon_groups[2].actions.size() - 2]->id == "test.one");
+    assert(addon_groups[2].actions.back()->id == "test.three");
+    assert(addon_groups[addon_groups.size() - 3].name == "New category");
+    check_imgui_ids(grouped_addons);
 
     // Defaults: plain and Shift variants of one key are different actions.
     assert(keys.pressed("bomb", K::letter_k, {false}));

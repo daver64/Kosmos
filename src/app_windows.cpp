@@ -780,43 +780,48 @@ namespace kosmos::app
             ImGui::Separator();
             if (ImGui::BeginChild("keylist"))
             {
-                std::string group;
-                bool open = false;
-                for (const kosmos::KeyAction &a : keys.actions())
+                const auto groups = keys.action_groups();
+                for (std::size_t group_index = 0; group_index < groups.size(); ++group_index)
                 {
-                    if (a.group != group)
-                    {
-                        group = a.group;
-                        open = ImGui::CollapsingHeader(group.c_str(), group == "Ship controls" ? ImGuiTreeNodeFlags_DefaultOpen : 0);
-                    }
+                    const auto &group = groups[group_index];
+                    ImGui::PushID(static_cast<int>(group_index));
+                    const bool open = ImGui::CollapsingHeader(group.name.c_str(), group.name == "Ship controls" ? ImGuiTreeNodeFlags_DefaultOpen : 0);
                     if (!open)
-                        continue;
-                    ImGui::PushID(a.id.c_str());
-                    ImGui::TextUnformatted(a.label.c_str());
-                    ImGui::SameLine(300.0f);
-                    for (int slot = 0; slot < 2; ++slot)
                     {
-                        ImGui::PushID(slot);
-                        const bool waiting = keys.learning() && keys.learn_id() == a.id && keys.learn_slot() == slot;
-                        const std::string text = waiting ? "Press a key..." : kosmos::KeyBindings::chord_name(a.chord[slot]);
-                        if (ImGui::Button(text.c_str(), ImVec2(100.0f, 0.0f)))
-                            waiting ? keys.cancel_learn() : keys.begin_learn(a.id, slot);
-                        if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                        ImGui::PopID();
+                        continue;
+                    }
+                    for (std::size_t action_index = 0; action_index < group.actions.size(); ++action_index)
+                    {
+                        const kosmos::KeyAction &a = *group.actions[action_index];
+                        ImGui::PushID(static_cast<int>(action_index));
+                        ImGui::TextUnformatted(a.label.c_str());
+                        ImGui::SameLine(300.0f);
+                        for (int slot = 0; slot < 2; ++slot)
                         {
-                            keys.clear(a.id, slot);
+                            ImGui::PushID(slot);
+                            const bool waiting = keys.learning() && keys.learn_id() == a.id && keys.learn_slot() == slot;
+                            const std::string text = waiting ? "Press a key..." : kosmos::KeyBindings::chord_name(a.chord[slot]);
+                            if (ImGui::Button(text.c_str(), ImVec2(100.0f, 0.0f)))
+                                waiting ? keys.cancel_learn() : keys.begin_learn(a.id, slot);
+                            if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+                            {
+                                keys.clear(a.id, slot);
+                                keys.save();
+                                refresh_menu_keys();
+                            }
+                            ImGui::PopID();
+                            ImGui::SameLine();
+                        }
+                        if (!keys.is_default(a) && ImGui::SmallButton("Reset"))
+                        {
+                            keys.reset(a.id);
                             keys.save();
                             refresh_menu_keys();
                         }
+                        ImGui::NewLine();
                         ImGui::PopID();
-                        ImGui::SameLine();
                     }
-                    if (!keys.is_default(a) && ImGui::SmallButton("Reset"))
-                    {
-                        keys.reset(a.id);
-                        keys.save();
-                        refresh_menu_keys();
-                    }
-                    ImGui::NewLine();
                     ImGui::PopID();
                 }
             }

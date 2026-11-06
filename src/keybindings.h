@@ -49,6 +49,12 @@ namespace kosmos
         std::string property;
     };
 
+    struct KeyActionGroup
+    {
+        std::string name;
+        std::vector<const KeyAction *> actions;
+    };
+
     /**
      * Keyboard bindings: every action has up to two chords, with defaults the player can change and save. The built-in
      * actions are listed in keybindings.cpp; addons add their own with a keys.json (see the modding guide).
@@ -59,6 +65,8 @@ namespace kosmos
         KeyBindings();
 
         const std::vector<KeyAction> &actions() const { return actions_; }
+        /** Groups actions by their first appearance; pointers remain valid until actions are added. */
+        std::vector<KeyActionGroup> action_groups() const;
         const KeyAction *find(const std::string &id) const;
 
         /** True when @p key (with @p mods held) was just pressed and is bound to @p id. */
