@@ -1290,11 +1290,14 @@ namespace kosmos
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
+                                   "  Alt+Enter toggles full screen, including while loading; the window can also be resized or maximized.\n"
                                    "  Keypad 7 / Insert: fire primary / secondary weapons (ships that carry them)\n"
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
+                                   "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"
+                                   "  OrbitComp planet-to-planet windows are estimates; check the predicted encounter and correct the flight.\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows; with none open it quits.";
     }
