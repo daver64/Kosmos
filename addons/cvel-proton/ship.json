@@ -236,9 +236,9 @@
       "engines": [
         {
           "position": [
-            -0.7,
-            -0.7,
-            -3.0
+            0,
+            1.2,
+            3.65
           ],
           "direction": [
             0,
@@ -247,18 +247,18 @@
           ],
           "thrust": 600000,
           "isp": 327,
-          "plume": 30,
-          "plume_width": 0.8,
-          "plume_glow": 1.2,
-          "plume_density": 2,
+          "plume": 7,
+          "plume_width": 0.35,
+          "plume_glow": 0.7,
+          "plume_density": 0.8,
           "type": "rocket",
           "fuel": "hypergolic"
         },
         {
           "position": [
-            -0.7,
-            0.7,
-            -3.0
+            1.2,
+            0,
+            3.65
           ],
           "direction": [
             0,
@@ -267,18 +267,18 @@
           ],
           "thrust": 600000,
           "isp": 327,
-          "plume": 30,
-          "plume_width": 0.8,
-          "plume_glow": 1.2,
-          "plume_density": 2,
+          "plume": 7,
+          "plume_width": 0.35,
+          "plume_glow": 0.7,
+          "plume_density": 0.8,
           "type": "rocket",
           "fuel": "hypergolic"
         },
         {
           "position": [
-            0.7,
-            -0.7,
-            -3.0
+            0,
+            -1.2,
+            3.65
           ],
           "direction": [
             0,
@@ -287,18 +287,18 @@
           ],
           "thrust": 600000,
           "isp": 327,
-          "plume": 30,
-          "plume_width": 0.8,
-          "plume_glow": 1.2,
-          "plume_density": 2,
+          "plume": 7,
+          "plume_width": 0.35,
+          "plume_glow": 0.7,
+          "plume_density": 0.8,
           "type": "rocket",
           "fuel": "hypergolic"
         },
         {
           "position": [
-            0.7,
-            0.7,
-            -3.0
+            -1.2,
+            0,
+            3.65
           ],
           "direction": [
             0,
@@ -307,10 +307,10 @@
           ],
           "thrust": 600000,
           "isp": 327,
-          "plume": 30,
-          "plume_width": 0.8,
-          "plume_glow": 1.2,
-          "plume_density": 2,
+          "plume": 7,
+          "plume_width": 0.35,
+          "plume_glow": 0.7,
+          "plume_density": 0.8,
           "type": "rocket",
           "fuel": "hypergolic"
         }
@@ -390,7 +390,7 @@
           "position": [
             0,
             0,
-            -12.5
+            -12.26
           ],
           "direction": [
             0,
@@ -399,10 +399,10 @@
           ],
           "thrust": 590390,
           "isp": 325,
-          "plume": 15,
-          "plume_width": 0.9,
-          "plume_glow": 1.2,
-          "plume_density": 2,
+          "plume": 5,
+          "plume_width": 0.35,
+          "plume_glow": 0.7,
+          "plume_density": 0.8,
           "type": "rocket",
           "fuel": "hypergolic"
         }
