@@ -30,6 +30,40 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-atlas/ship.json", spec, error));
+        Ship rocket(universe, spec);
+        const int earth = universe.find("Earth");
+        assert(earth >= 0);
+        rocket.body().position = universe.position(earth) + sl::dvec3(0.0, universe.bodies[earth].radius + 200000.0, 0.0);
+        assert(rocket.stage_once());
+        assert(rocket.active_stage() == 3 && rocket.debris().size() == 3);
+        assert(!rocket.stage_once() && rocket.active_stage() == 3);
+        const double fuel = rocket.body().tanks[3].mass;
+        Controls controls;
+        controls.throttle = 1.0;
+        rocket.apply_controls(controls, 1.0);
+        rocket.after_step(0.01);
+        assert(rocket.telemetry().thrust > 99000.0 && fuel > 0.0);
+        universe.world.step(1.0);
+        assert(rocket.body().tanks[3].mass < fuel - 20.0);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-titan/titan3e.json", spec, error));
+        Ship rocket(universe, spec);
+        assert(rocket.stage_once() && rocket.active_stage() == 1);
+        assert(rocket.stage_once() && rocket.active_stage() == 2);
+        assert(rocket.stage_once() && rocket.active_stage() == 5);
+        assert(rocket.debris().size() == 5);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         const int earth = universe.find("Earth"), sun = universe.find("Sun");
         assert(earth >= 0 && sun >= 0);
         const sl::dvec3 earth_position = universe.position(earth);
@@ -497,6 +531,20 @@ int main()
         assert(plan_hohmann(mu, r1, r1, 0.0).has_window == false);
         assert(plan_hohmann(0.0, r1, r2, 0.0).has_window == false);
         assert(plan_hohmann(mu, r2, r1, 0.0).dv1 < 0.0);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec probe;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", probe, error));
+        assert(probe.cockpit.present && probe.cockpit.eye.z > 0.0 && probe.cockpit.yaw == 180.0);
+        assert(!probe.rcs_effects && probe.rcs_thrust == 20.0);
+        Ship ship(universe, probe);
+        Controls controls;
+        controls.rcs_x = 1.0;
+        ship.apply_controls(controls, 0.1);
+        assert(glm::length(ship.rcs_push()) > 0.0);
     }
     {
         Universe universe;

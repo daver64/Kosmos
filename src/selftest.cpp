@@ -270,10 +270,11 @@ namespace kosmos
                 if (ship->spec().aircraft() && sim.props.get_bool("/nav/nav[0]/valid"))
                     std::printf("   nav0: loc %.2f gs %.2f dist %.0f\n", sim.props.get_double("/nav/nav[0]/ils/localizer"), sim.props.get_double("/nav/nav[0]/ils/glideslope"), sim.props.get_double("/nav/nav[0]/distance"));
                 if (!ship->spec().aircraft())
-                std::printf("t=%6.0f %-24s alt=%8.4f km speed=%7.1f vs=%7.1f ap=%8.1f pe=%8.1f pitch=%5.1f stage=%d fuel=%8.0f m=%7.0f warp=%g%s\n",
+                std::printf("t=%6.0f %-24s alt=%8.4f km speed=%7.1f vs=%7.1f ap=%8.1f pe=%8.1f pitch=%5.1f stage=%d fuel=%8.0f m=%7.0f warp=%g active=%d docked=%d%s\n",
                             sim.universe.time(), sim.props.get_string("/autopilot/status").c_str(), tm.altitude / km, tm.surface_speed,
                             tm.vertical_speed, tm.apoapsis / km, tm.periapsis / km, tm.pitch, ship->active_stage(), tm.stage_fuel,
-                            tm.mass, sim.current_warp(), ship->crashed() ? " CRASHED" : "");
+                            tm.mass, sim.current_warp(), sim.props.get_int("/sim/active-ship"), sim.nav.docked(sim.props.get_int("/sim/active-ship")) ? 1 : 0,
+                            ship->crashed() ? " CRASHED" : "");
                 if (sim.props.get_bool("/target/valid"))
                     std::printf("   target %s: distance %.0f km\n", sim.props.get_string("/sim/target").c_str(), sim.props.get_double("/target/distance") / km);
                 if (sim.props.get_string("/environment/station") != "")

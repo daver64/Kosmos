@@ -1,8 +1,0 @@
-{
-  "id": "cvel-vulcan",
-  "name": "CVEL Vulcan",
-  "version": "0.1",
-  "ships": [
-    "ship.json"
-  ]
-}

@@ -22,7 +22,7 @@ RIGHT='340x340+684+321'
 W='--hide-info --set /sim/settings/weather=1 --clean --mfd 1'
 STN="--scenario orbital_stations $W"
 AIR="--scenario deltaglider_chippenham $W"
-CUB="--scenario piper_cub_chippenham $W"
+AIR_INSTRUMENTS="--ship 'CVEL Buran' $W"
 RUNS="transfer|6|transfer|transfer|orbitcomp|orbitcomp-orb|$STN --set /sim/target=Moon
 orbitcomp-man|6|orbit|-|orbitcomp|orbitcomp-man|$STN --set /sim/target=Moon --set /orbitcomp/page=2 --set /orbitcomp/prograde=250
 orbitcomp-pln|6|orbit|-|orbitcomp|orbitcomp-pln|$STN --set /sim/target=Mars --set /orbitcomp/page=3
@@ -35,10 +35,10 @@ fuel|30|fuel|fuel|orbit|-|--scenario delta_iv_heavy_kennedy $W --auto-stage --la
 air-comnav-vor|8|comnav|comnav|vor|vor|$AIR
 air-hsi-vtol|8|hsi|hsi|vtol|vtol|$AIR
 air-adf-surface|8|adf|adf|surface|surface-air|$AIR
-air-adi-asi|8|adi|adi|asi|asi|$CUB
-air-alt-vsi|8|altimeter|altimeter|vsi|vsi|$CUB
-air-dg-turn|8|dg|dg|turn|turn|$CUB
-air-engine|8|engine|engine|-|-|$CUB"
+air-adi-asi|8|adi|adi|asi|asi|$AIR_INSTRUMENTS
+air-alt-vsi|8|altimeter|altimeter|vsi|vsi|$AIR_INSTRUMENTS
+air-dg-turn|8|dg|dg|turn|turn|$AIR_INSTRUMENTS
+air-engine|8|engine|engine|-|-|$AIR_INSTRUMENTS"
 
 echo "$RUNS" >"$tmp/runs.txt"
 while IFS='|' read -r run secs lmode lname rmode rname options; do

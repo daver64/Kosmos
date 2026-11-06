@@ -133,7 +133,7 @@ namespace kosmos
         /** Landing gear contact points in the ship frame; they leave with the stage. */
         std::vector<sl::dvec3> gear;
         double separation_speed = 1.0;
-        bool with_next = false; // drops together with the stage after it on one press
+        bool with_next = false; // also drop the next stage on the same press; chains are allowed
         /** Two equally massive parts at opposite offsets separate radially as independent debris. */
         bool radial_pair = false;
         /** Ship-frame direction the stage is pushed when dropped; the default is straight back along +z. */

@@ -1,6 +1,0 @@
-{
-  "id": "cvel-piper-cub",
-  "name": "CVEL Piper Cub",
-  "version": "0.1",
-  "ships": ["ship.json"]
-}

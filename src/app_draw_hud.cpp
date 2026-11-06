@@ -323,8 +323,9 @@ namespace kosmos::app
                         props.get_string("/controls/rcs-mode", "rot") == "lin" ? "LIN" : props.get_string("/controls/rcs-mode", "rot") == "off" ? "OFF" : "ROT", sim.current_warp(),
                         ship->on_rails() ? " (rails)" : "");
             const std::string status = props.get_string("/autopilot/status");
-            if (props.get_bool("/autopilot/enabled") || !status.empty())
-                sl::gprintf(16, 106, {120, 220, 255}, "Autopilot: %s", status.c_str());
+            const bool autopilot_enabled = props.get_bool("/autopilot/enabled");
+            if (autopilot_enabled || !status.empty())
+                sl::gprintf(16, 106, {120, 220, 255}, "Autopilot: %s%s", status.c_str(), autopilot_enabled ? "" : " (off)");
             int nearest = -1;
             double nearest_distance = 0.0;
             int hud_end_y = 88;

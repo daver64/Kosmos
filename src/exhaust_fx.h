@@ -64,7 +64,7 @@ namespace kosmos::app
         struct Particle
         {
             glm::vec3 position, velocity;
-            float age, life, size, body = 0.55f, bright = 1.0f;
+            float age, life, size, body = 0.55f, bright = 1.0f, stretch = 1.0f;
             std::uint8_t kind = kerosene;
             bool splashed = false;
         };
@@ -163,8 +163,9 @@ namespace kosmos::app
                 const float billow = i < engines.size() ? static_cast<float>(engines[i]->plume_billow) : 0.0f;
                 const float crisp = kind == hydrogen ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
                 const float tight = crisp * (1.0f - billow);
-                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(vacuum)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
-                const float width = static_cast<float>((1.1 + 3.2 * vacuum) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * tight : 1.0f);
+                const double expansion = vacuum * (kind == kerosene ? 0.6 : 1.0);
+                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(expansion)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
+                const float width = static_cast<float>((1.1 + 3.2 * expansion) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * tight : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
@@ -181,7 +182,7 @@ namespace kosmos::app
                 carry += rate * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
                 {
-                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(vacuum)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * tight : 1.0f);
+                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(expansion)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * tight : 1.0f);
                     const float life = (0.45f + random01() * 0.35f) * st.life;
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
@@ -189,11 +190,14 @@ namespace kosmos::app
                     p.position = glm::vec3(t.position + ship.com_offset()) + radial * (0.25f * width * random01());
                     p.velocity = dir * speed + radial * (spread * speed);
                     p.age = random01() * dt;
+                    if (kind == hydrogen)
+                        p.position += p.velocity * p.age;
                     p.life = life;
                     p.size = width * 0.35f * (0.75f + 0.5f * random01());
                     p.kind = static_cast<std::uint8_t>(kind);
                     p.body = 0.55f - 0.48f * tight;
                     p.bright = bright;
+                    p.stretch = kind == hydrogen ? 1.0f + 2.5f * (1.0f - static_cast<float>(vacuum)) : 1.0f;
                     particles.push_back(p);
                 }
                 if (crisp > 0.05f)
@@ -274,7 +278,14 @@ namespace kosmos::app
                 const float fade = (1.0f - age) * (1.0f - age);
                 const Style &st = style(p.kind);
                 const float size = p.size * (0.6f + 1.2f * age);
-                const glm::mat4 base = hull * glm::translate(glm::mat4(1.0f), p.position);
+                glm::mat4 base = hull * glm::translate(glm::mat4(1.0f), p.position);
+                if (!p.splashed && p.stretch > 1.0f && glm::length(p.velocity) > 1.0e-4f)
+                {
+                    const glm::vec3 axis = glm::normalize(p.velocity);
+                    const glm::vec3 side = glm::normalize(glm::cross(axis, std::fabs(axis.x) < 0.9f ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0)));
+                    base *= glm::mat4(glm::vec4(side, 0.0f), glm::vec4(glm::cross(axis, side), 0.0f), glm::vec4(axis, 0.0f), glm::vec4(0, 0, 0, 1));
+                    base = glm::scale(base, glm::vec3(1.0f, 1.0f, p.stretch));
+                }
                 glow.tint = st.glow;
                 glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * p.bright * fade * 255.0f, 0.0f, 255.0f));
                 sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size * 2.6f)), glow);

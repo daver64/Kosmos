@@ -10,9 +10,11 @@ JOBS=${JOBS:-4}
 if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
 python3 "$SRC/tests/release_web_test.py"
+python3 "$SRC/tests/scenario_addons_test.py"
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test
 cd "$OUT"
 export HOME=$(mktemp -d)
+export XDG_CONFIG_HOME="$HOME/.config"
 trap 'rm -rf "$HOME"' EXIT
 
 for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test; do
@@ -20,8 +22,10 @@ for t in systems_test reentry_test weather_test joystick_test equipment_test key
     ./$t
 done
 
-echo "== arsenal selftest (landed Vulcan: kit, pistol, plasma, charges, blast damage, bomb rack)"
-./kosmos --scenario vulcan_wagga --selftest 1 --selftest-arsenal | tee arsenal_test.log
+python3 "$SRC/tests/ordnance_fixture.py" "$HOME/test-root"
+TEST_ROOT="$HOME/test-root"
+echo "== arsenal selftest (test craft: kit, pistol, plasma, charges, blast damage, bomb rack)"
+./kosmos --root "$TEST_ROOT" --ship "Ordnance test craft" --selftest 1 --selftest-arsenal | tee arsenal_test.log
 if grep -q '^FAIL' arsenal_test.log; then echo "arsenal selftest failed"; exit 1; fi
 rm -f arsenal_test.log
 echo "== weapons selftest (Deltaglider in orbit: beam, shield, flak, light cap)"
@@ -31,6 +35,6 @@ rm -f weapons_test.log
 
 echo "== bombing selftest (regular and atom bomb detonate)"
 for atom in "" "--selftest-drop-atom"; do
-    ./kosmos --scenario vulcan_atom_iceland --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
+    ./kosmos --root "$TEST_ROOT" --scenario-file "$TEST_ROOT/ordnance-test.json" --selftest 40 --selftest-drop 2 $atom | grep -q "detonations 1"
 done
 echo "all tests passed"

@@ -5,7 +5,6 @@
 -- stages each spent stage, then steers the last stage to the target apoapsis, coasts and circularises. The vehicle table
 -- below gives each launcher's tuning; the Autopilot window sets the target orbit and the launch heading.
 
-local ship = "/ships/ship[0]"
 local MU_EARTH = 3.986004418e14
 local R_EARTH = 6.371e6
 
@@ -19,7 +18,7 @@ local R_EARTH = 6.371e6
 local vehicles = {
   ["CVEL Soyuz-FG"] = { kick_speed = 35, kick = 88, closed_alt = 45000, mid_pitch = 35, climb = 250, gain = 0.2, last = 5, inert_after = 1, inert = 3 },
   ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
-  ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3, inert_after = 0, inert = 1 },
+  ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Ariane 5 G"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, lofted = true, max_pitch = 40, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Ariane 5 ES"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, lofted = true, max_pitch = 40, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Ariane 5 ECA"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, lofted = true, max_pitch = 40, last = 4, inert_after = 1, inert = 1 },
@@ -50,7 +49,7 @@ local next_press = 0.0
 local config = default
 local pitch_cmd = 90.0
 
-local function get(name) return props.get(ship .. "/" .. name) end
+local function get(name) return props.get("/ships/ship[" .. props.get("/sim/active-ship") .. "]/" .. name) end
 
 local function set_phase(name, status)
   phase = name

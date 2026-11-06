@@ -2,7 +2,13 @@
  "name": "CVEL Atlas III",
  "class": "launcher",
  "payload_bays": [
-  {"name": "Fairing", "shape": "cylinder", "radius": 1.8, "length": 8.5, "port": "Payload"}
+  {
+   "name": "Fairing",
+   "shape": "cylinder",
+   "radius": 1.8,
+   "length": 8.5,
+   "port": "Payload"
+  }
  ],
  "script": "@launcher.lua",
  "torque_accel": 0.2,
@@ -49,12 +55,13 @@
    "length": 31,
    "radius": 1.65,
    "separation_speed": 2.0,
+   "with_next": true,
    "engines": [
     {
      "position": [
       0.7,
-      0,
-      17.8
+      0.0,
+      18.13
      ],
      "direction": [
       0,
@@ -64,8 +71,8 @@
      "thrust": 2075000,
      "isp": 337,
      "isp_sl": 311,
-     "plume": 60,
-     "plume_width": 1.8,
+     "plume": 30.0,
+     "plume_width": 0.8,
      "plume_glow": 1.8,
      "plume_density": 2,
      "type": "rocket",
@@ -74,8 +81,8 @@
     {
      "position": [
       -0.7,
-      0,
-      17.8
+      0.0,
+      18.13
      ],
      "direction": [
       0,
@@ -85,8 +92,8 @@
      "thrust": 2075000,
      "isp": 337,
      "isp_sl": 311,
-     "plume": 60,
-     "plume_width": 1.8,
+     "plume": 30.0,
+     "plume_width": 0.8,
      "plume_glow": 1.8,
      "plume_density": 2,
      "type": "rocket",
@@ -207,8 +214,8 @@
      ],
      "thrust": 99200,
      "isp": 451,
-     "plume": 12,
-     "plume_width": 1.0,
+     "plume": 3.0,
+     "plume_width": 0.4,
      "plume_glow": 1.0,
      "plume_density": 1,
      "type": "rocket",

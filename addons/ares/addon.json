@@ -1,6 +1,0 @@
-{
-  "id": "ares",
-  "name": "CVE-Lite Ares Spider (Mars lander)",
-  "version": "0.1",
-  "ships": ["ship.json"]
-}

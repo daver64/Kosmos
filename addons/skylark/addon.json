@@ -1,6 +1,0 @@
-{
-  "id": "skylark",
-  "name": "Skylark light twin",
-  "version": "0.1",
-  "ships": ["ship.json"]
-}

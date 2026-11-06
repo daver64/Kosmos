@@ -40,9 +40,11 @@
  "torque_accel": 0.4,
  "max_rate": 0.8,
  "rcs_thrust": 20,
+ "rcs_effects": false,
  "drag_area": 2,
   "payload_size": {"diameter": 1.6, "length": 1.8},
  "camera_distance": 6,
+ "cockpit": {"eye": [0, 0, 0.9], "yaw": 180, "mfds": false},
  "stages": [
   {
    "name": "Probe",
