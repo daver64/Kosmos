@@ -1,6 +1,6 @@
 {
  "name": "CVEL: Deltaglider, Chippenham",
- "description": "CVEL Nuclear Deltaglider (British Shuttle skin) parked on the Chippenham runway.",
+ "description": "CVEL Nuclear Deltaglider (British Shuttle skin) parked on the Chippenham runway, dated to the Perseverance launch (30 July 2020) so the Earth-Mars transfer window is open.",
  "active": 0,
  "ships": [
   {
@@ -14,5 +14,5 @@
    }
   }
  ],
- "date": "2024-06-21 11:00:00"
+ "date": "2020-07-30 11:50:00"
 }

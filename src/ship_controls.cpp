@@ -206,8 +206,10 @@ namespace kosmos
             surfaces.roll = input.roll;
             apply_flight_controls(surfaces);
             hold_hover_attitude(c);
-            // High in the air the surfaces have little bite, so the thrusters take over as in space.
-            if (b.mode == sl::FlightBodyMode::dynamic && telemetry_.dynamic_pressure < 500.0 && c.hover <= 0.02)
+            // High in the air the surfaces have little bite, so the thrusters take over as in space. Dynamic pressure alone is not
+            // enough: at hypersonic speed it stays high in air so thin that the surfaces still do next to nothing.
+            const bool thin_air = universe_.world.air_density_at(b.position) < 0.001;
+            if (b.mode == sl::FlightBodyMode::dynamic && (telemetry_.dynamic_pressure < 500.0 || thin_air) && c.hover <= 0.02)
             {
                 apply_attitude(c, dt);
                 apply_rcs(c);

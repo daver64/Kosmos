@@ -953,16 +953,21 @@ local function plan_ejection(f, s)
   -- The burn comes up to one parking orbit after the window, so the window may be that far in the past without
   -- the plan jumping to the next synodic period (which a time skip to just before the burn would otherwise trigger).
   local park = TAU * math.sqrt(rb ^ 3 / f.mu)
-  local wait
-  if math.abs(np - nt) > 1e-12 then wait = ((lead - phase) / (nt - np) + park) % (TAU / math.abs(np - nt)) - park end
-
+  -- A window that closed within the last month is still worth flying: the phasing error is a few degrees at most and
+  -- costs a little dV. Treat it as open now instead of sending the plan a whole synodic period (over two years) ahead.
+  local grace = 30 * DAY
+  local wait, late
+  if math.abs(np - nt) > 1e-12 then
+    wait = ((lead - phase) / (nt - np) + park + grace) % (TAU / math.abs(np - nt)) - park - grace
+    if wait < -park then late, wait = -wait - park, 0 end
+  end
 
   local vcirc = math.sqrt(f.mu / rb)
   local ecc = 1 + rb * vinf * vinf / f.mu
   local nu_inf = math.acos(-1 / ecc)
   local dv = math.sqrt(vinf * vinf + 2 * f.mu / rb) - vcirc
   local res = { kind = "ejection", vinf = vinf, dv = dv, tof = tof, lead = lead, phase = phase, wait = wait,
-                outward = out > 0, c3 = vinf * vinf, nu_inf = nu_inf, again = park }
+                outward = out > 0, c3 = vinf * vinf, nu_inf = nu_inf, again = park, late = late }
   local vdir = mul(dirp, out)
   res.plane = math.deg(math.asin(clamp(dot(vdir, o.W), -1, 1)))
   if wait then
@@ -1033,12 +1038,67 @@ local function search_fast(f, s, max_days)
   return best
 end
 
-local function plan_ejection_fast(f, s)
+-- The next departure window, found the way a porkchop plot is read: over the coming synodic period each departure date gets
+-- its cheapest flight (a Lambert arc between the planets' real positions), and the window is the first date whose cost is
+-- within 25% of the best of the period, taken at the cheapest day of the following ten days. Unlike a circular-orbit Hohmann
+-- phase angle this follows the planets' eccentric orbits, and the date it returns is absolute, so it holds still while time is skipped.
+local window = nil
+local function find_window(f, s)
+  local catalog = body_catalog()
+  local pidx, tidx = body_by_name(f.parent), body_by_name(target_name())
+  if not pidx or not tidx then return nil end
+  local po, to = catalog[f.idx + 1].orbit, catalog[tidx + 1].orbit
+  if not po or not to or not po.n or not to.n then return nil end
+  local beat = math.abs(po.n - to.n)
+  local span = math.min(beat > 1e-12 and TAU / beat or 800 * DAY, 800 * DAY) / DAY
+  local hohmann = PI * math.sqrt(((po.a + to.a) / 2) ^ 3 / s.mu) / DAY
+  local lo, hi = 0.6 * hohmann, 1.6 * hohmann
+  local function cheapest(d, tofs)
+    local bv, bt
+    for _, t in ipairs(tofs) do
+      local v = fast_vinf(catalog, pidx, f, tidx, s.mu, d * DAY, t * DAY)
+      if v and (not bv or v < bv) then bv, bt = v, t end
+    end
+    return bv, bt
+  end
+  local tofs = {}
+  for j = 0, 11 do tofs[#tofs + 1] = lo + (hi - lo) * j / 11 end
+  local pts, floor_v = {}, nil
+  for d = 0.2, span, 3 do
+    local v, t = cheapest(d, tofs)
+    if v then
+      pts[#pts + 1] = { d = d, v = v, t = t }
+      if not floor_v or v < floor_v then floor_v = v end
+    end
+  end
+  if not floor_v then return nil end
+  local first
+  for i, pt in ipairs(pts) do
+    if pt.v <= floor_v * 1.25 then first = i break end
+  end
+  local best
+  for _, pt in ipairs(pts) do
+    if pt.d >= pts[first].d and pt.d <= pts[first].d + 10 and (not best or pt.v < best.v) then best = pt end
+  end
+  local fine = {}
+  for k = -5, 5 do fine[#fine + 1] = math.max(best.t + (hi - lo) / 11 * k / 5, 10) end
+  local refined = best
+  for k = -3, 3 do
+    local d = best.d + k
+    if d >= 0.2 then
+      local v, t = cheapest(d, fine)
+      if v and v < refined.v then refined = { d = d, v = v, t = t } end
+    end
+  end
+  return { at = props.get("/sim/time") + refined.d * DAY, tof = refined.t, vinf = refined.v }
+end
+
+local function plan_ejection_fast(f, s, depart_at, flight_days)
   local catalog = body_catalog()
   local pidx, tidx = body_by_name(f.parent), body_by_name(target_name())
   if not pidx or not tidx then return nil end
   local now = props.get("/sim/time")
-  local T, tof = fast.depart_at - now, fast.tof * DAY
+  local T, tof = (depart_at or fast.depart_at) - now, (flight_days or fast.tof) * DAY
   if T < 0 or tof < 5 * DAY then return nil end
   local c1, c2 = {}, {}
   local planet_p, planet_v = body_at(catalog, f.idx, T, c1)
@@ -1297,6 +1357,17 @@ local function draw_plan(g, f, ot, tr, tv)
     if plan and fast.mode > 0 and fast.depart_at then
       local fp = plan_ejection_fast(f, sib)
       if fp then plan = fp else fast.failed = true end
+    elseif plan and f.o.bound then
+      local now = props.get("/sim/time")
+      local key = f.soi .. "/" .. target_name()
+      if not window or window.key ~= key or window.at < now - 10 * DAY then
+        window = find_window(f, sib) or { at = -1 }
+        window.key = key
+      end
+      if window.at > 0 then
+        local fp = plan_ejection_fast(f, sib, math.max(window.at, now + 0.05 * DAY), window.tof)
+        if fp then fp.window = true plan = fp end
+      end
     end
   elseif par then plan = plan_return(f, par) end
   if not plan then
@@ -1369,7 +1440,7 @@ local function draw_plan(g, f, ot, tr, tv)
       { a = ship("orbit/semi-major-axis"), e = ship("orbit/eccentricity"), nu = ship("orbit/true-anomaly") })
   elseif plan.fast then
     local now = props.get("/sim/time")
-    g:text(LX, 62, "Fast ejection to " .. target_name(), 0)
+    g:text(LX, 62, (plan.window and "Ejection to " or "Fast ejection to ") .. target_name(), 0)
     dv_warning(g, plan.dv)
     g:text(LX, 80, string.format("Ejection dV  %.1f m/s", plan.dv), 0)
     g:text(LX, 96, string.format("v inf %.0f m/s   C3 %.1f km2/s2", plan.vinf, plan.c3 / 1e6), 0)
@@ -1379,7 +1450,7 @@ local function draw_plan(g, f, ot, tr, tv)
       g:colour(120, 255, 140)
     end
     if fast.mode == 2 then g:colour(255, 240, 140) end
-    g:text(LX, 114, (fast.mode == 2 and ">" or " ") .. "Depart in  " .. fmt_time(plan.wait), 0)
+    g:text(LX, 114, (fast.mode == 2 and ">" or " ") .. (plan.window and "Window in  " or "Depart in  ") .. fmt_time(plan.wait), 0)
     g:colour(120, 255, 140)
     if fast.mode == 1 or fast.mode == 3 then g:colour(255, 240, 140) end
     g:text(LX, 130, ((fast.mode == 1 or fast.mode == 3) and ">" or " ") .. string.format("Flight  %.0f days", plan.tof / DAY), 0)
@@ -1402,7 +1473,7 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 120, "Transfer time  " .. fmt_time(plan.tof), 0)
     g:text(LX, 138, string.format("Phase now %.1f  need %.1f deg", math.deg(plan.phase), math.deg(plan.lead)), 0)
     g:colour(255, 200, 80)
-    g:text(LX, 164, "Window in  " .. fmt_time(plan.wait), 0)
+    g:text(LX, 164, plan.late and ("Window open (past " .. fmt_time(plan.late) .. ")") or ("Window in  " .. fmt_time(plan.wait)), 0)
     g:text(LX, 182, "Ejection burn in  " .. fmt_time(plan.t_burn), 0)
     if not burn_left_line(g, LX, 236, plan.dv) then g:text(LX, 236, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
     auto_status(g, 254)
