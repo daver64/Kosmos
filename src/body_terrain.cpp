@@ -343,6 +343,8 @@ namespace kosmos::app
         for (int attempt = 0; attempt < 400; ++attempt)
         {
             terrain.update(view);
+            if (loading.started)
+                loading.pump();
             if (terrain.stats().pending_chunks == 0)
                 break;
             std::this_thread::sleep_for(std::chrono::milliseconds(5));

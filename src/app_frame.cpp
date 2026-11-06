@@ -318,10 +318,13 @@ namespace kosmos::app
             return code;
         if (const int code = init_loop(); code != keep_going)
             return code;
+        if (loading.quit_requested)
+            running = false;
         Watchdog::start(); // WATCHDOG
         while (running)
             if (!run_frame())
                 break;
+        loading.end();
         shutdown();
         return 0;
     }
@@ -349,6 +352,8 @@ namespace kosmos::app
         place_camera();
         Watchdog::stage("prepare_scene"); // WATCHDOG
         prepare_scene();
+        if (loading.quit_requested)
+            return false;
         Watchdog::stage("draw_world"); // WATCHDOG
         draw_world();
         Watchdog::stage("draw_overlays"); // WATCHDOG

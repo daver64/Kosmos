@@ -369,6 +369,8 @@ namespace kosmos::app
     int App::init_render()
     {
         loading.begin();
+        screen_w = sl::screen_width();
+        screen_h = sl::screen_height();
         surface_msaa = std::clamp(sim.props.get_int("/sim/settings/gfx-msaa", 4), 1, 8);
         surface = sl::create_surface_3d(screen_w, screen_h, surface_msaa);
         if (!surface && surface_msaa > 1)

@@ -9,6 +9,9 @@ namespace kosmos::app
         const int w = std::max(1, bitmap.width / 2), h = std::max(1, bitmap.height / 2);
         std::vector<std::uint8_t> out(static_cast<std::size_t>(w) * h * 4);
         for (int y = 0; y < h; ++y)
+        {
+            if (loading.started && y % 32 == 0)
+                loading.pump();
             for (int x = 0; x < w; ++x)
                 for (int c = 0; c < 4; ++c)
                 {
@@ -18,6 +21,7 @@ namespace kosmos::app
                             sum += bitmap.pixels[(static_cast<std::size_t>(std::min(y * 2 + dy, bitmap.height - 1)) * bitmap.width + std::min(x * 2 + dx, bitmap.width - 1)) * 4 + c];
                     out[(static_cast<std::size_t>(y) * w + x) * 4 + c] = static_cast<std::uint8_t>(sum / 4);
                 }
+        }
         bitmap.pixels = std::move(out);
         bitmap.width = w;
         bitmap.height = h;
@@ -100,6 +104,9 @@ namespace kosmos::app
             const int w = bitmap->width / factor, h = bitmap->height / factor;
             std::vector<std::uint8_t> out(static_cast<std::size_t>(w) * h * 4);
             for (int y = 0; y < h; ++y)
+            {
+                if (loading.started && y % 32 == 0)
+                    loading.pump();
                 for (int x = 0; x < w; ++x)
                 {
                     int peak[3] = {0, 0, 0}, floor_[3] = {255, 255, 255}, sum[3] = {0, 0, 0};
@@ -126,6 +133,7 @@ namespace kosmos::app
                         dst[c] = static_cast<std::uint8_t>(std::min(255, peak[c] / 2 + sum[c] * 2 / (factor * factor)));
                     dst[3] = 255;
                 }
+            }
             bitmap->pixels = std::move(out);
             bitmap->width = w;
             bitmap->height = h;

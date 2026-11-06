@@ -1002,7 +1002,12 @@ namespace kosmos::app
         update_clutter();
         first_frame = false;
         report_clutter_perf();
-        loading.end();
+        if (loading.started)
+        {
+            loading.pump(true);
+            loading.end();
+            follow_window();
+        }
 
         const sl::dvec3 sun_dir_world = glm::normalize(-eye_world);
         to_sun = glm::vec3(sun_dir_world);

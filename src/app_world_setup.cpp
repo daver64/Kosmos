@@ -228,6 +228,8 @@ namespace kosmos::app
         sl::Bitmap *shared_rock = nullptr;
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
         {
+            if (loading.started)
+                loading.pump();
             const kosmos::Body &b = sim.universe.bodies[i];
             const sl::Colour average{static_cast<std::uint8_t>(b.colour[0] * 255.0f), static_cast<std::uint8_t>(b.colour[1] * 255.0f),
                                      static_cast<std::uint8_t>(b.colour[2] * 255.0f), 255};
