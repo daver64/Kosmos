@@ -21,6 +21,9 @@
 
 namespace kosmos
 {
+    /** Parses a UTC ignition date or MJD, rejecting invalid civil dates and times. */
+    bool parse_burn_date(const std::string &text, double &jd);
+
     /** A folder under addons/ with an addon.json manifest, ships and scripts. */
     struct Addon
     {
@@ -77,6 +80,10 @@ namespace kosmos
         };
         std::map<int, LinkClaim> link_claims;
         void activate(int index);
+        /** Stop the landing controller and release its hover throttle. */
+        void cancel_autoland(const std::string &reason);
+        bool arm_timed_burn(double delay, double duration, double throttle, const std::string &engine, const std::string &sas);
+        void cancel_timed_burn(const std::string &reason);
         void release_payload_on_stage();
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }
@@ -171,6 +178,8 @@ namespace kosmos
         void update_target();
         /** Burn autopilot: waits for the ignition time, holds prograde and burns until the apoapsis reaches the target radius (see /autopilot/burn). */
         void run_burn();
+        void run_autoland();
+        void run_timed_burn();
 
         std::string root_;
         std::vector<Addon> addons_;

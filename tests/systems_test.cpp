@@ -3,6 +3,7 @@
 
 #include "ship.h"
 #include "transfer_plan.h"
+#include "terrain.h"
 
 #include <filesystem>
 #include <fstream>
@@ -26,6 +27,53 @@ namespace
 
 int main()
 {
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ares/ship.json", spec, error));
+        Ship ship(universe, spec);
+        const int mars = universe.find("Mars");
+        assert(mars >= 0);
+        ship.body().position = universe.position(mars) + sl::dvec3(0.0, 0.0, universe.bodies[mars].radius + 200000.0);
+        ship.body().orientation = sl::dquat(1.0, 0.0, 0.0, 0.0);
+        ship.after_step(0.01);
+        const double sphere_altitude = universe.world.altitude_of(ship.body().position);
+        assert(sphere_altitude > 199999.0 && sphere_altitude < 200001.0);
+        assert(ship.telemetry().altitude < sphere_altitude && ship.telemetry().altitude > sphere_altitude - 100.0);
+        const double bare_clearance = ship.telemetry().altitude;
+        {
+            sl::TerrainConfig config;
+            config.shape = sl::TerrainShape::sphere;
+            config.radius = universe.bodies[mars].radius;
+            auto source = std::make_shared<sl::FunctionSource>([](double, double) { return 1000.0; }, 1000.0, 1000.0);
+            sl::Terrain terrain(config, source);
+            universe.world.body(mars)->terrain = &terrain;
+            ship.after_step(0.01);
+            assert(std::abs(ship.telemetry().altitude - (bare_clearance - 1000.0)) < 0.01);
+            universe.world.body(mars)->terrain = nullptr;
+        }
+        sl::dvec3 up, east, north;
+        ship.local_frame(up, east, north);
+        const double heading_rad = glm::radians(350.0);
+        ship.body().orientation = glm::quatLookAt(north * std::cos(heading_rad) + east * std::sin(heading_rad), up);
+        ship.after_step(0.01);
+        assert(std::abs(ship.telemetry().heading - 350.0) < 0.1);
+        ship.body().orientation = glm::quatLookAt(up, north);
+        ship.after_step(0.01);
+        assert(std::abs(ship.telemetry().heading - 350.0) < 0.1);
+        const double north_rad = glm::radians(359.8);
+        ship.body().orientation = glm::quatLookAt(north * std::cos(north_rad) + east * std::sin(north_rad), up);
+        ship.after_step(0.01);
+        assert(ship.telemetry().heading == 0.0);
+        ship.body().orientation = sl::dquat(1.0, 0.0, 0.0, 0.0);
+        Controls controls;
+        controls.sas = "radial-out";
+        ship.apply_controls(controls, 0.1);
+        universe.world.step(0.1);
+        assert(glm::length(ship.body().angular_velocity) > 0.001);
+    }
     {
         Universe universe;
         std::string error;
@@ -59,6 +107,36 @@ int main()
         assert(rocket.stage_once() && rocket.active_stage() == 2);
         assert(rocket.stage_once() && rocket.active_stage() == 5);
         assert(rocket.debris().size() == 5);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *file : {"titan3c.json", "titan34d.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-titan/" + file, spec, error));
+            const StageSpec &stage = spec.stages.back();
+            assert(stage.name == "Transtage" && stage.engines.size() == 2);
+            assert(stage.engines[0].position.y == 0.72 && stage.engines[1].position.y == -0.72);
+            assert(stage.engines[0].thrust + stage.engines[1].thrust == 73428.0);
+            assert(stage.engines[0].isp == 316.0 && stage.engines[1].isp == 316.0);
+            Ship rocket(universe, spec);
+            while (rocket.active_stage() < rocket.stage_count() - 1)
+                assert(rocket.stage_once());
+            const int earth = universe.find("Earth");
+            assert(earth >= 0);
+            rocket.body().position = universe.position(earth) + sl::dvec3(0.0, universe.bodies[earth].radius + 200000.0, 0.0);
+            const double fuel = rocket.body().tanks.back().mass;
+            Controls controls;
+            controls.throttle = 1.0;
+            rocket.apply_controls(controls, 1.0);
+            rocket.after_step(0.01);
+            assert(std::fabs(rocket.telemetry().thrust - 73428.0) < 1.0);
+            universe.world.step(1.0);
+            const double consumed = fuel - rocket.body().tanks.back().mass;
+            assert(consumed > 23.0 && consumed < 24.0);
+        }
     }
     {
         Universe universe;

@@ -216,8 +216,110 @@ namespace kosmos
         }
     } // namespace
 
+    static int run_timed_burn_test(Sim &sim, Ship *ship)
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        sim.step(0.05);
+        for (const char *id : {"radar-altimeter", "orbit", "surface"})
+        {
+            const int mode = sim.mfd.mode_by_id(id);
+            bool drawn = false, labelled = false;
+            if (mode >= 0)
+            {
+                const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(mode)].table;
+                sol::protected_function draw = table["draw"];
+                MfdCanvas canvas;
+                sol::protected_function_result result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+                drawn = result.valid();
+                for (const MfdCommand &command : canvas.commands)
+                    if (command.kind == MfdCommand::Kind::text &&
+                        command.text.rfind(std::string(id) == "orbit" ? "Orb " : "AGL ", 0) == 0)
+                        labelled = true;
+            }
+            check(drawn && labelled, id);
+        }
+        check(!sim.arm_timed_burn(-1.0, 1.0, 0.5, "main", "stability"), "negative countdown rejected");
+        check(!sim.arm_timed_burn(1.0, 0.0, 0.5, "main", "stability"), "zero duration rejected");
+        check(!sim.arm_timed_burn(1.0, 1.0, 1.1, "main", "stability"), "invalid throttle rejected");
+        check(!sim.arm_timed_burn(1.0, 1.0, 0.5, "invalid", "stability"), "unknown engine rejected");
+        sim.props.set_double("/controls/rcs-x", 1.0);
+        check(!sim.arm_timed_burn(1.0, 1.0, 0.5, "main", "stability"), "manual translation prevents arming");
+        sim.props.set_double("/controls/rcs-x", 0.0);
+        double jd = 0.0;
+        check(parse_burn_date("2000-01-02 12:00:00 UTC", jd) && std::abs(jd - 2451546.0) < 1e-8, "UTC ignition date parsed");
+        check(parse_burn_date("51545.5", jd) && std::abs(jd - 2451546.0) < 1e-8, "MJD ignition date parsed");
+        check(!parse_burn_date("2025-02-29 12:00 UTC", jd) && !parse_burn_date("2024-01-01 24:15 UTC", jd) &&
+                  !parse_burn_date("nan", jd) && !parse_burn_date("2024-01-01 12:00+01:00", jd),
+              "invalid dates and non-UTC offsets rejected");
+        for (const char *engine : {"main", "hover"})
+        {
+            const double fuel = ship->telemetry().stage_fuel;
+            const double start = sim.universe.time();
+            check(sim.arm_timed_burn(1.0, 2.0, 0.5, engine, "stability"), "burn arms");
+            std::string why;
+            check(!sim.skip_time(10.0, why), "time skip refused while armed");
+            double first = -1.0, last = -1.0;
+            bool levels_correct = true;
+            for (int i = 0; i < 80; ++i)
+            {
+                sim.step(0.05);
+                const double level = sim.props.get_double(std::string("/controls/") + (std::string(engine) == "main" ? "throttle" : "hover"));
+                const double other = sim.props.get_double(std::string("/controls/") + (std::string(engine) == "main" ? "hover" : "throttle"));
+                if (level > 0.0)
+                {
+                    if (first < 0.0)
+                        first = sim.universe.time();
+                    last = sim.universe.time();
+                    levels_correct = levels_correct && std::abs(level - 0.5) < 1e-9 && other == 0.0;
+                }
+            }
+            check(first >= start + 1.0 && first <= start + 1.11 && last >= start + 2.95 && last <= start + 3.06,
+                  "ignition and cutoff match countdown and duration");
+            check(levels_correct && first >= 0.0 && ship->telemetry().stage_fuel < fuel, "selected engine burns at requested throttle and consumes fuel");
+            check(!sim.props.get_bool("/autopilot/timed/armed") && sim.props.get_string("/autopilot/timed/state") == "Timed burn complete" &&
+                      sim.props.get_double("/controls/throttle") == 0.0 && sim.props.get_double("/controls/hover") == 0.0,
+                  "completion cuts both throttles");
+        }
+        check(sim.arm_timed_burn(1.0, 2.0, 0.5, "main", "stability"), "manual override test arms");
+        sim.props.set_double("/controls/throttle", 0.2);
+        sim.step(0.05);
+        check(!sim.props.get_bool("/autopilot/timed/armed") && sim.props.get_string("/autopilot/timed/state") == "Timed burn cancelled: manual control changed",
+              "external throttle change cancels");
+        check(sim.arm_timed_burn(0.0, 2.0, 0.5, "hover", "stability"), "active cancellation test arms");
+        sim.step(0.05);
+        check(sim.props.get_double("/controls/hover") == 0.5, "active cancellation test ignites");
+        sim.cancel_timed_burn("Timed burn cancelled");
+        check(sim.props.get_double("/controls/hover") == 0.0 && !sim.props.get_bool("/autopilot/timed/armed"), "cancellation cuts active hover burn");
+        check(sim.arm_timed_burn(1.0, 2.0, 0.5, "main", "stability"), "autopilot conflict test arms");
+        sim.props.set_bool("/autopilot/enabled", true);
+        sim.step(0.05);
+        check(!sim.props.get_bool("/autopilot/timed/armed"), "another autopilot cancels timed burn");
+        sim.props.set_bool("/autopilot/enabled", false);
+        check(sim.arm_timed_burn(0.0, 2.0, 0.5, "main", "retrograde"), "alignment test arms");
+        bool valid = false;
+        Controls controls;
+        controls.sas = "retrograde";
+        const sl::dvec3 target = ship->sas_direction(controls, valid);
+        if (valid)
+        {
+            const sl::dvec3 reference = std::abs(target.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+            ship->body().orientation = glm::quatLookAt(-target, reference);
+        }
+        sim.step(0.05);
+        check(!sim.props.get_bool("/autopilot/timed/armed") && sim.props.get_string("/autopilot/timed/state") == "Timed burn aborted: attitude not aligned",
+              "unaligned ignition aborts");
+        std::printf("timed burn selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (options.timed_burn)
+            return run_timed_burn_test(sim, ship);
         if (options.weapons)
             return run_weapons_test(sim, ship);
         if (options.arsenal)

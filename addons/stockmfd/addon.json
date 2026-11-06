@@ -90,6 +90,11 @@
     {
       "id": "systems",
       "script": "systems.lua"
+    },
+    {
+      "id": "radar-altimeter",
+      "short": "RADALT",
+      "script": "radar_altimeter.lua"
     }
   ]
 }

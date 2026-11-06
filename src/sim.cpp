@@ -93,6 +93,10 @@ namespace kosmos
         props.node("/sim/frame")->tie_int([this] { return static_cast<int>(frame_count_ & 0x3fffffff); });
         props.set_bool("/autopilot/burn/armed", false);
         props.set_string("/autopilot/burn/state", "");
+        props.set_bool("/autopilot/land/armed", false);
+        props.set_string("/autopilot/land/state", "");
+        props.set_bool("/autopilot/timed/armed", false);
+        props.set_string("/autopilot/timed/state", "");
 
         lua.initialise([this](const std::string &text) { log(text); });
         sl::bind_property_tree(lua, props);
@@ -126,6 +130,7 @@ namespace kosmos
         props.set_string("/sim/target", "");
         props.set_bool("/target/valid", false);
         props.set_bool("/autopilot/enabled", false);
+        props.set_bool("/autopilot/land/armed", false);
         return true;
     }
 
@@ -426,6 +431,8 @@ namespace kosmos
 
     void Sim::clear_ships()
     {
+        cancel_autoland("Autoland cancelled: flight changed");
+        cancel_timed_burn("Timed burn cancelled: flight changed");
         nav.clear_links();
         ships_.clear();
         active_ = 0;
@@ -487,9 +494,12 @@ namespace kosmos
     {
         if (index < 0 || index >= ship_count())
             return;
+        cancel_autoland("Autoland cancelled: vessel changed");
+        cancel_timed_burn("Timed burn cancelled: vessel changed");
         active_ = index;
         props.set_int("/sim/active-ship", index);
         props.set_bool("/autopilot/burn/armed", false);
+        props.set_bool("/autopilot/land/armed", false);
         script_loaded_ = false;
         const Ship &ship = *ships_[static_cast<std::size_t>(index)];
         const ShipSpec &spec = ship.spec();
@@ -634,6 +644,8 @@ namespace kosmos
                 script_loaded_ = false;
             }
         }
+        run_timed_burn();
+        run_autoland();
         run_burn();
         release_payload_on_stage();
         const Controls controls = read_controls();
@@ -948,6 +960,11 @@ namespace kosmos
 
     bool Sim::skip_time(double seconds, std::string &why)
     {
+        if (props.get_bool("/autopilot/timed/armed"))
+        {
+            why = "Cancel the timed burn before skipping time";
+            return false;
+        }
         if (seconds <= 0.0)
         {
             why = "Already within the lead time of the burn";

@@ -273,6 +273,11 @@ namespace kosmos::app
             return export_base();
         if (options.check_data)
             return check_data();
+        if (!options.scenario.empty() && !sim.find_scenario(options.scenario))
+        {
+            std::fprintf(stderr, "kosmos: scenario \"%s\" not found\n", options.scenario.c_str());
+            return 1;
+        }
     return keep_going;
     }
 
@@ -333,6 +338,7 @@ namespace kosmos::app
             test.drop = options.selftest_drop;
             test.drop_atom = options.selftest_drop_atom;
             test.arsenal = options.selftest_arsenal;
+            test.timed_burn = options.selftest_timed_burn;
             test.weapons = options.selftest_weapons;
             test.throttle = options.selftest_throttle;
             return kosmos::run_selftest(sim, flown, test);

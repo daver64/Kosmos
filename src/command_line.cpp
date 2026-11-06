@@ -141,6 +141,7 @@ namespace kosmos::app
         {"--selftest-gear-up", 0, on(&Options::selftest_gear_up)},
         {"--selftest-drop", 1, real(&Options::selftest_drop)},
         {"--selftest-weapons", 0, on(&Options::selftest_weapons)},
+        {"--selftest-timed-burn", 0, on(&Options::selftest_timed_burn)},
         {"--selftest-arsenal", 0, on(&Options::selftest_arsenal)},
         {"--selftest-drop-atom", 0, on(&Options::selftest_drop_atom)},
         {"--selftest-warp", 1, real(&Options::selftest_warp)},

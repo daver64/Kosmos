@@ -66,7 +66,7 @@ return {
     g:text(cx, ty - 22, string.format("HDG %03.0f", heading), 1)
 
     g:colour(120, 255, 140)
-    g:text(30, 36, "ALT " .. fmt_len(ship("altitude")), 0)
+    g:text(30, 36, "AGL " .. fmt_len(ship("altitude")), 0)
     g:text(30, 52, string.format("SPD %.1f m/s", ship("speed")), 0)
     g:text(370, 36, string.format("VS  %.1f m/s", ship("vertical-speed")), 2)
     g:text(370, 52, string.format("PIT %.1f", pitch), 2)

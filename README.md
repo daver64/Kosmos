@@ -82,7 +82,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
 | Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes (also B) |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
@@ -151,9 +151,20 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--interior-at X Z YAW PITCH` | After walking into an interior building, stand at this spot (metres in the plan, degrees) |
 | `--console` | Windows only: open a console window for the output when Kosmos was not started from a terminal (it is a GUI program and shows none by default) |
 | `--hide-info` | Hide the on-screen text and the orbit line and let the menu bar slide away (for screenshots); overrides `--show-info` |
+
 | `--life-support off\|warn\|fatal` | What failing life support does to a crew: nothing, alarms only (default), or the crew dies and the flight ends. A scenario's `life_support` key overrides it |
 | `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Alt+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
 | `--version` | Print the Kosmos version and exit |
+
+### Mars autoland
+
+Start **CVEL > CVEL-Ares > CVEL: Ares Spider, Mars orbit**, or put the Ares Spider in another bound Mars orbit above 50 km. Open **Autopilot > Spacecraft** and engage **Autoland**. This experimental, untargeted controller lowers periapsis, coasts through the atmosphere with the hover engines off, then brakes and descends on hover thrust. It deploys the gear and Ares legs and stops the hover engines on touchdown. It does not choose a base, avoid steep terrain or predict whether fuel will last; monitor the descent and take over if needed. Other non-aircraft ships can use it only if their active-stage hover engines push along the nose and have enough thrust and fuel. It rejects docked vessels and other bodies. Time warp is limited to 4x while active. Press P or use manual attitude, throttle, hover or SAS controls to cancel; cancellation cuts hover thrust.
+
+The Orbit MFD's **Orb** is speed relative to the planet's centre, not speed over the rotating ground. Surface and RADALT show surface-relative speeds. **AGL** is estimated local terrain clearance: the ground height beneath the vessel is subtracted along with a nominal vessel-bottom offset. It is not a ray-cast radar or terrain-ahead warning; without terrain data it uses the spherical surface. Autoland uses this same estimate.
+
+### Timed spacecraft burns
+
+In **Autopilot > Spacecraft**, set an ignition countdown in seconds or an absolute UTC date (or MJD), duration, throttle, main or hover engines, and a burn SAS attitude, then arm. Set a fixed pitch and heading in Attitude hold before choosing `attitude`. The selected attitude points the **nose**, not necessarily the hover thrust direction; `stability` damps rotation without pointing to a particular direction. Leave enough time for alignment: a directional burn aborts if the nose is more than about 10 degrees from its target at ignition or during the burn. The planner requires a fuelled, throttleable active-stage engine and working attitude control; it does not calculate the required delta-v or guarantee fuel will last. It holds warp at 1x and prohibits time skips. Press P, use manual controls or cancel in the window to stop it; cancellation cuts both throttles. It is separate from the Transfer and OrbitComp burn autopilots, whose planned start is the burn midpoint.
 
 ## Versions
 
@@ -279,7 +290,7 @@ Specs that only set `"air_breathing": true` still work and count as jets. `--sho
 into Kosmos's nose -Z frame, so it can be used as is: a part of `{"model": "models/x.obj"}` in a stage's `parts` draws it,
 with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. Orbiter keeps masses, thrust and fuel in C++
 (often in headers that are not part of the add-on download), so `ship.json` files for imported add-ons are written by hand;
-`addons/ares` is the worked example.
+`addons/cvel-ares` is the worked example.
 
 ## MFDs (multi-function displays)
 

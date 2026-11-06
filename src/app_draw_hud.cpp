@@ -316,14 +316,17 @@ namespace kosmos::app
             else
                 sl::gprintf(16, 52, {255, 200, 120}, "Escape trajectory   Periapsis %s", format_distance(tm.periapsis).c_str());
             if (ship->spec().has_hover())
-                sl::gprintf(16, 106, {255, 220, 150}, "Hover %3.0f%%", props.get_double("/controls/hover") * 100.0);
-            sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
-                        tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
+                sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%  Hover %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t",
+                            props.get_double("/controls/throttle") * 100.0, props.get_double("/controls/hover") * 100.0, tm.thrust / 1000.0, tm.twr,
+                            ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
+            else
+                sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
+                            tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
             sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   RCS: %s   Warp x%g%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(),
                         props.get_string("/controls/rcs-mode", "rot") == "lin" ? "LIN" : props.get_string("/controls/rcs-mode", "rot") == "off" ? "OFF" : "ROT", sim.current_warp(),
                         ship->on_rails() ? " (rails)" : "");
             const std::string status = props.get_string("/autopilot/status");
-            const bool autopilot_enabled = props.get_bool("/autopilot/enabled");
+            const bool autopilot_enabled = props.get_bool("/autopilot/enabled") || props.get_bool("/autopilot/land/armed");
             if (autopilot_enabled || !status.empty())
                 sl::gprintf(16, 106, {120, 220, 255}, "Autopilot: %s%s", status.c_str(), autopilot_enabled ? "" : " (off)");
             int nearest = -1;

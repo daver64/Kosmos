@@ -301,8 +301,24 @@ namespace kosmos::app
     // Returns the ship to fly, or nullptr (with a message on stderr) if the scenario cannot be built.
     Ship *apply_scenario(Sim &sim, const kosmos::Scenario &sc, const TerrainSet &terrains)
     {
+        if (sc.ships.empty())
+        {
+            std::fprintf(stderr, "kosmos: scenario %s: no ships\n", sc.id.c_str());
+            return nullptr;
+        }
         if (!escape_targets_valid(sim, sc))
             return nullptr;
+        for (const kosmos::ScenarioShip &entry : sc.ships)
+        {
+            const bool known_ship = sim.find_ship_spec(entry.ship) != nullptr;
+            const bool known_body = sim.universe.find(entry.body) >= 0;
+            if (!known_ship || !known_body)
+            {
+                std::fprintf(stderr, "kosmos: scenario %s: unknown %s \"%s\"\n", sc.id.c_str(),
+                             known_ship ? "body" : "ship", known_ship ? entry.body.c_str() : entry.ship.c_str());
+                return nullptr;
+            }
+        }
         sim.clear_ships();
         sim.props.set_string("/sim/weather-force", sc.weather);
         if (!sc.life_support.empty())
@@ -313,11 +329,6 @@ namespace kosmos::app
             const kosmos::ScenarioShip &entry = sc.ships[entry_index];
             const kosmos::ShipSpec *spec = sim.find_ship_spec(entry.ship);
             const int body = sim.universe.find(entry.body);
-            if (!spec || body < 0)
-            {
-                std::fprintf(stderr, "kosmos: scenario %s: unknown %s \"%s\"\n", sc.id.c_str(), spec ? "body" : "ship", spec ? entry.body.c_str() : entry.ship.c_str());
-                continue;
-            }
             Ship *ship = sim.spawn(*spec);
             spawned[entry_index] = sim.ship_count() - 1;
             if (!entry.label.empty())
@@ -372,6 +383,7 @@ namespace kosmos::app
     Ship *start_scenario(Sim &sim, const Options &options, const TerrainSet &terrains, const ShipCarryState *carry_state)
     {
         if (!options.scenario.empty())
+        {
             if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
             {
                 kosmos::Scenario adjusted = *sc;
@@ -387,10 +399,16 @@ namespace kosmos::app
                     rotate_fleet_to_sun(sim, flown, options.sun_angle);
                 return flown;
             }
-        sim.clear_ships();
+            std::fprintf(stderr, "kosmos: scenario \"%s\" not found\n", options.scenario.c_str());
+            return nullptr;
+        }
         const kosmos::ShipSpec *spec = sim.find_ship_spec(options.ship_name);
         if (!spec)
+        {
+            std::fprintf(stderr, "kosmos: unknown ship \"%s\"\n", options.ship_name.c_str());
             return nullptr;
+        }
+        sim.clear_ships();
         Ship *ship = sim.spawn(*spec);
         const int earth = sim.universe.home_id();
         double arrival_altitude = 0.0;

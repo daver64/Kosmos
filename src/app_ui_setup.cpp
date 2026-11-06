@@ -397,7 +397,6 @@ namespace kosmos::app
     void App::menu_start_scenario(const kosmos::Scenario &sc)
     {
         vis.clear_parts();
-        link_state.link_scenario = sc.id;
         const int previous_system = sim.system_index();
         bool world_rebuilt = false;
         // A scenario belongs to one star system (Sol unless it names another): go there first.
@@ -437,6 +436,7 @@ namespace kosmos::app
             sl::set_fullscreen(true);
         if (Ship *flown = apply_scenario(sim, sc, terrain_set))
         {
+            link_state.link_scenario = sc.id;
             ship = flown;
             rig.cam_distance = ship->spec().camera_distance;
             cockpit_view = cockpit3d = false;
@@ -453,7 +453,13 @@ namespace kosmos::app
     void App::menu_restart()
     {
         vis.clear_parts();
-        ship = start_scenario(sim, options, terrain_set);
+        Ship *restarted = start_scenario(sim, options, terrain_set);
+        if (!restarted)
+        {
+            std::fprintf(stderr, "kosmos: unable to restart flight\n");
+            return;
+        }
+        ship = restarted;
         eva.active = false;
         arsenal.reset();
         ship_weapons.reset();

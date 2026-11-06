@@ -86,11 +86,16 @@ namespace kosmos
             if (valid)
             {
                 const sl::dvec3 nose = b.direction_to_world({0.0, 0.0, -1.0});
-                const sl::dvec3 axis = glm::cross(nose, target);
+                sl::dvec3 axis = glm::cross(nose, target);
                 const double s = glm::length(axis);
                 const double angle = std::atan2(s, glm::dot(nose, target));
                 if (s > 1e-9)
                     desired = b.direction_to_local(axis / s) * std::min(angle * 0.35, spec_.max_rate);
+                else if (glm::dot(nose, target) < 0.0)
+                {
+                    axis = glm::cross(nose, b.direction_to_world({0.0, 1.0, 0.0}));
+                    desired = b.direction_to_local(axis) * std::min(angle * 0.35, spec_.max_rate);
+                }
                 desired.z = 0.0;
             }
         }

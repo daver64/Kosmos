@@ -97,6 +97,8 @@ add_executable(kosmos
     src/surface_textures.cpp
     src/reentry.cpp
     src/scenario_start.cpp
+    src/autoland.cpp
+    src/timed_burn.cpp
     src/procedural.cpp
     src/selftest.cpp
     src/engine_sound.cpp

@@ -95,8 +95,8 @@ return {
     g:text(30, 36, "T " .. fmt_time(ship("orbit/period")), 0)
     g:text(30, 52, "Tpe " .. fmt_time(ship("orbit/time-to-periapsis")), 0)
     if bound then g:text(30, 68, "Tap " .. fmt_time(ship("orbit/time-to-apoapsis")), 0) end
-    g:text(370, 36, string.format("Vel %.0f m/s", ship("orbital-speed")), 2)
-    g:text(370, 52, "Alt " .. fmt_len(ship("altitude")), 2)
+    g:text(370, 36, string.format("Orb %.0f m/s", ship("orbital-speed")), 2)
+    g:text(370, 52, "AGL " .. fmt_len(ship("altitude")), 2)
   end,
 
   button = function(self, i) end,

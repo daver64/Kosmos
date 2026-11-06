@@ -339,7 +339,7 @@
     {
      "position": [
       0,
-      0,
+      0.72,
       4.95
      ],
      "direction": [
@@ -347,12 +347,24 @@
       0,
       -1
      ],
-     "thrust": 73428,
+     "thrust": 36714,
      "isp": 316,
-     "plume": 4,
-     "plume_width": 0.5,
-     "plume_glow": 1.0,
-     "plume_density": 1.5,
+     "plume": 1.2,
+     "plume_width": 0.12,
+     "plume_glow": 0.7,
+     "plume_density": 1,
+     "type": "rocket",
+     "fuel": "hypergolic"
+    },
+    {
+     "position": [0, -0.72, 4.95],
+     "direction": [0, 0, -1],
+     "thrust": 36714,
+     "isp": 316,
+     "plume": 1.2,
+     "plume_width": 0.12,
+     "plume_glow": 0.7,
+     "plume_density": 1,
      "type": "rocket",
      "fuel": "hypergolic"
     }

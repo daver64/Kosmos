@@ -17,6 +17,10 @@ export HOME=$(mktemp -d)
 export XDG_CONFIG_HOME="$HOME/.config"
 trap 'rm -rf "$HOME"' EXIT
 
+python3 "$SRC/tests/autoland_test.py" "$PWD/kosmos"
+echo "== timed burn selftest (Shuttle-A in Mars orbit)"
+./kosmos --ship "CVEL Shuttle-A" --orbit-body Mars --orbit-alt 200 --selftest 1 --selftest-timed-burn
+
 for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test; do
     echo "== $t"
     ./$t

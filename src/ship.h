@@ -542,6 +542,7 @@ namespace kosmos
     struct Telemetry
     {
         int soi = 0;
+        /** Clearance above the local collision terrain, measured from the nominal bottom of the vessel. */
         double altitude = 0.0;
         double surface_speed = 0.0;
         double orbital_speed = 0.0;
@@ -614,6 +615,7 @@ namespace kosmos
         int active_stage() const { return active_stage_; }
         ShipCarryState carry_state() const;
         void restore_carry_state(const ShipCarryState &state);
+        bool attitude_control_available() const { return !rcs_dry() && (explicit_rcs_ || spec_.torque_accel > 0.0); }
         /** False once the stage carrying docking port `index` has been jettisoned. */
         bool port_attached(int index) const { return spec_.ports[static_cast<std::size_t>(index)].stage >= active_stage_; }
         /** The camera's focus in the ship frame: `camera_target` moved along the axis by however far the middle of the stages still attached has shifted from the middle of the full stack. */
@@ -729,6 +731,7 @@ namespace kosmos
         sl::dvec3 relative_velocity() const;
         /** Local up, east and north for the body the ship is closest to in influence. */
         void local_frame(sl::dvec3 &up, sl::dvec3 &east, sl::dvec3 &north) const;
+        sl::dvec3 sas_direction(const Controls &controls, bool &valid) const { return target_direction(controls, valid); }
 
         /** Publish values under base (such as /ships/ship[0]). */
         void publish(sl::PropertyTree &tree, const std::string &base);

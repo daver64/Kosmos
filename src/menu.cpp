@@ -1256,7 +1256,7 @@ namespace kosmos
                                    "  Arrows           RCS translation\n"
                                    "  9/3 8/2 (digits) engine pods (Shuttle-A): thrust, swing; 4/5/6 retro/hover/fwd\n"
                                    "  Keypad 5         SAS kill rotation   [ ] ; '  prograde / retrograde / normal / anti-normal\n"
-                                   "  P                autopilot (Autopilot menu for modes)\n"
+                                   "  P                autopilot on/off; cancel autoland (Autopilot menu for modes)\n"
                                    "  Ctrl+D           undock\n"
                                    "  Home             reset cockpit view to forwards\n"
                                    "  Ctrl+Home/End    hover full / off\n"
@@ -1295,6 +1295,8 @@ namespace kosmos
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  Orbit MFD Orb is planet-centred speed; Surface and RADALT show ground-relative speeds and estimated terrain clearance.\n"
+                                   "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"
                                    "  OrbitComp planet-to-planet windows are estimates; check the predicted encounter and correct the flight.\n"
@@ -1477,6 +1479,8 @@ namespace kosmos
         {
             if (ImGui::Checkbox("Ascent autopilot engaged  [P]", &engaged))
             {
+                if (engaged)
+                    sim.cancel_timed_burn("Timed burn cancelled: ascent engaged");
                 p.set_bool("/autopilot/enabled", engaged);
                 if (!engaged)
                     p.set_string("/autopilot/status", "");
@@ -1497,8 +1501,31 @@ namespace kosmos
             ImGui::TextDisabled("%s has no programmed autopilot.", ship->name.c_str());
 
         ImGui::Separator();
+        ImGui::TextUnformatted("Mars autoland (experimental)");
+        bool landing = p.get_bool("/autopilot/land/armed");
+        if (ImGui::Checkbox("Autoland engaged", &landing))
+        {
+            if (landing)
+            {
+                sim.cancel_timed_burn("Timed burn cancelled: autoland engaged");
+                p.set_bool("/autopilot/enabled", false);
+                p.set_bool("/autopilot/burn/armed", false);
+                p.set_string("/autopilot/land/state", "off");
+                p.set_bool("/autopilot/land/armed", true);
+            }
+            else
+                sim.cancel_autoland("Autoland cancelled");
+        }
+        ImGui::TextDisabled("Untargeted Mars landing; nose-axis hover engines required.");
+        ImGui::TextDisabled("No terrain avoidance or fuel sufficiency prediction; monitor descent.");
+        const std::string landing_status = p.get_string("/autopilot/land/state");
+        if (!landing_status.empty() && landing_status != "off")
+            ImGui::TextWrapped("%s", landing_status.c_str());
+
+        ImGui::Separator();
         ImGui::TextUnformatted("Attitude hold");
-        if (engaged && scripted)
+        const bool timed = p.get_bool("/autopilot/timed/armed");
+        if ((engaged && scripted) || landing || timed)
             ImGui::BeginDisabled();
         static const char *const modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
         const std::string sas = p.get_string("/controls/sas", "stability");
@@ -1537,8 +1564,88 @@ namespace kosmos
         ImGui::SameLine();
         if (ImGui::SmallButton("Full"))
             p.set_double("/controls/throttle", 1.0);
-        if (engaged && scripted)
+        bool has_hover = false;
+        if (ship->active_stage() >= 0 && ship->active_stage() < static_cast<int>(ship->spec().stages.size()))
+            for (const EngineSpec &engine : ship->spec().stages[static_cast<std::size_t>(ship->active_stage())].engines)
+                has_hover = has_hover || engine.hover;
+        if (has_hover)
+        {
+            float hover = static_cast<float>(p.get_double("/controls/hover") * 100.0);
+            ImGui::SetNextItemWidth(160.0f);
+            if (ui::slider_float("Hover", &hover, 0.0f, 100.0f, "%.0f%%"))
+                p.set_double("/controls/hover", hover / 100.0);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Cut##hover"))
+                p.set_double("/controls/hover", 0.0);
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Full##hover"))
+                p.set_double("/controls/hover", 1.0);
+        }
+        if ((engaged && scripted) || landing || timed)
             ImGui::EndDisabled();
+
+        ImGui::Separator();
+        ImGui::TextUnformatted("Timed burn (ignition)");
+        static int time_mode = 0, engine_mode = 0, burn_sas = 0;
+        static double delay = 60.0, duration = 10.0, burn_throttle = 100.0;
+        static char utc[64] = "";
+        static const char *const burn_modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude"};
+        ImGui::BeginDisabled(timed);
+        ImGui::RadioButton("Countdown", &time_mode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("UTC date", &time_mode, 1);
+        ImGui::SetNextItemWidth(160.0f);
+        if (time_mode == 0)
+            ImGui::InputDouble("Ignition in (s)", &delay, 10.0, 60.0, "%.1f");
+        else
+            ImGui::InputText("Ignition UTC", utc, sizeof utc);
+        if (time_mode == 1)
+            ImGui::TextDisabled("YYYY-MM-DD HH:MM:SS UTC or MJD.");
+        ImGui::SetNextItemWidth(160.0f);
+        ImGui::InputDouble("Duration (s)", &duration, 1.0, 10.0, "%.1f");
+        ImGui::SetNextItemWidth(160.0f);
+        ImGui::InputDouble("Burn throttle (%%)", &burn_throttle, 5.0, 10.0, "%.1f");
+        ImGui::RadioButton("Main", &engine_mode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Hover##burn", &engine_mode, 1);
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::BeginCombo("Burn attitude", burn_modes[burn_sas]))
+        {
+            for (int i = 0; i < 8; ++i)
+                if (ImGui::Selectable(burn_modes[i], i == burn_sas))
+                    burn_sas = i;
+            ImGui::EndCombo();
+        }
+        if (burn_sas == 7)
+            ImGui::TextDisabled("Uses the pitch and heading set in Attitude hold.");
+        if (ImGui::Button("Arm timed burn"))
+        {
+            double ignition_delay = delay;
+            double jd = 0.0;
+            if (time_mode == 1 && !parse_burn_date(utc, jd))
+            {
+                p.set_string("/autopilot/timed/state", "Not armed: invalid UTC date");
+                sim.log("Timed burn not armed: invalid UTC date");
+            }
+            else
+            {
+                if (time_mode == 1)
+                    ignition_delay = (jd - sim.universe.julian_date()) * 86400.0;
+                sim.arm_timed_burn(ignition_delay, duration, burn_throttle / 100.0, engine_mode == 0 ? "main" : "hover", burn_modes[burn_sas]);
+            }
+        }
+        ImGui::EndDisabled();
+        if (timed)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel timed burn"))
+                sim.cancel_timed_burn("Timed burn cancelled");
+            ImGui::Text("Remaining: %.1f s", p.get_double("/autopilot/timed/remaining"));
+        }
+        const std::string burn_state = p.get_string("/autopilot/timed/state");
+        if (!burn_state.empty())
+            ImGui::TextWrapped("%s", burn_state.c_str());
+        ImGui::TextDisabled("Warp held at 1x; allow time to align before ignition.");
         ImGui::End();
     }
 

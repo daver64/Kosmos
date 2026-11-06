@@ -307,7 +307,10 @@ namespace kosmos
             t.roll = std::atan2(-glm::dot(right, u), glm::dot(roof, u)) * 180.0 / pi;
         }
         const sl::dvec3 flat = nose - u * glm::dot(nose, u);
-        t.heading = glm::length(flat) > 1e-6 ? std::fmod(std::atan2(glm::dot(flat, east), glm::dot(flat, north)) * 180.0 / pi + 360.0, 360.0) : 0.0;
+        if (glm::length(flat) > 0.01)
+            t.heading = std::fmod(std::atan2(glm::dot(flat, east), glm::dot(flat, north)) * 180.0 / pi + 360.0, 360.0);
+        if (t.heading >= 359.5)
+            t.heading = 0.0;
 
         t.mass = b.mass();
         t.thrust = 0.0;

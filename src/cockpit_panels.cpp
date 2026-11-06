@@ -264,6 +264,11 @@ namespace kosmos::app
             v = 0.0;
         if (c.property == "/controls/throttle")
             sim.props.set_bool("/autopilot/enabled", false);
+        if (c.property == "/controls/throttle" || c.property == "/controls/hover")
+        {
+            sim.cancel_autoland("Autoland cancelled: manual throttle");
+            sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+        }
         sim.props.set_double(c.property, v);
     }
 
@@ -306,8 +311,14 @@ namespace kosmos::app
         }
         else if (c.type == "button")
         {
+            if (c.value == "level-horizon")
+                sim.cancel_timed_burn("Timed burn cancelled: manual SAS");
             if (c.property == "/controls/sas")
+            {
+                sim.cancel_autoland("Autoland cancelled: manual SAS");
+                sim.cancel_timed_burn("Timed burn cancelled: manual SAS");
                 sim.props.set_bool("/autopilot/enabled", false);
+            }
             // Pressing the lit hold button again releases it, leaving no mode active.
             if ((c.property == "/controls/sas" || c.value == "level-horizon") && control_lit(sim, c))
                 sim.props.set_string("/controls/sas", "off");

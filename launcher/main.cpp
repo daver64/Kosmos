@@ -1137,7 +1137,16 @@ namespace
         void LaunchSelected()
         {
             if (const ScenarioInfo *s = SelectedScenario())
+            {
+                std::error_code ec;
+                if (!fs::is_regular_file(s->file, ec))
+                {
+                    Rescan();
+                    wxMessageBox("This scenario is no longer available. The scenario list has been refreshed.", "Launch", wxICON_WARNING);
+                    return;
+                }
                 Launch(s->id);
+            }
         }
 
         void LaunchMission()

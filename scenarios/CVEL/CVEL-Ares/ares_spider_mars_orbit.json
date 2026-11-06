@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Ares Spider, Mars orbit",
+ "description": "The Ares Spider in a circular 200 km Mars orbit, ready to try the experimental autoland in Autopilot > Spacecraft.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "Ares Spider",
+   "body": "Mars",
+   "orbit": {
+    "altitude_km": 200,
+    "inclination": 0,
+    "phase": 0
+   }
+  }
+ ]
+}
