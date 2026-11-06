@@ -9,6 +9,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 
 namespace kosmos
 {
@@ -426,6 +427,7 @@ namespace kosmos
                 stage.radius = js.value("radius", stage.radius);
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
                 stage.with_next = js.value("with_next", false);
+                stage.radial_pair = js.value("radial_pair", false);
                 stage.separation_dir = vec3(js.value("separation_dir", nlohmann::json()), stage.separation_dir);
                 for (const nlohmann::json &je : js.value("engines", nlohmann::json::array()))
                 {
@@ -484,6 +486,15 @@ namespace kosmos
                         part.scale = jp["scale"].is_array() ? vec3(jp["scale"], part.scale) : sl::dvec3(jp["scale"].get<double>());
                     part.rotate = vec3(jp.value("rotate", nlohmann::json()), part.rotate);
                     stage.parts.push_back(std::move(part));
+                }
+                if (stage.radial_pair)
+                {
+                    if (stage.parts.size() != 2)
+                        throw std::runtime_error("radial_pair requires exactly two parts");
+                    const sl::dvec3 a(stage.parts[0].offset.x, stage.parts[0].offset.y, 0.0);
+                    const sl::dvec3 b(stage.parts[1].offset.x, stage.parts[1].offset.y, 0.0);
+                    if (glm::length(a) < 1.0e-6 || glm::length(a + b) > 1.0e-6)
+                        throw std::runtime_error("radial_pair parts require opposite nonzero X/Y offsets");
                 }
             return stage;
         }
@@ -588,6 +599,18 @@ namespace kosmos
             for (const StageSpec &st : spec.stages)
                 stage_names.push_back(st.name);
             parse_systems(json, stage_names, spec.systems);
+            for (SystemComponent &component : spec.systems.components)
+                if (!component.deployment_control.empty())
+                {
+                    for (std::size_t i = 0; i < spec.animation_controls.size(); ++i)
+                        if (spec.animation_controls[i].property == component.deployment_control)
+                        {
+                            component.deployment_index = static_cast<int>(i);
+                            break;
+                        }
+                    if (component.deployment_index < 0)
+                        throw std::runtime_error("unknown solar deployment control: " + component.deployment_control);
+                }
             if (spec.directory.empty())
                 spec.directory = std::filesystem::path(file).parent_path().string();
             find_tagged_vessels(spec);

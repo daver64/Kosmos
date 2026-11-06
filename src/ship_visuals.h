@@ -305,5 +305,5 @@ namespace kosmos::app
     /** The mode after `current` in the ship's list, going off after the last. */
     sl::HudMode next_hud_mode(sl::HudMode current, const std::vector<std::string> &modes);
 
-    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0, double pod_left = 0.0, double pod_right = 0.0, const kosmos::Ship *ship = nullptr);
+    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit = true, double gear = 1.0, double pod_left = 0.0, double pod_right = 0.0, const kosmos::Ship *ship = nullptr, int part_index = -1);
 } // namespace kosmos::app

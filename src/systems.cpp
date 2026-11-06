@@ -15,6 +15,7 @@
 #include <cstring>
 #include <filesystem>
 #include <functional>
+#include <stdexcept>
 
 namespace kosmos
 {
@@ -123,6 +124,10 @@ namespace kosmos
             c.priority = jc.value("priority", (c.type == "regulator" || c.type == "scrubber") ? 0 : 1);
             c.facing = vec3(jc.value("facing", nlohmann::json()), c.facing);
             c.tracking = jc.value("tracking", false);
+            c.deployment_control = jc.value("deployment_control", "");
+            c.deployment_threshold = jc.value("deployment_threshold", 1.0);
+            if (!c.deployment_control.empty() && (c.type != "solar" || c.deployment_threshold <= 0.0 || c.deployment_threshold > 1.0))
+                throw std::runtime_error("invalid solar deployment control or threshold");
             if (c.type == "battery")
             {
                 c.capacity = jc.value("capacity_wh", 1000.0);
@@ -514,6 +519,13 @@ namespace kosmos
                 continue;
             if (c.type == "solar")
             {
+                if (!c.deployment_control.empty())
+                {
+                    if (c.deployment_index < 0 || static_cast<std::size_t>(c.deployment_index) >= ctx.animation_positions.size())
+                        throw std::runtime_error("solar deployment control unavailable: " + c.deployment_control);
+                    if (ctx.animation_positions[static_cast<std::size_t>(c.deployment_index)] + 1e-9 < c.deployment_threshold)
+                        continue;
+                }
                 const double len = std::sqrt(c.facing.x * c.facing.x + c.facing.y * c.facing.y + c.facing.z * c.facing.z);
                 const double cosine = c.tracking ? 1.0 : len > 0.0 ? (c.facing.x * sun.x + c.facing.y * sun.y + c.facing.z * sun.z) / len : 0.0;
                 c.output_w = c.area * c.efficiency * solar_constant * ctx.sun_flux * std::max(cosine, 0.0);

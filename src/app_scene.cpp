@@ -964,8 +964,8 @@ namespace kosmos::app
                 const sl::FlightBody *db = universe.world.body(d.body);
                 const glm::mat4 dm = glm::translate(glm::mat4(1.0f), glm::vec3(db->position - eye_world)) *
                                      glm::mat4(glm::mat3_cast(glm::quat(db->orientation))) *
-                                     glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, static_cast<float>(-d.centre_z)));
-                draw_parts(vis, other.spec(), d.stage, d.stage, dm);
+                                     glm::translate(glm::mat4(1.0f), -glm::vec3(d.centre));
+                draw_parts(vis, other.spec(), d.stage, d.stage, dm, true, 1.0, 0.0, 0.0, nullptr, d.part);
             }
         }
 

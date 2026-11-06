@@ -48,6 +48,7 @@ namespace kosmos
         universe.epoch_override = start_epoch_jd;
         if (system_ == 0 ? !universe.load(root + "/data/sol.json", error) : !universe.load_text(galaxy.system_json(system_), galaxy.star(system_).name, error))
             return false;
+        universe.stellar_luminosity = galaxy.star(system_).luminosity;
         universe.world.integrator = sl::FlightIntegrator::rk4;
         universe.world.max_substep = 0.1;
         universe.publish(props);
@@ -111,6 +112,7 @@ namespace kosmos
         fresh.epoch_override = start_epoch_jd;
         if (index == 0 ? !fresh.load(root_ + "/data/sol.json", error) : !fresh.load_text(galaxy.system_json(index), galaxy.star(index).name, error))
             return false;
+        fresh.stellar_luminosity = galaxy.star(index).luminosity;
         universe = std::move(fresh);
         system_ = index;
         universe.world.integrator = sl::FlightIntegrator::rk4;

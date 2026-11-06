@@ -23,7 +23,8 @@ namespace kosmos
     /**
      * One piece of ship equipment, described by `type`:
      *  battery      capacity_wh, charge (0..1), max_w
-     *  solar        area_m2, efficiency, facing (ship frame, default +Y), tracking (true: always faces the Sun)
+     *  solar        area_m2, efficiency, facing (ship frame, default +Y), tracking (true: always faces the Sun),
+     *               deployment_control and deployment_threshold (optional animation control and minimum position)
      *  rtg          watts, half_life_years, age_years
      *  fission      watts, fuel_kg
      *  fusion       watts, fuel_kg (deuterium)
@@ -54,6 +55,10 @@ namespace kosmos
         sl::dvec3 facing{0.0, 1.0, 0.0};
         /** Solar arrays only: the array steers to face the Sun, so the facing is ignored. */
         bool tracking = false;
+        /** Optional animation control and minimum position required for solar generation. */
+        std::string deployment_control;
+        double deployment_threshold = 1.0;
+        int deployment_index = -1;
         // Runtime
         bool enabled = true;
         bool alive = true;
@@ -112,6 +117,7 @@ namespace kosmos
         /** Unit vector toward the star in the ship frame; flux is in units of the flux at 1 AU (0 in an eclipse). */
         sl::dvec3 sun_dir{0.0, 1.0, 0.0};
         double sun_flux = 1.0;
+        std::vector<double> animation_positions;
         /** Seconds of simulated time since the ship was created (for RTG decay). */
         double mission_time = 0.0;
         /** Gas-grid cost control: above this timestep the grid only rescales, it does not diffuse. */

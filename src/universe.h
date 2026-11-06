@@ -107,6 +107,8 @@ namespace kosmos
         sl::FlightWorld world;
         std::vector<Body> bodies;
         std::string name;
+        /** Luminosity of the system's primary star in units of the Sun's. */
+        double stellar_luminosity = 1.0;
         /** Julian date (UTC) of simulation time zero. Set epoch_override before load() to start on another date; 0 keeps the file's epoch. */
         double epoch_jd = 2451545.0;
         double epoch_override = 0.0;

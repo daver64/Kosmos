@@ -310,6 +310,8 @@ namespace kosmos
             for (const ShipSpec::AnimationControl &a : spec_.animation_controls)
                 anim_pos_.push_back(a.initial);
         }
+        animation_previous_ = anim_pos_;
+        animation_elapsed_ = dt;
         for (std::size_t i = 0; i < anim_pos_.size(); ++i)
         {
             const double target = i < c.anim.size() ? std::clamp(c.anim[i], 0.0, 1.0) : anim_pos_[i];

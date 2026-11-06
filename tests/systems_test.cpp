@@ -30,6 +30,143 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        const int earth = universe.find("Earth"), sun = universe.find("Sun");
+        assert(earth >= 0 && sun >= 0);
+        const sl::dvec3 earth_position = universe.position(earth);
+        const sl::dvec3 toward_sun = glm::normalize(universe.position(sun) - earth_position);
+        for (const char *file : {"tma.json", "fg.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-soyuz/" + file, spec, error));
+            Ship ship(universe, spec);
+            assert(ship.systems());
+            const auto solar_output = [&ship] {
+                for (const SystemComponent &component : ship.systems()->components())
+                    if (component.type == "solar")
+                        return component.output_w;
+                assert(false);
+                return 0.0;
+            };
+            ship.body().position = earth_position + toward_sun * 10000000.0;
+            ship.body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), toward_sun);
+            const double battery = ship.systems()->battery_wh();
+            ship.after_step(1.0);
+            assert(solar_output() == 0.0);
+            assert(ship.systems()->powered() && ship.systems()->battery_wh() < battery);
+
+            Controls controls;
+            controls.anim = {1.0};
+            ship.apply_controls(controls, 5.0);
+            assert(std::abs(ship.animation_position(0) - 0.5) < 1e-9);
+            ship.after_step(5.0);
+            assert(solar_output() == 0.0);
+            ship.apply_controls(controls, 5.0);
+            ship.after_step(5.0);
+            const double full = solar_output();
+            assert(full > 3000.0 && full < 4500.0);
+            const double before_deployed = ship.systems()->battery_wh();
+            ship.after_step(2.0);
+            assert(ship.systems()->battery_wh() > before_deployed);
+            const ShipCarryState carried = ship.carry_state();
+            Ship restored(universe, spec);
+            restored.restore_carry_state(carried);
+            assert(std::abs(restored.animation_position(0) - 1.0) < 1e-9);
+            universe.stellar_luminosity = 0.5;
+            ship.after_step(1.0);
+            assert(std::abs(solar_output() - full * 0.5) < 1e-6);
+            universe.stellar_luminosity = 1.0;
+
+            ship.body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), -toward_sun);
+            ship.after_step(1.0);
+            assert(solar_output() < 1e-6);
+            const sl::dvec3 edge_on = glm::normalize(glm::cross(toward_sun, sl::dvec3(0.0, 1.0, 0.0)));
+            ship.body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), edge_on);
+            ship.after_step(1.0);
+            assert(solar_output() < 1e-6);
+            ship.body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), toward_sun);
+            ship.body().position = earth_position - toward_sun * 10000000.0;
+            const double before_eclipse = ship.systems()->battery_wh();
+            ship.after_step(1.0);
+            assert(solar_output() == 0.0 && ship.systems()->battery_wh() < before_eclipse);
+            ship.body().position = earth_position + toward_sun * 10000000.0;
+            const int moon = universe.find("Moon");
+            assert(moon >= 0);
+            const sl::dvec3 moon_position = universe.world.body(moon)->position;
+            universe.world.body(moon)->position = ship.body().position + toward_sun * 10000000.0;
+            ship.after_step(1.0);
+            assert(solar_output() == 0.0);
+            universe.world.body(moon)->position = moon_position;
+            controls.anim = {0.0};
+            ship.apply_controls(controls, 2.0);
+            ship.after_step(2.0);
+            assert(solar_output() == 0.0);
+            if (std::string(file) == "tma.json")
+            {
+                controls.anim = {1.0};
+                Ship warped(universe, spec), stepped(universe, spec);
+                for (Ship *candidate : {&warped, &stepped})
+                {
+                    candidate->body().position = earth_position + toward_sun * 10000000.0;
+                    candidate->body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), toward_sun);
+                    candidate->systems()->set_battery_fraction(0.5);
+                }
+                warped.apply_controls(controls, 100.0);
+                warped.after_step(100.0);
+                stepped.apply_controls(controls, 9.0);
+                stepped.after_step(9.0);
+                stepped.apply_controls(controls, 91.0);
+                stepped.after_step(91.0);
+                assert(std::abs(warped.systems()->battery_wh() - stepped.systems()->battery_wh()) < 1e-6);
+                assert(warped.stage_once());
+                warped.after_step(1.0);
+                assert(warped.systems()->components()[0].output_w == 0.0);
+            }
+        }
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *file : {"ship.json", "es.json", "eca.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ariane5/" + file, spec, error));
+            assert(spec.stages[0].radial_pair);
+            Ship rocket(universe, spec);
+            rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));
+            rocket.body().velocity = {100.0, -20.0, 3.0};
+            const sl::dvec3 velocity = rocket.body().velocity;
+            const sl::dvec3 origin = rocket.origin();
+            const sl::dmat3 rotation = rocket.body().rotation();
+            const double mass = rocket.body().mass();
+            const double dropped_mass = spec.stages[0].dry_mass + rocket.body().tanks[0].mass;
+            assert(rocket.stage_once());
+            assert(rocket.active_stage() == 1 && rocket.debris().size() == 2);
+            sl::dvec3 momentum = rocket.body().velocity * rocket.body().mass();
+            for (int i = 0; i < 2; ++i)
+            {
+                const Debris &debris = rocket.debris()[static_cast<std::size_t>(i)];
+                const sl::FlightBody *body = universe.world.body(debris.body);
+                assert(body && debris.part == i && debris.stage == 0);
+                assert(std::abs(body->mass() - dropped_mass / 2.0) < 1e-8);
+                const sl::dvec3 radial = glm::normalize(sl::dvec3(spec.stages[0].parts[i].offset.x, spec.stages[0].parts[i].offset.y, 0.0));
+                assert(glm::length(body->velocity - velocity - rotation * radial * spec.stages[0].separation_speed) < 1e-8);
+                assert(glm::length(body->position - origin - rotation * debris.centre) < 1e-8);
+                momentum += body->velocity * body->mass();
+            }
+            assert(glm::length(momentum - velocity * mass) < 1e-6);
+            assert(glm::length(rocket.body().velocity - velocity) < 1e-8);
+            assert(rocket.stage_once());
+            assert(rocket.debris().size() == 3 && rocket.debris().back().part == -1);
+            assert(rocket.stage_once());
+            assert(rocket.active_stage() == 4 && rocket.debris().size() == 5);
+            assert(rocket.debris()[3].part == -1 && rocket.debris()[4].part == -1);
+        }
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         ShipSpec spec;
         spec.name = "PropellantStateTest";
         spec.rcs_propellant = 12.0;
@@ -319,6 +456,7 @@ int main()
             SystemsContext c;
             c.sun_flux = 1.0;
             c.sun_dir = {0.0, 1.0, 0.0};
+            c.animation_positions.assign(ship.animation_controls.size(), 1.0);
             double t = 0.0;
             for (int i = 0; i < static_cast<int>(k.days * 8640); ++i)
             {

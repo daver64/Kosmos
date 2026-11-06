@@ -1282,7 +1282,7 @@ namespace kosmos
                                    "Ordnance (flying a ship with hardpoints, such as the Vulcan)\n"
                                    "  K                drop the next bomb   Shift+K   drop the special store (atom bomb)\n"
                                    "Animations\n"
-                                   "  View > Animations lists the ship's hatches, doors and other moving parts; click one to open or close it.\n"
+                                   "  View > Animations lists the ship's hatches, doors and other moving parts; click one to open or close it. Soyuz solar arrays must be deployed to generate power.\n"
 "Instruments\n"
 "  Probes with cameras, radar or a spectrometer have an INST MFD: switch the instrument LOAD on in Systems, point it with AZ/EL, SHOOT saves a picture or spectrum, GALLERY browses them\n"
 "Planets\n"

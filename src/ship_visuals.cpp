@@ -254,13 +254,16 @@ namespace kosmos::app
         return skinned_models[key] = model;
     }
 
-    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit, double gear, double pod_left, double pod_right, const kosmos::Ship *ship)
+    void draw_parts(Visuals &v, const kosmos::ShipSpec &spec, int first_stage, int last_stage, const glm::mat4 &model, bool lit, double gear, double pod_left, double pod_right, const kosmos::Ship *ship, int part_index)
     {
         if (ship && !spec.parachutes.empty())
             draw_canopies(v, spec, model, *ship);
         for (int s = first_stage; s <= last_stage; ++s)
-            for (const kosmos::PartSpec &part : spec.stages[static_cast<std::size_t>(s)].parts)
+            for (std::size_t p = 0; p < spec.stages[static_cast<std::size_t>(s)].parts.size(); ++p)
             {
+                if (part_index >= 0 && p != static_cast<std::size_t>(part_index))
+                    continue;
+                const kosmos::PartSpec &part = spec.stages[static_cast<std::size_t>(s)].parts[p];
                 if (!part.model.empty())
                 {
                     sl::Model *part_model = nullptr;

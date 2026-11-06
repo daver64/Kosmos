@@ -134,6 +134,8 @@ namespace kosmos
         std::vector<sl::dvec3> gear;
         double separation_speed = 1.0;
         bool with_next = false; // drops together with the stage after it on one press
+        /** Two equally massive parts at opposite offsets separate radially as independent debris. */
+        bool radial_pair = false;
         /** Ship-frame direction the stage is pushed when dropped; the default is straight back along +z. */
         sl::dvec3 separation_dir{0.0, 0.0, 1.0};
     };
@@ -567,6 +569,7 @@ namespace kosmos
         std::vector<double> stage_propellant;
         double rcs_propellant = 0.0;
         double gear_position = 1.0;
+        std::vector<double> animation_positions;
         double health = 1.0, shield = 0.0;
         Systems::State systems;
         bool has_systems = false;
@@ -577,7 +580,8 @@ namespace kosmos
         int body = -1;
         int stage = 0;
         double age = 0.0;
-        double centre_z = 0.0;
+        sl::dvec3 centre{0.0};
+        int part = -1;
     };
 
     /**
@@ -804,6 +808,8 @@ namespace kosmos
         double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;
+        std::vector<double> animation_previous_;
+        double animation_elapsed_ = 0.0;
         double pod_angle_[2] = {0.0, 0.0};
         std::vector<double> anim_pos_;
         std::vector<int> thruster_pod_;

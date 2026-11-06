@@ -356,6 +356,8 @@ Other bodies use the elements in the json.
 
 **Ship systems.** Ships can carry power sources (solar, RTG, fission, fusion, fuel cell), batteries, gas and water tanks and pressure vessels (cabins). A cabin is a box simulated on a 12x12x12 gas grid; vacuum is a sink, so a breach vents it. Press **F1** for the Ship systems window or select the Systems MFD; failure effects follow `--life-support` or a scenario's `life_support`. With no electricity left, MFDs and ship lights go dark. Declare equipment in a ship's `"systems"` list and `"vessels"` list, or tag mesh parts `vessel_NAME`, `crew_*` and `vent_*` (OBJ `usemtl` groups or GLB node names; they are not drawn). From Lua, writing an area in cm2 to `/ships/ship[N]/systems/vessel[i]/breach-cm2` opens a leak. The CVEL Apollo stack carries its fuel cells and cryogenic tanks on the service module and batteries, oxygen and LiOH in the command module, so life support carries on after the service module is jettisoned; a vessel's `pressure_kpa` and `o2_fraction` set its atmosphere (Apollo is pure oxygen at 34.5 kPa). Try `23_cabin_leak` and `24_oxygen_tank_failure`; `tests/systems_test.cpp` is the unit test (`cmake --build build --target systems_test`).
 
+Solar power depends on star luminosity, distance, panel facing and planetary or lunar eclipse. Soyuz arrays must first be deployed with **View > Animations > Panels and antennae**; until deployed, and in shadow, the batteries supply its electrical loads.
+
 A base is a built-up site on a body's surface, defined in JSON so modders can add their own: put files in `data/bases/` or in a `bases/` folder inside an addon. The terrain is levelled to one height around the centre (`flat_radius`, easing back over `blend`), and the objects stand on it.
 
 ```json

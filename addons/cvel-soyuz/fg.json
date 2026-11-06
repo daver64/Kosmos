@@ -11,7 +11,7 @@
  "cockpit": { "eye": [0, -1.5, -31], "yaw": 0, "pitch": 0 },
  "systems": [
   { "type": "battery", "name": "Batteries", "capacity_wh": 3000, "max_w": 1500 },
-  { "type": "solar", "name": "Solar arrays", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0] },
+  { "type": "solar", "name": "Solar arrays", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0], "deployment_control": "panels", "deployment_threshold": 0.9 },
   { "type": "load", "name": "Avionics", "watts": 250, "priority": 0 },
   { "type": "load", "name": "Cabin lighting", "watts": 60, "priority": 2 },
   { "type": "tank", "gas": "oxygen", "capacity_kg": 14 },

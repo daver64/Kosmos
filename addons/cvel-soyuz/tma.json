@@ -16,7 +16,7 @@
  "camera_target": [0, 0, -1],
  "cockpit": { "eye": [0, -1.5, -1.5], "yaw": 0, "pitch": 0 },
  "systems": [
-  { "type": "solar", "name": "Solar arrays", "stage": "Service module", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0] },
+  { "type": "solar", "name": "Solar arrays", "stage": "Service module", "area_m2": 10, "efficiency": 0.28, "facing": [0, 1, 0], "deployment_control": "panels", "deployment_threshold": 0.9 },
   { "type": "battery", "name": "Service module batteries", "stage": "Service module", "capacity_wh": 1800, "max_w": 1000 },
   { "type": "tank", "gas": "oxygen", "name": "Oxygen bottles", "stage": "Service module", "capacity_kg": 14 },
   { "type": "tank", "gas": "nitrogen", "name": "Nitrogen bottles", "stage": "Service module", "capacity_kg": 6 },

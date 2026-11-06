@@ -159,6 +159,8 @@ namespace kosmos
             state.stage_propellant.push_back(tank.mass);
         state.rcs_propellant = rcs_fuel_;
         state.gear_position = gear_position_;
+        for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
+            state.animation_positions.push_back(animation_position(i));
         state.health = health_;
         state.shield = shield_;
         if (systems_)
@@ -192,6 +194,12 @@ namespace kosmos
             b.tanks[stage].mass = std::clamp(state.stage_propellant[stage], 0.0, b.tanks[stage].capacity);
         rcs_fuel_ = std::clamp(state.rcs_propellant, 0.0, spec_.rcs_propellant);
         gear_position_ = std::clamp(state.gear_position, 0.0, 1.0);
+        if (state.animation_positions.size() == spec_.animation_controls.size())
+        {
+            anim_pos_ = state.animation_positions;
+            for (double &position : anim_pos_)
+                position = std::clamp(position, 0.0, 1.0);
+        }
         health_ = std::clamp(state.health, 0.0, 1.0);
         shield_ = std::clamp(state.shield, 0.0, spec_.shield.capacity);
         if (systems_ && state.has_systems)
@@ -413,32 +421,61 @@ namespace kosmos
 
     void Ship::drop_stage(int index)
     {
-        sl::FlightBody &b = body();
         const StageSpec &st = spec_.stages[static_cast<std::size_t>(index)];
-        const double leftover = b.tanks[static_cast<std::size_t>(index)].mass;
-        const double total = b.mass();
-
-        const int id = universe_.world.create_body(name + " " + st.name);
-        if (id >= 0)
+        const double leftover = body().tanks[static_cast<std::size_t>(index)].mass;
+        const double total = body().mass();
+        const int count = st.radial_pair ? 2 : 1;
+        std::vector<int> ids;
+        for (int i = 0; i < count; ++i)
         {
+            const int id = universe_.world.create_body(name + " " + st.name);
+            if (id < 0)
+            {
+                std::fprintf(stderr, "[kosmos] cannot create debris for %s: flight body limit reached\n", st.name.c_str());
+                for (int created : ids)
+                    universe_.world.destroy_body(created);
+                ids.clear();
+                break;
+            }
+            ids.push_back(id);
+        }
+        // Creating a body can reallocate the world's body storage.
+        sl::FlightBody &b = body();
+        sl::dvec3 impulse(0.0);
+        double separated_mass = 0.0;
+        for (std::size_t i = 0; i < ids.size(); ++i)
+        {
+            const int id = ids[i];
             sl::FlightBody &d = *universe_.world.body(id);
-            const sl::dvec3 tail = b.direction_to_world(glm::normalize(st.separation_dir));
-            d.dry_mass = std::max(st.dry_mass + leftover, 1.0);
-            const double transverse = d.dry_mass * (st.length * st.length / 12.0 + st.radius * st.radius / 4.0);
-            d.dry_inertia = {transverse, transverse, d.dry_mass * st.radius * st.radius / 2.0};
-            const sl::dvec3 arm = b.direction_to_world({0.0, 0.0, st.z - com_.z});
+            sl::dvec3 centre(0.0, 0.0, st.z);
+            sl::dvec3 direction = st.separation_dir;
+            if (st.radial_pair)
+            {
+                centre.x = st.parts[i].offset.x;
+                centre.y = st.parts[i].offset.y;
+                direction = {centre.x, centre.y, 0.0};
+            }
+            const sl::dvec3 kick = b.direction_to_world(glm::normalize(direction)) * st.separation_speed;
+            d.dry_mass = std::max((st.dry_mass + leftover) / count, 1.0);
+            const double radius = st.radial_pair ? st.radius / std::sqrt(2.0) : st.radius;
+            const double transverse = d.dry_mass * (st.length * st.length / 12.0 + radius * radius / 4.0);
+            d.dry_inertia = {transverse, transverse, d.dry_mass * radius * radius / 2.0};
+            const sl::dvec3 arm = b.direction_to_world(centre - com_);
             d.position = b.position + arm;
-            d.velocity = b.velocity + glm::cross(b.rotation() * b.angular_velocity, arm) + tail * st.separation_speed;
+            d.velocity = b.velocity + glm::cross(b.rotation() * b.angular_velocity, arm) + kick;
             d.orientation = b.orientation;
             d.angular_velocity = b.angular_velocity;
-            d.drag_area = 3.14159 * st.radius * st.radius;
+            d.drag_area = 3.14159 * radius * radius;
             Debris debris;
             debris.body = id;
             debris.stage = index;
-            debris.centre_z = st.z;
+            debris.centre = centre;
+            debris.part = st.radial_pair ? static_cast<int>(i) : -1;
             debris_.push_back(debris);
-            b.velocity -= tail * st.separation_speed * d.dry_mass / std::max(total - d.dry_mass, 1.0);
+            impulse += kick * d.dry_mass;
+            separated_mass += d.dry_mass;
         }
+        b.velocity -= impulse / std::max(total - separated_mass, 1.0);
 
         for (int i = stage_first_thruster_[static_cast<std::size_t>(index)]; i < stage_first_thruster_[static_cast<std::size_t>(index) + 1]; ++i)
         {
@@ -631,6 +668,8 @@ namespace kosmos
             mission_time_ += dt;
             SystemsContext ctx;
             ctx.mission_time = mission_time_;
+            for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
+                ctx.animation_positions.push_back(animation_position(i));
             ctx.landed = telemetry_.landed;
             if (ctx.landed && telemetry_.soi >= 0 && telemetry_.soi < static_cast<int>(universe_.bodies.size()))
                 surface_richness(universe_, telemetry_.soi, ctx.water_richness, ctx.nitrogen_richness);
@@ -653,7 +692,7 @@ namespace kosmos
                 const double distance = std::max(glm::length(to_star), 1.0);
                 const sl::dvec3 dir = to_star / distance;
                 ctx.sun_dir = b.direction_to_local(dir);
-                ctx.sun_flux = std::pow(149597870700.0 / distance, 2.0);
+                ctx.sun_flux = universe_.stellar_luminosity * std::pow(149597870700.0 / distance, 2.0);
                 // Eclipse: the ray to the star passes through any other body.
                 for (std::size_t i = 0; i < universe_.bodies.size(); ++i)
                 {
@@ -670,10 +709,41 @@ namespace kosmos
                     }
                 }
             }
-            systems_->step(dt, ctx);
+            std::vector<double> boundaries{0.0, dt};
+            const bool animated = animation_previous_.size() == ctx.animation_positions.size() && std::abs(animation_elapsed_ - dt) < 1e-6;
+            if (animated)
+                for (const SystemComponent &component : spec_.systems.components)
+                    if (component.deployment_index >= 0)
+                    {
+                        const std::size_t i = static_cast<std::size_t>(component.deployment_index);
+                        const double start = animation_previous_[i], end = ctx.animation_positions[i], threshold = component.deployment_threshold;
+                        if ((start < threshold && end >= threshold) || (start >= threshold && end < threshold))
+                            boundaries.push_back(std::abs(threshold - start) * spec_.animation_controls[i].duration);
+                    }
+            std::sort(boundaries.begin(), boundaries.end());
+            double propellant_made = 0.0;
+            for (std::size_t segment = 1; segment < boundaries.size(); ++segment)
+            {
+                const double begin = boundaries[segment - 1], end = boundaries[segment];
+                if (end <= begin)
+                    continue;
+                SystemsContext part = ctx;
+                part.mission_time = ctx.mission_time - dt + end;
+                part.propellant_room = std::max(ctx.propellant_room - propellant_made, 0.0);
+                if (animated)
+                    for (std::size_t i = 0; i < part.animation_positions.size(); ++i)
+                    {
+                        const double start = animation_previous_[i], target = ctx.animation_positions[i];
+                        const double travel = (begin + end) * 0.5 / spec_.animation_controls[i].duration;
+                        part.animation_positions[i] = start + std::clamp(target - start, -travel, travel);
+                    }
+                systems_->step(end - begin, part);
+                propellant_made += systems_->take_propellant_made();
+            }
+            animation_elapsed_ = 0.0;
             step_instruments(dt, ctx.sun_dir, ctx.sun_flux > 0.0);
-            if (const double made = systems_->take_propellant_made(); made > 0.0 && static_cast<std::size_t>(active_stage_) < b.tanks.size())
-                b.tanks[static_cast<std::size_t>(active_stage_)].mass += made;
+            if (propellant_made > 0.0 && static_cast<std::size_t>(active_stage_) < b.tanks.size())
+                b.tanks[static_cast<std::size_t>(active_stage_)].mass += propellant_made;
             if (systems_->crew_lost() && !crashed_)
             {
                 std::fprintf(stderr, "[kosmos] %s: crew lost\n", name.c_str());
