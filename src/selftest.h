@@ -20,6 +20,7 @@ namespace kosmos
         /** Run the ship weapon checks (beam, shields, flak, light cap) instead of a flight. */
         bool weapons = false;
         bool timed_burn = false;
+        bool vessel_ascent = false;
         /** Hold this throttle (negative leaves the controls alone). */
         double throttle = -1.0;
     };

@@ -84,6 +84,8 @@ namespace kosmos
         void cancel_autoland(const std::string &reason);
         bool arm_timed_burn(double delay, double duration, double throttle, const std::string &engine, const std::string &sas);
         void cancel_timed_burn(const std::string &reason);
+        void cancel_vessel_ascent(const std::string &reason);
+        bool vessel_ascent_active() const { return ascent_ship_ >= 0; }
         void release_payload_on_stage();
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }
@@ -180,6 +182,8 @@ namespace kosmos
         void run_burn();
         void run_autoland();
         void run_timed_burn();
+        void run_vessel_ascent(double dt);
+        void load_active_script();
 
         std::string root_;
         std::vector<Addon> addons_;
@@ -199,6 +203,10 @@ namespace kosmos
         } seek_;
         void follow_burn_plan();
         bool script_loaded_ = false;
+        int ascent_ship_ = -1, ascent_body_ = -1, ascent_stage_ = -1;
+        std::string ascent_profile_, ascent_phase_;
+        double ascent_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
+        double ascent_throttle_ = 0.0, ascent_hover_ = 0.0;
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;
         std::vector<std::string> messages_;

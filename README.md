@@ -82,7 +82,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
 | Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes (also B) |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
@@ -156,9 +156,17 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Alt+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
 | `--version` | Print the Kosmos version and exit |
 
+### Ship-specific ascent MFDs
+
+The Ares Spider has an **Ares Ascent** MFD for Mars; the CVEL Deltaglider and CVEL Shuttle-A, including their nuclear variants and Shuttle-AQ, have **Deltaglider Ascent** and **Shuttle-A Ascent** MFDs for Earth. Select the ship's mode from the MFD menu, set the target orbit altitude (150–1000 km) and launch heading, then press **START** while stationary near the surface. The default is 200 km, heading 090. The Deltaglider takes off along the runway; the Shuttle-A uses hover thrust at liftoff; the Ares ascends on its nose-axis hover engines. The Earth profiles account for atmospheric pressure and use different climb programs. The controller coasts and circularises near apoapsis; it keeps running if the MFD is closed. Low orbits can still decay in the upper atmosphere.
+
+These are experimental profiles, not fuel or terrain-avoidance planners. Monitor the flight and take over if necessary; different launch sites, headings, payloads, fuel loads or weather may not reach the target. Starts on other bodies, invalid targets, docked vessels and unavailable attitude control or engines are rejected. The target and heading cannot be changed while active. Warp is held at 1x and time skips are blocked. **STOP**, P, manual attitude, throttle, hover or SAS controls, staging, or a competing autopilot cancel the ascent. Cancellation cuts both engines unless a manual throttle command sets a new level.
+
 ### Mars autoland
 
 Start **CVEL > CVEL-Ares > CVEL: Ares Spider, Mars orbit**, or put the Ares Spider in another bound Mars orbit above 50 km. Open **Autopilot > Spacecraft** and engage **Autoland**. This experimental, untargeted controller lowers periapsis, coasts through the atmosphere with the hover engines off, then brakes and descends on hover thrust. It deploys the gear and Ares legs and stops the hover engines on touchdown. It does not choose a base, avoid steep terrain or predict whether fuel will last; monitor the descent and take over if needed. Other non-aircraft ships can use it only if their active-stage hover engines push along the nose and have enough thrust and fuel. It rejects docked vessels and other bodies. Time warp is limited to 4x while active. Press P or use manual attitude, throttle, hover or SAS controls to cancel; cancellation cuts hover thrust.
+
+The Ares legs start deployed and splayed. **View > Animations > Landing legs (stow)** folds them in; turn it off to deploy them again. The animation takes eight simulation seconds. The touchdown contacts remain at the deployed feet even while the legs are stowed.
 
 The Orbit MFD's **Orb** is speed relative to the planet's centre, not speed over the rotating ground. Surface and RADALT show surface-relative speeds. **AGL** is estimated local terrain clearance: the ground height beneath the vessel is subtracted along with a nominal vessel-bottom offset. It is not a ray-cast radar or terrain-ahead warning; without terrain data it uses the spherical surface. Autoland uses this same estimate.
 
@@ -345,7 +353,7 @@ Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ O
 
 A scenario can set up the instruments: `mfd_left` / `mfd_right` (mode ids such as `surface`, `orbit`), `mfd_power` (`{"left": true, "right": false}` powers each unit on or off), `mfd_display` (`panels`, `hud` for the see-through MFDs, or `off`) `hud` (`off`, `orbit`, `surface` or `docking`) and `view` (`chase`, `cockpit` or `cockpit3d`, the starting camera). Anything left out keeps the ship's defaults.
 
-Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS Attitude, `ascent` Ascent Profile, `align` Align Planes, `sync` Sync Orbit, `transfer` Transfer, `orbitcomp` OrbitComp, `comnav` COM/NAV, `vor` VOR/ILS, `vtol` VTOL, `adf` ADF, `hsi` HSI, `docking` Docking, `fuel` Fuel, `systems` Systems; panel instruments `adi`, `altimeter`, `asi`, `vsi`, `dg`, `turn`, `engine`; ship-specific `dg_aoa`, `dg_slip`, `dg_slope`, `icbm-target`, `shuttlea_levels`. The full table, and how an MFD publishes its burn for File ▸ Set time (`/plan/<mode>/at`, `label`, `stamp`), is in the website's modding page.
+Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS Attitude, `ascent` Ascent Profile, `align` Align Planes, `sync` Sync Orbit, `transfer` Transfer, `orbitcomp` OrbitComp, `comnav` COM/NAV, `vor` VOR/ILS, `vtol` VTOL, `adf` ADF, `hsi` HSI, `docking` Docking, `fuel` Fuel, `systems` Systems; panel instruments `adi`, `altimeter`, `asi`, `vsi`, `dg`, `turn`, `engine`; ship-specific `ares_ascent`, `dg_ascent`, `shuttle_ascent`, `dg_aoa`, `dg_slip`, `dg_slope`, `icbm-target`, `shuttlea_levels`. The full table, and how an MFD publishes its burn for File ▸ Set time (`/plan/<mode>/at`, `label`, `stamp`), is in the website's modding page.
 
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 

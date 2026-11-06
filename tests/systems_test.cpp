@@ -34,6 +34,18 @@ int main()
         ShipSpec spec;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ares/ship.json", spec, error));
         Ship ship(universe, spec);
+        assert(spec.animation_controls.size() == 1 && spec.animation_controls[0].property == "legs");
+        Controls legs;
+        legs.sas = "off";
+        assert(ship.animation_position(0) == 0.0);
+        legs.anim = {1.0};
+        ship.apply_controls(legs, 4.0);
+        assert(std::abs(ship.animation_position(0) - 0.5) < 1e-6);
+        ship.apply_controls(legs, 4.0);
+        assert(std::abs(ship.animation_position(0) - 1.0) < 1e-6);
+        legs.anim = {0.0};
+        ship.apply_controls(legs, 8.0);
+        assert(ship.animation_position(0) == 0.0);
         const int mars = universe.find("Mars");
         assert(mars >= 0);
         ship.body().position = universe.position(mars) + sl::dvec3(0.0, 0.0, universe.bodies[mars].radius + 200000.0);

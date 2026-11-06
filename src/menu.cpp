@@ -1256,7 +1256,7 @@ namespace kosmos
                                    "  Arrows           RCS translation\n"
                                    "  9/3 8/2 (digits) engine pods (Shuttle-A): thrust, swing; 4/5/6 retro/hover/fwd\n"
                                    "  Keypad 5         SAS kill rotation   [ ] ; '  prograde / retrograde / normal / anti-normal\n"
-                                   "  P                autopilot on/off; cancel autoland (Autopilot menu for modes)\n"
+                                   "  P                autopilot on/off; cancel autoland, timed burn or ship-specific ascent\n"
                                    "  Ctrl+D           undock\n"
                                    "  Home             reset cockpit view to forwards\n"
                                    "  Ctrl+Home/End    hover full / off\n"
@@ -1295,6 +1295,7 @@ namespace kosmos
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed.\n"
                                    "  Orbit MFD Orb is planet-centred speed; Surface and RADALT show ground-relative speeds and estimated terrain clearance.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
@@ -1391,6 +1392,8 @@ namespace kosmos
         bool engaged = p.get_bool("/autopilot/enabled");
         if (ImGui::Checkbox("Autopilot engaged  [P]", &engaged))
         {
+            if (engaged)
+                sim.cancel_vessel_ascent("Ascent cancelled: aircraft autopilot engaged");
             p.set_bool("/autopilot/enabled", engaged);
             if (!engaged)
                 p.set_string("/autopilot/status", "");
@@ -1480,7 +1483,10 @@ namespace kosmos
             if (ImGui::Checkbox("Ascent autopilot engaged  [P]", &engaged))
             {
                 if (engaged)
+                {
                     sim.cancel_timed_burn("Timed burn cancelled: ascent engaged");
+                    sim.cancel_vessel_ascent("Ascent cancelled: another autopilot engaged");
+                }
                 p.set_bool("/autopilot/enabled", engaged);
                 if (!engaged)
                     p.set_string("/autopilot/status", "");
@@ -1508,6 +1514,7 @@ namespace kosmos
             if (landing)
             {
                 sim.cancel_timed_burn("Timed burn cancelled: autoland engaged");
+                sim.cancel_vessel_ascent("Ascent cancelled: autoland engaged");
                 p.set_bool("/autopilot/enabled", false);
                 p.set_bool("/autopilot/burn/armed", false);
                 p.set_string("/autopilot/land/state", "off");
@@ -1538,7 +1545,10 @@ namespace kosmos
         {
             for (int i = 0; i < 9; ++i)
                 if (ImGui::Selectable(modes[i], i == current))
+                {
+                    sim.cancel_vessel_ascent("Ascent cancelled: manual SAS");
                     p.set_string("/controls/sas", modes[i]);
+                }
             ImGui::EndCombo();
         }
         if (sas == "attitude")
@@ -1546,10 +1556,16 @@ namespace kosmos
             float pitch = static_cast<float>(p.get_double("/controls/target-pitch")), heading = static_cast<float>(p.get_double("/controls/target-heading"));
             ImGui::SetNextItemWidth(160.0f);
             if (ui::slider_float("Pitch", &pitch, -90.0f, 90.0f, "%.0f deg"))
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled: manual attitude");
                 p.set_double("/controls/target-pitch", pitch);
+            }
             ImGui::SetNextItemWidth(160.0f);
             if (ui::slider_float("Heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled: manual attitude");
                 p.set_double("/controls/target-heading", heading);
+            }
         }
 
         ImGui::Separator();
@@ -1557,13 +1573,22 @@ namespace kosmos
         float throttle = static_cast<float>(p.get_double("/controls/throttle") * 100.0);
         ImGui::SetNextItemWidth(160.0f);
         if (ui::slider_float("##throttle", &throttle, 0.0f, 100.0f, "%.0f%%"))
+        {
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
             p.set_double("/controls/throttle", throttle / 100.0);
+        }
         ImGui::SameLine();
         if (ImGui::SmallButton("Cut"))
+        {
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
             p.set_double("/controls/throttle", 0.0);
+        }
         ImGui::SameLine();
         if (ImGui::SmallButton("Full"))
+        {
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
             p.set_double("/controls/throttle", 1.0);
+        }
         bool has_hover = false;
         if (ship->active_stage() >= 0 && ship->active_stage() < static_cast<int>(ship->spec().stages.size()))
             for (const EngineSpec &engine : ship->spec().stages[static_cast<std::size_t>(ship->active_stage())].engines)
@@ -1573,13 +1598,22 @@ namespace kosmos
             float hover = static_cast<float>(p.get_double("/controls/hover") * 100.0);
             ImGui::SetNextItemWidth(160.0f);
             if (ui::slider_float("Hover", &hover, 0.0f, 100.0f, "%.0f%%"))
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
                 p.set_double("/controls/hover", hover / 100.0);
+            }
             ImGui::SameLine();
             if (ImGui::SmallButton("Cut##hover"))
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
                 p.set_double("/controls/hover", 0.0);
+            }
             ImGui::SameLine();
             if (ImGui::SmallButton("Full##hover"))
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
                 p.set_double("/controls/hover", 1.0);
+            }
         }
         if ((engaged && scripted) || landing || timed)
             ImGui::EndDisabled();

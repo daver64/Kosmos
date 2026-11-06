@@ -521,6 +521,7 @@ namespace kosmos
         /** off, stability, prograde, retrograde, radial-out, radial-in, normal, antinormal or attitude. */
         std::string sas = "stability";
         double target_pitch = 90.0, target_heading = 90.0;
+        bool ascent_attitude = false;
         bool stage = false;
         /** 1 deploys the next parachute, -1 cuts every open one. */
         int parachute = 0;

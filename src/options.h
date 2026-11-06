@@ -30,6 +30,7 @@ namespace kosmos::app
         bool selftest_arsenal = false;
         bool selftest_weapons = false;
         bool selftest_timed_burn = false;
+        bool selftest_vessel_ascent = false;
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;

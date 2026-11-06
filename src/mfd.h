@@ -83,7 +83,7 @@ namespace kosmos
         MfdSystem() = default;
         void init(sl::LuaRuntime &lua, sl::PropertyTree &props);
         /** Load a mode script from an addon folder; returns false and sets error on failure. */
-        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any", const std::vector<std::string> &ships = {}, const std::string &short_name = "");
+        bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any", const std::vector<std::string> &ships = {}, const std::string &short_name = "", const std::string &name = "");
         /** Adds a page drawn by C++ code (a native addon's) instead of a Lua script. Image names are relative to @p directory. */
         void register_native(const std::string &addon, const std::string &id, const std::string &name, const std::string &directory, std::function<void(MfdCanvas &)> draw);
         const std::vector<MfdMode> &modes() const { return modes_; }

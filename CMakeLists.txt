@@ -98,6 +98,7 @@ add_executable(kosmos
     src/reentry.cpp
     src/scenario_start.cpp
     src/autoland.cpp
+    src/vessel_ascent.cpp
     src/timed_burn.cpp
     src/procedural.cpp
     src/selftest.cpp

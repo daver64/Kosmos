@@ -95,6 +95,27 @@
       "id": "radar-altimeter",
       "short": "RADALT",
       "script": "radar_altimeter.lua"
+    },
+    {
+      "id": "ares_ascent",
+      "name": "Ares Ascent",
+      "short": "ARES",
+      "ships": ["cvel-ares"],
+      "script": "vessel_ascent.lua"
+    },
+    {
+      "id": "dg_ascent",
+      "name": "Deltaglider Ascent",
+      "short": "DG ASC",
+      "ships": ["cvel-deltaglider", "cvel-deltaglider-nuclear"],
+      "script": "vessel_ascent.lua"
+    },
+    {
+      "id": "shuttle_ascent",
+      "name": "Shuttle-A Ascent",
+      "short": "SA ASC",
+      "ships": ["cvel-shuttle-a", "cvel-shuttle-a-nuclear", "cvel-shuttle-aq"],
+      "script": "vessel_ascent.lua"
     }
   ]
 }

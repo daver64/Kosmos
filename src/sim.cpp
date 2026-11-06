@@ -97,6 +97,11 @@ namespace kosmos
         props.set_string("/autopilot/land/state", "");
         props.set_bool("/autopilot/timed/armed", false);
         props.set_string("/autopilot/timed/state", "");
+        props.set_string("/autopilot/vessel-ascent/request", "");
+        props.set_string("/autopilot/vessel-ascent/state", "Off");
+        props.set_bool("/autopilot/vessel-ascent/active", false);
+        props.set_double("/autopilot/vessel-ascent/target-km", 200.0);
+        props.set_double("/autopilot/vessel-ascent/heading", 90.0);
 
         lua.initialise([this](const std::string &text) { log(text); });
         sl::bind_property_tree(lua, props);
@@ -233,7 +238,7 @@ namespace kosmos
         {
             std::string error;
             const std::string id = entry.value("id", "");
-            if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any"), entry.value("ships", std::vector<std::string>{}), entry.value("short", "")))
+            if (!mfd.register_mode(addon.id, id, (folder / entry.value("script", "")).string(), error, entry.value("domain", "any"), entry.value("ships", std::vector<std::string>{}), entry.value("short", ""), entry.value("name", "")))
                 log("addon " + addon.id + ": " + error);
         }
         for (const nlohmann::json &file : json.value("navaids", nlohmann::json::array()))
@@ -433,6 +438,7 @@ namespace kosmos
     {
         cancel_autoland("Autoland cancelled: flight changed");
         cancel_timed_burn("Timed burn cancelled: flight changed");
+        cancel_vessel_ascent("Ascent cancelled: flight changed");
         nav.clear_links();
         ships_.clear();
         active_ = 0;
@@ -496,14 +502,20 @@ namespace kosmos
             return;
         cancel_autoland("Autoland cancelled: vessel changed");
         cancel_timed_burn("Timed burn cancelled: vessel changed");
+        cancel_vessel_ascent("Ascent cancelled: vessel changed");
         active_ = index;
         props.set_int("/sim/active-ship", index);
         props.set_bool("/autopilot/burn/armed", false);
         props.set_bool("/autopilot/land/armed", false);
-        script_loaded_ = false;
         const Ship &ship = *ships_[static_cast<std::size_t>(index)];
-        const ShipSpec &spec = ship.spec();
         flying_as_aircraft_ = ship.flies_as_aircraft();
+        load_active_script();
+    }
+
+    void Sim::load_active_script()
+    {
+        script_loaded_ = false;
+        const ShipSpec &spec = active_ship()->spec();
         // A script name starting with "@" is one of the shared programs in data/autopilot.
         const std::filesystem::path script = spec.script.rfind("@", 0) == 0 ? std::filesystem::path(root()) / "data/autopilot" / spec.script.substr(1)
                                              : !spec.script.empty() ? std::filesystem::path(spec.directory) / spec.script
@@ -564,6 +576,7 @@ namespace kosmos
         c.sas = props.get_string(path_of("sas"), "stability");
         c.target_pitch = props.get_double(path_of("target-pitch"));
         c.target_heading = props.get_double(path_of("target-heading"));
+        c.ascent_attitude = prefix == "/controls" && ascent_ship_ == active_;
         c.parachute = props.get_int(path_of("parachute"));
         if (c.parachute != 0)
             props.set_int(path_of("parachute"), 0);
@@ -626,11 +639,20 @@ namespace kosmos
         }
         if (props.get_bool("/sim/paused"))
             return;
+        if (ascent_ship_ >= 0 && (props.get_bool("/autopilot/enabled") || props.get_bool("/autopilot/land/armed") ||
+                                 props.get_bool("/autopilot/burn/armed") || props.get_bool("/autopilot/timed/armed")))
+            cancel_vessel_ascent("Ascent cancelled: another autopilot engaged");
         if (Ship *flown = active_ship(); flown && flown->spec().hybrid && flown->flies_as_aircraft() != flying_as_aircraft_)
         {
             // Crossing between air and space changes which autopilot applies, so the old one is disengaged.
             props.set_bool("/autopilot/enabled", false);
-            activate(active_);
+            if (ascent_ship_ != active_)
+                activate(active_);
+            else
+            {
+                flying_as_aircraft_ = flown->flies_as_aircraft();
+                load_active_script();
+            }
             log(flying_as_aircraft_ ? "Aircraft mode: wings and aircraft autopilot" : "Spacecraft mode: RCS and SAS, autopilot off");
         }
         update_airlock(frame);
@@ -644,6 +666,7 @@ namespace kosmos
                 script_loaded_ = false;
             }
         }
+        run_vessel_ascent(frame);
         run_timed_burn();
         run_autoland();
         run_burn();
@@ -960,9 +983,9 @@ namespace kosmos
 
     bool Sim::skip_time(double seconds, std::string &why)
     {
-        if (props.get_bool("/autopilot/timed/armed"))
+        if (props.get_bool("/autopilot/timed/armed") || ascent_ship_ >= 0)
         {
-            why = "Cancel the timed burn before skipping time";
+            why = "Cancel the active autopilot before skipping time";
             return false;
         }
         if (seconds <= 0.0)

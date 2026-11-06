@@ -102,6 +102,7 @@ namespace kosmos
         }
         cancel_autoland("Autoland cancelled: timed burn armed");
         cancel_timed_burn("Timed burn replaced");
+        cancel_vessel_ascent("Ascent cancelled: timed burn armed");
         props.set_bool("/autopilot/enabled", false);
         props.set_bool("/autopilot/burn/armed", false);
         props.set_double("/controls/throttle", 0.0);

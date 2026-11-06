@@ -316,10 +316,104 @@ namespace kosmos
         return failures ? 1 : 0;
     }
 
+    static int run_vessel_ascent_test(Sim &sim)
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        sim.step(0.05);
+        const char *ids[] = {"ares_ascent", "dg_ascent", "shuttle_ascent"};
+        const char *names[] = {"Ares Ascent", "Deltaglider Ascent", "Shuttle-A Ascent"};
+        const char *folders[] = {"cvel-ares", "cvel-deltaglider", "cvel-shuttle-a"};
+        sim.mfd.set_domain("any");
+        for (int i = 0; i < 3; ++i)
+        {
+            const int mode = sim.mfd.mode_by_id(ids[i]);
+            sim.mfd.set_ship(folders[i]);
+            bool drawn = false;
+            if (mode >= 0)
+            {
+                const MfdMode &m = sim.mfd.modes()[static_cast<std::size_t>(mode)];
+                sol::protected_function draw = m.table["draw"];
+                MfdCanvas canvas;
+                drawn = draw.valid() && draw(m.table, std::ref(canvas), mfd_size, mfd_size).valid() && m.name == names[i];
+            }
+            check(drawn && sim.mfd.allowed(mode), names[i]);
+            sim.mfd.set_ship("unrelated");
+            check(!sim.mfd.allowed(mode), "ascent mode restricted to its ship");
+        }
+        for (const auto &entry : {std::pair<const char *, const char *>{"dg_ascent", "cvel-deltaglider-nuclear"},
+                                  {"shuttle_ascent", "cvel-shuttle-a-nuclear"}, {"shuttle_ascent", "cvel-shuttle-aq"}})
+        {
+            sim.mfd.set_ship(entry.second);
+            check(sim.mfd.allowed(entry.first), "ascent mode offered to supported variant");
+        }
+        sim.props.set_string("/autopilot/vessel-ascent/request", "Shuttle-A");
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active(), "wrong vessel rejected");
+        sim.props.set_double("/autopilot/vessel-ascent/target-km", 149.0);
+        sim.props.set_string("/autopilot/vessel-ascent/request", "Ares");
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active(), "target below 150 km rejected");
+        sim.props.set_double("/autopilot/vessel-ascent/target-km", 200.0);
+        sim.mfd.set_ship("cvel-ares");
+        sim.mfd.set_mode(0, sim.mfd.mode_by_id("ares_ascent"));
+        sim.mfd.press(0, 0);
+        sim.step(0.05);
+        check(sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") > 0.0, "MFD starts Ares ascent");
+        {
+            MfdCanvas canvas;
+            const int index = sim.mfd.mode_by_id("ares_ascent");
+            bool drawn = false;
+            if (index >= 0)
+            {
+                const MfdMode &mode = sim.mfd.modes()[static_cast<std::size_t>(index)];
+                sol::protected_function draw = mode.table["draw"];
+                drawn = draw.valid() && draw(mode.table, std::ref(canvas), mfd_size, mfd_size).valid();
+            }
+            bool locked = false;
+            for (const MfdCommand &command : canvas.commands)
+                locked = locked || (command.kind == MfdCommand::Kind::text && command.text == "TARGET / HEADING LOCKED");
+            check(drawn && locked, "active MFD shows target and heading are locked");
+        }
+        sim.mfd.set_mode(0, sim.mfd.mode_by_id("surface"));
+        sim.step(0.05);
+        check(sim.vessel_ascent_active(), "ascent continues after changing MFD mode");
+        std::string why;
+        check(!sim.skip_time(10.0, why), "time skip refused during ascent");
+        sim.props.set_double("/controls/hover", 0.3);
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active() && std::abs(sim.props.get_double("/controls/hover") - 0.3) < 1e-9,
+              "manual hover override cancels and preserves input");
+        sim.props.set_string("/autopilot/vessel-ascent/request", "Ares");
+        sim.step(0.05);
+        sim.props.set_double("/controls/throttle", 0.4);
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active() && std::abs(sim.props.get_double("/controls/throttle") - 0.4) < 1e-9 &&
+                  sim.props.get_double("/controls/hover") == 0.0,
+              "manual main throttle override cuts automatic hover");
+        sim.props.set_string("/autopilot/vessel-ascent/request", "Ares");
+        sim.step(0.05);
+        sim.props.set_string("/autopilot/vessel-ascent/request", "stop");
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") == 0.0, "stop cuts thrust");
+        sim.props.set_string("/autopilot/vessel-ascent/request", "Ares");
+        sim.step(0.05);
+        sim.props.set_bool("/autopilot/enabled", true);
+        sim.step(0.05);
+        check(!sim.vessel_ascent_active() && sim.props.get_bool("/autopilot/enabled"), "another autopilot takes control");
+        std::printf("vessel ascent selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
         if (options.timed_burn)
             return run_timed_burn_test(sim, ship);
+        if (options.vessel_ascent)
+            return run_vessel_ascent_test(sim);
         if (options.weapons)
             return run_weapons_test(sim, ship);
         if (options.arsenal)
@@ -332,7 +426,7 @@ namespace kosmos
         arsenal_ctx.sim = &sim;
         arsenal_ctx.eva = &nobody;
         arsenal_ctx.terrain = [](int) -> const sl::Terrain * { return nullptr; };
-        bool dropped = false;
+        bool dropped = false, ascent_was_active = false;
         for (double t = 0.0; t < options.seconds; t += dt)
         {
             if (options.drop >= 0.0)
@@ -362,6 +456,11 @@ namespace kosmos
                 sim.props.set_double("/controls/gear", 0.0);
             sim.advance(dt);
             const kosmos::Telemetry &tm = ship->telemetry();
+            if (ascent_was_active && !sim.vessel_ascent_active())
+                std::printf("ascent result: %s ap=%.3f km pe=%.3f km bound=%d fuel=%.1f\n",
+                            sim.props.get_string("/autopilot/vessel-ascent/state").c_str(),
+                            tm.apoapsis / km, tm.periapsis / km, tm.bound ? 1 : 0, tm.stage_fuel);
+            ascent_was_active = sim.vessel_ascent_active();
             const double report_every = ship->spec().aircraft() ? 2.0 : 10.0;
             if (sim.universe.time() >= next_report)
             {
@@ -377,6 +476,11 @@ namespace kosmos
                             tm.vertical_speed, tm.apoapsis / km, tm.periapsis / km, tm.pitch, ship->active_stage(), tm.stage_fuel,
                             tm.mass, sim.current_warp(), sim.props.get_int("/sim/active-ship"), sim.nav.docked(sim.props.get_int("/sim/active-ship")) ? 1 : 0,
                             ship->crashed() ? " CRASHED" : "");
+                if (sim.vessel_ascent_active())
+                    std::printf("   ascent: %s q=%.1f Pa throttle=%.3f hover=%.3f ap=%.1f km pe=%.1f km heading=%.1f\n",
+                                sim.props.get_string("/autopilot/vessel-ascent/state").c_str(), tm.dynamic_pressure,
+                                sim.props.get_double("/controls/throttle"), sim.props.get_double("/controls/hover"),
+                                tm.apoapsis / km, tm.periapsis / km, tm.heading);
                 if (sim.props.get_bool("/target/valid"))
                     std::printf("   target %s: distance %.0f km\n", sim.props.get_string("/sim/target").c_str(), sim.props.get_double("/target/distance") / km);
                 if (sim.props.get_string("/environment/station") != "")

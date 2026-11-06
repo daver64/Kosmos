@@ -204,6 +204,22 @@ namespace kosmos
         set_thruster_levels(c);
         if (flies_as_aircraft())
         {
+            if (c.ascent_attitude && b.mode == sl::FlightBodyMode::dynamic)
+            {
+                Controls surfaces = c;
+                apply_flight_controls(surfaces);
+                if (universe_.world.air_density_at(b.position) < 0.1 && c.hover < 0.02)
+                {
+                    Controls attitude = c;
+                    attitude.pitch = attitude.yaw = attitude.roll = 0.0;
+                    apply_attitude(attitude, dt);
+                    apply_rcs(attitude);
+                    use_rcs_propellant(dt);
+                }
+                else
+                    hold_hover_attitude(c);
+                return;
+            }
             // The control surfaces answer the stick whatever the RCS switch says.
             Controls surfaces = c;
             surfaces.pitch = input.pitch;

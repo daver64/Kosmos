@@ -339,6 +339,7 @@ namespace kosmos::app
             test.drop_atom = options.selftest_drop_atom;
             test.arsenal = options.selftest_arsenal;
             test.timed_burn = options.selftest_timed_burn;
+            test.vessel_ascent = options.selftest_vessel_ascent;
             test.weapons = options.selftest_weapons;
             test.throttle = options.selftest_throttle;
             return kosmos::run_selftest(sim, flown, test);

@@ -233,6 +233,7 @@ namespace kosmos::app
         {
             sim.cancel_autoland("Autoland cancelled: manual throttle");
             sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", 1.0);
         }
@@ -240,6 +241,7 @@ namespace kosmos::app
         {
             sim.cancel_autoland("Autoland cancelled: manual throttle");
             sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
             props.set_bool("/autopilot/enabled", false);
             props.set_double("/controls/throttle", 0.0);
         }
@@ -253,32 +255,42 @@ namespace kosmos::app
         {
             sim.cancel_autoland("Autoland cancelled: manual hover");
             sim.cancel_timed_burn("Timed burn cancelled: manual hover");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
             props.set_double("/controls/hover", 1.0);
         }
         else if (hit("hover_off"))
         {
             sim.cancel_autoland("Autoland cancelled: manual hover");
             sim.cancel_timed_burn("Timed burn cancelled: manual hover");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
             props.set_double("/controls/hover", 0.0);
         }
         else if (hit("stage"))
         {
             sim.cancel_autoland("Autoland cancelled: staging");
             sim.cancel_timed_burn("Timed burn cancelled: staging");
+            sim.cancel_vessel_ascent("Ascent cancelled: staging");
             props.set_bool("/controls/stage", true);
         }
         else if (hit("chute_deploy"))
         {
             sim.cancel_autoland("Autoland cancelled: parachute deployed");
+            sim.cancel_vessel_ascent("Ascent cancelled: parachute deployed");
             props.set_int("/controls/parachute", 1);
         }
         else if (hit("chute_cut"))
         {
             sim.cancel_autoland("Autoland cancelled: parachute cut");
+            sim.cancel_vessel_ascent("Ascent cancelled: parachute cut");
             props.set_int("/controls/parachute", -1);
         }
         else if (hit("autopilot"))
         {
+            if (sim.vessel_ascent_active())
+            {
+                sim.cancel_vessel_ascent("Ascent cancelled");
+                return;
+            }
             if (props.get_bool("/autopilot/timed/armed"))
             {
                 sim.cancel_timed_burn("Timed burn cancelled");
@@ -298,6 +310,7 @@ namespace kosmos::app
         {
             sim.cancel_autoland("Autoland cancelled: manual SAS");
             sim.cancel_timed_burn("Timed burn cancelled: manual SAS");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual SAS");
             const char *mode = hit("sas_prograde") ? "prograde" : hit("sas_retrograde") ? "retrograde" : hit("sas_normal") ? "normal" : hit("sas_antinormal") ? "antinormal" : "stability";
             props.set_bool("/autopilot/enabled", false);
             for (int m = 0; m < sas_mode_count; ++m)
@@ -308,6 +321,7 @@ namespace kosmos::app
         }
         else if (hit("rcs_mode") || hit("rcs_off"))
         {
+            sim.cancel_vessel_ascent("Ascent cancelled: manual RCS mode");
             const std::string was = props.get_string("/controls/rcs-mode", "rot");
             const std::string now = hit("rcs_off") ? (was == "off" ? "rot" : "off") : (was == "lin" ? "rot" : "lin");
             props.set_string("/controls/rcs-mode", now);
@@ -586,6 +600,7 @@ namespace kosmos::app
                 {
                     sim.cancel_autoland("Autoland cancelled: manual throttle");
                     sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+                    sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
                     if (action == "throttle")
                         props.set_bool("/autopilot/enabled", false);
                 }
@@ -607,10 +622,16 @@ namespace kosmos::app
                 {
                     sim.cancel_autoland("Autoland cancelled: staging");
                     sim.cancel_timed_burn("Timed burn cancelled: staging");
+                    sim.cancel_vessel_ascent("Ascent cancelled: staging");
                     props.set_bool("/controls/stage", true);
                 }
                 else if (action == "autopilot")
                 {
+                    if (sim.vessel_ascent_active())
+                    {
+                        sim.cancel_vessel_ascent("Ascent cancelled");
+                        continue;
+                    }
                     if (props.get_bool("/autopilot/timed/armed"))
                     {
                         sim.cancel_timed_burn("Timed burn cancelled");
@@ -630,6 +651,7 @@ namespace kosmos::app
                 {
                     sim.cancel_autoland("Autoland cancelled: manual SAS");
                     sim.cancel_timed_burn("Timed burn cancelled: manual SAS");
+                    sim.cancel_vessel_ascent("Ascent cancelled: manual SAS");
                     props.set_bool("/autopilot/enabled", false);
                     sas_index = (sas_index + 1) % sas_mode_count;
                     props.set_string("/controls/sas", sas_modes[sas_index]);
@@ -638,6 +660,7 @@ namespace kosmos::app
                 {
                     sim.cancel_autoland("Autoland cancelled: manual throttle");
                     sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+                    sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
                     props.set_bool("/autopilot/enabled", false);
                     props.set_double("/controls/throttle", action == "throttle-full" ? 1.0 : 0.0);
                 }
@@ -645,6 +668,7 @@ namespace kosmos::app
                 {
                     sim.cancel_autoland("Autoland cancelled: manual hover");
                     sim.cancel_timed_burn("Timed burn cancelled: manual hover");
+                    sim.cancel_vessel_ascent("Ascent cancelled: manual hover");
                     props.set_double("/controls/hover", action == "hover-on" ? 1.0 : 0.0);
                 }
             }
@@ -666,6 +690,7 @@ namespace kosmos::app
         {
             sim.cancel_autoland("Autoland cancelled: manual throttle");
             sim.cancel_timed_burn("Timed burn cancelled: manual throttle");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual throttle");
         }
         if (!typing && !on_foot && keys.down("throttle_up"))
             props.set_double("/controls/throttle", std::min(1.0, throttle + throttle_rate));
@@ -733,8 +758,15 @@ namespace kosmos::app
         const bool manual_rotation = std::fabs(props.get_double("/controls/pitch")) + std::fabs(props.get_double("/controls/yaw")) + std::fabs(props.get_double("/controls/roll")) > 0.02;
         if (manual_rotation)
         {
+            const double pitch = props.get_double("/controls/pitch");
+            const double yaw = props.get_double("/controls/yaw");
+            const double roll = props.get_double("/controls/roll");
             sim.cancel_autoland("Autoland cancelled: manual attitude");
             sim.cancel_timed_burn("Timed burn cancelled: manual attitude");
+            sim.cancel_vessel_ascent("Ascent cancelled: manual attitude");
+            props.set_double("/controls/pitch", pitch);
+            props.set_double("/controls/yaw", yaw);
+            props.set_double("/controls/roll", roll);
         }
         if (props.get_bool("/autopilot/enabled") && manual_rotation)
             props.set_bool("/autopilot/enabled", false);

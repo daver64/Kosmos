@@ -132,7 +132,7 @@ namespace kosmos
             "text", &MfdCanvas::text);
     }
 
-    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain, const std::vector<std::string> &ships, const std::string &short_name)
+    bool MfdSystem::register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain, const std::vector<std::string> &ships, const std::string &short_name, const std::string &name)
     {
         std::ifstream in(path);
         if (!in)
@@ -162,7 +162,7 @@ namespace kosmos
         mode.addon = addon;
         mode.domain = domain;
         mode.ships = ships;
-        mode.name = mode.table.get_or<std::string>("name", id);
+        mode.name = name.empty() ? mode.table.get_or<std::string>("name", id) : name;
         mode.short_name = short_name.empty() ? mode.table.get_or<std::string>("short", "") : short_name;
         modes_.push_back(std::move(mode));
         return true;

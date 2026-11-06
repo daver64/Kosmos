@@ -11,6 +11,7 @@ if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
 python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
+python3 "$SRC/tests/ares_legs_test.py"
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test
 cd "$OUT"
 export HOME=$(mktemp -d)
@@ -18,6 +19,7 @@ export XDG_CONFIG_HOME="$HOME/.config"
 trap 'rm -rf "$HOME"' EXIT
 
 python3 "$SRC/tests/autoland_test.py" "$PWD/kosmos"
+python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos"
 echo "== timed burn selftest (Shuttle-A in Mars orbit)"
 ./kosmos --ship "CVEL Shuttle-A" --orbit-body Mars --orbit-alt 200 --selftest 1 --selftest-timed-burn
 
