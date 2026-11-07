@@ -324,7 +324,6 @@ int main()
         for (const char *file : {"cvel-titan/titan1.json", "cvel-titan/titan2.json", "cvel-titan/titan3b.json",
                                  "cvel-titan/titan3c.json", "cvel-titan/titan3d.json", "cvel-titan/titan3e.json",
                                  "cvel-titan/titan34d.json", "cvel-titan/titan4a.json", "cvel-titan/titan4b.json",
-                                 "cvel-delta-iv/ship.json", "cvel-atlas/ship.json",
                                  "cvel-energia-m/ship.json", "cvel-proton/ship.json"})
         {
             ShipSpec spec;
@@ -342,6 +341,31 @@ int main()
                 }
             assert(fairings == 1);
         }
+    }
+    {
+        std::string error;
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-atlas/ship.json", spec, error));
+        assert(spec.stages.size() == 4);
+        assert(spec.stages[0].parts.size() == 2);
+        assert(spec.stages[1].parts[0].model == "models/atlasiii_fairing1.obj");
+        assert(spec.stages[2].parts[0].model == "models/atlasiii_fairing2.obj");
+        assert(spec.stages[3].parts[0].model == "models/atlasiii_centaur.obj");
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-delta-iv/ship.json", spec, error));
+        assert(spec.stages.size() == 5 && spec.stages[0].parts.size() == 2);
+        assert(spec.stages[0].parts[0].model == "models/deltaivbooster_1.obj");
+        assert(spec.stages[0].parts[1].model == "models/deltaivbooster_2.obj");
+        assert(spec.stages[1].parts[0].model == "models/deltaivstg1.obj");
+        assert(spec.stages[2].parts[0].model == "models/deltaivplf_1.obj");
+        assert(spec.stages[3].parts[0].model == "models/deltaivplf_2.obj");
+        assert(spec.stages[4].parts[0].model == "models/deltaivstg2.obj");
+        Universe universe;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        Ship rocket(universe, spec);
+        assert(rocket.stage_once() && rocket.active_stage() == 1);
+        assert(rocket.stage_once() && rocket.active_stage() == 2);
+        assert(rocket.stage_once() && rocket.active_stage() == 4);
+        assert(rocket.debris().size() == 4);
     }
     {
         Universe universe;

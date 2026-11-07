@@ -379,7 +379,7 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated
     "/data/textures/(amalthea|ariel|charon|earth_lights|hyperion|mercury|miranda|moon|neptune|oberon|phoebe|pluto|proteus|saturn|titan|titania|triton|umbriel|uranus|venus)\\.jpg$"
     "/data/textures/(hydra|nix)\\.dds$"
     "/data/parts/apollo-soyuz(/|$)" "/data/parts/orbiter(/|$)"
-    "/addons/(cvel-titan|cvel-delta-iv|cvel-energia-m|cvel-proton|cvel-buran|cvel-centaur|cvel-transtage|cvel-ares)/models(/|$)"
+    "/addons/(cvel-titan|cvel-energia-m|cvel-proton|cvel-buran|cvel-centaur|cvel-transtage|cvel-ares)/models(/|$)"
     "/addons/salyut/(models|thumbs)(/|$)" "/scenarios/CVEL/CVEL-Bases/thumbs/orbital_stations\\.png$" "/docs/manual/img/lunar_station\\.jpg$"
     "/addons/probe/(models|thumbs)(/|$)"
     "/addons/orbiter-stations/models/iss\\.(obj|mtl)$"

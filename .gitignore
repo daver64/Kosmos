@@ -12,6 +12,7 @@ __pycache__/
 !/addons/cvel-shuttle-a/orbiter-models/vc/textures/*.png
 !/addons/cvel-saturn-v/models/textures/*.png
 !/addons/cvel-atlas/models/textures/*.png
+!/addons/cvel-delta-iv/models/textures/*.png
 !/addons/cvel-saturn-mlv3/models/textures/*.png
 !/addons/cvel-saturn-v23/models/textures/*.png
 !/addons/cvel-dragonfly/orbiter-models/textures/*.png

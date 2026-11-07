@@ -48,15 +48,20 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   and textures with `tools/import_cvel_saturn_v.py` and removes overlapping
   faces. The notice's LGPL statement applies to the original C++ module code,
   not a stated licence for the meshes.
-- **CVEL Saturn V MLV3 and V-23L** (`addons/cvel-saturn-mlv3/` and
-  `addons/cvel-saturn-v23/`): converted from the corresponding CVEL source
+- **CVEL Saturn V MLV1, MLV2, MLV3 and V-23L**: converted from the corresponding CVEL source
   distributions. Their notices credit TomPA and Sputnik; the CVEL author
   reports their permission to bundle the meshes and accompanying textures.
   Four absent MLV3 fin textures use the source material instead.
-- **CVEL Atlas III** (`addons/cvel-atlas/`): meshes and model-package textures
-  by Alex Hohlov, supplied under the Artistic Licence. The original source,
-  notice and licence, plus a description of Kosmos's conversion and coincident-face
-  cleanup, are in `addons/cvel-atlas/source/`.
+- **CVEL Atlas III** (`addons/cvel-atlas/`): meshes by Alex Hohlov, released
+  under the Artistic Licence. The model package includes matching bitmap
+  textures and the licence text. The original source, notice and licence,
+  plus a description of Kosmos's conversion and coincident-face cleanup, are
+  in `addons/cvel-atlas/source/`.
+- **CVEL Delta IV Heavy** (`addons/cvel-delta-iv/`): meshes by Alex Hohlov
+  (STS-107), used with permission according to the original CVEL notice in
+  `addons/cvel-delta-iv/source/`. The CVEL author confirms Alex gave permission
+  to use his meshes in CVEL downloads. The source distribution's accompanying
+  textures are converted along with the meshes.
 
 ## NASA source inventory
 

@@ -166,45 +166,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.4,
-     "length": 52,
-     "z": 26.0,
+     "model": "models/deltaivbooster_1.obj",
      "offset": [
       -4.54,
       0,
       0
-     ],
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
      ]
     },
     {
-     "prop": "stage",
-     "radius": 2.4,
-     "length": 52,
-     "z": 26.0,
+     "model": "models/deltaivbooster_2.obj",
      "offset": [
       4.54,
       0,
       0
-     ],
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
      ]
     }
    ]
@@ -242,20 +216,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.9,
-     "length": 52,
-     "z": 26.0,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
+     "model": "models/deltaivstg1.obj",
+     "offset": [0, 0, 0]
     }
    ]
   },
@@ -276,20 +238,8 @@
    "engines": [],
    "parts": [
     {
-     "prop": "fairing",
-     "radius": 2.6,
-     "length": 18.35,
-     "z": -29.124999999999996,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
+     "model": "models/deltaivplf_1.obj",
+     "offset": [0, 0, -29.1]
     }
    ]
   },
@@ -307,7 +257,12 @@
     -0.2
    ],
    "engines": [],
-   "parts": []
+   "parts": [
+    {
+     "model": "models/deltaivplf_2.obj",
+     "offset": [0, 0, -29.1]
+    }
+   ]
   },
   {
    "name": "Second stage",
@@ -341,20 +296,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.6,
-     "length": 13,
-     "z": -17.7,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
+     "model": "models/deltaivstg2.obj",
+     "offset": [0, 0, -24.2]
     }
    ]
   }
