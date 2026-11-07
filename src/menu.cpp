@@ -1319,7 +1319,7 @@ namespace kosmos
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
                                    " F3 offers optional Earth/Mars J2 gravity; rails and time skips suspend it, and orbit predictions stay approximate.\n"
                                    "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"
-                                   "  Sync Orbit APPR shows short-range relative motion and a straight-line closest-approach estimate; use Docking for port alignment.\n"
+                                   "  Sync Orbit APPR shows short-range relative motion; RVEL points against target-relative velocity for a manual burn. Cut thrust before zero; use Docking for port alignment.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"

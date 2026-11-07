@@ -2,6 +2,10 @@
 
 An Orbiter/Kerbal-style space simulator built on simlib. Fly from a launch pad to orbit, transfer to the Moon, and jump to other stars.
 
+### Recent flight improvements
+
+Changes for 0.50 improve saved-flight resume and OrbitComp encounter and burn estimates. Sync Orbit's APPR page and target-relative retrograde hold help with manual rendezvous, while RADALT adds a sampled terrain-ahead warning. Experimental Mars autoland can approach a nearby coordinate or base, and flights can be recorded and replayed as snapshots. Optional Earth/Mars J2 gravity models equatorial bulges during integrated flight. These aids have important limits: see the sections below before relying on them.
+
 ## Build and run
 
 Kosmos builds against an installed [simlib](https://github.com/daver64/rsimlib) (`cmake --install` of rsimlib; pinned to the commit in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it, and the pin is only moved after simlib itself changes). Needs a C++17 compiler, CMake 3.28+ and simlib's dependencies; the command below uses Ninja.
@@ -97,12 +101,6 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | **F11** | **Lua console** (like FlightGear's Nasal console): edit scripts with syntax highlighting, **Run** (Ctrl+Enter), **Save** (Ctrl+S, to `~/.config/kosmos/scripts/`). Choose the event that runs a script: manual, scenario load / ship change, every frame, timer, or when a property changes, and tick **Armed**. Scripts see `props` plus `event`, `dt`, `event_path`, `event_value`; `print` and errors go to the output pane. Examples live in `data/scripts/` |
 | **F12** | **Multiplayer** window: host or join a game, browse the IRC lobby, chat |
 | **Menu bar** | A **File / Edit / View / Tools / Help** bar is pinned along the top (untick View > *Keep menu bar visible* and it slides in only when the mouse touches the top edge). **File**: open or save a scenario, record or play back a flight, restart, quit. **Edit**: undo/redo for the open editor, Settings, Properties. **View**: every window plus both editors. **Tools**: *Scenario editor*, *Base editor*, screenshot, *Start/Stop recording video* (H.264 + AAC sound, `kosmos-<time>.mp4` in the working directory, needs `ffmpeg` on the path), reload user content. **Help**: controls, about. **Esc** closes menus and windows first and quits only when none are open |
-
-### Flight recording and playback
-
-**File > Record flight** starts a local state recording in a new `.json` file under the user recordings folder; **File > Stop flight recording** saves it. It samples vessel snapshots, clock, selected control inputs and chase/cockpit camera roughly once per simulated second (at most once per rendered frame, so warp can leave wider gaps). Recording stops on a scenario or star-system change, EVA, multiplayer, at 3600 samples, or near the size limit. Existing files are not overwritten. If saving fails, use **File > Retry saving flight recording** to choose a new path; the unsaved frames are retained in memory until saved or the game exits.
-
-**File > Open flight recording** opens a recording from the current star system, with the recorded addons installed. Playback starts paused and offers play, pause, rewind and stop. It displays discrete snapshots, not smooth interpolation or a deterministic physics re-simulation; date, positions, fuel, basic controls and camera are restored at each sample. It has the saved-scenario limitations: autopilot state, debris, transient effects and complex docking networks are not faithfully replayed; it does not record EVA or multiplayer. Stopping restores the previous flight paused, with thrust and recorded control axes zeroed; autopilots do not resume. This is separate from video recording.
 | , / F | Wheel brakes / cycle flaps (aircraft) |
 | G | Landing gear up / down (retractable gear) |
 | Ctrl+D | Undock |
@@ -113,9 +111,14 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | Y / Shift+Y | Navigation lights / landing and nose lights on or off (also under View) |
 | V | Switch ship |
 | O | Orbit line |
-| I | Show or hide all on-screen text (title, telemetry, nearest base, key help); hidden when Kosmos starts |
 | M | Sound on/off (rocket, RCS, ground wind and cabin ambience inside pressurised spaces) |
-| R | Reset |
+| Shift+R | Restart the scenario |
+
+### Flight recording and playback
+
+**File > Record flight** starts a local state recording in a new `.json` file under the user recordings folder; **File > Stop flight recording** saves it. It samples vessel snapshots, clock, selected control inputs and chase/cockpit camera roughly once per simulated second (at most once per rendered frame, so warp can leave wider gaps). Recording stops on a scenario or star-system change, EVA, multiplayer, at 3600 samples, or near the size limit. Existing files are not overwritten. If saving fails, use **File > Retry saving flight recording** to choose a new path; the unsaved frames are retained in memory until saved or the game exits.
+
+**File > Open flight recording** opens a recording from the current star system, with the recorded addons installed. Playback starts paused and offers play, pause, rewind and stop. It displays discrete snapshots, not smooth interpolation or a deterministic physics re-simulation; date, positions, fuel, basic controls and camera are restored at each sample. It has the saved-scenario limitations: autopilot state, debris, transient effects and complex docking networks are not faithfully replayed; it does not record EVA or multiplayer. Stopping restores the previous flight paused, with thrust and recorded control axes zeroed; autopilots do not resume. This is separate from video recording.
 
 ## Command line
 
@@ -338,7 +341,7 @@ The website has an MFD Operations Manual (`mfd-manual.html`) covering every disp
 
 The Transfer MFD's AUTO button arms a burn autopilot (`/autopilot/burn/*`: `armed`, `start` as `/sim/time` of the window, `target-radius`, and read-only `state`, `remaining`, `ignition-in`): it holds prograde, burns until the apoapsis reaches the target radius, and ABORT cancels. Transfer and OrbitComp's PLN page draw the central body, both orbits, the transfer ellipse and a dot for each of you and the target (the Sun at the centre for a planet-to-planet plan). Align Planes, Sync Orbit and Transfer work against a target ship or body. Set it with the TGT+/TGT- buttons, `--target NAME`, or `/sim/target`. Telemetry appears under `/target/...`.
 
-For the final rendezvous, Sync Orbit's **APPR** page shows range, closing and sideways relative speed, and a straight-line closest-approach estimate. The estimate is shown only for a ship in the same sphere of influence within 100 km and five minutes; gravity and thrust can change it, so it is not an orbital prediction or collision guarantee. **RVEL** selects target-relative retrograde SAS to point opposite your velocity relative to the target; it does not operate the engines. Burn gently, cut thrust before relative speed reaches zero, then use the Docking MFD for port alignment. The hold cannot acquire a target outside your sphere of influence or a relative speed below 0.1 m/s.
+For the final rendezvous, Sync Orbit's **APPR** page shows range, closing and sideways relative speed, and a straight-line closest-approach estimate. The estimate is shown only for a ship in the same sphere of influence within 100 km and five minutes; gravity and thrust can change it, so it is not an orbital prediction or collision guarantee. **RVEL** selects target-relative retrograde SAS to point opposite your velocity relative to the target; it does not operate the engines. Burn gently, cut thrust before relative speed reaches zero, then use the Docking MFD for port alignment. The hold cannot acquire a target outside your sphere of influence or a relative speed below 0.1 m/s, and RCS must not be off. If the target becomes invalid or too slow, the hold falls back to damping; it does not cut thrust.
 
 The RADALT MFD warns when the current vertical descent rate would reach the estimated local ground clearance within 30 or 10 seconds. When terrain data is available it also samples a constant-speed ground track every two seconds for 30 seconds and warns of sampled intersections. Both are approximations, not stopping-distance predictions: narrow terrain between samples, changes in motion, buildings and obstacles can be missed. The display says when terrain-ahead data is unavailable.
 
