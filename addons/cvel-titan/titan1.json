@@ -2,7 +2,13 @@
  "name": "CVEL Titan I",
  "class": "launcher",
  "payload_bays": [
-  {"name": "Payload shroud", "shape": "cylinder", "radius": 1.5, "length": 3, "port": "Payload"}
+  {
+   "name": "Payload shroud",
+   "shape": "cylinder",
+   "radius": 1.5,
+   "length": 3,
+   "port": "Payload"
+  }
  ],
  "script": "@launcher.lua",
  "description": "Titan I: the first US two-stage ICBM turned light launcher, kerosene and LOX in both stages. Payload port on top of stage 2; the fairing halves jettison automatically after stage 1.",
@@ -117,19 +123,19 @@
    ],
    "parts": [
     {
-     "model": "models/titan21.obj",
-     "offset": [
-      0.0,
-      0,
-      25.85
-     ]
-    },
-    {
-     "model": "models/int10_8.obj",
-     "offset": [
-      0.0,
-      0,
-      13.615
+     "prop": "stage",
+     "radius": 1.55,
+     "length": 22,
+     "z": 36.85,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ],
@@ -172,11 +178,19 @@
    "engines": [],
    "parts": [
     {
-     "model": "models/fairing201a.obj",
-     "offset": [
-      0,
-      0,
-      0
+     "prop": "fairing",
+     "radius": 1.25,
+     "length": 9,
+     "z": 2.5,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ],
@@ -198,11 +212,19 @@
    "engines": [],
    "parts": [
     {
-     "model": "models/fairing201b.obj",
-     "offset": [
-      0,
-      0,
-      0
+     "prop": "fairing",
+     "radius": 1.25,
+     "length": 9,
+     "z": 2.5,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]
@@ -240,11 +262,19 @@
    ],
    "parts": [
     {
-     "model": "models/titani_stage2.obj",
-     "offset": [
-      0.0,
-      0,
-      9.82
+     "prop": "stage",
+     "radius": 1.55,
+     "length": 9.5,
+     "z": 14.57,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]

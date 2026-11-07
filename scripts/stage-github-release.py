@@ -74,7 +74,8 @@ def check_excluded_assets(source, names):
                    "mercury", "miranda", "moon", "neptune", "oberon", "phoebe",
                    "pluto", "proteus", "saturn", "titan", "titania", "triton",
                    "umbriel", "uranus", "venus")),
-                "data/textures/hydra.dds", "data/textures/nix.dds",
+                "data/textures/hydra.dds", "data/textures/nix.dds", "data/parts/apollo-soyuz",
+                "addons/cvel-titan/models", "addons/cvel-delta-iv/models",
                 *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}"
                   for country in ("BRI", "CAN", "FRA", "USA")))
     for name in names:

@@ -367,6 +367,8 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated
     "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
     "/data/textures/(amalthea|ariel|charon|earth_lights|hyperion|mercury|miranda|moon|neptune|oberon|phoebe|pluto|proteus|saturn|titan|titania|triton|umbriel|uranus|venus)\\.jpg$"
     "/data/textures/(hydra|nix)\\.dds$"
+    "/data/parts/apollo-soyuz(/|$)"
+    "/addons/(cvel-titan|cvel-delta-iv)/models(/|$)"
     "/data/textures/[^/]+_normal\\.jpg$"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.

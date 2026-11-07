@@ -1,7 +1,8 @@
 # Model credits
 
 The `nasa_*` parts in `parts/` and the Vesta shape in `bodies/vesta.glb` are made from models published by NASA's
-[3D Resources](https://nasa3d.arc.nasa.gov/) site. NASA media is generally not subject to US copyright, but
+[3D Resources](https://science.nasa.gov/3d-resources/) site. NASA describes its 3D Resources assets as free to download
+and use. NASA media is generally not subject to US copyright, but
 [NASA media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/) and any third-party rights apply.
 NASA does not endorse Kosmos or any product made with these models. Individual sources and any identifiers still
 need review.

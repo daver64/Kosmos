@@ -2,7 +2,13 @@
  "name": "CVEL Delta IV Heavy",
  "class": "launcher",
  "payload_bays": [
-  {"name": "Fairing", "shape": "cylinder", "radius": 2.4, "length": 14, "port": "Payload"}
+  {
+   "name": "Fairing",
+   "shape": "cylinder",
+   "radius": 2.4,
+   "length": 14,
+   "port": "Payload"
+  }
  ],
  "script": "@launcher.lua",
  "pad_turn": 0,
@@ -160,19 +166,45 @@
    ],
    "parts": [
     {
-     "model": "models/deltaivbooster_1.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 52,
+     "z": 26.0,
      "offset": [
       -4.54,
       0,
       0
+     ],
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     },
     {
-     "model": "models/deltaivbooster_2.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 52,
+     "z": 26.0,
      "offset": [
       4.54,
       0,
       0
+     ],
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]
@@ -210,11 +242,19 @@
    ],
    "parts": [
     {
-     "model": "models/deltaivstg1.obj",
-     "offset": [
-      0,
-      0,
-      0
+     "prop": "stage",
+     "radius": 2.9,
+     "length": 52,
+     "z": 26.0,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]
@@ -236,11 +276,19 @@
    "engines": [],
    "parts": [
     {
-     "model": "models/deltaivplf_1.obj",
-     "offset": [
-      0,
-      0,
-      -29.1
+     "prop": "fairing",
+     "radius": 2.6,
+     "length": 18.35,
+     "z": -29.124999999999996,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]
@@ -261,11 +309,19 @@
    "engines": [],
    "parts": [
     {
-     "model": "models/deltaivplf_2.obj",
-     "offset": [
-      0,
-      0,
-      -29.1
+     "prop": "fairing",
+     "radius": 2.6,
+     "length": 18.35,
+     "z": -29.124999999999996,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]
@@ -302,11 +358,19 @@
    ],
    "parts": [
     {
-     "model": "models/deltaivstg2.obj",
-     "offset": [
-      0,
-      0,
-      -24.2
+     "prop": "stage",
+     "radius": 2.6,
+     "length": 13,
+     "z": -17.7,
+     "colour": [
+      225,
+      225,
+      225
+     ],
+     "accent": [
+      75,
+      75,
+      80
      ]
     }
    ]

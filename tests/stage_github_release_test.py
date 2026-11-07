@@ -138,6 +138,9 @@ def run():
                                               "pluto", "proteus", "saturn", "titan", "titania", "triton",
                                               "umbriel", "uranus", "venus")),
                                            "data/textures/hydra.dds", "data/textures/nix.dds",
+                                           "data/parts/apollo-soyuz/apollo-soyuz.glb",
+                                           "addons/cvel-titan/models/titan21.obj",
+                                           "addons/cvel-delta-iv/models/deltaivstg1.obj",
                                            *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}/idpanel1.dds"
                                              for country in ("BRI", "CAN", "FRA", "USA")))):
                 fixture_dir = root / f"excluded-{option[2:]}-{index}"
