@@ -32,7 +32,7 @@ mkdir -p "$STAGE/planetbake/gen"
 cp "$SRC/src/planet_gen.h" "$SRC/src/planet_gen.cpp" "$STAGE/planetbake/gen/"
 cp "$FASTNOISE_DIR/FastNoiseLite.h" "$STAGE/planetbake/gen/"
 echo "$VER" > "$STAGE/VERSION"
-cp "$SRC/LICENSE"* "$STAGE/" 2>/dev/null || true
+cp "$SRC/LICENSE" "$STAGE/"
 
 # Prove the package builds before shipping it.
 BUILD=$(mktemp -d)

@@ -6,6 +6,10 @@ Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.c
 
 Kosmos began around twenty years ago as a personal project. It is now ready for wider testing.
 
+Kosmos's own source code is licensed under the [MIT License](LICENSE).
+Third-party code, data and artwork have their own licences and conditions; see
+the accompanying credits and [asset provenance](docs/asset-provenance.md).
+
 **[Downloads](https://github.com/daver64/Kosmos/releases) · [User manual](docs/manual/manual.md) · [MFD manual](docs/manual/mfd-manual.md) · [Modding guide](docs/manual/modding.md) · [SDK](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)**
 
 | Launch | Explore the stars |

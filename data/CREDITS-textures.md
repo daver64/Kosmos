@@ -114,6 +114,10 @@ Credits we can name from the packs' own notes:
   or GPL 3.0; the bundled images are provided under CC BY-SA 3.0. The
   detail maps are greyscale conversions of Pebbles2 and SmallRocks; the
   rock textures are unmodified.
+- **Dirt ground detail** (`textures/detail_dirt.jpg`): the owner identifies
+  this as Creative Commons artwork from OpenGameArt. The particular item,
+  creator, licence version and any modifications have not yet been identified;
+  its required attribution and conditions still need to be established.
 - **Tarmac** (`textures/tarmac/ground_asphalt_synth_05.png`): `ground_asphalt_synth_05.png`
   from [faux asphalt texture pack by para](https://opengameart.org/node/15880),
   [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). The bundled

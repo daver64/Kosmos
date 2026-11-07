@@ -413,10 +413,9 @@ endif()
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-<version>-Linux.tar.gz        Windows: build/package/kosmos-beta-<version>-Windows.zip
 # Hi-res textures (data/textures-hires, import/celestia/hires) and the 54 GB Orbiter import (import/) are left out; scripts/pack-hires.sh
-# builds the separate hi-res pack. The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
-# it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
+# builds the separate hi-res pack. Earth land-cover caches and raw rasters are not included.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${KOSMOS_VERSION}-${CMAKE_SYSTEM_NAME}
     ASSETS data scenarios addons assets docs
-    EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
+    EXTRA_FILES README.md LICENSE "${CMAKE_BINARY_DIR}/VERSION.txt"
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})
