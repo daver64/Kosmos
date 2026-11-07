@@ -553,20 +553,6 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         const EquipmentSpec *spec = context.sim->equipment.find(hp.equipment);
         if (!spec)
             return false;
-        if (spec->blast_effect == "mushroom" && !nuke_tried_ && sound_on_)
-        {
-            nuke_tried_ = true;
-            const std::string path = context.sim->root() + "/data/sounds/nuke.mp3";
-            if (FILE *f = std::fopen(path.c_str(), "rb"))
-            {
-                std::vector<std::uint8_t> bytes;
-                std::uint8_t buffer[65536];
-                for (std::size_t n; (n = std::fread(buffer, 1, sizeof buffer, f)) > 0;)
-                    bytes.insert(bytes.end(), buffer, buffer + n);
-                std::fclose(f);
-                nuke_sample_ = sl::load_sample_from_memory(bytes.data(), bytes.size());
-            }
-        }
         --rack.counts[static_cast<std::size_t>(index)];
         sync_payload(*context.sim, ship, rack);
 
@@ -836,9 +822,9 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             const double d = have_eye_ ? glm::length(universe.position(round.body) + point - eye_world_) : 0.0;
             Bang bang;
             bang.kind = nuclear ? 1 : 0;
-            bang.delay = nuclear && nuke_sample_ ? 0.0 : d / 340.0;
+            bang.delay = nuclear ? 0.0 : d / 340.0;
             const double reach = nuclear ? 80000.0 * round.scale : std::max(4000.0, blast_radius * 60.0);
-            bang.volume = nuclear && nuke_sample_ ? 1.0 : std::clamp(1.0 / (1.0 + d / reach), 0.0, 1.0);
+            bang.volume = nuclear ? 1.0 : std::clamp(1.0 / (1.0 + d / reach), 0.0, 1.0);
             if (bang.volume > 0.02)
                 bangs_.push_back(bang);
         }
@@ -1150,11 +1136,13 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 ++i;
                 continue;
             }
-            sl::Sample *&sample = bangs_[i].kind == 1 && nuke_sample_ ? nuke_sample_ : bang_samples_[bangs_[i].kind];
+            sl::Sample *&sample = bang_samples_[bangs_[i].kind];
             if (!sample)
             {
                 const std::vector<std::uint8_t> wav = make_blast_wav(bangs_[i].kind);
                 sample = sl::load_sample_from_memory(wav.data(), wav.size());
+                if (!sample)
+                    std::fprintf(stderr, "[kosmos] Failed to load synthesised blast sound (kind %d)\n", bangs_[i].kind);
             }
             if (sample)
                 sl::play_sample(sample, static_cast<int>(255 * bangs_[i].volume), 128, 1000, 0);

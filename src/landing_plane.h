@@ -48,6 +48,9 @@ namespace kosmos
     LandingPlaneBurn landing_plane_burn(double delta_v, double mass, double fuel, double reserve,
                                        double thrust, double flow);
 
+    /** Throttle for the remaining delta-v over a positive, already-warped simulation interval. */
+    double landing_plane_burn_level(double remaining, double acceleration, double interval);
+
     struct LandingCandidate
     {
         LandingPlaneWindow window;

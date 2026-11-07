@@ -218,6 +218,11 @@ target_link_libraries(equipment_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(equipment_test PRIVATE src)
 target_compile_definitions(equipment_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_executable(synth_sound_test EXCLUDE_FROM_ALL tests/synth_sound_test.cpp src/blast_sound.cpp src/weapon_sound.cpp src/lightning.cpp)
+target_link_libraries(synth_sound_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(synth_sound_test PRIVATE src)
+target_compile_definitions(synth_sound_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
 add_executable(joystick_test EXCLUDE_FROM_ALL tests/joystick_test.cpp src/joystick.cpp)
 target_link_libraries(joystick_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(joystick_test PRIVATE src)

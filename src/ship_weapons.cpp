@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <set>
 
 namespace kosmos
@@ -187,26 +188,18 @@ namespace kosmos
         add_sparks(spec, body, point, sl::dvec3(0.0), static_cast<int>(10 + 14 * spec.look.sparkle), 30.0 * std::sqrt(scale));
     }
 
-    void ShipWeapons::play_beam(ArsenalContext &context, const WeaponSpec &spec)
+    void ShipWeapons::play_beam(const WeaponSpec &spec)
     {
         if (!sound_on_ || sound_gain_ < 0.02)
             return;
-        if (!rifle_tried_)
-        {
-            rifle_tried_ = true;
-            rifle_sample_ = sl::load_sample(context.sim->root() + "/data/sounds/Rifleprimary2.ogg");
-        }
-        if (rifle_sample_)
-        {
-            sl::play_sample(rifle_sample_, static_cast<int>(255.0 * std::min(1.0, sound_gain_)), 128, 1000, 0);
-            return;
-        }
         const int key = static_cast<int>(spec.duration * 10.0 + 0.5);
         sl::Sample *&sample = beam_samples_[key];
         if (!sample)
         {
             const std::vector<std::uint8_t> wav = make_beam_wav(spec.duration, 1.0);
             sample = sl::load_sample_from_memory(wav.data(), wav.size());
+            if (!sample)
+                std::fprintf(stderr, "[kosmos] Failed to load synthesised beam sound\n");
         }
         if (sample)
             sl::play_sample(sample, static_cast<int>(255.0 * std::min(1.0, sound_gain_)), 128, 1000, 0);
@@ -246,7 +239,7 @@ namespace kosmos
                 return;
             if (state.beam_time <= 0.0)
             {
-                play_beam(context, spec);
+                play_beam(spec);
                 add_flare(spec, body, from, spec.look.width * spec.look.glow * 3.0, 0.35, spec.look.light * 2.0);
             }
             state.beam_time += dt;

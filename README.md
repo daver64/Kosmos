@@ -1,10 +1,52 @@
 # Kosmos
 
-An Orbiter/Kerbal-style space simulator built on simlib. Fly from a launch pad to orbit, transfer to the Moon, and jump to other stars.
+**An independent spaceflight and atmospheric flight simulator — now looking for beta testers.**
+
+Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.com/daver64/rsimlib). Launch from Earth, navigate in orbit, travel to the Moon and other planets, or explore procedural star systems. Inspired in part by Orbiter and Kerbal Space Program, it combines flight simulation with tools for building spacecraft, missions and add-ons.
+
+Kosmos began around twenty years ago as a personal project. It is now ready for wider testing.
+
+**[Download Kosmos](https://salyut.ddns.net/kosmos/download.html) · [Website](https://salyut.ddns.net/kosmos/index.html) · [User manual](https://salyut.ddns.net/kosmos/manual.html) · [Modding guide](https://salyut.ddns.net/kosmos/modding.html) · [SDK](https://salyut.ddns.net/kosmos/sdk.html)**
+
+> **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
+
+## Help test Kosmos
+
+Until now, Kosmos has been tested mainly by its developers. We would welcome a wider range of people willing to fly it, explore its systems and tell us what goes wrong.
+
+You **do not need to be a programmer**. Useful feedback includes installation problems, crashes, unexpected flight behaviour, confusing controls, poor performance and unclear documentation. If you enjoy creating spacecraft, scenarios, instruments or external tools, the modding and SDK facilities are also available to try.
+
+To get started, download a packaged build from the [download page](https://salyut.ddns.net/kosmos/download.html), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](https://salyut.ddns.net/kosmos/manual.html) explains the controls and systems.
+
+If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher also has a **Report this log** option that lets you preview a sanitised log before submitting it.
+
+## What you can do
+
+- **Fly spacecraft and aircraft:** launch, stage, manoeuvre, rendezvous, dock, land and explore using orbital and atmospheric flight systems.
+- **Navigate the Solar System:** use MFDs, flight computers, manoeuvre planning, autopilots and mission-planning tools; experimental aids require supervision.
+- **Explore beyond Sol:** visit a deterministic catalogue of **24,409 stars**, including procedurally generated planetary systems, landable terrain and quantum-portal travel.
+- **Leave the spacecraft:** walk or manoeuvre in EVA and interact with supported environments.
+- **Create and modify content:** use the scenario and base editors, ShipEdit, KosmosCAD and KosmosMission, as well as JSON-based add-ons.
+- **Extend the simulator:** write Lua scripts and MFDs, or connect external programs using the KosmosLink SDK.
+- **Try multiplayer:** up to four players can see one another as ghost ships; this is not a shared collision or docking simulation.
+
+## Documentation and development
+
+This README also serves as the technical reference for developers. The detailed build instructions, source layout, tests, command-line options and subsystem notes are retained below.
+
+Kosmos is directed by a small core team. Suggestions, bug reports and community-created content are welcome; architectural and project-direction decisions remain with the maintainers. Public source availability does not imply that every proposed feature or pull request will be accepted.
+
+The sections below describe the current implementation, including experimental behaviour and known limitations.
+
+Third-party assets have their own credits and terms: see [sounds](data/CREDITS-sounds.md),
+[models](data/CREDITS-models.md), [textures](data/CREDITS-textures.md), and
+[gravity data](data/gravity/README.md).
 
 ### Recent flight improvements
 
 Changes for 0.50 improve saved-flight resume and OrbitComp encounter and burn estimates. Sync Orbit's APPR page and target-relative retrograde hold help with manual rendezvous, while RADALT adds a sampled terrain-ahead warning. Experimental Mars autoland can approach a nearby coordinate or base, and flights can be recorded and replayed as snapshots. Optional Earth/Mars J2 gravity models equatorial bulges during integrated flight. These aids have important limits: see the sections below before relying on them.
+
+---
 
 ## Build and run
 
@@ -177,7 +219,7 @@ Start **CVEL > CVEL-Ares > CVEL: Ares Spider, Mars orbit**, or put the Ares Spid
 
 For an experimental **target landing**, select that option before engaging Autoland, enter latitude and longitude or choose a base on the current body. Ares supports Mars and the Moon; Shuttle-A supports suitable bodies with sufficient hover thrust and fuel. For a local start, be 300–3000 m above the surface, within 2 km of the target, with horizontal speed below 50 m/s and vertical speed below 30 m/s. The controller approaches the coordinates and descends more quickly above 1000 m; it reports if touchdown is more than 50 m away. A selected base aims at its designated pad.
 
-For an **orbital base landing**, select a base rather than coordinates and start in a bound orbit with periapsis at least 50 km and above the atmosphere. Disable nonspherical gravity and, on bodies with weather, disable weather. The controller searches up to 14 orbits for a plane-change window, forecasts the burn and descent with at least 100 kg of fuel remaining, and checks the chosen plan again before ignition. Use time warp while it says **Waiting for window**; it reduces warp automatically before the burn. It then aligns, performs the plane change, descends under power and uses local target guidance. An orbital touchdown within 3 km of the base centre is reported as landed; it is not guaranteed to reach the pad. Planning can take time or reject a flight even when another trajectory might work. Forecasts are approximate, do not predict future weather or avoid buildings and other obstacles, and are not a guarantee of safe touchdown or sufficient fuel. If conditions change or the reserve is depleted during descent, a warning is shown and guidance continues. Monitor the flight and take over when necessary.
+For an **orbital base landing**, select a base rather than coordinates and start in a bound orbit with periapsis at least 50 km and above the atmosphere. Disable nonspherical gravity and, on bodies with weather, disable weather. The controller searches up to 14 orbits for a plane-change window, forecasts the burn and descent with at least 100 kg of fuel remaining, and checks the chosen plan again before ignition. The Spacecraft Autopilot window shows time to plane burn while waiting, checking and aligning. Use time warp while it says **Waiting for window**; it reduces warp automatically before the burn. Planning and checking are held at 1x; during alignment, burn, powered descent and target approach you can select up to 4x. It then aligns, performs the plane change, descends under power and uses local target guidance. An orbital touchdown within 3 km of the base centre is reported as landed; it is not guaranteed to reach the pad. Planning can take time or reject a flight even when another trajectory might work. Forecasts are approximate, do not predict future weather or avoid buildings and other obstacles, and are not a guarantee of safe touchdown or sufficient fuel. If conditions change or the reserve is depleted during descent, a warning is shown and guidance continues. Monitor the flight and take over when necessary.
 
 The Ares legs start deployed and splayed. **View > Animations > Landing legs (stow)** folds them in; turn it off to deploy them again. The animation takes eight simulation seconds. The touchdown contacts remain at the deployed feet even while the legs are stowed.
 

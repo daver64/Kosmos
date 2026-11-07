@@ -4,11 +4,13 @@
 #include "audio.h"
 
 #include <cstdint>
-#include <string>
 #include <vector>
 
 namespace kosmos
 {
+    /** A mono thunder WAV; kind 0 is close and sharp, 2 is distant rumble. */
+    std::vector<std::uint8_t> make_thunder_wav(int kind);
+
     /**
      * Lightning for a thunderstorm: strikes at random bearings and distances, a flash that lights the sky, a jagged bolt from the
      * cloud base to the ground, and thunder that arrives after the speed of sound has covered the distance.
@@ -21,9 +23,6 @@ namespace kosmos
 
         /** Advance by `dt` real seconds. `thunder` is 0 to 1 (0 stops new strikes); `sound_volume` is 0 to 1. */
         void update(double dt, double thunder, double sound_volume);
-
-        /** Where to find lightning.wav (a recording used for every strike; the built-in synthesised thunder is the fallback). */
-        void set_sound_file(const std::string &path) { sound_file_ = path; }
 
         /** Sky flash from 0 to 1. */
         double flash() const { return flash_; }
@@ -60,9 +59,6 @@ namespace kosmos
         std::uint32_t rng_ = 0x9e3779b9u;
         double volume_ = 1.0;
         sl::Sample *samples_[3] = {nullptr, nullptr, nullptr};
-        sl::Sample *recording_ = nullptr;
-        bool recording_tried_ = false;
-        std::string sound_file_;
         double busy_until_ = 0.0;
         double random();
     };

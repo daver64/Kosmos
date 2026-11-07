@@ -125,9 +125,7 @@ namespace kosmos
         std::map<int, sl::Sample *> beam_samples_;
         sl::Sample *zap_sample_ = nullptr;
         double sound_gain_ = 1.0;
-        sl::Sample *rifle_sample_ = nullptr;
-        bool rifle_tried_ = false;
-        void play_beam(ArsenalContext &context, const WeaponSpec &spec);
+        void play_beam(const WeaponSpec &spec);
         void play_zap();
         std::vector<Segment> beams_, streaks_;
         std::vector<Bolt> bolts_;

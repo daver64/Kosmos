@@ -1397,6 +1397,12 @@ namespace kosmos
             }
             std::string last_phase;
             bool engaged = false, fault_injected = false;
+            const bool test_warp = sim.props.get_bool("/selftest/orbital-warp");
+            bool saw_alignment_warp = false, saw_burn_warp = false, saw_descent_warp = false, saw_approach_warp = false;
+            bool saw_burn_one = false, countdown_ok = true;
+            bool saw_wait_countdown = false, saw_check_countdown = false, saw_align_countdown = false;
+            double countdown_ignition = -1.0;
+            int burn_frames = 0;
             for (int step = 0; step < 300000; ++step)
             {
                 const std::string phase = sim.props.get_string("/autopilot/land/state");
@@ -1422,9 +1428,42 @@ namespace kosmos
                     }
                     sim.props.set_int("/sim/warp-index", 10);
                 }
+                if (test_warp && (phase == "Plane alignment" || phase == "Plane burn" ||
+                                  phase == "Powered descent" || phase == "Target approach"))
+                {
+                    if (phase == "Plane burn")
+                        ++burn_frames;
+                    sim.props.set_int("/sim/warp-index", phase == "Plane burn" && burn_frames >= 2 && burn_frames < 4 ? 0 : 3);
+                }
+                if ((phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment") &&
+                    sim.current_warp() <= 4.0)
+                {
+                    const double left = sim.props.get_double("/autopilot/land/window");
+                    const double ignition = sim.universe.time() + left;
+                    if (left < 0.0 || (countdown_ignition >= 0.0 && std::abs(ignition - countdown_ignition) > 0.5))
+                        countdown_ok = false;
+                    if (countdown_ignition < 0.0)
+                        countdown_ignition = ignition;
+                    saw_wait_countdown |= phase == "Waiting for window";
+                    saw_check_countdown |= phase == "Checking orbit" && sim.current_warp() == 1.0;
+                    saw_align_countdown |= phase == "Plane alignment";
+                }
+                if ((phase == "Plane burn" || phase == "Powered descent" || phase == "Target approach") &&
+                    sim.props.get_double("/autopilot/land/window") != 0.0)
+                    countdown_ok = false;
                 if (phase == "Plane alignment" && fault == "sas" && !fault_injected)
                 {
                     sim.props.set_string("/controls/sas", "stability");
+                    fault_injected = true;
+                }
+                if (phase == "Plane alignment" && fault == "alignment-miss" && !fault_injected &&
+                    sim.props.get_double("/autopilot/land/window") < 0.8)
+                {
+                    const sl::dvec3 nose = ship->body().direction_to_world(sl::dvec3(0, 0, -1));
+                    sl::dvec3 turn_axis = glm::cross(nose, sl::dvec3(0, 1, 0));
+                    if (glm::length(turn_axis) < 0.1)
+                        turn_axis = glm::cross(nose, sl::dvec3(1, 0, 0));
+                    ship->body().orientation = glm::angleAxis(glm::pi<double>(), glm::normalize(turn_axis)) * ship->body().orientation;
                     fault_injected = true;
                 }
                 if (phase == "Powered descent" && (fault == "gravity-descent" || fault == "fuel-descent") && !fault_injected)
@@ -1464,10 +1503,26 @@ namespace kosmos
                         fault_injected = true;
                     }
                 }
+                const bool burn_was_firing = phase == "Plane burn" && sim.props.get_double("/controls/hover") > 0.0;
+                const double before = sim.universe.time();
                 if (sim.props.get_bool("/selftest/orbital-real-step"))
                     sim.advance(0.1);
                 else
                     sim.step(0.1);
+                const double elapsed = sim.universe.time() - before;
+                if (test_warp && burn_was_firing && sim.current_warp() == 1.0 && elapsed > 0.09 && elapsed < 0.11)
+                    saw_burn_one = true;
+                if (test_warp && sim.props.get_string("/autopilot/land/state") == phase)
+                {
+                    const bool effective_four = sim.current_warp() == 4.0 && elapsed > 0.35 && elapsed < 0.45;
+                    if (phase == "Plane alignment") saw_alignment_warp |= effective_four;
+                    if (phase == "Plane burn")
+                    {
+                        saw_burn_warp |= effective_four;
+                    }
+                    if (phase == "Powered descent") saw_descent_warp |= effective_four;
+                    if (phase == "Target approach") saw_approach_warp |= effective_four;
+                }
                 if (sim.props.get_bool("/autopilot/land/armed"))
                     engaged = true;
                 else
@@ -1476,6 +1531,8 @@ namespace kosmos
             const Telemetry &t = ship->telemetry();
             const std::string result = sim.props.get_string("/autopilot/land/state");
             const double distance = sim.props.get_double("/autopilot/land/distance");
+            countdown_ok = countdown_ok && countdown_ignition >= 0.0 &&
+                           sim.props.get_double("/autopilot/land/window") == 0.0;
             if (!fault.empty())
             {
                 const std::string expected = fault == "weather" ? "disable weather" :
@@ -1483,17 +1540,24 @@ namespace kosmos
                                              fault == "fuel" ? "no plane-change windows" :
                                              fault == "orbit-change" ? "orbit changed" :
                                              fault == "sas" ? "manual SAS" :
+                                             fault == "alignment-miss" ? "plane-burn alignment missed" :
                                              fault == "competing-autopilot" ? "another autopilot engaged" :
                                              fault == "cancel-burn" ? "cancelled: selftest" : "cancelled";
                 const bool ok = !sim.props.get_bool("/autopilot/land/armed") &&
                                 result.find(expected) != std::string::npos &&
                                 sim.props.get_double("/controls/hover") == 0.0 &&
+                                sim.props.get_double("/autopilot/land/window") == 0.0 &&
                                 (fault == "weather" || fault == "gravity" || fault == "fuel" || fault_injected);
                 std::printf("orbital autoland fault %s: %s (%s)\n", fault.c_str(), ok ? "passed" : "FAILED", result.c_str());
                 return ok ? 0 : 1;
             }
             const bool ok = engaged && result == "Autoland: landed" && !ship->crashed() && t.landed &&
-                            distance <= 3000.0 && t.surface_speed < 2.0 && t.stage_fuel > 100.0;
+                            distance <= 3000.0 && t.surface_speed < 2.0 && t.stage_fuel > 100.0 && countdown_ok &&
+                            saw_wait_countdown && saw_check_countdown && saw_align_countdown &&
+                            (!test_warp || (saw_alignment_warp && saw_burn_warp && saw_burn_one &&
+                                           saw_descent_warp && saw_approach_warp));
+            std::printf("orbital autoland checks: countdown %d warp alignment %d burn %d burn-1x %d descent %d approach %d\n",
+                        countdown_ok, saw_alignment_warp, saw_burn_warp, saw_burn_one, saw_descent_warp, saw_approach_warp);
             std::printf("orbital autoland result: %s distance %.1f speed %.6f fuel %.1f crashed %d\n",
                         result.c_str(), distance, t.surface_speed, t.stage_fuel, ship->crashed() ? 1 : 0);
             return ok ? 0 : 1;

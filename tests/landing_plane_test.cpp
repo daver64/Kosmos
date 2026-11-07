@@ -58,6 +58,13 @@ int main()
           "local approach rejects invalid geometry and acceleration");
     check(!kosmos::landing_plane_change(position, velocity, sl::dvec3(nan, 1.0, 0.0)).valid, "reject non-finite target");
     const double burn_mass = 30000.0, burn_flow = 80.0, burn_thrust = 240000.0, burn_dv = 600.0;
+    const double short_remaining = 0.2, acceleration = 2.0;
+    const double level_one = kosmos::landing_plane_burn_level(short_remaining, acceleration, 0.1);
+    const double level_four = kosmos::landing_plane_burn_level(short_remaining, acceleration, 0.4);
+    check(std::abs(level_one - 1.0) < 1e-12 && std::abs(level_four - 0.25) < 1e-12 &&
+              std::abs(level_four * acceleration * 0.4 - short_remaining) < 1e-12 &&
+              kosmos::landing_plane_burn_level(5.0, acceleration, 0.4) == 1.0,
+          "finite burn limits the last throttle step using the effective warped interval");
     const auto burn = kosmos::landing_plane_burn(burn_dv, burn_mass, 10000.0, 1000.0, burn_thrust, burn_flow);
     const double expected_burn_fuel = burn_mass * -std::expm1(-burn_dv * burn_flow / burn_thrust);
     check(burn.valid && burn.sufficient_fuel && std::abs(burn.fuel - expected_burn_fuel) < 1e-9 &&

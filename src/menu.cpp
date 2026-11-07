@@ -1321,7 +1321,7 @@ namespace kosmos
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
-                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Monitor and take over; time skips are blocked.\n"
+                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Orbital planning and checking run at 1x; flight allows up to 4x. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
                                    " Autopilot > Spacecraft > earth-communications points the active ship's nose at Earth in physics flight, not on rails.\n"
@@ -1606,6 +1606,7 @@ namespace kosmos
             ImGui::TextDisabled("Start 300-3000 m above ground, within 2 km, below 50 m/s horizontal");
             ImGui::TextDisabled("and below 30 m/s vertical speed.");
             ImGui::TextDisabled("From orbit, choose a base; spherical gravity and no weather are required.");
+            ImGui::TextDisabled("Planning and checking hold 1x; flight allows up to 4x.");
             ImGui::TextDisabled("Use time warp while waiting for the window; planning may take time.");
             if (landing)
             {
@@ -1613,7 +1614,8 @@ namespace kosmos
                 if (p.get_string("/autopilot/land/state") == "Planning orbit")
                     ImGui::Text("Forecast candidate %d of %d", p.get_int("/autopilot/land/candidate"),
                                 p.get_int("/autopilot/land/candidates"));
-                if (p.get_string("/autopilot/land/state") == "Waiting for window")
+                const std::string phase = p.get_string("/autopilot/land/state");
+                if (phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment")
                     ImGui::Text("Time to plane burn: %.0f s", p.get_double("/autopilot/land/window"));
             }
         }

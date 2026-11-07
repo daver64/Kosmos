@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 namespace kosmos
 {
@@ -21,57 +22,59 @@ namespace kosmos
             for (int i = 0; i < 4; ++i)
                 out.push_back(static_cast<std::uint8_t>((v >> (8 * i)) & 0xff));
         }
+    }
 
-        // Thunder as a mono WAV in memory: a crack that lowers into a long rumble. `kind` 0 is close (sharp), 2 is far (all rumble).
-        std::vector<std::uint8_t> make_thunder_wav(int kind)
+    std::vector<std::uint8_t> make_thunder_wav(int kind)
+    {
+        const int rate = 22050;
+        const double seconds = kind == 0 ? 3.5 : (kind == 1 ? 5.0 : 6.5);
+        const int count = static_cast<int>(rate * seconds);
+        std::uint32_t seed = 12345u + 777u * static_cast<std::uint32_t>(kind);
+        const auto noise = [&seed] {
+            seed = seed * 1664525u + 1013904223u;
+            return static_cast<double>(static_cast<std::int32_t>(seed)) / 2147483648.0;
+        };
+        std::vector<std::int16_t> pcm(static_cast<std::size_t>(count));
+        double low1 = 0.0, low2 = 0.0, brown = 0.0;
+        const double lfo_a = 2.0 + 1.3 * kind, lfo_b = 5.1 + 0.9 * kind;
+        for (int i = 0; i < count; ++i)
         {
-            const int rate = 22050;
-            const double seconds = kind == 0 ? 3.5 : (kind == 1 ? 5.0 : 6.5);
-            const int count = static_cast<int>(rate * seconds);
-            std::uint32_t seed = 12345u + 777u * static_cast<std::uint32_t>(kind);
-            const auto noise = [&seed] {
-                seed = seed * 1664525u + 1013904223u;
-                return static_cast<double>(static_cast<std::int32_t>(seed)) / 2147483648.0;
-            };
-            std::vector<std::int16_t> pcm(static_cast<std::size_t>(count));
-            double low1 = 0.0, low2 = 0.0, brown = 0.0;
-            const double lfo_a = 2.0 + 1.3 * kind, lfo_b = 5.1 + 0.9 * kind;
-            for (int i = 0; i < count; ++i)
-            {
-                const double t = static_cast<double>(i) / rate;
-                // The cutoff falls as the sound travels and spreads out.
-                const double cutoff = (kind == 0 ? 2200.0 : (kind == 1 ? 900.0 : 380.0)) * std::exp(-t * 0.9) + 70.0;
-                const double a = 1.0 - std::exp(-2.0 * pi * cutoff / rate);
-                const double white = noise();
-                low1 += a * (white - low1);
-                low2 += a * (low1 - low2);
-                brown = brown * 0.998 + white * 0.03;
-                const double attack = kind == 0 ? 0.01 : (kind == 1 ? 0.12 : 0.45);
-                const double envelope = std::min(1.0, t / attack) * std::exp(-t / (kind == 0 ? 1.1 : 1.7));
-                const double roll = 0.62 + 0.38 * std::sin(2.0 * pi * lfo_a * t + 1.0) * std::sin(2.0 * pi * lfo_b * t);
-                const double crack = kind == 0 ? white * std::exp(-t * 28.0) * 0.9 : 0.0;
-                const double v = (low2 * 3.2 + brown * 1.4) * roll * envelope + crack;
-                pcm[static_cast<std::size_t>(i)] = static_cast<std::int16_t>(std::clamp(v, -1.0, 1.0) * 30000.0);
-            }
-            std::vector<std::uint8_t> wav = {'R', 'I', 'F', 'F'};
-            put32(wav, 36u + static_cast<std::uint32_t>(count) * 2u);
-            for (char c : {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '})
-                wav.push_back(static_cast<std::uint8_t>(c));
-            put32(wav, 16);
-            put16(wav, 1);
-            put16(wav, 1);
-            put32(wav, static_cast<std::uint32_t>(rate));
-            put32(wav, static_cast<std::uint32_t>(rate) * 2u);
-            put16(wav, 2);
-            put16(wav, 16);
-            for (char c : {'d', 'a', 't', 'a'})
-                wav.push_back(static_cast<std::uint8_t>(c));
-            put32(wav, static_cast<std::uint32_t>(count) * 2u);
-            for (std::int16_t s : pcm)
-                put16(wav, s);
-            return wav;
+            const double t = static_cast<double>(i) / rate;
+            // The cutoff falls as the sound travels and spreads out.
+            const double cutoff = (kind == 0 ? 2200.0 : (kind == 1 ? 900.0 : 380.0)) * std::exp(-t * 0.9) + 70.0;
+            const double a = 1.0 - std::exp(-2.0 * pi * cutoff / rate);
+            const double white = noise();
+            low1 += a * (white - low1);
+            low2 += a * (low1 - low2);
+            brown = brown * 0.998 + white * 0.03;
+            const double attack = kind == 0 ? 0.01 : (kind == 1 ? 0.12 : 0.45);
+            const double envelope = std::min(1.0, t / attack) * std::exp(-t / (kind == 0 ? 1.1 : 1.7));
+            const double roll = 0.62 + 0.38 * std::sin(2.0 * pi * lfo_a * t + 1.0) * std::sin(2.0 * pi * lfo_b * t);
+            const double crack = kind == 0 ? white * std::exp(-t * 28.0) * 0.9 : 0.0;
+            const double v = (low2 * 3.2 + brown * 1.4) * roll * envelope + crack;
+            pcm[static_cast<std::size_t>(i)] = static_cast<std::int16_t>(std::clamp(v, -1.0, 1.0) * 30000.0);
         }
+        std::vector<std::uint8_t> wav = {'R', 'I', 'F', 'F'};
+        put32(wav, 36u + static_cast<std::uint32_t>(count) * 2u);
+        for (char c : {'W', 'A', 'V', 'E', 'f', 'm', 't', ' '})
+            wav.push_back(static_cast<std::uint8_t>(c));
+        put32(wav, 16);
+        put16(wav, 1);
+        put16(wav, 1);
+        put32(wav, static_cast<std::uint32_t>(rate));
+        put32(wav, static_cast<std::uint32_t>(rate) * 2u);
+        put16(wav, 2);
+        put16(wav, 16);
+        for (char c : {'d', 'a', 't', 'a'})
+            wav.push_back(static_cast<std::uint8_t>(c));
+        put32(wav, static_cast<std::uint32_t>(count) * 2u);
+        for (std::int16_t s : pcm)
+            put16(wav, s);
+        return wav;
+    }
 
+    namespace
+    {
         struct Point
         {
             double x, y, z;
@@ -105,17 +108,12 @@ namespace kosmos
 
     sl::Sample *Lightning::thunder_sample(int kind)
     {
-        if (!recording_tried_ && !sound_file_.empty())
-        {
-            recording_tried_ = true;
-            recording_ = sl::load_sample(sound_file_);
-        }
-        if (recording_)
-            return recording_;
         if (!samples_[kind])
         {
             const std::vector<std::uint8_t> wav = make_thunder_wav(kind);
             samples_[kind] = sl::load_sample_from_memory(wav.data(), wav.size());
+            if (!samples_[kind])
+                std::fprintf(stderr, "[kosmos] Failed to load synthesised thunder sound (kind %d)\n", kind);
         }
         return samples_[kind];
     }
@@ -128,12 +126,6 @@ namespace kosmos
                 sl::destroy_sample(s);
                 s = nullptr;
             }
-        if (recording_)
-        {
-            sl::destroy_sample(recording_);
-            recording_ = nullptr;
-        }
-        recording_tried_ = false;
         strikes_.clear();
     }
 
@@ -178,7 +170,7 @@ namespace kosmos
                 // Near strikes crack loud and sharp; far ones are quiet and pitched down so the rumble drags on.
                 const double nearness = std::clamp(1.0 - s.distance / 7000.0, 0.0, 1.0);
                 const double loud = (0.12 + 0.88 * nearness * nearness) * volume_;
-                // The recording runs for many seconds, so a quiet strike is left silent while the last thunder is still rolling.
+                // Leave a quiet strike silent while the last thunder is still rolling.
                 if (volume_ > 0.0 && (clock_ >= busy_until_ || nearness > 0.5))
                     if (sl::Sample *sample = thunder_sample(kind))
                     {

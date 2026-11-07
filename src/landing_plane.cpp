@@ -45,6 +45,11 @@ namespace kosmos
         return result;
     }
 
+    double landing_plane_burn_level(double remaining, double acceleration, double interval)
+    {
+        return std::min(1.0, remaining / (acceleration * std::max(interval, 1e-6)));
+    }
+
     LandingPlaneBurn landing_plane_burn(double delta_v, double mass, double fuel, double reserve,
                                        double thrust, double flow)
     {

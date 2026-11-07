@@ -21,7 +21,7 @@ python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/ares_legs_test.py"
 python3 "$SRC/tests/proton_exhaust_test.py"
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 cd "$OUT"
 export HOME=$(mktemp -d)
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -51,6 +51,8 @@ for t in systems_test reentry_test weather_test joystick_test equipment_test key
     echo "== $t"
     ./$t
 done
+echo "== synth_sound_test"
+SDL_AUDIODRIVER=dummy ./synth_sound_test
 
 python3 "$SRC/tests/ordnance_fixture.py" "$HOME/test-root"
 TEST_ROOT="$HOME/test-root"

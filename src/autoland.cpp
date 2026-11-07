@@ -15,6 +15,7 @@ namespace kosmos
         landing_forecast_.reset();
         landing_candidates_.clear();
         landing_last_level_ = 0.0;
+        props.set_double("/autopilot/land/window", 0.0);
         if (!active)
             return;
         props.set_bool("/autopilot/land/armed", false);
@@ -295,6 +296,7 @@ namespace kosmos
         }
         if (started_orbital_plan)
         {
+            props.set_int("/sim/warp-index", 0);
             props.set_double("/controls/hover", 0.0);
             props.set_string("/controls/sas", "off");
             props.set_string("/autopilot/land/state", phase);
@@ -322,6 +324,8 @@ namespace kosmos
                 landing_forecast_changed_ = true;
             }
             const double now = universe.time();
+            if (phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment")
+                props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
             if (phase == "Planning orbit" || phase == "Waiting for window" || phase == "Checking orbit" ||
                 phase == "Plane alignment")
             {
@@ -387,6 +391,7 @@ namespace kosmos
                         landing_ignition_ - now >= (phase == "Planning orbit" ? 130.0 : 40.0))
                     {
                         phase = phase == "Planning orbit" ? "Waiting for window" : "Plane alignment";
+                        props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
                         if (phase == "Plane alignment")
                         {
                             landing_checked_mass_ = t.mass;
@@ -409,7 +414,6 @@ namespace kosmos
                 const double left = landing_ignition_ - now;
                 props.set_double("/controls/hover", 0.0);
                 props.set_string("/controls/sas", "off");
-                props.set_double("/autopilot/land/window", left);
                 int index = std::clamp(props.get_int("/sim/warp-index"), 0, warp_levels - 1);
                 while (index > 0 && warp_factor(index) * std::max(frame, 0.25) > std::max(0.0, left - 130.0) * 0.25)
                     --index;
@@ -420,7 +424,6 @@ namespace kosmos
                 props.set_string("/autopilot/status", "Autoland: " + phase);
                 return;
             }
-            props.set_int("/sim/warp-index", 0);
             const double dv = glm::length(landing_candidate_.window.change.delta_v);
             if (phase == "Plane alignment" || phase == "Plane burn")
             {
@@ -435,6 +438,7 @@ namespace kosmos
                         return;
                     }
                     phase = "Plane burn";
+                    props.set_double("/autopilot/land/window", 0.0);
                     landing_burn_delivered_ = 0.0;
                     landing_last_time_ = now;
                     landing_last_level_ = 0.0;
@@ -459,7 +463,8 @@ namespace kosmos
                     }
                     else
                     {
-                        level = std::min(1.0, (dv - landing_burn_delivered_) * t.mass / (thrust * std::max(frame, 1e-6)));
+                        const double interval = frame * warp_factor(props.get_int("/sim/warp-index"));
+                        level = landing_plane_burn_level(dv - landing_burn_delivered_, accel, interval);
                         landing_last_level_ = level;
                         landing_last_mass_ = t.mass;
                     }

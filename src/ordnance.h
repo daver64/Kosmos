@@ -220,7 +220,7 @@ namespace kosmos
         std::vector<Rack> racks_;
         int detonations_ = 0;
 
-        // Blasts are heard after the sound has travelled from the burst to where the eye was last drawn.
+        // Ordinary blasts travel at the speed of sound; nuclear bursts play immediately.
         struct Bang
         {
             double delay = 0.0, volume = 1.0;
@@ -228,8 +228,6 @@ namespace kosmos
         };
         std::vector<Bang> bangs_;
         sl::Sample *bang_samples_[2] = {nullptr, nullptr};
-        sl::Sample *nuke_sample_ = nullptr; // data/reference/nuke.mp3, decoded when an atom bomb is released so it is ready at the flash
-        bool nuke_tried_ = false;
         sl::dvec3 eye_world_{0.0};
         bool have_eye_ = false, sound_on_ = false;
         double spin_dt_ = -1.0, lag_ = 0.0;
