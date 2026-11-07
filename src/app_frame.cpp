@@ -9,6 +9,17 @@ namespace kosmos::app
     bool App::begin_frame()
     {
         kosmos::drain_released_bitmaps();
+        if (netplay.mode() != NetPlay::Mode::none)
+        {
+            if (flight_replay.capturing)
+                stop_flight_recording();
+            if (flight_replay.playing)
+            {
+                stop_flight_playback();
+                if (flight_replay.original_valid)
+                    return false;
+            }
+        }
         // The command-line style wins for this run without being saved.
         gfx_style = options.render_style >= 0 ? options.render_style : sim.props.get_int("/sim/settings/gfx-style");
         gfx_clouds = sim.props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0;
@@ -56,6 +67,14 @@ namespace kosmos::app
     // Carries the flown ship through a portal into the dialled system. False when the new system or ship could not be set up.
     bool App::perform_quantum_jump()
     {
+        if (flight_replay.capturing)
+            stop_flight_recording();
+        if (flight_replay.playing)
+        {
+            stop_flight_playback();
+            if (flight_replay.original_valid)
+                return false;
+        }
         // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
         const int target_system = quantum.jump_to;
         quantum.jump_to = -1;
@@ -243,15 +262,18 @@ namespace kosmos::app
     void App::shutdown()
     {
 
+        if (flight_replay.capturing || flight_replay.unsaved)
+            stop_flight_recording();
         stop_recording();
         shutdown_link();
         netplay.leave();
         netplay.lobby_disconnect();
         // The launcher's "Resume" starts this scenario: the ships where they were left, with the one you were flying active.
-        if (!kosmos::Sim::user_dir().empty() && sim.ship_count() > 0 && options.selftest <= 0.0 && options.shot.empty())
+        if (!kosmos::Sim::user_dir().empty() && (sim.ship_count() > 0 || flight_replay.original_valid) &&
+            options.selftest <= 0.0 && options.shot.empty())
         {
-            kosmos::Scenario last = kosmos::capture_scenario(sim, "Last session");
-            last.epoch_jd = sim.universe.julian_date();
+            kosmos::Scenario last = flight_replay.original_valid ?
+                                         flight_replay.original : kosmos::capture_scenario(sim, "Last session");
             std::string problem;
             if (!kosmos::save_scenario((std::filesystem::path(kosmos::Sim::user_dir()) / "scenarios" / "last_session.json").string(), last, problem))
                 std::fprintf(stderr, "kosmos: %s\n", problem.c_str());

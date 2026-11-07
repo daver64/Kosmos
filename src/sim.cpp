@@ -95,6 +95,10 @@ namespace kosmos
         props.set_string("/autopilot/burn/state", "");
         props.set_bool("/autopilot/land/armed", false);
         props.set_string("/autopilot/land/state", "");
+        props.set_bool("/autopilot/land/targeted", false);
+        props.set_double("/autopilot/land/latitude", 0.0);
+        props.set_double("/autopilot/land/longitude", 0.0);
+        props.set_double("/autopilot/land/distance", 0.0);
         props.set_bool("/autopilot/timed/armed", false);
         props.set_string("/autopilot/timed/state", "");
         props.set_string("/autopilot/vessel-ascent/request", "");
@@ -512,6 +516,12 @@ namespace kosmos
         load_active_script();
     }
 
+    void Sim::refresh_navigation()
+    {
+        update_target();
+        nav.update(universe, ships_, active_);
+    }
+
     void Sim::load_active_script()
     {
         script_loaded_ = false;
@@ -574,6 +584,19 @@ namespace kosmos
                 c.anim.push_back(props.exists(path) ? props.get_double(path) : ship->animation_position(i));
             }
         c.sas = props.get_string(path_of("sas"), "stability");
+        if (prefix == "/controls" && ship && c.sas == "target-retrograde")
+        {
+            const std::string target_name = props.get_string("/sim/target");
+            Ship *target = nullptr;
+            for (const auto &candidate : ships_)
+                if (candidate.get() != ship && candidate->name == target_name)
+                    target = candidate.get();
+            if (target && target->telemetry().soi == ship->telemetry().soi)
+            {
+                c.target_relative_velocity = ship->body().velocity - target->body().velocity;
+                c.target_velocity_valid = true;
+            }
+        }
         c.target_pitch = props.get_double(path_of("target-pitch"));
         c.target_heading = props.get_double(path_of("target-heading"));
         c.ascent_attitude = prefix == "/controls" && ascent_ship_ == active_;

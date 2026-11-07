@@ -331,6 +331,20 @@ namespace kosmos::app
                 return 1;
             }
             apply_sets(sim.props, options.sets);
+            const std::string replay_test = sim.props.get_string("/selftest/flight-replay-path");
+            if (!replay_test.empty())
+            {
+                ship = flown;
+                earth_id = sim.universe.find("Earth");
+                return test_flight_playback(replay_test);
+            }
+            const std::string reopen_test = sim.props.get_string("/selftest/open-flight-replay-path");
+            if (!reopen_test.empty())
+            {
+                ship = flown;
+                earth_id = sim.universe.find("Earth");
+                return test_open_flight_playback(reopen_test);
+            }
             kosmos::SelftestOptions test;
             test.seconds = options.selftest;
             test.warp = options.selftest_warp;

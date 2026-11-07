@@ -368,6 +368,7 @@ namespace kosmos::app
                 flight.velocity = parent.velocity + sl::dvec3(entry.state_velocity[0], entry.state_velocity[1], entry.state_velocity[2]);
                 flight.orientation = sl::dquat(entry.state_orientation[0], entry.state_orientation[1], entry.state_orientation[2], entry.state_orientation[3]);
                 flight.angular_velocity = sl::dvec3(entry.state_angular_velocity[0], entry.state_angular_velocity[1], entry.state_angular_velocity[2]);
+                ship->refresh_telemetry();
             }
         }
         link_docked_ships(sim, sc, spawned);

@@ -21,16 +21,21 @@ namespace kosmos::app
             if (windows.lua_window)
                 lua_console.draw(windows.lua_window);
             if (windows.net_window)
+            {
+                ImGui::BeginDisabled(flight_replay.playing || flight_replay.capturing);
                 draw_multiplayer_window(netplay, net_ui, windows.net_window, sim.system_index(), [&](const kosmos::Ghost &g)
                                         {
                                             if (snap_to_ghost(sim, *ship, g, terrain_set))
                                                 sim.log("Moved next to " + g.nick);
                                         });
+                ImGui::EndDisabled();
+            }
             if (windows.property_window)
                 draw_property_browser(props, windows.property_window, property_browser);
             draw_quantum_window();
             draw_camera_editor_window();
             draw_camera_window();
+            draw_flight_playback();
         }
     }
 } // namespace kosmos::app

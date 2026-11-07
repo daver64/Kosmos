@@ -566,9 +566,21 @@ namespace kosmos::app
     void App::advance_time()
     {
     kosmos::Universe &universe = *universe_ref;
+        if (flight_replay.playing)
+        {
+            update_flight_playback();
+            if (!ship)
+                return;
+            tm_ref = &ship->telemetry();
+            fb_ref = &ship->body();
+            update_view_flags();
+            drive_camera_controls();
+            return;
+        }
         govern_time_warp();
         poll_blender_edit();
         const double time_before_step = step_simulation();
+        update_flight_recording();
         update_camera_dynamics(universe.time() - time_before_step);
         collide_ground_vehicles();
         for (int i = 0; i < sim.ship_count(); ++i)

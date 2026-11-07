@@ -1315,7 +1315,9 @@ namespace kosmos
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
-                                   "  Orbit MFD Orb is planet-centred speed; Surface and RADALT show ground-relative speeds and estimated terrain clearance.\n"
+                                   " Mars autoland offers untargeted orbital descent or a local coordinate target; neither avoids obstacles or predicts fuel sufficiency.\n"
+                                   " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
+                                   "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"
                                    "  Sync Orbit APPR shows short-range relative motion and a straight-line closest-approach estimate; use Docking for port alignment.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
@@ -1553,7 +1555,42 @@ namespace kosmos
             else
                 sim.cancel_autoland("Autoland cancelled");
         }
-        ImGui::TextDisabled("Untargeted Mars landing; nose-axis hover engines required.");
+        if (landing)
+            ImGui::BeginDisabled();
+        bool targeted = p.get_bool("/autopilot/land/targeted");
+        if (ImGui::Checkbox("Local target landing", &targeted))
+            p.set_bool("/autopilot/land/targeted", targeted);
+        if (targeted)
+        {
+            double latitude = p.get_double("/autopilot/land/latitude");
+            double longitude = p.get_double("/autopilot/land/longitude");
+            if (ImGui::InputDouble("Target latitude", &latitude, 0.01, 1.0, "%.5f"))
+                p.set_double("/autopilot/land/latitude", latitude);
+            if (ImGui::InputDouble("Target longitude", &longitude, 0.01, 1.0, "%.5f"))
+                p.set_double("/autopilot/land/longitude", longitude);
+            if (ImGui::BeginCombo("Mars base", "Choose target"))
+            {
+                for (const Base &base : sim.bases)
+                    if (base.body == "Mars" && ImGui::Selectable(base.name.c_str()))
+                    {
+                        p.set_double("/autopilot/land/latitude", base.latitude);
+                        p.set_double("/autopilot/land/longitude", base.longitude);
+                    }
+                ImGui::EndCombo();
+            }
+        }
+        if (landing)
+            ImGui::EndDisabled();
+        if (targeted)
+        {
+            ImGui::TextDisabled("Start 300-3000 m above ground, within 2 km, below 50 m/s horizontal");
+            ImGui::TextDisabled("and below 30 m/s vertical speed.");
+            if (landing)
+                ImGui::Text("Target distance: %.0f m", p.get_double("/autopilot/land/distance"));
+        }
+        else
+            ImGui::TextDisabled("Untargeted Mars landing; start in orbit.");
+        ImGui::TextDisabled("Nose-axis hover engines required. Target is not a cleared pad.");
         ImGui::TextDisabled("No terrain avoidance or fuel sufficiency prediction; monitor descent.");
         const std::string landing_status = p.get_string("/autopilot/land/state");
         if (!landing_status.empty() && landing_status != "off")
@@ -1564,16 +1601,16 @@ namespace kosmos
         const bool timed = p.get_bool("/autopilot/timed/armed");
         if ((engaged && scripted) || landing || timed)
             ImGui::BeginDisabled();
-        static const char *const modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
+        static const char *const modes[] = {"stability", "prograde", "retrograde", "target-retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
         const std::string sas = p.get_string("/controls/sas", "stability");
         int current = 0;
-        for (int i = 0; i < 9; ++i)
+        for (int i = 0; i < 10; ++i)
             if (sas == modes[i])
                 current = i;
         ImGui::SetNextItemWidth(160.0f);
         if (ImGui::BeginCombo("Mode", modes[current]))
         {
-            for (int i = 0; i < 9; ++i)
+            for (int i = 0; i < 10; ++i)
                 if (ImGui::Selectable(modes[i], i == current))
                 {
                     sim.cancel_vessel_ascent("Ascent cancelled: manual SAS");
@@ -1933,6 +1970,24 @@ namespace kosmos
                     std::fprintf(stderr, "kosmos: %s\n", error.c_str());
             });
         }
+        ImGui::Separator();
+        if (actions.flight_recording && actions.flight_recording())
+        {
+            if (ImGui::MenuItem("Stop flight recording") && actions.stop_flight_recording)
+                actions.stop_flight_recording();
+        }
+        else if (actions.unsaved_flight_recording && actions.unsaved_flight_recording())
+        {
+            if (ImGui::MenuItem("Retry saving flight recording...") && actions.save_unsaved_flight_recording)
+                dialog.show(FileDialog::Mode::save, "Save flight recording", user_folder("recordings"), "flight-recovered.json",
+                            [&actions](const std::string &path) { actions.save_unsaved_flight_recording(path); });
+        }
+        else if (ImGui::MenuItem("Record flight...") && actions.start_flight_recording)
+            dialog.show(FileDialog::Mode::save, "Record flight", user_folder("recordings"), "flight.json",
+                        [&actions](const std::string &path) { actions.start_flight_recording(path); });
+        if (ImGui::MenuItem("Open flight recording...") && actions.open_flight_recording)
+            dialog.show(FileDialog::Mode::open, "Open flight recording", user_folder("recordings"), "",
+                        [&actions](const std::string &path) { actions.open_flight_recording(path); });
         ImGui::Separator();
         file_menu_time_skip(sim, actions, transfer_windows_open);
         ImGui::Separator();

@@ -274,6 +274,13 @@ namespace kosmos::app
 
     void App::toggle_eva()
     {
+        if (flight_replay.playing)
+        {
+            sim.log("Stop flight playback before leaving the ship");
+            return;
+        }
+        if (flight_replay.capturing)
+            stop_flight_recording();
         if (eva.active)
         {
             leave_eva();
@@ -379,6 +386,18 @@ namespace kosmos::app
         rec.record_channels = 2;
         menu_actions.recording = [&]() { return rec.record_pipe != nullptr; };
         menu_actions.toggle_recording = [this]() { menu_toggle_recording(); };
+        menu_actions.start_flight_recording = [this](const std::string &path) { start_flight_recording(path); };
+        menu_actions.stop_flight_recording = [this]() { stop_flight_recording(); };
+        menu_actions.flight_recording = [this]() { return flight_replay.capturing; };
+        menu_actions.unsaved_flight_recording = [this]() { return flight_replay.unsaved; };
+        menu_actions.save_unsaved_flight_recording = [this](const std::string &path) {
+            if (flight_replay.unsaved)
+            {
+                flight_replay.path = path;
+                stop_flight_recording();
+            }
+        };
+        menu_actions.open_flight_recording = [this](const std::string &path) { open_flight_recording(path); };
     return keep_going;
     }
 
@@ -394,8 +413,19 @@ namespace kosmos::app
         applied_fps = 0;
     return keep_going;
     }
-    void App::menu_start_scenario(const kosmos::Scenario &sc)
+    bool App::menu_start_scenario(const kosmos::Scenario &sc)
     {
+        if (!flight_replay.applying)
+        {
+            if (flight_replay.capturing)
+                stop_flight_recording();
+            if (flight_replay.playing)
+            {
+                stop_flight_playback();
+                if (flight_replay.original_valid)
+                    return false;
+            }
+        }
         vis.clear_parts();
         const int previous_system = sim.system_index();
         bool world_rebuilt = false;
@@ -411,7 +441,7 @@ namespace kosmos::app
                     std::fprintf(stderr, "kosmos: cannot go to %s: %s\n", sc.system.c_str(), system_error.c_str());
                     ship = nullptr;
                     running = false;
-                    return;
+                    return false;
                 }
                 world_rebuilt = true;
                 map.focus = -1;
@@ -428,7 +458,7 @@ namespace kosmos::app
                 std::fprintf(stderr, "kosmos: cannot start on that date: %s\n", epoch_error.c_str());
                 ship = nullptr;
                 running = false;
-                return;
+                return false;
             }
             world_rebuilt = true;
         }
@@ -442,16 +472,26 @@ namespace kosmos::app
             cockpit_view = cockpit3d = false;
             rig.interior_cam = rig.base_view = rig.user_cam = -1;
             rig.look_yaw = rig.look_pitch = 0.0f;
+            return true;
         }
         else if (world_rebuilt || sim.system_index() != previous_system || sim.ship_count() == 0)
         {
             ship = nullptr;
             running = false;
         }
+        return false;
     }
 
     void App::menu_restart()
     {
+        if (flight_replay.capturing)
+            stop_flight_recording();
+        if (flight_replay.playing)
+        {
+            stop_flight_playback();
+            if (flight_replay.original_valid)
+                return;
+        }
         vis.clear_parts();
         Ship *restarted = start_scenario(sim, options, terrain_set);
         if (!restarted)

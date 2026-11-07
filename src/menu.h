@@ -25,6 +25,12 @@ namespace kosmos
         std::function<void()> screenshot;
         std::function<void()> toggle_recording;
         std::function<bool()> recording;
+        std::function<void(const std::string &)> start_flight_recording;
+        std::function<void()> stop_flight_recording;
+        std::function<bool()> flight_recording;
+        std::function<bool()> unsaved_flight_recording;
+        std::function<void(const std::string &)> save_unsaved_flight_recording;
+        std::function<void(const std::string &)> open_flight_recording;
         std::function<void()> toggle_eva;     // leave the ship on foot, or board the nearest one
         std::function<bool()> on_foot;
         std::function<bool()> in_building;

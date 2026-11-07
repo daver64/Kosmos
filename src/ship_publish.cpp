@@ -1,5 +1,6 @@
 #include "ship.h"
 #include "ship_internal.h"
+#include "terrain_warning.h"
 
 #include <algorithm>
 #include <cmath>
@@ -84,6 +85,23 @@ namespace kosmos
         num("speed", [this] { return telemetry_.surface_speed; });
         num("orbital-speed", [this] { return telemetry_.orbital_speed; });
         num("vertical-speed", [this] { return telemetry_.vertical_speed; });
+        num("terrain-warning-seconds", [this] {
+            const int soi = telemetry_.soi;
+            if (soi < 0 || soi >= static_cast<int>(universe_.bodies.size()))
+                return -1.0;
+            const sl::FlightBody *planet = universe_.world.body(soi);
+            if (!planet || !planet->terrain)
+                return -1.0;
+            const sl::dvec3 r = body().position - planet->position;
+            const double radius = glm::length(r);
+            if (radius <= 0.0)
+                return -1.0;
+            const sl::dvec3 up = r / radius;
+            const sl::dvec3 velocity = relative_velocity();
+            const sl::dvec3 horizontal = velocity - up * glm::dot(velocity, up);
+            return terrain_warning_time(up, horizontal, radius, telemetry_.altitude, telemetry_.vertical_speed,
+                                        [planet](const sl::dvec3 &direction) { return planet->terrain->height_at_direction(direction); });
+        });
         num("pitch", [this] { return telemetry_.pitch; });
         num("heading", [this] { return telemetry_.heading; });
         num("roll", [this] { return telemetry_.roll; });

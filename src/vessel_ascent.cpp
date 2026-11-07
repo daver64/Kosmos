@@ -46,6 +46,8 @@ namespace kosmos
         props.set_double("/controls/pitch", 0.0);
         props.set_double("/controls/yaw", 0.0);
         props.set_double("/controls/roll", 0.0);
+        if (ascent_profile_ == "Deltaglider")
+            props.set_double("/controls/gimbal-pitch", ascent_saved_gimbal_);
         props.set_string("/controls/sas", "stability");
         log(reason);
     }
@@ -141,6 +143,7 @@ namespace kosmos
                 ascent_pitch_ = request == "Ares" ? 90.0 : 0.0;
                 ascent_start_ = universe.time();
                 ascent_throttle_ = ascent_hover_ = 0.0;
+                ascent_gimbal_ = ascent_saved_gimbal_ = props.get_double("/controls/gimbal-pitch");
                 props.set_string("/controls/sas", "attitude");
                 log(request + " ascent started");
             }
@@ -149,11 +152,13 @@ namespace kosmos
             return;
         const double requested_throttle = props.get_double("/controls/throttle");
         const double requested_hover = props.get_double("/controls/hover");
+        const double requested_gimbal = props.get_double("/controls/gimbal-pitch");
         const std::string requested_sas = props.get_string("/controls/sas");
         const bool throttle_changed = std::abs(requested_throttle - ascent_throttle_) > 0.001;
         const bool hover_changed = std::abs(requested_hover - ascent_hover_) > 0.001;
         const bool sas_changed = requested_sas != "attitude";
-        if (throttle_changed || hover_changed || sas_changed)
+        const bool gimbal_changed = ascent_profile_ == "Deltaglider" && std::abs(requested_gimbal - ascent_gimbal_) > 0.001;
+        if (throttle_changed || hover_changed || sas_changed || gimbal_changed)
         {
             cancel_vessel_ascent("Ascent cancelled: manual control changed");
             if (throttle_changed)
@@ -162,6 +167,8 @@ namespace kosmos
                 props.set_double("/controls/hover", requested_hover);
             if (sas_changed)
                 props.set_string("/controls/sas", requested_sas);
+            if (gimbal_changed)
+                props.set_double("/controls/gimbal-pitch", requested_gimbal);
             return;
         }
         Ship *ship = active_ship();
@@ -338,6 +345,11 @@ namespace kosmos
         }
         props.set_double("/controls/hover", hover);
         props.set_double("/controls/throttle", main);
+        if (ascent_profile_ == "Deltaglider")
+        {
+            ascent_gimbal_ = ship->main_pitch_trim(props.get_double("/controls/gimbal-yaw"));
+            props.set_double("/controls/gimbal-pitch", ascent_gimbal_);
+        }
         ascent_hover_ = hover;
         ascent_throttle_ = main;
         if (t.altitude > 100.0)

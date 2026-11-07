@@ -81,6 +81,7 @@ add_executable(kosmos
     src/app_frame.cpp
     src/app_input.cpp
     src/app_camera.cpp
+    src/app_flight_replay.cpp
     src/app_draw_world.cpp
     src/app_draw_hud.cpp
     src/app_gui.cpp
@@ -114,6 +115,7 @@ add_executable(kosmos
     src/vsop87.cpp
     src/transfer_plan.cpp
     src/scenario.cpp
+    src/flight_recording.cpp
     src/sim.cpp
     src/lua_console.cpp
     src/menu.cpp

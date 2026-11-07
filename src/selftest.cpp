@@ -1,10 +1,12 @@
 #include "selftest.h"
 
 #include "gui_input.h"
+#include "flight_recording.h"
 #include "menu.h"
 #include "ordnance.h"
 #include "scenario_start.h"
 #include "ship_weapons.h"
+#include "terrain_warning.h"
 
 #include <cmath>
 #include <cstdio>
@@ -226,6 +228,74 @@ namespace kosmos
             std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
             failures += ok ? 0 : 1;
         };
+        const std::string recording_path = sim.props.get_string("/selftest/flight-recording-path");
+        if (!recording_path.empty())
+        {
+            FlightRecording recorded;
+            FlightRecordingFrame first;
+            first.scenario = capture_scenario(sim, "Recording test");
+            first.throttle = 0.25;
+            first.hover = 0.5;
+            first.axes[0] = -0.75;
+            first.sas = "retrograde";
+            first.camera_yaw = 0.3;
+            first.camera_pitch = -0.2;
+            first.camera_distance = 42.0;
+            first.cockpit = true;
+            recorded.frames.push_back(first);
+            first.elapsed = 1.0;
+            first.scenario.epoch_jd += 1.0 / 86400.0;
+            first.camera_distance = 100.0;
+            recorded.frames.push_back(first);
+            std::string error;
+            const bool saved = save_flight_recording(recording_path, recorded, error);
+            if (!saved)
+                std::fprintf(stderr, "flight recording selftest: %s\n", error.c_str());
+            FlightRecording loaded;
+            const bool opened = saved && load_flight_recording(recording_path, loaded, error);
+            if (!opened)
+                std::fprintf(stderr, "flight recording selftest: %s\n", error.c_str());
+            check(opened && loaded.frames.size() == 2 && loaded.frames[1].elapsed == 1.0 &&
+                      loaded.frames[0].throttle == 0.25 && loaded.frames[0].hover == 0.5 &&
+                      loaded.frames[0].axes[0] == -0.75 && loaded.frames[0].sas == "retrograde" &&
+                      loaded.frames[0].cockpit && loaded.frames[1].camera_distance == 100.0 &&
+                      scenario_to_json(loaded.frames[0].scenario) == scenario_to_json(recorded.frames[0].scenario),
+                  "flight recording persists frames, controls, camera and scenario");
+            recorded.frames[1].elapsed = 0.0;
+            check(!save_flight_recording(recording_path, recorded, error), "flight recording rejects non-increasing time");
+        }
+        const std::string bad_recording = sim.props.get_string("/selftest/invalid-flight-recording");
+        if (!bad_recording.empty())
+        {
+            FlightRecording loaded;
+            std::string error;
+            check(!load_flight_recording(bad_recording, loaded, error) && !error.empty(),
+                  "invalid flight recording is rejected with a reason");
+        }
+        const sl::dvec3 up(1, 0, 0), east(0, 0, 1);
+        const auto ridge = [](const sl::dvec3 &direction) { return direction.z > 0.00015 ? 150.0 : 0.0; };
+        check(terrain_warning_time(up, east * 100.0, 1e6, 100.0, 0.0, ridge) == 2.0,
+              "sampled terrain warning detects a rising ridge");
+        check(terrain_warning_time(up, -east * 100.0, 1e6, 100.0, 0.0, ridge) == 0.0,
+              "sampled terrain warning leaves a clear track clear");
+        check(terrain_warning_time(up, sl::dvec3(0), 1e6, 10.0, -1.0, ridge) == 10.0,
+              "sampled terrain warning detects vertical descent");
+        check(sim.props.get_double("/ships/ship[" + std::to_string(sim.active_index()) + "]/terrain-warning-seconds") == -1.0,
+              "terrain warning reports unavailable when no terrain is loaded");
+        {
+            sl::TerrainConfig config;
+            config.shape = sl::TerrainShape::sphere;
+            config.worker_threads = 0;
+            config.radius = sim.universe.bodies[static_cast<std::size_t>(ship->telemetry().soi)].radius;
+            auto source = std::make_shared<sl::FunctionSource>([](double, double) { return 0.0; }, 0.0, 0.0);
+            sl::Terrain terrain(config, source);
+            sl::FlightBody *planet = sim.universe.world.body(ship->telemetry().soi);
+            const sl::Terrain *previous = planet->terrain;
+            planet->terrain = &terrain;
+            check(sim.props.get_double("/ships/ship[" + std::to_string(sim.active_index()) + "]/terrain-warning-seconds") == 0.0,
+                  "terrain warning uses available clear terrain");
+            planet->terrain = previous;
+        }
         sim.step(0.05);
         check(std::abs(capture_scenario(sim, "Date test").epoch_jd - sim.universe.julian_date()) < 1.0e-9,
               "captured scenario retains current date");
@@ -246,6 +316,32 @@ namespace kosmos
                         labelled = true;
             }
             check(drawn && labelled, id);
+        }
+        const int radar_mode = sim.mfd.mode_by_id("radar-altimeter");
+        if (radar_mode >= 0)
+        {
+            const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(radar_mode)].table;
+            const sol::table hooks = table["_test"];
+            sol::protected_function warning = hooks["descent_warning"];
+            const auto warning_case = [&](double altitude, double vertical, const char *expected, const char *name) {
+                sim.lua.execute("");
+                sol::protected_function_result result = warning(altitude, vertical);
+                if (!result.valid())
+                {
+                    const sol::error error = result;
+                    std::fprintf(stderr, "radar warning selftest: %s\n", error.what());
+                    check(false, name);
+                    return;
+                }
+                const sol::optional<std::string> text = result;
+                check(expected ? text && *text == expected : !text, name);
+            };
+            warning_case(301, -10, nullptr, "terrain warning outside 30 seconds");
+            warning_case(300, -10, "GROUND: within 30 seconds", "terrain warning 30 seconds");
+            warning_case(100, -10, "GROUND: within 10 seconds", "terrain warning 10 seconds");
+            warning_case(0, -10, "GROUND: within 10 seconds", "terrain warning zero clearance");
+            warning_case(10, -0.4, "GROUND: within 30 seconds", "terrain warning slow descent");
+            warning_case(100, 1, nullptr, "terrain warning clear when climbing");
         }
         const int sync_mode = sim.mfd.mode_by_id("sync");
         check(sync_mode >= 0, "Sync Orbit available");
@@ -300,6 +396,66 @@ namespace kosmos
                 if (target)
                 {
                     const sl::dvec3 position = target->body().position, velocity = target->body().velocity;
+                    Controls relative_hold;
+                    relative_hold.sas = "target-retrograde";
+                    relative_hold.target_velocity_valid = true;
+                    relative_hold.target_relative_velocity = sl::dvec3(3, -4, 0);
+                    bool valid = false;
+                    const sl::dvec3 direction = ship->sas_direction(relative_hold, valid);
+                    check(valid && glm::length(direction - sl::dvec3(-0.6, 0.8, 0.0)) < 1e-9,
+                          "target retrograde opposes relative velocity");
+                    relative_hold.target_relative_velocity = sl::dvec3(0.01, 0, 0);
+                    ship->sas_direction(relative_hold, valid);
+                    check(!valid, "target retrograde rejects near-zero speed");
+                    relative_hold.target_velocity_valid = false;
+                    relative_hold.target_relative_velocity = sl::dvec3(3, 0, 0);
+                    ship->sas_direction(relative_hold, valid);
+                    check(!valid, "target retrograde rejects unavailable target");
+                    const double target_speed = sim.props.get_double("/target/relative-speed");
+                    sim.props.set_double("/target/relative-speed", 0.01);
+                    sim.lua.execute("");
+                    sol::protected_function_result action = button(table, 7);
+                    check(action.valid() && sim.props.get_string("/controls/sas") != "target-retrograde",
+                          "RVEL rejects near-zero relative speed");
+                    sim.props.set_double("/target/relative-speed", target_speed);
+                    sim.props.set_bool("/target/same-soi", false);
+                    sim.lua.execute("");
+                    action = button(table, 7);
+                    check(action.valid() && sim.props.get_string("/controls/sas") != "target-retrograde",
+                          "RVEL rejects a target in a different SOI");
+                    sim.props.set_bool("/target/same-soi", true);
+                    sim.props.set_bool("/autopilot/timed/armed", true);
+                    sim.lua.execute("");
+                    action = button(table, 7);
+                    check(action.valid() && sim.props.get_string("/controls/sas") != "target-retrograde",
+                          "RVEL does not interrupt an autopilot");
+                    sim.props.set_bool("/autopilot/timed/armed", false);
+                    sim.lua.execute("");
+                    action = button(table, 7);
+                    check(action.valid() && sim.props.get_string("/controls/sas") == "target-retrograde",
+                          "RVEL selects target retrograde");
+                    target->body().position = ship->body().position + sl::dvec3(1000, 0, 0);
+                    const sl::dvec3 initial_nose = ship->body().direction_to_world({0, 0, -1});
+                    sl::dvec3 side = glm::cross(initial_nose, sl::dvec3(0, 1, 0));
+                    if (glm::length(side) < 0.1)
+                        side = glm::cross(initial_nose, sl::dvec3(1, 0, 0));
+                    side = glm::normalize(side);
+                    target->body().velocity = ship->body().velocity + side * 10.0;
+                    sim.props.set_string("/controls/rcs-mode", "rot");
+                    for (int i = 0; i < 300; ++i)
+                        sim.step(0.1);
+                    const sl::dvec3 relative = target->body().velocity - ship->body().velocity;
+                    const sl::dvec3 nose = ship->body().direction_to_world({0, 0, -1});
+                    check(glm::length(relative) > 0.1 && glm::dot(nose, glm::normalize(relative)) > 0.90,
+                          "RVEL turns toward target-relative retrograde in flight");
+                    const double relative_before = glm::length(relative);
+                    sim.props.set_double("/controls/throttle", 0.1);
+                    for (int i = 0; i < 10; ++i)
+                        sim.step(0.1);
+                    sim.props.set_double("/controls/throttle", 0.0);
+                    check(glm::length(target->body().velocity - ship->body().velocity) < relative_before - 0.2,
+                          "manual burn reduces target-relative speed");
+                    sim.props.set_string("/controls/sas", "stability");
                     const auto display_contains = [&](double distance, double speed, const char *text) {
                         target->body().position = ship->body().position + sl::dvec3(distance, 0, 0);
                         target->body().velocity = ship->body().velocity + sl::dvec3(speed, 0, 0);
@@ -327,6 +483,30 @@ namespace kosmos
                     sim.props.set_bool("/target/same-soi", false);
                     check(display_contains(1000, -10, "Straight-line estimate unavailable"), "Sync requires the same SOI");
                     sim.props.set_bool("/target/same-soi", same_soi);
+                    if (!ship->spec().ports.empty() && !target->spec().ports.empty())
+                    {
+                        const sl::dquat original_attitude = target->body().orientation;
+                        ship->body().angular_velocity = sl::dvec3(0);
+                        target->body().angular_velocity = sl::dvec3(0);
+                        sl::dvec3 own_port, own_direction, own_up, target_port, target_direction, target_up;
+                        ship->port_world(0, own_port, own_direction, own_up);
+                        target->body().orientation = glm::angleAxis(glm::pi<double>(), own_up) * ship->body().orientation;
+                        target->port_world(0, target_port, target_direction, target_up);
+                        target->body().position += own_port + own_direction * 10.0 - target_port;
+                        target->body().velocity = ship->body().velocity - own_direction * 0.3;
+                        sim.props.set_string("/controls/sas", "off");
+                        sim.props.set_double("/nav/nav[0]/frequency", target->spec().ports[0].frequency);
+                        sim.step(0.1);
+                        check(sim.props.get_bool("/dock/valid") &&
+                                  std::abs(sim.props.get_double("/dock/range") - 10.0) < 1.0,
+                              "Docking guidance acquires nearby aligned target port");
+                        for (int i = 0; i < 400 && !sim.nav.docked(sim.active_index()); ++i)
+                            sim.step(0.1);
+                        check(sim.nav.docked(sim.active_index()), "aligned slow final approach captures docking ports");
+                        if (sim.nav.docked(sim.active_index()))
+                            sim.nav.clear_links();
+                        target->body().orientation = original_attitude;
+                    }
                     target->body().position = position;
                     target->body().velocity = velocity;
                 }
@@ -632,10 +812,42 @@ namespace kosmos
             check(!sim.vessel_ascent_active() && displays("Not started: invalid target or heading"),
                   "MFD displays rejected start");
             sim.props.set_double("/autopilot/vessel-ascent/target-km", 200.0);
+            sim.props.set_double("/controls/gimbal-pitch", 0.1);
             sim.mfd.press(0, 0);
             sim.step(0.05);
             check(sim.vessel_ascent_active() && displays("Liftoff") && sim.props.get_double("/controls/throttle") > 0.0,
                   "MFD START engages Deltaglider ascent");
+            check(std::abs(sim.props.get_double("/controls/gimbal-pitch") -
+                           ship->main_pitch_trim(sim.props.get_double("/controls/gimbal-yaw"))) < 1e-9,
+                  "Deltaglider ascent applies main thrust pitch trim");
+            {
+                const double yaw = 0.3;
+                const double pitch = ship->main_pitch_trim(yaw);
+                const double range = glm::radians(ship->spec().gimbal_range);
+                const sl::dquat swing = glm::angleAxis(yaw * range, sl::dvec3(0, 1, 0)) *
+                                        glm::angleAxis(pitch * range, sl::dvec3(1, 0, 0));
+                double torque = 0.0, moment_scale = 0.0;
+                const auto &engines = ship->spec().stages[0].engines;
+                for (std::size_t i = 0; i < engines.size(); ++i)
+                {
+                    if (engines[i].hover || engines[i].pod || !engines[i].rcs_groups.empty())
+                        continue;
+                    const sl::Thruster &thruster = ship->body().thrusters[i];
+                    torque += glm::cross(thruster.position, swing * glm::normalize(engines[i].direction) * thruster.max_thrust).x;
+                    moment_scale += glm::length(thruster.position) * thruster.max_thrust;
+                }
+                check(moment_scale > 0.0 && std::abs(torque) < moment_scale * 1e-8,
+                      "main thrust pitch trim cancels pitch torque with yaw gimbal");
+            }
+            sim.props.set_double("/controls/gimbal-pitch", -0.2);
+            sim.step(0.05);
+            check(!sim.vessel_ascent_active() &&
+                      std::abs(sim.props.get_double("/controls/gimbal-pitch") + 0.2) < 1e-9,
+                  "manual pitch gimbal cancels ascent and keeps the requested setting");
+            sim.props.set_double("/controls/gimbal-pitch", 0.1);
+            sim.mfd.press(0, 0);
+            sim.step(0.05);
+            check(sim.vessel_ascent_active(), "Deltaglider ascent restarts after manual gimbal cancellation");
             for (int i = 0; i < 400; ++i)
                 sim.advance(0.1);
             check(sim.vessel_ascent_active() && displays("Climb") && ship->telemetry().altitude > 100.0 &&
@@ -649,7 +861,8 @@ namespace kosmos
             sim.mfd.press(0, 1);
             sim.step(0.05);
             check(!sim.vessel_ascent_active() && displays("Ascent cancelled") &&
-                      sim.props.get_double("/controls/throttle") == 0.0,
+                      sim.props.get_double("/controls/throttle") == 0.0 &&
+                      std::abs(sim.props.get_double("/controls/gimbal-pitch") - 0.1) < 1e-9,
                   "MFD STOP cancels Deltaglider ascent");
             std::printf("vessel ascent selftest: %d failure(s)\n", failures);
             return failures ? 1 : 0;
@@ -1184,7 +1397,7 @@ namespace kosmos
         arsenal_ctx.sim = &sim;
         arsenal_ctx.eva = &nobody;
         arsenal_ctx.terrain = [](int) -> const sl::Terrain * { return nullptr; };
-        bool dropped = false, ascent_was_active = false;
+        bool dropped = false, ascent_was_active = false, landing_was_active = false;
         for (double t = 0.0; t < options.seconds; t += dt)
         {
             if (options.drop >= 0.0)
@@ -1219,6 +1432,12 @@ namespace kosmos
                             sim.props.get_string("/autopilot/vessel-ascent/state").c_str(),
                             tm.apoapsis / km, tm.periapsis / km, tm.bound ? 1 : 0, tm.stage_fuel);
             ascent_was_active = sim.vessel_ascent_active();
+            if (landing_was_active && !sim.props.get_bool("/autopilot/land/armed") &&
+                sim.props.get_bool("/autopilot/land/targeted"))
+                std::printf("target landing result: %s distance=%.1f m speed=%.1f fuel=%.1f crashed=%d\n",
+                            sim.props.get_string("/autopilot/land/state").c_str(),
+                            sim.props.get_double("/autopilot/land/distance"), tm.surface_speed, tm.stage_fuel, ship->crashed() ? 1 : 0);
+            landing_was_active = sim.props.get_bool("/autopilot/land/armed");
             const double report_every = ship->spec().aircraft() ? 2.0 : 10.0;
             if (sim.universe.time() >= next_report)
             {

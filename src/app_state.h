@@ -41,6 +41,7 @@
 #include "procedural.h"
 #include "selftest.h"
 #include "engine_sound.h"
+#include "flight_recording.h"
 
 #include <algorithm>
 #include <chrono>
@@ -137,6 +138,18 @@ namespace kosmos::app
         int record_channels{};
         std::mutex record_audio_mutex;
         std::vector<std::int16_t> record_audio;
+    };
+
+    struct FlightReplay
+    {
+        FlightRecording recording;
+        Scenario original;
+        std::string path, status;
+        bool capturing = false, unsaved = false, playing = false, paused = false, applying = false, original_valid = false;
+        std::size_t frame = 0;
+        std::size_t estimated_bytes = 0;
+        double start = 0.0, playback_time = 0.0;
+        int system = -1;
     };
 
     // Re-entry plasma puffs.
@@ -284,6 +297,7 @@ namespace kosmos::app
     {
         ScriptRun script;
         Recording rec;
+        FlightReplay flight_replay;
         PlasmaState plasma;
         LinkState link_state;
         QuantumState quantum;
@@ -444,7 +458,17 @@ namespace kosmos::app
         int init_render();
         int init_systems();
         int init_ship();
-        void menu_start_scenario(const kosmos::Scenario &sc);
+        bool menu_start_scenario(const kosmos::Scenario &sc);
+        void start_flight_recording(const std::string &path);
+        void stop_flight_recording();
+        void open_flight_recording(const std::string &path);
+        void stop_flight_playback();
+        void update_flight_recording();
+        void update_flight_playback();
+        void show_flight_frame(std::size_t index);
+        void draw_flight_playback();
+        int test_flight_playback(const std::string &path);
+        int test_open_flight_playback(const std::string &path);
         void menu_restart();
         void menu_show_panel(int index);
         void flush_record_audio();

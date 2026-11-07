@@ -29,6 +29,14 @@ namespace kosmos::app
 
     void App::restart_scenario()
     {
+        if (flight_replay.capturing)
+            stop_flight_recording();
+        if (flight_replay.playing)
+        {
+            stop_flight_playback();
+            if (flight_replay.original_valid)
+                return;
+        }
         vis.clear_parts();
         Ship *restarted = start_scenario(sim, options, terrain_set);
         if (!restarted)

@@ -121,6 +121,7 @@ end
 
 local orbits = 1
 local approach = false
+local approach_status = ""
 
 local function linear_approach(rx, ry, rz, vx, vy, vz)
   local range2 = rx * rx + ry * ry + rz * rz
@@ -141,6 +142,7 @@ local function draw_approach(g)
   if not props.get("/target/valid") or props.get("/target/kind") ~= "ship" then
     g:colour(255, 200, 80)
     g:text(200, 200, "Select a target ship", 1)
+    if approach_status ~= "" then g:text(200, 230, approach_status, 1) end
     return
   end
   local target
@@ -176,13 +178,21 @@ local function draw_approach(g)
   end
   g:colour(255, 200, 80)
   g:text(200, 280, "Estimate only: gravity and burns change it", 1)
-  g:text(200, 302, "Reduce relative speed before docking", 1)
-  g:text(200, 324, "Use Docking MFD for port alignment", 1)
+  g:text(200, 302, "RVEL holds target-relative retrograde", 1)
+  g:text(200, 324, "Burn gently; cut thrust before zero speed", 1)
+  g:text(200, 346, "Use Docking MFD for port alignment", 1)
+  if approach_status ~= "" then
+    g:text(200, 370, approach_status, 1)
+  elseif props.get("/controls/sas") == "target-retrograde" then
+    g:text(200, 370, a.speed < 0.1 and "RVEL: too slow to hold direction" or
+      (not props.get("/target/same-soi") and "RVEL: target outside SOI" or
+       (props.get("/controls/rcs-mode") == "off" and "RVEL: check RCS mode" or "RVEL hold selected")), 1)
+  end
 end
 
 return {
   name = "Sync Orbit",
-  buttons = { "TGT+", "TGT-", "ORB+", "ORB-", "APPR", "", "", "", "", "", "", "" },
+  buttons = { "TGT+", "TGT-", "ORB+", "ORB-", "APPR", "", "RVEL", "", "", "", "", "" },
   _test = { linear_approach = linear_approach },
   init = function(self) end,
 
@@ -260,9 +270,22 @@ return {
   end,
 
   button = function(self, i)
-    if i == 1 then cycle_target(1) elseif i == 2 then cycle_target(-1)
+    if i == 1 then cycle_target(1); approach_status = "" elseif i == 2 then cycle_target(-1); approach_status = ""
     elseif i == 3 then orbits = math.min(orbits + 1, 20)
     elseif i == 4 then orbits = math.max(orbits - 1, 1)
-    elseif i == 5 then approach = not approach end
+    elseif i == 5 then approach = not approach; approach_status = ""
+    elseif i == 7 and approach then
+      if not props.get("/target/valid") or props.get("/target/kind") ~= "ship" or
+         not props.get("/target/same-soi") or props.get("/target/relative-speed") < 0.1 then
+        approach_status = "RVEL needs a moving ship in the same SOI"
+      elseif props.get("/autopilot/enabled") or props.get("/autopilot/burn/armed") or
+         props.get("/autopilot/land/armed") or props.get("/autopilot/timed/armed") or
+         props.get("/autopilot/vessel-ascent/active") then
+        approach_status = "RVEL unavailable: autopilot engaged"
+      else
+        approach_status = ""
+        props.set("/controls/sas", "target-retrograde")
+      end
+    end
   end,
 }

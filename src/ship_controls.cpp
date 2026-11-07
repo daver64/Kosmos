@@ -43,6 +43,16 @@ namespace kosmos
         const sl::dvec3 r = body().position - central->position;
         const sl::dvec3 h = glm::cross(r, v);
         const std::string &mode = c.sas;
+        if (mode == "target-retrograde")
+        {
+            const double speed = glm::length(c.target_relative_velocity);
+            if (!c.target_velocity_valid || speed < 0.1)
+            {
+                valid = false;
+                return up;
+            }
+            return -c.target_relative_velocity / speed;
+        }
         if (mode == "prograde" || mode == "retrograde")
         {
             if (glm::length(v) < 2.0)
@@ -291,6 +301,37 @@ namespace kosmos
     double Ship::main_max_thrust() const
     {
         return engine_value("main-left", "max-thrust") + engine_value("main-right", "max-thrust");
+    }
+
+    double Ship::main_pitch_trim(double yaw) const
+    {
+        if (spec_.gimbal_range <= 0.0 || active_stage_ < 0 ||
+            static_cast<std::size_t>(active_stage_) >= spec_.stages.size() ||
+            stage_first_thruster_.size() < static_cast<std::size_t>(active_stage_) + 2)
+            return 0.0;
+        double cosine_term = 0.0, sine_term = 0.0;
+        const double yaw_angle = glm::radians(spec_.gimbal_range) * std::clamp(yaw, -1.0, 1.0);
+        const double yaw_cos = std::cos(yaw_angle), yaw_sin = std::sin(yaw_angle);
+        const auto &thrusters = body().thrusters;
+        const auto &engines = spec_.stages[static_cast<std::size_t>(active_stage_)].engines;
+        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
+             i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+        {
+            const std::size_t k = static_cast<std::size_t>(i);
+            const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(active_stage_)]);
+            const sl::Thruster &t = thrusters[k];
+            if (thruster_rcs_[k] || thruster_hover_[k] || thruster_pod_[k] >= 0 ||
+                local >= engines.size() || glm::length(engines[local].direction) < 1e-9 ||
+                (t.tank >= 0 && body().tanks[static_cast<std::size_t>(t.tank)].mass <= 0.0))
+                continue;
+            const sl::dvec3 d = glm::normalize(engines[local].direction);
+            cosine_term += t.max_thrust * (t.position.y * (yaw_cos * d.z - yaw_sin * d.x) - t.position.z * d.y);
+            sine_term += t.max_thrust * (t.position.y * yaw_cos * d.y + t.position.z * d.z);
+        }
+        if (std::hypot(cosine_term, sine_term) < 1e-9)
+            return 0.0;
+        const double angle = std::remainder(std::atan2(-cosine_term, sine_term), pi);
+        return std::clamp(glm::degrees(angle) / spec_.gimbal_range, -1.0, 1.0);
     }
 
     bool Ship::rcs_dry() const

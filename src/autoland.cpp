@@ -32,7 +32,8 @@ namespace kosmos
         }
         const std::string previous_phase = props.get_string("/autopilot/land/state");
         const std::string sas = props.get_string("/controls/sas");
-        if ((previous_phase == "Deorbit" || previous_phase == "Entry" || previous_phase == "Braking") && sas != "attitude")
+        if ((previous_phase == "Deorbit" || previous_phase == "Entry" || previous_phase == "Braking" ||
+             previous_phase == "Target approach") && sas != "attitude")
         {
             finish("Autoland cancelled: manual SAS");
             props.set_string("/controls/sas", sas);
@@ -98,7 +99,12 @@ namespace kosmos
         const double gravity = universe.bodies[static_cast<std::size_t>(t.soi)].gm / (radius * radius);
         if (t.landed && t.surface_speed < 2.0)
         {
-            finish("Autoland: landed");
+            if (previous_phase != "Deorbit" && previous_phase != "Entry" && previous_phase != "Braking" &&
+                previous_phase != "Target approach" && props.get_bool("/autopilot/land/targeted"))
+                finish("Autoland aborted: target landing must start airborne");
+            else
+                finish(previous_phase == "Target approach" && props.get_double("/autopilot/land/distance") > 50.0 ?
+                           "Autoland: landed away from target" : "Autoland: landed");
             return;
         }
         if (t.mass <= 0.0 || thrust <= t.mass * gravity * 1.1 || t.stage_fuel < 1.0)
@@ -117,14 +123,36 @@ namespace kosmos
         const sl::dvec3 horizontal = velocity - up * glm::dot(velocity, up);
         const double hspeed = glm::length(horizontal);
         std::string phase = props.get_string("/autopilot/land/state");
-        if (phase != "Deorbit" && phase != "Entry" && phase != "Braking")
+        if (phase != "Deorbit" && phase != "Entry" && phase != "Braking" && phase != "Target approach")
         {
-            if (!t.bound || t.altitude < 50000.0)
+            landing_targeted_ = props.get_bool("/autopilot/land/targeted");
+            if (landing_targeted_)
+            {
+                landing_latitude_ = props.get_double("/autopilot/land/latitude");
+                landing_longitude_ = props.get_double("/autopilot/land/longitude");
+                if (!std::isfinite(landing_latitude_) || !std::isfinite(landing_longitude_) ||
+                    std::abs(landing_latitude_) > 90.0 || std::abs(landing_longitude_) > 180.0)
+                {
+                    finish("Autoland aborted: invalid target coordinates");
+                    return;
+                }
+                const sl::dvec3 target = surface_direction(universe, t.soi, landing_latitude_, landing_longitude_);
+                const double distance = radius * std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
+                if (distance > 2000.0 || t.altitude < 300.0 || t.altitude > 3000.0 ||
+                    hspeed > 50.0 || std::abs(t.vertical_speed) > 30.0)
+                {
+                    finish("Autoland aborted: target requires 300-3000 m altitude, within 2 km, horizontal speed below 50 m/s and vertical speed below 30 m/s");
+                    return;
+                }
+                phase = "Target approach";
+            }
+            else if (!t.bound || t.altitude < 50000.0)
             {
                 finish("Autoland aborted: start from a bound Mars orbit above 50 km");
                 return;
             }
-            phase = t.periapsis > -20000.0 ? "Deorbit" : "Entry";
+            else
+                phase = t.periapsis > -20000.0 ? "Deorbit" : "Entry";
         }
         sl::dvec3 direction = up;
         double level = 0.0;
@@ -152,6 +180,28 @@ namespace kosmos
         {
             const double wanted_vs = -std::clamp(t.altitude * 0.025, 2.0, 350.0);
             const sl::dvec3 horizontal_accel = -horizontal * 0.08;
+            const double vertical_accel = gravity + std::clamp((wanted_vs - t.vertical_speed) * 0.25, -gravity * 0.8, accel);
+            const sl::dvec3 wanted = horizontal_accel + up * vertical_accel;
+            direction = glm::normalize(wanted);
+            level = std::clamp(glm::length(wanted) / accel, 0.0, 1.0);
+        }
+        if (phase == "Target approach")
+        {
+            const sl::dvec3 target = surface_direction(universe, t.soi, landing_latitude_, landing_longitude_);
+            const double angle = std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
+            const double distance = radius * angle;
+            props.set_double("/autopilot/land/distance", distance);
+            sl::dvec3 toward = target - up * glm::dot(up, target);
+            if (glm::length(toward) > 1e-9)
+                toward = glm::normalize(toward);
+            const double wanted_speed = std::min(30.0, distance * 0.08);
+            sl::dvec3 horizontal_accel = (toward * wanted_speed - horizontal) * 0.12;
+            const double max_horizontal = std::min(2.0, std::max(0.0, (accel - gravity) * 0.3));
+            if (glm::length(horizontal_accel) > max_horizontal)
+                horizontal_accel *= max_horizontal / glm::length(horizontal_accel);
+            const double wanted_vs = distance > 30.0 || hspeed > 3.0 ?
+                                         std::clamp((500.0 - t.altitude) * 0.03, -5.0, 5.0) :
+                                         -std::clamp(t.altitude * 0.025, 2.0, 15.0);
             const double vertical_accel = gravity + std::clamp((wanted_vs - t.vertical_speed) * 0.25, -gravity * 0.8, accel);
             const sl::dvec3 wanted = horizontal_accel + up * vertical_accel;
             direction = glm::normalize(wanted);

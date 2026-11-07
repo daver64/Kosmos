@@ -518,8 +518,10 @@ namespace kosmos
         std::string rcs_mode = "rot";
         /** Targets of the ship's animation controls, in the order of `ShipSpec::animation_controls`. */
         std::vector<double> anim;
-        /** off, stability, prograde, retrograde, radial-out, radial-in, normal, antinormal or attitude. */
+        /** off, stability, prograde, retrograde, target-retrograde, radial-out, radial-in, normal, antinormal or attitude. */
         std::string sas = "stability";
+        sl::dvec3 target_relative_velocity{0.0};
+        bool target_velocity_valid = false;
         double target_pitch = 90.0, target_heading = 90.0;
         bool ascent_attitude = false;
         bool stage = false;
@@ -644,8 +646,11 @@ namespace kosmos
         /** Mass of released-in-flight equipment still aboard (bombs on racks); included in the ship's mass. */
         void set_payload_mass(double kilograms);
         const Telemetry &telemetry() const { return telemetry_; }
+        void refresh_telemetry() { update_telemetry(); }
         /** Maximum available thrust controlled by the main throttle, excluding hover, pod and RCS engines. */
         double main_max_thrust() const;
+        /** Main-engine pitch gimbal setting that minimises pitch torque about the current centre of mass. */
+        double main_pitch_trim(double yaw) const;
         /** What the reaction-control jets did on the last update, in the ship frame: torque command (pitch, yaw, roll) and translation push, each -1..1. */
         const sl::dvec3 &rcs_torque() const { return rcs_torque_; }
         const sl::dvec3 &rcs_push() const { return rcs_push_; }

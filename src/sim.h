@@ -80,6 +80,8 @@ namespace kosmos
         };
         std::map<int, LinkClaim> link_claims;
         void activate(int index);
+        /** Refresh target and radio/docking instruments without advancing the simulation. */
+        void refresh_navigation();
         /** Stop the landing controller and release its hover throttle. */
         void cancel_autoland(const std::string &reason);
         bool arm_timed_burn(double delay, double duration, double throttle, const std::string &engine, const std::string &sas);
@@ -207,6 +209,9 @@ namespace kosmos
         std::string ascent_profile_, ascent_phase_;
         double ascent_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
         double ascent_throttle_ = 0.0, ascent_hover_ = 0.0;
+        double ascent_gimbal_ = 0.0, ascent_saved_gimbal_ = 0.0;
+        bool landing_targeted_ = false;
+        double landing_latitude_ = 0.0, landing_longitude_ = 0.0;
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;
         std::vector<std::string> messages_;

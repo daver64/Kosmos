@@ -79,6 +79,7 @@ namespace kosmos
         const sl::dvec3 up = glm::normalize(direction);
         b.position += up * altitude;
         b.velocity += b.direction_to_world({0.0, 0.0, -1.0}) * speed;
+        update_telemetry();
     }
 
     void Ship::place_relative(int body_id, const sl::dvec3 &position, const sl::dvec3 &velocity, const sl::dquat &orientation)

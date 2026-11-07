@@ -32,8 +32,12 @@ with tempfile.TemporaryDirectory() as home:
         print(result.stdout, end="")
         print(result.stderr, file=sys.stderr)
         sys.exit(1)
-    if "ok  : Sync approach display" not in result.stdout:
-        print(result.stdout, end="")
-        print("Sync approach display was not tested", file=sys.stderr)
-        sys.exit(1)
+    for required in ("Sync approach display", "RVEL turns toward target-relative retrograde in flight",
+                     "manual burn reduces target-relative speed",
+                     "Docking guidance acquires nearby aligned target port",
+                     "aligned slow final approach captures docking ports"):
+        if f"ok  : {required}" not in result.stdout:
+            print(result.stdout, end="")
+            print(f"{required} was not tested", file=sys.stderr)
+            sys.exit(1)
     print("sync approach test passed", flush=True)

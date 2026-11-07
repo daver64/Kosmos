@@ -29,6 +29,7 @@ trap 'rm -rf "$HOME"' EXIT
 
 python3 "$SRC/tests/scenario_start_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/scenario_save_test.py" "$PWD/kosmos"
+python3 "$SRC/tests/flight_recording_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/sync_approach_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/gui_input_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/orbital_sas_test.py" "$PWD/kosmos"
@@ -76,6 +77,7 @@ if [ "$extended" -eq 1 ]; then
     echo "== extended flight tests"
     python3 "$SRC/tests/orbitcomp_flight_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/autoland_test.py" "$PWD/kosmos"
+    python3 "$SRC/tests/target_landing_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos" --cargo
     python3 "$SRC/tests/atlas_autopilot_test.py" "$PWD/kosmos"
