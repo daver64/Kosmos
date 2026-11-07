@@ -1,0 +1,9 @@
+CVE-lite Titans (C) 2005 Erik Anderson (Sputnik)
+
+The module and sourcecode are copyright Erik Anderson 2005, based upon the code
+of CVEL Fregat by D Henderson, 2004, and released under the terms of the GNU LGPL.
+
+
+
+
+http://projectganymede.sourceforge.net/cve-lite

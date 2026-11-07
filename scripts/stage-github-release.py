@@ -76,7 +76,6 @@ def check_excluded_assets(source, names):
                 "data/textures/hydra.dds", "data/textures/nix.dds", "data/parts/apollo-soyuz", "data/parts/orbiter",
                 "data/landclass/sol/earth/landclass.kavlc",
                 "data/landclass/sol/earth/landclass.kavlc.gz",
-                "addons/cvel-titan/models",
                 "addons/cvel-energia-m/models", "addons/cvel-energia-m/thumbs",
                 "scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur.png",
                 "addons/cvel-proton/models", "addons/cvel-proton/thumbs",

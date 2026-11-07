@@ -49,6 +49,7 @@ model and the pad deck is lower than in earlier builds.
 The CVEL Saturn V, MLV1, MLV2, MLV3 and V-23L and their launch scenarios are included.
 The CVEL Atlas III uses its restored original meshes and textures.
 The CVEL Delta IV Heavy uses its original launcher meshes and textures.
+The CVEL Titan fleet uses its original launcher meshes and textures.
 
 ## What you can do
 

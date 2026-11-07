@@ -123,19 +123,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 22,
-     "z": 36.85,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titan21.obj",
+     "offset": [
+      0.0,
+      0,
+      25.85
+     ]
+    },
+    {
+     "model": "models/int10_8.obj",
+     "offset": [
+      0.0,
+      0,
+      13.615
      ]
     }
    ],
@@ -178,19 +178,11 @@
    "engines": [],
    "parts": [
     {
-     "prop": "fairing",
-     "radius": 1.25,
-     "length": 9,
-     "z": 2.5,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/fairing201a.obj",
+     "offset": [
+      0,
+      0,
+      0
      ]
     }
    ],
@@ -210,7 +202,16 @@
     -0.2
    ],
    "engines": [],
-   "parts": []
+   "parts": [
+    {
+     "model": "models/fairing201b.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
   },
   {
    "name": "Stage 2",
@@ -245,19 +246,11 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 9.5,
-     "z": 14.57,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titani_stage2.obj",
+     "offset": [
+      0.0,
+      0,
+      9.82
      ]
     }
    ]

@@ -321,10 +321,7 @@ int main()
     }
     {
         std::string error;
-        for (const char *file : {"cvel-titan/titan1.json", "cvel-titan/titan2.json", "cvel-titan/titan3b.json",
-                                 "cvel-titan/titan3c.json", "cvel-titan/titan3d.json", "cvel-titan/titan3e.json",
-                                 "cvel-titan/titan34d.json", "cvel-titan/titan4a.json", "cvel-titan/titan4b.json",
-                                 "cvel-energia-m/ship.json", "cvel-proton/ship.json"})
+        for (const char *file : {"cvel-energia-m/ship.json", "cvel-proton/ship.json"})
         {
             ShipSpec spec;
             assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/" + file, spec, error));

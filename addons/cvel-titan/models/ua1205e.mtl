@@ -1,0 +1,21 @@
+newmtl Hull_tit3_hull0
+Kd 1.000 1.000 1.000
+Ks 0.412 0.412 0.412
+Ke 0.000 0.000 0.000
+map_Kd textures/tit3-hull0.png
+
+newmtl Red
+Kd 0.851 0.102 0.102
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+
+newmtl White
+Kd 0.667 0.667 0.667
+Ks 0.302 0.302 0.302
+Ke 0.000 0.000 0.000
+
+newmtl grayish
+Kd 0.341 0.341 0.341
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+

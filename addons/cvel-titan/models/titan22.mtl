@@ -1,0 +1,32 @@
+newmtl 1_Default_TITAN21M
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/TITAN21M.png
+
+newmtl 13_Default_TITAN22M
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/TITAN22M.png
+
+newmtl 2_Default
+Kd 0.863 0.863 0.863
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl 3_Default
+Kd 0.690 0.690 0.690
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl 7_Default
+Kd 0.808 0.808 0.808
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl 8_Default
+Kd 0.337 0.337 0.337
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+

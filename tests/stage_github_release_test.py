@@ -52,6 +52,7 @@ def run():
                     for asset in ("addons/cvel-saturn-v/models/sat5stg1.obj",
                                   "addons/cvel-atlas/models/atlasiii_stg1.obj",
                                   "addons/cvel-delta-iv/models/deltaivstg1.obj",
+                                  "addons/cvel-titan/models/titan21.obj",
                                   "scenarios/CVEL/CVEL-SaturnV/apollo11_saturn_v_t_minus_5.json"):
                         item = tarfile.TarInfo("kosmos-beta-1.42-Linux/" + asset)
                         item.size = 1
@@ -66,6 +67,7 @@ def run():
                     for asset in ("addons/cvel-saturn-v/models/sat5stg1.obj",
                                   "addons/cvel-atlas/models/atlasiii_stg1.obj",
                                   "addons/cvel-delta-iv/models/deltaivstg1.obj",
+                                  "addons/cvel-titan/models/titan21.obj",
                                   "scenarios/CVEL/CVEL-SaturnV/apollo11_saturn_v_t_minus_5.json"):
                         archive.writestr("kosmos-beta-1.42-Windows/" + asset, b"x")
         asset_names = [name for name in inputs if name != "1.42.md"]
@@ -159,7 +161,6 @@ def run():
                                            "data/parts/orbiter/klc39b.obj",
                                            "data/parts/orbiter/textures/036MB.png",
                                            "data/parts/orbiter/textures/Station2.png",
-                                           "addons/cvel-titan/models/titan21.obj",
                                            "addons/cvel-energia-m/models/energiamcore.obj",
                                            "addons/cvel-energia-m/thumbs/addon.png",
                                            "scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur.png",

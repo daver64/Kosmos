@@ -62,6 +62,13 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   `addons/cvel-delta-iv/source/`. The CVEL author confirms Alex gave permission
   to use his meshes in CVEL downloads. The source distribution's accompanying
   textures are converted along with the meshes.
+- **CVEL Titans** (`addons/cvel-titan/`): the original `Titans.pdf` credits
+  Scott Oehlerking and the Project Gemini team for Titan II meshes and textures,
+  STS-107 for Titan IVB and Agena meshes and textures, and John Graves for
+  Transtage and Titan solid motor meshes. The CVEL author confirms the same
+  permission to use these meshes in CVEL downloads. Original notices are in
+  `addons/cvel-titan/source/`. The Centaur nozzle texture is from Orbiter
+  (see `data/LICENSE-Orbiter.txt`).
 
 ## NASA source inventory
 

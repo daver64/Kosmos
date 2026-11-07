@@ -145,45 +145,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.5,
-     "length": 27,
-     "z": 40.91,
+     "model": "models/ua1205w.obj",
      "offset": [
       3.05,
       0,
-      0
-     ],
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+      27.41
      ]
     },
     {
-     "prop": "stage",
-     "radius": 1.5,
-     "length": 27,
-     "z": 40.91,
+     "model": "models/ua1205e.obj",
      "offset": [
       -3.05,
       0,
-      0
-     ],
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+      27.41
      ]
     }
    ]
@@ -242,19 +216,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 22,
-     "z": 40.36,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titan34_stage1.obj",
+     "offset": [
+      0.0,
+      0,
+      29.36
+     ]
+    },
+    {
+     "model": "models/titan2i.obj",
+     "offset": [
+      0.0,
+      0,
+      14.615
      ]
     }
    ]
@@ -275,19 +249,11 @@
    "engines": [],
    "parts": [
     {
-     "prop": "fairing",
-     "radius": 2.5,
-     "length": 9,
-     "z": 2.5,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/fairing612a.obj",
+     "offset": [
+      0,
+      0,
+      0
      ]
     }
    ],
@@ -307,7 +273,16 @@
     -0.2
    ],
    "engines": [],
-   "parts": [],
+   "parts": [
+    {
+     "model": "models/fairing612b.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ],
    "with_next": true
   },
   {
@@ -324,7 +299,16 @@
     -0.2
    ],
    "engines": [],
-   "parts": []
+   "parts": [
+    {
+     "model": "models/fairing612c.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
   },
   {
    "name": "Stage 2",
@@ -359,19 +343,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 9.5,
-     "z": 14.42,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titan34_stage2.obj",
+     "offset": [
+      0.0,
+      0,
+      9.67
+     ]
+    },
+    {
+     "model": "models/tenftinterstage.obj",
+     "offset": [
+      0,
+      0,
+      3.75
      ]
     }
    ]
@@ -427,19 +411,11 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.6,
-     "length": 4.7,
-     "z": 4.45,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/transtage.obj",
+     "offset": [
+      0,
+      0,
+      2.1
      ]
     }
    ]

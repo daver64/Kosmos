@@ -123,19 +123,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 22,
-     "z": 40.36,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titan34_stage1.obj",
+     "offset": [
+      0.0,
+      0,
+      29.36
+     ]
+    },
+    {
+     "model": "models/titan2i.obj",
+     "offset": [
+      0.0,
+      0,
+      14.615
      ]
     }
    ],
@@ -178,19 +178,11 @@
    "engines": [],
    "parts": [
     {
-     "prop": "fairing",
-     "radius": 0.8,
-     "length": 9,
-     "z": 2.5,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/fairing102a.obj",
+     "offset": [
+      0,
+      0,
+      0
      ]
     }
    ],
@@ -210,7 +202,16 @@
     -0.2
    ],
    "engines": [],
-   "parts": []
+   "parts": [
+    {
+     "model": "models/fairing102b.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
+    }
+   ]
   },
   {
    "name": "Stage 2",
@@ -245,19 +246,19 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 1.55,
-     "length": 9.5,
-     "z": 14.42,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/titan34_stage2.obj",
+     "offset": [
+      0.0,
+      0,
+      9.67
+     ]
+    },
+    {
+     "model": "models/tentofiveftinterstage.obj",
+     "offset": [
+      0,
+      0,
+      3.75
      ]
     }
    ]
@@ -293,19 +294,11 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 0.8,
-     "length": 6.7,
-     "z": 4.35,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
+     "model": "models/cvelagena.obj",
+     "offset": [
+      0,
+      0,
+      1.0
      ]
     }
    ]
