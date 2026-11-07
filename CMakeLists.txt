@@ -365,6 +365,8 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated
     "/addons/cvel-saturn-(v|mlv3|v23)(/|$)" "/scenarios/CVEL/CVEL-SaturnV(/|$)" "/scenarios/Ares_To_Mars\\.json$"
     "/addons/cvel-deltaglider/Skins/Shuttle_(BRI|CAN|FRA|USA)(/|$)"
     "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
+    "/data/textures/(amalthea|ariel|charon|earth_lights|hyperion|mercury|miranda|moon|neptune|oberon|phoebe|pluto|proteus|saturn|titan|titania|triton|umbriel|uranus|venus)\\.jpg$"
+    "/data/textures/(hydra|nix)\\.dds$"
     "/data/textures/[^/]+_normal\\.jpg$"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.

@@ -1,4 +1,4 @@
-Default surface images: equirectangular, in this folder. Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos, Deimos, Rhea, Dione, Tethys, Mimas, Enceladus and Iapetus are NASA maps; many other maps are from Celestia. Some NASA mosaics have substantial coverage gaps or seams. See data/CREDITS-textures.md for provenance and unresolved terms.
+Default surface images: equirectangular, in this folder. Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos, Deimos, Rhea, Dione, Tethys, Mimas, Enceladus and Iapetus are NASA maps. Some NASA mosaics have substantial coverage gaps or seams. The Moon, Mercury, Venus, Saturn, Uranus and Neptune have fictional procedural maps; other bodies can use generated fallback textures. Earth night lights are optional. See data/CREDITS-textures.md for provenance.
 Unverified planetary *_normal.jpg files are excluded from packages; without an installed normal map those surfaces have no normal-map relief.
 High-resolution replacements go in data/textures-hires/ (git-ignored) with the same names; a file there wins over one here.
 

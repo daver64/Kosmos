@@ -69,6 +69,12 @@ def check_excluded_assets(source, names):
                 "addons/cvel-saturn-v", "addons/cvel-saturn-mlv3", "addons/cvel-saturn-v23",
                 "scenarios/CVEL/CVEL-SaturnV", "scenarios/Ares_To_Mars.json",
                 "data/textures/skybox", "data/reference",
+                *(f"data/textures/{body}.jpg" for body in
+                  ("amalthea", "ariel", "charon", "earth_lights", "hyperion",
+                   "mercury", "miranda", "moon", "neptune", "oberon", "phoebe",
+                   "pluto", "proteus", "saturn", "titan", "titania", "triton",
+                   "umbriel", "uranus", "venus")),
+                "data/textures/hydra.dds", "data/textures/nix.dds",
                 *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}"
                   for country in ("BRI", "CAN", "FRA", "USA")))
     for name in names:

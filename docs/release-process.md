@@ -50,9 +50,10 @@ publish the website, or advance `VERSION`.
    two scenarios; staging rejects archives containing them. They have also
    been removed from this working tree; source imports and old packages can
    still contain them.
-   Unverified media also exists in Git history, so deleting it from the
-   current tree alone will not make the repository's history safe to publish.
-   The owner must decide how to prepare a rights-cleared public history.
+   The GitHub `main` and `old-history` branches were rewritten to remove
+   identified expunged media and superseded texture versions. Other assets
+   still need review, and local refs, old archives and server caches may
+   retain earlier objects.
    The separate `data/textures/planets/` directory contains old downloaded
    images with conflicting licence descriptions in its documentation. The
    simulator's surface loader does not use this directory, but KosmosMap can

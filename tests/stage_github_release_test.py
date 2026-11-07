@@ -132,6 +132,12 @@ def run():
                                            "data/textures/skybox/milkyway_procedural_4k.jpg",
                                            "data/textures/ganymede_normal.jpg",
                                            "data/reference/orbiter_screenshots/3091a.jpg",
+                                           *(f"data/textures/{body}.jpg" for body in
+                                             ("amalthea", "ariel", "charon", "earth_lights", "hyperion",
+                                              "mercury", "miranda", "moon", "neptune", "oberon", "phoebe",
+                                              "pluto", "proteus", "saturn", "titan", "titania", "triton",
+                                              "umbriel", "uranus", "venus")),
+                                           "data/textures/hydra.dds", "data/textures/nix.dds",
                                            *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}/idpanel1.dds"
                                              for country in ("BRI", "CAN", "FRA", "USA")))):
                 fixture_dir = root / f"excluded-{option[2:]}-{index}"

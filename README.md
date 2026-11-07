@@ -16,10 +16,6 @@ Kosmos began around twenty years ago as a personal project. It is now ready for 
 
 > **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
 
-The Ariane 5 and ATV add-on and the CVEL Saturn V variants and their dependent
-scenarios are not included while their asset provenance is unresolved. Older
-builds and Git history may still contain them.
-
 ## Help test Kosmos
 
 Until now, Kosmos has been tested mainly by its developers. We would welcome a wider range of people willing to fly it, explore its systems and tell us what goes wrong.
@@ -119,6 +115,10 @@ Use the Visual Studio generator name matching the installed version. The default
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
 
 `import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
+
+The default Moon, Mercury, Venus, Saturn, Uranus and Neptune maps are fictional
+procedural approximations, not accurate geography. Some smaller bodies use
+generated textures, and Earth night lights are not bundled.
 
 The launcher's **Scenery packs** page links to the independent
 [Orbiter Forum terrain mirrors](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) and

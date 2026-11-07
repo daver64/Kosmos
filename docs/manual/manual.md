@@ -1071,6 +1071,10 @@ planetbake (SDK tool)| For big maps and more layers (colour, height, normal, spe
 
 Kosmos ships with low-resolution runtime textures and procedural terrain for every body. For real elevation and close-up imagery, Kosmos can read **Orbiter high-resolution planet packs** directly: the same `Elev.tree` (heights) and `Surf.tree` (surface imagery) archives Orbiter uses. They are optional and are not included in the Kosmos download, so you add them yourself.
 
+The bundled Moon, Mercury, Venus, Saturn, Uranus and Neptune maps are fictional
+procedural approximations, not accurate geography; some smaller bodies use
+generated textures. Earth night lights require an optional texture.
+
   1. Obtain the Orbiter 2016 high-resolution packs for the bodies you want (Earth, Moon, Mars). The launcher's **Scenery packs > Get Orbiter terrain** button opens the [Orbiter Forum mirror listing](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/), which lists individual `.tree` files and torrents; the third-party downloads are not verified or installed by the launcher. Check the source, applicable terms and available disk space: Earth elevation and surface imagery alone are approximately 32.7 GB combined.
   2. Under `~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`), place the files in `import/orbiter/Earth/Archive/`, `import/orbiter/Moon/Archive/` or `import/orbiter/Mars/Archive/`. Existing `import/orbiter/` folders beside the executable also work. A pack folder may instead end in the body's name.
   3. Check that each folder holds `Elev.tree` and, for imagery, `Surf.tree`. These may be in an `Archive` subfolder; the downloaded ZIPs may contain additional folders that must be unpacked or moved into this layout.
