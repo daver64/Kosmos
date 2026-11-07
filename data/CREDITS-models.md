@@ -41,6 +41,16 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   mesh by D Henderson, released under the GNU LGPL according to its upstream
   notice. The original mesh, notice and licence text are in
   `addons/cvel-fregat/source/`.
+- **CVEL Energia-M** (`addons/cvel-energia-m/`): original meshes by Erik
+  Anderson (Sputnik); the CVEL author confirms Erik's fleet meshes are covered
+  by the fleet licence and may be included. The source notice credits Dave
+  Rowbotham for booster and logic integration. Original meshes, texture and
+  notice are in `addons/cvel-energia-m/source/`.
+- **CVEL Proton-K** (`addons/cvel-proton/`): the original notice credits
+  D Henderson, Urwumpe (second stage) and Alex v Hohlov (first and third
+  stages), and releases all meshes under the Artistic Licence. Source meshes,
+  notice and licence are in `addons/cvel-proton/source/`; the missing
+  second-stage texture is represented by its original material colour.
 - **CVEL Saturn V and Apollo** (`addons/cvel-saturn-v/`): meshes credited to
   TomPA and Sputnik in the original `source/SaturnV.txt` notice. The CVEL
   author reports that both gave permission to bundle their meshes with CVEL,
@@ -62,7 +72,7 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   `addons/cvel-delta-iv/source/`. The CVEL author confirms Alex gave permission
   to use his meshes in CVEL downloads. The source distribution's accompanying
   textures are converted along with the meshes.
-- **CVEL Titans** (`addons/cvel-titan/`): the original `Titans.pdf` credits
+- **CVEL Titans** (`addons/cvel-titan/`), by Erik Anderson (Sputnik): the original `Titans.pdf` credits
   Scott Oehlerking and the Project Gemini team for Titan II meshes and textures,
   STS-107 for Titan IVB and Agena meshes and textures, and John Graves for
   Transtage and Titan solid motor meshes. The CVEL author confirms the same

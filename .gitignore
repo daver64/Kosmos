@@ -14,6 +14,8 @@ __pycache__/
 !/addons/cvel-atlas/models/textures/*.png
 !/addons/cvel-delta-iv/models/textures/*.png
 !/addons/cvel-titan/models/textures/*.png
+!/addons/cvel-proton/models/textures/*.png
+!/addons/cvel-energia-m/models/textures/*.png
 !/addons/cvel-saturn-mlv3/models/textures/*.png
 !/addons/cvel-saturn-v23/models/textures/*.png
 !/addons/cvel-dragonfly/orbiter-models/textures/*.png

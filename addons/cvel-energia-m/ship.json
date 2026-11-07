@@ -109,12 +109,7 @@
    "gear": [[5.95, 0, 23.0], [-5.95, 0, 23.0], [0, 4, 23.0], [0, -4, 23.0]],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.4,
-     "length": 38,
-     "z": 19,
-     "colour": [225, 225, 225],
-     "accent": [75, 75, 80],
+     "model": "models/boosterm1.obj",
      "offset": [
       5.95,
       0,
@@ -122,12 +117,7 @@
      ]
     },
     {
-     "prop": "stage",
-     "radius": 2.4,
-     "length": 38,
-     "z": 19,
-     "colour": [225, 225, 225],
-     "accent": [75, 75, 80],
+     "model": "models/boosterm2.obj",
      "offset": [
       -5.95,
       0,
@@ -169,12 +159,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 4,
-     "length": 28.6,
-     "z": 14.3,
-     "colour": [225, 225, 225],
-     "accent": [75, 75, 80]
+     "model": "models/energiamcore.obj",
+     "offset": [0, 0, 0]
     }
    ]
   },
@@ -194,12 +180,8 @@
    "engines": [],
    "parts": [
     {
-     "prop": "fairing",
-     "radius": 4,
-     "length": 17,
-     "z": -17.5,
-     "colour": [225, 225, 225],
-     "accent": [75, 75, 80]
+     "model": "models/energiamfair_1.obj",
+     "offset": [0, 0, -16.65]
     }
    ]
   },
@@ -217,7 +199,12 @@
     -0.2
    ],
    "engines": [],
-   "parts": []
+   "parts": [
+    {
+     "model": "models/energiamfair_2.obj",
+     "offset": [0, 0, -16.65]
+    }
+   ]
   }
  ]
 }

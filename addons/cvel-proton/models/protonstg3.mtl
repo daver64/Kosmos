@@ -1,0 +1,38 @@
+# Kosmos conversion: reflected the Z axis, converted DDS to PNG, and removed coincident faces. See ../source/README.md and ../source/ARTISTIC-LICENSE.txt.
+newmtl stage01black6
+Kd 0.000 0.000 0.000
+Ks 0.553 0.553 0.553
+Ke 0.000 0.000 0.000
+
+newmtl material050
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material041
+Kd 0.518 0.518 0.518
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material014
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material023_protoncover
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/protoncover.png
+
+newmtl material032_Proton3rd
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Proton3rd.png
+
+newmtl stage01white5
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
