@@ -705,8 +705,7 @@ int main()
         assert(sys.battery_wh() > 0.0 && sys.tank_kg("oxygen") > 0.0);
     }
     {
-        // The shipped capsules keep their crew healthy for days on their own supplies; the Apollo stack does it from the service
-        // module until it is jettisoned and then from the command module alone.
+        // The shipped Soyuz capsules keep their crew healthy on their own supplies.
         struct Case
         {
             const char *file;
@@ -714,9 +713,7 @@ int main()
             double pressure_kpa;
             double days;
         };
-        const Case cases[] = {{"/addons/cvel-saturn-v/ship.json", 3, 34.5, 3.0},
-                              {"/addons/cvel-saturn-v/command_module.json", -1, 34.5, 0.1}, // entry batteries only
-                              {"/addons/cvel-soyuz/tma.json", 0, 101.3, 3.0},
+        const Case cases[] = {{"/addons/cvel-soyuz/tma.json", 0, 101.3, 3.0},
                               {"/addons/cvel-soyuz/descent.json", -1, 101.3, 0.1},
                               {"/addons/cvel-soyuz/fg.json", -1, 101.3, 3.0}};
         for (const Case &k : cases)

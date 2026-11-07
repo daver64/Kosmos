@@ -6,7 +6,7 @@ for modelling.
 
 KosmosMission is a mission planner (Linux and Windows). You choose where the mission starts, which ship flies it and what it carries, then add the legs one after another: ascent, orbit change, transfer to another body, capture. It keeps a running delta-v ledger against what the ship's stages can deliver and shows you the trajectory. The same transfer search is what OrbitComp uses in the game, so the numbers agree. A finished plan is saved as an ordinary scenario, exported as a text or CSV table, and any leg can be sent to OrbitComp's manoeuvre node in the running game.
 
-![KosmosMission with a three-leg plan from Alcantara to Mars orbit: left, the start, ship and add-leg panels; right, the transfer drawn over Earth's and Mars's orbits and the ledger.](img/mission/mars-plan.png)A launch from Alcantara to a 300 km orbit of Mars with a Saturn V-23L: the plan on the left, the transfer (yellow) between Earth's (green) and Mars's (red) orbits on the right, and the ledger underneath.
+![KosmosMission with a three-leg plan from Alcantara to Mars orbit: left, the start, ship and add-leg panels; right, the transfer drawn over Earth's and Mars's orbits and the ledger.](img/mission/mars-plan.png)An older example plan: the launcher shown is no longer included. The transfer is shown in yellow and the ledger underneath.
 
 <a id="start"></a>
 
@@ -89,13 +89,13 @@ For a transfer to another planet the cost depends on when you leave and how long
 
 ## Worked example: Earth to Mars
 
-The mission: launch a Saturn V-23L from Alcantara, reach a 200 km parking orbit, leave for Mars and be captured into a 300 km orbit of Mars. The numbers below are what KosmosMission gives; `kosmosmission --demo` builds the same plan.
+Plan a launch from Alcantara to a 200 km parking orbit, followed by a transfer and capture into a 300 km Mars orbit. The transfer figures below are illustrative and depend on the date; `kosmosmission --demo` builds a similar plan with the selected ship.
 
   1. **Start.** Body: _Earth_. Base: _Alcantara Launch Centre_. Orbit alt: `200`. Inclination: `0` (Alcantara is almost on the equator, so an equatorial orbit costs nothing extra).
-  2. **Ship.** Choose _CVEL Saturn V-23L_. Payload `0` for now, reserve `5`. The summary line reads _18649 m/s from 6 stage(s)_ : that is what the ship has.
+  2. **Ship.** Choose a launcher from the available ships. Set extra mass to `0` for now and reserve to `5`. The summary line shows the ship's available delta-v and number of stages.
   3. **Leg 1, the ascent.** Kind: _Ascent_ , then **Add leg**. The ledger gets _Ascent to 200 km, 9190 m/s_. That is the speed of a 200 km circular orbit (7.8 km/s) minus what the launch site's rotation gives, plus the loss.
   4. **Leg 2 and 3, the transfer.** Kind: _Transfer to body_ , Destination: _Mars_ , Altitude: `300`, **Add leg**. Two lines appear: _Eject Earth to Mars, 3683 m/s_ and _Capture at Mars, 2545 m/s_. The info line gives _Depart day 458, flight 200 d, v-inf 3.21 / 3.49 km/s_ : leave on day 458 of the planner's calendar (counted from its epoch, day 0), arrive 200 days later. The view shows the yellow transfer ellipse between the two orbits.
-  5. **Check the budget.** The running total after the capture is 15418 m/s against 18649 m/s available, so 2298 m/s is left after the reserve (the ledger's last column). The mission fits.
+  5. **Check the budget.** Compare the running total after capture with the available delta-v and the reserve in the ledger's last column. A negative remainder means the mission does not fit the selected ship.
   6. **See the window.** Tick _Porkchop_. The cross-hair sits in the lower green island. Try a payload in the Extra mass box: it lowers the ship's delta-v, and once the remainder goes negative the ledger lines turn red. Then use a bigger ship or ask for less (a higher capture orbit).
   7. **Save** it as `earth-mars`. It appears in the scenario list in the game as a ship on the ground at Alcantara. **Export** a `.csv` if you want the table in a spreadsheet.
   8. **Fly the first burn.** Start the game on that scenario, launch to your 200 km orbit, then select leg 2 in KosmosMission and press **To game**. OrbitComp shows a 3683 m/s prograde node; use OrbitComp's own planner at the departure window to place it.
@@ -112,7 +112,7 @@ This follows one mission from the empty window to a probe in Mars orbit. Ship si
   2. **Launcher.** Ship: _CVEL Titan IVA_. Leave _Extra mass_ at 0.
   3. **Assemble the stack, bottom first.** In _Carry_ choose _CVEL Centaur G_ and press **Add to stack**. Choose _CVEL Fregat_ , **Add to stack**. Choose _Luna E3_ (the probe), **Add to stack**. The text under the buttons shows _Centaur G > Fregat > Luna E3_. Press **Add stack**. The payload list now has one line, with the combined mass and a _dv_ column showing what the stack's own stages add.
   4. **Check the fit.** The green line reads _Everything fits_ and says how much of the fairing is used. Red means it does not fit: pick a launcher with a bigger bay. Pressing _Add payload_ three times instead would make three separate payloads, not a stack, and only the first would be docked in the scenario.
-  5. **Check attachment ports.** A launcher needs a declared payload bay with a port, and each stacked ship needs a docking port. A member without an attachment port is left out and reported in the scenario description. Use the Saturn V _Payload_ variants for cargo; the Apollo variants carry the CSM instead.
+  5. **Check attachment ports.** A launcher needs a declared payload bay with a port, and each stacked ship needs a docking port. A member without an attachment port is left out and reported in the scenario description.
   6. **Leg 1: ascent.** Kind _Ascent (from the base)_ , **Add leg**. This is the launcher's job: the budget line shows the launcher's own delta-v, and the stack's delta-v is added for the legs after it.
   7. **Leg 2: the Mars transfer (Lambert).** Kind _Transfer to body_ , Destination _Mars_ , Altitude `300`, **Add leg**. You get two lines, the ejection and the capture. Tick _Porkchop_ to see the launch window; the info line gives the departure day and the flight time.
   8. **Hohmann instead.** For a change of orbit around one body (say 200 km to a 35 786 km geostationary orbit) use kind _Hohmann to altitude_ with the target altitude. Plane changes and custom burns are added the same way. Use Lambert (_Transfer to body_) when the destination is another body.
@@ -146,4 +146,3 @@ The same steps are in the app: press **Guide: a complete mission** in the left c
   * **Every leg is red.** The ship has less delta-v than the mission needs. Look at the summary line under the Ship panel and compare.
   * **The window is blank or the view is black.** The view needs OpenGL 3.2; check the graphics driver.
   * **To game does nothing.** The game must be running with _Native addons_ on, and KosmosMission allowed to write. The message line shows what was sent or why not.
-

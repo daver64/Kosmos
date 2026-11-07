@@ -251,7 +251,7 @@ Start the `default` scenario: a Kestrel three-stage launcher on its pad. A typic
 
 
 
-Or press `P` and let Kestrel's built-in autopilot do it; it flies to a 200 km circular orbit. The CVEL Soyuz-FG, Delta IV Heavy, Atlas III and Saturn V have an ascent autopilot too.
+Or press `P` and let Kestrel's built-in autopilot do it; it flies to a 200 km circular orbit. The CVEL Soyuz-FG, Delta IV Heavy and Atlas III have an ascent autopilot too.
 
 Watch your TWR in the HUD. Above 1.0 you climb; much below it you are wasting fuel fighting gravity.
 
@@ -884,7 +884,6 @@ Examples include:
 ID| Situation| Ships  
 ---|---|---  
 default| Earth: Kestrel on the pad at Chippenham| Kestrel  
-apollo11_saturn_v_t_minus_5| Apollo 11, Saturn V, T-5 minutes| CVEL Saturn V  
 atlas_iii_kennedy| Atlas III, Kennedy| CVEL Atlas III  
 centaur_g_orbit| Centaur G, 400 km orbit| CVEL Centaur G  
 ares_spider_gale_crater| Ares Spider, Gale Crater| Ares Spider  
@@ -1048,7 +1047,7 @@ planetbake (SDK tool)| For big maps and more layers (colour, height, normal, spe
 `--shot FILE`, `--shot-at SECS`, `--shot-throttle T`| Save a screenshot after some seconds, optionally with the throttle set to T  
 `--warp-to SECS`| Run the ship on rails until the simulation clock reaches this many seconds, then take the screenshot  
 `--sunlit`| After the scenario loads, swing every ship round its planet to the sunlit side (for daylight screenshots in orbit)  
-`--date "YYYY-MM-DD HH:MM:SS"`, `--mjd N`| Start on a real GMT date (or Modified Julian Date, as in Orbiter): planets and Moon take their true positions and the Earth is turned for the time of day. With no date (and none in the scenario) the game starts at the real current GMT time. Start only; try `apollo11_saturn_v_t_minus_5`. Planets rotate during the run (the Sun moves, bases and landed ships turn with the ground); Earth and Mars have their real axial tilt and are turned for the start date  
+`--date "YYYY-MM-DD HH:MM:SS"`, `--mjd N`| Start on a real GMT date (or Modified Julian Date, as in Orbiter): planets and Moon take their true positions and the Earth is turned for the time of day. With no date (and none in the scenario) the game starts at the real current GMT time. Start only. Planets rotate during the run (the Sun moves, bases and landed ships turn with the ground); Earth and Mars have their real axial tilt and are turned for the start date
 `--earth-turn DEG`| Turn the home planet by this many degrees, moving the Sun's position over a base: about 300 gives daylight at Chippenham and 20 gives night, when the base and ship lights switch on  
 `--orbit-body BODY`, `--orbit-alt KM`, `--orbit-half`, `--orbit-phase DEG`, `--ambient F`| Start `--ship` in a circular orbit; `--orbit-half` picks the lit half, `--orbit-phase` the position round it; `--ambient` sets the fill light  
 `--map`, `--map-focus BODY`, `--map-scale S`| Start in the orrery map, focused on a body at a zoom scale (for screenshots)  

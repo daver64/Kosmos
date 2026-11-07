@@ -123,6 +123,11 @@ def run():
         ):
             for index, asset in enumerate(("addons/cvel-ariane5/models/core.obj",
                                            "scenarios/CVEL/CVEL-Ariane/ariane5_eca_kourou.json",
+                                           "addons/cvel-saturn-v/models/sat5stg1.obj",
+                                           "addons/cvel-saturn-mlv3/ship.json",
+                                           "addons/cvel-saturn-v23/ship.json",
+                                           "scenarios/CVEL/CVEL-SaturnV/apollo11_saturn_v_t_minus_5.json",
+                                           "scenarios/Ares_To_Mars.json",
                                            "data/textures/planets/earth.jpg",
                                            "data/textures/skybox/milkyway_procedural_4k.jpg",
                                            "data/textures/ganymede_normal.jpg",

@@ -362,6 +362,7 @@ else()
 endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated(/|$)" "/import(/|$)"
     "/addons/cvel-ariane5(/|$)" "/scenarios/CVEL/CVEL-Ariane(/|$)"
+    "/addons/cvel-saturn-(v|mlv3|v23)(/|$)" "/scenarios/CVEL/CVEL-SaturnV(/|$)" "/scenarios/Ares_To_Mars\\.json$"
     "/addons/cvel-deltaglider/Skins/Shuttle_(BRI|CAN|FRA|USA)(/|$)"
     "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
     "/data/textures/[^/]+_normal\\.jpg$"

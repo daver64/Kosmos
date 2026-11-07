@@ -565,7 +565,7 @@ Field| Meaning
 `ships[].orbit.escape_to`, `escape_days`| Start on the departure hyperbola of a transfer to the named planet instead of in a closed orbit: `altitude_km` is the periapsis and `phase` the angle past it. `escape_days` is the flight time in days for a Lambert transfer that arrives then; 0 (default) is a Hohmann transfer.  
 `ships[].surface`| Start on the ground instead of in orbit  
 `ships[].state`, `ships[].flight_state`| From 0.50, optional exact saved-flight state; see below. Normal authored scenarios can omit both.  
-`date` or `mjd`| Optional start date at the top level: `"date": "1969-07-16 13:32:00"` (GMT) or `"mjd": 40418.5639`. The planets, the Moon and the home planet’s orientation are set for that moment (see `apollo11_saturn_v_t_minus_5`); without it the system starts on its default date  
+`date` or `mjd`| Optional start date at the top level: `"date": "1969-07-16 13:32:00"` (GMT) or `"mjd": 40418.5639`. The planets, the Moon and the home planet’s orientation are set for that moment; without it the system starts on its default date
 `system`| Optional star system the scenario belongs to, by name (`"system": "Sirius"`); empty or missing means Sol. Starting the scenario jumps there first, and the scenario editor records the current system when it saves. The bundled ones sit in `scenarios/Default/<Star>/`.  
 `enter_building`| Optional name of a base building to start inside on foot, looking at its panel (the `mare_quarters_on_foot` scenario does this)  
 `nav`| Optional list of radio frequencies to pre-tune (NAV1, NAV2), at the top level of the scenario  

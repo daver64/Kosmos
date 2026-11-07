@@ -66,6 +66,8 @@ def check_version(source, member, version):
 
 def check_excluded_assets(source, names):
     excluded = ("addons/cvel-ariane5", "scenarios/CVEL/CVEL-Ariane", "data/textures/planets",
+                "addons/cvel-saturn-v", "addons/cvel-saturn-mlv3", "addons/cvel-saturn-v23",
+                "scenarios/CVEL/CVEL-SaturnV", "scenarios/Ares_To_Mars.json",
                 "data/textures/skybox", "data/reference",
                 *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}"
                   for country in ("BRI", "CAN", "FRA", "USA")))
