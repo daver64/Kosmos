@@ -1,0 +1,88 @@
+newmtl cmodule1_ShuttleA_SHA1TX5
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX5.png
+
+newmtl litairlock_ShuttleA_SHA1TX4
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.700 0.500 0.300
+map_Kd textures/SHA1TX4.png
+
+newmtl dhatch1_ShuttleA_SHA1TX2
+Kd 1.000 1.000 1.000
+Ks 0.804 0.949 0.976
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX2.png
+
+newmtl cmodule1_ShuttleA_SHA1TX4
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX4.png
+
+newmtl cmodule1_ShuttleA_SHA1TX2
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX2.png
+
+newmtl cmodule1_ShuttleA_SHA1TX1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX1.png
+
+newmtl cmodule3_ShuttleA_SHA1TX2
+Kd 1.000 1.000 1.000
+Ks 0.071 0.071 0.071
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX2.png
+
+newmtl aluminium
+Kd 0.776 0.796 0.800
+Ks 0.863 0.914 0.937
+Ke 0.000 0.000 0.000
+
+newmtl cmodule1_ShuttleA_SHA1FT1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1FT1.png
+
+newmtl struct4_ShuttleA_SHA1TX5
+Kd 1.000 1.000 1.000
+Ks 0.878 0.988 0.988
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX5.png
+
+newmtl radardome
+Kd 0.576 0.533 0.467
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl struct1_ShuttleA_SHA1TX3
+Kd 1.000 1.000 1.000
+Ks 0.071 0.071 0.071
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX3.png
+
+newmtl brasstank_ShuttleA_SHA1TX4
+Kd 1.000 1.000 1.000
+Ks 0.612 0.533 0.322
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX4.png
+
+newmtl light_ShuttleA_SHA1TX2
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/SHA1TX2.png
+
+newmtl windowglass
+Kd 0.106 0.125 0.165
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+d 0.300
+

@@ -496,10 +496,9 @@
    ],
    "parts": [
     {
-     "prop": "aeroplane",
-     "span": 18,
-     "colour": [210, 215, 220],
-     "accent": [55, 65, 80],
+     "model": "../cvel-deltaglider/orbiter-models/deltaglider.obj",
+     "animations": "../cvel-deltaglider/gear.json",
+     "single_sided": ["NConeTL1", "NConeTR1", "NConeBL1", "NConeBR1", "NConeTL2", "NConeTR2", "NConeBL2", "NConeBR2"],
      "offset": [
       0.0,
       0.56,

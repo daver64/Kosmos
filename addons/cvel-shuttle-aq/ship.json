@@ -392,12 +392,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 4,
-     "length": 30,
-     "z": 15,
-     "colour": [190, 195, 205],
-     "accent": [65, 75, 85]
+     "model": "../cvel-shuttle-a/orbiter-models/shuttlea.obj",
+     "animations": "../cvel-shuttle-a/pods.json"
     }
    ]
   }

@@ -38,17 +38,12 @@ for modelling for now.
 Several launchers and upper stages use simplified procedural visuals. Buran
 uses a generic aircraft placeholder; its landing gear and bay doors do not
 animate visually. Ares Spider's placeholder does not show its landing legs.
-Salyut placeholders do not show solar arrays. Dragonfly has a plain panel;
-some controls rely on hover tooltips rather than printed labels, and its latch
-and antennas do not animate visually.
-Deltaglider variants use a generic aircraft visual and plain panels; their
-gear, hatch and airbrake no longer animate visually, and the original virtual
-cockpit is unavailable. Some panel controls rely on hover tooltips.
-Shuttle-A variants and their cargo and fuel pods also use simplified visuals
-and plain panels; the original virtual cockpit, landing gear and swivelling
-engine pod animations are not shown.
-Mir variants also use a simplified placeholder without solar arrays; Wheel
-has a simplified ring and hub without spokes.
+Salyut placeholders do not show solar arrays. Dragonfly and Deltaglider have
+plain panels; some controls rely on hover tooltips. Deltaglider's virtual
+cockpit and airbrake animation are unavailable.
+Shuttle-A has a plain panel, no original virtual cockpit or animated landing
+gear, and its detachable pods use simplified visuals.
+Wheel has a simplified ring and hub without spokes.
 Kennedy's launch pad and tower are procedural; its VAB uses a NASA-derived
 model and the pad deck is lower than in earlier builds.
 

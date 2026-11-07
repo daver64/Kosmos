@@ -451,12 +451,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.2,
-     "length": 15,
-     "z": 11.5,
-     "colour": [210, 210, 210],
-     "accent": [75, 75, 80]
+     "model": "orbiter-models/dragonfly.obj",
+     "animations": "animations.json"
     }
    ]
   }

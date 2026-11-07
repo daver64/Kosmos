@@ -90,12 +90,7 @@
    "engines": [],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 4,
-     "length": 23.2,
-     "z": 11.6,
-     "colour": [210, 210, 210],
-     "accent": [75, 85, 95]
+     "model": "orbiter-models/mir.obj"
     }
    ]
   }

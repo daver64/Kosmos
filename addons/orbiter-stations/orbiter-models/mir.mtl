@@ -1,0 +1,64 @@
+newmtl blanket_036MB
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MB.png
+
+newmtl metal_036METAL
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036METAL.png
+
+newmtl Material_5_036MIRM
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MIRM.png
+
+newmtl Material_4_036MC1
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MC1.png
+
+newmtl panel_036PANEL
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036PANEL.png
+
+newmtl Material_0_036MOD1
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MOD1.png
+
+newmtl Material_2_036MC3
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MC3.png
+
+newmtl Material_1_036MC1
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036MC1.png
+
+newmtl Material32
+Kd 0.145 0.145 0.145
+Ks 0.922 0.910 0.886
+Ke 0.000 0.000 0.000
+
+newmtl point_036POINT
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/036POINT.png
+
+newmtl Material_3
+Kd 0.941 0.557 0.145
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+

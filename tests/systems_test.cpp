@@ -57,7 +57,7 @@ int main()
                     assert(spec.cockpit.panel_image.empty());
                     assert(!spec.cockpit.instruments.empty() && !spec.cockpit.controls.empty());
                     assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-                    assert(spec.stages[0].parts[0].prop == "stage");
+                    assert(!spec.stages[0].parts[0].model.empty());
                     Ship ship(universe, spec);
                     const int planet = universe.find(body_name);
                     assert(planet >= 0 && ship.body().gear.size() == 6);
@@ -157,9 +157,8 @@ int main()
             bool found = false;
             for (const StageSpec &stage : spec.stages)
                 for (const PartSpec &part : stage.parts)
-                    if (part.prop == "aeroplane")
+                    if (part.model.find("deltaglider.obj") != std::string::npos)
                     {
-                        assert(part.model.empty());
                         found = true;
                     }
             assert(found);
@@ -178,7 +177,10 @@ int main()
             ShipSpec spec;
             assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/orbiter-stations/" + file, spec, error));
             assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-            assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
+            if (std::string(file).find("mir") == 0)
+                assert(spec.stages[0].parts[0].model.find("mir.obj") != std::string::npos);
+            else
+                assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
             assert(spec.ports.size() == (std::string(file).find("mir") == 0 ? 2 : 5));
             Ship station(universe, spec);
             assert(!station.stage_once());
@@ -203,7 +205,7 @@ int main()
         ShipSpec spec;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-dragonfly/ship.json", spec, error));
         assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-        assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
+        assert(spec.stages[0].parts[0].model.find("dragonfly.obj") != std::string::npos);
         assert(spec.cockpit.panel_image.empty() && !spec.cockpit.instruments.empty() && !spec.cockpit.controls.empty());
         assert(spec.stages[0].engines.size() == 14 && !spec.ports.empty());
         Ship tug(universe, spec);
