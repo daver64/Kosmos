@@ -331,6 +331,13 @@ namespace kosmos::app
                     tiles.specular = find_tile_source(hires + "earth_specular");
                     if (!options.no_relief)
                         tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                    if (tiles.colour.empty() && sim.universe.bodies[static_cast<std::size_t>(home_body)].name == "Earth")
+                    {
+                        const std::string defaults = sim.root() + "/data/orbiter-defaults/earth/";
+                        tiles.colour = find_tile_source(defaults + "colour");
+                        tiles.specular = find_tile_source(defaults + "specular");
+                        tiles.normal.clear();
+                    }
                 }
                 if (!tiles.colour.empty())
                 {

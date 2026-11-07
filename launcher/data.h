@@ -4,6 +4,8 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -29,9 +31,9 @@ namespace launcher
 
     struct PackInfo
     {
-        std::string id, name, description, file, sha256, marker; // marker: path under the install root that exists once installed
+        std::string id, name, description, file, sha256, marker, remove, url;
         long long size = 0;
-        bool installed = false;
+        bool installed = false, tree = false, minor_bodies = false;
     };
 
     struct Profile
@@ -69,6 +71,7 @@ namespace launcher
     std::vector<ScenarioInfo> scan_scenarios(const fs::path &root, const std::vector<AddonInfo> &addons);
     // The built-in pack list; a packs.json from the server (see parse_packs) replaces it.
     std::vector<PackInfo> builtin_packs(const fs::path &root);
+    std::vector<PackInfo> orbiter_hires_packs(const fs::path &root);
     std::vector<PackInfo> parse_packs(const std::string &json_text, const fs::path &root);
 
     Profile load_profile();
@@ -84,7 +87,10 @@ namespace launcher
     std::string find_checksum(const std::string &sums, const std::string &name);
     std::string read_text(const fs::path &file);
     // Lower-case hex SHA-256 of a file, or an empty string if it cannot be read.
-    std::string sha256_file(const fs::path &file);
+    std::string sha256_file(const fs::path &file, const std::function<void(std::uint64_t)> &progress = {});
+    // Verify a downloaded tree and rename it into place without replacing an installed layer.
+    bool install_downloaded_tree(const fs::path &part, const fs::path &target, const std::string &sha256, std::string &error,
+                                 const std::function<void(std::uint64_t)> &progress = {});
 
     // ---- Run-log reports ----
     // Replaces the user's home directory (and the account name in Windows and Linux home paths) with "~".

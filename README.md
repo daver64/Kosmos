@@ -295,7 +295,23 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 `data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
-Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+Orbiter `Surf.tree` archives under `import/orbiter/` can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+
+The standard Orbiter 2024 planetary archives can be packaged separately with
+`python3 scripts/pack-orbiter-defaults.py Orbiter-2024.zip OUTPUT_DIR` (requires
+Python, NumPy and Pillow). The Earth pack includes converted standard cloud, night-light and water-specular maps. Publish
+both generated archives and `packs.json` together as GitHub release assets; the
+launcher offers them on its Scenery packs page. The two packs install into
+`data/orbiter-defaults/` and are excluded from the platform archives to stay
+within GitHub's per-asset size limit. Orbiter surface and elevation trees under
+`import/orbiter/` take precedence, separately for each layer. Mask, cloud,
+elevation-modification and label trees are not yet read directly by Kosmos.
+The launcher also offers individual Orbiter high-resolution Earth, Moon, Mars
+(legacy), Mercury and Titan trees, plus the minor-bodies pack, from the Orbiter Forum's mirror, verified
+against SHA-256 values derived from copies matching its published checksums.
+Surface and elevation trees install under `import/orbiter/` without overwriting
+the standard packs; remove an installed layer before downloading it again.
+Other Orbiter high-resolution datasets are not yet offered by the launcher.
 See `data/textures/README.txt` and the developers manual.
 
 ## Property tree

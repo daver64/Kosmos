@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <chrono>
 #include <fstream>
 #include <iterator>
 #include <string>
@@ -66,6 +67,45 @@ int main()
 
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);
+    {
+        const auto github = parse_packs(R"({"packs":[
+          {"id":"earth","file":"earth.tar.gz","marker":"data/orbiter-defaults/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz"},
+          {"id":"bad-url","file":"earth.tar.gz","marker":"data/x","url":"https://example.com/earth.tar.gz"},
+          {"id":"bad-marker","file":"earth.tar.gz","marker":"/tmp/x"},
+          {"id":"bad-parent","file":"earth.tar.gz","marker":"data/../x"}]})", root);
+        CHECK(github.size() == 1 && github[0].id == "earth");
+        CHECK(github[0].url == "https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz");
+    }
+    {
+        const auto layers = orbiter_hires_packs(root);
+        CHECK(layers.size() == 15);
+        for (const PackInfo &layer : layers)
+        {
+            CHECK((layer.tree || layer.minor_bodies) && layer.sha256.size() == 64 && layer.size > 0);
+            CHECK(layer.marker.rfind("import/orbiter/", 0) == 0);
+            CHECK(layer.url.rfind("https://cdn.orbithangar.com/orbiter-textures/", 0) == 0);
+            CHECK(layer.remove == layer.marker);
+        }
+    }
+    {
+        const fs::path dir = fs::temp_directory_path() /
+                             ("kosmos-tree-install-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        fs::create_directories(dir);
+        const fs::path part = dir / "Surf.tree.part", target = dir / "Surf.tree";
+        std::error_code ec;
+        const std::string abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        std::string error;
+        std::ofstream(part) << "bad";
+        CHECK(!install_downloaded_tree(part, target, abc, error) && !fs::exists(part) && !error.empty());
+        std::ofstream(part) << "abc";
+        CHECK(install_downloaded_tree(part, target, abc, error) && fs::exists(target) && !fs::exists(part));
+        std::ofstream(part) << "abc";
+        CHECK(!install_downloaded_tree(part, target, abc, error) && fs::exists(part));
+        CHECK(sha256_file(target) == abc);
+        fs::remove(part, ec);
+        fs::remove(target, ec);
+        fs::remove(dir, ec);
+    }
 
     {
         const launcher::fs::path tmp = launcher::fs::temp_directory_path() / "kosmos_gfx_test" / "settings.json";

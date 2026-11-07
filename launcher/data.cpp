@@ -276,6 +276,93 @@ namespace launcher
         return {hires};
     }
 
+    std::vector<PackInfo> orbiter_hires_packs(const fs::path &root)
+    {
+        struct Layer
+        {
+            const char *body, *layer, *sha256;
+            long long size;
+        };
+        // SHA-256 values were checked against files matching Orbiter Forum's published MD5 values.
+        static const Layer layers[] = {
+            {"Earth", "Surf", "84971d0a966011831d1022308182b6a4efcb7740889b57924a92d77ec561ff88", 15438259865LL},
+            {"Earth", "Elev", "d7cff43cb71a0ad0afb9d40a3f314c31fb5b803f2bfe2abbe2151c307ea87ea6", 17237063070LL},
+            {"Earth", "Mask", "f69488267d61e835ce1c143a17e58132e6e654065362353cbf634295ce9ec19c", 2266891417LL},
+            {"Earth", "Elev_mod", "6ac432a1b2e08dc1bdeccc0b5b1f86b50a53a3f1bd9d16f87614e8bec6c11010", 516929LL},
+            {"Earth", "Cloud", "7b16f9ba7f64a6bd09e88bae9ecabdc7e424063e18707e8490e57d28a6754483", 308580500LL},
+            {"Moon", "Surf", "449eb368f0e7d51fe52a4a0bd6f0c593637775fe6efa73aaff0ddd44edf5cb77", 3745110176LL},
+            {"Moon", "Elev", "9b02faf0855c5407b360b3d687f3aefae2ba74211e6335345857f7a074e6ef3c", 11785192639LL},
+            {"Mars", "Surf", "352b2729a93b95e870ccdfd4e765b24bf4149f5414cfa41760e7b151f7886d2f", 4040340379LL},
+            {"Mars", "Elev", "c9a8c8890828c13b9105d9236fdf4dc3714d76a30396343ae51990839a77a125", 2627595116LL},
+            {"Mercury", "Surf", "80b4ea6bfd2b6cea417d0266612ad3e621b25d4895a33f0eb3f7bc37d74254e3", 3739951796LL},
+            {"Mercury", "Elev", "dded7773cd7282cf64deabffdd52b5c73bb181cd4bea798b5f1605de1a806a22", 270190838LL},
+            {"Titan", "Surf", "b227ed3a2662c1a4ff1d43e7695f2a93bd3b9d5783496137056674c6f8592479", 164801086LL},
+            {"Titan", "Elev", "41a88dee3f052934f017f71dd7a26e40373a6ef3e2e7f52e8a573fff9abc5f20", 2932299LL},
+            {"Titan", "Cloud", "ea5d50953da3e7fe09a026551c187d27094beb297f7c3360756ba51615c77543", 7176LL},
+        };
+        std::vector<PackInfo> out;
+        for (const Layer &layer : layers)
+        {
+            PackInfo p;
+            p.id = std::string("orbiter-hires-") + layer.body + "-" + layer.layer;
+            p.name = std::string("Orbiter ") + layer.body + " high resolution: " + layer.layer;
+            p.description = std::string(layer.layer == std::string("Surf") || layer.layer == std::string("Elev")
+                                            ? "Downloaded from Orbiter's mirror and used for terrain."
+                                            : "Downloaded from Orbiter's mirror; this layer is not yet read directly by Kosmos.");
+            p.file = p.id + ".tree";
+            p.url = std::string("https://cdn.orbithangar.com/orbiter-textures/assets/packages/tree/") + layer.body + "/" + layer.layer + ".tree";
+            p.marker = std::string("import/orbiter/") + layer.body + "/Archive/" + layer.layer + ".tree";
+            p.remove = p.marker;
+            p.sha256 = layer.sha256;
+            p.size = layer.size;
+            p.tree = true;
+            std::error_code ec;
+            p.installed = fs::is_regular_file(root / p.marker, ec);
+            out.push_back(std::move(p));
+        }
+        PackInfo minor;
+        minor.id = "orbiter-hires-minor-bodies";
+        minor.name = "Orbiter high resolution: minor bodies";
+        minor.description = "Surface and elevation trees for Phobos, Vesta, Io, Europa and Enceladus from the Orbiter Forum mirror.";
+        minor.file = "orbiter-hires-minor-bodies.zip";
+        minor.url = "https://cdn.orbithangar.com/orbiter-textures/assets/packages/tree/MinorBodies/MinorBodies.zip";
+        minor.marker = "import/orbiter/MinorBodies";
+        minor.remove = minor.marker;
+        minor.sha256 = "de5d211e9d5fcd1e439cb23806245e6bebc3a41289b9a4b2ec4f102d10bae0e2";
+        minor.size = 273418142;
+        minor.minor_bodies = true;
+        std::error_code ec;
+        minor.installed = fs::is_directory(root / minor.marker, ec);
+        out.push_back(std::move(minor));
+        return out;
+    }
+
+    bool install_downloaded_tree(const fs::path &part, const fs::path &target, const std::string &sha256, std::string &error,
+                                 const std::function<void(std::uint64_t)> &progress)
+    {
+        if (sha256.empty() || sha256_file(part, progress) != sha256)
+        {
+            std::error_code ec;
+            fs::remove(part, ec);
+            error = "The checksum does not match" + (ec ? ": " + ec.message() : "; the file was discarded");
+            return false;
+        }
+        std::error_code ec;
+        if (fs::exists(target, ec) || ec)
+        {
+            error = "Target already exists or cannot be checked.";
+            return false;
+        }
+        fs::rename(part, target, ec);
+        if (ec)
+        {
+            error = "Cannot install the file: " + ec.message();
+            return false;
+        }
+        error.clear();
+        return true;
+    }
+
     std::vector<PackInfo> parse_packs(const std::string &json_text, const fs::path &root)
     {
         std::vector<PackInfo> out;
@@ -292,9 +379,23 @@ namespace launcher
             info.file = str(p, "file");
             info.sha256 = str(p, "sha256");
             info.marker = str(p, "marker");
+            info.remove = str(p, "remove");
+            if (info.remove.empty())
+                info.remove = info.marker;
+            info.url = str(p, "url");
             info.size = p.value("size", 0LL);
             // Reject names that could write outside the install folder.
-            if (info.id.empty() || info.file.empty() || info.file.find_first_of("/\\") != std::string::npos || info.marker.find("..") != std::string::npos)
+            const fs::path marker = fs::u8path(info.marker);
+            const fs::path remove = fs::u8path(info.remove);
+            const std::string github = "https://github.com/daver64/Kosmos/releases/latest/download/";
+            if (info.id.empty() || info.file.empty() || info.file.find_first_of("/\\") != std::string::npos ||
+                info.file == "." || info.file == ".." || info.marker.empty() || info.marker == "." || info.remove == "." ||
+                marker.is_absolute() || marker.has_root_name() || info.marker.find("..") != std::string::npos ||
+                info.marker.find('\\') != std::string::npos || remove.is_absolute() || remove.has_root_name() ||
+                info.remove.find("..") != std::string::npos || info.remove.find('\\') != std::string::npos ||
+                (info.remove != info.marker && info.marker.rfind(info.remove + "/", 0) != 0) ||
+                (!info.url.empty() && (info.url != github + info.file || info.sha256.size() != 64 ||
+                 info.sha256.find_first_not_of("0123456789abcdef") != std::string::npos)))
                 continue;
             info.installed = !info.marker.empty() && fs::exists(root / info.marker, ec);
             out.push_back(std::move(info));
@@ -444,7 +545,7 @@ namespace launcher
         return {};
     }
 
-    std::string sha256_file(const fs::path &file)
+    std::string sha256_file(const fs::path &file, const std::function<void(std::uint64_t)> &progress)
     {
         static const std::uint32_t K[64] = {
             0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -506,7 +607,11 @@ namespace launcher
                 std::memcpy(tail, buf.data() + pos, got - pos);
                 tail_len = got - pos;
             }
+            if (progress && got && total % (16u * 1024u * 1024u) == 0)
+                progress(total);
         }
+        if (!in.eof())
+            return {};
         tail[tail_len++] = 0x80;
         const size_t pad_to = tail_len > 56 ? 128 : 64;
         std::memset(tail + tail_len, 0, pad_to - tail_len);

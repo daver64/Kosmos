@@ -186,6 +186,8 @@ namespace kosmos
             }
             return {};
         };
+        if (const std::string canonical = in_folder(fs::path(root) / body); !canonical.empty())
+            return canonical;
         for (const fs::directory_entry &entry : fs::directory_iterator(root, ec))
         {
             if (!entry.is_directory())

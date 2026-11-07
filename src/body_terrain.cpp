@@ -162,7 +162,8 @@ namespace kosmos::app
 
     static void imagery_colours(sl::TerrainConfig &config, const std::shared_ptr<kosmos::OrbiterImagery> &orbiter_imagery, const std::vector<std::shared_ptr<kosmos::CelestiaImagery>> &surface_imagery)
     {
-        config.colour_function = [orbiter_imagery, surface_imagery](const sl::TerrainSample &sample, float rgb[3])
+        const auto fallback = config.colour_function;
+        config.colour_function = [orbiter_imagery, surface_imagery, fallback](const sl::TerrainSample &sample, float rgb[3])
         {
             float orbiter_rgb[3], celestia_rgb[3];
             double orbiter_resolution = std::numeric_limits<double>::infinity();
@@ -187,7 +188,7 @@ namespace kosmos::app
             else if (has_orbiter)
                 std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
             else
-                return false;
+                return fallback && fallback(sample, rgb);
             return true;
         };
     }
@@ -234,7 +235,13 @@ namespace kosmos::app
         const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
         loading.note("Building the terrain of " + b.name);
         const kosmos::SurfaceFrame frame{sim.universe.orientation(id)};
-        const std::string orbiter = sim.root() + "/import/orbiter";
+        const auto orbiter_layer = [&](const char *layer)
+        {
+            std::string path = kosmos::OrbiterTree::find_layer(sim.root() + "/import/orbiter", b.name, layer);
+            if (path.empty())
+                path = kosmos::OrbiterTree::find_layer(sim.root() + "/data/orbiter-defaults", b.name, layer);
+            return path;
+        };
         sl::TerrainConfig config;
         config.shape = sl::TerrainShape::sphere;
         config.radius = b.radius;
@@ -250,7 +257,7 @@ namespace kosmos::app
         }
 
         std::shared_ptr<sl::TerrainSource> source;
-        const std::string elevation = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Elev");
+        const std::string elevation = orbiter_layer("Elev");
         if (!elevation.empty())
         {
             // Earth's elevation file includes the sea floor; the sea itself stays flat at zero.
@@ -262,8 +269,8 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), data->error().c_str());
         }
         std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
-        const std::string surface = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Surf");
-        if (source && !surface.empty())
+        const std::string surface = orbiter_layer("Surf");
+        if (!surface.empty())
         {
             orbiter_imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
             if (!orbiter_imagery->ok())
@@ -271,6 +278,8 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] %s imagery: %s\n", b.name.c_str(), orbiter_imagery->error().c_str());
                 orbiter_imagery.reset();
             }
+            else
+                std::fprintf(stderr, "[kosmos] %s terrain imagery: %s\n", b.name.c_str(), surface.c_str());
         }
         std::string lower_name = b.name;
         for (char &c : lower_name)
@@ -296,9 +305,6 @@ namespace kosmos::app
             std::fprintf(stderr, "[kosmos] %s terrain imagery candidate: %s\n", b.name.c_str(), path.c_str());
             surface_imagery.push_back(std::move(imagery));
         }
-        if (orbiter_imagery || !surface_imagery.empty())
-        if (orbiter_imagery || !surface_imagery.empty())
-            imagery_colours(config, orbiter_imagery, surface_imagery);
         if (source)
         {
             std::fprintf(stderr, "[kosmos] %s terrain from Orbiter data\n", b.name.c_str());
@@ -317,8 +323,12 @@ namespace kosmos::app
             noise.floor_height = 0.0;
             source = std::make_shared<sl::NoiseSource>(noise);
         }
+        else if (orbiter_imagery)
+            source = std::make_shared<sl::FunctionSource>([](double, double) { return 0.0; }, 0.0, 0.0);
         else
             return nullptr;
+        if (orbiter_imagery || !surface_imagery.empty())
+            imagery_colours(config, orbiter_imagery, surface_imagery);
         for (kosmos::Base &base : sim.bases)
             if (sim.universe.find(base.body) == id)
                 base.height = source->height_on_sphere(base.direction, b.radius);

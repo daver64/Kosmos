@@ -3,6 +3,7 @@
 // either leaves the launcher running.
 #include "data.h"
 #include "icon_data.h"
+#include "orbiter_zip.h"
 
 #include <wx/wx.h>
 #include <wx/checklst.h>
@@ -111,6 +112,13 @@ namespace
             part_ = part;
             resume_from_ = fs::exists(part, ec) ? static_cast<long long>(fs::file_size(part, ec)) : 0;
             file_ = std::make_unique<std::ofstream>(part, std::ios::binary | std::ios::app);
+            if (!*file_)
+            {
+                file_.reset();
+                if (on_file)
+                    on_file(false, "Cannot open the download file");
+                return;
+            }
             Start(url, true);
         }
 
@@ -292,10 +300,24 @@ namespace
             packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
                               {
                                   if (!ok)
+                                  {
+                                      SetStatusText(W("Could not load the scenery catalogue: " + body));
                                       return;
+                                  }
                                   packs_remote_ = parse_packs(body, root_);
                                   RefreshPacks();
                               });
+            orbiter_packs_http_.Fetch("https://github.com/daver64/Kosmos/releases/latest/download/packs.json",
+                                      [this](bool ok, const std::string &body)
+                                      {
+                                          if (!ok)
+                                          {
+                                              SetStatusText(W("Could not load the GitHub scenery catalogue: " + body));
+                                              return;
+                                          }
+                                          orbiter_packs_ = parse_packs(body, root_);
+                                          RefreshPacks();
+                                      });
         }
 
     public:
@@ -576,10 +598,13 @@ namespace
                                    const int i = pack_list_->GetSelection();
                                    if (i == wxNOT_FOUND || packs_[i].marker.empty())
                                        return;
-                                   if (wxMessageBox("Delete " + W(packs_[i].marker) + "?", "Remove pack", wxYES_NO) != wxYES)
+                                   const std::string path = packs_[i].remove.empty() ? packs_[i].marker : packs_[i].remove;
+                                   if (wxMessageBox("Delete " + W(path) + "?", "Remove pack", wxYES_NO) != wxYES)
                                        return;
                                    std::error_code ec;
-                                   fs::remove_all(root_ / packs_[i].marker, ec);
+                                   fs::remove_all(root_ / path, ec);
+                                   if (ec)
+                                       wxMessageBox(W("Could not remove pack: " + ec.message()), "Remove pack", wxICON_ERROR);
                                    RefreshPacks();
                                });
         }
@@ -588,6 +613,9 @@ namespace
         {
             const int keep = pack_list_->GetSelection();
             packs_ = packs_remote_.empty() ? builtin_packs(root_) : packs_remote_;
+            packs_.insert(packs_.end(), orbiter_packs_.begin(), orbiter_packs_.end());
+            const auto hires = orbiter_hires_packs(root_);
+            packs_.insert(packs_.end(), hires.begin(), hires.end());
             std::error_code ec;
             for (PackInfo &p : packs_)
                 p.installed = !p.marker.empty() && fs::exists(root_ / p.marker, ec);
@@ -603,7 +631,7 @@ namespace
         {
             const int i = pack_list_->GetSelection();
             const bool ok = i != wxNOT_FOUND;
-            pack_install_->Enable(ok && !busy_);
+            pack_install_->Enable(ok && !busy_ && !(packs_[i].installed && (packs_[i].tree || packs_[i].minor_bodies || packs_[i].id.rfind("orbiter-default-", 0) == 0)));
             pack_remove_->Enable(ok && packs_[i].installed && !busy_);
             if (ok)
             {
@@ -619,15 +647,141 @@ namespace
             if (i == wxNOT_FOUND || busy_)
                 return;
             const PackInfo pack = packs_[i];
-            DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this](bool ok, const std::string &msg)
+            if (pack.minor_bodies)
+            {
+                DownloadMinorBodies(pack);
+                return;
+            }
+            if (pack.tree)
+            {
+                DownloadTree(pack);
+                return;
+            }
+            DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this, pack](bool ok, const std::string &msg)
                             {
-                                SetStatusText(ok ? "Pack installed." : W("Pack failed: " + msg));
+                                std::string error = msg;
+                                if (!ok && pack.id.rfind("orbiter-default-", 0) == 0)
+                                {
+                                    std::error_code ec;
+                                    fs::remove(root_ / pack.marker, ec);
+                                    if (ec)
+                                        error += "; could not remove incomplete marker: " + ec.message();
+                                }
+                                SetStatusText(ok ? "Pack installed." : W("Pack failed: " + error));
                                 RefreshPacks();
-                            });
+                            }, pack.url);
+        }
+
+        void DownloadMinorBodies(const PackInfo &pack)
+        {
+            std::error_code ec;
+            const fs::path dir = user_dir() / "downloads";
+            fs::create_directories(dir, ec);
+            if (ec)
+            {
+                SetStatusText(W("Pack failed: " + ec.message()));
+                return;
+            }
+            const fs::path part = dir / (pack.file + ".part");
+            busy_ = true;
+            ShowPack();
+            http_.SetPart(part);
+            http_.Download(pack.url, part,
+                           [this](long long got, long long total)
+                           {
+                               pack_gauge_->SetValue(total > 0 ? int(got * 1000 / total) : 0);
+                               SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                           },
+                           [this, pack, part](bool ok, const std::string &error)
+                           {
+                               std::string problem = error;
+                               if (ok)
+                               {
+                                   SetStatusText("Checking the download...");
+                                   wxYield();
+                                   if (sha256_file(part, [this, &pack](std::uint64_t bytes)
+                                                   {
+                                                       pack_gauge_->SetValue(int(std::min<std::uint64_t>(1000, bytes * 1000 / static_cast<std::uint64_t>(pack.size))));
+                                                       wxYield();
+                                                   }) != pack.sha256)
+                                   {
+                                       std::error_code ec;
+                                       fs::remove(part, ec);
+                                       problem = "The checksum does not match" + (ec ? ": " + ec.message() : "; the file was discarded");
+                                   }
+                                   else
+                                   {
+                                       SetStatusText("Installing minor-body scenery...");
+                                       wxYield();
+                                       if (extract_minor_bodies(part, root_ / pack.marker, problem, [] { wxYield(); }))
+                                       {
+                                           std::error_code ec;
+                                           fs::remove(part, ec);
+                                           if (ec)
+                                               problem = "Installed, but could not remove download: " + ec.message();
+                                       }
+                                   }
+                               }
+                               else
+                                   problem += " (run it again to resume)";
+                               pack_gauge_->SetValue(0);
+                               busy_ = false;
+                               SetStatusText(problem.empty() ? "Pack installed." : W("Pack failed: " + problem));
+                               RefreshPacks();
+                           });
+        }
+
+        void DownloadTree(const PackInfo &pack)
+        {
+            const fs::path target = root_ / pack.marker;
+            const fs::path part = target.parent_path() / (target.filename().string() + ".part");
+            std::error_code ec;
+            fs::create_directories(target.parent_path(), ec);
+            if (ec)
+            {
+                SetStatusText(W("Pack failed: " + ec.message()));
+                return;
+            }
+            if (fs::exists(target, ec) || ec)
+            {
+                SetStatusText("Pack failed: target already exists or cannot be checked.");
+                return;
+            }
+            busy_ = true;
+            ShowPack();
+            http_.SetPart(part);
+            http_.Download(pack.url, part,
+                           [this](long long got, long long total)
+                           {
+                               pack_gauge_->SetValue(total > 0 ? int(got * 1000 / total) : 0);
+                               SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                           },
+                           [this, pack, part, target](bool ok, const std::string &error)
+                           {
+                               pack_gauge_->SetValue(0);
+                               std::string problem = error;
+                               if (ok)
+                               {
+                                   SetStatusText("Checking the download...");
+                                   wxYield();
+                                   install_downloaded_tree(part, target, pack.sha256, problem,
+                                                           [this, &pack](std::uint64_t bytes)
+                                                           {
+                                                               pack_gauge_->SetValue(int(std::min<std::uint64_t>(1000, bytes * 1000 / static_cast<std::uint64_t>(pack.size))));
+                                                               wxYield();
+                                                           });
+                               }
+                               else
+                                   problem += " (run it again to resume)";
+                               pack_gauge_->SetValue(0);
+                               busy_ = false;
+                               SetStatusText(problem.empty() ? "Pack installed." : W("Pack failed: " + problem));
+                               RefreshPacks();
+                           });
         }
 
         // Downloads FILE from the server into a temporary folder, verifies it, then unpacks it into DEST.
-        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done)
+        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done, const std::string &url = {})
         {
             busy_ = true;
             ShowPack();
@@ -637,14 +791,19 @@ namespace
                 busy_ = false;
                 done(ok, msg);
             };
-            auto start = [this, file, dest, gauge, finish](std::string sum)
+            auto start = [this, file, dest, gauge, finish, url](std::string sum)
             {
                 std::error_code ec;
                 const fs::path dir = user_dir() / "downloads";
                 fs::create_directories(dir, ec);
+                if (ec)
+                {
+                    finish(false, "Cannot create download directory: " + ec.message());
+                    return;
+                }
                 const fs::path part = dir / (file + ".part");
                 http_.SetPart(part);
-                http_.Download(profile_.server + "/" + file, part,
+                http_.Download(url.empty() ? profile_.server + "/" + file : url, part,
                                [this, gauge](long long got, long long total)
                                {
                                    gauge->SetValue(total > 0 ? int(got * 1000 / total) : 0);
@@ -670,11 +829,26 @@ namespace
                                    const fs::path archive = dir / file;
                                    std::error_code e;
                                    fs::rename(part, archive, e);
+                                   if (e)
+                                   {
+                                       finish(false, "Cannot move completed download: " + e.message());
+                                       return;
+                                   }
                                    SetStatusText("Unpacking...");
                                    wxYield();
                                    fs::create_directories(dest, e);
+                                   if (e)
+                                   {
+                                       finish(false, "Cannot create installation directory: " + e.message());
+                                       return;
+                                   }
                                    const bool unpacked = Extract(archive, dest);
                                    fs::remove(archive, e);
+                                   if (e)
+                                   {
+                                       finish(false, std::string(unpacked ? "Installed but could not remove download: " : "Could not unpack or remove the archive: ") + e.message());
+                                       return;
+                                   }
                                    finish(unpacked, unpacked ? "" : "Could not unpack the archive");
                                });
             };
@@ -1231,6 +1405,12 @@ namespace
 
         void OnClose(wxCloseEvent &e)
         {
+            if (busy_ && e.CanVeto())
+            {
+                SetStatusText("Wait for the current download or installation to finish before closing.");
+                e.Veto();
+                return;
+            }
             if (run_)
                 run_->Detach(); // Kosmos keeps running; the launcher just stops watching it
             e.Skip();
@@ -1259,11 +1439,11 @@ namespace
         Profile profile_;
         std::vector<ScenarioInfo> scenarios_;
         std::vector<AddonInfo> addons_;
-        std::vector<PackInfo> packs_, packs_remote_;
+        std::vector<PackInfo> packs_, packs_remote_, orbiter_packs_;
         std::vector<fs::path> log_files_;
         std::string latest_, last_run_scenario_;
         bool busy_ = false, loading_ = false;
-        Http http_, packs_http_;
+        Http http_, packs_http_, orbiter_packs_http_;
         Run *run_ = nullptr;
         wxDateTime started_;
         wxTimer timer_;

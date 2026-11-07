@@ -171,6 +171,10 @@ target_link_libraries(systems_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(systems_test PRIVATE src)
 target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
+add_executable(orbiter_tree_lookup_test EXCLUDE_FROM_ALL tests/orbiter_tree_lookup_test.cpp src/planet_data.cpp)
+target_link_libraries(orbiter_tree_lookup_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(orbiter_tree_lookup_test PRIVATE src)
+
 # Re-entry heating, hypersonic aerodynamics and parachute drag: cmake --build build --target reentry_test && build/reentry_test
 add_executable(reentry_test EXCLUDE_FROM_ALL tests/reentry_test.cpp src/reentry.cpp)
 target_link_libraries(reentry_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
@@ -276,6 +280,9 @@ if(KOSMOS_BUILD_LAUNCHER)
         endif()
     endif()
     if(KOSMOS_WX_LIBS)
+        add_executable(orbiter_zip_test EXCLUDE_FROM_ALL tests/orbiter_zip_test.cpp)
+        target_include_directories(orbiter_zip_test PRIVATE launcher)
+        target_link_libraries(orbiter_zip_test PRIVATE ${KOSMOS_WX_LIBS})
         add_executable(kosmos-launcher WIN32 launcher/main.cpp launcher/data.cpp $<$<PLATFORM_ID:Windows>:launcher/launcher.rc>)
         target_include_directories(kosmos-launcher PRIVATE launcher ${KOSMOS_JSON_INCLUDE})
         target_link_libraries(kosmos-launcher PRIVATE ${KOSMOS_WX_LIBS})
@@ -360,7 +367,7 @@ if(TARGET planetbake)
 else()
     message(STATUS "planetbake will not be built (needs zlib, glm and FastNoiseLite.h)")
 endif()
-set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
+set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/orbiter-defaults(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)

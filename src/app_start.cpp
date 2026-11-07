@@ -446,12 +446,24 @@ namespace kosmos::app
         }
         loading.note("Loading Earth's clouds and night lights");
         // Orbiter's Earth cloud and night-light layers, when imported with tools/orbiter_import.py.
-        if (sl::Bitmap *clouds = load_optional_texture(find_texture_file(sim.root(), "earth_clouds", {".dds"}), options.max_texture))
+        std::string clouds_path = find_texture_in_directory(sim.root(), "/data/textures-hires/", "earth_clouds", {".dds"});
+        if (clouds_path.empty())
+            clouds_path = find_texture_in_directory(sim.root(), "/data/orbiter-defaults/earth/", "earth_clouds", {".dds"});
+        if (clouds_path.empty())
+            clouds_path = find_texture_in_directory(sim.root(), "/data/textures/", "earth_clouds", {".dds"});
+        if (sl::Bitmap *clouds = load_optional_texture(clouds_path, options.max_texture))
         {
             sl::destroy_bitmap(vis.cloud_texture);
             vis.cloud_texture = clouds;
         }
-        vis.lights_texture = load_night_lights(find_texture_file(sim.root(), "earth_lights", {".dds", ".jpg", ".png"}), options.max_texture);
+        std::string lights_path = find_texture_in_directory(sim.root(), "/data/textures-hires/", "earth_lights", {".dds", ".jpg", ".png"});
+        if (lights_path.empty())
+            lights_path = find_texture_in_directory(sim.root(), "/data/orbiter-defaults/earth/", "earth_lights", {".dds"});
+        if (lights_path.empty())
+            lights_path = find_texture_in_directory(sim.root(), "/data/textures/", "earth_lights", {".dds", ".jpg", ".png"});
+        vis.lights_texture = load_night_lights(lights_path, options.max_texture);
+        if (vis.lights_texture)
+            std::fprintf(stderr, "[kosmos] Earth night lights: %s\n", lights_path.c_str());
         earth_id = -1;
         earth_body = nullptr;
         terrain = nullptr;

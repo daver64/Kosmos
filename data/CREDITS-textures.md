@@ -20,6 +20,13 @@ Credits we can name from the packs' own notes:
 
 Cloud maps, the Orbiter terrain data and any other third-party pack are credited and licensed by their own authors.
 Please do not remove the credits when redistributing.
+
+The separately distributed standard Orbiter 2024 scenery packs contain the planetary
+archives and the `LICENSE` from the Orbiter 2024 release (MIT, copyright Martin
+Schweiger). The Earth cloud and night-light maps are converted from that release's
+`Cloud.tree` and `Mask.tree`. Optional high-resolution downloads come from the
+[Orbiter Forum texture mirrors](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/);
+their source descriptions and individual credits remain applicable.
 - **Rocks, nebula and tarmac** (`textures/rocks/`, `textures/nebula/proc_sheet_nebula.jpg`, `textures/tarmac/`): the OpenGameArt textures the game actually loads (terrain rocks, the sky nebula atlas and runway asphalt), copied from the full collection kept in `import/open-game-art/`. Add new OpenGameArt textures to `import/open-game-art/` and copy only the ones used into `data/textures/`.
 
 - **Hydra and Nix** (`textures/hydra.dds`, `textures/nix.dds`): from the Orbiter 2016 textures in `import/orbiter/Textures/`, installed by `tools/celbody_import.py`.
