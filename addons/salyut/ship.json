@@ -137,12 +137,12 @@
    ],
    "parts": [
     {
-     "model": "models/salyut.obj",
-     "offset": [
-      0,
-      0,
-      5
-     ]
+     "prop": "stage",
+     "radius": 2.1,
+     "length": 13.6,
+     "z": 6.8,
+     "colour": [210, 210, 210],
+     "accent": [75, 75, 80]
     }
    ]
   }

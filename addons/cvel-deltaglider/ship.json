@@ -472,15 +472,15 @@
    ],
    "parts": [
     {
-     "model": "models/deltaglider.obj",
-     "animations": "gear.json",
-     "single_sided": ["NConeTL1", "NConeTR1", "NConeBL1", "NConeBR1", "NConeTL2", "NConeTR2", "NConeBL2", "NConeBR2"]
+     "prop": "aeroplane",
+     "span": 18,
+     "colour": [210, 215, 220],
+     "accent": [55, 65, 80]
     }
    ]
   }
  ],
  "cockpit": {
-  "vc_model": "models/deltaglider_vc.obj",
   "hud_modes": [
    "orbit",
    "surface",
@@ -511,7 +511,6 @@
    "name": "Main panel",
    "width": 1152,
    "height": 500,
-   "image": "panel/panel1.png",
    "size": 0.9,
    "position": [
     0,
@@ -525,7 +524,6 @@
     "name": "Overhead",
     "width": 1152,
     "height": 282,
-    "image": "panel/panel2.png",
     "instruments": [],
     "controls": [
      {

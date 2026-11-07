@@ -40,21 +40,25 @@
       "pad": {
         "x": 0,
         "z": 0,
-        "heading": 0,
-        "deck": 8.7
+        "heading": 0
       },
       "objects": [
         {
-          "type": "model",
-          "model": "parts/orbiter/klc39b.obj",
+          "type": "launch_pad",
+          "size": 60,
           "x": 0,
+          "z": 0
+        },
+        {
+          "type": "launch_tower",
+          "height": 100,
+          "x": -38,
           "z": 0,
-          "heading": -90,
-          "y": -14
+          "heading": 180
         },
         {
           "type": "model",
-          "model": "parts/orbiter/vab.obj",
+          "model": "parts/nasa_vab/nasa_vab.glb",
           "x": 2710,
           "z": -4364,
           "heading": -80

@@ -392,8 +392,12 @@
    ],
    "parts": [
     {
-     "model": "../cvel-shuttle-a/models/shuttlea.obj",
-     "animations": "../cvel-shuttle-a/pods.json"
+     "prop": "stage",
+     "radius": 4,
+     "length": 30,
+     "z": 15,
+     "colour": [190, 195, 205],
+     "accent": [65, 75, 85]
     }
    ]
   }
@@ -419,7 +423,6 @@
    "name": "Main panel",
    "width": 1152,
    "height": 382,
-   "image": "../cvel-shuttle-a/panel/panel1.png",
    "size": 0.9,
    "position": [
     0,
@@ -433,7 +436,6 @@
     "name": "Fuel and systems",
     "width": 1152,
     "height": 300,
-    "image": "../cvel-shuttle-a/panel/panel2.png",
     "instruments": [],
     "controls": [
      {
@@ -1197,7 +1199,6 @@
     "h": 14
    }
   ],
-  "vc_model": "../cvel-shuttle-a/models/shuttlea_vc.obj",
   "vc_mfd_flip": true,
   "pitch": -20
  },

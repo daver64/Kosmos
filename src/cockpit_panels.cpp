@@ -407,6 +407,21 @@ namespace kosmos::app
         for (std::size_t i = 0; i < cp.instruments.size() && static_cast<int>(i) < sim.mfd.unit_count(); ++i)
             if (sim.mfd.domain_allowed(cp.instruments[i].mode) && !cp.instruments[i].vc_only)
                 sim.mfd.draw(static_cast<int>(i), panel_layout(cp, i, ox, oy, scale));
+        if (!back)
+            for (const kosmos::Cockpit::PanelControl &c : cp.controls)
+            {
+                if (!c.gate_property.empty())
+                {
+                    const double g = sim.props.get_double(c.gate_property);
+                    if (g < c.gate_min || g > c.gate_max)
+                        continue;
+                }
+                if ((c.type == "mfd" || c.type == "button" || c.type == "toggle" || c.type == "slider") &&
+                    c.style != "knob" && c.style != "lever" && c.w > 0.0f && c.h > 0.0f)
+                    sl::rect(sl::screen, ox + c.x * scale, oy + c.y * scale,
+                             ox + (c.x + c.w) * scale, oy + (c.y + c.h) * scale,
+                             {90, 100, 115, 255}, 1.0f);
+            }
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_cover(c, ox, oy, scale);
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)

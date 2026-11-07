@@ -3,7 +3,7 @@
   "name": "CVEL Proton-K",
   "version": "0.1",
   "author": "Dave Rowbotham (CVEL)",
-  "description": "Proton-K three-stage launcher with split payload fairing and a payload port. Converted from the CVEL Orbiter add-on (code D. Henderson, stage 2 Urwumpe, stages 1 and 3 Alex v Hohlov; meshes Artistic Licence). Stage 1 and 2 engine data from the original; vacuum isp only.",
+  "description": "Proton-K three-stage launcher with a payload port and simplified procedural visuals. The fairing appears as one piece and detaches together. Stage 1 and 2 engine data from the CVEL Orbiter add-on; vacuum isp only.",
   "ships": [
     "ship.json"
   ]

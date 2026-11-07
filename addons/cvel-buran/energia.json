@@ -265,35 +265,55 @@
    ],
    "parts": [
     {
-     "model": "models/booster1.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 38,
+     "z": 29.5,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80],
      "offset": [
       5,
-      -3.75,
-      10.55
+      2.75,
+      0
      ]
     },
     {
-     "model": "models/booster2.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 38,
+     "z": 29.5,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80],
      "offset": [
       5,
-      1.75,
-      10.55
+      -2.75,
+      0
      ]
     },
     {
-     "model": "models/booster3.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 38,
+     "z": 29.5,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80],
      "offset": [
       -5,
-      1.75,
-      10.55
+      2.75,
+      0
      ]
     },
     {
-     "model": "models/booster4.obj",
+     "prop": "stage",
+     "radius": 2.4,
+     "length": 38,
+     "z": 29.5,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80],
      "offset": [
       -5,
-      -3.75,
-      10.55
+      -2.75,
+      0
      ]
     }
    ]
@@ -394,12 +414,12 @@
    ],
    "parts": [
     {
-     "model": "models/energia.obj",
-     "offset": [
-      0,
-      0,
-      0
-     ]
+     "prop": "stage",
+     "radius": 4.5,
+     "length": 58.8,
+     "z": 29.4,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     }
    ]
   }

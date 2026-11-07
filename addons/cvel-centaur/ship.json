@@ -120,12 +120,12 @@
    ],
    "parts": [
     {
-     "model": "models/cvel-centaurg.obj",
-     "offset": [
-      0,
-      0,
-      0
-     ]
+     "prop": "stage",
+     "radius": 2.1,
+     "length": 9.5,
+     "z": 9.5,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     }
    ]
   }

@@ -74,7 +74,12 @@
    ],
    "parts": [
     {
-     "model": "models/cargopod.obj"
+     "prop": "stage",
+     "radius": 2.8,
+     "length": 5,
+     "z": 2.5,
+     "colour": [180, 185, 190],
+     "accent": [65, 75, 85]
     }
    ]
   }

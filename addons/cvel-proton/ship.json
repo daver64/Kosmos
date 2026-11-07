@@ -216,12 +216,12 @@
       ],
       "parts": [
         {
-          "model": "models/protonstg1.obj",
-          "offset": [
-            0,
-            0,
-            13
-          ]
+          "prop": "stage",
+          "radius": 3.9,
+          "length": 21.5,
+          "z": 23.75,
+          "colour": [225, 225, 225],
+          "accent": [75, 75, 80]
         }
       ]
     },
@@ -317,12 +317,12 @@
       ],
       "parts": [
         {
-          "model": "models/protkstg2_uw.obj",
-          "offset": [
-            0,
-            0,
-            -5.5
-          ]
+          "prop": "stage",
+          "radius": 2.9,
+          "length": 18,
+          "z": 3.5,
+          "colour": [225, 225, 225],
+          "accent": [75, 75, 80]
         }
       ]
     },
@@ -342,12 +342,12 @@
       "engines": [],
       "parts": [
         {
-          "model": "models/protonplfleft.obj",
-          "offset": [
-            0,
-            0,
-            -19.5
-          ]
+          "prop": "fairing",
+          "radius": 2.2,
+          "length": 15,
+          "z": -19.5,
+          "colour": [225, 225, 225],
+          "accent": [75, 75, 80]
         }
       ],
       "with_next": true
@@ -366,16 +366,7 @@
         -0.2
       ],
       "engines": [],
-      "parts": [
-        {
-          "model": "models/protonplfright.obj",
-          "offset": [
-            0,
-            0,
-            -19.5
-          ]
-        }
-      ]
+      "parts": []
     },
     {
       "name": "Proton third stage",
@@ -409,12 +400,12 @@
       ],
       "parts": [
         {
-          "model": "models/protonstg3.obj",
-          "offset": [
-            0,
-            0,
-            -16.2
-          ]
+          "prop": "stage",
+          "radius": 2,
+          "length": 8,
+          "z": -12.2,
+          "colour": [225, 225, 225],
+          "accent": [75, 75, 80]
         }
       ]
     }

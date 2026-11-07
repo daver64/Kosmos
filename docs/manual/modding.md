@@ -194,7 +194,7 @@ For a ship with gear contacts, optional `"gear_rest_compression": 0.1` sets nomi
 
 Common part fields: `radius`, `top_radius`, `length`, `span`, `count`, `z`, `offset`, `colour` (`[r,g,b]`), `accent` and `emissive` (glow).
 
-![Lunar Salyut](img/lunar_station.jpg)Lunar Salyut: an OBJ model for the hull plus built-in solar panels.
+Lunar Salyut currently uses a simplified procedural placeholder.
 
 <a id="kits"></a>
 

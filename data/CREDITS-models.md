@@ -16,7 +16,7 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   Vehicle, Vehicle Assembly Building.
 - **Asteroid shape:** Vesta (shape model from the Dawn mission).
 - **Terrain:** Gale Crater (`terrain/gale-crater.stl`, a scan of the crater and Mount Sharp from NASA's 3D Resources).
-- **Orbiter meshes** (`parts/orbiter/`, `addons/orbiter-stations/`): Kennedy Space Center pad, VAB, tarmac and other scenery, plus the Mir, Wheel and Project Alpha ISS (`addons/orbiter-stations/`), converted from stock meshes of Orbiter Space Flight Simulator. The upstream project includes the [MIT licence](LICENSE-Orbiter.txt); verify the provenance and any additional conditions of each converted mesh and texture before redistribution.
+- **Orbiter-derived visuals:** ISS, Mir and Wheel use procedural placeholders. Converted Orbiter scenery meshes and textures were removed while their individual redistribution terms remain unresolved.
 - **Soyuz TMA spacecraft** (`addons/cvel-soyuz/`): converted from the CVE-lite
   SoyuzTMA add-on. Its included notices credit the Soyuz meshes and textures
   to Jason Benson and adaptation for animation to Jógvan Trondesen, and state
@@ -26,5 +26,9 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   to D Henderson; their upstream notices specify the GNU LGPL without a
   version. See `addons/cvel-soyuz/source/README.md` for the correspondence,
   source meshes and licence text.
+- **Fregat** (`addons/cvel-fregat/`): converted from the CVE-lite Fregat
+  mesh by D Henderson, released under the GNU LGPL according to its upstream
+  notice. The original mesh, notice and licence text are in
+  `addons/cvel-fregat/source/`.
 
 Masses, engines and sizes in the `part.json` files are approximate and are Kosmos's own.

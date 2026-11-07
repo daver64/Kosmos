@@ -74,8 +74,50 @@ def check_excluded_assets(source, names):
                    "mercury", "miranda", "moon", "neptune", "oberon", "phoebe",
                    "pluto", "proteus", "saturn", "titan", "titania", "triton",
                    "umbriel", "uranus", "venus")),
-                "data/textures/hydra.dds", "data/textures/nix.dds", "data/parts/apollo-soyuz",
-                "addons/cvel-titan/models", "addons/cvel-delta-iv/models",
+                "data/textures/hydra.dds", "data/textures/nix.dds", "data/parts/apollo-soyuz", "data/parts/orbiter",
+                "addons/cvel-titan/models", "addons/cvel-delta-iv/models", "addons/cvel-atlas/models",
+                "addons/cvel-energia-m/models", "addons/cvel-energia-m/thumbs",
+                "scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur.png",
+                "addons/cvel-proton/models", "addons/cvel-proton/thumbs",
+                "scenarios/CVEL/CVEL-Proton/thumbs/proton_k_baikonur.png",
+                "addons/cvel-buran/models", "addons/cvel-buran/thumbs",
+                "scenarios/CVEL/CVEL-Buran/thumbs/buran_energia_baikonur.png",
+                "addons/cvel-centaur/models", "addons/cvel-centaur/thumbs",
+                "addons/cvel-transtage/models", "addons/cvel-transtage/thumbs",
+                "scenarios/CVEL/CVEL-Atlas/thumbs/centaur_g_orbit.png",
+                "scenarios/CVEL/CVEL-Atlas/thumbs/transtage_orbit.png",
+                "addons/cvel-ares/models", "addons/cvel-ares/thumbs",
+                "scenarios/CVEL/CVEL-Ares/thumbs/ares_spider_gale_crater.png",
+                "scenarios/CVEL/CVEL-Bases/thumbs/ares_spider_gale_crater.png",
+                "addons/salyut/models", "addons/salyut/thumbs",
+                "addons/probe/models", "addons/probe/thumbs",
+                "addons/orbiter-stations/models/iss.obj", "addons/orbiter-stations/models/iss.mtl",
+                "addons/orbiter-stations/models/mir.obj", "addons/orbiter-stations/models/mir.mtl",
+                "addons/orbiter-stations/models/wheel.obj", "addons/orbiter-stations/models/wheel.mtl",
+                "addons/orbiter-stations/models/textures/Station2.png",
+                *(f"addons/orbiter-stations/models/textures/{name}.png" for name in
+                  ("036MB", "036MC1", "036MC3", "036METAL", "036MIRM", "036MOD1", "036PANEL", "036POINT")),
+                *(f"addons/orbiter-stations/models/textures/{name}.png" for name in
+                  ("d_ring", "graple", "iss_dc", "iss_dcs", "iss_un", "issb", "issb2", "issb3", "issb4",
+                   "issbs", "issbso", "issbso2", "isscov2", "isscover", "isscup", "issdish", "issdot",
+                   "issesa", "isshand", "issins", "issku", "issku1", "issku2", "issmb", "issmod", "issp2",
+                   "isspanel", "issrad", "issred", "isssolar", "issusa", "issusaf", "isszmod", "metalcon",
+                   "nasda", "questcov")),
+                "scenarios/CVEL/CVEL-Bases/thumbs/orbital_stations.png", "docs/manual/img/lunar_station.jpg",
+                "addons/cvel-dragonfly/models", "addons/cvel-dragonfly/panel", "addons/cvel-dragonfly/thumbs",
+                "scenarios/CVEL/CVEL-Dragonfly/thumbs",
+                "addons/cvel-atlas/thumbs", "scenarios/CVEL/CVEL-Atlas/thumbs/atlas_iii_kennedy.png",
+                "addons/cvel-deltaglider/models", "addons/cvel-deltaglider/panel", "addons/cvel-deltaglider/thumbs",
+                "scenarios/CVEL/CVEL-Deltaglider/thumbs/deltaglider_chippenham.png",
+                "scenarios/CVEL/CVEL-Deltaglider/thumbs/nuclear_deltaglider_gale.png",
+                "docs/manual/img/weapons.jpg",
+                "addons/cvel-shuttle-a/models", "addons/cvel-shuttle-a/panel", "addons/cvel-shuttle-a/thumbs",
+                "addons/cvel-shuttle-aq/thumbs", "scenarios/CVEL/CVEL-ShuttleA/thumbs",
+                "scenarios/CVEL/CVEL-Bases/thumbs/shuttle_a_tranquility_miner.png",
+                "scenarios/CVEL/CVEL-Exsolar/thumbs/shuttle_aq_thalassa_depot.png",
+                "docs/manual/img/shuttle_a_pods.jpg",
+                "addons/cvel-delta-iv/thumbs", "scenarios/CVEL/CVEL-Titan/thumbs",
+                "scenarios/CVEL/CVEL-Atlas/thumbs/delta_iv_heavy_kennedy.png",
                 *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}"
                   for country in ("BRI", "CAN", "FRA", "USA")))
     for name in names:
@@ -84,6 +126,7 @@ def check_excluded_assets(source, names):
             continue
         relative = "/".join(parts[1:])
         if (any(relative == item or relative.startswith(item + "/") for item in excluded)
+                or relative.endswith(".bak")
                 or re.fullmatch(r"data/textures/[^/]+_normal\.jpg", relative)):
             raise ValueError(f"archive contains excluded asset: {source}: {name}")
 

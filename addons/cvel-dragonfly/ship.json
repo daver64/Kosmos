@@ -451,8 +451,12 @@
    ],
    "parts": [
     {
-     "model": "models/dragonfly.obj",
-     "animations": "animations.json"
+     "prop": "stage",
+     "radius": 2.2,
+     "length": 15,
+     "z": 11.5,
+     "colour": [210, 210, 210],
+     "accent": [75, 75, 80]
     }
    ]
   }
@@ -496,7 +500,6 @@
    "name": "Main panel",
    "width": 920,
    "height": 300,
-   "image": "panel/panel1.png",
    "size": 0.8,
    "position": [
     0,

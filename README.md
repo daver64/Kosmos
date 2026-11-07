@@ -8,11 +8,11 @@ Kosmos began around twenty years ago as a personal project. It is now ready for 
 
 **[Downloads](https://github.com/daver64/Kosmos/releases) · [User manual](docs/manual/manual.md) · [MFD manual](docs/manual/mfd-manual.md) · [Modding guide](docs/manual/modding.md) · [SDK](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)**
 
-| Launch | Lunar orbit |
+| Launch | Explore the stars |
 |:---:|:---:|
-| ![A rocket on the launch pad](docs/manual/img/launch_pad.jpg) | ![A station in lunar orbit](docs/manual/img/lunar_station.jpg) |
-| **Cockpit instruments** | **Explore the stars** |
-| ![Aircraft cockpit instruments and displays](docs/manual/img/cockpit_air.jpg) | ![The galaxy map showing nearby stars](docs/manual/img/galaxy.jpg) |
+| ![A rocket on the launch pad](docs/manual/img/launch_pad.jpg) | ![The galaxy map showing nearby stars](docs/manual/img/galaxy.jpg) |
+| **Cockpit instruments** | |
+| ![Aircraft cockpit instruments and displays](docs/manual/img/cockpit_air.jpg) | |
 
 > **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
 
@@ -30,6 +30,23 @@ If you encounter a problem, please open a GitHub issue (once this repository is 
 editions with known bugs and interface issues. If you are not specifically
 testing those tools, we recommend editing JSON data by hand and using Blender
 for modelling for now.
+
+Several launchers and upper stages use simplified procedural visuals. Buran
+uses a generic aircraft placeholder; its landing gear and bay doors do not
+animate visually. Ares Spider's placeholder does not show its landing legs.
+Salyut placeholders do not show solar arrays. Dragonfly has a plain panel;
+some controls rely on hover tooltips rather than printed labels, and its latch
+and antennas do not animate visually.
+Deltaglider variants use a generic aircraft visual and plain panels; their
+gear, hatch and airbrake no longer animate visually, and the original virtual
+cockpit is unavailable. Some panel controls rely on hover tooltips.
+Shuttle-A variants and their cargo and fuel pods also use simplified visuals
+and plain panels; the original virtual cockpit, landing gear and swivelling
+engine pod animations are not shown.
+Mir variants also use a simplified placeholder without solar arrays; Wheel
+has a simplified ring and hub without spokes.
+Kennedy's launch pad and tower are procedural; its VAB uses a NASA-derived
+model and the pad deck is lower than in earlier builds.
 
 ## What you can do
 
@@ -257,7 +274,9 @@ For an experimental **target landing**, select that option before engaging Autol
 
 For an **orbital base landing**, select a base rather than coordinates and start in a bound orbit with periapsis at least 50 km and above the atmosphere. Disable nonspherical gravity and, on bodies with weather, disable weather. The controller searches up to 14 orbits for a plane-change window, forecasts the burn and descent with at least 100 kg of fuel remaining, and checks the chosen plan again before ignition. The Spacecraft Autopilot window shows time to plane burn while waiting, checking and aligning. Use time warp while it says **Waiting for window**; it reduces warp automatically before the burn. Planning and checking are held at 1x; during alignment, burn, powered descent and target approach you can select up to 4x. It then aligns, performs the plane change, descends under power and uses local target guidance. An orbital touchdown within 3 km of the base centre is reported as landed; it is not guaranteed to reach the pad. Planning can take time or reject a flight even when another trajectory might work. Forecasts are approximate, do not predict future weather or avoid buildings and other obstacles, and are not a guarantee of safe touchdown or sufficient fuel. If conditions change or the reserve is depleted during descent, a warning is shown and guidance continues. Monitor the flight and take over when necessary.
 
-The Ares legs start deployed and splayed. **View > Animations > Landing legs (stow)** folds them in; turn it off to deploy them again. The animation takes eight simulation seconds. The touchdown contacts remain at the deployed feet even while the legs are stowed.
+The Ares landing-leg control remains available, but its procedural placeholder
+does not show or animate the legs. Touchdown contacts remain at the deployed
+feet regardless of the control state.
 
 The Orbit MFD's **Orb** is speed relative to the planet's centre, not speed over the rotating ground. Surface and RADALT show surface-relative speeds. **AGL** is estimated local terrain clearance: the ground height beneath the vessel is subtracted along with a nominal vessel-bottom offset. It is not a ray-cast radar; without terrain data it uses the spherical surface. Autoland uses this same estimate.
 
@@ -328,7 +347,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 
 ## Textures
 
-`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body. The Earth image is NASA Blue Marble; many other maps are derived from Celestia packs and still need individual provenance review (see `data/CREDITS-textures.md`). A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. For release staging, `scripts/pack-procedural-hires.py` generates a separate pack of fictional procedural maps in `data/textures-generated/`: they are not geographically accurate and do not contain terrain tiles. Existing hi-res overrides and local Celestia maps take priority. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed. Locally imported third-party imagery requires its own redistribution review.
+`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body. The Earth image is NASA Blue Marble; other bundled maps are NASA imagery or fictional procedural maps (see `data/CREDITS-textures.md`). A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. For release staging, `scripts/pack-procedural-hires.py` generates a separate pack of fictional procedural maps in `data/textures-generated/`: they are not geographically accurate and do not contain terrain tiles. Existing hi-res overrides and local Celestia maps take priority. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed. Locally imported third-party imagery requires its own redistribution review.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
@@ -388,7 +407,7 @@ Specs that only set `"air_breathing": true` still work and count as jets. `--sho
 `python3 tools/orbiter_addon_import.py <add-on root> --id <id>` starts a whole addon: it converts the meshes and drafts
 `ship.json` from the add-on's C++ source, leaving `"TODO"` where it can't tell. See `docs/importing-orbiter-addons.md`.
 
-`--props` writes the props-library frame (+Z forward, +X left) for base `model` objects instead; the stock Orbiter meshes in `data/parts/orbiter/` were made that way (`parts/orbiter/vab.obj` in a base). `python3 tools/msh_import.py addons/<name>` converts every `.msh` under `addons/<name>/orbiter/Meshes` to OBJ/MTL in
+`--props` writes the props-library frame (+Z forward, +X left) for base `model` objects instead. `python3 tools/msh_import.py addons/<name>` converts every `.msh` under `addons/<name>/orbiter/Meshes` to OBJ/MTL in
 `addons/<name>/models/` (DDS textures become PNG; needs Pillow). The mesh is mirrored from Orbiter's left-handed, nose +Z frame
 into Kosmos's nose -Z frame, so it can be used as is: a part of `{"model": "models/x.obj"}` in a stage's `parts` draws it,
 with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. Orbiter keeps masses, thrust and fuel in C++

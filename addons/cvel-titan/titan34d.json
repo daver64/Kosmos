@@ -152,7 +152,7 @@
      "offset": [
       3.05,
       0,
-      27.41
+      0
      ],
      "colour": [
       225,
@@ -173,7 +173,7 @@
      "offset": [
       -3.05,
       0,
-      27.41
+      0
      ],
      "colour": [
       225,
@@ -307,24 +307,7 @@
     -0.2
    ],
    "engines": [],
-   "parts": [
-    {
-     "prop": "fairing",
-     "radius": 2.5,
-     "length": 9,
-     "z": 2.5,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
-    }
-   ],
+   "parts": [],
    "with_next": true
   },
   {
@@ -341,24 +324,7 @@
     -0.2
    ],
    "engines": [],
-   "parts": [
-    {
-     "prop": "fairing",
-     "radius": 2.5,
-     "length": 9,
-     "z": 2.5,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
-    }
-   ]
+   "parts": []
   },
   {
    "name": "Stage 2",

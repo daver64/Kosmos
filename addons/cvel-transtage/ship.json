@@ -91,20 +91,20 @@
    ],
    "parts": [
     {
-     "model": "models/transtage.obj",
-     "offset": [
-      0,
-      0,
-      0
-     ]
+     "prop": "stage",
+     "radius": 1.6,
+     "length": 4.7,
+     "z": 2.85,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     },
     {
-     "model": "models/probe.obj",
-     "offset": [
-      0,
-      0,
-      -2.5
-     ]
+     "prop": "stage",
+     "radius": 0.6,
+     "length": 1.5,
+     "z": -1.85,
+     "colour": [180, 180, 180],
+     "accent": [75, 75, 80]
     }
    ]
   }

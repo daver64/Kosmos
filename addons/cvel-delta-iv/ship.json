@@ -307,24 +307,7 @@
     -0.2
    ],
    "engines": [],
-   "parts": [
-    {
-     "prop": "fairing",
-     "radius": 2.6,
-     "length": 18.35,
-     "z": -29.124999999999996,
-     "colour": [
-      225,
-      225,
-      225
-     ],
-     "accent": [
-      75,
-      75,
-      80
-     ]
-    }
-   ]
+   "parts": []
   },
   {
    "name": "Second stage",

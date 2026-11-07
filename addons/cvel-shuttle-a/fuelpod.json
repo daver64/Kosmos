@@ -75,7 +75,12 @@
    ],
    "parts": [
     {
-     "model": "models/fuelpod.obj"
+     "prop": "stage",
+     "radius": 2.8,
+     "length": 5,
+     "z": 2.5,
+     "colour": [205, 205, 190],
+     "accent": [90, 80, 60]
     }
    ]
   }

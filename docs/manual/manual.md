@@ -94,7 +94,7 @@ The keys below are the defaults. _View > Keyboard_ lets you rebind any of them (
 Key| Action  
 ---|---  
 `Num +` / `Num *`| Full throttle / cut throttle  
-`Ctrl`+`Num +` / `Ctrl`+`Num -`| Ramp the throttle up / down while held (ships with reverse thrust, such as the Deltaglider, carry on below zero into reverse: the red RET zone of the throttle lever)  
+`Ctrl`+`Num +` / `Ctrl`+`Num -`| Ramp the throttle up / down while held (ships with reverse thrust, such as the Deltaglider, carry on below zero into reverse)
 `Num 2` `Num 8`| Pitch up / down  
 `Num 1` `Num 3`| Yaw (rudder in an aircraft)  
 `Num 4` `Num 6`| Roll  
@@ -203,7 +203,6 @@ Deltaglider| Yellow nose beam| Two green sparkle guns| Blue
   * **Impacts** flash, throw sparks or plasma and light up their surroundings. Shots hit terrain, buildings and other ships. At most four weapon lights are active at once ([Settings](#f3), _Weapon lights_).
   * **Shields** soak hits first, recharge after a few quiet seconds and flash in their colour when struck; only what gets through damages the hull. Read the level in `/ships/ship[N]/shield` and the hull in `health` (0 to 1) in the [property browser](#f4).
 
-![The Deltaglider firing its yellow beam and green sparklies](img/weapons.jpg)The Deltaglider firing its beam and a volley of sparklies.
 
 The weapons come from the `field-kit` addon, which has four tiers of each, red, yellow, green and violet, in increasing effect. Modders add their own ([modders manual](modding.md#weapons)), and programs can fire them through KosmosLink ([SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)).
 
@@ -346,7 +345,7 @@ Ships and stations with docking ports can connect. Place a ship and a station in
 
 The CVEL Shuttle-A carries up to six detachable pods on its spine: cargo pods, fuel pods holding 20 t of propellant, or **life support pods** (the “CVEL Shuttle-A Life Support Pod” ship, a year of oxygen, nitrogen, water and CO2 sorbent for two people). Docked, a life support pod tops up the shuttle’s own life support tanks and sorbent as they run down, so fit as many as you want as extra consumables; list them in a scenario like any other pod. Scenarios `shuttle_a_cargo_helsinki` and `shuttle_a_cargo_orbit` start with four cargo pods and two fuel pods attached. While docked, a fuel pod tops up the flown ship’s tank automatically. **View > Fuel transfer** switches between Automatic, Off, Pump to docked ships and Pump from docked ships, and shows how much propellant the docked ships hold.
 
-![Shuttle-A with pods](img/shuttle_a_pods.jpg)The Shuttle-A with its pods (scenario shuttle_a_cargo_orbit). ![Docking approach](img/docking.jpg)A tug approaching a station over Earth.
+![Docking approach](img/docking.jpg)A tug approaching a station over Earth.
 
 <a id="weather"></a>
 
@@ -406,7 +405,7 @@ The following example uses the Skylark light twin, an optional aircraft addon th
 
 
 
-The Skylark's cockpit has the traditional six-pack (airspeed, attitude, altimeter on the top row; turn coordinator, heading and vertical speed below), with an **Engine** MFD and a **Surface** MFD to the right. Press `C` for the 2D panel, and again for the 3D cockpit, where the MFD buttons can be clicked. The Deltaglider and Shuttle-A 2D panels are live: click the MFD buttons, the autopilot hold and HUD buttons and (Shuttle-A) the gear switch, and drag the throttle and hover sliders. The Shuttle-A's two aux engine pods swing from retro through hover to forward, as in Orbiter: drag their tilt sliders, press the FWD, HOVER or RETRO presets, or use Keypad 8/2 (swing) and 4/5/6 (presets); Keypad 9/3 or the aux pod sliders set their thrust. The RCS mode switch picks rotation, linear (W/S, A/D and Q/E translate) or off.
+The Skylark's cockpit has the traditional six-pack (airspeed, attitude, altimeter on the top row; turn coordinator, heading and vertical speed below), with an **Engine** MFD and a **Surface** MFD to the right. Press `C` for the 2D panel, and again for the 3D cockpit, where the MFD buttons can be clicked. The Deltaglider and Shuttle-A 2D panels are live: click the MFD buttons, the autopilot hold and HUD buttons and (Shuttle-A) the gear switch, and drag the throttle and hover sliders. The Deltaglider's plain panels use hover tooltips for some controls; its original virtual cockpit is unavailable. The Shuttle-A's two aux engine pods swing from retro through hover to forward, as in Orbiter: drag their tilt sliders, press the FWD, HOVER or RETRO presets, or use Keypad 8/2 (swing) and 4/5/6 (presets); Keypad 9/3 or the aux pod sliders set their thrust. The RCS mode switch picks rotation, linear (W/S, A/D and Q/E translate) or off.
 
 With the Skylark airborne near Chippenham you can fly the ILS. Tune the localizer and glideslope on the **HSI** or **VOR** MFD, and fly them down to touchdown.
 
@@ -863,7 +862,7 @@ From version 0.50, alternatively select _Target landing_ , enter latitude/longit
 
 From 0.51, for an experimental **orbital base landing** , choose a base rather than coordinates and start in a bound orbit with periapsis at least 50 km and above the atmosphere. Disable nonspherical gravity and, on bodies with weather, disable weather. The controller searches up to 14 orbits for a plane-change window, forecasts the burn and descent with at least 100 kg of fuel remaining, and checks the plan again before ignition. The Spacecraft Autopilot window shows time to plane burn while waiting, checking and aligning. Use time warp while it says _Waiting for window_ ; it reduces warp automatically before the burn. Planning and checking are held at 1×; during alignment, burn, powered descent and target approach you can select up to 4×. It aligns, performs the plane change, descends under power and switches to local guidance. An orbital touchdown within 3 km of the base centre is reported as landed; it is not guaranteed to reach the pad. Planning can take time or reject a flight even if another trajectory might work. The forecast is approximate, does not predict future weather or avoid buildings and other obstacles, and cannot guarantee safe touchdown or sufficient fuel. If conditions change or the reserve is depleted during descent, a warning is shown and guidance continues. Monitor and take over when necessary.
 
-The Ares legs start deployed and splayed. _View → Animations → Landing legs (stow)_ folds them in; turn it off to deploy them. The animation takes eight simulation seconds. Touchdown contacts remain at the deployed feet even while the legs are stowed.
+The Ares landing-leg control remains available, but its procedural placeholder does not show or animate the legs. Touchdown contacts remain at the deployed feet regardless of the control state.
 
 The Orbit MFD's **Orb** is speed relative to the planet's centre, not the rotating ground. The Surface and RADALT MFDs show surface-relative speeds. **AGL** estimates clearance above local terrain by subtracting a nominal vessel-bottom offset from terrain height beneath the vessel. It is not a ray-cast radar; without terrain data it uses the spherical surface. Autoland uses the same estimate.
 
@@ -984,10 +983,27 @@ Kestrel| Launcher| 219.5 t| Three stages (booster, upper stage, capsule); ascent
 CVEL Deltaglider| Spaceplane| 12.0 t dry| Retractable gear, nose hatch; [beam, sparkle guns and shield](#weapons)  
 Ares Spider| Lander| 30.0 t| Four 80 kN hover engines; top and aft docking ports  
 Salyut| Station| 20.0 t| Two docking ports  
-Lunar Salyut| Station| 37.0 t| Station with a large engine and solar array  
+Lunar Salyut| Station| 37.0 t| Station with a large engine; procedural placeholder
 Luna E3| Probe| 0.38 t| Small lander probe  
   
 This is a selection of the bundled fleet, not a complete list. Use the launcher to browse available ships, `--ship "NAME"` to start one, and `V` to switch between ships in a scenario.
+
+Several launchers and upper stages use simplified procedural visuals. Buran
+uses a generic aircraft placeholder; its landing gear and bay doors do not
+animate visually. Ares Spider's placeholder does not show its landing legs.
+Salyut placeholders do not show solar arrays. Dragonfly has a plain panel;
+some controls rely on hover tooltips rather than printed labels, and its latch
+and antennas do not animate visually.
+Deltaglider variants use a generic aircraft visual and plain panels; gear,
+hatch and airbrake no longer animate visually and the original virtual cockpit
+is unavailable. Some panel controls rely on hover tooltips.
+Shuttle-A variants and their detachable pods use simplified visuals and plain
+panels. The original virtual cockpit, landing gear and swivelling engine pod
+animations are not shown; the controls and flight systems remain.
+Mir variants also use a simplified placeholder without solar arrays; Wheel
+has a simplified ring and hub without spokes.
+Kennedy uses a procedural launch pad and tower and a NASA-derived VAB; the pad
+deck is lower than in earlier builds.
 
 <a id="cli"></a>
 

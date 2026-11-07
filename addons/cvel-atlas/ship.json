@@ -124,20 +124,12 @@
    ],
    "parts": [
     {
-     "model": "models/atlasiii_stg1.obj",
-     "offset": [
-      0,
-      0,
-      2.5
-     ]
-    },
-    {
-     "model": "models/atlasiii_interstg1.obj",
-     "offset": [
-      0,
-      0,
-      -14.1
-     ]
+     "prop": "stage",
+     "radius": 1.65,
+     "length": 31,
+     "z": 18,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     }
    ]
   },
@@ -157,12 +149,12 @@
    "engines": [],
    "parts": [
     {
-     "model": "models/atlasiii_fairing1.obj",
-     "offset": [
-      0.9,
-      0,
-      -28
-     ]
+     "prop": "fairing",
+     "radius": 2.2,
+     "length": 10.9,
+     "z": -22.55,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     }
    ],
    "with_next": true
@@ -181,16 +173,7 @@
     -0.2
    ],
    "engines": [],
-   "parts": [
-    {
-     "model": "models/atlasiii_fairing2.obj",
-     "offset": [
-      -0.9,
-      0,
-      -28
-     ]
-    }
-   ]
+   "parts": []
   },
   {
    "name": "Centaur",
@@ -224,12 +207,12 @@
    ],
    "parts": [
     {
-     "model": "models/atlasiii_centaur.obj",
-     "offset": [
-      0,
-      0,
-      -18.75
-     ]
+     "prop": "stage",
+     "radius": 1.5,
+     "length": 10,
+     "z": -14,
+     "colour": [225, 225, 225],
+     "accent": [75, 75, 80]
     }
    ]
   }
