@@ -167,6 +167,8 @@ namespace kosmos
         Scenario sc;
         sc.name = name;
         sc.id = slug(name);
+        sc.epoch_jd = sim.universe.julian_date();
+        sc.life_support = life_support_name(sim.life_support);
         if (sim.system_index() != 0)
             sc.system = sim.galaxy.star(sim.system_index()).name;
         // Base buildings are respawned from the base data, so they are not saved. `index` maps a sim ship to its scenario entry.
@@ -177,6 +179,14 @@ namespace kosmos
                 index[static_cast<std::size_t>(si)] = kept++;
         const int flown = sim.props.get_int("/sim/active-ship");
         sc.active = flown >= 0 && flown < sim.ship_count() && index[static_cast<std::size_t>(flown)] >= 0 ? index[static_cast<std::size_t>(flown)] : 0;
+        sc.sets.push_back("/controls/gear=" + std::to_string(sim.props.get_double("/controls/gear")));
+        if (flown >= 0 && flown < sim.ship_count())
+            for (const auto &animation : sim.ship(flown)->spec().animation_controls)
+            {
+                const std::string path = "/controls/anim/" + animation.property;
+                if (sim.props.exists(path))
+                    sc.sets.push_back(path + "=" + std::to_string(sim.props.get_double(path)));
+            }
         sc.target = sim.props.get_string("/sim/target");
         for (int i = 0; i < NavSystem::receivers; ++i)
             sc.nav.push_back(sim.props.get_double("/nav/nav[" + std::to_string(i) + "]/frequency"));
@@ -193,19 +203,13 @@ namespace kosmos
             s.skin = ship.skin;
             const int soi = std::clamp(t.soi, 0, static_cast<int>(sim.universe.bodies.size()) - 1);
             s.body = sim.universe.bodies[static_cast<std::size_t>(soi)].name;
-            // A ship low and slow over the ground is "surface"; anything else is saved as a circular orbit.
-            const bool near_ground = t.landed || (t.altitude < 30000.0 && t.surface_speed < 400.0);
-            if (near_ground)
+            s.carry_state = std::make_shared<ShipCarryState>(ship.carry_state());
+            if (t.landed)
             {
                 s.landed = true;
                 s.latitude = t.latitude;
                 s.longitude = t.longitude;
                 s.heading = t.heading;
-                if (!t.landed)
-                {
-                    s.altitude = std::max(1.0, t.altitude);
-                    s.speed = t.surface_speed;
-                }
             }
             else
             {
@@ -218,13 +222,17 @@ namespace kosmos
                 const double inc = s.inclination * pi / 180.0;
                 const sl::dvec3 prograde0(0.0, std::sin(inc), -std::cos(inc));
                 s.phase = std::atan2(glm::dot(r, prograde0), r.x) * 180.0 / pi;
-                // The circular orbit above loses the real orbit and the attitude, so keep the exact state too.
-                const sl::dquat &q = ship.body().orientation;
-                s.has_state = true;
-                s.state_position = {r.x, r.y, r.z};
-                s.state_velocity = {v.x, v.y, v.z};
-                s.state_orientation = {q.w, q.x, q.y, q.z};
             }
+            const sl::FlightBody &parent = *sim.universe.world.body(soi);
+            const sl::dvec3 r = ship.body().position - parent.position;
+            const sl::dvec3 v = ship.body().velocity - parent.velocity;
+            const sl::dquat &q = ship.body().orientation;
+            const sl::dvec3 &omega = ship.body().angular_velocity;
+            s.has_state = true;
+            s.state_position = {r.x, r.y, r.z};
+            s.state_velocity = {v.x, v.y, v.z};
+            s.state_orientation = {q.w, q.x, q.y, q.z};
+            s.state_angular_velocity = {omega.x, omega.y, omega.z};
             sc.ships.push_back(std::move(s));
         }
         // Docks are stored on the later ship of each pair, pointing at the earlier one.
@@ -398,7 +406,7 @@ namespace kosmos
             status_ = "Captured the ships as they are now.";
         }
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Replace this scenario with the live positions of every ship. Orbits are saved as circular.");
+            ImGui::SetTooltip("Replace this scenario with the current flight state of every ship.");
         ImGui::SameLine();
         if (ImGui::Button("New"))
         {
@@ -491,6 +499,7 @@ namespace kosmos
 
     void ScenarioEditor::draw_ship_fields(Sim &sim, ScenarioShip &s, const std::vector<std::string> &ships, const std::vector<std::string> &bodies)
     {
+        const ScenarioShip previous = s;
         int ship_index = index_of(ships, s.ship);
         if (combo("Ship", ship_index, ships) && ship_index >= 0)
             s.ship = ships[static_cast<std::size_t>(ship_index)];
@@ -583,6 +592,16 @@ namespace kosmos
             if (s.altitude > 0.0)
                 dbl("Airspeed m/s", s.speed, 1.0f, 0.0, 3000.0, "%.0f");
         }
+        if (s.ship != previous.ship)
+            s.carry_state.reset();
+        if (s.ship != previous.ship || s.body != previous.body || s.landed != previous.landed ||
+            s.altitude_km != previous.altitude_km || s.inclination != previous.inclination ||
+            s.phase != previous.phase || s.apoapsis_km != previous.apoapsis_km || s.toward != previous.toward ||
+            s.pad != previous.pad || s.base != previous.base || s.runway != previous.runway ||
+            s.reverse != previous.reverse || s.along != previous.along || s.altitude != previous.altitude ||
+            s.speed != previous.speed || s.latitude != previous.latitude || s.longitude != previous.longitude ||
+            s.heading != previous.heading)
+            s.has_state = false;
     }
 
     void ScenarioEditor::draw(bool &open, Sim &sim, FileDialog &dialog, const MenuActions &actions)

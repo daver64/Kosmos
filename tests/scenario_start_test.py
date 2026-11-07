@@ -3,11 +3,12 @@
 
 import json
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BINARY = ROOT / "build/kosmos"
+BINARY = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build/kosmos"
 GALE = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_gale_crater.json"
 ORBIT = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_mars_orbit.json"
 

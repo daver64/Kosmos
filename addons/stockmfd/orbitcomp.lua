@@ -98,11 +98,15 @@ end
 local function nu_from_mean(o, m)
   if o.e < 1 then
     m = (m + PI) % TAU - PI
-    local ea = o.e > 0.8 and PI or m + o.e * math.sin(m)
-    for _ = 1, 40 do
-      local d = (ea - o.e * math.sin(ea) - m) / (1 - o.e * math.cos(ea))
-      ea = ea - d
-      if math.abs(d) < 1e-12 then break end
+    local lo, hi = -PI, PI
+    local ea = o.e > 0.8 and (m < 0 and -PI or PI) or m + o.e * math.sin(m)
+    for _ = 1, 60 do
+      local f = ea - o.e * math.sin(ea) - m
+      if math.abs(f) < 1e-14 then break end
+      if f > 0 then hi = ea else lo = ea end
+      local next_ea = ea - f / (1 - o.e * math.cos(ea))
+      if next_ea <= lo or next_ea >= hi then next_ea = (lo + hi) / 2 end
+      ea = next_ea
     end
     return 2 * math.atan(math.sqrt((1 + o.e) / (1 - o.e)) * math.tan(ea / 2))
   end
@@ -284,6 +288,30 @@ local function patched_encounter(f, nd)
   end
   local distance, closest_in = closest(ship_parent, ship_parent.nu, target.orbit, target_nu, span)
   local sp, tp = state_at(ship_parent, advance(ship_parent, ship_parent.nu, closest_in)), state_at(target.orbit, advance(target.orbit, target_nu, closest_in))
+  if target.soi and target.soi > 0 and distance < target.soi then
+    local function relative_at(t)
+      local r, v = state_at(ship_parent, advance(ship_parent, ship_parent.nu, t))
+      local tr, tv = state_at(target.orbit, advance(target.orbit, target_nu, t))
+      return sub(r, tr), sub(v, tv)
+    end
+    local lo, hi = 0, closest_in
+    if len(relative_at(0)) <= target.soi then
+      hi = 0
+    else
+      for _ = 1, 60 do
+        local mid = (lo + hi) / 2
+        if len(relative_at(mid)) > target.soi then lo = mid else hi = mid end
+      end
+    end
+    local entry_r, entry_v = relative_at(hi)
+    local arrival = make_orbit(entry_r, entry_v, target.mu)
+    local periapsis_in = arrival and time_to(arrival, arrival.nu, 0)
+    if periapsis_in then
+      distance, closest_in = arrival.rp, hi + periapsis_in
+      tp = state_at(target.orbit, advance(target.orbit, target_nu, closest_in))
+      sp = add(tp, (state_at(arrival, 0)))
+    end
+  end
   return { distance = distance, time = exit_time + closest_in,
            geo = { path = ship_parent, target_orbit = target.orbit, planet_orbit = catalog[f.idx + 1].orbit,
                    ship_at = sp, target_at = tp, exit_at = (state_at(ship_parent, ship_parent.nu)) } }
@@ -369,7 +397,7 @@ local function track_burn()
 end
 
 local function burn_time(dv)
-  local thrust, mass = ship("max-thrust"), math.max(ship("mass"), 1)
+  local thrust, mass = ship("main-max-thrust"), math.max(ship("mass"), 1)
   if thrust <= 0 then return nil end
   return dv * mass / thrust
 end
@@ -481,7 +509,7 @@ local function compute_node(f, ot)
   local dvv = add(add(mul(pro, node.dv[1]), mul(rad, node.dv[2])), mul(nrm, node.dv[3]))
   local after = make_orbit(rn, add(vn, dvv), f.mu)
   local dv = len(dvv)
-  local mass, thrust = ship("mass"), ship("max-thrust")
+  local mass, thrust = ship("mass"), ship("main-max-thrust")
   return { t = t_n, nu = nu_n, r = rn, v = vn, dvv = dvv, dv = dv, after = after,
            burn = (thrust and thrust > 0 and mass) and dv * mass / thrust or nil }
 end
@@ -1396,11 +1424,12 @@ local function draw_plan(g, f, ot, tr, tv)
     g:text(LX, 84, string.format("Departure dV  %.1f m/s", plan.dv), 0)
     g:text(LX, 102, string.format("v inf %.0f m/s", plan.vinf), 0)
     g:text(LX, 120, "Transfer time  " .. fmt_time(plan.tof), 0)
-    g:text(LX, 138, string.format("Arrival periapsis %.0f km", (plan.rp - props.get("/universe/bodies/body[" .. body_by_name(target_name()) .. "]/radius")) / 1000), 0)
+    g:text(LX, 138, string.format("Target periapsis %.0f km", (plan.rp - props.get("/universe/bodies/body[" .. body_by_name(target_name()) .. "]/radius")) / 1000), 0)
     g:colour(255, 200, 80)
     g:text(LX, 164, "Departure burn in  " .. fmt_time(plan.t_burn), 0)
     g:text(LX, 182, "Burn prograde (set the node, then fly it)", 0)
     if not burn_left_line(g, LX, 218, plan.dv) then g:text(LX, 218, "Burn time  " .. fmt_time(burn_time(plan.dv)), 0) end
+    g:text(LX, 236, "Approximate: check arrival on MAN", 0)
     auto_status(g, 254)
     if math.abs(plan.plane) > 0.5 then
       g:colour(255, 120, 80)
@@ -1559,7 +1588,7 @@ function M.draw(self, g, w, h)
       elseif pl and props.get("/autopilot/burn/state") == "wait" then auto_apply(pl) end
     end
     if pl then
-      local centre = pl.kind == "lambert" and (burn_time(pl.dv) or 0) / 2
+      local centre = pl.kind == "lambert" and pl.wait
         or (pl.kind == "hohmann" and pl.wait or pl.t_burn)
       local dv = math.abs((pl.kind == "hohmann" and pl.dv1 or pl.dv) or 0)
       if centre and dv > 0 then publish_burn(centre, burn_time(dv), pl.kind .. " transfer") end
@@ -1645,6 +1674,7 @@ end
 M._test = { make_orbit = make_orbit, advance = advance, state_at = state_at, time_to = time_to, closest = closest,
             plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, plan_lambert = plan_lambert,
             lambert_velocity = lambert_velocity, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
-            plan_ejection_fast = plan_ejection_fast, body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter }
+            plan_ejection_fast = plan_ejection_fast, body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter,
+            ship_frame = ship_frame, compute_node = compute_node }
 
 return M

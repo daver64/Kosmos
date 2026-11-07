@@ -145,6 +145,8 @@ namespace kosmos::app
         {"--selftest-orbital-sas", 0, on(&Options::selftest_orbital_sas)},
         {"--selftest-ui-windows", 0, on(&Options::selftest_ui_windows)},
         {"--selftest-vessel-ascent", 0, on(&Options::selftest_vessel_ascent)},
+        {"--selftest-save", 0, on(&Options::selftest_save)},
+        {"--selftest-orbitcomp", 0, on(&Options::selftest_orbitcomp)},
         {"--selftest-arsenal", 0, on(&Options::selftest_arsenal)},
         {"--selftest-drop-atom", 0, on(&Options::selftest_drop_atom)},
         {"--selftest-warp", 1, real(&Options::selftest_warp)},

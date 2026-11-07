@@ -163,6 +163,7 @@ namespace kosmos
             state.animation_positions.push_back(animation_position(i));
         state.health = health_;
         state.shield = shield_;
+        state.mission_time = mission_time_;
         if (systems_)
         {
             state.systems = systems_->state();
@@ -202,6 +203,7 @@ namespace kosmos
         }
         health_ = std::clamp(state.health, 0.0, 1.0);
         shield_ = std::clamp(state.shield, 0.0, spec_.shield.capacity);
+        mission_time_ = std::max(0.0, state.mission_time);
         if (systems_ && state.has_systems)
             systems_->restore(state.systems);
         recentre();

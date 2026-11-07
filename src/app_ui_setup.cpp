@@ -420,7 +420,7 @@ namespace kosmos::app
             }
         }
         // A scenario with its own date rebuilds the system on that date; one without keeps the clock it has.
-        if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.epoch_jd) > 1.0e-9)
+        if (sc.epoch_jd > 0.0 && std::fabs(sc.epoch_jd - sim.universe.julian_date()) > 1.0e-9)
         {
             std::string epoch_error;
             if (!change_date(sc.epoch_jd, epoch_error))
@@ -443,7 +443,7 @@ namespace kosmos::app
             rig.interior_cam = rig.base_view = rig.user_cam = -1;
             rig.look_yaw = rig.look_pitch = 0.0f;
         }
-        else if (world_rebuilt || sim.system_index() != previous_system)
+        else if (world_rebuilt || sim.system_index() != previous_system || sim.ship_count() == 0)
         {
             ship = nullptr;
             running = false;

@@ -33,6 +33,8 @@ namespace kosmos::app
         bool selftest_orbital_sas = false;
         bool selftest_ui_windows = false;
         bool selftest_vessel_ascent = false;
+        bool selftest_save = false;
+        bool selftest_orbitcomp = false;
         double selftest_throttle = -1.0;
         /** Hold this throttle while taking a --shot (for a picture of the exhaust); negative leaves the controls alone. */
         double shot_throttle = -1.0;

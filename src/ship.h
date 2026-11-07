@@ -573,6 +573,7 @@ namespace kosmos
         double gear_position = 1.0;
         std::vector<double> animation_positions;
         double health = 1.0, shield = 0.0;
+        double mission_time = 0.0;
         Systems::State systems;
         bool has_systems = false;
     };
@@ -643,6 +644,8 @@ namespace kosmos
         /** Mass of released-in-flight equipment still aboard (bombs on racks); included in the ship's mass. */
         void set_payload_mass(double kilograms);
         const Telemetry &telemetry() const { return telemetry_; }
+        /** Maximum available thrust controlled by the main throttle, excluding hover, pod and RCS engines. */
+        double main_max_thrust() const;
         /** What the reaction-control jets did on the last update, in the ship frame: torque command (pitch, yaw, roll) and translation push, each -1..1. */
         const sl::dvec3 &rcs_torque() const { return rcs_torque_; }
         const sl::dvec3 &rcs_push() const { return rcs_push_; }

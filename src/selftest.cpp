@@ -3,6 +3,7 @@
 #include "gui_input.h"
 #include "menu.h"
 #include "ordnance.h"
+#include "scenario_start.h"
 #include "ship_weapons.h"
 
 #include <cmath>
@@ -226,6 +227,8 @@ namespace kosmos
             failures += ok ? 0 : 1;
         };
         sim.step(0.05);
+        check(std::abs(capture_scenario(sim, "Date test").epoch_jd - sim.universe.julian_date()) < 1.0e-9,
+              "captured scenario retains current date");
         for (const char *id : {"radar-altimeter", "orbit", "surface"})
         {
             const int mode = sim.mfd.mode_by_id(id);
@@ -647,8 +650,432 @@ namespace kosmos
         return failures ? 1 : 0;
     }
 
+    static int run_save_test(Sim &sim, Ship *ship)
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        if (!ship)
+            return 1;
+        const std::string verify_path = sim.props.get_string("/selftest/verify-saved-flight");
+        if (!verify_path.empty())
+        {
+            Scenario reference;
+            std::string error;
+            if (!load_scenario(verify_path, reference, error))
+            {
+                std::fprintf(stderr, "%s\n", error.c_str());
+                return 1;
+            }
+            const ScenarioShip &entry = reference.ships[static_cast<std::size_t>(reference.active)];
+            if (!entry.carry_state || !entry.has_state)
+            {
+                std::fprintf(stderr, "save selftest: missing saved state\n");
+                return 1;
+            }
+            const int body = sim.universe.find(entry.body);
+            if (body < 0)
+                return 1;
+            const sl::FlightBody &parent = *sim.universe.world.body(body);
+            const sl::dvec3 r(entry.state_position[0], entry.state_position[1], entry.state_position[2]);
+            const sl::dvec3 v(entry.state_velocity[0], entry.state_velocity[1], entry.state_velocity[2]);
+            const sl::dquat q(entry.state_orientation[0], entry.state_orientation[1], entry.state_orientation[2], entry.state_orientation[3]);
+            const sl::dvec3 omega(entry.state_angular_velocity[0], entry.state_angular_velocity[1], entry.state_angular_velocity[2]);
+            const ShipCarryState actual = ship->carry_state();
+            check(std::abs(reference.epoch_jd - sim.universe.julian_date()) < 1e-8, "startup date");
+            check(glm::length(ship->body().position - parent.position - r) < 0.01 &&
+                  glm::length(ship->body().velocity - parent.velocity - v) < 0.001, "startup trajectory");
+            check(actual.active_stage == entry.carry_state->active_stage &&
+                  actual.stage_propellant == entry.carry_state->stage_propellant &&
+                  std::abs(actual.rcs_propellant - entry.carry_state->rcs_propellant) < 1e-8,
+                  "startup stage and propellant");
+            check(std::abs(glm::dot(ship->body().orientation, q)) > 1.0 - 1e-9 &&
+                  glm::length(ship->body().angular_velocity - omega) < 1e-9, "startup attitude and angular rate");
+            check(std::abs(actual.gear_position - entry.carry_state->gear_position) < 1e-8 &&
+                  std::abs(actual.mission_time - entry.carry_state->mission_time) < 1e-8,
+                  "startup gear and mission time");
+            std::size_t expected_docks = 0;
+            bool fleet_matches = true;
+            for (std::size_t i = 0; i < reference.ships.size(); ++i)
+            {
+                const ScenarioShip &saved = reference.ships[i];
+                if (saved.dock_to >= 0)
+                    ++expected_docks;
+                if (i >= static_cast<std::size_t>(sim.ship_count()) || !saved.has_state || !saved.carry_state)
+                {
+                    fleet_matches = false;
+                    continue;
+                }
+                const Ship *vessel = sim.ship(static_cast<int>(i));
+                const int parent_id = sim.universe.find(saved.body);
+                if (parent_id < 0)
+                {
+                    fleet_matches = false;
+                    continue;
+                }
+                const sl::FlightBody &p = *sim.universe.world.body(parent_id);
+                const sl::dvec3 r_saved(saved.state_position[0], saved.state_position[1], saved.state_position[2]);
+                const sl::dvec3 v_saved(saved.state_velocity[0], saved.state_velocity[1], saved.state_velocity[2]);
+                fleet_matches = fleet_matches &&
+                    glm::length(vessel->body().position - p.position - r_saved) < 0.01 &&
+                    glm::length(vessel->body().velocity - p.velocity - v_saved) < 0.001 &&
+                    vessel->carry_state().stage_propellant == saved.carry_state->stage_propellant;
+            }
+            check(fleet_matches && sim.nav.dock_links().size() == expected_docks,
+                  "startup fleet trajectory, fuel and dock links");
+            if (actual.has_systems && !actual.systems.components.empty())
+                check(std::abs(actual.systems.components[0].amount - entry.carry_state->systems.components[0].amount) < 1e-8,
+                      "startup systems");
+            std::printf("save startup selftest: %d failure(s)\n", failures);
+            return failures ? 1 : 0;
+        }
+        ShipCarryState changed = ship->carry_state();
+        if (ship->stage_count() > 1)
+            changed.active_stage = 1;
+        for (double &fuel : changed.stage_propellant)
+            fuel *= 0.6;
+        changed.rcs_propellant *= 0.5;
+        changed.gear_position = 0.25;
+        changed.mission_time = 1234.0;
+        if (changed.has_systems && !changed.systems.components.empty())
+            changed.systems.components[0].amount *= 0.5;
+        ship->restore_carry_state(changed);
+        sim.step(0.05);
+        ship->body().angular_velocity = {0.01, -0.02, 0.03};
+        const sl::dvec3 position = ship->body().position;
+        const sl::dvec3 velocity = ship->body().velocity;
+        const sl::dquat orientation = ship->body().orientation;
+        const ShipCarryState expected = ship->carry_state();
+        const std::size_t docks = sim.nav.dock_links().size();
+        const Scenario saved = capture_scenario(sim, "Save test");
+        const std::string output_path = sim.props.get_string("/selftest/write-saved-flight");
+        if (!output_path.empty())
+        {
+            std::string error;
+            if (!save_scenario(output_path, saved, error))
+            {
+                std::fprintf(stderr, "%s\n", error.c_str());
+                return 1;
+            }
+        }
+        Scenario parsed;
+        std::string error;
+        const bool ok = parse_scenario(scenario_to_json(saved), "save-test.json", parsed, error);
+        check(ok, "saved scenario JSON parses");
+        if (!ok)
+        {
+            std::fprintf(stderr, "%s\n", error.c_str());
+            return 1;
+        }
+        check(std::abs(parsed.epoch_jd - sim.universe.julian_date()) < 1e-8, "current date preserved");
+        Ship *restored = app::apply_scenario(sim, parsed, app::TerrainSet{});
+        check(restored != nullptr, "saved scenario restores");
+        if (!restored)
+            return 1;
+        check(sim.nav.dock_links().size() == docks, "dock links preserved");
+        const ShipCarryState actual = restored->carry_state();
+        check(actual.active_stage == expected.active_stage && actual.stage_propellant == expected.stage_propellant,
+              "staging and fuel preserved");
+        check(std::abs(actual.rcs_propellant - expected.rcs_propellant) < 1e-8 &&
+              std::abs(actual.gear_position - expected.gear_position) < 1e-8 &&
+              std::abs(actual.mission_time - expected.mission_time) < 1e-8,
+              "RCS, gear and mission time preserved");
+        check(glm::length(restored->body().position - position) < 0.01 &&
+              glm::length(restored->body().velocity - velocity) < 0.001,
+              "position and velocity preserved");
+        check(std::abs(glm::dot(restored->body().orientation, orientation)) > 1.0 - 1e-9 &&
+              glm::length(restored->body().angular_velocity - sl::dvec3(0.01, -0.02, 0.03)) < 1e-9,
+              "attitude and angular velocity preserved");
+        if (expected.has_systems && !expected.systems.components.empty())
+            check(std::abs(actual.systems.components[0].amount - expected.systems.components[0].amount) < 1e-8,
+                  "systems state preserved");
+        std::printf("save selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
+    static int run_orbitcomp_patched_test(Sim &sim, Ship *ship)
+    {
+        sim.step(0.05);
+        const int mode = sim.mfd.mode_by_id("orbitcomp");
+        const int target = sim.universe.find(sim.props.get_string("/sim/target"));
+        if (!ship || mode < 0 || target < 0)
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: missing ship, target or MFD\n");
+            return 1;
+        }
+        const int origin = ship->telemetry().soi;
+        const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(mode)].table;
+        MfdCanvas canvas;
+        sim.props.set_double("/orbitcomp/page", 3);
+        sol::protected_function draw = table["draw"];
+        sim.lua.execute("");
+        sol::protected_function_result result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: draw: %s\n", error.what());
+            return 1;
+        }
+        sol::optional<sol::table> plan = table["plan"];
+        if (!plan || (plan->get<std::string>("kind") != "ejection" && plan->get<std::string>("kind") != "return"))
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: no ejection or return plan\n");
+            return 1;
+        }
+        const double wait = plan->get<double>("t_burn"), dv = plan->get<double>("dv");
+        sol::protected_function button = table["button"];
+        sim.lua.execute("");
+        result = button(table, 7);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: TO MAN: %s\n", error.what());
+            return 1;
+        }
+        sol::table hooks = table["_test"];
+        sol::protected_function frame_fn = hooks["ship_frame"];
+        sim.lua.execute("");
+        result = frame_fn();
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: frame: %s\n", error.what());
+            return 1;
+        }
+        sol::table frame = result;
+        sol::protected_function node_fn = hooks["compute_node"];
+        sim.lua.execute("");
+        result = node_fn(frame, sol::nil);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: node: %s\n", error.what());
+            return 1;
+        }
+        sol::table node = result;
+        sol::protected_function encounter_fn = hooks["patched_encounter"];
+        sim.lua.execute("");
+        result = encounter_fn(frame, node);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: prediction: %s\n", error.what());
+            return 1;
+        }
+        sol::optional<sol::table> encounter = result;
+        if (!encounter)
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: no encounter prediction\n");
+            return 1;
+        }
+        const double predicted_distance = encounter->get<double>("distance");
+        const double predicted_time = encounter->get<double>("time");
+        if (!std::isfinite(wait) || !std::isfinite(dv) || !std::isfinite(predicted_time) ||
+            !std::isfinite(predicted_distance) || wait < 0.0 || dv <= 0.0 ||
+            predicted_time <= wait || predicted_time > 20.0 * 365.25 * 86400.0)
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: invalid prediction\n");
+            return 1;
+        }
+        std::string why;
+        if (wait > 0.0 && !sim.skip_time(wait, why))
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: departure skip: %s\n", why.c_str());
+            return 1;
+        }
+        const sl::FlightBody &central = *sim.universe.world.body(origin);
+        const auto node_vector = [](const sol::table &t) {
+            return sl::dvec3(t.get<double>(1), t.get<double>(2), t.get<double>(3));
+        };
+        if (const sol::optional<sol::table> geo = (*encounter)["geo"])
+        {
+            const double plotted_distance = glm::length(node_vector(geo->get<sol::table>("ship_at")) -
+                                                        node_vector(geo->get<sol::table>("target_at")));
+            if (std::abs(plotted_distance - predicted_distance) > std::max(1.0, predicted_distance * 1.0e-9))
+            {
+                std::fprintf(stderr, "orbitcomp patched selftest: plot and predicted encounter disagree\n");
+                return 1;
+            }
+        }
+        const double node_position_error = glm::length(ship->body().position - central.position - node_vector(node.get<sol::table>("r")));
+        const double node_velocity_error = glm::length(ship->body().velocity - central.velocity - node_vector(node.get<sol::table>("v")));
+        if (node_position_error > 100.0 || node_velocity_error > 0.1)
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: departure mismatch %.3f m, %.6f m/s\n",
+                         node_position_error, node_velocity_error);
+            return 1;
+        }
+        ship->body().velocity += glm::normalize(ship->body().velocity - central.velocity) * dv;
+        double remaining = predicted_time - wait;
+        while (remaining > 0.0)
+        {
+            double step = 21600.0;
+            if (ship->telemetry().soi == origin)
+            {
+                const sl::FlightBody &centre = *sim.universe.world.body(origin);
+                const double distance = glm::length(ship->body().position - centre.position);
+                const double speed = glm::length(ship->body().velocity - centre.velocity);
+                const double to_boundary = (sim.universe.bodies[static_cast<std::size_t>(origin)].soi - distance) / std::max(speed, 1.0);
+                step = std::clamp(to_boundary * 0.1, 30.0, 3600.0);
+            }
+            else if (target != origin && target != sim.universe.bodies[static_cast<std::size_t>(origin)].parent)
+            {
+                const sl::FlightBody &destination = *sim.universe.world.body(target);
+                const double distance = glm::length(ship->body().position - destination.position);
+                const double speed = glm::length(ship->body().velocity - destination.velocity);
+                const double soi = sim.universe.bodies[static_cast<std::size_t>(target)].soi;
+                if (distance < soi * 2.0)
+                    step = distance > soi ? std::clamp((distance - soi) / std::max(speed, 1.0) * 0.1, 30.0, 3600.0) : 300.0;
+            }
+            step = std::min(step, remaining);
+            if (!sim.skip_time(step, why))
+            {
+                std::fprintf(stderr, "orbitcomp patched selftest: transfer skip: %s\n", why.c_str());
+                return 1;
+            }
+            remaining -= step;
+        }
+        const double actual = glm::length(ship->body().position - sim.universe.position(target));
+        const double error = std::abs(actual - predicted_distance);
+        std::printf("patched prediction: %.3f km at %.3f days, simulator %.3f km, error %.3f km\n",
+                    predicted_distance / km, predicted_time / 86400.0, actual / km, error / km);
+        const bool ok = error < std::max(50000.0, predicted_distance * 0.001);
+        std::printf("orbitcomp patched selftest: %d failure(s)\n", ok ? 0 : 1);
+        return ok ? 0 : 1;
+    }
+
+    static int run_orbitcomp_test(Sim &sim, Ship *ship)
+    {
+        if (sim.props.get_bool("/selftest/orbitcomp-patched"))
+            return run_orbitcomp_patched_test(sim, ship);
+        int failures = 0;
+        const auto check = [&](bool ok, const char *what) {
+            std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+            failures += ok ? 0 : 1;
+        };
+        if (!ship || sim.ship_count() < 2)
+        {
+            std::fprintf(stderr, "orbitcomp selftest: a ship and a target are required\n");
+            return 1;
+        }
+        sim.step(0.05);
+        const int mode = sim.mfd.mode_by_id("orbitcomp");
+        if (mode < 0)
+        {
+            std::fprintf(stderr, "orbitcomp selftest: MFD not found\n");
+            return 1;
+        }
+        const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(mode)].table;
+        sim.props.set_double("/orbitcomp/page", 3);
+        MfdCanvas canvas;
+        sol::protected_function draw = table["draw"];
+        sim.lua.execute("");
+        sol::protected_function_result result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp selftest: %s\n", error.what());
+            return 1;
+        }
+        sol::optional<sol::table> plan = table["plan"];
+        if (!plan || plan->get<std::string>("kind") != "lambert")
+        {
+            std::fprintf(stderr, "orbitcomp selftest: no Lambert plan\n");
+            return 1;
+        }
+        const auto vector = [](const sol::table &t) {
+            return sl::dvec3(t.get<double>(1), t.get<double>(2), t.get<double>(3));
+        };
+        const double wait = plan->get<double>("wait");
+        const double tof = plan->get<double>("tof");
+        const double dv = plan->get<double>("dv");
+        const sl::dvec3 departure = vector(plan->get<sol::table>("r"));
+        const sl::dvec3 velocity = vector(plan->get<sol::table>("v"));
+        const sl::dvec3 delta_v = vector(plan->get<sol::table>("delta_v"));
+        const sl::dvec3 predicted_target = vector(plan->get<sol::table>("target_r"));
+        const double duration = dv * ship->telemetry().mass / ship->main_max_thrust();
+        const bool finite_burn = sim.props.get_bool("/selftest/orbitcomp-finite-burn");
+        const double finite_throttle = 0.1;
+        check(std::abs(sim.props.get_double("/plan/orbitcomp/at") -
+                       (sim.universe.time() + wait - duration / 2.0)) < 1e-5,
+              "published burn start follows the Lambert departure");
+        std::string why;
+        const double finite_duration = duration / finite_throttle;
+        const double coast = finite_burn ? wait - finite_duration / 2.0 : wait;
+        if (coast < 0.0 || (coast > 0.0 && !sim.skip_time(coast, why)))
+        {
+            std::fprintf(stderr, "orbitcomp selftest: departure skip failed: %s\n", why.c_str());
+            return 1;
+        }
+        const int parent = sim.universe.find("Earth");
+        double transfer_coast = tof;
+        if (finite_burn)
+        {
+            const sl::dvec3 direction = glm::normalize(delta_v);
+            const sl::dvec3 up = std::abs(direction.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+            ship->body().orientation = glm::quatLookAt(direction, up);
+            ship->body().angular_velocity = sl::dvec3(0.0);
+            sim.props.set_string("/controls/sas", "attitude");
+            const double initial_fuel = ship->telemetry().stage_fuel;
+            double delivered = 0.0, burn_elapsed = 0.0;
+            const double dt = 0.05;
+            while (delivered < dv && burn_elapsed < finite_duration * 2.0 + 1.0)
+            {
+                sl::dvec3 local_up, east, north;
+                ship->local_frame(local_up, east, north);
+                sim.props.set_double("/controls/target-pitch", std::asin(glm::dot(direction, local_up)) * 180.0 / app::pi);
+                sim.props.set_double("/controls/target-heading", std::atan2(glm::dot(direction, east), glm::dot(direction, north)) * 180.0 / app::pi);
+                const double accel = ship->main_max_thrust() / ship->telemetry().mass;
+                sim.props.set_double("/controls/throttle", std::min(finite_throttle, (dv - delivered) / (accel * dt)));
+                sim.step(dt);
+                delivered += ship->telemetry().thrust / ship->telemetry().mass * dt;
+                burn_elapsed += dt;
+            }
+            sim.props.set_double("/controls/throttle", 0.0);
+            transfer_coast -= burn_elapsed - finite_duration / 2.0;
+            std::printf("finite burn: %.2f s, delivered %.3f m/s, fuel used %.3f kg, final alignment %.5f, angular rate %.5f\n",
+                        burn_elapsed, delivered, initial_fuel - ship->telemetry().stage_fuel,
+                        glm::dot(ship->body().direction_to_world(sl::dvec3(0, 0, -1)), direction),
+                        glm::length(ship->body().angular_velocity));
+            check(std::abs(delivered - dv) < 0.1 && ship->telemetry().stage_fuel < initial_fuel,
+                  "real engine delivers planned delta-v");
+        }
+        else
+        {
+            const sl::FlightBody &body = *sim.universe.world.body(parent);
+            const double position_error = glm::length(ship->body().position - body.position - departure);
+            const double velocity_error = glm::length(ship->body().velocity - body.velocity - velocity);
+            std::printf("departure error: %.3f m, %.6f m/s; wait %.1f s, flight %.1f s, dV %.1f m/s\n",
+                        position_error, velocity_error, wait, tof, dv);
+            check(position_error < 10.0 && velocity_error < 0.01, "planner departure matches simulator coast");
+            ship->body().velocity += delta_v;
+        }
+        if (transfer_coast <= 0.0 || !sim.skip_time(transfer_coast, why))
+        {
+            std::fprintf(stderr, "orbitcomp selftest: transfer skip failed: %s\n", why.c_str());
+            return 1;
+        }
+        const sl::FlightBody &at_arrival = *sim.universe.world.body(parent);
+        const sl::dvec3 target_r = sim.ship(1)->body().position - at_arrival.position;
+        const double target_error = glm::length(target_r - predicted_target);
+        const double miss = glm::length(ship->body().position - sim.ship(1)->body().position);
+        std::printf("target prediction error: %.3f m; %s intercept miss: %.3f m\n",
+                    target_error, finite_burn ? "finite-burn" : "impulsive", miss);
+        check(target_error < (finite_burn ? 100.0 : 10.0), "target prediction matches simulator coast");
+        check(miss < (finite_burn ? 20000.0 : 100.0),
+              finite_burn ? "finite burn reaches within 20 km of target" : "planned impulse intercepts target in simulator");
+        std::printf("orbitcomp selftest: %d failure(s)\n", failures);
+        return failures ? 1 : 0;
+    }
+
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (options.orbitcomp)
+            return run_orbitcomp_test(sim, ship);
+        if (options.save)
+            return run_save_test(sim, ship);
         if (options.timed_burn)
             return run_timed_burn_test(sim, ship);
         if (options.orbital_sas)

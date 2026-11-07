@@ -342,6 +342,8 @@ namespace kosmos::app
             test.orbital_sas = options.selftest_orbital_sas;
             test.ui_windows = options.selftest_ui_windows;
             test.vessel_ascent = options.selftest_vessel_ascent;
+            test.save = options.selftest_save;
+            test.orbitcomp = options.selftest_orbitcomp;
             test.weapons = options.selftest_weapons;
             test.throttle = options.selftest_throttle;
             return kosmos::run_selftest(sim, flown, test);

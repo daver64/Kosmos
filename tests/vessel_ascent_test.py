@@ -33,6 +33,7 @@ def run(args, seconds):
 def main():
     if "--cargo" in sys.argv[2:]:
         scenario = ["--scenario", "shuttle_a_cargo_helsinki"]
+        print("Checking Shuttle-A Helsinki cargo ascent...", flush=True)
         checks = run([*scenario, "--selftest-vessel-ascent"], 1)
         assert "vessel ascent selftest: 0 failure(s)" in checks.stdout, checks.stdout + checks.stderr
         result = run([*scenario, "--set", "/autopilot/vessel-ascent/request=Shuttle-A"], 2700)
@@ -83,6 +84,7 @@ def main():
     else:
         cases = standard + variants + additional
     for profile, args, body, target, heading in cases:
+        print(f"Flying {profile} {args[-1]}: {body}, target {target} km, heading {heading}...", flush=True)
         result = run([*args, "--set", f"/autopilot/vessel-ascent/target-km={target}",
                       "--set", f"/autopilot/vessel-ascent/heading={heading}",
                       "--set", "/autopilot/vessel-ascent/request=" + profile], 1800)
@@ -103,7 +105,7 @@ def main():
         if profile == "Deltaglider" and args[0] == "--ship":
             pressure = [(float(q), float(throttle)) for q, throttle in PRESSURE.findall(result.stdout)]
             assert any(q > 70000 and throttle < 0.999 for q, throttle in pressure), output
-        print(f"{profile} {args[-1]}: {body} orbit {achieved_pe:.1f} x {achieved_ap:.1f} km, fuel {fuel:.0f}")
+        print(f"{profile} {args[-1]}: {body} orbit {achieved_pe:.1f} x {achieved_ap:.1f} km, fuel {fuel:.0f}", flush=True)
 
     if variants_only or additional_only:
         print("vessel_ascent_test selected flights ok")

@@ -1065,9 +1065,9 @@ namespace kosmos
         const Telemetry &t = me->telemetry();
         // "escape" burns to a hyperbolic excess speed and carries on through escape; the default raises the apoapsis.
         const bool escape = props.get_string("/autopilot/burn/mode") == "escape";
-        if ((!t.bound && !escape) || t.max_thrust <= 0.0 || t.mass <= 0.0 || t.soi < 0)
+        if ((!t.bound && !escape) || me->main_max_thrust() <= 0.0 || t.mass <= 0.0 || t.soi < 0)
         {
-            finish("abort", "Burn autopilot stopped: " + std::string(t.max_thrust > 0.0 && t.soi >= 0 ? "not in a bound orbit" : "no thrust available"));
+            finish("abort", "Burn autopilot stopped: " + std::string(me->main_max_thrust() > 0.0 && t.soi >= 0 ? "not in a bound orbit" : "no thrust available"));
             return;
         }
         const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
@@ -1081,7 +1081,7 @@ namespace kosmos
             needed = std::sqrt(vinf * vinf + 2.0 * mu / r);
         }
         const double remaining = std::max(needed - t.orbital_speed, 0.0);
-        const double accel = t.max_thrust / t.mass;
+        const double accel = me->main_max_thrust() / t.mass;
         const double duration = remaining / accel;
         props.set_double("/autopilot/burn/remaining", remaining);
         props.set_double("/autopilot/burn/duration", duration);

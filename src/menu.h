@@ -33,7 +33,7 @@ namespace kosmos
         std::function<void(int)> show_panel; // switch to the flown ship's 2D panel with this index
     };
 
-    /** The scenario as it stands in the sim: each ship's place, captured from its live state. Orbits are saved as circular at the current altitude. */
+    /** Capture ship locations and orbital states, current date, target and radio frequencies. */
     Scenario capture_scenario(Sim &sim, const std::string &name);
 
     /** The Autopilot menu's windows: aircraft modes (heading, altitude, speed, ILS) and spacecraft (ascent, attitude hold, throttle). */

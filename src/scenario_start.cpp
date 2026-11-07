@@ -334,13 +334,41 @@ namespace kosmos::app
             if (!entry.label.empty())
                 ship->name = entry.label;
             ship->skin = entry.skin;
-            apply_ship_systems(*ship, entry);
             if (!entry.landed || entry.altitude > 0.0 || entry.dock_to >= 0)
                 ship->set_gear_position(0.0);
             if (!entry.landed)
                 place_in_space(sim, *ship, entry, body);
             else
                 place_on_ground(sim, sc.id, *ship, entry, body, terrains.find(body));
+            if (entry.carry_state)
+            {
+                const ShipCarryState &saved = *entry.carry_state;
+                const ShipCarryState current = ship->carry_state();
+                if (saved.active_stage < 0 || saved.active_stage >= ship->stage_count() ||
+                    saved.stage_propellant.size() != current.stage_propellant.size() ||
+                    saved.animation_positions.size() != current.animation_positions.size() ||
+                    saved.has_systems != current.has_systems ||
+                    (saved.has_systems &&
+                     (saved.systems.components.size() != current.systems.components.size() ||
+                      saved.systems.vessels.size() != current.systems.vessels.size())))
+                {
+                    std::fprintf(stderr, "kosmos: scenario %s: saved flight state does not match ship \"%s\"\n",
+                                 sc.id.c_str(), entry.ship.c_str());
+                    sim.clear_ships();
+                    return nullptr;
+                }
+                ship->restore_carry_state(saved);
+            }
+            apply_ship_systems(*ship, entry);
+            if (entry.has_state)
+            {
+                const sl::FlightBody &parent = *sim.universe.world.body(body);
+                sl::FlightBody &flight = ship->body();
+                flight.position = parent.position + sl::dvec3(entry.state_position[0], entry.state_position[1], entry.state_position[2]);
+                flight.velocity = parent.velocity + sl::dvec3(entry.state_velocity[0], entry.state_velocity[1], entry.state_velocity[2]);
+                flight.orientation = sl::dquat(entry.state_orientation[0], entry.state_orientation[1], entry.state_orientation[2], entry.state_orientation[3]);
+                flight.angular_velocity = sl::dvec3(entry.state_angular_velocity[0], entry.state_angular_velocity[1], entry.state_angular_velocity[2]);
+            }
         }
         link_docked_ships(sim, sc, spawned);
         if (sim.ship_count() == 0)

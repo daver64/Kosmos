@@ -278,11 +278,19 @@ namespace kosmos
             const double lvl = fed ? t.level : 0.0;
             level += lvl;
             ++count;
-            sum += (what == "thrust" || what == "accel") ? lvl * t.max_thrust : t.isp > 0.0 ? lvl * t.max_thrust / (t.isp * g0) : 0.0;
+            if (what == "max-thrust")
+                sum += fed ? t.max_thrust : 0.0;
+            else
+                sum += (what == "thrust" || what == "accel") ? lvl * t.max_thrust : t.isp > 0.0 ? lvl * t.max_thrust / (t.isp * g0) : 0.0;
         }
         if (what == "accel")
             return b.mass() > 0.0 ? sum / b.mass() : 0.0;
         return what == "level" ? (count ? level / count : 0.0) : sum;
+    }
+
+    double Ship::main_max_thrust() const
+    {
+        return engine_value("main-left", "max-thrust") + engine_value("main-right", "max-thrust");
     }
 
     bool Ship::rcs_dry() const

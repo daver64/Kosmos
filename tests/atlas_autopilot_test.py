@@ -4,12 +4,13 @@
 import json
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "scenarios/CVEL/CVEL-Atlas/atlas_iii_kennedy.json"
-BINARY = ROOT / "build/kosmos"
+BINARY = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build/kosmos"
 REPORT = re.compile(
     r"^t=\s*(\d+).*stage=(\d+) fuel=\s*(\d+).*active=(\d+) docked=(\d+)",
     re.MULTILINE,

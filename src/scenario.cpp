@@ -1,6 +1,7 @@
 #include "scenario.h"
 
 #include "json.hpp"
+#include "ship.h"
 #include "universe.h"
 
 #include <algorithm>
@@ -11,6 +12,56 @@
 
 namespace kosmos
 {
+    namespace
+    {
+        ShipCarryState parse_carry_state(const nlohmann::json &json)
+        {
+            ShipCarryState state;
+            state.active_stage = json.at("active_stage").get<int>();
+            state.stage_propellant = json.at("stage_propellant").get<std::vector<double>>();
+            state.rcs_propellant = json.at("rcs_propellant").get<double>();
+            state.gear_position = json.at("gear_position").get<double>();
+            state.animation_positions = json.at("animation_positions").get<std::vector<double>>();
+            state.health = json.at("health").get<double>();
+            state.shield = json.at("shield").get<double>();
+            state.mission_time = json.value("mission_time", 0.0);
+            if (json.contains("systems"))
+            {
+                state.has_systems = true;
+                const auto &systems = json.at("systems");
+                for (const auto &component : systems.at("components"))
+                    state.systems.components.push_back({component.at("amount").get<double>(),
+                        component.at("age_years").get<double>(), component.at("wear").get<double>(),
+                        component.at("enabled").get<bool>(), component.at("alive").get<bool>()});
+                for (const auto &vessel : systems.at("vessels"))
+                    state.systems.vessels.push_back({vessel.at("o2").get<double>(), vessel.at("n2").get<double>(),
+                        vessel.at("co2").get<double>(), vessel.at("leak_k").get<double>(), vessel.at("health").get<double>()});
+            }
+            return state;
+        }
+
+        nlohmann::json carry_state_to_json(const ShipCarryState &state)
+        {
+            nlohmann::json json = {{"active_stage", state.active_stage}, {"stage_propellant", state.stage_propellant},
+                {"rcs_propellant", state.rcs_propellant}, {"gear_position", state.gear_position},
+                {"animation_positions", state.animation_positions}, {"health", state.health},
+                {"shield", state.shield}, {"mission_time", state.mission_time}};
+            if (state.has_systems)
+            {
+                auto &systems = json["systems"];
+                systems["components"] = nlohmann::json::array();
+                systems["vessels"] = nlohmann::json::array();
+                for (const auto &component : state.systems.components)
+                    systems["components"].push_back({{"amount", component.amount}, {"age_years", component.age_years},
+                        {"wear", component.wear}, {"enabled", component.enabled}, {"alive", component.alive}});
+                for (const auto &vessel : state.systems.vessels)
+                    systems["vessels"].push_back({{"o2", vessel.o2}, {"n2", vessel.n2}, {"co2", vessel.co2},
+                        {"leak_k", vessel.leak_k}, {"health", vessel.health}});
+            }
+            return json;
+        }
+    }
+
     bool parse_scenario(const std::string &text, const std::string &path, Scenario &out, std::string &error)
     {
         nlohmann::json json;
@@ -76,21 +127,6 @@ namespace kosmos
                     s.escape_to = o.value("escape_to", "");
                     s.escape_days = o.value("escape_days", 0.0);
                     s.portal_m = o.value("portal_m", 0.0);
-                    if (js.contains("state"))
-                    {
-                        const nlohmann::json &st = js["state"];
-                        if (st.contains("r") && st.contains("v") && st.contains("q") && st["r"].size() == 3 && st["v"].size() == 3 && st["q"].size() == 4)
-                        {
-                            s.has_state = true;
-                            for (std::size_t k = 0; k < 3; ++k)
-                            {
-                                s.state_position[k] = st["r"][k].get<double>();
-                                s.state_velocity[k] = st["v"][k].get<double>();
-                            }
-                            for (std::size_t k = 0; k < 4; ++k)
-                                s.state_orientation[k] = st["q"][k].get<double>();
-                        }
-                    }
                 }
                 else if (js.contains("surface"))
                 {
@@ -109,6 +145,18 @@ namespace kosmos
                 }
                 else
                     throw std::runtime_error("ship needs \"orbit\" or \"surface\"");
+                if (js.contains("state"))
+                {
+                    const nlohmann::json &st = js.at("state");
+                    s.state_position = st.at("r").get<std::array<double, 3>>();
+                    s.state_velocity = st.at("v").get<std::array<double, 3>>();
+                    s.state_orientation = st.at("q").get<std::array<double, 4>>();
+                    if (st.contains("omega"))
+                        s.state_angular_velocity = st.at("omega").get<std::array<double, 3>>();
+                    s.has_state = true;
+                }
+                if (js.contains("flight_state"))
+                    s.carry_state = std::make_shared<ShipCarryState>(parse_carry_state(js.at("flight_state")));
                 if (js.contains("dock"))
                 {
                     const nlohmann::json &o = js["dock"];
@@ -226,8 +274,6 @@ namespace kosmos
                     js["orbit"]["toward"] = s.toward;
                 if (s.portal_m > 0.0)
                     js["orbit"]["portal_m"] = s.portal_m;
-                if (s.has_state)
-                    js["state"] = {{"r", s.state_position}, {"v", s.state_velocity}, {"q", s.state_orientation}};
                 if (!s.escape_to.empty())
                     {
                     js["orbit"]["escape_to"] = s.escape_to;
@@ -263,6 +309,11 @@ namespace kosmos
                 }
                 js["surface"] = o;
             }
+            if (s.has_state)
+                js["state"] = {{"r", s.state_position}, {"v", s.state_velocity}, {"q", s.state_orientation},
+                               {"omega", s.state_angular_velocity}};
+            if (s.carry_state)
+                js["flight_state"] = carry_state_to_json(*s.carry_state);
             if (s.leak_cm2 > 0.0 || s.battery >= 0.0 || s.rtg_age_years > 0.0 || !s.tanks.empty())
             {
                 nlohmann::json o;

@@ -23,6 +23,8 @@ namespace kosmos
         bool orbital_sas = false;
         bool ui_windows = false;
         bool vessel_ascent = false;
+        bool save = false;
+        bool orbitcomp = false;
         /** Hold this throttle (negative leaves the controls alone). */
         double throttle = -1.0;
     };

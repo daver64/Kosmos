@@ -99,6 +99,7 @@ namespace kosmos
         num("thrust", [this] { return telemetry_.thrust; });
         num("twr", [this] { return telemetry_.twr; });
         num("max-thrust", [this] { return telemetry_.max_thrust; });
+        num("main-max-thrust", [this] { return main_max_thrust(); });
         num("acceleration-g", [this] { return telemetry_.acceleration_g; });
         num("stage-fuel", [this] { return telemetry_.stage_fuel; });
         // Delta-v left in the active stage by the rocket equation, at the stage's thrust-weighted Isp.
