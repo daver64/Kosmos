@@ -117,7 +117,7 @@ namespace kosmos::app
         return text;
     }
 
-    // Land cover is optional per body: it lives in data/landclass/<system>/<body>.
+    // Land cover is optional per body: it lives in data/landclass/<system>/<body> (Sol's Earth ships one).
     static void open_landclass(Sim &sim, const kosmos::Body &b, BodyTerrain &result)
     {
         const std::string where = lower_case(sim.universe.name) + "/" + lower_case(b.name);
@@ -127,7 +127,7 @@ namespace kosmos::app
         {
             auto land = std::make_shared<kosmos::Landclass>();
             std::string land_error;
-            // Local rasters are under import/; the cache stays in data/.
+            // The raw rasters are developer data under import/; the shipped cache stays in data/.
             if (land->open(sim.root() + "/import/landclass/" + where, land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
             {
                 std::fprintf(stderr, "[kosmos] %s land cover: %d x %d cells\n", b.name.c_str(), land->width(), land->height());
@@ -250,17 +250,7 @@ namespace kosmos::app
         }
 
         std::shared_ptr<sl::TerrainSource> source;
-        const auto find_orbiter_layer = [&](const char *layer) {
-            const std::string user = Sim::user_dir();
-            if (!user.empty())
-            {
-                const std::string path = kosmos::OrbiterTree::find_layer(user + "/scenery/import/orbiter", b.name, layer);
-                if (!path.empty())
-                    return path;
-            }
-            return kosmos::OrbiterTree::find_layer(orbiter, b.name, layer);
-        };
-        const std::string elevation = find_orbiter_layer("Elev");
+        const std::string elevation = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Elev");
         if (!elevation.empty())
         {
             // Earth's elevation file includes the sea floor; the sea itself stays flat at zero.
@@ -272,8 +262,8 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), data->error().c_str());
         }
         std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
-        const std::string surface = find_orbiter_layer("Surf");
-        if (!surface.empty())
+        const std::string surface = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Surf");
+        if (source && !surface.empty())
         {
             orbiter_imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
             if (!orbiter_imagery->ok())
@@ -286,7 +276,7 @@ namespace kosmos::app
         for (char &c : lower_name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         std::vector<std::shared_ptr<kosmos::CelestiaImagery>> surface_imagery;
-        const std::string celestia_tiles = find_optional_tile_source(sim.root(), "/import/celestia/hires/" + lower_name);
+        const std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
         const bool generated_ground = b.style.has_ground() && !home;

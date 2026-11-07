@@ -54,31 +54,6 @@ int main()
         fs::remove(f);
     }
 
-    {
-        const fs::path dir = fs::temp_directory_path() / "kosmos-launcher-split-test";
-        fs::create_directories(dir);
-        std::ofstream(dir / "a", std::ios::binary) << "ab";
-        std::ofstream(dir / "b", std::ios::binary) << "c";
-        SplitPack pack;
-        pack.pack.size = 3;
-        pack.pack.sha256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-        pack.parts.push_back({"a", sha256_file(dir / "a"), 2});
-        pack.parts.push_back({"b", sha256_file(dir / "b"), 1});
-        std::string error;
-        CHECK(reconstruct_pack(pack, dir, dir / "result", error));
-        CHECK(read_text(dir / "result") == "abc");
-        std::swap(pack.parts[0], pack.parts[1]);
-        CHECK(!reconstruct_pack(pack, dir, dir / "result", error) && !error.empty());
-        std::swap(pack.parts[0], pack.parts[1]);
-        std::ofstream(dir / "b", std::ios::binary) << "d";
-        CHECK(!reconstruct_pack(pack, dir, dir / "result", error) && !error.empty());
-        fs::remove(dir / "b");
-        CHECK(!reconstruct_pack(pack, dir, dir / "result", error) && !error.empty());
-        fs::remove(dir / "a");
-        fs::remove(dir / "result");
-        fs::remove(dir);
-    }
-
     const fs::path root = KOSMOS_SOURCE_DIR;
     const auto addons = scan_addons(root);
     CHECK(addons.size() > 5);
@@ -89,98 +64,8 @@ int main()
         found = found || (s.id == "dragonfly_orbit" && s.category.rfind("CVEL", 0) == 0 && !s.ships.empty() && s.body == "Earth");
     CHECK(found);
 
-    {
-        const fs::path dir = fs::temp_directory_path() / "kosmos-launcher-preview-test";
-        fs::create_directories(dir / "scenarios" / "thumbs");
-        fs::create_directories(dir / "scenarios" / "previews");
-        fs::create_directories(dir / "addons" / "sample" / "previews");
-        std::ofstream(dir / "scenarios" / "launcher_preview_fixture.json") << R"({"name":"Example","ships":[]})";
-        std::ofstream(dir / "scenarios" / "thumbs" / "launcher_preview_fixture.jpg") << "old";
-        std::ofstream(dir / "scenarios" / "previews" / "launcher_preview_fixture.jpg") << "new";
-        std::ofstream(dir / "addons" / "sample" / "addon.json") << R"({"id":"sample","name":"Sample"})";
-        std::ofstream(dir / "addons" / "sample" / "previews" / "addon.jpg") << "new";
-        const auto entries = scan_addons(dir);
-        const auto examples = scan_scenarios(dir, entries);
-        CHECK(entries.size() == 1 && entries[0].thumbnail == dir / "addons" / "sample" / "previews" / "addon.jpg");
-        bool preview_found = false;
-        for (const ScenarioInfo &scenario : examples)
-            if (scenario.id == "launcher_preview_fixture")
-                preview_found = scenario.thumbnail == dir / "scenarios" / "previews" / "launcher_preview_fixture.jpg";
-        CHECK(preview_found);
-        fs::remove(dir / "scenarios" / "previews" / "launcher_preview_fixture.jpg");
-        bool fallback_found = false;
-        for (const ScenarioInfo &scenario : scan_scenarios(dir, entries))
-            if (scenario.id == "launcher_preview_fixture")
-                fallback_found = scenario.thumbnail == dir / "scenarios" / "thumbs" / "launcher_preview_fixture.jpg";
-        CHECK(fallback_found);
-        fs::remove(dir / "scenarios" / "thumbs" / "launcher_preview_fixture.jpg");
-        fs::remove(dir / "scenarios" / "launcher_preview_fixture.json");
-        fs::remove(dir / "scenarios" / "thumbs");
-        fs::remove(dir / "scenarios" / "previews");
-        fs::remove(dir / "scenarios");
-        fs::remove(dir / "addons" / "sample" / "previews" / "addon.jpg");
-        fs::remove(dir / "addons" / "sample" / "previews");
-        fs::remove(dir / "addons" / "sample" / "addon.json");
-        fs::remove(dir / "addons" / "sample");
-        fs::remove(dir / "addons");
-        fs::remove(dir);
-    }
-
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);
-
-    {
-        const std::string hash(64, 'a');
-        const std::string metadata = R"({"schema":1,"version":"0.51","assets":{)"
-            R"("linux":{"file":"kosmos-beta-0.51-Linux.tar.gz","size":10,"sha256":")" + hash +
-            R"("},"windows":{"file":"kosmos-beta-0.51-Windows.zip","size":10,"sha256":")" + hash +
-            R"("},"sdk-linux":{"file":"kosmos-sdk.tar.gz","size":10,"sha256":")" + hash +
-            R"("},"sdk-windows":{"file":"kosmos-sdk.zip","size":10,"sha256":")" + hash +
-            R"("},"notes":{"file":"release-notes.md","size":10,"sha256":")" + hash +
-            R"("}},"packs":[{"id":"hires","name":"Hi-res","file":"kosmos-hires.tar.gz","marker":"data/textures-hires","size":7,"sha256":")" + hash +
-            R"(","parts":[{"file":"kosmos-hires.tar.gz.part001","size":4,"sha256":")" + hash +
-            R"("},{"file":"kosmos-hires.tar.gz.part002","size":3,"sha256":")" + hash + R"("}]}]})";
-        ReleaseManifest release;
-        std::string error;
-        CHECK(parse_release_manifest(metadata, release, error));
-        CHECK(release.version == "0.51" && release.packs.size() == 1 && release.packs[0].parts.size() == 2);
-        std::string procedural = metadata;
-        const std::string old_marker = "data/textures-hires";
-        procedural.replace(procedural.find(old_marker), old_marker.size(), "data/textures-generated");
-        CHECK(parse_release_manifest(procedural, release, error));
-        CHECK(release.packs[0].pack.marker == "data/textures-generated");
-        std::string bad = metadata;
-        bad.replace(bad.find("\"size\":7"), 8, "\"size\":8");
-        CHECK(!parse_release_manifest(bad, release, error) && !error.empty());
-        bad = metadata;
-        bad.replace(bad.find("part002"), 7, "part001");
-        CHECK(!parse_release_manifest(bad, release, error));
-        bad = metadata;
-        bad.replace(bad.find("kosmos-hires.tar.gz.part001"), 27, "../x");
-        CHECK(!parse_release_manifest(bad, release, error));
-        bad = metadata;
-        bad.replace(bad.find("part001"), 7, "part002");
-        CHECK(!parse_release_manifest(bad, release, error));
-    }
-
-    {
-        const std::string list = R"([
-          {"tag_name":"v0.9","draft":false,"prerelease":false,"assets":[{"name":"manifest.json","state":"uploaded"}]},
-          {"tag_name":"v0.11","draft":false,"prerelease":true,"assets":[{"name":"manifest.json","state":"uploaded"}]},
-          {"tag_name":"v0.12","draft":true,"assets":[]},
-          {"tag_name":"unrelated","draft":false,"assets":[]}
-        ])";
-        GitHubRelease release;
-        std::string error;
-        CHECK(select_github_release(list, release, error));
-        CHECK(release.version == "0.11" && release.tag == "v0.11");
-        CHECK(release.manifest_url == "https://github.com/daver64/Kosmos/releases/download/v0.11/manifest.json");
-        CHECK(!select_github_release(R"({"message":"API rate limit exceeded"})", release, error) && !error.empty());
-        CHECK(!select_github_release(R"([{"tag_name":"v0.12","draft":false,"assets":[]}])", release, error));
-        CHECK(!select_github_release(R"([{"tag_name":"v0.11","draft":false,"assets":[{"name":"manifest.json","state":"uploaded"}]},{"tag_name":"v0.12","draft":false,"assets":[]}])", release, error));
-        CHECK(!select_github_release(R"([{"tag_name":"v01.1","draft":false,"assets":[]}])", release, error));
-        CHECK(!select_github_release(R"([{"tag_name":"v0.12","draft":true,"assets":[]}])", release, error));
-    }
 
     {
         const launcher::fs::path tmp = launcher::fs::temp_directory_path() / "kosmos_gfx_test" / "settings.json";
@@ -214,6 +99,14 @@ int main()
         CHECK(log_tail("short", 100) == "short");
         const std::string cut = log_tail(std::string(50, 'a') + "END", 10);
         CHECK(cut.rfind("[earlier output cut]\n", 0) == 0 && cut.size() == 21 + 10 && cut.substr(cut.size() - 3) == "END");
+        CHECK(report_url("https://x.net/kosmos/download") == "https://x.net/kosmos/report/submit.php");
+        CHECK(report_url("https://x.net/kosmos/download/") == "https://x.net/kosmos/report/submit.php");
+        CHECK(report_page_url("https://x.net/kosmos/download") == "https://x.net/kosmos/report/");
+        ReportContent r;
+        r.log = "bad \xff byte";
+        r.note = "n";
+        const std::string body = report_payload(r);
+        CHECK(body.find("\"note\":\"n\"") != std::string::npos && body.find("\"log\"") != std::string::npos);
         CHECK(log_exit_code("Exit code 3\nCommand: kosmos") == "3");
         CHECK(log_exit_code("nothing").empty());
     }

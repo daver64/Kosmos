@@ -2,16 +2,12 @@
 
 Keep source data separate from the images Kosmos loads at runtime:
 
-The optional locations below can also be placed beneath
-`~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`). Within
-each source type the user copy takes priority over the installation copy.
-
 | Source | Location | Installed output |
 |---|---|---|
 | Celestia texture collections and virtual-tile packs | `import/celestia/` | `data/textures/` for bundled defaults, `data/textures-hires/` for optional single-image overrides |
 | Orbiter archives and `Surf.tree` data | `import/orbiter/` | `data/textures-hires/` for optional converted maps |
 
-The repository contains runtime fallback textures; Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos, Deimos, Rhea, Dione, Tethys, Mimas, Enceladus and Iapetus are NASA images identified in `data/CREDITS-textures.md`. Some NASA mosaics have substantial gaps or seams. Moon, Mercury, Venus, Saturn, Uranus and Neptune use fictional procedural maps; some smaller bodies use generated fallback textures. Earth night lights are not bundled. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. Unverified `data/textures/*_normal.jpg` planetary normal maps are excluded from packages, so those surfaces have no normal-map relief unless a user installs a replacement. The `import/celestia/hires/` source directory, `import/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages. Other assets still require individual provenance review.
+The repository and release contain low-resolution runtime fallback textures. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. The `import/celestia/hires/` source directory, `import/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages.
 
 ## Celestia
 
@@ -22,13 +18,7 @@ python3 tools/celestia_import.py --list
 python3 tools/celestia_import.py
 ```
 
-The default import targets the bundled fallback folder and refuses to replace
-existing files unless `--force` is specified. Use `--out data/textures-hires`
-to install optional overrides without replacing the bundled maps; create that
-output directory first if necessary. Only redistribute imported images when their individual
-terms permit it. The game searches `data/textures-hires/` before Celestia's
-`import/celestia/hires/<body>/` folder, then `data/textures-generated/`,
-then falls back to `data/textures/`.
+Use `--out data/textures-hires` to install optional high-resolution overrides instead. The game searches `data/textures-hires/` before Celestia's `import/celestia/hires/<body>/` folder, then falls back to `data/textures/`.
 
 ### Organizing moon sources
 

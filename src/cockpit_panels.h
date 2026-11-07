@@ -34,7 +34,7 @@ namespace kosmos::app
     bool control_lit(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c);
 
     // Lamps, slider handles and the like are drawn over the panel bitmap, which carries the artwork.
-    void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale, bool scale_text = false);
+    void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale);
 
     // Returns the slider under (px, py) so the caller can keep dragging it, or -1.
     int panel_slider_at(const kosmos::Cockpit &cp, float ox, float oy, float scale, float px, float py);
@@ -43,7 +43,7 @@ namespace kosmos::app
 
     void panel_control_press(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c);
 
-    void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale, bool scale_text = false);
+    void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale);
 
 extern int panel_slider;
 extern int panel_slider_twin;

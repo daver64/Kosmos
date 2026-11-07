@@ -25,10 +25,6 @@ A connection goes: connect, send *hello* (addon id, name, version, the capabilit
 
 ## What is in the SDK
 
-KosmosCAD, ShipEdit and KosmosMission are very early editions with known bugs
-and interface issues. Unless you are specifically testing those tools, edit
-JSON data by hand and use Blender for modelling for now.
-
 | Path | Contents |
 |---|---|
 | `include/kosmos_link.h` | The C99 client API (documented in comments). |
@@ -39,8 +35,8 @@ JSON data by hand and use Blender for modelling for now.
 | `template/` | An addon folder to copy: `addon.json`, a CMake project and `src/main.cpp`. |
 | `kosmosmap/` | KosmosMap, a complete program: a GTK 3 moving map in C++ (about 1,600 lines, Linux) that reads ships and facilities over the link and shades Kosmos's terrain data. Built with the SDK when GTK 3 and zlib are installed; see the worked example below and its `README.md`. |
 | `planetbake/` | planetbake, a standalone tool (source and ready-made binaries in `planetbake/bin/`) that bakes Kosmos's generated worlds into colour, height, normal, specular, night-lights and cloud maps, as PNG or DDS, as images or tile pyramids, from a GTK 3 preview window or the command line, and can open an existing pack to fill gaps, edit tiles in your graphics program and lock them. It uses at most 4 threads. Not a link program; see its `README.md`. |
-| `../sdk/kosmoscad/` | KosmosCAD, a 3D modeller for ships (four OpenGL views, textured view and UV editor, mesh editing, equipment markers) that ShipEdit starts. Not a link program, and it opens only a `ship.json` (another JSON file gets a warning, and File > Close file clears the editor). See the [KosmosCAD manual](https://github.com/daver64/Kosmos/blob/main/docs/manual/kosmoscad.md). |
-| `../sdk/kosmosmission/` | KosmosMission, a mission planner (Linux and Windows) that reads the simulation's bodies and ships and can write an OrbitComp manoeuvre node over KosmosLink. See the [KosmosMission manual](https://github.com/daver64/Kosmos/blob/main/docs/manual/kosmosmission.md). |
+| `../sdk/kosmoscad/` | KosmosCAD, a 3D modeller for ships (four OpenGL views, textured view and UV editor, mesh editing, equipment markers) that ShipEdit starts. Not a link program, and it opens only a `ship.json` (another JSON file gets a warning, and File > Close file clears the editor). See the [KosmosCAD manual](kosmoscad.html). |
+| `../sdk/kosmosmission/` | KosmosMission, a mission planner (Linux and Windows) that reads the simulation's bodies and ships and can write an OrbitComp manoeuvre node over KosmosLink. See the [KosmosMission manual](kosmosmission.html). |
 | `tools/kosmos_link_sim.py` | A mock Kosmos for developing without the game. |
 | `docs/PROTOCOL.md` | The wire protocol, for other languages. |
 

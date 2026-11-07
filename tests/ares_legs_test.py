@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check Ares' landing contacts and, when present, animated mesh feet."""
+"""Check Ares' animated feet and landing contacts against its actual mesh."""
 
 import json
 import math
@@ -29,16 +29,6 @@ def main():
     stage = spec["stages"][0]
     control = next(c for c in spec["animation_controls"] if c["property"] == "legs")
     assert control["initial"] == 0
-    part = stage["parts"][0]
-    if part.get("prop") == "stage":
-        assert len(stage["parts"]) == 1 and "model" not in part
-        contacts = stage["gear"]
-        assert len(contacts) == 4
-        assert all(len(p) == 3 and p[2] == contacts[0][2] and math.hypot(*p[:2]) > part["radius"]
-                   for p in contacts)
-        assert all(any(math.dist((-p[0], -p[1], p[2]), q) < 1e-6 for q in contacts) for p in contacts)
-        print("ares_legs_test ok (procedural placeholder; no animated feet)")
-        return
     animations = json.loads((ADDON / stage["parts"][0]["animations"]).read_text())["animations"]
     vertices, indices = [], {f"Leg{i}Strut": set() for i in range(1, 5)}
     current = ""

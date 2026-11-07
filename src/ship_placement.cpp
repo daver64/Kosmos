@@ -49,9 +49,7 @@ namespace kosmos
                 height += std::fabs(g.position.z) / gear_count;
                 spread += (g.position.x * g.position.x + g.position.y * g.position.y) / gear_count;
             }
-            const double rest_compression = spec_.gear_rest_compression > 0.0 ? spec_.gear_rest_compression :
-                                            (spec_.aircraft() || spec_.ground() ? 0.12 : 0.3);
-            gear_k_ = mass * surface_gravity / (rest_compression * gear_count);
+            gear_k_ = mass * surface_gravity / ((spec_.aircraft() || spec_.ground() ? 0.12 : 0.3) * gear_count);
             if (spread > 1e-6 && !level)
                 gear_k_ = std::max(gear_k_, 6.0 * mass * surface_gravity * height / (gear_count * spread));
             compression = mass * surface_gravity / (gear_count * gear_k_);
@@ -61,8 +59,6 @@ namespace kosmos
                 g.stiffness = gear_k_;
                 g.damping = 1.2 * std::sqrt(gear_k_ * per_gear_mass);
             }
-            if (spec_.gear_rest_compression > 0.0)
-                gear_sized_body_ = body_id;
         }
         b.position = pb.position + up * (planet.radius + ground_height + lowest - compression);
         b.velocity = pb.velocity + glm::cross(pb.spin_axis * planet.spin, b.position - pb.position);

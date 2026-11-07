@@ -16,32 +16,22 @@ namespace kosmos::app
             std::string path;
             if (!body.tiles.empty())
             {
-                const std::string user = kosmos::Sim::user_dir();
-                const std::string relative = "/data/textures-hires/" + body.tiles + "/";
-                const std::vector<std::string> roots = user.empty()
-                    ? std::vector<std::string>{root}
-                    : std::vector<std::string>{user + "/scenery", root};
-                for (const std::string &candidate : roots)
-                {
-                    const std::string folder = candidate + relative;
-                    path = find_texture_in_directory("", folder, "clouds", {".dds", ".png"});
-                    std::error_code ec;
-                    if (path.empty() && fs::is_directory(folder, ec))
-                        for (const fs::directory_entry &entry : fs::directory_iterator(folder, ec))
-                        {
-                            const std::string name = entry.path().filename().string();
-                            if (name.size() > 11 && (name.compare(name.size() - 11, 11, "_clouds.dds") == 0 || name.compare(name.size() - 11, 11, "_clouds.png") == 0))
-                                path = entry.path().string();
-                        }
-                    if (!path.empty())
-                        break;
-                }
+                const std::string folder = root + "/data/textures-hires/" + body.tiles + "/";
+                path = find_texture_in_directory("", folder, "clouds", {".dds", ".png"});
+                std::error_code ec;
+                if (path.empty() && fs::is_directory(folder, ec))
+                    for (const fs::directory_entry &entry : fs::directory_iterator(folder, ec))
+                    {
+                        const std::string name = entry.path().filename().string();
+                        if (name.size() > 11 && (name.compare(name.size() - 11, 11, "_clouds.dds") == 0 || name.compare(name.size() - 11, 11, "_clouds.png") == 0))
+                            path = entry.path().string();
+                    }
             }
             if (path.empty())
             {
                 std::string lower = body.name;
                 std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                path = find_optional_texture(root, "/data/textures-hires/", lower + "_clouds", {".dds", ".png"});
+                path = find_texture_in_directory(root, "/data/textures-hires/", lower + "_clouds", {".dds", ".png"});
             }
             if (path.empty())
                 return nullptr;
@@ -257,17 +247,9 @@ namespace kosmos::app
             }
             sl::Model *shape = nullptr;
             // A mesh under data/textures-hires/ is optional; without it the body stays a sphere.
-            std::string mesh = sim.root() + "/data/" + b.mesh;
-            const std::string user = kosmos::Sim::user_dir();
-            if (!user.empty() && b.mesh.compare(0, 15, "textures-hires/") == 0)
+            if (!b.mesh.empty() && std::filesystem::exists(sim.root() + "/data/" + b.mesh))
             {
-                const std::string candidate = user + "/scenery/data/" + b.mesh;
-                if (std::filesystem::exists(candidate))
-                    mesh = candidate;
-            }
-            if (!b.mesh.empty() && std::filesystem::exists(mesh))
-            {
-                shape = sl::load_model(mesh);
+                shape = sl::load_model(sim.root() + "/data/" + b.mesh);
                 if (!shape || shape->parts.empty() || !shape->parts[0].mesh)
                 {
                     std::fprintf(stderr, "[kosmos] cannot load body mesh %s: %s\n", b.mesh.c_str(), sl::last_error().c_str());
@@ -294,10 +276,10 @@ namespace kosmos::app
                 std::string lower = b.name;
                 for (char &c : lower)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                std::string celestia_normal = find_optional_texture(sim.root(), "/data/textures-hires/", lower + "_normal",
+                std::string celestia_normal = find_texture_in_directory(sim.root(), "/data/textures-hires/", lower + "_normal",
                                                                          {".dds", ".png", ".jpg", ".jpeg"});
                 if (celestia_normal.empty())
-                    celestia_normal = find_optional_image_folder(sim.root(), "/import/celestia/hires/" + lower + "_normal");
+                    celestia_normal = find_image_in_folder(sim.root() + "/import/celestia/hires/" + lower + "_normal");
                 if (celestia_normal.empty())
                     celestia_normal = find_texture_in_directory(sim.root(), "/data/textures/", lower + "_normal",
                                                                  {".dds", ".png", ".jpg", ".jpeg"});
@@ -328,6 +310,7 @@ namespace kosmos::app
             if (home_body >= 0 && (sim.universe.bodies[static_cast<std::size_t>(home_body)].imagery == "celestia" || !pack.empty()))
             {
                 loading.note("Opening the Earth imagery tiles");
+                const std::string hires = sim.root() + "/import/celestia/hires/";
                 sl::PlanetTilesOptions tiles;
                 // Skirts show as bright lines along tile edges from orbit.
                 tiles.skirt = 0.0f;
@@ -336,18 +319,18 @@ namespace kosmos::app
                 tiles.specular_min_roughness = 0.3f;
                 if (!pack.empty())
                 {
-                    const std::string base = "/data/textures-hires/" + pack + "/";
-                    tiles.colour = find_optional_tile_source(sim.root(), base + "colour");
-                    tiles.specular = find_optional_tile_source(sim.root(), base + "specular");
+                    const std::string base = sim.root() + "/data/textures-hires/" + pack + "/";
+                    tiles.colour = find_tile_source(base + "colour");
+                    tiles.specular = find_tile_source(base + "specular");
                     if (!options.no_relief)
-                        tiles.normal = find_optional_tile_source(sim.root(), base + "normal");
+                        tiles.normal = find_tile_source(base + "normal");
                 }
                 else
                 {
-                    tiles.colour = find_optional_tile_source(sim.root(), "/import/celestia/hires/earth");
-                    tiles.specular = find_optional_tile_source(sim.root(), "/import/celestia/hires/earth_specular");
+                    tiles.colour = find_tile_source(hires + "earth");
+                    tiles.specular = find_tile_source(hires + "earth_specular");
                     if (!options.no_relief)
-                        tiles.normal = find_optional_tile_source(sim.root(), "/import/celestia/hires/earth_normal/textures/medres/earth-normals-hs-32k");
+                        tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
                 }
                 if (!tiles.colour.empty())
                 {
@@ -357,7 +340,6 @@ namespace kosmos::app
                 }
                 if (vis.earth_tiles)
                 {
-                    std::fprintf(stderr, "[kosmos] Earth orbital imagery tiles: %s\n", tiles.colour.c_str());
                     const std::size_t index = static_cast<std::size_t>(home_body);
                     if (index < vis.body_textures.size())
                     {
@@ -380,7 +362,7 @@ namespace kosmos::app
         vis.earth_cloud_tiles.reset();
         if (options.no_tiles || options.no_clouds)
             return;
-        const std::string source = find_optional_tile_source(sim.root(), "/data/textures-hires/earth_clouds");
+        const std::string source = find_tile_source(sim.root() + "/data/textures-hires/earth_clouds");
         if (source.empty())
             return;
         sl::PlanetTilesOptions clouds;

@@ -96,7 +96,12 @@
    "engines": [],
    "parts": [
     {
-     "model": "orbiter-models/iss.obj"
+     "model": "models/iss.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
     }
    ]
   }

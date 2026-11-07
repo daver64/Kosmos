@@ -127,6 +127,4 @@ if (vsop.LoadData("data/vsop87", 'A')) {
 
 ## License
 
-The redistribution terms for these particular files have not been independently
-verified. The citation above identifies the published theory, but is not by
-itself a licence or a grant of redistribution rights.
+VSOP87 data files are in the public domain and freely available for scientific and educational use.

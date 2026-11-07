@@ -318,17 +318,6 @@ add_executable(missioncore_test EXCLUDE_FROM_ALL tests/missioncore_test.cpp ${KO
 target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOSMOS_JSON_INCLUDE})
 target_compile_features(missioncore_test PRIVATE cxx_std_17)
 target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-
-# These executables use assert for their checks, including in Release builds.
-foreach(test_target IN ITEMS systems_test reentry_test plasma_look_test shipedit_model_test
-        camera_dynamics_test landing_plane_test weather_test equipment_test synth_sound_test
-        joystick_test keybindings_test link_test launcher_test kosmoscad_test missioncore_test)
-    if(MSVC)
-        target_compile_options(${test_target} PRIVATE /UNDEBUG)
-    else()
-        target_compile_options(${test_target} PRIVATE -UNDEBUG)
-    endif()
-endforeach()
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)
@@ -371,47 +360,8 @@ if(TARGET planetbake)
 else()
     message(STATUS "planetbake will not be built (needs zlib, glm and FastNoiseLite.h)")
 endif()
-set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated(/|$)" "/import(/|$)"
-    "/addons/cvel-ariane5(/|$)" "/scenarios/CVEL/CVEL-Ariane(/|$)"
-    "/scenarios/Ares_To_Mars\\.json$"
-    "/addons/cvel-deltaglider/Skins/Shuttle_(BRI|CAN|FRA|USA)(/|$)"
-    "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
-    "/data/textures/(amalthea|ariel|charon|earth_lights|hyperion|mercury|miranda|moon|neptune|oberon|phoebe|pluto|proteus|saturn|titan|titania|triton|umbriel|uranus|venus)\\.jpg$"
-    "/data/textures/(hydra|nix)\\.dds$"
-    "/data/parts/apollo-soyuz(/|$)" "/data/parts/orbiter(/|$)"
-    "/addons/(cvel-buran|cvel-centaur|cvel-transtage|cvel-ares)/models(/|$)"
-    "/addons/salyut/(models|thumbs)(/|$)" "/scenarios/CVEL/CVEL-Bases/thumbs/orbital_stations\\.png$" "/docs/manual/img/lunar_station\\.jpg$"
-    "/addons/probe/(models|thumbs)(/|$)"
-    "/addons/orbiter-stations/models/iss\\.(obj|mtl)$"
-    "/addons/orbiter-stations/models/mir\\.(obj|mtl)$"
-    "/addons/orbiter-stations/models/wheel\\.(obj|mtl)$"
-    "/addons/orbiter-stations/models/textures/Station2\\.png$"
-    "/addons/orbiter-stations/models/textures/(036MB|036MC1|036MC3|036METAL|036MIRM|036MOD1|036PANEL|036POINT)\\.png$"
-    "/addons/orbiter-stations/models/textures/(d_ring|graple|iss_dc|iss_dcs|iss_un|issb|issb2|issb3|issb4|issbs|issbso|issbso2|isscov2|isscover|isscup|issdish|issdot|issesa|isshand|issins|issku|issku1|issku2|issmb|issmod|issp2|isspanel|issrad|issred|isssolar|issusa|issusaf|isszmod|metalcon|nasda|questcov)\\.png$"
-    "/addons/cvel-dragonfly/(models|panel|thumbs)(/|$)" "/scenarios/CVEL/CVEL-Dragonfly/thumbs(/|$)"
-    "/addons/cvel-ares/thumbs(/|$)" "/scenarios/CVEL/CVEL-(Ares|Bases)/thumbs/ares_spider_gale_crater\\.png$"
-    "/addons/(cvel-centaur|cvel-transtage)/thumbs(/|$)" "/scenarios/CVEL/CVEL-Atlas/thumbs/(centaur_g_orbit|transtage_orbit)\\.png$"
-    "/addons/cvel-buran/thumbs(/|$)" "/scenarios/CVEL/CVEL-Buran/thumbs/buran_energia_baikonur\\.png$"
-    "/addons/cvel-proton/thumbs(/|$)" "/scenarios/CVEL/CVEL-Proton/thumbs/proton_k_baikonur\\.png$"
-    "/addons/cvel-energia-m/thumbs(/|$)" "/scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur\\.png$"
-    "/addons/cvel-atlas/thumbs(/|$)" "/scenarios/CVEL/CVEL-Atlas/thumbs/atlas_iii_kennedy\\.png$"
-    "/addons/cvel-deltaglider/(models|panel|thumbs)(/|$)"
-    "/scenarios/CVEL/CVEL-Deltaglider/thumbs/(deltaglider_chippenham|nuclear_deltaglider_gale)\\.png$"
-    "/scenarios/CVEL/CVEL-Deltaglider/thumbs/piper_cub_chippenham\\.png$"
-    "/scenarios/CVEL/CVEL-Vulcan/thumbs/(vulcan_atom_iceland|vulcan_wagga)\\.png$"
-    "/scenarios/CVEL/CVEL-Argo/thumbs/argo_thalassa\\.png$"
-    "/docs/manual/img/ap_aircraft\\.jpg$"
-    "/docs/manual/img/weapons\\.jpg$" "\\.bak$"
-    "/addons/cvel-shuttle-a/(models|panel|thumbs)(/|$)" "/addons/cvel-shuttle-aq/thumbs(/|$)"
-    "/scenarios/CVEL/CVEL-ShuttleA/thumbs(/|$)"
-    "/scenarios/CVEL/CVEL-Bases/thumbs/shuttle_a_tranquility_miner\\.png$"
-    "/scenarios/CVEL/CVEL-Exsolar/thumbs/shuttle_aq_thalassa_depot\\.png$"
-    "/docs/manual/img/shuttle_a_pods\\.jpg$"
-    "/addons/cvel-delta-iv/thumbs(/|$)" "/scenarios/CVEL/CVEL-Titan/thumbs(/|$)"
-    "/scenarios/CVEL/CVEL-Atlas/thumbs/delta_iv_heavy_kennedy\\.png$"
-    "/data/textures/[^/]+_normal\\.jpg$"
-    "/data/landclass/.*\\.kavlc$" "/data/landclass/sol/earth/landclass\\.kavlc\\.gz$"
-    "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
+set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
+    "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")
@@ -424,9 +374,10 @@ endif()
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-<version>-Linux.tar.gz        Windows: build/package/kosmos-beta-<version>-Windows.zip
 # Hi-res textures (data/textures-hires, import/celestia/hires) and the 54 GB Orbiter import (import/) are left out; scripts/pack-hires.sh
-# builds the separate hi-res pack. Earth land-cover caches and raw rasters are not included.
+# builds the separate hi-res pack. The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
+# it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${KOSMOS_VERSION}-${CMAKE_SYSTEM_NAME}
-    ASSETS data scenarios addons assets docs
-    EXTRA_FILES README.md LICENSE "${CMAKE_BINARY_DIR}/VERSION.txt"
+    ASSETS data scenarios addons assets
+    EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})

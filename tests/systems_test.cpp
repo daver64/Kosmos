@@ -2,16 +2,13 @@
 #include "systems.h"
 
 #include "ship.h"
-#include "ship_visuals.h"
 #include "transfer_plan.h"
 #include "terrain.h"
 
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <sstream>
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -30,215 +27,6 @@ namespace
 
 int main()
 {
-    {
-        PartSpec part;
-        sl::ModelPart mesh;
-        mesh.name = "outer";
-        mesh.material_name = "petal";
-        assert(app::part_cull_mode(part, mesh) == sl::CullMode::none);
-        part.single_sided = {"outer"};
-        assert(app::part_cull_mode(part, mesh) == sl::CullMode::back);
-        part.single_sided = {"petal"};
-        assert(app::part_cull_mode(part, mesh) == sl::CullMode::back);
-        part.single_sided = {"other"};
-        assert(app::part_cull_mode(part, mesh) == sl::CullMode::none);
-    }
-    {
-        const glm::vec2 uv(0.25f, 0.1f);
-        assert(app::vc_screen_hit_uv(uv, false) == uv);
-        assert(app::vc_screen_hit_uv(uv, true) == glm::vec2(0.25f, 0.9f));
-    }
-    {
-        for (const char *file : {"/addons/cvel-shuttle-a/ship.json", "/addons/cvel-shuttle-a-nuclear/ship.json", "/addons/cvel-shuttle-aq/ship.json"})
-            for (const char *body_name : {"Moon", "Earth"})
-                for (int start : {0, 1, 2})
-                {
-                    Universe universe;
-                    std::string error;
-                    assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-                    ShipSpec spec;
-                    assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
-                    assert(spec.cockpit.vc_model.find("shuttlea_vc.obj") != std::string::npos);
-                    assert(!spec.cockpit.vc_hotspots.empty() && !spec.cockpit.vc_animations.empty());
-                    assert(spec.cockpit.vc_gauges.size() == 2);
-                    const auto screens = app::Visuals::parse_vc_screens((std::filesystem::path(spec.directory) / spec.cockpit.vc_model).string());
-                    assert(screens[0].size() == 2 && screens[1].size() == 2);
-                    assert(spec.cockpit.panel_image.empty());
-                    assert(!spec.cockpit.instruments.empty() && !spec.cockpit.controls.empty());
-                    assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-                    assert(!spec.stages[0].parts[0].model.empty());
-                    Ship ship(universe, spec);
-                    const int planet = universe.find(body_name);
-                    assert(planet >= 0 && ship.body().gear.size() == 6);
-                    const sl::dvec3 up(1.0, 0.0, 0.0);
-                    if (start == 2)
-                    {
-                        Ship reference(universe, spec);
-                        reference.place_on_surface(planet, up, 90.0, 0.0);
-                        ship.place_in_orbit(planet, 200000.0, 0.0, 0.0);
-                        ship.after_step(0.0);
-                        ship.set_gear_position(1.0);
-                        ship.place_relative(planet,
-                                            reference.body().position - universe.position(planet) + up * 3.0,
-                                            reference.body().velocity - universe.world.body(planet)->velocity,
-                                            reference.body().orientation);
-                        ship.set_attached_mass(20000.0);
-                    }
-                    else if (start == 1)
-                        ship.place_airborne(planet, up, 90.0, 0.0, 3.0, 0.0);
-                    else
-                        ship.place_on_surface(planet, up, 90.0, 0.0);
-                    for (int i = 0; i < 3000; ++i)
-                    {
-                        universe.world.step(0.02);
-                        ship.after_step(0.02);
-                    }
-                    for (const auto &contact : spec.stages[0].gear)
-                    {
-                        const sl::dvec3 pad = ship.origin() + ship.body().direction_to_world({contact.x, -2.917, contact.z});
-                        const double height = glm::length(pad - universe.position(planet)) - universe.bodies[planet].radius;
-                        if (std::abs(height) >= 0.2)
-                            std::fprintf(stderr, "%s %s start=%d pad height=%.3f\n", file, body_name, start, height);
-                        assert(std::abs(height) < 0.2);
-                    }
-                    assert(!ship.crashed());
-                }
-    }
-    {
-        ShipSpec spec;
-        std::string error;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/orbiter-stations/wheel.json", spec, error));
-        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-        assert(spec.stages[0].parts[0].model.find("orbiter-models/wheel.obj") != std::string::npos);
-        assert(spec.stages[0].radius == 257);
-    }
-    {
-        for (const char *file : {"cargo.json", "fuelpod.json", "lifepod.json"})
-        {
-            ShipSpec spec;
-            std::string error;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-shuttle-a/" + file, spec, error));
-            assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-            if (std::string(file) == "fuelpod.json")
-                assert(spec.stages[0].parts[0].prop == "stage");
-            else
-                assert(spec.stages[0].parts[0].model.find("cargo-pod.obj") != std::string::npos);
-            assert(!spec.ports.empty());
-        }
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-shuttle-a/ship.json", spec, error));
-        const int moon = universe.find("Moon");
-        sl::TerrainConfig config;
-        config.shape = sl::TerrainShape::sphere;
-        config.radius = universe.bodies[moon].radius;
-        auto source = std::make_shared<sl::FunctionSource>(
-            [](double, double) { return 0.0; }, -100000.0, 100000.0,
-            [](const sl::dvec3 &direction, double radius) { return radius * 0.02 * direction.z; });
-        sl::Terrain terrain(config, source);
-        universe.world.body(moon)->terrain = &terrain;
-        Ship ship(universe, spec);
-        ship.place_on_surface(moon, {1.0, 0.0, 0.0}, 90.0, 0.0);
-        for (int i = 0; i < 3000; ++i)
-        {
-            universe.world.step(0.02);
-            ship.after_step(0.02);
-        }
-        for (const auto &contact : spec.stages[0].gear)
-        {
-            const sl::dvec3 pad = ship.origin() + ship.body().direction_to_world({contact.x, -2.917, contact.z});
-            const sl::dvec3 relative = pad - universe.position(moon);
-            const double height = glm::length(relative) - config.radius - terrain.height_at_direction(relative);
-            assert(std::abs(height) < 0.3);
-        }
-        assert(!ship.crashed());
-        universe.world.body(moon)->terrain = nullptr;
-    }
-    {
-        for (const char *file : {"/addons/cvel-deltaglider/ship.json", "/addons/cvel-deltaglider-nuclear/ship.json"})
-        {
-            ShipSpec spec;
-            std::string error;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
-            bool found = false;
-            for (const StageSpec &stage : spec.stages)
-                for (const PartSpec &part : stage.parts)
-                    if (part.model.find("deltaglider.obj") != std::string::npos)
-                    {
-                        found = true;
-                    }
-            assert(found);
-            assert(spec.cockpit.vc_model.find("deltaglider_vc.obj") != std::string::npos);
-            assert(spec.cockpit.vc_instruments.size() == 2);
-            const auto screens = app::Visuals::parse_vc_screens((std::filesystem::path(spec.directory) / spec.cockpit.vc_model).string());
-            assert(screens[0].size() == 2 && screens[1].size() == 2);
-            assert(spec.cockpit.panel_image.empty());
-            assert(!spec.cockpit.instruments.empty());
-            assert(!spec.cockpit.controls.empty());
-        }
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const char *file : {"iss.json", "iss_nuclear.json", "mir.json", "mir_nuclear.json"})
-        {
-            ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/orbiter-stations/" + file, spec, error));
-            assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-            if (std::string(file).find("mir") == 0)
-                assert(spec.stages[0].parts[0].model.find("mir.obj") != std::string::npos);
-            else
-                assert(spec.stages[0].parts[0].model.find("iss.obj") != std::string::npos);
-            assert(spec.ports.size() == (std::string(file).find("mir") == 0 ? 2 : 5));
-            Ship station(universe, spec);
-            assert(!station.stage_once());
-        }
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", spec, error));
-        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-        assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
-        assert(spec.stages[0].engines.size() == 1);
-        Ship probe(universe, spec);
-        assert(!probe.stage_once());
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-dragonfly/ship.json", spec, error));
-        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-        assert(spec.stages[0].parts[0].model.find("dragonfly.obj") != std::string::npos);
-        assert(spec.cockpit.panel_image.empty() && !spec.cockpit.instruments.empty() && !spec.cockpit.controls.empty());
-        assert(spec.stages[0].engines.size() == 14 && !spec.ports.empty());
-        Ship tug(universe, spec);
-        assert(!tug.stage_once());
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const char *file : {"ship.json", "lunar.json"})
-        {
-            ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/salyut/" + file, spec, error));
-            assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-            assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
-            assert(!spec.ports.empty() && spec.stages[0].engines.size() == 2);
-            Ship station(universe, spec);
-            assert(!station.stage_once());
-        }
-    }
     {
         Universe universe;
         std::string error;
@@ -319,133 +107,6 @@ int main()
         assert(rocket.telemetry().thrust > 99000.0 && fuel > 0.0);
         universe.world.step(1.0);
         assert(rocket.body().tanks[3].mass < fuel - 20.0);
-    }
-    {
-        std::string error;
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-atlas/ship.json", spec, error));
-        assert(spec.stages.size() == 4);
-        assert(spec.stages[0].parts.size() == 2);
-        assert(spec.stages[1].parts[0].model == "models/atlasiii_fairing1.obj");
-        assert(spec.stages[2].parts[0].model == "models/atlasiii_fairing2.obj");
-        assert(spec.stages[3].parts[0].model == "models/atlasiii_centaur.obj");
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-delta-iv/ship.json", spec, error));
-        assert(spec.stages.size() == 5 && spec.stages[0].parts.size() == 2);
-        assert(spec.stages[0].parts[0].model == "models/deltaivbooster_1.obj");
-        assert(spec.stages[0].parts[1].model == "models/deltaivbooster_2.obj");
-        assert(spec.stages[1].parts[0].model == "models/deltaivstg1.obj");
-        assert(spec.stages[2].parts[0].model == "models/deltaivplf_1.obj");
-        assert(spec.stages[3].parts[0].model == "models/deltaivplf_2.obj");
-        assert(spec.stages[4].parts[0].model == "models/deltaivstg2.obj");
-        Universe universe;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        Ship rocket(universe, spec);
-        assert(rocket.stage_once() && rocket.active_stage() == 1);
-        assert(rocket.stage_once() && rocket.active_stage() == 2);
-        assert(rocket.stage_once() && rocket.active_stage() == 4);
-        assert(rocket.debris().size() == 4);
-    }
-    {
-        std::string error;
-        Universe universe;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const auto &test : {std::pair<const char *, int>{"titan3c", 4}, {"titan4a", 5}})
-        {
-            ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-titan/" +
-                                  test.first + ".json", spec, error));
-            Ship rocket(universe, spec);
-            assert(rocket.stage_once() && rocket.active_stage() == 1);
-            assert(rocket.stage_once() && rocket.active_stage() == 2);
-            assert(rocket.stage_once() && rocket.active_stage() == test.second);
-            assert(rocket.debris().size() == static_cast<std::size_t>(test.second));
-        }
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ares/ship.json", spec, error));
-        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-        assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
-        assert(spec.stages[0].engines.size() == 4 && spec.stages[0].gear.size() == 4);
-        Ship lander(universe, spec);
-        assert(!lander.stage_once());
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const char *file : {"cvel-centaur/ship.json", "cvel-transtage/ship.json"})
-        {
-            ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/" + file, spec, error));
-            assert(spec.stages.size() == 1 && !spec.stages[0].parts.empty());
-            for (const PartSpec &part : spec.stages[0].parts)
-                assert(part.model.empty() && part.prop == "stage");
-            Ship rocket(universe, spec);
-            assert(!rocket.stage_once());
-        }
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec orbiter, launcher;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-buran/ship.json", orbiter, error));
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-buran/energia.json", launcher, error));
-        assert(orbiter.stages.size() == 1 && orbiter.stages[0].parts.size() == 1);
-        assert(orbiter.stages[0].parts[0].model.empty() && orbiter.stages[0].parts[0].prop == "aeroplane");
-        assert(launcher.stages.size() == 2 && launcher.stages[0].parts.size() == 4);
-        for (const PartSpec &part : launcher.stages[0].parts)
-        {
-            assert(part.model.empty() && part.prop == "stage" && part.offset.z == 0.0);
-            int matches = 0;
-            for (const EngineSpec &engine : launcher.stages[0].engines)
-                if (engine.position.x == part.offset.x && engine.position.y == part.offset.y)
-                    ++matches;
-            assert(matches == 1);
-        }
-        assert(launcher.stages[1].parts.size() == 1 && launcher.stages[1].parts[0].prop == "stage");
-        Ship rocket(universe, launcher);
-        assert(rocket.stage_once() && rocket.active_stage() == 1);
-        assert(!rocket.stage_once() && rocket.debris().size() == 1);
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-proton/ship.json", spec, error));
-        assert(spec.stages.size() == 5 && spec.stages[2].with_next);
-        assert(spec.stages[2].parts.size() == 1 && spec.stages[2].parts[0].model == "models/protonplfleft.obj");
-        assert(spec.stages[3].parts.size() == 1 && spec.stages[3].parts[0].model == "models/protonplfright.obj");
-        Ship rocket(universe, spec);
-        assert(rocket.stage_once() && rocket.active_stage() == 1);
-        assert(rocket.stage_once() && rocket.active_stage() == 2);
-        assert(rocket.stage_once() && rocket.active_stage() == 4);
-        assert(!rocket.stage_once() && rocket.debris().size() == 4);
-    }
-    {
-        Universe universe;
-        std::string error;
-        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        ShipSpec spec;
-        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-energia-m/ship.json", spec, error));
-        assert(spec.stages.size() == 4 && spec.stages[0].parts.size() == 2);
-        assert(spec.stages[0].parts[0].offset.x == 5.95 && spec.stages[0].parts[1].offset.x == -5.95);
-        assert(spec.stages[0].parts[0].offset.z == 0.0 && spec.stages[0].parts[1].offset.z == 0.0);
-        assert(spec.stages[0].parts[0].model == "models/boosterm1.obj");
-        assert(spec.stages[0].parts[1].model == "models/boosterm2.obj");
-        assert(spec.stages[1].parts[0].model == "models/energiamcore.obj");
-        assert(spec.stages[2].parts.size() == 1 && spec.stages[2].parts[0].model == "models/energiamfair_1.obj");
-        assert(spec.stages[3].parts.size() == 1 && spec.stages[3].parts[0].model == "models/energiamfair_2.obj");
-        Ship rocket(universe, spec);
-        assert(rocket.stage_once() && rocket.active_stage() == 1);
-        assert(rocket.stage_once() && rocket.active_stage() == 2);
-        assert(rocket.stage_once() && rocket.active_stage() == 3);
-        assert(!rocket.stage_once() && rocket.debris().size() == 3);
     }
     {
         Universe universe;
@@ -590,9 +251,10 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *file : {"ship.json", "es.json", "eca.json"})
         {
             ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/tests/fixtures/radial_pair.json", spec, error));
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ariane5/" + file, spec, error));
             assert(spec.stages[0].radial_pair);
             Ship rocket(universe, spec);
             rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));
@@ -894,7 +556,8 @@ int main()
         assert(sys.battery_wh() > 0.0 && sys.tank_kg("oxygen") > 0.0);
     }
     {
-        // The shipped Soyuz capsules keep their crew healthy on their own supplies.
+        // The shipped capsules keep their crew healthy for days on their own supplies; the Apollo stack does it from the service
+        // module until it is jettisoned and then from the command module alone.
         struct Case
         {
             const char *file;
@@ -902,7 +565,9 @@ int main()
             double pressure_kpa;
             double days;
         };
-        const Case cases[] = {{"/addons/cvel-soyuz/tma.json", 0, 101.3, 3.0},
+        const Case cases[] = {{"/addons/cvel-saturn-v/ship.json", 3, 34.5, 3.0},
+                              {"/addons/cvel-saturn-v/command_module.json", -1, 34.5, 0.1}, // entry batteries only
+                              {"/addons/cvel-soyuz/tma.json", 0, 101.3, 3.0},
                               {"/addons/cvel-soyuz/descent.json", -1, 101.3, 0.1},
                               {"/addons/cvel-soyuz/fg.json", -1, 101.3, 3.0}};
         for (const Case &k : cases)

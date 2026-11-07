@@ -853,7 +853,6 @@ namespace kosmos::app
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
                                 mp.material.fog = false;
-                                mp.material.cull = sl::CullMode::none;
                             }
                             else if (const std::size_t gi = [&]() -> std::size_t {
                                          for (std::size_t g = 0; g < cp.vc_gauges.size(); ++g)
@@ -881,8 +880,7 @@ namespace kosmos::app
                                 // Orbiter cockpits are ambient lit, so the sun-facing shading would leave the interior black.
                                 mp.material.lit = false;
                                 mp.material.fog = false;
-                                const bool glass = mp.name.find("glass") != std::string::npos || mp.name.find("visor") != std::string::npos ||
-                                                   mp.material_name.find("glass") != std::string::npos || mp.material_name.find("visor") != std::string::npos;
+                                const bool glass = mp.name.find("glass") != std::string::npos || mp.name.find("visor") != std::string::npos;
                                 const bool hidden = false;
                                 // The loader drops Kd, so plain materials would come out white.
                                 const Uint8 level = mp.material.texture ? 217 : 100;

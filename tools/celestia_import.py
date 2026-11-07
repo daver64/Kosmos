@@ -6,7 +6,7 @@ one available, so a moon with only a 512 x 256 image still gets a texture. Bodie
 (earth.dds, moon.dds, ...) are left alone because the loader prefers .dds.
 
 Usage:
-    celestia_import.py [--src import/celestia] [--out data/textures] [--list] [--force]
+    celestia_import.py [--src import/celestia] [--out data/textures] [--list]
 """
 import argparse
 import os
@@ -34,16 +34,10 @@ def best_source(src, stem):
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=os.path.join(here, "..", "import", "celestia"))
+    ap.add_argument("--src", default=os.path.join(here, "..", "data", "celestia"))
     ap.add_argument("--out", default=os.path.join(here, "..", "data", "textures"))
     ap.add_argument("--list", action="store_true", help="show what would be copied")
-    ap.add_argument("--force", action="store_true", help="replace existing destination files")
     args = ap.parse_args()
-    if not os.path.isdir(args.src):
-        ap.error(f"source directory not found: {args.src}")
-    if not os.path.isdir(args.out):
-        ap.error(f"output directory not found: {args.out}")
-    copies = []
     for body, stem in sorted(BODIES.items()):
         source = best_source(args.src, stem)
         if not source:
@@ -51,12 +45,7 @@ def main():
             continue
         dest = os.path.join(args.out, body + ".jpg")
         print(f"{body}: {os.path.relpath(source, args.src)} -> {os.path.relpath(dest, args.out)}")
-        copies.append((source, dest))
-    if not args.list:
-        existing = [dest for _, dest in copies if os.path.lexists(dest)]
-        if existing and not args.force:
-            ap.error(f"destination exists: {existing[0]} (use --force to replace existing files)")
-        for source, dest in copies:
+        if not args.list:
             shutil.copyfile(source, dest)
 
 

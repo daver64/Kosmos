@@ -20,12 +20,6 @@ namespace kosmos::app
     std::string find_texture_in_directory(const std::string &root, const std::string &directory, const std::string &name,
                                           std::initializer_list<const char *> extensions);
 
-    // User scenery overrides matching optional paths in the installation.
-    std::string find_optional_texture(const std::string &root, const std::string &directory, const std::string &name,
-                                      std::initializer_list<const char *> extensions);
-    std::string find_optional_tile_source(const std::string &root, const std::string &directory);
-    std::string find_optional_image_folder(const std::string &root, const std::string &directory, const std::string &prefer = {});
-
     // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
     std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions);
 

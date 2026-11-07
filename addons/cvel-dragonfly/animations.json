@@ -5,7 +5,7 @@
    "type": "rotate",
    "property": "dock-latch",
    "objects": [
-    "group52"
+    "Latch_L"
    ],
    "axis": [
     0,
@@ -36,7 +36,7 @@
    "type": "rotate",
    "property": "dock-latch",
    "objects": [
-    "group53"
+    "Latch_R"
    ],
    "axis": [
     0,
@@ -67,7 +67,7 @@
    "type": "translate",
    "property": "dock-latch",
    "objects": [
-    "group55"
+    "Latch_Slide"
    ],
    "axis": [
     0,
@@ -93,8 +93,8 @@
    "type": "rotate",
    "property": "ant-u-yaw",
    "objects": [
-    "group60",
-    "group105"
+    "AntU_a",
+    "AntU_b"
    ],
    "axis": [
     0,
@@ -121,8 +121,8 @@
    "type": "rotate",
    "property": "ant-u-pitch",
    "objects": [
-    "group60",
-    "group105"
+    "AntU_a",
+    "AntU_b"
    ],
    "axis": [
     1,
@@ -149,8 +149,8 @@
    "type": "rotate",
    "property": "ant-l-yaw",
    "objects": [
-    "group61",
-    "group106"
+    "AntL_a",
+    "AntL_b"
    ],
    "axis": [
     0,
@@ -177,8 +177,8 @@
    "type": "rotate",
    "property": "ant-l-pitch",
    "objects": [
-    "group61",
-    "group106"
+    "AntL_a",
+    "AntL_b"
    ],
    "axis": [
     1,

@@ -9,8 +9,6 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
-#include <limits>
-#include <set>
 #include <sstream>
 
 namespace launcher
@@ -37,16 +35,6 @@ namespace launcher
             return j.is_object() && j.contains(key) && j[key].is_string() ? j[key].get<std::string>() : std::string();
         }
 
-        bool release_version(const std::string &version)
-        {
-            const auto dot = version.find('.');
-            if (dot == std::string::npos || dot == 0 || dot > 9 || version.size() - dot - 1 == 0 ||
-                version.size() - dot - 1 > 9 || version.find('.', dot + 1) != std::string::npos ||
-                version.find_first_not_of("0123456789.") != std::string::npos)
-                return false;
-            return (dot == 1 || version[0] != '0') && (version.size() - dot - 1 == 1 || version[dot + 1] != '0');
-        }
-
         fs::path existing(const fs::path &base, const std::string &name)
         {
             if (name.empty())
@@ -58,15 +46,12 @@ namespace launcher
 
         fs::path guess_thumbnail(const fs::path &dir, const std::string &stem)
         {
-            for (const char *folder : {"previews", "thumbs"})
+            for (const char *ext : {".png", ".jpg"})
             {
-                for (const char *ext : {".png", ".jpg"})
-                {
-                    std::error_code ec;
-                    const fs::path p = dir / folder / (stem + ext);
-                    if (fs::is_regular_file(p, ec))
-                        return p;
-                }
+                std::error_code ec;
+                const fs::path p = dir / "thumbs" / (stem + ext);
+                if (fs::is_regular_file(p, ec))
+                    return p;
             }
             return {};
         }
@@ -317,194 +302,6 @@ namespace launcher
         return out;
     }
 
-    bool parse_release_manifest(const std::string &text, ReleaseManifest &manifest, std::string &error)
-    {
-        const nlohmann::json j = nlohmann::json::parse(text, nullptr, false);
-        auto fail = [&](const std::string &message) {
-            error = message;
-            return false;
-        };
-        auto valid_name = [](const std::string &name) {
-            return !name.empty() && name != "." && name != ".." &&
-                   name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") == std::string::npos;
-        };
-        auto valid_hash = [](const std::string &hash) {
-            return hash.size() == 64 && hash.find_first_not_of("0123456789abcdef") == std::string::npos;
-        };
-        auto valid_size = [](const nlohmann::json &value) {
-            return value.is_number_integer() &&
-                   (!value.is_number_unsigned() || value.get<std::uint64_t>() <= static_cast<std::uint64_t>(std::numeric_limits<long long>::max()));
-        };
-        auto asset = [&](const nlohmann::json &value, ReleaseAsset &out) {
-            if (!value.is_object() || !value.contains("size") || !valid_size(value["size"]))
-                return false;
-            out.file = str(value, "file");
-            out.sha256 = str(value, "sha256");
-            out.size = value["size"].get<long long>();
-            return valid_name(out.file) && valid_hash(out.sha256) && out.size > 0 && out.size < (2LL << 30);
-        };
-        if (!j.is_object() || !j.contains("schema") || j["schema"] != 1 || !j.contains("assets") ||
-            !j["assets"].is_object() || !j.contains("packs") || !j["packs"].is_array())
-            return fail("Invalid release manifest schema");
-        ReleaseManifest result;
-        result.version = str(j, "version");
-        const std::string &version = result.version;
-        if (!release_version(version))
-            return fail("Invalid release version");
-        const auto &assets = j["assets"];
-        if (!assets.contains("linux") || !assets.contains("windows") || !assets.contains("sdk-linux") ||
-            !assets.contains("sdk-windows") || !assets.contains("notes") ||
-            !asset(assets["linux"], result.linux_archive) || !asset(assets["windows"], result.windows_archive) ||
-            !asset(assets["sdk-linux"], result.sdk_linux) || !asset(assets["sdk-windows"], result.sdk_windows) ||
-            !asset(assets["notes"], result.notes) ||
-            result.linux_archive.file != "kosmos-beta-" + version + "-Linux.tar.gz" ||
-            result.windows_archive.file != "kosmos-beta-" + version + "-Windows.zip" ||
-            result.sdk_linux.file != "kosmos-sdk.tar.gz" || result.sdk_windows.file != "kosmos-sdk.zip" ||
-            result.notes.file != "release-notes.md" || result.notes.size > 10 * 1024 * 1024)
-            return fail("Invalid release assets");
-        std::set<std::string> files{result.linux_archive.file, result.windows_archive.file, result.sdk_linux.file,
-                                    result.sdk_windows.file, result.notes.file};
-        if (files.size() != 5 || j["packs"].size() != 1)
-            return fail("Duplicate release asset");
-        std::set<std::string> ids;
-        for (const auto &entry : j["packs"])
-        {
-            if (!entry.is_object() || !entry.contains("size") || !valid_size(entry["size"]) ||
-                !entry.contains("parts") || !entry["parts"].is_array() || entry["parts"].empty() ||
-                entry["parts"].size() > 990)
-                return fail("Invalid pack metadata");
-            SplitPack pack;
-            pack.pack.id = str(entry, "id");
-            pack.pack.name = str(entry, "name");
-            pack.pack.description = str(entry, "description");
-            pack.pack.file = str(entry, "file");
-            pack.pack.sha256 = str(entry, "sha256");
-            pack.pack.marker = str(entry, "marker");
-            pack.pack.size = entry["size"].get<long long>();
-            if (pack.pack.id != "hires" || !ids.insert(pack.pack.id).second || pack.pack.file != "kosmos-hires.tar.gz" ||
-                !valid_hash(pack.pack.sha256) || pack.pack.size <= 0 ||
-                (pack.pack.marker != "data/textures-hires" && pack.pack.marker != "data/textures-generated"))
-                return fail("Invalid pack details");
-            long long total = 0;
-            for (const auto &part_json : entry["parts"])
-            {
-                ReleaseAsset part;
-                char suffix[16];
-                std::snprintf(suffix, sizeof(suffix), ".part%03zu", pack.parts.size() + 1);
-                if (!asset(part_json, part) || !files.insert(part.file).second ||
-                    part.file != pack.pack.file + suffix ||
-                    total > std::numeric_limits<long long>::max() - part.size)
-                    return fail("Invalid or duplicate pack part");
-                total += part.size;
-                pack.parts.push_back(std::move(part));
-            }
-            if (total != pack.pack.size)
-                return fail("Pack part sizes do not match");
-            result.packs.push_back(std::move(pack));
-        }
-        manifest = std::move(result);
-        error.clear();
-        return true;
-    }
-
-    bool select_github_release(const std::string &text, GitHubRelease &release, std::string &error)
-    {
-        const nlohmann::json list = nlohmann::json::parse(text, nullptr, false);
-        if (!list.is_array())
-        {
-            error = "Invalid GitHub releases response";
-            return false;
-        }
-        GitHubRelease result;
-        bool has_manifest = false;
-        for (const auto &entry : list)
-        {
-            if (!entry.is_object() || !entry.contains("draft") || !entry["draft"].is_boolean())
-            {
-                error = "Invalid GitHub release entry";
-                return false;
-            }
-            if (entry["draft"].get<bool>())
-                continue;
-            const std::string tag = str(entry, "tag_name");
-            if (tag.size() < 2 || tag[0] != 'v' || !release_version(tag.substr(1)))
-                continue;
-            const std::string version = tag.substr(1);
-            if (!result.version.empty() && !version_newer(version, result.version))
-                continue;
-            if (!entry.contains("assets") || !entry["assets"].is_array())
-            {
-                error = "Missing GitHub release assets";
-                return false;
-            }
-            result.version = version;
-            result.tag = tag;
-            has_manifest = false;
-            for (const auto &asset : entry["assets"])
-                if (str(asset, "name") == "manifest.json" && str(asset, "state") == "uploaded")
-                    has_manifest = true;
-        }
-        if (result.version.empty())
-        {
-            error = "No published Kosmos release found";
-            return false;
-        }
-        if (!has_manifest)
-        {
-            error = "Newest Kosmos release is missing manifest.json";
-            return false;
-        }
-        result.manifest_url = "https://github.com/daver64/Kosmos/releases/download/" + result.tag + "/manifest.json";
-        release = std::move(result);
-        error.clear();
-        return true;
-    }
-
-    bool reconstruct_pack(const SplitPack &pack, const fs::path &directory, const fs::path &archive, std::string &error)
-    {
-        auto fail = [&](const std::string &message) {
-            error = message;
-            return false;
-        };
-        std::error_code ec;
-        for (const ReleaseAsset &part : pack.parts)
-        {
-            const fs::path path = directory / part.file;
-            const auto size = fs::file_size(path, ec);
-            if (ec || size != static_cast<std::uintmax_t>(part.size))
-                return fail("Missing or incomplete pack part: " + part.file);
-            if (sha256_file(path) != part.sha256)
-                return fail("Checksum mismatch for pack part: " + part.file);
-        }
-        std::ofstream out(archive, std::ios::binary | std::ios::trunc);
-        if (!out)
-            return fail("Cannot create reconstructed archive");
-        std::vector<char> buffer(1024 * 1024);
-        for (const ReleaseAsset &part : pack.parts)
-        {
-            std::ifstream in(directory / part.file, std::ios::binary);
-            if (!in)
-                return fail("Cannot read pack part: " + part.file);
-            while (in)
-            {
-                in.read(buffer.data(), buffer.size());
-                out.write(buffer.data(), in.gcount());
-                if (!out)
-                    return fail("Cannot write reconstructed archive (check disk space)");
-            }
-            if (!in.eof())
-                return fail("Error reading pack part: " + part.file);
-        }
-        out.close();
-        if (!out)
-            return fail("Cannot finish reconstructed archive (check disk space)");
-        const auto size = fs::file_size(archive, ec);
-        if (ec || size != static_cast<std::uintmax_t>(pack.pack.size) || sha256_file(archive) != pack.pack.sha256)
-            return fail("Reconstructed archive checksum or size does not match");
-        error.clear();
-        return true;
-    }
-
     Profile load_profile()
     {
         Profile p;
@@ -520,6 +317,7 @@ namespace launcher
         p.world_texture = j.value("world_texture", p.world_texture);
         p.extra_args = j.value("extra_args", p.extra_args);
         p.last_scenario = j.value("last_scenario", p.last_scenario);
+        p.server = j.value("server", p.server);
         return p;
     }
 
@@ -537,6 +335,7 @@ namespace launcher
         j["world_texture"] = p.world_texture;
         j["extra_args"] = p.extra_args;
         j["last_scenario"] = p.last_scenario;
+        j["server"] = p.server;
         std::ofstream out(user / "launcher.json");
         out << j.dump(2) << "\n";
         return static_cast<bool>(out);
@@ -708,8 +507,6 @@ namespace launcher
                 tail_len = got - pos;
             }
         }
-        if (!in.eof())
-            return {};
         tail[tail_len++] = 0x80;
         const size_t pad_to = tail_len > 56 ? 128 : 64;
         std::memset(tail + tail_len, 0, pad_to - tail_len);
@@ -805,6 +602,16 @@ namespace launcher
             return cut == std::string::npos ? home : home.substr(cut + 1);
         }
 
+        std::string server_base(const std::string &server)
+        {
+            std::string base = server;
+            while (!base.empty() && base.back() == '/')
+                base.pop_back();
+            const std::string tail = "/download";
+            if (base.size() >= tail.size() && base.compare(base.size() - tail.size(), tail.size(), tail) == 0)
+                base.resize(base.size() - tail.size());
+            return base;
+        }
     } // namespace
 
     std::string scrub_paths(const std::string &text, const std::string &home)
@@ -834,6 +641,25 @@ namespace launcher
         while (start < text.size() && (static_cast<unsigned char>(text[start]) & 0xC0) == 0x80)
             ++start; // do not begin in the middle of a UTF-8 sequence
         return "[earlier output cut]\n" + text.substr(start);
+    }
+
+    std::string report_url(const std::string &server) { return server_base(server) + "/report/submit.php"; }
+
+    std::string report_page_url(const std::string &server) { return server_base(server) + "/report/"; }
+
+    std::string report_payload(const ReportContent &r)
+    {
+        nlohmann::json j;
+        j["log"] = r.log;
+        j["info"] = r.info;
+        j["options"] = r.options;
+        j["note"] = r.note;
+        j["contact"] = r.contact;
+        j["kosmos"] = r.kosmos;
+        j["launcher"] = r.launcher;
+        j["exit_code"] = r.exit_code;
+        j["scenario"] = r.scenario;
+        return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
 
     std::string log_exit_code(const std::string &log)

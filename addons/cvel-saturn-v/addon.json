@@ -1,6 +1,0 @@
-{
-  "id": "cvel-saturn-v",
-  "name": "CVEL Saturn V (Apollo)",
-  "version": "0.1",
-  "ships": ["ship.json", "command_module.json", "payload.json"]
-}

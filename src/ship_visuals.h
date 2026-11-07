@@ -4,7 +4,6 @@
 #include "procedural.h"
 
 #include <array>
-#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -16,21 +15,8 @@ namespace kosmos::app
     // A props-library part moved into the ship frame: the prop's +Y becomes the nose direction (-Z) and its +Z umbilical faces +Y.
     sl::Mesh *make_prop_mesh(const kosmos::PartSpec &part);
 
-    inline glm::vec2 vc_screen_hit_uv(glm::vec2 uv, bool flipped)
-    {
-        return {uv.x, flipped ? 1.0f - uv.y : uv.y};
-    }
-
     // A profile of revolution about Z as mesh data, in the part's colour; the same shape the lathe draws.
     sl::MeshData make_lathe_data(const kosmos::PartSpec &part, int segments = 28);
-
-    inline sl::CullMode part_cull_mode(const kosmos::PartSpec &part, const sl::ModelPart &model_part)
-    {
-        const auto &names = part.single_sided;
-        return std::find(names.begin(), names.end(), model_part.name) != names.end() ||
-                       std::find(names.begin(), names.end(), model_part.material_name) != names.end()
-                   ? sl::CullMode::back : sl::CullMode::none;
-    }
 
     struct Visuals
     {
@@ -261,7 +247,7 @@ namespace kosmos::app
             if (loaded.model)
                 for (sl::ModelPart &mp : loaded.model->parts)
                 {
-                    mp.material.cull = part_cull_mode(part, mp);
+                    mp.material.cull = sl::CullMode::none; // Orbiter draws meshes double-sided and many are not closed
                     if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
                         mp.visible = false; // systems markers, not geometry
                 }

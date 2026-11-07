@@ -451,7 +451,7 @@
    ],
    "parts": [
     {
-     "model": "orbiter-models/dragonfly.obj",
+     "model": "models/dragonfly.obj",
      "animations": "animations.json"
     }
    ]
@@ -496,6 +496,7 @@
    "name": "Main panel",
    "width": 920,
    "height": 300,
+   "image": "panel/panel1.png",
    "size": 0.8,
    "position": [
     0,

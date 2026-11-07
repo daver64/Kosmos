@@ -1031,14 +1031,9 @@ namespace kosmos::app
         camera.target = ship_rel;
         camera.up = glm::vec3(up);
         camera.field_of_view = static_cast<float>(view_fov);
-        const auto stage_extent = [](const kosmos::StageSpec &st)
-        {
-            const double axial = std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5));
-            return std::hypot(axial, st.radius) + 6.0;
-        };
         double extent = 4.0;
         for (const kosmos::StageSpec &st : ship->spec().stages)
-            extent = std::max(extent, stage_extent(st));
+            extent = std::max(extent, std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
         // Ships close by (a docked pair, say) reach out from the piloted ship's origin by their offset plus their own length.
         for (int si = 0; si < sim.ship_count(); ++si)
         {
@@ -1049,7 +1044,7 @@ namespace kosmos::app
             if (offset > 300.0)
                 continue;
             for (const kosmos::StageSpec &st : other->spec().stages)
-                extent = std::max(extent, offset + stage_extent(st));
+                extent = std::max(extent, offset + std::max(std::fabs(st.z - st.length * 0.5), std::fabs(st.z + st.length * 0.5)) + 6.0);
         }
         eye_soi_altitude = glm::length(eye_world - soi_pos) - soi_body.radius;
         const double nearest_ground = std::max(1.0, 0.5 * (eye_soi_altitude - 10.0e3));

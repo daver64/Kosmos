@@ -644,23 +644,6 @@ namespace kosmos
     void Ship::after_step(double dt)
     {
         update_telemetry();
-        if (spec_.gear_rest_compression > 0.0 && telemetry_.soi != gear_sized_body_ && !body().gear.empty())
-        {
-            const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
-            const double mass = body().mass();
-            const double count = static_cast<double>(body().gear.size());
-            const double gravity = planet.gm / (planet.radius * planet.radius);
-            if (gravity > 0.0 && mass > 0.0)
-            {
-                gear_k_ = mass * gravity / (spec_.gear_rest_compression * count);
-                for (sl::GearContact &gear : body().gear)
-                {
-                    gear.stiffness = gear_k_;
-                    gear.damping = 1.2 * std::sqrt(gear_k_ * mass / count);
-                }
-                gear_sized_body_ = telemetry_.soi;
-            }
-        }
         step_systems(dt);
 
         // A building is part of the ground: held there from the first step, with no flight.

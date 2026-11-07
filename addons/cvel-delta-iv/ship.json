@@ -2,13 +2,7 @@
  "name": "CVEL Delta IV Heavy",
  "class": "launcher",
  "payload_bays": [
-  {
-   "name": "Fairing",
-   "shape": "cylinder",
-   "radius": 2.4,
-   "length": 14,
-   "port": "Payload"
-  }
+  {"name": "Fairing", "shape": "cylinder", "radius": 2.4, "length": 14, "port": "Payload"}
  ],
  "script": "@launcher.lua",
  "pad_turn": 0,
@@ -217,7 +211,11 @@
    "parts": [
     {
      "model": "models/deltaivstg1.obj",
-     "offset": [0, 0, 0]
+     "offset": [
+      0,
+      0,
+      0
+     ]
     }
    ]
   },
@@ -239,7 +237,11 @@
    "parts": [
     {
      "model": "models/deltaivplf_1.obj",
-     "offset": [0, 0, -29.1]
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
     }
    ]
   },
@@ -260,7 +262,11 @@
    "parts": [
     {
      "model": "models/deltaivplf_2.obj",
-     "offset": [0, 0, -29.1]
+     "offset": [
+      0,
+      0,
+      -29.1
+     ]
     }
    ]
   },
@@ -297,7 +303,11 @@
    "parts": [
     {
      "model": "models/deltaivstg2.obj",
-     "offset": [0, 0, -24.2]
+     "offset": [
+      0,
+      0,
+      -24.2
+     ]
     }
    ]
   }

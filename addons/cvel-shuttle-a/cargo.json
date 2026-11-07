@@ -74,7 +74,7 @@
    ],
    "parts": [
     {
-     "model": "orbiter-models/cargo-pod.obj"
+     "model": "models/cargopod.obj"
     }
    ]
   }

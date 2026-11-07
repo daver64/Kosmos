@@ -1,6 +1,5 @@
 #!/bin/sh
 # Packs the hi-res textures (not in git) into one archive for other developers.
-# Main Belt Asteroids add-on assets are excluded: their redistribution is not cleared.
 # Usage: pack-hires.sh [--sources] [--no-procedural] [--xz] [OUTPUT]
 #   --sources        also include import/celestia/hires, the Celestia imagery the textures are built from (large)
 #   --no-procedural  leave out textures-hires/procedural, which tools/gen_textures.py can regenerate
@@ -26,17 +25,9 @@ set -- data/textures-hires data/CREDITS-textures.md
 [ $sources -eq 1 ] && [ -d import/celestia/hires ] && set -- "$@" import/celestia/hires
 
 if [ $procedural -eq 0 ]; then
-    set -- --exclude=data/textures-hires/procedural "$@"
+    tar $flag -cf "$out" --exclude=data/textures-hires/procedural "$@"
+else
+    tar $flag -cf "$out" "$@"
 fi
-tar $flag -cf "$out" \
-    --exclude=data/textures-hires/gaspra.dds \
-    --exclude=data/textures-hires/ida.dds \
-    --exclude=data/textures-hires/kleopatra.dds \
-    --exclude=data/textures-hires/toutatis.dds \
-    --exclude=data/textures-hires/bodies/gaspra.obj \
-    --exclude=data/textures-hires/bodies/ida.obj \
-    --exclude=data/textures-hires/bodies/kleopatra.obj \
-    --exclude=data/textures-hires/bodies/toutatis.obj \
-    "$@"
 du -h "$out" | cut -f1 | sed "s|\$| $out|"
 echo "Unpack from the Kosmos folder with: tar -xf $(basename "$out")"

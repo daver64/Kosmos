@@ -2,13 +2,7 @@
  "name": "CVEL Titan IVB",
  "class": "launcher",
  "payload_bays": [
-  {
-   "name": "Payload shroud",
-   "shape": "cylinder",
-   "radius": 2.54,
-   "length": 17,
-   "port": "Payload"
-  }
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 2.54, "length": 17, "port": "Payload"}
  ],
  "script": "@launcher.lua",
  "description": "Titan IVB: lengthened core stages and two SRMU solid motors with no upper stage; the payload mounts on top of stage 2.",

@@ -2,13 +2,7 @@
  "name": "CVEL Titan IVA",
  "class": "launcher",
  "payload_bays": [
-  {
-   "name": "Payload shroud",
-   "shape": "cylinder",
-   "radius": 2.54,
-   "length": 17,
-   "port": "Payload"
-  }
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 2.54, "length": 17, "port": "Payload"}
  ],
  "script": "@launcher.lua",
  "description": "Titan IVA: lengthened core stages, two UA1207 solid motors and a Centaur D upper stage under a three-piece fairing.",

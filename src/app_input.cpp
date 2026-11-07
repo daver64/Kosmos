@@ -469,8 +469,6 @@ namespace kosmos::app
                 surface = resized;
                 surface_w = screen_w;
                 surface_h = screen_h;
-                std::fprintf(stderr, "[kosmos] 3D surface %dx%d: %dx MSAA (requested %dx)\n",
-                             screen_w, screen_h, sl::surface_3d_samples(surface), want_msaa);
             }
         }
 

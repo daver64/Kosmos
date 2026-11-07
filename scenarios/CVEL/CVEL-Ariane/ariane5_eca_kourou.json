@@ -1,0 +1,14 @@
+{
+ "name": "CVEL: Ariane 5 ECA, Kourou",
+ "description": "CVEL Ariane 5 ECA heavy launcher on the pad at Kourou. Press P for the launcher autopilot.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Ariane 5 ECA",
+   "body": "Earth",
+   "surface": {
+    "base": "kourou"
+   }
+  }
+ ]
+}

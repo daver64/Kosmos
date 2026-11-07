@@ -1,0 +1,26 @@
+{
+ "name": "CVEL: Ariane 5 ES, Soyuz TMA, Kourou",
+ "description": "CVEL Ariane 5 ES on the pad at Kourou with a Soyuz TMA capsule under the fairing. Press P for the launcher autopilot; the fairing and boosters jettison automatically.",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Ariane 5 ES",
+   "body": "Earth",
+   "surface": {
+    "base": "kourou"
+   }
+  },
+  {
+   "ship": "CVEL Soyuz TMA",
+   "body": "Earth",
+   "dock": {
+    "to": 0,
+    "port": 0,
+    "own_port": 0
+   },
+   "surface": {
+    "base": "kourou"
+   }
+  }
+ ]
+}

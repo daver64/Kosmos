@@ -90,7 +90,12 @@
    "engines": [],
    "parts": [
     {
-     "model": "orbiter-models/mir.obj"
+     "model": "models/mir.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
     }
    ]
   }

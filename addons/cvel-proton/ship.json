@@ -217,7 +217,11 @@
       "parts": [
         {
           "model": "models/protonstg1.obj",
-          "offset": [0, 0, 13]
+          "offset": [
+            0,
+            0,
+            13
+          ]
         }
       ]
     },
@@ -314,7 +318,11 @@
       "parts": [
         {
           "model": "models/protkstg2_uw.obj",
-          "offset": [0, 0, -5.5]
+          "offset": [
+            0,
+            0,
+            -5.5
+          ]
         }
       ]
     },
@@ -335,7 +343,11 @@
       "parts": [
         {
           "model": "models/protonplfleft.obj",
-          "offset": [0, 0, -19.5]
+          "offset": [
+            0,
+            0,
+            -19.5
+          ]
         }
       ],
       "with_next": true
@@ -357,7 +369,11 @@
       "parts": [
         {
           "model": "models/protonplfright.obj",
-          "offset": [0, 0, -19.5]
+          "offset": [
+            0,
+            0,
+            -19.5
+          ]
         }
       ]
     },
@@ -394,7 +410,11 @@
       "parts": [
         {
           "model": "models/protonstg3.obj",
-          "offset": [0, 0, -16.2]
+          "offset": [
+            0,
+            0,
+            -16.2
+          ]
         }
       ]
     }

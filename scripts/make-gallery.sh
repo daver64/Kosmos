@@ -23,7 +23,9 @@ W='--set /sim/settings/weather=1 --set /sim/settings/gfx-cloud-style=2 --clean'
 # aircraft in level flight over the Alps, with the cloud deck 10 km up so it stays out of the view.
 ORB='--sunlit --sun-angle -90 --orbit-alt 4000 --cam-yaw 0 --cam-pitch 1.3'
 LAUNCH='--auto-stage --launch-at 2 --cam-yaw 0.8 --cam-pitch 0.08'
-SHOTS="launch_proton|9|--scenario proton_k_baikonur $W $LAUNCH --cam-distance 200
+SHOTS="launch_saturn_v|9.5|--scenario apollo11_saturn_v_t_minus_5 $W $LAUNCH --cam-distance 480
+launch_saturn_v_close|6|--scenario apollo11_saturn_v_t_minus_5 $W --cam-yaw 0.8 --cam-pitch 0.12 --cam-distance 75
+launch_proton|9|--scenario proton_k_baikonur $W $LAUNCH --cam-distance 200
 interior_quarters|14|--hide-info --scenario mare_quarters_on_foot $W --interior-at 3 3.5 0 -5
 launch_delta_iv_heavy|8.5|--scenario delta_iv_heavy_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 260
 launch_atlas|8|--scenario atlas_iii_kennedy --date '2024-06-21 15:00:00' $W $LAUNCH --cam-distance 200

@@ -90,7 +90,12 @@
    "engines": [],
    "parts": [
     {
-     "model": "orbiter-models/wheel.obj"
+     "model": "models/wheel.obj",
+     "offset": [
+      0,
+      0,
+      0
+     ]
     }
    ]
   }

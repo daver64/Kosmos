@@ -102,15 +102,15 @@ int main()
     check(doc.stage_count() == 3, "stage is removed");
 
     // A model from outside the source addon is queued and copied.
-    const fs::path model = root / "addons" / "cvel-soyuz" / "models" / "r7blocka.obj";
-    doc.add_model_part(0, model);
+    const fs::path sat = root / "addons" / "cvel-saturn-v" / "models" / "sat5stg1.obj";
+    doc.add_model_part(0, sat);
     const json &last_part = doc.stages()[0]["parts"].back();
-    check(last_part["model"] == "models/r7blocka.obj" && doc.pending_copies().count("models/r7blocka.obj") == 1, "an outside model is queued");
-    check(!doc.resolve("models/r7blocka.obj").empty(), "the queued model resolves");
+    check(last_part["model"] == "models/sat5stg1.obj" && doc.pending_copies().count("models/sat5stg1.obj") == 1, "an outside model is queued");
+    check(!doc.resolve("models/sat5stg1.obj").empty(), "the queued model resolves");
 
     // Mesh loading.
     Mesh mesh;
-    check(load_mesh(model, mesh, error) && mesh.triangles.size() > 100, "an OBJ loads: " + error);
+    check(load_mesh(sat, mesh, error) && mesh.triangles.size() > 100, "an OBJ loads: " + error);
     const fs::path glb = root / "addons" / "cvel-piper-cub" / "models" / "piper_pa18.glb";
     if (fs::exists(glb))
         check(load_mesh(glb, mesh, error) && mesh.triangles.size() > 100, "a GLB loads: " + error);
@@ -124,7 +124,7 @@ int main()
     check(!doc.save_as(icbm->dir.parent_path(), "cvel-icbm", "x", true, written, error), "the source addon is never overwritten");
     check(doc.save_as(tmp, "test-stack", "Test Stack Addon", false, written, error), "save-as writes: " + error);
     check(fs::exists(written / "ship.json") && fs::exists(written / "addon.json") && fs::exists(written / "icbm.lua"), "the copy carries the source's files");
-    check(fs::exists(written / "models" / "r7blocka.obj"), "the queued model was copied in");
+    check(fs::exists(written / "models" / "sat5stg1.obj"), "the queued model was copied in");
     check(!doc.save_as(tmp, "test-stack", "x", false, written, error), "an existing folder is refused");
 
     const std::vector<AddonInfo> reread = scan_addons(tmp);

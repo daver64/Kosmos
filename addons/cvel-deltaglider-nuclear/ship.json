@@ -496,9 +496,8 @@
    ],
    "parts": [
     {
-     "model": "../cvel-deltaglider/orbiter-models/deltaglider.obj",
+     "model": "../cvel-deltaglider/models/deltaglider.obj",
      "animations": "../cvel-deltaglider/gear.json",
-     "single_sided": ["NConeTL1", "NConeTR1", "NConeBL1", "NConeBR1", "NConeTL2", "NConeTR2", "NConeBL2", "NConeBR2"],
      "offset": [
       0.0,
       0.56,
@@ -509,7 +508,7 @@
   }
  ],
  "cockpit": {
-  "vc_model": "../cvel-deltaglider/orbiter-models/vc/deltaglider_vc.obj",
+  "vc_model": "../cvel-deltaglider/models/deltaglider_vc.obj",
   "hud_modes": [
    "orbit",
    "surface",
@@ -540,6 +539,7 @@
    "name": "Main panel",
    "width": 1152,
    "height": 500,
+   "image": "../cvel-deltaglider/panel/panel1.png",
    "size": 0.9,
    "position": [
     0,
@@ -553,6 +553,7 @@
     "name": "Overhead",
     "width": 1152,
     "height": 282,
+    "image": "../cvel-deltaglider/panel/panel2.png",
     "instruments": [],
     "controls": [
      {

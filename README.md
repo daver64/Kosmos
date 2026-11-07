@@ -1,22 +1,12 @@
 # Kosmos
 
-**A spaceflight and atmospheric flight simulator — now looking for beta testers.**
+**An independent spaceflight and atmospheric flight simulator — now looking for beta testers.**
 
 Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.com/daver64/rsimlib). Launch from Earth, navigate in orbit, travel to the Moon and other planets, or explore procedural star systems. Inspired in part by Orbiter and Kerbal Space Program, it combines flight simulation with tools for building spacecraft, missions and add-ons.
 
 Kosmos began around twenty years ago as a personal project. It is now ready for wider testing.
 
-Kosmos's own source code is licensed under the [MIT License](LICENSE).
-Third-party code, data and artwork have their own licences and conditions; see
-the accompanying credits and [asset provenance](docs/asset-provenance.md).
-
-**[Downloads](https://github.com/daver64/Kosmos/releases) · [User manual](docs/manual/manual.md) · [MFD manual](docs/manual/mfd-manual.md) · [Modding guide](docs/manual/modding.md) · [SDK](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)**
-
-| Launch | Explore the stars |
-|:---:|:---:|
-| ![A rocket on the launch pad](docs/manual/img/launch_pad.jpg) | ![The galaxy map showing nearby stars](docs/manual/img/galaxy.jpg) |
-| **Cockpit instruments** | |
-| ![Aircraft cockpit instruments and displays](docs/manual/img/cockpit_air.jpg) | |
+**[Download Kosmos](https://salyut.ddns.net/kosmos/download.html) · [Website](https://salyut.ddns.net/kosmos/index.html) · [User manual](https://salyut.ddns.net/kosmos/manual.html) · [Modding guide](https://salyut.ddns.net/kosmos/modding.html) · [SDK](https://salyut.ddns.net/kosmos/sdk.html)**
 
 > **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
 
@@ -26,33 +16,9 @@ Until now, Kosmos has been tested mainly by its developers. We would welcome a w
 
 You **do not need to be a programmer**. Useful feedback includes installation problems, crashes, unexpected flight behaviour, confusing controls, poor performance and unclear documentation. If you enjoy creating spacecraft, scenarios, instruments or external tools, the modding and SDK facilities are also available to try.
 
-To get started, download a packaged build from [GitHub Releases](https://github.com/daver64/Kosmos/releases), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](docs/manual/manual.md) explains the controls and systems.
+To get started, download a packaged build from the [download page](https://salyut.ddns.net/kosmos/download.html), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](https://salyut.ddns.net/kosmos/manual.html) explains the controls and systems.
 
-If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher's **Report this log** option lets you edit a path-scrubbed report, copy it and open GitHub Issues. Review it for private information before pasting and submitting it yourself; nothing is uploaded automatically.
-
-**Editor testers:** KosmosCAD, ShipEdit and KosmosMission are very early
-editions with known bugs and interface issues. If you are not specifically
-testing those tools, we recommend editing JSON data by hand and using Blender
-for modelling for now.
-
-Several launchers and upper stages use simplified procedural visuals. Buran
-uses a generic aircraft placeholder; its landing gear and bay doors do not
-animate visually. Ares Spider's placeholder does not show its landing legs.
-Salyut placeholders do not show solar arrays. Dragonfly and Deltaglider have
-plain 2D panels; some controls rely on hover tooltips. The Deltaglider and
-Shuttle-A have 3D cockpits converted from Orbiter's source meshes. Deltaglider's
-exterior airbrake animation is unavailable.
-Shuttle-A has no animated landing gear, and its detachable pods use simplified visuals.
-Wheel has a simplified ring and hub without spokes.
-Kennedy's launch pad and tower are procedural; its VAB uses a NASA-derived
-model and the pad deck is lower than in earlier builds.
-The CVEL Saturn V, MLV1, MLV2, MLV3 and V-23L and their launch scenarios are included.
-The CVEL Atlas III uses its restored original meshes and textures.
-The CVEL Delta IV Heavy uses its original launcher meshes and textures.
-The CVEL Titan fleet uses its original launcher meshes and textures.
-The CVEL Proton-K uses its original launcher meshes; its missing second-stage
-texture is represented by the source material colour.
-The CVEL Energia-M uses its original launcher meshes and texture.
+If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher also has a **Report this log** option that lets you preview a sanitised log before submitting it.
 
 ## What you can do
 
@@ -69,14 +35,6 @@ The CVEL Energia-M uses its original launcher meshes and texture.
 This README also serves as the technical reference for developers. The detailed build instructions, source layout, tests, command-line options and subsystem notes are retained below.
 
 Kosmos is directed by a small core team. Suggestions, bug reports and community-created content are welcome; architectural and project-direction decisions remain with the maintainers. Public source availability does not imply that every proposed feature or pull request will be accepted.
-
-### AI-assisted contributions
-
-AI can be a powerful tool, but it can also produce convincing mistakes.
-AI assistance is welcome when a human defines the API, scope, acceptance
-criteria and other requirements, and directs the work in small functional
-chunks. A competent developer must continually review the code as the work
-progresses; responsibility for correctness remains with the humans involved.
 
 The sections below describe the current implementation, including experimental behaviour and known limitations.
 
@@ -126,7 +84,7 @@ Use the Visual Studio generator name matching the installed version. The default
 
 ## Launcher
 
-`kosmos-launcher` (wxWidgets) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks GitHub Releases (including beta prereleases) and shows logs. "Report this log" prepares an editable, path-scrubbed report for the user to copy and submit through GitHub Issues. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them.
+`kosmos-launcher` (wxWidgets) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs, with a "Report this log" button that posts a log (home paths removed, after a preview) to the server's `report/submit.php`. The server side is `report/` (PHP: submit, password-protected `admin.php`, public form), installed once with `scripts/setup-reports.sh [HOST]`; reports are kept in `/var/lib/kosmos-reports`, outside the web root. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them. `scripts/make-packs-json.sh` writes the pack list the launcher downloads from.
 
 ## Distributions
 
@@ -139,25 +97,6 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 `import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
 
-The default Moon, Mercury, Venus, Saturn, Uranus and Neptune maps are fictional
-procedural approximations, not accurate geography. Some smaller bodies use
-generated textures, and Earth night lights are not bundled.
-Earth's ground scenery uses procedural land cover unless a local dataset is installed;
-the EarthEnv-derived cache is not included in application packages.
-
-The launcher's **Scenery packs** page links to the independent
-[Orbiter Forum terrain mirrors](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) and
-[Celestia Earth catalog](https://celestiamotherlode.net/catalog/earth.php).
-These buttons open a browser: third-party downloads are **not** downloaded,
-verified or installed by the launcher. Check their terms and install them
-yourself under `~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`);
-see the [installation instructions](docs/manual/manual.md#hires).
-The Celestia catalog's HTTPS certificate failed validation when last checked;
-do not bypass a browser certificate warning.
-This user-owned folder is separate from application updates. Equivalent
-optional files under the installation remain supported; matching user files
-take precedence within each scenery source.
-
 ## Native addons
 
 Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`). `addons/kosmosmap` is the launcher for KosmosMap, a GTK 3 moving map of the body the ship is at (Linux); its source is the SDK's model program, `sdk/kosmosmap`.
@@ -168,7 +107,7 @@ Native addons: programs that connect over KosmosLink (loopback only) and are all
 
 **KosmosMission (`sdk/kosmosmission`, launcher `addons/kosmosmission`).** A GTK 3 mission planner (Linux and Windows; the views are OpenGL). Pick a start (a base or a circular orbit), a ship and a payload; the ship's stages from its `ship.json` give a delta-v budget by the rocket equation. Add legs: an ascent (orbital speed minus the ground's speed plus a gravity/drag loss, replaced by any measured value in `data/mission/ascent.json`), a Hohmann transfer, a plane change, a custom burn, or a transfer to another body (a Lambert search over departure and flight time with a porkchop plot, from the sibling planets' ephemerides in `data/sol.json`; to a moon with the burn-delay search; and back to the parent). A ledger shows each leg, the running total and what is left of the budget after the reserve. Missions save as ordinary scenarios (the ship at the start point) with an extra `"mission"` block the game ignores; Export writes a text or CSV summary; **Start Kosmos with this mission** launches the game on the plan (and **To game** does so if no game is running); **To game** sends the selected leg's delta-v to OrbitComp's manoeuvre node over KosmosLink. Moon-to-planet transfers are not supported: route them through the parent. `kosmosmission --demo` plans a launch to Mars. The planning core is tested headless: `cmake --build build --target missioncore_test && build/missioncore_test`.
 
-**KosmosCAD (`sdk/kosmoscad`, launcher `addons/kosmoscad`).** A GTK 3 3D modeller whose four views (Top, Front, Side and a perspective view) are all OpenGL; nothing is drawn with cairo. Open a `ship.json` (or a `.kmodel` scene) with `addons/kosmoscad/bin/kosmoscad FILE`, or press **Model in KosmosCAD** in ShipEdit. Object, Vertex, Edge and Face modes with click and box picking; Move, Rotate and Scale gizmos; add box, cylinder, cone, sphere, torus and plane, sketch extrude, loft and lathe; extrude, inset, split edge, weld, flip and delete faces; mirror; boolean union, subtract and intersect; per-face materials (the object name, written as an OBJ `o` line, is the animatable part name in Kosmos), UV projection, a textured view (Z cycles wire, solid and textured; PNG, JPG and Orbiter DDS) that also shows each material's normal map, metallic/roughness and emissive settings, a Blender-style UV editor (U: slide, rotate and scale the mapping of the selected faces over the material's image) View > Render... (a window with Save), mesh import (Orbiter .msh, glTF/GLB, OBJ) and an Edit-in-KosmosCAD choice next to Blender in the part and base editors (`--edit-mesh FILE`; Ctrl+S sends the mesh back to the sim); undo and redo. Engines, gear, tanks, ISRU, reactors and pressure vessels are draggable markers with property forms. Scenes save as `.kmodel` and export OBJ+MTL (texture paths are relative to the model's folder, and images from elsewhere are copied into a `textures` folder beside it); saving a `ship.json` keeps a `ship.json.bak`. `kosmoscad FILE --shot OUT.png --size 1280x800` renders without interaction. File > Close file (Ctrl+W) clears the editor; opening a JSON that is not a ship.json shows a warning. See the [KosmosCAD manual](docs/manual/kosmoscad.md) for a tutorial. The modelling core is tested headless: `cmake --build build --target kosmoscad_test && build/kosmoscad_test`.
+**KosmosCAD (`sdk/kosmoscad`, launcher `addons/kosmoscad`).** A GTK 3 3D modeller whose four views (Top, Front, Side and a perspective view) are all OpenGL; nothing is drawn with cairo. Open a `ship.json` (or a `.kmodel` scene) with `addons/kosmoscad/bin/kosmoscad FILE`, or press **Model in KosmosCAD** in ShipEdit. Object, Vertex, Edge and Face modes with click and box picking; Move, Rotate and Scale gizmos; add box, cylinder, cone, sphere, torus and plane, sketch extrude, loft and lathe; extrude, inset, split edge, weld, flip and delete faces; mirror; boolean union, subtract and intersect; per-face materials (the object name, written as an OBJ `o` line, is the animatable part name in Kosmos), UV projection, a textured view (Z cycles wire, solid and textured; PNG, JPG and Orbiter DDS) that also shows each material's normal map, metallic/roughness and emissive settings, a Blender-style UV editor (U: slide, rotate and scale the mapping of the selected faces over the material's image) View > Render... (a window with Save), mesh import (Orbiter .msh, glTF/GLB, OBJ) and an Edit-in-KosmosCAD choice next to Blender in the part and base editors (`--edit-mesh FILE`; Ctrl+S sends the mesh back to the sim); undo and redo. Engines, gear, tanks, ISRU, reactors and pressure vessels are draggable markers with property forms. Scenes save as `.kmodel` and export OBJ+MTL (texture paths are relative to the model's folder, and images from elsewhere are copied into a `textures` folder beside it); saving a `ship.json` keeps a `ship.json.bak`. `kosmoscad FILE --shot OUT.png --size 1280x800` renders without interaction. File > Close file (Ctrl+W) clears the editor; opening a JSON that is not a ship.json shows a warning. A manual and tutorial are on the website (`kosmoscad.html`). The modelling core is tested headless: `cmake --build build --target kosmoscad_test && build/kosmoscad_test`.
 
 ## Controls
 
@@ -189,7 +128,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
 | Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Delta IV Heavy, Atlas III, Proton-K and the Titans). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes (also B) |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
@@ -282,9 +221,7 @@ For an experimental **target landing**, select that option before engaging Autol
 
 For an **orbital base landing**, select a base rather than coordinates and start in a bound orbit with periapsis at least 50 km and above the atmosphere. Disable nonspherical gravity and, on bodies with weather, disable weather. The controller searches up to 14 orbits for a plane-change window, forecasts the burn and descent with at least 100 kg of fuel remaining, and checks the chosen plan again before ignition. The Spacecraft Autopilot window shows time to plane burn while waiting, checking and aligning. Use time warp while it says **Waiting for window**; it reduces warp automatically before the burn. Planning and checking are held at 1x; during alignment, burn, powered descent and target approach you can select up to 4x. It then aligns, performs the plane change, descends under power and uses local target guidance. An orbital touchdown within 3 km of the base centre is reported as landed; it is not guaranteed to reach the pad. Planning can take time or reject a flight even when another trajectory might work. Forecasts are approximate, do not predict future weather or avoid buildings and other obstacles, and are not a guarantee of safe touchdown or sufficient fuel. If conditions change or the reserve is depleted during descent, a warning is shown and guidance continues. Monitor the flight and take over when necessary.
 
-The Ares landing-leg control remains available, but its procedural placeholder
-does not show or animate the legs. Touchdown contacts remain at the deployed
-feet regardless of the control state.
+The Ares legs start deployed and splayed. **View > Animations > Landing legs (stow)** folds them in; turn it off to deploy them again. The animation takes eight simulation seconds. The touchdown contacts remain at the deployed feet even while the legs are stowed.
 
 The Orbit MFD's **Orb** is speed relative to the planet's centre, not speed over the rotating ground. Surface and RADALT show surface-relative speeds. **AGL** is estimated local terrain clearance: the ground height beneath the vessel is subtracted along with a nominal vessel-bottom offset. It is not a ray-cast radar; without terrain data it uses the spherical surface. Autoland uses this same estimate.
 
@@ -355,11 +292,10 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 
 ## Textures
 
-`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body. The Earth image is NASA Blue Marble; other bundled maps are NASA imagery or fictional procedural maps (see `data/CREDITS-textures.md`). A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. For release staging, `scripts/pack-procedural-hires.py` generates a separate pack of fictional procedural maps in `data/textures-generated/`: they are not geographically accurate and do not contain terrain tiles. Existing hi-res overrides and local Celestia maps take priority. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed. Locally imported third-party imagery requires its own redistribution review.
+`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
-Alternatively, place a standard Orbiter installation's `Textures/Earth/Archive/Surf.tree` in `~/.config/kosmos/scenery/import/orbiter/Earth/Archive/` to stream its Earth imagery directly. An `Elev.tree` is not required: without one the ground uses procedural elevations. This optional user scenery is not bundled in Kosmos packages.
 See `data/textures/README.txt` and the developers manual.
 
 ## Property tree
@@ -407,7 +343,7 @@ Ship-borne in-situ resource units: an `isru` component with `"site": true` mines
 
 A rocket's `isp` is its vacuum value. Add `"isp_sl"` (sea-level Isp) and the engine behaves as in Orbiter: `thrust` is the vacuum thrust, propellant flow stays constant, and thrust and Isp fall toward `isp_sl` as the air thickens. Without `isp_sl` the Isp is the same everywhere.
 
-A ship can carry its own engine sound: `"engine_sound": "sounds/engine.wav"` names a looping file in the ship's folder; its volume follows the throttle. A `parachutes` list (see `addons/cvel-soyuz/descent.json`) gives each chute `position`, `cd_area`, `reef_cd_area`, `auto_altitude` and `auto_speed` (the automatic deployment is armed only after the ship has been above `arm_altitude`, default three times `auto_altitude` and at least 20 km, so a capsule on the pad or a rocket never opens it; Delete still deploys by hand); adding `model` (an OBJ) and `model_radius` draws the canopy, scaled to `canopy_radius`. SAS is switched off while a chute is out.
+A ship can carry its own engine sound: `"engine_sound": "sounds/engine.wav"` names a looping file in the ship's folder; its volume follows the throttle. A `parachutes` list (see `addons/cvel-soyuz/descent.json` and `addons/cvel-saturn-v/command_module.json`) gives each chute `position`, `cd_area`, `reef_cd_area`, `auto_altitude` and `auto_speed` (the automatic deployment is armed only after the ship has been above `arm_altitude`, default three times `auto_altitude` and at least 20 km, so a capsule on the pad or a rocket never opens it; Delete still deploys by hand); adding `model` (an OBJ) and `model_radius` draws the canopy, scaled to `canopy_radius`. SAS is switched off while a chute is out.
 
 Specs that only set `"air_breathing": true` still work and count as jets. `--shot-throttle X` holds a throttle during a `--shot`, for exhaust pictures.
 
@@ -416,17 +352,12 @@ Specs that only set `"air_breathing": true` still work and count as jets. `--sho
 `python3 tools/orbiter_addon_import.py <add-on root> --id <id>` starts a whole addon: it converts the meshes and drafts
 `ship.json` from the add-on's C++ source, leaving `"TODO"` where it can't tell. See `docs/importing-orbiter-addons.md`.
 
-`--props` writes the props-library frame (+Z forward, +X left) for base `model` objects instead. `python3 tools/msh_import.py addons/<name>` converts every `.msh` under `addons/<name>/orbiter/Meshes` to OBJ/MTL in
+`--props` writes the props-library frame (+Z forward, +X left) for base `model` objects instead; the stock Orbiter meshes in `data/parts/orbiter/` were made that way (`parts/orbiter/vab.obj` in a base). `python3 tools/msh_import.py addons/<name>` converts every `.msh` under `addons/<name>/orbiter/Meshes` to OBJ/MTL in
 `addons/<name>/models/` (DDS textures become PNG; needs Pillow). The mesh is mirrored from Orbiter's left-handed, nose +Z frame
 into Kosmos's nose -Z frame, so it can be used as is: a part of `{"model": "models/x.obj"}` in a stage's `parts` draws it,
 with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. Orbiter keeps masses, thrust and fuel in C++
 (often in headers that are not part of the add-on download), so `ship.json` files for imported add-ons are written by hand;
 `addons/cvel-ares` is the worked example.
-
-Model parts are double-sided by default. To cull back faces for selected mesh objects or materials, add a
-`"single_sided": ["object_or_material_name"]` list to the model part.
-For a ship with gear contacts, optional `"gear_rest_compression": 0.1` sets the nominal spring compression
-in metres under the ship's weight at the local body's surface; omit it to retain the default suspension.
 
 ## MFDs (multi-function displays)
 
@@ -493,7 +424,7 @@ Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS
 
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 
-A ship entry can name a texture set with `"skin": "MySkin"`: the folder of that name inside the `Skins/` folder next to the ship's `models/` folder (the CVEL Deltaglider and Nuclear Deltaglider share the Deltaglider's). Its `.dds` files replace the model textures of the same name (`*_norm` files are ignored). The scenario editor has a Skin selector for ships that have skins.
+A ship entry can name a texture set with `"skin": "Shuttle_BRI"`: the folder of that name inside the `Skins/` folder next to the ship's `models/` folder (the CVEL Deltaglider and Nuclear Deltaglider share the Deltaglider's). Its `.dds` files replace the model textures of the same name (`*_norm` files are ignored). The scenario editor has a Skin selector for ships that have skins.
 
 A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead of `orbit`. Run with `--scenario NAME`, list with `--list-scenarios`, and press F10 to load the next one.
 
@@ -567,7 +498,7 @@ Every ship feels atmospheric drag (`drag_area`) and wind; weapons hit a ship's b
 
 The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. Property tree: `/ships/ship/alpha`, `sideslip`, `dynamic-pressure`, `flight-path`, `rate-pitch`, `rate-yaw`, `rate-roll` (angular rates in deg/s; nose up, nose right and right bank are positive), and `/controls/brake`, `/controls/flaps`, `/controls/gear`. Ships with `"retractable_gear": true` (and `gear_time`) fold their gear away: it carries load only when fully down, and `/ships/ship/gear-position` reports the travel. A model part may name an `animations` JSON (simlib format, driven by `gear-position`), or a glTF model may carry a `gear` clip.
 
-`--aircraft-autopilot-window`, `--spacecraft-autopilot-window`, `--settings-window`, `--performance-window`, `--property-window`, `--systems-window` (F1) and `--lua-window` open the F3/F4/F1/F11 windows at start; `--menu` pins the menu bar and `--scenario-editor` / `--base-editor` open the editors. `--check-data` loads every scenario and base, saves and reloads them, and reports any that do not round-trip. **Start date.** `--date "1969-07-16 13:32:00"` (GMT; also `T` separators, a trailing `Z`/`UTC` or an offset like `+01:00`) or `--mjd 40408.5648` starts the simulation on that date. With no date from the command line or the scenario, the simulation starts at the real current GMT date and time (the real sky and local daylight); give a scenario a `"date"` to fix it. The planets and Moon start where they really were (VSOP87 planets, Moon from its mean elements with node and perigee precession), and the home planet is turned so the Sun is at the right place for the time of day. A scenario can carry `"date"` or `"mjd"`. Dates apply to any selected star system and when a dated scenario is loaded during a session; the Info line shows the current GMT date. The planets rotate: Earth, Mars and the Moon (locked to Earth) turn under you, so the Sun crosses the sky, landed ships and bases are carried round with the ground, and launches gain the real eastward speed. Earth and Mars have their real axial tilt (so seasons, and the Sun's height at the pole) and are turned for the date and time: Earth by Greenwich sidereal time, Mars by the IAU prime-meridian rate. A body's `pole` (J2000 RA/Dec) and `meridian` (w0, rate, node_ra) in `sol.json` set this. Limits: no precession of the poles, and the other worlds with terrain are not oriented by date.
+`--aircraft-autopilot-window`, `--spacecraft-autopilot-window`, `--settings-window`, `--performance-window`, `--property-window`, `--systems-window` (F1) and `--lua-window` open the F3/F4/F1/F11 windows at start; `--menu` pins the menu bar and `--scenario-editor` / `--base-editor` open the editors. `--check-data` loads every scenario and base, saves and reloads them, and reports any that do not round-trip. **Start date.** `--date "1969-07-16 13:32:00"` (GMT; also `T` separators, a trailing `Z`/`UTC` or an offset like `+01:00`) or `--mjd 40408.5648` starts the simulation on that date. With no date from the command line or the scenario, the simulation starts at the real current GMT date and time (the real sky and local daylight); give a scenario a `"date"` to fix it. The planets and Moon start where they really were (VSOP87 planets, Moon from its mean elements with node and perigee precession), and the home planet is turned so the Sun is at the right place for the time of day. A scenario can carry `"date"` or `"mjd"`; try `apollo11_saturn_v_t_minus_5`. Dates apply to any selected star system and when a dated scenario is loaded during a session; the Info line shows the current GMT date. The planets rotate: Earth, Mars and the Moon (locked to Earth) turn under you, so the Sun crosses the sky, landed ships and bases are carried round with the ground, and launches gain the real eastward speed. Earth and Mars have their real axial tilt (so seasons, and the Sun's height at the pole) and are turned for the date and time: Earth by Greenwich sidereal time, Mars by the IAU prime-meridian rate. A body's `pole` (J2000 RA/Dec) and `meridian` (w0, rate, node_ra) in `sol.json` set this. Limits: no precession of the poles, and the other worlds with terrain are not oriented by date.
 
 `--no-relief` disables normal-map relief on bodies; `--no-detail` disables the fine ground-detail texture (`data/textures/detail_dirt.jpg` on Earth; a body can name its own with `detail`, `detail_tile` and `detail_strength` in `sol.json`, as the Moon and Mars do) blended into terrain colour; `--no-tiles` disables streamed Earth textures. Source packs go under `import/orbiter/` and `import/celestia/`; installed runtime textures go under `data/textures/` and optional overrides under `data/textures-hires/`. Only low-resolution fallback maps are included; large Celestia and Orbiter source packs are not shipped. Sol now includes 17 more moons with Celestia textures (`tools/celestia_import.py`). The `ares_spider_mars_orbit` scenario starts the Ares in Mars orbit. Settings live under `/sim/settings/` (`labels`, `ship-labels`, `help-text`, `clock`, `orbit-line`, `sound`, `volume`).
 

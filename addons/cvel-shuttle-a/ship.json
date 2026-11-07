@@ -389,13 +389,30 @@
     }
    ],
    "gear": [
-    [-2.0, -3.017, -12.43], [2.0, -3.017, -12.43],
-    [-3.35, -3.017, 0.0], [3.35, -3.017, 0.0],
-    [-2.94, -3.017, 12.89], [2.94, -3.017, 12.89]
+    [
+     -3,
+     -3.05,
+     -12.5
+    ],
+    [
+     3,
+     -3.05,
+     -12.5
+    ],
+    [
+     -3,
+     -3.05,
+     13.5
+    ],
+    [
+     3,
+     -3.05,
+     13.5
+    ]
    ],
    "parts": [
     {
-     "model": "orbiter-models/shuttlea.obj",
+     "model": "models/shuttlea.obj",
      "animations": "pods.json"
     }
    ]
@@ -407,10 +424,8 @@
   -2
  ],
  "horizontal": true,
- "gear_rest_compression": 0.1,
  "rcs_modes": true,
  "cockpit": {
-  "vc_model": "orbiter-models/vc/shuttlea_vc.obj",
   "eye": [
    -0.575,
    2.4,
@@ -423,6 +438,7 @@
    "name": "Main panel",
    "width": 1152,
    "height": 382,
+   "image": "panel/panel1.png",
    "size": 0.9,
    "position": [
     0,
@@ -436,6 +452,7 @@
     "name": "Fuel and systems",
     "width": 1152,
     "height": 300,
+    "image": "panel/panel2.png",
     "instruments": [],
     "controls": [
      {
@@ -1199,6 +1216,7 @@
     "h": 14
    }
   ],
+  "vc_model": "../cvel-shuttle-a/models/shuttlea_vc.obj",
   "vc_mfd_flip": true,
   "pitch": -20,
   "vc_hotspots": [
@@ -2732,7 +2750,7 @@
   "vc_gauges": [
    {
     "part": "ShuttleA_Thrust",
-    "image": "orbiter-models/vc/textures/Thrust.png",
+    "image": "models/textures/Thrust.png",
     "controls": [
      {
       "type": "needle",
@@ -2798,7 +2816,7 @@
    },
    {
     "part": "ShuttleA_PodAngle",
-    "image": "orbiter-models/vc/textures/PodAngle.png",
+    "image": "models/textures/PodAngle.png",
     "controls": [
      {
       "type": "needle",

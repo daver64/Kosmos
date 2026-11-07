@@ -268,12 +268,8 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 3.2,
-     "length": 6,
-     "z": 3,
-     "colour": [210, 210, 210],
-     "accent": [75, 75, 80]
+     "model": "models/aresspider1config3.obj",
+     "animations": "animations.json"
     }
    ]
   }

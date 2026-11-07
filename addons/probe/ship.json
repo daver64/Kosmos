@@ -77,12 +77,7 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 0.8,
-     "length": 1.8,
-     "z": 0.9,
-     "colour": [210, 210, 210],
-     "accent": [75, 75, 80]
+     "model": "models/probe.obj"
     }
    ]
   }

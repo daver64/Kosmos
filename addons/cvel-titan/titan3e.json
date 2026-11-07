@@ -2,13 +2,7 @@
  "name": "CVEL Titan IIIE",
  "class": "launcher",
  "payload_bays": [
-  {
-   "name": "Payload shroud",
-   "shape": "cylinder",
-   "radius": 2.15,
-   "length": 14,
-   "port": "Payload"
-  }
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 2.15, "length": 14, "port": "Payload"}
  ],
  "script": "@launcher.lua",
  "description": "Titan IIIE: two UA1205 solid motors, the Titan 34 core and a Centaur D upper stage under a three-piece fairing.",

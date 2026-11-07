@@ -160,7 +160,11 @@
    "parts": [
     {
      "model": "models/energiamcore.obj",
-     "offset": [0, 0, 0]
+     "offset": [
+      0,
+      0,
+      0
+     ]
     }
    ]
   },
@@ -181,7 +185,11 @@
    "parts": [
     {
      "model": "models/energiamfair_1.obj",
-     "offset": [0, 0, -16.65]
+     "offset": [
+      0,
+      0,
+      -16.65
+     ]
     }
    ]
   },
@@ -202,7 +210,11 @@
    "parts": [
     {
      "model": "models/energiamfair_2.obj",
-     "offset": [0, 0, -16.65]
+     "offset": [
+      0,
+      0,
+      -16.65
+     ]
     }
    ]
   }

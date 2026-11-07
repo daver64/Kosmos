@@ -2,13 +2,7 @@
  "name": "CVEL Titan 34D",
  "class": "launcher",
  "payload_bays": [
-  {
-   "name": "Payload shroud",
-   "shape": "cylinder",
-   "radius": 2.0,
-   "length": 10,
-   "port": "Payload"
-  }
+  {"name": "Payload shroud", "shape": "cylinder", "radius": 2.0, "length": 10, "port": "Payload"}
  ],
  "script": "@launcher.lua",
  "description": "Titan 34D: uprated core stages, two UA1205 solid motors and a Transtage upper stage.",
@@ -389,16 +383,8 @@
      "fuel": "hypergolic"
     },
     {
-     "position": [
-      0,
-      -0.72,
-      4.95
-     ],
-     "direction": [
-      0,
-      0,
-      -1
-     ],
+     "position": [0, -0.72, 4.95],
+     "direction": [0, 0, -1],
      "thrust": 36714,
      "isp": 316,
      "plume": 1.2,
