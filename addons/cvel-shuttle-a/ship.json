@@ -410,6 +410,7 @@
  "gear_rest_compression": 0.1,
  "rcs_modes": true,
  "cockpit": {
+  "vc_model": "orbiter-models/vc/shuttlea_vc.obj",
   "eye": [
    -0.575,
    2.4,
@@ -2731,6 +2732,7 @@
   "vc_gauges": [
    {
     "part": "ShuttleA_Thrust",
+    "image": "orbiter-models/vc/textures/Thrust.png",
     "controls": [
      {
       "type": "needle",
@@ -2796,6 +2798,7 @@
    },
    {
     "part": "ShuttleA_PodAngle",
+    "image": "orbiter-models/vc/textures/PodAngle.png",
     "controls": [
      {
       "type": "needle",

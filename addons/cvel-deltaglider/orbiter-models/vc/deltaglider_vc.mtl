@@ -1,0 +1,267 @@
+newmtl dgint1_3_M_DG_DGMK4_4
+Kd 1.000 1.000 1.000
+Ks 0.271 0.271 0.271
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_4.png
+
+newmtl default_DG_DG_VC1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DG_VC1.png
+
+newmtl dgint1_1_DG_DGMK4_3
+Kd 1.000 1.000 1.000
+Ks 0.784 0.784 0.784
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_3.png
+
+newmtl dgint1_1_A_DG_DGMK4_3
+Kd 1.000 1.000 1.000
+Ks 0.859 0.910 0.933
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_3.png
+
+newmtl dgint1_1_B_DG_DGMK4_3
+Kd 1.000 1.000 1.000
+Ks 0.973 0.949 0.886
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_3.png
+
+newmtl dgint1_1_M_DG_DGMK4_3
+Kd 1.000 1.000 1.000
+Ks 0.271 0.271 0.271
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_3.png
+
+newmtl dgint1_3_DG_DGMK4_4
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/DGMK4_4.png
+
+newmtl dgint1_3_A_DG_DGMK4_4
+Kd 1.000 1.000 1.000
+Ks 0.863 0.914 0.937
+Ke 0.800 0.800 0.800
+map_Kd textures/DGMK4_4.png
+
+newmtl dgip1_2_DG_DG_VC3
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/DG_VC3.png
+
+newmtl dgint1_3_DG_DGIP_03
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/DGIP_03.png
+
+newmtl dgip1_4_DG_DGIP_04
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/DGIP_04.png
+
+newmtl dgip1_4_DG_DG_VC3
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/DG_VC3.png
+
+newmtl dgint1_3_DG_DGPILOT1
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/DGPILOT1.png
+
+newmtl glider4_2_DG_DGMK4_2
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DGMK4_2.png
+
+newmtl instrument_DG_DG_VC1
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+map_Kd textures/DG_VC1.png
+
+newmtl instrument_DG_DG_VC2
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+map_Kd textures/DG_VC2.png
+
+newmtl pnsgr1_DG_PSNGR1
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/PSNGR1.png
+
+newmtl psng4_DG_PSNGR2
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/PSNGR2.png
+
+newmtl psngr2_DG_PSNGR3
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/PSNGR3.png
+
+newmtl psngr3_DG_PSNGR4
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/PSNGR4.png
+
+newmtl cockpitglass
+Kd 0.235 0.235 0.235
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+d 0.150
+
+newmtl visor
+Kd 0.365 0.302 0.114
+Ks 0.620 0.635 0.949
+Ke 0.800 0.800 0.800
+d 0.500
+
+newmtl dgpilot1_1_DG_DGPILOT1
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 0.800 0.800
+map_Kd textures/DGPILOT1.png
+
+newmtl dgint1_3_DG_dg_vc4
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/dg_vc4.png
+
+newmtl hud_lens
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.800 1.000 0.800
+
+newmtl instrument_LMFD_DISPLAY
+Kd 0.000 0.000 0.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+
+newmtl instrument_RMFD_DISPLAY
+Kd 0.000 0.000 0.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+
+newmtl LIT_BUTTON_DG_dg_vc4
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.600 0.600 0.600
+map_Kd textures/dg_vc4.png
+
+newmtl inst1_6_DG_DG_VC3
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.700
+Ke 1.000 1.000 1.000
+map_Kd textures/DG_VC3.png
+
+newmtl dgint1_3
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+
+newmtl panels_generic_noise1
+Kd 1.000 1.000 1.000
+Ks 0.200 0.200 0.200
+Ke 0.150 0.150 0.150
+map_Kd textures/noise1.png
+
+newmtl shinysurf_DG_dg_vc4
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 0.150 0.150 0.150
+map_Kd textures/dg_vc4.png
+
+newmtl inst1_6_DG_dg_instr_ANGVEL_DISP
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.700
+Ke 1.000 1.000 1.000
+map_Kd textures/dg_instr.png
+
+newmtl inst1_6_DG_dg_instr
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.700
+Ke 1.000 1.000 1.000
+map_Kd textures/dg_instr.png
+
+newmtl instrument_DG_dg_instr
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+map_Kd textures/dg_instr.png
+
+newmtl inst1_6_DG_blittgt1
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.700
+Ke 1.000 1.000 1.000
+map_Kd textures/blittgt1.png
+
+newmtl LIT_SURF_DG_dg_vc4
+Kd 1.000 1.000 1.000
+Ks 0.300 0.300 0.300
+Ke 0.800 0.800 0.800
+d 0.000
+map_Kd textures/dg_vc4.png
+
+newmtl dgint1_3_DG_dg_vc5
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/dg_vc5.png
+
+newmtl black_DG_dg_vc5
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/dg_vc5.png
+
+newmtl glowlabel_DG_dg_vc5
+Kd 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
+Ke 0.150 0.150 0.150
+map_Kd textures/dg_vc5.png
+
+newmtl LIT_SURF_DG_dg_vc5
+Kd 1.000 1.000 1.000
+Ks 0.300 0.300 0.300
+Ke 0.800 0.800 0.800
+d 0.000
+map_Kd textures/dg_vc5.png
+
+newmtl HUD_glass
+Kd 0.204 0.329 0.106
+Ks 0.851 0.859 0.784
+Ke 0.375 0.750 0.375
+d 0.150
+
+newmtl default_HUDDISP
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+
+newmtl instrument_DG_dg_instr_ADI_DISPLAY
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+map_Kd textures/dg_instr.png
+
+newmtl instrument_DG_dg_instr_HSI_DISPLAY
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 1.000 1.000 1.000
+map_Kd textures/dg_instr.png
+

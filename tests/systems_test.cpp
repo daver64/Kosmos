@@ -44,6 +44,11 @@ int main()
         assert(app::part_cull_mode(part, mesh) == sl::CullMode::none);
     }
     {
+        const glm::vec2 uv(0.25f, 0.1f);
+        assert(app::vc_screen_hit_uv(uv, false) == uv);
+        assert(app::vc_screen_hit_uv(uv, true) == glm::vec2(0.25f, 0.9f));
+    }
+    {
         for (const char *file : {"/addons/cvel-shuttle-a/ship.json", "/addons/cvel-shuttle-a-nuclear/ship.json", "/addons/cvel-shuttle-aq/ship.json"})
             for (const char *body_name : {"Moon", "Earth"})
                 for (int start : {0, 1, 2})
@@ -53,7 +58,11 @@ int main()
                     assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
                     ShipSpec spec;
                     assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
-                    assert(spec.cockpit.vc_model.empty());
+                    assert(spec.cockpit.vc_model.find("shuttlea_vc.obj") != std::string::npos);
+                    assert(!spec.cockpit.vc_hotspots.empty() && !spec.cockpit.vc_animations.empty());
+                    assert(spec.cockpit.vc_gauges.size() == 2);
+                    const auto screens = app::Visuals::parse_vc_screens((std::filesystem::path(spec.directory) / spec.cockpit.vc_model).string());
+                    assert(screens[0].size() == 2 && screens[1].size() == 2);
                     assert(spec.cockpit.panel_image.empty());
                     assert(!spec.cockpit.instruments.empty() && !spec.cockpit.controls.empty());
                     assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
@@ -162,7 +171,10 @@ int main()
                         found = true;
                     }
             assert(found);
-            assert(spec.cockpit.vc_model.empty());
+            assert(spec.cockpit.vc_model.find("deltaglider_vc.obj") != std::string::npos);
+            assert(spec.cockpit.vc_instruments.size() == 2);
+            const auto screens = app::Visuals::parse_vc_screens((std::filesystem::path(spec.directory) / spec.cockpit.vc_model).string());
+            assert(screens[0].size() == 2 && screens[1].size() == 2);
             assert(spec.cockpit.panel_image.empty());
             assert(!spec.cockpit.instruments.empty());
             assert(!spec.cockpit.controls.empty());

@@ -509,6 +509,7 @@
   }
  ],
  "cockpit": {
+  "vc_model": "../cvel-deltaglider/orbiter-models/vc/deltaglider_vc.obj",
   "hud_modes": [
    "orbit",
    "surface",

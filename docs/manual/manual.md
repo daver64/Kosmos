@@ -405,7 +405,7 @@ The following example uses the Skylark light twin, an optional aircraft addon th
 
 
 
-The Skylark's cockpit has the traditional six-pack (airspeed, attitude, altimeter on the top row; turn coordinator, heading and vertical speed below), with an **Engine** MFD and a **Surface** MFD to the right. Press `C` for the 2D panel, and again for the 3D cockpit, where the MFD buttons can be clicked. The Deltaglider and Shuttle-A 2D panels are live: click the MFD buttons, the autopilot hold and HUD buttons and (Shuttle-A) the gear switch, and drag the throttle and hover sliders. The Deltaglider's plain panels use hover tooltips for some controls; its original virtual cockpit is unavailable. The Shuttle-A's two aux engine pods swing from retro through hover to forward, as in Orbiter: drag their tilt sliders, press the FWD, HOVER or RETRO presets, or use Keypad 8/2 (swing) and 4/5/6 (presets); Keypad 9/3 or the aux pod sliders set their thrust. The RCS mode switch picks rotation, linear (W/S, A/D and Q/E translate) or off.
+The Skylark's cockpit has the traditional six-pack (airspeed, attitude, altimeter on the top row; turn coordinator, heading and vertical speed below), with an **Engine** MFD and a **Surface** MFD to the right. Press `C` for the 2D panel, and again for the 3D cockpit, where the MFD buttons can be clicked. The Deltaglider and Shuttle-A have Orbiter-derived 3D cockpits. Their plain 2D panels are live: click the MFD buttons, the autopilot hold and HUD buttons and (Shuttle-A) the gear switch, and drag the throttle and hover sliders. Some Deltaglider panel controls use hover tooltips. The Shuttle-A's two aux engine pods swing from retro through hover to forward, as in Orbiter: drag their tilt sliders, press the FWD, HOVER or RETRO presets, or use Keypad 8/2 (swing) and 4/5/6 (presets); Keypad 9/3 or the aux pod sliders set their thrust. The RCS mode switch picks rotation, linear (W/S, A/D and Q/E translate) or off.
 
 With the Skylark airborne near Chippenham you can fly the ILS. Tune the localizer and glideslope on the **HSI** or **VOR** MFD, and fly them down to touchdown.
 
@@ -990,10 +990,10 @@ Several launchers and upper stages use simplified procedural visuals. Buran
 uses a generic aircraft placeholder; its landing gear and bay doors do not
 animate visually. Ares Spider's placeholder does not show its landing legs.
 Salyut placeholders do not show solar arrays. Dragonfly and Deltaglider have
-plain panels; some controls rely on hover tooltips. Deltaglider's virtual
-cockpit and airbrake animation are unavailable.
-Shuttle-A has a plain panel, no original virtual cockpit or animated landing
-gear, and its detachable pods use simplified visuals.
+plain 2D panels; some controls rely on hover tooltips. The Deltaglider and
+Shuttle-A have 3D cockpits converted from Orbiter's source meshes. Deltaglider's
+exterior airbrake animation is unavailable.
+Shuttle-A has no animated landing gear, and its detachable pods use simplified visuals.
 Wheel has a simplified ring and hub without spokes.
 Kennedy uses a procedural launch pad and tower and a NASA-derived VAB; the pad
 deck is lower than in earlier builds.

@@ -16,6 +16,11 @@ namespace kosmos::app
     // A props-library part moved into the ship frame: the prop's +Y becomes the nose direction (-Z) and its +Z umbilical faces +Y.
     sl::Mesh *make_prop_mesh(const kosmos::PartSpec &part);
 
+    inline glm::vec2 vc_screen_hit_uv(glm::vec2 uv, bool flipped)
+    {
+        return {uv.x, flipped ? 1.0f - uv.y : uv.y};
+    }
+
     // A profile of revolution about Z as mesh data, in the part's colour; the same shape the lathe draws.
     sl::MeshData make_lathe_data(const kosmos::PartSpec &part, int segments = 28);
 

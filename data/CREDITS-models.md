@@ -19,10 +19,14 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   meshes and textures converted from the Orbiter source repository, distributed
   under its MIT licence in `data/LICENSE-Orbiter.txt`. Sources are
   `Src/Vessel/DeltaGlider/Meshes/deltaglider.msh`,
+  `Src/Vessel/DeltaGlider/Meshes/deltaglider_vc.msh`,
   `Src/Vessel/ShuttleA/Meshes/ShuttleA.msh`,
+  `Src/Vessel/ShuttleA/Meshes/ShuttleA_vc.msh`,
   `Src/Vessel/Dragonfly/Meshes/Dragonfly.msh`, `Meshes/Mir.msh`, and their
   corresponding `Textures` folders. `tools/msh_import.py` converts geometry
-  and DDS textures and removes coincident triangles. ISS and Wheel retain
+  and DDS textures and removes coincident triangles;
+  `tools/import_orbiter_cockpits.py` adapts the VC displays for Kosmos.
+  ISS and Wheel retain
   procedural placeholders; separately sourced panel art and scenery remain excluded.
 - **Soyuz TMA spacecraft** (`addons/cvel-soyuz/`): converted from the CVE-lite
   SoyuzTMA add-on. Its included notices credit the Soyuz meshes and textures
