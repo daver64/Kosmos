@@ -4,6 +4,7 @@
 #include "procedural.h"
 
 #include <array>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 
@@ -17,6 +18,14 @@ namespace kosmos::app
 
     // A profile of revolution about Z as mesh data, in the part's colour; the same shape the lathe draws.
     sl::MeshData make_lathe_data(const kosmos::PartSpec &part, int segments = 28);
+
+    inline sl::CullMode part_cull_mode(const kosmos::PartSpec &part, const sl::ModelPart &model_part)
+    {
+        const auto &names = part.single_sided;
+        return std::find(names.begin(), names.end(), model_part.name) != names.end() ||
+                       std::find(names.begin(), names.end(), model_part.material_name) != names.end()
+                   ? sl::CullMode::back : sl::CullMode::none;
+    }
 
     struct Visuals
     {
@@ -247,7 +256,7 @@ namespace kosmos::app
             if (loaded.model)
                 for (sl::ModelPart &mp : loaded.model->parts)
                 {
-                    mp.material.cull = sl::CullMode::none; // Orbiter draws meshes double-sided and many are not closed
+                    mp.material.cull = part_cull_mode(part, mp);
                     if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
                         mp.visible = false; // systems markers, not geometry
                 }

@@ -22,8 +22,13 @@ namespace kosmos::app
         if (targets.panel_target && sl::begin_render_target(targets.panel_target))
         {
             sl::clear_render_target({18, 20, 26, 255});
+            const sl::TextPanelStyle saved_style = sl::text_panel_style();
+            sl::TextPanelStyle bare_style = saved_style;
+            bare_style.enabled = false;
+            sl::set_text_panel_style(bare_style);
             draw_panel(sim, pcp, pcp.panel_image.empty() ? "" : (std::filesystem::path(directory) / pcp.panel_image).string(), 0.0f, 0.0f,
-                       static_cast<float>(panel_target_width) / pcp.panel_width);
+                       static_cast<float>(panel_target_width) / pcp.panel_width, true);
+            sl::set_text_panel_style(saved_style);
             sl::end_render_target();
         }
     }

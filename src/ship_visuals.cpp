@@ -222,7 +222,7 @@ namespace kosmos::app
         {
             for (sl::ModelPart &mp : model->parts)
             {
-                mp.material.cull = sl::CullMode::none;
+                mp.material.cull = part_cull_mode(part, mp);
                 if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
                     mp.visible = false;
             }

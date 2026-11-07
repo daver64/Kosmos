@@ -1,6 +1,6 @@
 # Kosmos
 
-**An independent spaceflight and atmospheric flight simulator — now looking for beta testers.**
+**A spaceflight and atmospheric flight simulator — now looking for beta testers.**
 
 Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.com/daver64/rsimlib). Launch from Earth, navigate in orbit, travel to the Moon and other planets, or explore procedural star systems. Inspired in part by Orbiter and Kerbal Space Program, it combines flight simulation with tools for building spacecraft, missions and add-ons.
 
@@ -358,6 +358,11 @@ into Kosmos's nose -Z frame, so it can be used as is: a part of `{"model": "mode
 with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. Orbiter keeps masses, thrust and fuel in C++
 (often in headers that are not part of the add-on download), so `ship.json` files for imported add-ons are written by hand;
 `addons/cvel-ares` is the worked example.
+
+Model parts are double-sided by default. To cull back faces for selected mesh objects or materials, add a
+`"single_sided": ["object_or_material_name"]` list to the model part.
+For a ship with gear contacts, optional `"gear_rest_compression": 0.1` sets the nominal spring compression
+in metres under the ship's weight at the local body's surface; omit it to retain the default suspension.
 
 ## MFDs (multi-function displays)
 

@@ -473,7 +473,8 @@
    "parts": [
     {
      "model": "models/deltaglider.obj",
-     "animations": "gear.json"
+     "animations": "gear.json",
+     "single_sided": ["NConeTL1", "NConeTR1", "NConeBL1", "NConeBR1", "NConeTL2", "NConeTR2", "NConeBL2", "NConeBR2"]
     }
    ]
   }

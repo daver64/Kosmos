@@ -116,6 +116,8 @@ namespace kosmos
         sl::dvec3 rotate{0.0};
         /** Model parts only: a simlib animation JSON (relative to the addon folder) loaded onto the model. */
         std::string animations;
+        /** Model objects or materials that use back-face culling instead of the default double-sided rendering. */
+        std::vector<std::string> single_sided;
     };
 
     /** One separable section of a ship. Stages are listed from the bottom of the stack, which is jettisoned first. */
@@ -349,6 +351,8 @@ namespace kosmos
         bool has_camera_target = false;
         /** A rocket-class ship that rests level on its gear (roof up, nose along the heading) instead of standing on its tail. */
         bool horizontal = false;
+        /** Optional nominal spring compression at rest, in metres; zero retains the default gear behaviour. */
+        double gear_rest_compression = 0.0;
         sl::dvec3 camera_target{0.0};
         /** Landing gear that folds away: it takes `gear_time` seconds to move and only carries load while fully down. */
         bool retractable_gear = false;
@@ -822,6 +826,7 @@ namespace kosmos
         bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface
         double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;
+        int gear_sized_body_ = -1;
         double gear_position_ = 1.0;
         std::vector<double> animation_previous_;
         double animation_elapsed_ = 0.0;

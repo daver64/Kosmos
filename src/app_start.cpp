@@ -396,7 +396,8 @@ namespace kosmos::app
         loading.begin();
         screen_w = sl::screen_width();
         screen_h = sl::screen_height();
-        surface_msaa = std::clamp(sim.props.get_int("/sim/settings/gfx-msaa", 4), 1, 8);
+        const int requested_msaa = std::clamp(sim.props.get_int("/sim/settings/gfx-msaa", 4), 1, 8);
+        surface_msaa = requested_msaa;
         surface = sl::create_surface_3d(screen_w, screen_h, surface_msaa);
         if (!surface && surface_msaa > 1)
         {
@@ -411,6 +412,8 @@ namespace kosmos::app
             sl::shutdown();
             return -1;
         }
+        std::fprintf(stderr, "[kosmos] 3D surface %dx%d: %dx MSAA (requested %dx)\n",
+                     screen_w, screen_h, sl::surface_3d_samples(surface), requested_msaa);
 
         loading.note("Generating the sky and star textures");
         vis.sphere = sl::create_sphere_mesh(1.0f, 192, 96, {255, 255, 255, 255});

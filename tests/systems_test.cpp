@@ -2,13 +2,16 @@
 #include "systems.h"
 
 #include "ship.h"
+#include "ship_visuals.h"
 #include "transfer_plan.h"
 #include "terrain.h"
 
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdio>
@@ -27,6 +30,153 @@ namespace
 
 int main()
 {
+    {
+        std::ifstream obj(std::string(KOSMOS_ROOT) + "/addons/cvel-deltaglider/models/deltaglider.obj");
+        assert(obj);
+        std::vector<sl::dvec3> vertices(1), normals(1);
+        std::map<std::string, int> faces;
+        std::string line, group;
+        while (std::getline(obj, line))
+        {
+            std::istringstream input(line);
+            std::string kind;
+            input >> kind;
+            if (kind == "v" || kind == "vn")
+            {
+                sl::dvec3 v;
+                input >> v.x >> v.y >> v.z;
+                (kind == "v" ? vertices : normals).push_back(v);
+            }
+            else if (kind == "g")
+                input >> group;
+            else if (kind == "f" && group.size() == 8 && group.compare(0, 5, "NCone") == 0 &&
+                     (group.back() == '1' || group.back() == '2'))
+            {
+                int v[3], uv[3], n[3];
+                assert(std::sscanf(line.c_str(), "f %d/%d/%d %d/%d/%d %d/%d/%d",
+                                   &v[0], &uv[0], &n[0], &v[1], &uv[1], &n[1], &v[2], &uv[2], &n[2]) == 9);
+                for (int i = 0; i < 3; ++i)
+                    assert(v[i] > 0 && static_cast<std::size_t>(v[i]) < vertices.size() &&
+                           n[i] > 0 && static_cast<std::size_t>(n[i]) < normals.size());
+                const sl::dvec3 normal = glm::cross(vertices[v[1]] - vertices[v[0]], vertices[v[2]] - vertices[v[0]]);
+                assert(glm::dot(normal, normals[n[0]] + normals[n[1]] + normals[n[2]]) > 0.0);
+                ++faces[group];
+            }
+        }
+        for (const char *name : {"NConeTL1", "NConeTR1", "NConeBL1", "NConeBR1",
+                                 "NConeTL2", "NConeTR2", "NConeBL2", "NConeBR2"})
+            assert(faces[name] == 15);
+    }
+    {
+        PartSpec part;
+        sl::ModelPart mesh;
+        mesh.name = "outer";
+        mesh.material_name = "petal";
+        assert(app::part_cull_mode(part, mesh) == sl::CullMode::none);
+        part.single_sided = {"outer"};
+        assert(app::part_cull_mode(part, mesh) == sl::CullMode::back);
+        part.single_sided = {"petal"};
+        assert(app::part_cull_mode(part, mesh) == sl::CullMode::back);
+        part.single_sided = {"other"};
+        assert(app::part_cull_mode(part, mesh) == sl::CullMode::none);
+    }
+    {
+        for (const char *file : {"/addons/cvel-shuttle-a/ship.json", "/addons/cvel-shuttle-a-nuclear/ship.json", "/addons/cvel-shuttle-aq/ship.json"})
+            for (const char *body_name : {"Moon", "Earth"})
+                for (int start : {0, 1, 2})
+                {
+                    Universe universe;
+                    std::string error;
+                    assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+                    ShipSpec spec;
+                    assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+                    Ship ship(universe, spec);
+                    const int planet = universe.find(body_name);
+                    assert(planet >= 0 && ship.body().gear.size() == 6);
+                    const sl::dvec3 up(1.0, 0.0, 0.0);
+                    if (start == 2)
+                    {
+                        Ship reference(universe, spec);
+                        reference.place_on_surface(planet, up, 90.0, 0.0);
+                        ship.place_in_orbit(planet, 200000.0, 0.0, 0.0);
+                        ship.after_step(0.0);
+                        ship.set_gear_position(1.0);
+                        ship.place_relative(planet,
+                                            reference.body().position - universe.position(planet) + up * 3.0,
+                                            reference.body().velocity - universe.world.body(planet)->velocity,
+                                            reference.body().orientation);
+                        ship.set_attached_mass(20000.0);
+                    }
+                    else if (start == 1)
+                        ship.place_airborne(planet, up, 90.0, 0.0, 3.0, 0.0);
+                    else
+                        ship.place_on_surface(planet, up, 90.0, 0.0);
+                    for (int i = 0; i < 3000; ++i)
+                    {
+                        universe.world.step(0.02);
+                        ship.after_step(0.02);
+                    }
+                    for (const auto &contact : spec.stages[0].gear)
+                    {
+                        const sl::dvec3 pad = ship.origin() + ship.body().direction_to_world({contact.x, -2.917, contact.z});
+                        const double height = glm::length(pad - universe.position(planet)) - universe.bodies[planet].radius;
+                        if (std::abs(height) >= 0.2)
+                            std::fprintf(stderr, "%s %s start=%d pad height=%.3f\n", file, body_name, start, height);
+                        assert(std::abs(height) < 0.2);
+                    }
+                    assert(!ship.crashed());
+                }
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-shuttle-a/ship.json", spec, error));
+        const int moon = universe.find("Moon");
+        sl::TerrainConfig config;
+        config.shape = sl::TerrainShape::sphere;
+        config.radius = universe.bodies[moon].radius;
+        auto source = std::make_shared<sl::FunctionSource>(
+            [](double, double) { return 0.0; }, -100000.0, 100000.0,
+            [](const sl::dvec3 &direction, double radius) { return radius * 0.02 * direction.z; });
+        sl::Terrain terrain(config, source);
+        universe.world.body(moon)->terrain = &terrain;
+        Ship ship(universe, spec);
+        ship.place_on_surface(moon, {1.0, 0.0, 0.0}, 90.0, 0.0);
+        for (int i = 0; i < 3000; ++i)
+        {
+            universe.world.step(0.02);
+            ship.after_step(0.02);
+        }
+        for (const auto &contact : spec.stages[0].gear)
+        {
+            const sl::dvec3 pad = ship.origin() + ship.body().direction_to_world({contact.x, -2.917, contact.z});
+            const sl::dvec3 relative = pad - universe.position(moon);
+            const double height = glm::length(relative) - config.radius - terrain.height_at_direction(relative);
+            assert(std::abs(height) < 0.3);
+        }
+        assert(!ship.crashed());
+        universe.world.body(moon)->terrain = nullptr;
+    }
+    {
+        for (const char *file : {"/addons/cvel-deltaglider/ship.json", "/addons/cvel-deltaglider-nuclear/ship.json"})
+        {
+            ShipSpec spec;
+            std::string error;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+            bool found = false;
+            for (const StageSpec &stage : spec.stages)
+                for (const PartSpec &part : stage.parts)
+                    if (part.single_sided.size() == 8)
+                    {
+                        assert(std::find(part.single_sided.begin(), part.single_sided.end(), "NConeTL1") != part.single_sided.end());
+                        assert(std::find(part.single_sided.begin(), part.single_sided.end(), "NConeBR2") != part.single_sided.end());
+                        found = true;
+                    }
+            assert(found);
+        }
+    }
     {
         Universe universe;
         std::string error;

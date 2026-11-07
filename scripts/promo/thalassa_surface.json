@@ -1,0 +1,14 @@
+{
+  "name": "Promo: Thalassa expedition",
+  "description": "A Shuttle-AQ on the surface of Thalassa, away from the freight depot.",
+  "system": "Tau Ceti",
+  "active": 0,
+  "date": "2024-06-21 23:00:00",
+  "ships": [
+    {
+      "ship": "CVEL Shuttle-AQ",
+      "body": "Thalassa",
+      "surface": { "latitude": -18.5, "longitude": -163.5, "heading": 90 }
+    }
+  ]
+}

@@ -301,6 +301,9 @@ namespace kosmos
                 spec.camera_target = vec3(json["camera_target"], spec.camera_target);
             }
             spec.horizontal = json.value("horizontal", spec.ground());
+            spec.gear_rest_compression = json.value("gear_rest_compression", 0.0);
+            if (!std::isfinite(spec.gear_rest_compression) || spec.gear_rest_compression < 0.0)
+                throw std::runtime_error("gear_rest_compression must be finite and non-negative");
             if (json.contains("ground") && json["ground"].is_object())
             {
                 spec.ground_force = json["ground"].value("drive_force", spec.ground_force);
@@ -465,6 +468,7 @@ namespace kosmos
                     part.prop = jp.value("prop", "");
                     part.model = jp.value("model", "");
                     part.animations = jp.value("animations", "");
+                    part.single_sided = jp.value("single_sided", std::vector<std::string>{});
                     if (part.prop.empty() && part.model.empty())
                         for (const nlohmann::json &pt : jp.at("profile"))
                             part.profile.emplace_back(pt[0].get<float>(), pt[1].get<float>());

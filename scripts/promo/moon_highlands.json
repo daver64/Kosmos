@@ -1,0 +1,13 @@
+{
+  "name": "Promo: lunar highlands",
+  "description": "A Shuttle-A on the lunar surface, away from flattened base sites.",
+  "active": 0,
+  "date": "2024-01-22 10:00:00",
+  "ships": [
+    {
+      "ship": "CVEL Shuttle-A",
+      "body": "Moon",
+      "surface": { "latitude": -43.0, "longitude": 11.0, "heading": 90 }
+    }
+  ]
+}

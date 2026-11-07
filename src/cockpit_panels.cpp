@@ -152,7 +152,7 @@ namespace kosmos::app
         return false;
     }
 
-    void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale)
+    void draw_panel_control(kosmos::Sim &sim, const kosmos::Cockpit::PanelControl &c, float ox, float oy, float scale, bool scale_text)
     {
         if (!c.gate_property.empty())
         {
@@ -168,6 +168,22 @@ namespace kosmos::app
             return;
         }
         const float x = ox + c.x * scale, y = oy + c.y * scale, w = c.w * scale, h = c.h * scale;
+        sl::Font *font = sl::get_default_monospace_font();
+        if (scale_text && (c.type == "gauge" || c.type == "readout" || !c.label.empty()))
+        {
+            static std::map<int, sl::Font *> fonts;
+            const int point = std::clamp(static_cast<int>(std::round(15.0f * scale)), 6, 96);
+            auto it = fonts.find(point);
+            if (it == fonts.end())
+            {
+                sl::Font *loaded = sl::open_monospace_font(point);
+                if (!loaded)
+                    std::fprintf(stderr, "kosmos: unable to load panel font at %d points: %s\n", point, sl::last_error().c_str());
+                it = fonts.emplace(point, loaded).first;
+            }
+            if (it->second)
+                font = it->second;
+        }
         if (c.type == "slider")
         {
             const double lo = c.min, span = std::max(c.max - c.min, 1e-6f);
@@ -204,7 +220,11 @@ namespace kosmos::app
             char reading[32];
             const double raw = sim.props.get_double(c.property) * c.scale;
             std::snprintf(reading, sizeof reading, std::fabs(raw) >= 100.0 ? "%.0f" : "%.1f", raw);
-            sl::gprintf(static_cast<int>(x + w - 8.0f * std::strlen(reading) - 4), static_cast<int>(y + h * 0.5f - 7), {235, 245, 240}, "%s", reading);
+            if (scale_text)
+                sl::textout(font, static_cast<int>(x + w - sl::text_length(font, reading) - 4 * scale),
+                            static_cast<int>(y + (h - sl::text_height(font)) * 0.5f), {235, 245, 240}, reading);
+            else
+                sl::gprintf(static_cast<int>(x + w - 8.0f * std::strlen(reading) - 4), static_cast<int>(y + h * 0.5f - 7), {235, 245, 240}, "%s", reading);
         }
         else if (c.type == "lamp")
         {
@@ -217,13 +237,25 @@ namespace kosmos::app
         {
             char value[64];
             std::snprintf(value, sizeof value, c.format.c_str(), sim.props.get_double(c.property) * c.scale);
-            sl::gprintf(static_cast<int>(x), static_cast<int>(y), {110, 200, 150}, "%s", c.label.c_str());
-            sl::gprintf(static_cast<int>(x), static_cast<int>(y + 18), {200, 255, 220}, "%s", value);
+            if (scale_text)
+            {
+                sl::textout(font, static_cast<int>(x), static_cast<int>(y), {110, 200, 150}, c.label);
+                sl::textout(font, static_cast<int>(x), static_cast<int>(y + 18 * scale), {200, 255, 220}, value);
+            }
+            else
+            {
+                sl::gprintf(static_cast<int>(x), static_cast<int>(y), {110, 200, 150}, "%s", c.label.c_str());
+                sl::gprintf(static_cast<int>(x), static_cast<int>(y + 18), {200, 255, 220}, "%s", value);
+            }
         }
         else if (!c.label.empty())
         {
             const bool beside = c.type == "gauge" || c.type == "lamp";
-            sl::gprintf(static_cast<int>(beside ? x + w + 10 : x + 10), static_cast<int>(beside ? y + h * 0.5f - 7 : y + h * 0.5f - 7), {210, 220, 235}, "%s", c.label.c_str());
+            if (scale_text)
+                sl::textout(font, static_cast<int>(beside ? x + w + 10 * scale : x + 10 * scale),
+                            static_cast<int>(y + (h - sl::text_height(font)) * 0.5f), {210, 220, 235}, c.label);
+            else
+                sl::gprintf(static_cast<int>(beside ? x + w + 10 : x + 10), static_cast<int>(y + h * 0.5f - 7), {210, 220, 235}, "%s", c.label.c_str());
         }
     }
 
@@ -361,7 +393,7 @@ namespace kosmos::app
         }
     }
 
-    void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale)
+    void draw_panel(kosmos::Sim &sim, const kosmos::Cockpit &cp, const std::string &image, float ox, float oy, float scale, bool scale_text)
     {
         const float w = cp.panel_width * scale, h = cp.panel_height * scale;
         sl::Bitmap *back = image.empty() ? nullptr : sim.mfd.bitmap(image);
@@ -378,7 +410,7 @@ namespace kosmos::app
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
             draw_panel_cover(c, ox, oy, scale);
         for (const kosmos::Cockpit::PanelControl &c : cp.controls)
-            draw_panel_control(sim, c, ox, oy, scale);
+            draw_panel_control(sim, c, ox, oy, scale, scale_text);
     }
 
     int panel_slider = -1;
