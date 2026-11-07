@@ -318,6 +318,17 @@ add_executable(missioncore_test EXCLUDE_FROM_ALL tests/missioncore_test.cpp ${KO
 target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOSMOS_JSON_INCLUDE})
 target_compile_features(missioncore_test PRIVATE cxx_std_17)
 target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# These executables use assert for their checks, including in Release builds.
+foreach(test_target IN ITEMS systems_test reentry_test plasma_look_test shipedit_model_test
+        camera_dynamics_test landing_plane_test weather_test equipment_test synth_sound_test
+        joystick_test keybindings_test link_test launcher_test kosmoscad_test missioncore_test)
+    if(MSVC)
+        target_compile_options(${test_target} PRIVATE /UNDEBUG)
+    else()
+        target_compile_options(${test_target} PRIVATE -UNDEBUG)
+    endif()
+endforeach()
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)

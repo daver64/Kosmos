@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check Proton's upper-stage plume origins against the nozzle meshes."""
+"""Check Proton's upper-stage plumes against the installed visual representation."""
 
 import json
 from pathlib import Path
@@ -34,24 +34,35 @@ def centre_and_end(vertices, offset):
 def main():
     stages = json.loads((ADDON / "ship.json").read_text())["stages"]
     second, third = stages[1], stages[4]
+    engines = second["engines"]
+    assert len(engines) == 4
+    assert all(abs(sum(e["position"][axis] * e["thrust"] for e in engines)) < 1e-6 for axis in (0, 1))
+    assert sum(e["thrust"] for e in engines) == 2400000
+    assert all(e["isp"] == 327 and e["plume"] <= 7 and e["plume_width"] <= 0.35 for e in engines)
+    engine = third["engines"][0]
+    assert engine["thrust"] == 590390 and engine["isp"] == 325
+    assert engine["plume"] <= 5 and engine["plume_width"] <= 0.35
+    if second["parts"][0].get("prop") == "stage":
+        for stage in (second, third):
+            part = stage["parts"][0]
+            assert len(stage["parts"]) == 1 and part.get("prop") == "stage" and "model" not in part
+            for e in stage["engines"]:
+                x, y, z = e["position"]
+                assert x * x + y * y <= part["radius"] ** 2
+                assert abs(z - part["z"]) < 0.2
+                assert e["direction"] == [0, 0, -1]
+        print("proton_exhaust_test ok (procedural placeholders; no nozzle meshes)")
+        return
     nozzles = [centre_and_end(vertices, second["parts"][0]["offset"])
                for material, vertices in mesh_groups(ADDON / "models/protkstg2_uw.obj")
                if material == "EngineInside"]
-    engines = second["engines"]
     assert len(nozzles) == len(engines) == 4
     for nozzle in nozzles:
         assert any(all(abs(a - b) < 0.1 for a, b in zip(engine["position"], nozzle))
                    for engine in engines), nozzle
-    assert all(abs(sum(e["position"][axis] * e["thrust"] for e in engines)) < 1e-6 for axis in (0, 1))
-    assert sum(e["thrust"] for e in engines) == 2400000
-    assert all(e["isp"] == 327 and e["plume"] <= 7 and e["plume_width"] <= 0.35 for e in engines)
-
     third_groups = mesh_groups(ADDON / "models/protonstg3.obj")
     nozzle = centre_and_end(third_groups[0][1], third["parts"][0]["offset"])
-    engine = third["engines"][0]
     assert all(abs(a - b) < 0.1 for a, b in zip(engine["position"], nozzle))
-    assert engine["thrust"] == 590390 and engine["isp"] == 325
-    assert engine["plume"] <= 5 and engine["plume_width"] <= 0.35
     print("proton_exhaust_test ok")
 
 
