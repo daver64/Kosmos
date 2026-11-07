@@ -58,12 +58,15 @@ namespace launcher
 
         fs::path guess_thumbnail(const fs::path &dir, const std::string &stem)
         {
-            for (const char *ext : {".png", ".jpg"})
+            for (const char *folder : {"previews", "thumbs"})
             {
-                std::error_code ec;
-                const fs::path p = dir / "thumbs" / (stem + ext);
-                if (fs::is_regular_file(p, ec))
-                    return p;
+                for (const char *ext : {".png", ".jpg"})
+                {
+                    std::error_code ec;
+                    const fs::path p = dir / folder / (stem + ext);
+                    if (fs::is_regular_file(p, ec))
+                        return p;
+                }
             }
             return {};
         }

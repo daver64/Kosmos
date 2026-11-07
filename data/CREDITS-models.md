@@ -15,19 +15,20 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   Vehicle, Vehicle Assembly Building.
 - **Asteroid shape:** Vesta (shape model from the Dawn mission).
 - **Terrain:** Gale Crater (`terrain/gale-crater.stl`, a scan of the crater and Mount Sharp from NASA's 3D Resources).
-- **Orbiter-derived visuals:** Deltaglider, Shuttle-A, Dragonfly and Mir use
+- **Orbiter-derived visuals:** Deltaglider, Shuttle-A, Dragonfly, ISS, Mir and Wheel use
   meshes and textures converted from the Orbiter source repository, distributed
   under its MIT licence in `data/LICENSE-Orbiter.txt`. Sources are
   `Src/Vessel/DeltaGlider/Meshes/deltaglider.msh`,
   `Src/Vessel/DeltaGlider/Meshes/deltaglider_vc.msh`,
   `Src/Vessel/ShuttleA/Meshes/ShuttleA.msh`,
   `Src/Vessel/ShuttleA/Meshes/ShuttleA_vc.msh`,
-  `Src/Vessel/Dragonfly/Meshes/Dragonfly.msh`, `Meshes/Mir.msh`, and their
+  `Src/Vessel/ShuttleA/ShuttleA_PL/Meshes/ShuttleA_pl.msh` (cargo and life-support pods),
+  `Src/Vessel/Dragonfly/Meshes/Dragonfly.msh`, `Src/Vessel/ISS/Meshes/ProjectAlpha_ISS.msh`,
+  `Meshes/Mir.msh`, `Meshes/Wheel.msh`, and their
   corresponding `Textures` folders. `tools/msh_import.py` converts geometry
   and DDS textures and removes coincident triangles;
   `tools/import_orbiter_cockpits.py` adapts the VC displays for Kosmos.
-  ISS and Wheel retain
-  procedural placeholders; separately sourced panel art and scenery remain excluded.
+  The fuel pod retains a procedural placeholder; separately sourced panel art and scenery remain excluded.
 - **Soyuz TMA spacecraft** (`addons/cvel-soyuz/`): converted from the CVE-lite
   SoyuzTMA add-on. Its included notices credit the Soyuz meshes and textures
   to Jason Benson and adaptation for animation to Jógvan Trondesen, and state

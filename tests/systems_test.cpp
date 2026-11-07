@@ -108,10 +108,8 @@ int main()
         ShipSpec spec;
         std::string error;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/orbiter-stations/wheel.json", spec, error));
-        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 2);
-        assert(spec.stages[0].parts[0].model.empty());
-        assert(spec.stages[0].parts[0].profile.size() == 9);
-        assert(spec.stages[0].parts[1].prop == "stage");
+        assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
+        assert(spec.stages[0].parts[0].model.find("orbiter-models/wheel.obj") != std::string::npos);
         assert(spec.stages[0].radius == 257);
     }
     {
@@ -121,7 +119,10 @@ int main()
             std::string error;
             assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-shuttle-a/" + file, spec, error));
             assert(spec.stages.size() == 1 && spec.stages[0].parts.size() == 1);
-            assert(spec.stages[0].parts[0].prop == "stage");
+            if (std::string(file) == "fuelpod.json")
+                assert(spec.stages[0].parts[0].prop == "stage");
+            else
+                assert(spec.stages[0].parts[0].model.find("cargo-pod.obj") != std::string::npos);
             assert(!spec.ports.empty());
         }
     }
@@ -192,7 +193,7 @@ int main()
             if (std::string(file).find("mir") == 0)
                 assert(spec.stages[0].parts[0].model.find("mir.obj") != std::string::npos);
             else
-                assert(spec.stages[0].parts[0].model.empty() && spec.stages[0].parts[0].prop == "stage");
+                assert(spec.stages[0].parts[0].model.find("iss.obj") != std::string::npos);
             assert(spec.ports.size() == (std::string(file).find("mir") == 0 ? 2 : 5));
             Ship station(universe, spec);
             assert(!station.stage_once());

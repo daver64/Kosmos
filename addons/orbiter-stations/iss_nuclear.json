@@ -96,12 +96,7 @@
    "engines": [],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 4,
-     "length": 52,
-     "z": 36,
-     "colour": [210, 210, 210],
-     "accent": [75, 75, 80]
+     "model": "orbiter-models/iss.obj"
     }
    ]
   }

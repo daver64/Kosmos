@@ -74,12 +74,7 @@
    ],
    "parts": [
     {
-     "prop": "stage",
-     "radius": 2.8,
-     "length": 5,
-     "z": 2.5,
-     "colour": [210, 220, 210],
-     "accent": [65, 90, 75]
+     "model": "orbiter-models/cargo-pod.obj"
     }
    ]
   }

@@ -273,7 +273,7 @@ namespace kosmos::app
         }
         std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
         const std::string surface = find_orbiter_layer("Surf");
-        if (source && !surface.empty())
+        if (!surface.empty())
         {
             orbiter_imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
             if (!orbiter_imagery->ok())

@@ -359,6 +359,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+Alternatively, place a standard Orbiter installation's `Textures/Earth/Archive/Surf.tree` in `~/.config/kosmos/scenery/import/orbiter/Earth/Archive/` to stream its Earth imagery directly. An `Elev.tree` is not required: without one the ground uses procedural elevations. This optional user scenery is not bundled in Kosmos packages.
 See `data/textures/README.txt` and the developers manual.
 
 ## Property tree
