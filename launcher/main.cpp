@@ -593,10 +593,12 @@ namespace
             pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
             pack_remove_ = new wxButton(page, wxID_ANY, "Remove");
             auto *orbiter_download = new wxButton(page, wxID_ANY, "Get Orbiter terrain...");
+            auto *celestia_download = new wxButton(page, wxID_ANY, "Get Celestia imagery...");
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(pack_install_, 0, wxALL, 8);
             buttons->Add(pack_remove_, 0, wxALL, 8);
             buttons->Add(orbiter_download, 0, wxALL, 8);
+            buttons->Add(celestia_download, 0, wxALL, 8);
             col->Add(pack_list_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
             col->Add(pack_text_, 0, wxALL, 8);
             col->Add(pack_gauge_, 0, wxEXPAND | wxLEFT | wxRIGHT, 8);
@@ -607,16 +609,41 @@ namespace
             pack_install_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallPack(); });
             orbiter_download->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
                                    {
+                                       if (user_dir().empty())
+                                       {
+                                           wxMessageBox("Cannot find the user configuration directory.", "Orbiter terrain", wxICON_ERROR, this);
+                                           return;
+                                       }
                                        if (wxMessageBox("Orbiter terrain is a separate third-party download, not a Kosmos release pack. "
                                                         "Check the source and applicable terms. Downloads can be many gigabytes and are not "
                                                         "verified or installed by this launcher.\n\n"
-                                                        "For Earth, Moon or Mars, place Elev.tree and Surf.tree in "
-                                                        "import/orbiter/<body>/Archive/ inside the Kosmos folder. "
+                                                        "For Earth, Moon or Mars, place Elev.tree and Surf.tree in\n" +
+                                                        Wp(user_dir() / "scenery" / "import" / "orbiter") +
+                                                        "/<body>/Archive/.\n\n"
                                                         "Open the third-party downloads page?",
                                                         "Orbiter terrain", wxYES_NO | wxICON_INFORMATION, this) == wxYES &&
-                                           !wxLaunchDefaultBrowser("https://orbiter-mods.com/downloads.html"))
+                                           !wxLaunchDefaultBrowser("https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/"))
                                            wxMessageBox("Could not open the download page in your browser.", "Orbiter terrain", wxICON_ERROR, this);
                                    });
+            celestia_download->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
+                                    {
+                                        if (user_dir().empty())
+                                        {
+                                            wxMessageBox("Cannot find the user configuration directory.", "Celestia imagery", wxICON_ERROR, this);
+                                            return;
+                                        }
+                                        if (wxMessageBox("Celestia imagery is a separate third-party download. Check the source and "
+                                                         "applicable terms. Downloads are not verified or installed by this launcher. "
+                                                         "If your browser reports a certificate error, do not bypass it.\n\n"
+                                                         "For Jestr Earth, put JestrMarble JPG.ctx and its JestrMarble JPG "
+                                                         "tile folder together in\n" +
+                                                         Wp(user_dir() / "scenery" / "import" / "celestia" / "hires" / "earth") +
+                                                         "\nPut optional levels 6-10 inside that tile folder. "
+                                                         "Open the Celestia Earth texture catalog?",
+                                                         "Celestia imagery", wxYES_NO | wxICON_INFORMATION, this) == wxYES &&
+                                            !wxLaunchDefaultBrowser("https://celestiamotherlode.net/catalog/earth.php"))
+                                            wxMessageBox("Could not open the download page in your browser.", "Celestia imagery", wxICON_ERROR, this);
+                                    });
             pack_remove_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
                                {
                                    const int i = pack_list_->GetSelection();

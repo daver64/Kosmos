@@ -64,6 +64,45 @@ Credits we can name from the packs' own notes:
   [original image](https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/jupiter/Jupiter.jpg)
   (SHA-256 `ac2d387f8ea56a59f45dea37993c779a730f49d7d9fdbc8d36c307a351b1f1a1`).
   NASA media guidelines apply; NASA does not endorse Kosmos.
+- **Bundled Rhea surface** (`textures/rhea.jpg`): Cassini and Voyager mosaic,
+  PIA14928. Credit: **NASA/JPL-Caltech/Space Science Institute**.
+  [NASA description](https://science.nasa.gov/photojournal/map-of-rhea-march-2012/);
+  [original labeled JPEG](https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia14/pia14928/figures/PIA14928_fig1.jpg)
+  (SHA-256 `e2ce7887b58cc11c42784bc23247f2627dfeebffb3bf552fefcdca4ce1924efc`).
+  The original 12068 × 6408 image was decoded at one-quarter resolution using
+  Pillow 10.2.0 `draft("RGB", (3017, 1602))`, cropped to
+  `(80, 66, 2960, 1506)`, and saved as JPEG quality 95. The resulting
+  2880 × 1440 image has SHA-256
+  `3e2f95a4891bb9feec768b1ebe992624bf2e425443aaf8b9af0e3d35329ff2e1`.
+  NASA media guidelines apply; NASA does not endorse Kosmos.
+- **Bundled Mimas surface** (`textures/mimas.jpg`): Cassini and Voyager
+  mosaic. Credit: **NASA/JPL/Space Science Institute**.
+  [NASA description](https://science.nasa.gov/photojournal/map-of-mimas-february-2010/);
+  [original unannotated JPEG](https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia12/pia12780/figures/PIA12780_fig1.jpg)
+  (SHA-256 `261e08814b6d8203b874123a5e73fa3d6237737c6599eb88191e1a43514f40a2`).
+  NASA media guidelines apply; NASA does not endorse Kosmos.
+- **Bundled Enceladus surface** (`textures/enceladus.jpg`): Cassini and
+  Voyager global mosaic, PIA08417. Credit: **NASA/JPL/Space Science Institute**.
+  [NASA description](https://science.nasa.gov/photojournal/map-of-enceladus/);
+  [original labeled JPEG](https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia08/pia08417/PIA08417.jpg)
+  (SHA-256 `8f03e646ef8f8c67c5483494b7bfd338218f4ddda7fae88911170445f93c2f67`).
+  The bundled image crops the 3600 × 1800 map area at x=102, y=97 and
+  recompresses it as JPEG; its SHA-256 is
+  `114a87475bd6bd277e0de00b46773c947678400efd8849603fe11c5b4ddb8e27`.
+  The crop was made using ImageMagick 6:
+  `convert -limit thread 1 input.jpg -crop 3600x1800+102+97 +repage -quality 95 output.jpg`.
+  NASA media guidelines apply; NASA does not endorse Kosmos.
+- **Bundled Saturn moon surfaces** (`textures/dione.jpg`, `tethys.jpg`,
+  `iapetus.jpg`): Voyager mosaics from NASA's
+  JPL/Caltech planetary maps. Credit: **NASA/JPL/Caltech**. NASA media
+  guidelines apply; NASA does not endorse Kosmos. These older 1440 × 720
+  mosaics have substantial coverage gaps and seams.
+
+  | Body | NASA description | Original JPEG | SHA-256 |
+  |---|---|---|---|
+  | Dione | [source](https://science.nasa.gov/3d-resources/saturn-dione/) | [image](https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/saturn---dione/Saturn%20-%20Dione.jpg) | `c55d228900524557b6aff323f4b9391fc9816433e213a24ccf348c9b4291f89e` |
+  | Tethys | [source](https://science.nasa.gov/3d-resources/saturn-tethys/) | [image](https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/saturn---tethys/Saturn%20-%20Tethys.jpg) | `84f70e3fe6fa48661df4d973f78a540771e629ebbc68e032539d2e28e1d8eea1` |
+  | Iapetus | [source](https://science.nasa.gov/3d-resources/saturn-iapetus/) | [image](https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/saturn---iapetus/Saturn%20-%20Iapetus.jpg) | `9acb66830defdeffcf7938976c737d772600d9bc808e8cf45829690e8d1c7405` |
 - **Earth specular and night-light maps, Earth normal map:** NASA-derived data assembled into virtual textures for
   Celestia by Buzz and others; exact terms of bundled or locally installed versions still require review.
   The normal map was derived using Chris Laurel's `nm16` tool.
@@ -120,9 +159,9 @@ before distributing Kosmos or its data packs.
 ## Local optional imports (not shipped)
 
 Unverified `data/textures/*_normal.jpg` planetary normal maps have been
-removed from the Git index and excluded from application packages. Local
-copies can still be used by a development installation; without a normal
-map, the corresponding packaged surface has no normal-map relief.
+removed from the Git index and the working tree and excluded from packages.
+Without an installed normal map, the corresponding surface has no
+normal-map relief.
 
 Asteroid textures and meshes (Ida, Gaspra, Kleopatra, Toutatis) come from the Orbiter Main Belt Asteroids add-on. They are not redistributed. `tools/mainbelt_import.py` converts a local copy into `data/textures-hires/`, which is git-ignored.
 

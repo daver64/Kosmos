@@ -250,7 +250,17 @@ namespace kosmos::app
         }
 
         std::shared_ptr<sl::TerrainSource> source;
-        const std::string elevation = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Elev");
+        const auto find_orbiter_layer = [&](const char *layer) {
+            const std::string user = Sim::user_dir();
+            if (!user.empty())
+            {
+                const std::string path = kosmos::OrbiterTree::find_layer(user + "/scenery/import/orbiter", b.name, layer);
+                if (!path.empty())
+                    return path;
+            }
+            return kosmos::OrbiterTree::find_layer(orbiter, b.name, layer);
+        };
+        const std::string elevation = find_orbiter_layer("Elev");
         if (!elevation.empty())
         {
             // Earth's elevation file includes the sea floor; the sea itself stays flat at zero.
@@ -262,7 +272,7 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), data->error().c_str());
         }
         std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
-        const std::string surface = kosmos::OrbiterTree::find_layer(orbiter, b.name, "Surf");
+        const std::string surface = find_orbiter_layer("Surf");
         if (source && !surface.empty())
         {
             orbiter_imagery = std::make_shared<kosmos::OrbiterImagery>(surface, frame, b.radius);
@@ -276,7 +286,7 @@ namespace kosmos::app
         for (char &c : lower_name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         std::vector<std::shared_ptr<kosmos::CelestiaImagery>> surface_imagery;
-        const std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
+        const std::string celestia_tiles = find_optional_tile_source(sim.root(), "/import/celestia/hires/" + lower_name);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
         const bool generated_ground = b.style.has_ground() && !home;

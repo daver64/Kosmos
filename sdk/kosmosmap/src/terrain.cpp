@@ -25,6 +25,15 @@ namespace kmap
             return text;
         }
 
+        fs::path user_scenery()
+        {
+            const char *xdg = std::getenv("XDG_CONFIG_HOME");
+            const char *home = std::getenv("HOME");
+            const char *appdata = std::getenv("APPDATA");
+            const fs::path base = xdg && *xdg ? fs::path(xdg) : home && *home ? fs::path(home) / ".config" : appdata ? fs::path(appdata) : fs::path();
+            return base.empty() ? fs::path() : base / "kosmos" / "scenery";
+        }
+
         struct Hit
         {
             std::uint32_t node = Tree::none;
@@ -141,16 +150,34 @@ namespace kmap
     {
         const std::string want = lower(body);
         std::error_code ec;
+        const auto in_folder = [&](const fs::path &folder) -> std::string {
+            for (const char *sub : {"", "Archive"})
+            {
+                const fs::path file = folder / sub / (layer + ".tree");
+                if (fs::exists(file, ec))
+                    return file.string();
+            }
+            return {};
+        };
         for (const fs::directory_entry &entry : fs::directory_iterator(root, ec))
         {
             if (!entry.is_directory())
                 continue;
             const std::string name = lower(entry.path().filename().string());
-            if (name.size() < want.size() || name.compare(name.size() - want.size(), want.size(), want) != 0)
-                continue;
-            const fs::path file = entry.path() / (layer + ".tree");
-            if (fs::exists(file, ec))
-                return file.string();
+            if (name.size() >= want.size() && name.compare(name.size() - want.size(), want.size(), want) == 0)
+            {
+                const std::string path = in_folder(entry.path());
+                if (!path.empty())
+                    return path;
+            }
+            std::error_code inner_ec;
+            for (const fs::directory_entry &child : fs::directory_iterator(entry.path(), inner_ec))
+                if (child.is_directory() && lower(child.path().filename().string()) == want)
+                {
+                    const std::string path = in_folder(child.path());
+                    if (!path.empty())
+                        return path;
+                }
         }
         return {};
     }
@@ -276,7 +303,10 @@ namespace kmap
         source.clear();
         const std::string folder = root + "/import/orbiter";
         std::string error;
-        const std::string tree = Tree::find_layer(folder, body, "Elev");
+        const fs::path user = user_scenery();
+        std::string tree = user.empty() ? std::string() : Tree::find_layer((user / "import/orbiter").string(), body, "Elev");
+        if (tree.empty())
+            tree = Tree::find_layer(folder, body, "Elev");
         if (!tree.empty() && elevation.open(tree, error))
         {
             has_elevation = true;
@@ -285,6 +315,17 @@ namespace kmap
         else if (!error.empty())
             source = error;
         const std::string key = lower(body);
+        for (const char *ext : {".jpg", ".png"})
+        {
+            const fs::path path = user / "data/textures-hires" / (key + ext);
+            if (!user.empty() && !picture.ok() && fs::exists(path))
+            {
+                if (picture.load(path.string(), error))
+                    source += std::string(source.empty() ? "" : ", ") + "user image " + path.filename().string();
+                else
+                    source += std::string(source.empty() ? "" : ", ") + "cannot load " + path.string() + ": " + error;
+            }
+        }
         for (const char *dir : {"/data/textures/planets/", "/data/textures/", "/import/celestia/medres/", "/import/celestia/lores/"})
             for (const char *ext : {".jpg", ".png"})
             {

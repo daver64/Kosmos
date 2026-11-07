@@ -170,16 +170,24 @@ namespace kosmos::app
         return {};
     }
 
-    // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
-    std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions)
+    std::string find_optional_texture(const std::string &root, const std::string &directory, const std::string &name,
+                                      std::initializer_list<const char *> extensions)
     {
-        for (const char *directory : {"/data/textures-hires/", "/data/textures/"})
+        const std::string user = kosmos::Sim::user_dir();
+        if (!user.empty())
         {
-            const std::string path = find_texture_in_directory(root, directory, name, extensions);
+            const std::string path = find_texture_in_directory(user + "/scenery", directory, name, extensions);
             if (!path.empty())
                 return path;
         }
-        return {};
+        return find_texture_in_directory(root, directory, name, extensions);
+    }
+
+    // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
+    std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions)
+    {
+        const std::string optional = find_optional_texture(root, "/data/textures-hires/", name, extensions);
+        return optional.empty() ? find_texture_in_directory(root, "/data/textures/", name, extensions) : optional;
     }
 
     // The first .ctx in a Celestia virtual-texture folder, or the folder itself when it has none. Empty if the folder is missing.
@@ -225,6 +233,37 @@ namespace kosmos::app
             return !prefer.empty() && name.find(prefer) != std::string::npos;
         });
         return images.empty() ? std::string{} : images.front().string();
+    }
+
+    std::string find_optional_tile_source(const std::string &root, const std::string &directory)
+    {
+        const std::string user = kosmos::Sim::user_dir();
+        if (!user.empty())
+        {
+            const std::string path = find_tile_source(user + "/scenery" + directory);
+            if (!path.empty())
+            {
+                std::error_code ec;
+                const bool empty_directory = std::filesystem::is_directory(path, ec) && std::filesystem::is_empty(path, ec);
+                if (ec)
+                    std::fprintf(stderr, "[kosmos] could not inspect scenery %s: %s\n", path.c_str(), ec.message().c_str());
+                if (!empty_directory)
+                    return path;
+            }
+        }
+        return find_tile_source(root + directory);
+    }
+
+    std::string find_optional_image_folder(const std::string &root, const std::string &directory, const std::string &prefer)
+    {
+        const std::string user = kosmos::Sim::user_dir();
+        if (!user.empty())
+        {
+            const std::string path = find_image_in_folder(user + "/scenery" + directory, prefer);
+            if (!path.empty())
+                return path;
+        }
+        return find_image_in_folder(root + directory, prefer);
     }
 
     int generated_texture_width = 0;
@@ -287,10 +326,10 @@ namespace kosmos::app
         std::string lower = b.name;
         for (char &c : lower)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        const std::string override = find_texture_in_directory(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        const std::string override = find_optional_texture(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
         if (!override.empty())
             return override;
-        const std::string celestia = find_image_in_folder(root + "/import/celestia/hires/" + lower, lower);
+        const std::string celestia = find_optional_image_folder(root, "/import/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;
         const std::string generated = find_texture_in_directory(root, "/data/textures-generated/", lower, {".dds", ".png", ".jpg", ".jpeg"});

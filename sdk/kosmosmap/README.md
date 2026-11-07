@@ -9,7 +9,12 @@ A moving map for Kosmos, in the spirit of FlightGear's Atlas. It is an ordinary 
 2. Press **Restart** if it has not opened a window. The map opens beside the game and follows the flown ship.
 3. Untick the addon to close it.
 
-It is not started automatically. Without the Orbiter terrain data (`import/orbiter`, not in the download) it shows the pictures in `data/textures` unshaded.
+It is not started automatically. It can read Orbiter elevation under
+`~/.config/kosmos/scenery/import/orbiter/` or the installation's
+`import/orbiter/`; the user data takes priority. It can also use user
+JPEG/PNG images under `~/.config/kosmos/scenery/data/textures-hires/`.
+Without elevation data it shows available pictures unshaded. KosmosMap does
+not currently read DDS images or Celestia virtual tiles.
 
 ### What you see
 - **The ground** of whichever body the flown ship is in the sphere of influence of, as a flat map. The map switches body by itself when the ship changes sphere of influence, for example on arrival at the Moon.
@@ -88,7 +93,7 @@ Kosmos ---KosmosLink (loopback)---> on_tick (every 200 ms) ---> App state ---> p
 - `Tree` reads Orbiter's planetary quadtree archives (`.tree`): a header, an array of nodes holding file position, size and four child indices, and zlib-compressed tiles. It is guarded by a mutex because worker threads read it.
 - `Elevation` decodes the `Elev` tiles into `Tile`s (a 257 x 257 grid of 16-bit samples plus a one sample border, with a scale and offset, or a flat tile) and caches them by node. `height(lat, lon, metres_per_pixel, radius, cursor)` picks the quadtree level that suits the zoom and samples it bilinearly. Each thread passes its own `Cursor` (last node and tile) so most lookups skip the shared cache.
 - `Picture` loads an equirectangular JPEG or PNG (north at the top, longitude -180 at the left) with gdk-pixbuf and gives `colour(lat, lon)`.
-- `Ground::load(root, body, radius)` looks for `import/orbiter/*<body>/Elev.tree` and for the picture in `data/textures/planets/`, `data/textures/`, `import/celestia/medres/` and `import/celestia/lores/`, and fills `source`, the status text.
+- `Ground::load(root, body, radius)` checks user scenery for Orbiter elevation and JPEG/PNG hi-res images first, then looks for `import/orbiter/*<body>/Elev.tree` and for the picture in `data/textures/planets/`, `data/textures/`, `import/celestia/medres/` and `import/celestia/lores/`, and fills `source`, the status text.
 - `find_root` finds the Kosmos folder: the `--root` hint, then `KOSMOS_DATA`, then by walking up from the program and from the working directory (a folder is the Kosmos folder if it holds `data/`).
 
 ### Rendering (`render.cpp`)

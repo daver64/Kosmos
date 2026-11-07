@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the bundled files attributed to NASA are the documented originals."""
+"""Verify bundled NASA images and documented derivatives match their hashes."""
 
 import hashlib
 from pathlib import Path
@@ -15,6 +15,12 @@ EXPECTED = {
     "io.jpg": "79239daa0ac6438d02a7b536f3eb8d044098b8cf33c8f2f91dbab4f5f054bfa7",
     "deimos.jpg": "204e89cc7dc128e9fa6ae5f14cc23dc7917a4a8ccab9feff1a9544d22b354dce",
     "jupiter.jpg": "ac2d387f8ea56a59f45dea37993c779a730f49d7d9fdbc8d36c307a351b1f1a1",
+    "rhea.jpg": "3e2f95a4891bb9feec768b1ebe992624bf2e425443aaf8b9af0e3d35329ff2e1",
+    "dione.jpg": "c55d228900524557b6aff323f4b9391fc9816433e213a24ccf348c9b4291f89e",
+    "tethys.jpg": "84f70e3fe6fa48661df4d973f78a540771e629ebbc68e032539d2e28e1d8eea1",
+    "mimas.jpg": "261e08814b6d8203b874123a5e73fa3d6237737c6599eb88191e1a43514f40a2",
+    "enceladus.jpg": "114a87475bd6bd277e0de00b46773c947678400efd8849603fe11c5b4ddb8e27",
+    "iapetus.jpg": "9acb66830defdeffcf7938976c737d772600d9bc808e8cf45829690e8d1c7405",
 }
 
 

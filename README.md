@@ -114,11 +114,18 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 `import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
 
-The launcher's **Scenery packs > Get Orbiter terrain** button opens the
-independent [Orbiter-Mods downloads page](https://orbiter-mods.com/downloads.html),
-which also lists torrents. These third-party downloads are not verified or
-installed by the launcher; check their source and terms and follow the
-[manual installation instructions](docs/manual/manual.md#hires).
+The launcher's **Scenery packs** page links to the independent
+[Orbiter Forum terrain mirrors](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) and
+[Celestia Earth catalog](https://celestiamotherlode.net/catalog/earth.php).
+These buttons open a browser: third-party downloads are **not** downloaded,
+verified or installed by the launcher. Check their terms and install them
+yourself under `~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`);
+see the [installation instructions](docs/manual/manual.md#hires).
+The Celestia catalog's HTTPS certificate failed validation when last checked;
+do not bypass a browser certificate warning.
+This user-owned folder is separate from application updates. Equivalent
+optional files under the installation remain supported; matching user files
+take precedence within each scenery source.
 
 ## Native addons
 

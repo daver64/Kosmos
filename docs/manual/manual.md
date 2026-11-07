@@ -1072,18 +1072,31 @@ planetbake (SDK tool)| For big maps and more layers (colour, height, normal, spe
 
 Kosmos ships with low-resolution runtime textures and procedural terrain for every body. For real elevation and close-up imagery, Kosmos can read **Orbiter high-resolution planet packs** directly: the same `Elev.tree` (heights) and `Surf.tree` (surface imagery) archives Orbiter uses. They are optional and are not included in the Kosmos download, so you add them yourself.
 
-  1. Obtain the Orbiter 2016 high-resolution packs for the bodies you want (Earth, Moon, Mars), for example from [Orbiter-Mods downloads](https://orbiter-mods.com/downloads.html). The launcher's **Scenery packs > Get Orbiter terrain** button opens that page; the third-party downloads are not verified or installed by the launcher. The [Orbiter Forum mirror listing](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) also lists individual `.tree` files and torrents. Check the source and applicable terms.
-  2. Unpack each pack as its own folder inside `import/orbiter/`, next to the executable. The folder name must _end_ with the body’s name, for example `import/orbiter/Orbiter 2016 High Res: Earth`.
+  1. Obtain the Orbiter 2016 high-resolution packs for the bodies you want (Earth, Moon, Mars). The launcher's **Scenery packs > Get Orbiter terrain** button opens the [Orbiter Forum mirror listing](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/), which lists individual `.tree` files and torrents; the third-party downloads are not verified or installed by the launcher. Check the source, applicable terms and available disk space: Earth elevation and surface imagery alone are approximately 32.7 GB combined.
+  2. Under `~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`), place the files in `import/orbiter/Earth/Archive/`, `import/orbiter/Moon/Archive/` or `import/orbiter/Mars/Archive/`. Existing `import/orbiter/` folders beside the executable also work. A pack folder may instead end in the body's name.
   3. Check that each folder holds `Elev.tree` and, for imagery, `Surf.tree`. These may be in an `Archive` subfolder; the downloaded ZIPs may contain additional folders that must be unpacked or moved into this layout.
   4. Start Kosmos. The console prints `Earth terrain from Orbiter data` (and so on) for each body it found.
 
 
     
     
-    import/orbiter/
-      Orbiter 2016 High Res: Earth/   Elev.tree  Surf.tree
-      Orbiter 2016 High Res: Moon/    Elev.tree  Surf.tree
-      Orbiter 2016 High Res: Mars/    Elev.tree  Surf.tree
+    ~/.config/kosmos/scenery/import/orbiter/
+      Earth/Archive/   Elev.tree  Surf.tree
+      Moon/Archive/    Elev.tree  Surf.tree
+      Mars/Archive/    Elev.tree  Surf.tree
+
+The launcher's **Get Celestia imagery** button opens the third-party
+Celestia Earth catalog; it does not download, verify or install anything.
+The catalog's HTTPS certificate failed validation when last checked; do not
+bypass a browser certificate warning.
+For Jestr Earth, put `JestrMarble JPG.ctx` and the `JestrMarble JPG/` tile
+folder together under `~/.config/kosmos/scenery/import/celestia/hires/earth/`.
+Put the optional levels 6–10 inside that tile folder, as described by its
+readme. Check the source and terms before obtaining or redistributing it.
+User scenery is not packaged or removed by application updates. For each
+optional scenery source, a matching user file takes priority over an
+installation-local one. Set `XDG_CONFIG_HOME` to use a different Linux
+configuration directory.
 
 You can install only some of them; without an Orbiter pack, terrain is procedural and the orbital image comes from the bundled texture or any optional override you have installed. Orbiter terrain tiles stream in as you approach, so the first low pass over new ground may show coarser detail for a moment. The optional Celestia source tree lives in `import/celestia/`: Earth colour tiles (and optional specular and normal tiles) can stream directly from `import/celestia/hires/`. Close-up terrain compares Orbiter and available Celestia colour maps per location and uses whichever has finer texels; Orbiter elevation still shapes the ground. For other Celestia maps, use the import tools to install an image into `data/textures/` or `data/textures-hires/`; moon sources under `import/celestia/moons/` are not scanned at runtime or included in release packages. See the [Developers manual](../../README.md) for map lookup and import details.
 

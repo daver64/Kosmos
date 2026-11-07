@@ -1312,6 +1312,7 @@ namespace kosmos
 "  Probes with cameras, radar or a spectrometer have an INST MFD: switch the instrument LOAD on in Systems, point it with AZ/EL, SHOOT saves a picture or spectrum, GALLERY browses them\n"
 "Planets\n"
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
+                                   "  Optional scenery can be placed in the user folder under scenery/; the launcher links to third-party sources but does not install their packs\n"
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"

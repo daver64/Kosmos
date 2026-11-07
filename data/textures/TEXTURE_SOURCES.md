@@ -2,12 +2,16 @@
 
 Keep source data separate from the images Kosmos loads at runtime:
 
+The optional locations below can also be placed beneath
+`~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`). Within
+each source type the user copy takes priority over the installation copy.
+
 | Source | Location | Installed output |
 |---|---|---|
 | Celestia texture collections and virtual-tile packs | `import/celestia/` | `data/textures/` for bundled defaults, `data/textures-hires/` for optional single-image overrides |
 | Orbiter archives and `Surf.tree` data | `import/orbiter/` | `data/textures-hires/` for optional converted maps |
 
-The repository and release contain runtime fallback textures; Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos and Deimos are NASA images identified in `data/CREDITS-textures.md`. Some NASA mosaics have visible gaps or seams. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. Unverified `data/textures/*_normal.jpg` planetary normal maps are excluded from packages, so those surfaces have no normal-map relief unless a user installs a replacement. The `import/celestia/hires/` source directory, `import/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages. Other bundled maps still require individual provenance review.
+The repository and release contain runtime fallback textures; Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos, Deimos, Rhea, Dione, Tethys, Mimas, Enceladus and Iapetus are NASA images identified in `data/CREDITS-textures.md`. Some NASA mosaics have substantial gaps or seams. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. Unverified `data/textures/*_normal.jpg` planetary normal maps are excluded from packages, so those surfaces have no normal-map relief unless a user installs a replacement. The `import/celestia/hires/` source directory, `import/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages. Other bundled maps still require individual provenance review.
 
 ## Celestia
 

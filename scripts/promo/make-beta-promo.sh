@@ -1,6 +1,6 @@
 #!/bin/bash
 # Capture with Kosmos' built-in recorder and screenshot facility, then edit with ffmpeg.
-# Usage: bash scripts/promo/make-beta-promo.sh [all|clips|screenshots|edit|thumbnail] [output-directory]
+# Usage: bash scripts/promo/make-beta-promo.sh [all|clips|screenshots|edit|thumbnail|planets-review] [output-directory]
 #        bash scripts/promo/make-beta-promo.sh [clip|shot] output-directory scene [seconds]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -50,6 +50,9 @@ scene() {
         habitat_room) SCENE=(--scenario mare_quarters_on_foot --interior-at 3.0 4.2 20 0) ;;
         eva) CLEAN=(--hide-info); SCENE=(--scenario-file "$ROOT/scripts/promo/moon_highlands.json" --date "2024-01-22 10:00:00" --eva) ;;
         mars) SCENE=(--scenario ares_spider_gale_crater --cam-yaw 0.7 --cam-pitch 0.18 --cam-distance 80 --cam-spin 1) ;;
+        planet_mars) SCENE=(--no-clouds --ship "CVEL Deltaglider" --orbit-body Mars --orbit-alt 400 --alone --sunlit --sun-angle 20 --cam-yaw -1.5 --cam-pitch 0.4 --cam-distance 40 --cam-spin 1) ;;
+        planet_jupiter) SCENE=(--no-clouds --ship "CVEL Shuttle-A" --orbit-body Jupiter --orbit-alt 30000 --alone --sunlit --sun-angle 20 --cam-yaw 0.8 --cam-pitch 0.4 --cam-distance 55 --cam-spin 1) ;;
+        planet_saturn) SCENE=(--no-clouds --ship "CVEL Dragonfly" --orbit-body Saturn --orbit-alt 30000 --alone --sunlit --sun-angle 20 --cam-yaw -0.5 --cam-pitch 0.4 --cam-distance 25 --cam-spin 1) ;;
         exoplanet) SCENE=(--scenario-file "$ROOT/scripts/promo/thalassa_surface.json" --date "2024-06-21 23:00:00" --cam-yaw 0.7 --cam-pitch 0.1 --cam-distance 48 --cam-spin 1 --set /sim/settings/gfx-clutter-density=35) ;;
         closing) SCENE=(--no-clouds --scenario dragonfly_orbit --sunlit --sun-angle 20 --orbit-alt 600 --cam-yaw -0.5 --cam-pitch 0.65 --cam-distance 25 --cam-spin 1) ;;
         docked) SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/gallery_mars_stack.json" --sunlit --sun-angle -70 --cam-yaw -0.6 --cam-pitch 0.55 --cam-distance 50) ;;
@@ -155,6 +158,32 @@ make_thumbnail() {
         -frames:v 1 "$OUT/thumbnail.png"
 }
 
+edit_planets_review() {
+    local music="$OUT/holst-1923.mp3" shot name caption music_at index=0
+    local -a shots=(
+        "planet_mars|Mars|120"
+        "planet_jupiter|Jupiter|1150"
+        "planet_saturn|Saturn|1580"
+    )
+    test -s "$music" || { echo "Missing historical recording: $music" >&2; return 1; }
+    if [[ $(sha256sum "$music" | cut -d' ' -f1) != 541f7b1eaef43ab034467d4554b4eb8b336d1e77e577683545c163decd7b466d ]]; then
+        echo "Unexpected recording; use the documented Holst 1923 MP3 transcode" >&2; return 1
+    fi
+    : >"$OUT/edit/planets-list.txt"
+    for shot in "${shots[@]}"; do
+        IFS='|' read -r name caption music_at <<<"$shot"
+        index=$((index + 1))
+        test -s "$OUT/clips/$name.mp4" || { echo "Missing clip: $name" >&2; return 1; }
+        ffmpeg -nostdin -loglevel error -y -ss 2 -i "$OUT/clips/$name.mp4" -ss "$music_at" -i "$music" -t 8 \
+            -filter_complex "[0:v]fps=30,format=yuv420p,drawtext=fontfile='$FONT':text='$caption':fontsize=48:fontcolor=white:box=1:boxcolor=black@0.60:boxborderw=14:x=60:y=60[v];[0:a]aresample=48000,volume=0.4[effects];[1:a]aresample=48000,volume=0.65,afade=t=in:st=0:d=0.3,afade=t=out:st=7.6:d=0.4[music];[effects][music]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.9[a]" \
+            -map "[v]" -map "[a]" -c:v libx264 -preset medium -crf 18 -c:a aac -b:a 192k "$OUT/edit/planets-$index.mp4"
+        printf "file '%s'\n" "$OUT/edit/planets-$index.mp4" >>"$OUT/edit/planets-list.txt"
+    done
+    ffmpeg -nostdin -loglevel error -y -f concat -safe 0 -i "$OUT/edit/planets-list.txt" \
+        -c copy -movflags +faststart "$OUT/planet-music-review.mp4"
+    echo "Wrote $OUT/planet-music-review.mp4 (review only; rights and audio need checking)"
+}
+
 case "$MODE" in
     clip) capture_clip "${3:?scene required}" "${4:-15}" ;;
     shot) capture_shot "${3:?scene required}" "${4:-10}" ;;
@@ -192,6 +221,7 @@ case "$MODE" in
         done
         ;;&
     all|edit) edit_video; make_thumbnail ;;
+    planets-review) edit_planets_review ;;
     thumbnail) make_thumbnail ;;
     clips|screenshots) ;;
     *) echo "Usage: $0 [all|clips|screenshots|edit|thumbnail] [output-directory], or [clip|shot] output-directory scene [seconds]" >&2; exit 2 ;;

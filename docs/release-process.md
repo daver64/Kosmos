@@ -47,8 +47,9 @@ publish the website, or advance `VERSION`.
    add-on or footage showing it as cleared until its actual assets have
    been traced and removed or their terms reviewed. The current application
    package build excludes the whole Ariane add-on, including ATV, and its
-   two scenarios; staging rejects archives containing them. Local copies and
-   old packages can still contain these files.
+   two scenarios; staging rejects archives containing them. They have also
+   been removed from this working tree; source imports and old packages can
+   still contain them.
    Unverified media also exists in Git history, so deleting it from the
    current tree alone will not make the repository's history safe to publish.
    The owner must decide how to prepare a rights-cleared public history.
@@ -61,16 +62,17 @@ publish the website, or advance `VERSION`.
    elsewhere in `data/textures/`.
    The local `data/reference/` collection and `data/textures/skybox/` are
    also excluded from new application packages and rejected by staging.
-   They were removed from the Git index, not from local storage or history.
+   They were removed from the Git index; the skybox was also removed from
+   this working tree. Local reference files and history still contain media.
    The four Deltaglider `Shuttle_BRI`, `Shuttle_CAN`,
    `Shuttle_FRA` and `Shuttle_USA` skin folders are likewise excluded;
    their source archive has no licence notice, and the bundled Chippenham
-   scenario no longer selects one.
+   scenario no longer selects one. They were also removed from this working
+   tree; the original import archive and Git history remain.
    The sixteen unverified root-level planetary `data/textures/*_normal.jpg`
-   maps are removed from the Git index and excluded from packages and
-   staging. A local development tree may still load its preserved copies;
-   packaged installations without replacements have no normal-map relief
-   for those bodies.
+   maps are removed from the Git index and local working tree and excluded
+   from packages and staging. Installations without replacements have no
+   normal-map relief for those bodies.
    The Orbiter-Mods download page offers Orbiter high-resolution terrain but
    does not itself specify licence terms for the packs. A launcher link to
    that independent source is not evidence that Kosmos may redistribute

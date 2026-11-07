@@ -799,6 +799,13 @@ A body may have `"mesh": "bodies/vesta.glb"` (a glTF under `data/`) to be drawn 
 
 Surface images are equirectangular (2:1), with north at the top and 180°W at the left, and use the body's lower-case name. Put a custom image for an existing body in `data/textures-hires/<body>.<ext>` (`.dds`, `.png`, `.jpg` or `.jpeg`) to override the bundled map without changing it. New bodies can use `data/textures/<body>.<ext>`. Image lookup checks `data/textures-hires/`, optional `import/celestia/hires/<body>/`, `data/textures-generated/`, then `data/textures/`. Normal maps are named `<body>_normal` and checked in `data/textures-hires/`, `import/celestia/hires/<body>_normal/`, then `data/textures/`; `--no-relief` disables normal-map relief. `tools/gen_textures.py` generates test maps up to 16384×8192 as block-compressed DDS. DDS files are uploaded to the GPU still compressed, so a 16k Earth costs about 90 MB of VRAM rather than about 1.5 GB for a PNG.
 
+Optional `data/textures-hires/`, `import/celestia/hires/`, and
+`import/orbiter/` paths can also live below
+`~/.config/kosmos/scenery/` (Windows: `%APPDATA%\kosmos\scenery\`).
+Matching user files or tile sets take priority over the same source in the
+installation; the source ordering above is unchanged. For Orbiter, elevation
+and surface layers are selected separately.
+
 Keep original source collections separate from runtime images. Put Celestia sources under `import/celestia/`; `tools/celestia_import.py` targets `data/textures/` by default and refuses to overwrite existing files unless `--force` is supplied. Pass `--out data/textures-hires` to use separate overrides instead; create the output directory first. Check each image's terms before redistributing it. Organize moon sources under `import/celestia/moons/<planet>/<Moon>/`. Kosmos does not scan that moon-source tree at runtime, so stitch a desired `.ctx` map with `tools/ctx_import.py` into a runtime texture folder. Earth is the exception: when its Celestia tile sources are present under `import/celestia/hires/earth/`, they stream directly; specular and normal tile sets are optional.
 
 Orbiter's high-resolution `Surf.tree` archives can be converted to an orbital-view image:
