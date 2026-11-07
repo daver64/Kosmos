@@ -53,6 +53,8 @@ namespace kosmos
         /** True while Earth is showing real observations. */
         bool live() const { return live_applied_; }
         std::string live_status() const;
+        /** Whether the body's atmosphere supports the weather system. */
+        static bool supports_body(const Universe &universe, int body);
 
     private:
         WeatherField *ensure(const Universe &universe, int body);

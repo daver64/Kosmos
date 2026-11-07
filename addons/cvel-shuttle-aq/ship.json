@@ -1,6 +1,7 @@
 {
  "name": "CVEL Shuttle-AQ",
  "class": "transfer",
+ "orbital_only": false,
  "payload_bays": [
   {"name": "Starboard forward", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Starboard forward"},
   {"name": "Starboard middle", "shape": "cylinder", "radius": 2.8, "length": 5, "port": "Starboard middle"},

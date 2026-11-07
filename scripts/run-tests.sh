@@ -21,7 +21,7 @@ python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/ares_legs_test.py"
 python3 "$SRC/tests/proton_exhaust_test.py"
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 cd "$OUT"
 export HOME=$(mktemp -d)
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -36,8 +36,18 @@ python3 "$SRC/tests/gui_input_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/orbital_sas_test.py" "$PWD/kosmos"
 echo "== timed burn selftest (Shuttle-A in Mars orbit)"
 ./kosmos --ship "CVEL Shuttle-A" --orbit-body Mars --orbit-alt 200 --selftest 1 --selftest-timed-burn
+echo "== landing plane prediction (Ares in Mars orbit)"
+./kosmos --ship "Ares Spider" --orbit-body Mars --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true
+echo "== landing plane prediction (Ares in Moon orbit)"
+./kosmos --ship "Ares Spider" --orbit-body Moon --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=tranquility
+echo "== landing plane prediction (Shuttle-A in Earth orbit)"
+./kosmos --ship "CVEL Shuttle-A" --orbit-body Earth --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=kourou
+echo "== finite landing plane burns (Ares on Mars and Moon)"
+./kosmos --ship "Ares Spider" --orbit-body Mars --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-burn=true
+./kosmos --ship "Ares Spider" --orbit-body Moon --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=tranquility --set /selftest/landing-plane-burn=true
+./kosmos --ship "CVEL Shuttle-A" --orbit-body Earth --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=kourou --set /selftest/landing-plane-burn=true
 
-for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
+for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
     echo "== $t"
     ./$t
 done
@@ -79,6 +89,11 @@ if [ "$extended" -eq 1 ]; then
     python3 "$SRC/tests/orbitcomp_flight_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/autoland_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/target_landing_test.py" "$PWD/kosmos"
+    python3 "$SRC/tests/orbital_target_landing_test.py" "$PWD/kosmos"
+    echo "== experimental orbital descent probes (not the player-facing autopilot)"
+    ./kosmos --ship "Ares Spider" --orbit-body Mars --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-burn=true --set /selftest/landing-plane-descent=true --set /selftest/landing-shadow=true --set /selftest/landing-plane-lead=0.48 --set /selftest/landing-plane-orbits=14
+    ./kosmos --ship "Ares Spider" --orbit-body Moon --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=tranquility --set /selftest/landing-plane-burn=true --set /selftest/landing-plane-descent=true --set /selftest/landing-shadow=true
+    ./kosmos --ship "CVEL Shuttle-A" --orbit-body Earth --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=kourou --set /selftest/landing-plane-burn=true --set /selftest/landing-plane-descent=true --set /selftest/landing-shadow=true --set /selftest/landing-plane-lead=0.42
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos" --cargo
     python3 "$SRC/tests/atlas_autopilot_test.py" "$PWD/kosmos"

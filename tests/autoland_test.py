@@ -43,7 +43,7 @@ def main():
     assert "crashed 0, soi Mars" in output and "Autoland aborted" not in output, output
 
     earth = run("Earth", "Ares Spider", 1)
-    assert "Autoland aborted: only Mars is supported" in earth.stderr, earth.stderr
+    assert "Autoland aborted: only Mars or Moon/Shuttle-A targets are supported" in earth.stderr, earth.stderr
     no_hover = run("Mars", "Kestrel", 1)
     assert "Autoland aborted: insufficient hover thrust or fuel" in no_hover.stderr, no_hover.stderr
     no_gear = run("Mars", "Luna E3", 1)

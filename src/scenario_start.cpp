@@ -318,6 +318,14 @@ namespace kosmos::app
                              known_ship ? "body" : "ship", known_ship ? entry.body.c_str() : entry.ship.c_str());
                 return nullptr;
             }
+            if (!entry.point_at.empty() &&
+                (sim.universe.find(entry.point_at) < 0 || entry.landed || entry.has_state ||
+                 entry.dock_to >= 0 || entry.portal_m > 0.0))
+            {
+                std::fprintf(stderr, "kosmos: scenario %s: invalid point_at \"%s\" for ship \"%s\" (requires a known body and an undocked orbit without saved state)\n",
+                             sc.id.c_str(), entry.point_at.c_str(), entry.ship.c_str());
+                return nullptr;
+            }
         }
         sim.clear_ships();
         sim.props.set_string("/sim/weather-force", sc.weather);
@@ -368,6 +376,22 @@ namespace kosmos::app
                 flight.velocity = parent.velocity + sl::dvec3(entry.state_velocity[0], entry.state_velocity[1], entry.state_velocity[2]);
                 flight.orientation = sl::dquat(entry.state_orientation[0], entry.state_orientation[1], entry.state_orientation[2], entry.state_orientation[3]);
                 flight.angular_velocity = sl::dvec3(entry.state_angular_velocity[0], entry.state_angular_velocity[1], entry.state_angular_velocity[2]);
+                ship->refresh_telemetry();
+            }
+            if (!entry.point_at.empty())
+            {
+                const sl::dvec3 offset = sim.universe.world.body(sim.universe.find(entry.point_at))->position - ship->body().position;
+                const double distance = glm::length(offset);
+                if (!std::isfinite(distance) || distance < 1.0)
+                {
+                    std::fprintf(stderr, "kosmos: scenario %s: point_at body \"%s\" coincides with ship \"%s\"\n",
+                                 sc.id.c_str(), entry.point_at.c_str(), entry.ship.c_str());
+                    sim.clear_ships();
+                    return nullptr;
+                }
+                const sl::dvec3 direction = offset / distance;
+                const sl::dvec3 up = std::abs(direction.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
+                ship->body().orientation = glm::quatLookAt(direction, up);
                 ship->refresh_telemetry();
             }
         }

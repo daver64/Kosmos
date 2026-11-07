@@ -16,6 +16,8 @@ namespace kosmos
         std::string label; // optional replacement display name
         std::string skin;  // optional skin folder of the ship (see ship_skins)
         std::string body;  // Earth, Moon, ...
+        /** Initially point the nose at this body; not used with exact saved state. */
+        std::string point_at;
         bool landed = false;
         // Orbit.
         double altitude_km = 200.0, inclination = 0.0, phase = 0.0;

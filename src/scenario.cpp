@@ -116,6 +116,7 @@ namespace kosmos
                 s.label = js.value("name", js.value("label", ""));
                 s.skin = js.value("skin", "");
                 s.body = js.value("body", "Earth");
+                s.point_at = js.value("point_at", "");
                 if (js.contains("orbit"))
                 {
                     const nlohmann::json &o = js["orbit"];
@@ -263,6 +264,8 @@ namespace kosmos
             if (!s.skin.empty())
                 js["skin"] = s.skin;
             js["body"] = s.body;
+            if (!s.point_at.empty())
+                js["point_at"] = s.point_at;
             if (s.dock_to >= 0)
                 js["dock"] = {{"to", s.dock_to}, {"port", s.dock_port}, {"own_port", s.own_port}};
             if (!s.landed)

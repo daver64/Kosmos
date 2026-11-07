@@ -31,6 +31,19 @@ namespace kosmos
     sl::dvec3 Ship::target_direction(const Controls &c, bool &valid) const
     {
         valid = true;
+        if (c.sas == "earth-communications")
+        {
+            const int earth = universe_.find("Earth");
+            const sl::FlightBody *target = earth >= 0 ? universe_.world.body(earth) : nullptr;
+            const sl::dvec3 offset = target && target->active ? target->position - body().position : sl::dvec3(0.0);
+            const double distance = glm::length(offset);
+            if (!std::isfinite(distance) || distance < 1.0)
+            {
+                valid = false;
+                return sl::dvec3(0.0);
+            }
+            return offset / distance;
+        }
         sl::dvec3 up, east, north;
         local_frame(up, east, north);
         const sl::FlightBody *central = universe_.world.body(telemetry_.soi);
@@ -98,10 +111,13 @@ namespace kosmos
         if (active)
         {
             bool valid = false;
-            const sl::dvec3 target = target_direction(c, valid);
+            const sl::dvec3 target = c.landing_attitude ? c.landing_direction : target_direction(c, valid);
+            if (c.landing_attitude)
+                valid = true;
             if (valid)
             {
-                const sl::dvec3 nose = b.direction_to_world({0.0, 0.0, -1.0});
+                const sl::dvec3 local_axis = c.landing_attitude ? c.landing_axis : sl::dvec3(0, 0, -1);
+                const sl::dvec3 nose = b.direction_to_world(local_axis);
                 sl::dvec3 axis = glm::cross(nose, target);
                 const double s = glm::length(axis);
                 const double angle = std::atan2(s, glm::dot(nose, target));
@@ -109,10 +125,10 @@ namespace kosmos
                     desired = b.direction_to_local(axis / s) * std::min(angle * 0.35, spec_.max_rate);
                 else if (glm::dot(nose, target) < 0.0)
                 {
-                    axis = glm::cross(nose, b.direction_to_world({0.0, 1.0, 0.0}));
+                    axis = glm::cross(nose, b.direction_to_world(c.landing_attitude ? sl::dvec3(0, 0, -1) : sl::dvec3(0, 1, 0)));
                     desired = b.direction_to_local(axis) * std::min(angle * 0.35, spec_.max_rate);
                 }
-                desired.z = 0.0;
+                desired -= local_axis * glm::dot(desired, local_axis);
             }
         }
         const sl::dvec3 manual(c.pitch, c.yaw, c.roll);

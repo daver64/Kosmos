@@ -8,6 +8,7 @@
 #include "mfd.h"
 #include "nav.h"
 #include "weather_system.h"
+#include "landing_forecast.h"
 #include "scenario.h"
 #include "ship.h"
 #include "universe.h"
@@ -182,7 +183,7 @@ namespace kosmos
         void update_target();
         /** Burn autopilot: waits for the ignition time, holds prograde and burns until the apoapsis reaches the target radius (see /autopilot/burn). */
         void run_burn();
-        void run_autoland();
+        void run_autoland(double frame);
         void run_timed_burn();
         void run_vessel_ascent(double dt);
         void load_active_script();
@@ -210,8 +211,20 @@ namespace kosmos
         double ascent_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
         double ascent_throttle_ = 0.0, ascent_hover_ = 0.0;
         double ascent_gimbal_ = 0.0, ascent_saved_gimbal_ = 0.0;
-        bool landing_targeted_ = false;
+        bool landing_targeted_ = false, landing_orbital_ = false, landing_forecast_changed_ = false, landing_reserve_warned_ = false;
+        int landing_body_ = -1, landing_stage_ = -1;
         double landing_latitude_ = 0.0, landing_longitude_ = 0.0;
+        sl::dvec3 landing_direction_{0.0, 1.0, 0.0};
+        sl::dvec3 landing_axis_{0.0, 1.0, 0.0};
+        std::vector<LandingCandidate> landing_candidates_;
+        std::unique_ptr<LandingCandidateForecast> landing_forecast_;
+        LandingCandidate landing_candidate_;
+        Base landing_base_;
+        std::size_t landing_candidate_index_ = 0;
+        double landing_plan_time_ = 0.0, landing_ignition_ = 0.0, landing_descent_start_ = 0.0;
+        double landing_burn_delivered_ = 0.0, landing_last_time_ = 0.0, landing_last_level_ = 0.0, landing_last_mass_ = 0.0;
+        double landing_checked_mass_ = 0.0, landing_checked_fuel_ = 0.0;
+        sl::dvec3 landing_plan_position_{0.0}, landing_plan_velocity_{0.0};
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;
         std::vector<std::string> messages_;

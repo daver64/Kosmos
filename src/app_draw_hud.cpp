@@ -322,7 +322,23 @@ namespace kosmos::app
             else
                 sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
                             tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
-            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   RCS: %s   Warp x%g%s%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(),
+            const std::string sas = props.get_string("/controls/sas");
+            const char *earth_hold_status = "";
+            if (sas == "earth-communications")
+            {
+                kosmos::Controls controls;
+                controls.sas = sas;
+                bool valid = false;
+                ship->sas_direction(controls, valid);
+                if (!valid)
+                    earth_hold_status = " (Earth unavailable)";
+                else if (ship->on_rails())
+                    earth_hold_status = " (suspended on rails)";
+                else if (!ship->attitude_control_available() ||
+                         (ship->spec().rcs_modes && props.get_string("/controls/rcs-mode", "rot") == "off"))
+                    earth_hold_status = " (attitude control unavailable)";
+            }
+            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s%s   RCS: %s   Warp x%g%s%s", tm.pitch, tm.heading, sas.c_str(), earth_hold_status,
                         props.get_string("/controls/rcs-mode", "rot") == "lin" ? "LIN" : props.get_string("/controls/rcs-mode", "rot") == "off" ? "OFF" : "ROT", sim.current_warp(),
                         ship->on_rails() ? " (rails)" : "",
                         ship->on_rails() && props.get_bool("/sim/settings/nonspherical-gravity") ? "  GRAVITY FIELD SUSPENDED" : "");

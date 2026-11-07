@@ -52,6 +52,10 @@ def main():
              'unknown ship "Missing Docked Ship"'),
             ([{"ship": "Ares Spider", "body": "Missing Planet", "surface": {}}],
              'unknown body "Missing Planet"'),
+            ([{"ship": "Ares Spider", "body": "Mars", "orbit": {}, "point_at": "Missing Planet"}],
+             'invalid point_at "Missing Planet"'),
+            ([{"ship": "Ares Spider", "body": "Mars", "surface": {}, "point_at": "Earth"}],
+             'invalid point_at "Earth"'),
         ]:
             path.write_text(json.dumps({"ships": entries}))
             result = run("--scenario-file", str(path))

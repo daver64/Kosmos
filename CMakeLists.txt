@@ -99,6 +99,9 @@ add_executable(kosmos
     src/reentry.cpp
     src/scenario_start.cpp
     src/autoland.cpp
+    src/landing_descent.cpp
+    src/landing_forecast.cpp
+    src/landing_plane.cpp
     src/vessel_ascent.cpp
     src/timed_burn.cpp
     src/procedural.cpp
@@ -198,6 +201,11 @@ add_executable(camera_dynamics_test EXCLUDE_FROM_ALL tests/camera_dynamics_test.
 target_link_libraries(camera_dynamics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(camera_dynamics_test PRIVATE src)
 target_compile_definitions(camera_dynamics_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(landing_plane_test EXCLUDE_FROM_ALL tests/landing_plane_test.cpp src/landing_plane.cpp src/landing_descent.cpp)
+target_link_libraries(landing_plane_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(landing_plane_test PRIVATE src)
+target_compile_definitions(landing_plane_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

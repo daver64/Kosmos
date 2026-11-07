@@ -2,6 +2,9 @@
 
 #include "gui_input.h"
 #include "flight_recording.h"
+#include "landing_descent.h"
+#include "landing_forecast.h"
+#include "landing_plane.h"
 #include "menu.h"
 #include "ordnance.h"
 #include "scenario_start.h"
@@ -12,6 +15,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <glm/gtc/quaternion.hpp>
 
 namespace kosmos
 {
@@ -1374,6 +1378,952 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/orbital-base-landing"))
+        {
+            sim.props.set_bool("/autopilot/land/targeted", true);
+            sim.props.set_string("/autopilot/land/base", sim.props.get_string("/selftest/landing-plane-base", "gale"));
+            sim.props.set_bool("/autopilot/land/armed", true);
+            sim.props.set_string("/autopilot/land/state", "off");
+            const std::string fault = sim.props.get_string("/selftest/orbital-fault");
+            sim.props.set_bool("/sim/settings/weather", fault == "weather");
+            sim.props.set_bool("/sim/settings/nonspherical-gravity", fault == "gravity");
+            if (fault == "fuel")
+            {
+                ShipCarryState state = ship->carry_state();
+                for (double &fuel : state.stage_propellant)
+                    fuel = 50.0;
+                ship->restore_carry_state(state);
+                ship->after_step(0.0);
+            }
+            std::string last_phase;
+            bool engaged = false, fault_injected = false;
+            for (int step = 0; step < 300000; ++step)
+            {
+                const std::string phase = sim.props.get_string("/autopilot/land/state");
+                if (phase != last_phase)
+                {
+                    std::printf("orbital autoland phase: %s time %.1f fuel %.1f\n",
+                                phase.c_str(), sim.universe.time(), ship->telemetry().stage_fuel);
+                    last_phase = phase;
+                }
+                if (phase == "Waiting for window")
+                {
+                    if (fault == "orbit-change" && !fault_injected)
+                    {
+                        ship->go_dynamic();
+                        ship->body().velocity += sl::dvec3(10.0, 0.0, 0.0);
+                        ship->after_step(0.0);
+                        fault_injected = true;
+                    }
+                    if (fault == "competing-autopilot" && !fault_injected)
+                    {
+                        sim.props.set_bool("/autopilot/enabled", true);
+                        fault_injected = true;
+                    }
+                    sim.props.set_int("/sim/warp-index", 10);
+                }
+                if (phase == "Plane alignment" && fault == "sas" && !fault_injected)
+                {
+                    sim.props.set_string("/controls/sas", "stability");
+                    fault_injected = true;
+                }
+                if (phase == "Powered descent" && (fault == "gravity-descent" || fault == "fuel-descent") && !fault_injected)
+                {
+                    if (fault == "gravity-descent")
+                        sim.props.set_bool("/sim/settings/nonspherical-gravity", true);
+                    else
+                    {
+                        ShipCarryState state = ship->carry_state();
+                        for (double &fuel : state.stage_propellant)
+                            fuel = 99.0;
+                        ship->restore_carry_state(state);
+                        ship->after_step(0.0);
+                    }
+                    sim.step(0.1);
+                    const auto &messages = sim.messages();
+                    const std::string expected_warning = fault == "gravity-descent" ?
+                        "forecast conditions changed during descent" : "descent fuel reserve depleted";
+                    const bool warning = std::any_of(messages.begin(), messages.end(), [&](const std::string &message) {
+                        return message.find(expected_warning) != std::string::npos;
+                    });
+                    const bool ok = warning && sim.props.get_bool("/autopilot/land/armed");
+                    sim.cancel_autoland("Autoland cancelled: selftest");
+                    std::printf("orbital autoland fault %s: %s\n", fault.c_str(), ok ? "passed" : "FAILED");
+                    return ok ? 0 : 1;
+                }
+                if (phase == "Plane burn" && sim.props.get_double("/controls/hover") > 0.0 && !fault_injected)
+                {
+                    if (fault == "cancel-burn")
+                    {
+                        sim.cancel_autoland("Autoland cancelled: selftest");
+                        fault_injected = true;
+                    }
+                    else if (fault == "disarm-burn")
+                    {
+                        sim.props.set_bool("/autopilot/land/armed", false);
+                        fault_injected = true;
+                    }
+                }
+                if (sim.props.get_bool("/selftest/orbital-real-step"))
+                    sim.advance(0.1);
+                else
+                    sim.step(0.1);
+                if (sim.props.get_bool("/autopilot/land/armed"))
+                    engaged = true;
+                else
+                    break;
+            }
+            const Telemetry &t = ship->telemetry();
+            const std::string result = sim.props.get_string("/autopilot/land/state");
+            const double distance = sim.props.get_double("/autopilot/land/distance");
+            if (!fault.empty())
+            {
+                const std::string expected = fault == "weather" ? "disable weather" :
+                                             fault == "gravity" ? "requires spherical gravity" :
+                                             fault == "fuel" ? "no plane-change windows" :
+                                             fault == "orbit-change" ? "orbit changed" :
+                                             fault == "sas" ? "manual SAS" :
+                                             fault == "competing-autopilot" ? "another autopilot engaged" :
+                                             fault == "cancel-burn" ? "cancelled: selftest" : "cancelled";
+                const bool ok = !sim.props.get_bool("/autopilot/land/armed") &&
+                                result.find(expected) != std::string::npos &&
+                                sim.props.get_double("/controls/hover") == 0.0 &&
+                                (fault == "weather" || fault == "gravity" || fault == "fuel" || fault_injected);
+                std::printf("orbital autoland fault %s: %s (%s)\n", fault.c_str(), ok ? "passed" : "FAILED", result.c_str());
+                return ok ? 0 : 1;
+            }
+            const bool ok = engaged && result == "Autoland: landed" && !ship->crashed() && t.landed &&
+                            distance <= 3000.0 && t.surface_speed < 2.0 && t.stage_fuel > 100.0;
+            std::printf("orbital autoland result: %s distance %.1f speed %.6f fuel %.1f crashed %d\n",
+                        result.c_str(), distance, t.surface_speed, t.stage_fuel, ship->crashed() ? 1 : 0);
+            return ok ? 0 : 1;
+        }
+        if (sim.props.get_bool("/selftest/landing-plane"))
+        {
+            const int body_id = ship->telemetry().soi;
+            const std::string base_id = sim.props.get_string("/selftest/landing-plane-base", "gale");
+            const auto base = std::find_if(sim.bases.begin(), sim.bases.end(), [&](const Base &b) {
+                return body_id >= 0 && b.id == base_id &&
+                       b.body == sim.universe.bodies[static_cast<std::size_t>(body_id)].name;
+            });
+            if (base == sim.bases.end())
+            {
+                std::fprintf(stderr, "landing plane selftest: selected base or body missing\n");
+                return 1;
+            }
+            Base pad = *base;
+            pad.direction = base_direction(sim.universe, body_id, pad);
+            pad.pole = sim.universe.pole(body_id);
+            const Body &body_spec = sim.universe.bodies[static_cast<std::size_t>(body_id)];
+            sl::dvec3 target;
+            double heading;
+            base_pad(pad, body_spec.radius, target, heading);
+            const sl::FlightBody &planet = *sim.universe.world.body(body_id);
+            const double flight_time = 600.0;
+            const double lead_angle = sim.props.get_double("/selftest/landing-plane-lead", 0.6);
+            const double search_orbits = sim.props.get_double("/selftest/landing-plane-orbits", 3.0);
+            const LandingPlaneWindow plan =
+                landing_plane_window(body_spec.gm, ship->body().position - planet.position,
+                                     ship->body().velocity - planet.velocity, target, pad.pole, body_spec.spin,
+                                     flight_time, lead_angle, ship->telemetry().period * search_orbits);
+            if (!plan.valid)
+            {
+                std::fprintf(stderr, "landing plane selftest: no departure window\n");
+                return 1;
+            }
+            std::string why;
+            if (sim.props.get_bool("/selftest/landing-plane-burn"))
+            {
+                const bool shuttle = ship->spec().name == "CVEL Shuttle-A";
+                if ((!shuttle && ship->spec().name != "Ares Spider") || plan.wait < 60.0)
+                {
+                    std::fprintf(stderr, "landing plane burn selftest: requires Ares or Shuttle-A and a future window\n");
+                    return 1;
+                }
+                const double dv = glm::length(plan.change.delta_v);
+                const double mass = ship->telemetry().mass;
+                const double initial_fuel = ship->telemetry().stage_fuel;
+                double thrust = 0.0, flow = 0.0;
+                const StageSpec &stage = ship->spec().stages[static_cast<std::size_t>(ship->active_stage())];
+                for (const EngineSpec &engine : stage.engines)
+                    if (engine.hover && engine.isp > 0.0)
+                    {
+                        thrust += engine.thrust;
+                        flow += engine.thrust / (engine.isp * 9.80665);
+                    }
+                if (thrust <= 0.0 || flow <= 0.0)
+                {
+                    std::fprintf(stderr, "landing plane burn selftest: missing hover thrust\n");
+                    return 1;
+                }
+                if (dv < 0.1)
+                {
+                    std::fprintf(stderr, "landing plane burn selftest: plane change too small\n");
+                    return 1;
+                }
+                const LandingPlaneBurn burn = landing_plane_burn(dv, mass, initial_fuel, 0.0, thrust, flow);
+                if (!burn.valid || !burn.sufficient_fuel)
+                {
+                    std::fprintf(stderr, "landing plane burn selftest: insufficient fuel for plane change\n");
+                    return 1;
+                }
+                const double duration = burn.duration;
+                const double centre_time = burn.impulse_center;
+                LandingForecastResult orbital_forecast;
+                LandingForecastResult touchdown_forecast;
+                if (sim.props.get_bool("/selftest/landing-shadow") &&
+                    sim.props.get_bool("/selftest/landing-plane-descent"))
+                {
+                    const auto candidates = landing_candidates(body_spec.gm, ship->body().position - planet.position,
+                                                               ship->body().velocity - planet.velocity, target, pad.pole,
+                                                               body_spec.spin, flight_time,
+                                                               ship->telemetry().period * search_orbits,
+                                                               {lead_angle}, mass, initial_fuel, 100.0,
+                                                               thrust, flow, 40.0, 240.0);
+                    const auto candidate = std::find_if(candidates.begin(), candidates.end(), [&](const auto &c) {
+                        return std::abs(c.window.wait - plan.wait) < 1e-5;
+                    });
+                    if (candidate == candidates.end())
+                    {
+                        std::fprintf(stderr, "landing candidate selftest: expected window unavailable\n");
+                        return 1;
+                    }
+                    const double live_time = sim.universe.time();
+                    const sl::dvec3 live_position = ship->body().position;
+                    const double live_fuel = ship->telemetry().stage_fuel;
+                    const sl::dvec3 axis = shuttle ? sl::dvec3(0, 1, 0) : sl::dvec3(0, 0, -1);
+                    Universe windy_universe = sim.universe;
+                    windy_universe.world.body(body_id)->wind_field = [](const sl::dvec3 &) {
+                        return sl::dvec3(1.0, 0.0, 0.0);
+                    };
+                    LandingCandidateForecast windy(windy_universe, *ship, pad, body_id, shuttle,
+                                                    axis, *candidate, thrust, 100.0, true);
+                    if (!windy.advance(1) || windy.result().status != LandingForecastStatus::unavailable_wind)
+                    {
+                        std::fprintf(stderr, "landing candidate selftest: mutable wind callback was not rejected\n");
+                        return 1;
+                    }
+                    LandingCandidateForecast candidate_forecast(sim.universe, *ship, pad, body_id, shuttle,
+                                                                axis, *candidate, thrust, 100.0);
+                    if (candidate_forecast.advance(0) || candidate_forecast.advance(-1))
+                    {
+                        std::fprintf(stderr, "landing candidate selftest: forecast ended before stepping\n");
+                        return 1;
+                    }
+                    int batches = 0;
+                    while (!candidate_forecast.advance(37))
+                        if (++batches > 1000)
+                        {
+                            std::fprintf(stderr, "landing candidate selftest: forecast exceeded its bounded budget\n");
+                            return 1;
+                        }
+                    orbital_forecast = candidate_forecast.result();
+                        const LandingForecastResult synchronous =
+                            forecast_landing_candidate(sim.universe, *ship, pad, body_id, shuttle, axis,
+                                                       *candidate, thrust, 100.0);
+                        if (!orbital_forecast.captured || sim.universe.time() != live_time ||
+                            ship->body().position != live_position || ship->telemetry().stage_fuel != live_fuel ||
+                            !candidate_forecast.advance(0) || synchronous.status != orbital_forecast.status ||
+                            synchronous.captured != orbital_forecast.captured ||
+                            glm::length(synchronous.position - orbital_forecast.position) > 1e-6 ||
+                            glm::length(synchronous.velocity - orbital_forecast.velocity) > 1e-9 ||
+                            std::abs(synchronous.fuel - orbital_forecast.fuel) > 1e-9)
+                        {
+                            std::fprintf(stderr, "landing candidate selftest: forecasts differ, failed or changed live flight (status %d)\n",
+                                         static_cast<int>(orbital_forecast.status));
+                            return 1;
+                        }
+                        std::printf("landing candidate forecast: captured with %.1f kg fuel in %d batches; synchronous match\n",
+                                    orbital_forecast.fuel, batches + 1);
+                        touchdown_forecast = forecast_landing_candidate(sim.universe, *ship, pad, body_id, shuttle, axis,
+                                                                        *candidate, thrust, 100.0, true);
+                        LandingCandidateForecast incremental_touchdown(sim.universe, *ship, pad, body_id, shuttle,
+                                                                       axis, *candidate, thrust, 100.0, true);
+                        int touchdown_batches = 0;
+                        while (!incremental_touchdown.advance(37))
+                            if (++touchdown_batches > 1000)
+                            {
+                                std::fprintf(stderr, "landing touchdown forecast: exceeded its bounded budget\n");
+                                return 1;
+                            }
+                        const auto &incremental = incremental_touchdown.result();
+                        if (!touchdown_forecast.captured || touchdown_forecast.status != LandingForecastStatus::landed ||
+                            touchdown_forecast.distance > 3000.0 || touchdown_forecast.surface_speed >= 2.0 ||
+                            touchdown_forecast.fuel <= 100.0 || sim.universe.time() != live_time ||
+                            ship->body().position != live_position || ship->telemetry().stage_fuel != live_fuel ||
+                            incremental.status != touchdown_forecast.status || !incremental.captured ||
+                            glm::length(incremental.position - touchdown_forecast.position) > 1e-6 ||
+                            std::abs(incremental.fuel - touchdown_forecast.fuel) > 1e-9)
+                        {
+                            std::fprintf(stderr, "landing touchdown forecast: failed or changed live flight (status %d)\n",
+                                         static_cast<int>(touchdown_forecast.status));
+                            return 1;
+                        }
+                        std::printf("landing touchdown forecast: distance %.1f m speed %.1f m/s fuel %.1f kg\n",
+                                    touchdown_forecast.distance, touchdown_forecast.surface_speed, touchdown_forecast.fuel);
+                        const double approach_reserve = (orbital_forecast.fuel + touchdown_forecast.fuel) * 0.5;
+                        const auto short_fuel = forecast_landing_candidate(sim.universe, *ship, pad, body_id, shuttle, axis,
+                                                                           *candidate, thrust, approach_reserve, true);
+                        if (!short_fuel.captured || short_fuel.status != LandingForecastStatus::insufficient_fuel)
+                        {
+                            std::fprintf(stderr, "landing touchdown forecast: did not enforce reserve during approach\n");
+                            return 1;
+                        }
+                }
+                if (sim.props.get_bool("/selftest/landing-prediction"))
+                {
+                    sl::OrbitElements orbit;
+                    if (!sl::orbit_from_state(body_spec.gm, ship->body().position - planet.position,
+                                              ship->body().velocity - planet.velocity, orbit) || plan.wait < centre_time)
+                    {
+                        std::fprintf(stderr, "landing prediction selftest: invalid departure orbit\n");
+                        return 1;
+                    }
+                    const double start = plan.wait - centre_time;
+                    const sl::OrbitState state = sl::state_from_orbit(body_spec.gm, orbit, start);
+                    LandingTrajectoryInput input;
+                    input.position = state.position;
+                    input.velocity = state.velocity;
+                    input.target_direction = glm::angleAxis(body_spec.spin * start, pad.pole) * target;
+                    input.spin_axis = pad.pole;
+                    input.spin_rate = body_spec.spin;
+                    input.mu = body_spec.gm;
+                    input.radius = body_spec.radius;
+                    input.target_elevation = pad.height + pad.pad_deck;
+                    input.plane_delta_v = plan.change.delta_v;
+                    input.mass = mass;
+                    input.fuel = initial_fuel;
+                    input.reserve = 100.0;
+                    input.thrust = thrust;
+                    input.flow = flow;
+                    input.drag_area = ship->body().drag_area;
+                    input.atmosphere_density = planet.atmosphere.surface_density;
+                    input.atmosphere_scale_height = planet.atmosphere.scale_height;
+                    input.lifting_surfaces = !ship->body().surfaces.empty();
+                    input.torque_accel = ship->spec().torque_accel;
+                    input.max_rate = ship->spec().max_rate;
+                    double sea_level_thrust = 0.0;
+                    for (const EngineSpec &engine : stage.engines)
+                        if (engine.hover)
+                            sea_level_thrust += engine.thrust *
+                                                (engine.isp_sl > 0.0 ? engine.isp_sl / engine.isp : 1.0);
+                    input.sea_level_thrust_ratio = sea_level_thrust / thrust;
+                    const auto predicted = landing_trajectory_predict(input);
+                    std::printf("landing prediction: %s fuel %.1f altitude %.1f distance %.1f time %.1f\n",
+                                !predicted.supported ? "unsupported" : predicted.captured ? "captured" : "not captured",
+                                predicted.fuel, predicted.altitude,
+                                predicted.distance, predicted.time);
+                }
+                if (duration > 240.0 || plan.wait < 40.0 + centre_time ||
+                    !sim.skip_time(plan.wait - 40.0 - centre_time, why))
+                {
+                    std::fprintf(stderr, "landing plane burn selftest: unavailable burn: %s\n", why.c_str());
+                    return 1;
+                }
+                const sl::dvec3 direction = plan.change.delta_v / dv;
+                const sl::dvec3 thrust_axis = shuttle ? sl::dvec3(0, 1, 0) : sl::dvec3(0, 0, -1);
+                const double dt = 0.1;
+                std::vector<std::unique_ptr<sl::Terrain>> shadow_terrain;
+                std::unique_ptr<Universe> shadow_universe;
+                std::unique_ptr<Ship> shadow_ship;
+                LandingForecastResult forecast;
+                if (sim.props.get_bool("/selftest/landing-shadow"))
+                {
+                    shadow_universe = std::make_unique<Universe>(sim.universe);
+                    for (int i = 0; i < shadow_universe->world.body_count(); ++i)
+                    {
+                        sl::FlightBody *copy = shadow_universe->world.body(i);
+                        if (!copy || !copy->active)
+                            continue;
+                        if (static_cast<std::size_t>(i) >= shadow_universe->bodies.size())
+                        {
+                            shadow_universe->world.destroy_body(i);
+                            continue;
+                        }
+                        if (copy->terrain)
+                        {
+                            sl::TerrainConfig config = copy->terrain->config();
+                            config.worker_threads = 0;
+                            shadow_terrain.push_back(std::make_unique<sl::Terrain>(config, copy->terrain->source()));
+                            copy->terrain = shadow_terrain.back().get();
+                        }
+                    }
+                    const sl::FlightBody saved_body = ship->body();
+                    shadow_ship = std::make_unique<Ship>(*shadow_universe, ship->spec());
+                    shadow_ship->restore_carry_state(ship->carry_state());
+                    shadow_ship->body() = saved_body;
+                    shadow_ship->after_step(0.0);
+                    if (sim.props.get_bool("/selftest/landing-plane-descent"))
+                    {
+                        Universe forecast_universe = *shadow_universe;
+                        const sl::FlightBody forecast_body = shadow_ship->body();
+                        forecast_universe.world.destroy_body(shadow_ship->body_id());
+                        Ship forecast_ship(forecast_universe, ship->spec());
+                        forecast_ship.restore_carry_state(shadow_ship->carry_state());
+                        forecast_ship.body() = forecast_body;
+                        forecast_ship.after_step(0.0);
+                        const double before = forecast_universe.time();
+                        const auto invalid = forecast_landing(forecast_universe, forecast_ship, pad, body_id, shuttle,
+                                                              thrust_axis, sl::dvec3(0.0), dv, duration, thrust);
+                        const auto dry = forecast_landing(forecast_universe, forecast_ship, pad, body_id, shuttle,
+                                                          thrust_axis, direction, dv, duration, thrust,
+                                                          forecast_ship.telemetry().stage_fuel);
+                        if (invalid.status != LandingForecastStatus::invalid_input ||
+                            dry.status != LandingForecastStatus::insufficient_fuel ||
+                            forecast_universe.time() != before)
+                        {
+                            std::fprintf(stderr, "landing shadow forecast: invalid or insufficient fuel was not rejected\n");
+                            return 1;
+                        }
+                        {
+                            Universe limited_universe = forecast_universe;
+                            limited_universe.world.destroy_body(forecast_ship.body_id());
+                            Ship limited_ship(limited_universe, ship->spec());
+                            limited_ship.restore_carry_state(forecast_ship.carry_state());
+                            limited_ship.body() = forecast_body;
+                            limited_ship.after_step(0.0);
+                            const auto limited = forecast_landing(limited_universe, limited_ship, pad, body_id, shuttle,
+                                                                  thrust_axis, direction, dv, duration, thrust,
+                                                                  limited_ship.telemetry().stage_fuel - 1.0);
+                            if (limited.status != LandingForecastStatus::insufficient_fuel)
+                            {
+                                std::fprintf(stderr, "landing shadow forecast: burn did not stop at fuel reserve\n");
+                                return 1;
+                            }
+                        }
+                        const double live_time = sim.universe.time();
+                        const sl::dvec3 live_position = ship->body().position;
+                        const double live_fuel = ship->telemetry().stage_fuel;
+                        LandingForecastStepper stepper(forecast_universe, forecast_ship, pad, body_id, shuttle,
+                                                       thrust_axis, direction, dv, duration, thrust);
+                        const double forecast_time = forecast_universe.time();
+                        if (stepper.advance(0) || forecast_universe.time() != forecast_time)
+                        {
+                            std::fprintf(stderr, "landing shadow forecast: zero-step budget changed the world\n");
+                            return 1;
+                        }
+                        int batches = 0;
+                        while (!stepper.advance(7))
+                        {
+                            if (++batches > 4000)
+                            {
+                                std::fprintf(stderr, "landing shadow forecast: step budget was not bounded\n");
+                                return 1;
+                            }
+                        }
+                        forecast = stepper.result();
+                        if (!forecast.captured || sim.universe.time() != live_time ||
+                            ship->body().position != live_position || ship->telemetry().stage_fuel != live_fuel)
+                        {
+                            std::fprintf(stderr, "landing shadow forecast: failed to reach capture or changed live flight\n");
+                            return 1;
+                        }
+                        std::printf("landing shadow forecast: captured with %.1f kg fuel\n", forecast.fuel);
+                    }
+                }
+                double delivered = 0.0;
+                bool aligned = true;
+                for (double elapsed = 0.0; elapsed < 40.0 + duration + dt; elapsed += dt)
+                {
+                    const sl::FlightBody &primary = *sim.universe.world.body(body_id);
+                    const sl::dvec3 up = glm::normalize(ship->body().position - primary.position);
+                    sl::dvec3 east = glm::cross(primary.spin_axis, up);
+                    if (glm::length(east) < 1e-8)
+                        east = glm::cross(sl::dvec3(1.0, 0.0, 0.0), up);
+                    east = glm::normalize(east);
+                    const sl::dvec3 north = glm::cross(up, east);
+                    const double pitch = glm::degrees(std::asin(std::clamp(glm::dot(direction, up), -1.0, 1.0)));
+                    const double heading_deg = std::fmod(glm::degrees(std::atan2(glm::dot(direction, east),
+                                                                                glm::dot(direction, north))) + 360.0, 360.0);
+                    sim.props.set_string("/controls/sas", "attitude");
+                    sim.props.set_double("/controls/target-pitch", pitch);
+                    sim.props.set_double("/controls/target-heading", heading_deg);
+                    double level = 0.0;
+                    if (elapsed >= 40.0 && delivered < dv)
+                    {
+                        if (glm::dot(ship->body().direction_to_world(thrust_axis), direction) < 0.995)
+                        {
+                            aligned = false;
+                            break;
+                        }
+                        level = std::min(1.0, (dv - delivered) * ship->telemetry().mass / (thrust * dt));
+                        delivered += thrust * level / ship->telemetry().mass * dt;
+                    }
+                    if (shuttle)
+                    {
+                        Controls controls;
+                        controls.sas = "attitude";
+                        controls.landing_attitude = true;
+                        controls.landing_axis = thrust_axis;
+                        controls.landing_direction = direction;
+                        controls.hover = level;
+                        ship->apply_controls(controls, dt);
+                        sim.universe.world.step(dt);
+                        ship->after_step(dt);
+                    }
+                    else
+                    {
+                        sim.props.set_double("/controls/hover", level);
+                        sim.step(dt);
+                    }
+                    if (shadow_ship)
+                    {
+                        Controls controls;
+                        controls.sas = "attitude";
+                        controls.hover = level;
+                        controls.gear = 1.0;
+                        if (shuttle)
+                        {
+                            controls.landing_attitude = true;
+                            controls.landing_axis = thrust_axis;
+                            controls.landing_direction = direction;
+                        }
+                        else
+                        {
+                            controls.target_pitch = pitch;
+                            controls.target_heading = heading_deg;
+                        }
+                        shadow_ship->apply_controls(controls, dt);
+                        shadow_universe->world.max_substep = sim.universe.world.max_substep;
+                        shadow_universe->world.step(dt);
+                        shadow_ship->after_step(dt);
+                    }
+                }
+                if (shadow_ship)
+                {
+                    const double position_error = glm::length(shadow_ship->body().position - ship->body().position);
+                    const double velocity_error = glm::length(shadow_ship->body().velocity - ship->body().velocity);
+                    const double fuel_error = std::abs(shadow_ship->telemetry().stage_fuel - ship->telemetry().stage_fuel);
+                    std::printf("landing shadow burn: position error %.3f m, velocity error %.6f m/s, fuel error %.3f kg\n",
+                                position_error, velocity_error, fuel_error);
+                    if (!std::isfinite(position_error) || !std::isfinite(velocity_error) || !std::isfinite(fuel_error) ||
+                        position_error > 10.0 || velocity_error > 0.2 || fuel_error > 10.0)
+                    {
+                        std::fprintf(stderr, "landing shadow burn selftest: copied world diverged\n");
+                        return 1;
+                    }
+                }
+                if (shuttle)
+                {
+                    Controls idle;
+                    idle.sas = "stability";
+                    ship->apply_controls(idle, dt);
+                    sim.universe.world.step(dt);
+                    ship->after_step(dt);
+                }
+                else
+                {
+                    sim.props.set_double("/controls/hover", 0.0);
+                    sim.step(dt);
+                }
+                if (shadow_ship)
+                {
+                    Controls idle;
+                    if (!shuttle)
+                    {
+                        idle.sas = "attitude";
+                        idle.target_pitch = sim.props.get_double("/controls/target-pitch");
+                        idle.target_heading = sim.props.get_double("/controls/target-heading");
+                        idle.gear = 1.0;
+                    }
+                    shadow_ship->apply_controls(idle, dt);
+                    shadow_universe->world.max_substep = sim.universe.world.max_substep;
+                    shadow_universe->world.step(dt);
+                    shadow_ship->after_step(dt);
+                }
+                const sl::FlightBody &primary = *sim.universe.world.body(body_id);
+                const sl::dvec3 r = ship->body().position - primary.position;
+                const sl::dvec3 v = ship->body().velocity - primary.velocity;
+                const sl::dvec3 normal = glm::normalize(glm::cross(r, v));
+                const double error = std::abs(glm::dot(normal, plan.arrival_target)) * body_spec.radius;
+                const double expected_fuel = burn.fuel;
+                const double fuel_used = initial_fuel - ship->telemetry().stage_fuel;
+                const bool ok = aligned && std::abs(delivered - dv) < 0.1 && error < 1000.0 &&
+                                std::abs(fuel_used - expected_fuel) < std::max(1.0, expected_fuel * 0.05);
+                std::printf("landing plane burn selftest: %d failure(s), dv %.2f m/s, delivered %.2f m/s, fuel %.1f kg, plane error %.1f m\n",
+                            ok ? 0 : 1, dv, delivered, fuel_used, error);
+                if (ok && sim.props.get_bool("/selftest/landing-plane-descent"))
+                {
+                    const double start_time = sim.universe.time();
+                    const double shadow_start_time = shadow_universe ? shadow_universe->time() : 0.0;
+                    bool captured = false;
+                    for (int step = 0; step < 18000; ++step)
+                    {
+                        const sl::FlightBody &primary_now = *sim.universe.world.body(body_id);
+                        const sl::dvec3 r_now = ship->body().position - primary_now.position;
+                        const sl::dvec3 v_now = ship->body().velocity - primary_now.velocity;
+                        const double rmag = glm::length(r_now);
+                        const sl::dvec3 up = r_now / rmag;
+                        pad.direction = base_direction(sim.universe, body_id, pad);
+                        pad.pole = sim.universe.pole(body_id);
+                        sl::dvec3 ground;
+                        base_pad(pad, body_spec.radius, ground, heading);
+                        const double distance = rmag * std::acos(std::clamp(glm::dot(up, ground), -1.0, 1.0));
+                        const Telemetry &tm = ship->telemetry();
+                        const sl::dvec3 surface_v = ship->relative_velocity();
+                        const double hspeed = glm::length(surface_v - up * glm::dot(surface_v, up));
+                        if (distance < 1500.0 && tm.altitude > 300.0 && tm.altitude < 3000.0 &&
+                            hspeed < 40.0 && std::abs(tm.vertical_speed) < 25.0)
+                        {
+                            std::printf("descent probe capture t=%.1f alt=%.0f distance=%.0f hspeed=%.1f vs=%.1f fuel=%.0f\n",
+                                        sim.universe.time() - start_time, tm.altitude, distance, hspeed, tm.vertical_speed, tm.stage_fuel);
+                            sim.props.set_double("/controls/hover", 0.0);
+                            sim.props.set_bool("/autopilot/land/targeted", true);
+                            sim.props.set_string("/autopilot/land/base", base_id);
+                            sim.props.set_string("/autopilot/land/state", "off");
+                            sim.props.set_bool("/autopilot/land/armed", true);
+                            captured = true;
+                            break;
+                        }
+                        const double remaining = std::max(650.0 - (sim.universe.time() - start_time), 60.0);
+                        const LandingDescentCommand guidance =
+                            landing_descent_command(r_now, v_now, ground, pad.pole, body_spec.spin,
+                                                    body_spec.gm, body_spec.radius + pad.height + pad.pad_deck + 2500.0, remaining);
+                        if (!guidance.valid || glm::length(guidance.acceleration) < 1e-8)
+                        {
+                            std::fprintf(stderr, "landing descent probe: invalid acceleration command\n");
+                            break;
+                        }
+                        const sl::dvec3 command = guidance.acceleration;
+                        const sl::dvec3 desired = glm::normalize(command);
+                        sl::dvec3 east = glm::cross(primary_now.spin_axis, up);
+                        if (glm::length(east) < 1e-8)
+                            east = glm::cross(sl::dvec3(1.0, 0.0, 0.0), up);
+                        east = glm::normalize(east);
+                        const sl::dvec3 north = glm::cross(up, east);
+                        const double pitch = glm::degrees(std::asin(std::clamp(glm::dot(desired, up), -1.0, 1.0)));
+                        const double heading_deg = std::fmod(glm::degrees(std::atan2(glm::dot(desired, east),
+                                                                                    glm::dot(desired, north))) + 360.0, 360.0);
+                        sim.props.set_string("/controls/sas", "attitude");
+                        sim.props.set_double("/controls/target-pitch", pitch);
+                        sim.props.set_double("/controls/target-heading", heading_deg);
+                        const double alignment = glm::dot(ship->body().direction_to_world(thrust_axis), desired);
+                        const double descent_level = alignment > 0.98 ?
+                            std::clamp(glm::length(command) * tm.mass / thrust, 0.0, 1.0) : 0.0;
+                        if (shuttle)
+                        {
+                            Controls controls;
+                            controls.sas = "attitude";
+                            controls.landing_attitude = true;
+                            controls.landing_axis = thrust_axis;
+                            controls.landing_direction = desired;
+                            controls.hover = descent_level;
+                            ship->apply_controls(controls, dt);
+                            sim.universe.world.step(dt);
+                            ship->after_step(dt);
+                        }
+                        else
+                        {
+                            sim.props.set_double("/controls/hover", descent_level);
+                            sim.step(dt);
+                        }
+                        if (shadow_ship)
+                        {
+                            const sl::FlightBody &primary_copy = *shadow_universe->world.body(body_id);
+                            const sl::dvec3 r_copy = shadow_ship->body().position - primary_copy.position;
+                            const sl::dvec3 v_copy = shadow_ship->body().velocity - primary_copy.velocity;
+                            Base shadow_pad = pad;
+                            shadow_pad.direction = base_direction(*shadow_universe, body_id, shadow_pad);
+                            shadow_pad.pole = shadow_universe->pole(body_id);
+                            sl::dvec3 ground_copy;
+                            double heading_copy;
+                            base_pad(shadow_pad, body_spec.radius, ground_copy, heading_copy);
+                            const auto predicted_command =
+                                landing_descent_command(r_copy, v_copy, ground_copy, shadow_pad.pole, body_spec.spin,
+                                                        body_spec.gm, body_spec.radius + shadow_pad.height + shadow_pad.pad_deck + 2500.0,
+                                                        std::max(650.0 - (shadow_universe->time() - shadow_start_time), 60.0));
+                            if (!predicted_command.valid || glm::length(predicted_command.acceleration) < 1e-8)
+                            {
+                                std::fprintf(stderr, "landing shadow descent selftest: invalid command\n");
+                                return 1;
+                            }
+                            const sl::dvec3 wanted = glm::normalize(predicted_command.acceleration);
+                            Controls controls;
+                            controls.sas = "attitude";
+                            controls.gear = 1.0;
+                            if (shuttle)
+                            {
+                                controls.landing_attitude = true;
+                                controls.landing_axis = thrust_axis;
+                                controls.landing_direction = wanted;
+                            }
+                            else
+                            {
+                                const sl::dvec3 copy_up = glm::normalize(r_copy);
+                                sl::dvec3 copy_east = glm::cross(primary_copy.spin_axis, copy_up);
+                                if (glm::length(copy_east) < 1e-8)
+                                    copy_east = glm::cross(sl::dvec3(1, 0, 0), copy_up);
+                                copy_east = glm::normalize(copy_east);
+                                const sl::dvec3 copy_north = glm::cross(copy_up, copy_east);
+                                controls.target_pitch = glm::degrees(std::asin(std::clamp(glm::dot(wanted, copy_up), -1.0, 1.0)));
+                                controls.target_heading = std::fmod(glm::degrees(std::atan2(glm::dot(wanted, copy_east),
+                                                                                           glm::dot(wanted, copy_north))) + 360.0, 360.0);
+                            }
+                            controls.hover = glm::dot(shadow_ship->body().direction_to_world(thrust_axis), wanted) > 0.98 ?
+                                std::clamp(glm::length(predicted_command.acceleration) * shadow_ship->telemetry().mass / thrust,
+                                           0.0, 1.0) : 0.0;
+                            shadow_ship->apply_controls(controls, dt);
+                            shadow_universe->world.max_substep = sim.universe.world.max_substep;
+                            shadow_universe->world.step(dt);
+                            shadow_ship->after_step(dt);
+                        }
+                        if (step % 1000 == 0)
+                            std::printf("descent probe t=%.1f alt=%.0f distance=%.0f hspeed=%.1f vs=%.1f fuel=%.0f\n",
+                                        sim.universe.time() - start_time, tm.altitude, distance, hspeed, tm.vertical_speed, tm.stage_fuel);
+                        if (ship->crashed() || tm.stage_fuel < 1.0)
+                            break;
+                    }
+                    std::printf("landing descent probe: %s\n", captured ? "captured" : "not captured");
+                    if (shadow_ship && captured)
+                    {
+                        const double position_error = glm::length(shadow_ship->body().position - ship->body().position);
+                        const double velocity_error = glm::length(shadow_ship->body().velocity - ship->body().velocity);
+                        const double fuel_error = std::abs(shadow_ship->telemetry().stage_fuel - ship->telemetry().stage_fuel);
+                        const sl::FlightBody &primary_copy = *shadow_universe->world.body(body_id);
+                        const sl::dvec3 r_copy = shadow_ship->body().position - primary_copy.position;
+                        const sl::dvec3 copy_up = glm::normalize(r_copy);
+                        Base shadow_pad = pad;
+                        shadow_pad.direction = base_direction(*shadow_universe, body_id, shadow_pad);
+                        shadow_pad.pole = shadow_universe->pole(body_id);
+                        sl::dvec3 ground_copy;
+                        double heading_copy;
+                        base_pad(shadow_pad, body_spec.radius, ground_copy, heading_copy);
+                        const double distance = glm::length(r_copy) *
+                                                std::acos(std::clamp(glm::dot(copy_up, ground_copy), -1.0, 1.0));
+                        const sl::dvec3 surface_v = shadow_ship->relative_velocity();
+                        const double horizontal = glm::length(surface_v - copy_up * glm::dot(surface_v, copy_up));
+                        const Telemetry &shadow_tm = shadow_ship->telemetry();
+                        const bool shadow_captured = distance < 1500.0 && shadow_tm.altitude > 300.0 &&
+                                                     shadow_tm.altitude < 3000.0 && horizontal < 40.0 &&
+                                                     std::abs(shadow_tm.vertical_speed) < 25.0;
+                        std::printf("landing shadow descent: %s, position error %.3f m, velocity error %.6f m/s, fuel error %.3f kg\n",
+                                    shadow_captured ? "captured" : "not captured", position_error, velocity_error, fuel_error);
+                        if (!std::isfinite(position_error) || !std::isfinite(velocity_error) || !std::isfinite(fuel_error) ||
+                            !shadow_captured || position_error > 100.0 || velocity_error > 2.0 || fuel_error > 100.0)
+                        {
+                            std::fprintf(stderr, "landing shadow descent selftest: copied world diverged\n");
+                            return 1;
+                        }
+                        const double forecast_position = glm::length(forecast.position - ship->body().position);
+                        const double forecast_velocity = glm::length(forecast.velocity - ship->body().velocity);
+                        const double forecast_fuel = std::abs(forecast.fuel - ship->telemetry().stage_fuel);
+                        std::printf("landing shadow forecast error: %.3f m, %.6f m/s, %.3f kg\n",
+                                    forecast_position, forecast_velocity, forecast_fuel);
+                        if (!forecast.captured || !std::isfinite(forecast_position) ||
+                            !std::isfinite(forecast_velocity) || !std::isfinite(forecast_fuel) ||
+                            forecast_position > 100.0 || forecast_velocity > 2.0 || forecast_fuel > 100.0)
+                        {
+                            std::fprintf(stderr, "landing shadow forecast: diverged from actual descent\n");
+                            return 1;
+                        }
+                        const double orbit_position_error = glm::length(orbital_forecast.position - ship->body().position);
+                        const double orbit_velocity_error = glm::length(orbital_forecast.velocity - ship->body().velocity);
+                        const double orbit_fuel_error = std::abs(orbital_forecast.fuel - ship->telemetry().stage_fuel);
+                        std::printf("landing candidate forecast error: %.3f m, %.6f m/s, %.3f kg\n",
+                                    orbit_position_error, orbit_velocity_error, orbit_fuel_error);
+                        if (!orbital_forecast.captured || !std::isfinite(orbit_position_error) ||
+                            !std::isfinite(orbit_velocity_error) || !std::isfinite(orbit_fuel_error) ||
+                            orbit_position_error > 100.0 || orbit_velocity_error > 2.0 || orbit_fuel_error > 100.0)
+                        {
+                            std::fprintf(stderr, "landing candidate forecast: diverged from actual descent\n");
+                            return 1;
+                        }
+                    }
+                    if (!captured)
+                    {
+                        sim.props.set_double("/controls/hover", 0.0);
+                        Controls idle;
+                        ship->apply_controls(idle, 0.0);
+                        return 1;
+                    }
+                    for (int step = 0; step < 10000 && sim.props.get_bool("/autopilot/land/armed"); ++step)
+                        sim.step(dt);
+                    const Telemetry &tm = ship->telemetry();
+                    const bool landed = sim.props.get_string("/autopilot/land/state") == "Autoland: landed" &&
+                                        !ship->crashed() && sim.props.get_double("/autopilot/land/distance") < 50.0 &&
+                                        tm.surface_speed < 2.0 && tm.stage_fuel > 100.0;
+                    std::printf("landing descent probe result: %s distance %.1f speed %.1f fuel %.1f\n",
+                                sim.props.get_string("/autopilot/land/state").c_str(),
+                                sim.props.get_double("/autopilot/land/distance"), tm.surface_speed, tm.stage_fuel);
+                    if (shadow_ship && landed &&
+                        (std::abs(touchdown_forecast.distance - sim.props.get_double("/autopilot/land/distance")) > 100.0 ||
+                         std::abs(touchdown_forecast.fuel - tm.stage_fuel) > 100.0))
+                    {
+                        std::fprintf(stderr, "landing touchdown forecast: diverged from actual landing\n");
+                        return 1;
+                    }
+                    return landed ? 0 : 1;
+                }
+                return ok ? 0 : 1;
+            }
+            if (plan.wait > 0.0 && !sim.skip_time(plan.wait, why))
+            {
+                std::fprintf(stderr, "landing plane selftest: departure skip failed: %s\n", why.c_str());
+                return 1;
+            }
+            const sl::FlightBody &departure_planet = *sim.universe.world.body(body_id);
+            const double position_error = glm::length(ship->body().position - departure_planet.position - plan.departure_position);
+            const double velocity_error = glm::length(ship->body().velocity - departure_planet.velocity - plan.departure_velocity);
+            if (!sim.skip_time(flight_time, why))
+            {
+                std::fprintf(stderr, "landing plane selftest: arrival skip failed: %s\n", why.c_str());
+                return 1;
+            }
+            pad.direction = base_direction(sim.universe, body_id, pad);
+            pad.pole = sim.universe.pole(body_id);
+            sl::dvec3 actual_target;
+            base_pad(pad, body_spec.radius, actual_target, heading);
+            const double target_error = glm::length(actual_target - plan.arrival_target) * body_spec.radius;
+            const sl::dvec3 normal = glm::normalize(glm::cross(plan.departure_position,
+                                                               plan.departure_velocity + plan.change.delta_v));
+            const double plane_error = std::abs(glm::dot(normal, plan.arrival_target)) * body_spec.radius;
+            const bool ok = position_error < 1.0 && velocity_error < 0.001 && target_error < 1.0 && plane_error < 0.001;
+            std::printf("landing plane selftest: %d failure(s), wait %.1f s, dv %.1f m/s, errors %.4f m %.7f m/s %.4f m %.7f m\n",
+                        ok ? 0 : 1, plan.wait, glm::length(plan.change.delta_v), position_error,
+                        velocity_error, target_error, plane_error);
+            return ok ? 0 : 1;
+        }
+        const std::string landing_binding = sim.props.get_string("/selftest/autoland-binding");
+        if (!landing_binding.empty())
+        {
+            if (landing_binding == "stage")
+            {
+                ShipSpec spec = ship->spec();
+                spec.stages.push_back(spec.stages.front());
+                const int body_id = ship->telemetry().soi;
+                const sl::FlightBody &body = *sim.universe.world.body(body_id);
+                Ship *staged = sim.spawn(spec);
+                staged->place_relative(body_id, ship->body().position - body.position,
+                                       ship->body().velocity - body.velocity, ship->body().orientation);
+                staged->after_step(0.0);
+                sim.activate(sim.ship_count() - 1);
+                ship = staged;
+            }
+            sim.props.set_bool("/autopilot/land/targeted", true);
+            sim.props.set_double("/autopilot/land/latitude", ship->telemetry().latitude);
+            sim.props.set_double("/autopilot/land/longitude", ship->telemetry().longitude);
+            sim.props.set_string("/autopilot/land/state", "off");
+            sim.props.set_bool("/autopilot/land/armed", true);
+            sim.step(0.05);
+            const bool started = sim.props.get_bool("/autopilot/land/armed") &&
+                                 sim.props.get_string("/autopilot/land/state") == "Target approach";
+            std::string skip_reason;
+            const double before_skip = sim.universe.time();
+            const bool skip_blocked = !sim.skip_time(10.0, skip_reason) &&
+                                      skip_reason == "Cancel the active autopilot before skipping time" &&
+                                      sim.universe.time() == before_skip;
+            bool changed = false;
+            if (landing_binding == "stage")
+                changed = ship->stage_once();
+            else if (landing_binding == "body")
+            {
+                const int moon = sim.universe.find("Moon");
+                if (moon >= 0)
+                {
+                    ship->place_in_orbit(moon, 200000.0, 0.0);
+                    ship->after_step(0.0);
+                    changed = ship->telemetry().soi == moon;
+                }
+            }
+            sim.step(0.05);
+            const bool stopped = !sim.props.get_bool("/autopilot/land/armed") &&
+                                 sim.props.get_string("/autopilot/land/state") == "Autoland aborted: body or stage changed" &&
+                                 sim.props.get_double("/controls/hover") == 0.0;
+            const bool ok = started && skip_blocked && changed && stopped;
+            std::printf("autoland %s binding selftest: %d failure(s)\n", landing_binding.c_str(), ok ? 0 : 1);
+            return ok ? 0 : 1;
+        }
+        if (sim.props.get_bool("/selftest/base-pad"))
+        {
+            auto base = std::find_if(sim.bases.begin(), sim.bases.end(), [](const Base &b) { return b.id == "gale"; });
+            if (base == sim.bases.end())
+            {
+                std::fprintf(stderr, "base pad selftest: Gale base missing\n");
+                return 1;
+            }
+            base->pad_x = 500.0;
+            base->pad_z = 0.0;
+            sim.props.set_bool("/autopilot/land/targeted", true);
+            sim.props.set_string("/autopilot/land/base", "gale");
+            sim.props.set_bool("/autopilot/land/armed", true);
+            sim.step(0.05);
+            const double distance = sim.props.get_double("/autopilot/land/distance");
+            const bool ok = sim.props.get_bool("/autopilot/land/armed") && distance > 490.0 && distance < 510.0;
+            std::printf("base pad selftest: %d failure(s), distance %.1f m\n", ok ? 0 : 1, distance);
+            return ok ? 0 : 1;
+        }
+        if (sim.props.get_bool("/selftest/earth-communications"))
+        {
+            int failures = 0;
+            const auto check = [&](bool ok, const char *what) {
+                std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+                failures += ok ? 0 : 1;
+            };
+            const int earth = sim.universe.find("Earth");
+            sl::FlightBody *target = earth >= 0 ? sim.universe.world.body(earth) : nullptr;
+            if (!target)
+            {
+                check(false, "Earth exists");
+                return 1;
+            }
+            Controls controls;
+            controls.sas = "earth-communications";
+            bool valid = false;
+            const auto alignment = [&]() {
+                const sl::dvec3 direction = ship->sas_direction(controls, valid);
+                return valid ? glm::dot(ship->body().direction_to_world(sl::dvec3(0, 0, -1)), direction) : -1.0;
+            };
+            check(sim.props.get_string("/controls/sas") == controls.sas, "scenario enables Earth communications");
+            check(sim.props.get_string("/sim/target") == "Jupiter", "navigation target remains Jupiter");
+            check(alignment() > 0.999999999, "dish points at Earth initially");
+            const sl::dvec3 position = target->position;
+            const sl::dvec3 old_direction = ship->sas_direction(controls, valid);
+            target->position += sl::dvec3(0, 1.0e11, 0);
+            const sl::dvec3 new_direction = ship->sas_direction(controls, valid);
+            check(valid && glm::length(new_direction - old_direction) > 0.01,
+                  "Earth direction is recomputed as the body moves");
+            target->position = position;
+            target->active = false;
+            ship->sas_direction(controls, valid);
+            check(!valid, "unavailable Earth produces invalid direction");
+            target->active = true;
+            ship->body().orientation = glm::angleAxis(1.5707963267948966, sl::dvec3(0, 1, 0)) * ship->body().orientation;
+            ship->body().angular_velocity = sl::dvec3(0);
+            for (int i = 0; i < 2400; ++i)
+                sim.step(0.05);
+            const double final_alignment = alignment();
+            std::printf("Earth communications alignment %.12f\n", final_alignment);
+            check(final_alignment > 0.9999, "SAS reacquires Earth after a 90 degree disturbance");
+            const sl::dvec3 turn_axis = ship->body().direction_to_world(sl::dvec3(0, 1, 0));
+            ship->body().orientation = glm::angleAxis(3.141592653589793, turn_axis) * ship->body().orientation;
+            ship->body().angular_velocity = sl::dvec3(0);
+            for (int i = 0; i < 3600; ++i)
+                sim.step(0.05);
+            check(alignment() > 0.9999, "SAS reacquires Earth from the opposite direction");
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.05);
+            check(ship->on_rails(), "high warp suspends Earth attitude control on rails");
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.step(0.05);
+            check(!ship->on_rails() && sim.props.get_string("/controls/sas") == controls.sas,
+                  "Earth hold resumes after returning to physics flight");
+            const sl::dquat saved_orientation = ship->body().orientation;
+            const Scenario saved = capture_scenario(sim, "Earth communications");
+            Scenario parsed;
+            std::string error;
+            const bool parsed_ok = parse_scenario(scenario_to_json(saved), "communications-save.json", parsed, error);
+            check(parsed_ok, "communications save parses");
+            if (parsed_ok)
+            {
+                Ship *restored = app::apply_scenario(sim, parsed, app::TerrainSet{});
+                check(restored && sim.props.get_string("/controls/sas") == controls.sas,
+                      "saved flight restores Earth communications hold");
+                check(restored && std::abs(glm::dot(saved_orientation, restored->body().orientation)) > 0.999999999,
+                      "saved flight preserves attitude rather than reorienting");
+            }
+            std::printf("Earth communications selftest: %d failure(s)\n", failures);
+            return failures ? 1 : 0;
+        }
         if (sim.props.get_bool("/selftest/gravity-j2"))
         {
             int failures = 0;

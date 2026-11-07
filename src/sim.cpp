@@ -96,6 +96,7 @@ namespace kosmos
         props.set_bool("/autopilot/land/armed", false);
         props.set_string("/autopilot/land/state", "");
         props.set_bool("/autopilot/land/targeted", false);
+        props.set_string("/autopilot/land/base", "");
         props.set_double("/autopilot/land/latitude", 0.0);
         props.set_double("/autopilot/land/longitude", 0.0);
         props.set_double("/autopilot/land/distance", 0.0);
@@ -600,6 +601,11 @@ namespace kosmos
         c.target_pitch = props.get_double(path_of("target-pitch"));
         c.target_heading = props.get_double(path_of("target-heading"));
         c.ascent_attitude = prefix == "/controls" && ascent_ship_ == active_;
+        c.landing_attitude = prefix == "/controls" && props.get_bool("/autopilot/land/armed") && ship &&
+                             (ship->spec().name == "CVEL Shuttle-A" || ship->spec().name == "CVEL Shuttle-A (Nuclear)" ||
+                              ship->spec().name == "CVEL Shuttle-AQ");
+        c.landing_direction = landing_direction_;
+        c.landing_axis = landing_axis_;
         c.parachute = props.get_int(path_of("parachute"));
         if (c.parachute != 0)
             props.set_int(path_of("parachute"), 0);
@@ -700,7 +706,7 @@ namespace kosmos
         }
         run_vessel_ascent(frame);
         run_timed_burn();
-        run_autoland();
+        run_autoland(frame);
         run_burn();
         release_payload_on_stage();
         const Controls controls = read_controls();
@@ -1015,7 +1021,7 @@ namespace kosmos
 
     bool Sim::skip_time(double seconds, std::string &why)
     {
-        if (props.get_bool("/autopilot/timed/armed") || ascent_ship_ >= 0)
+        if (props.get_bool("/autopilot/timed/armed") || props.get_bool("/autopilot/land/armed") || ascent_ship_ >= 0)
         {
             why = "Cancel the active autopilot before skipping time";
             return false;

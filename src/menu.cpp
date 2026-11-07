@@ -180,6 +180,8 @@ namespace kosmos
         const int flown = sim.props.get_int("/sim/active-ship");
         sc.active = flown >= 0 && flown < sim.ship_count() && index[static_cast<std::size_t>(flown)] >= 0 ? index[static_cast<std::size_t>(flown)] : 0;
         sc.sets.push_back("/controls/gear=" + std::to_string(sim.props.get_double("/controls/gear")));
+        if (sim.props.get_string("/controls/sas") == "earth-communications")
+            sc.sets.push_back("/controls/sas=earth-communications");
         if (flown >= 0 && flown < sim.ship_count())
             for (const auto &animation : sim.ship(flown)->spec().animation_controls)
             {
@@ -544,9 +546,13 @@ namespace kosmos
             dbl("Phase", s.phase, 0.5f, -360.0, 360.0, "%.1f deg");
             dbl("Apoapsis km (0 = circular)", s.apoapsis_km, 100.0f, 0.0, 100000000.0, "%.0f");
             text("Aim at body", s.toward);
+            if (s.dock_to < 0 && s.portal_m <= 0.0)
+                text("Point nose at body", s.point_at);
         }
         else
         {
+            if (!previous.landed)
+                s.point_at.clear();
             int where = !s.base.empty() ? 2 : s.pad ? 1 : 0;
             ImGui::RadioButton("Lat/long", &where, 0);
             ImGui::SameLine();
@@ -596,7 +602,7 @@ namespace kosmos
             s.carry_state.reset();
         if (s.ship != previous.ship || s.body != previous.body || s.landed != previous.landed ||
             s.altitude_km != previous.altitude_km || s.inclination != previous.inclination ||
-            s.phase != previous.phase || s.apoapsis_km != previous.apoapsis_km || s.toward != previous.toward ||
+            s.phase != previous.phase || s.apoapsis_km != previous.apoapsis_km || s.toward != previous.toward || s.point_at != previous.point_at ||
             s.pad != previous.pad || s.base != previous.base || s.runway != previous.runway ||
             s.reverse != previous.reverse || s.along != previous.along || s.altitude != previous.altitude ||
             s.speed != previous.speed || s.latitude != previous.latitude || s.longitude != previous.longitude ||
@@ -1315,9 +1321,10 @@ namespace kosmos
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
-                                   " Mars autoland offers untargeted orbital descent or a local coordinate target; neither avoids obstacles or predicts fuel sufficiency.\n"
+                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
+                                   " Autopilot > Spacecraft > earth-communications points the active ship's nose at Earth in physics flight, not on rails.\n"
                                    "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"
                                    "  Sync Orbit APPR shows short-range relative motion; RVEL points against target-relative velocity for a manual burn. Cut thrust before zero; use Docking for port alignment.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
@@ -1540,7 +1547,7 @@ namespace kosmos
             ImGui::TextDisabled("%s has no programmed autopilot.", ship->name.c_str());
 
         ImGui::Separator();
-        ImGui::TextUnformatted("Mars autoland (experimental)");
+        ImGui::TextUnformatted("Autoland (experimental)");
         bool landing = p.get_bool("/autopilot/land/armed");
         if (ImGui::Checkbox("Autoland engaged", &landing))
         {
@@ -1559,23 +1566,34 @@ namespace kosmos
         if (landing)
             ImGui::BeginDisabled();
         bool targeted = p.get_bool("/autopilot/land/targeted");
-        if (ImGui::Checkbox("Local target landing", &targeted))
+        if (ImGui::Checkbox("Target landing", &targeted))
             p.set_bool("/autopilot/land/targeted", targeted);
         if (targeted)
         {
             double latitude = p.get_double("/autopilot/land/latitude");
             double longitude = p.get_double("/autopilot/land/longitude");
             if (ImGui::InputDouble("Target latitude", &latitude, 0.01, 1.0, "%.5f"))
+            {
                 p.set_double("/autopilot/land/latitude", latitude);
+                p.set_string("/autopilot/land/base", "");
+            }
             if (ImGui::InputDouble("Target longitude", &longitude, 0.01, 1.0, "%.5f"))
+            {
                 p.set_double("/autopilot/land/longitude", longitude);
-            if (ImGui::BeginCombo("Mars base", "Choose target"))
+                p.set_string("/autopilot/land/base", "");
+            }
+            const std::string selected_base = p.get_string("/autopilot/land/base");
+            const int soi = ship->telemetry().soi;
+            const std::string body_name = soi >= 0 && soi < static_cast<int>(sim.universe.bodies.size()) ?
+                                              sim.universe.bodies[static_cast<std::size_t>(soi)].name : "";
+            if (ImGui::BeginCombo("Base", selected_base.empty() ? "Coordinates" : selected_base.c_str()))
             {
                 for (const Base &base : sim.bases)
-                    if (base.body == "Mars" && ImGui::Selectable(base.name.c_str()))
+                    if (base.body == body_name && ImGui::Selectable(base.name.c_str()))
                     {
                         p.set_double("/autopilot/land/latitude", base.latitude);
                         p.set_double("/autopilot/land/longitude", base.longitude);
+                        p.set_string("/autopilot/land/base", base.id);
                     }
                 ImGui::EndCombo();
             }
@@ -1584,15 +1602,25 @@ namespace kosmos
             ImGui::EndDisabled();
         if (targeted)
         {
+            ImGui::TextDisabled("Local targets: Ares on Mars or Moon; Shuttle-A on any suitable body.");
             ImGui::TextDisabled("Start 300-3000 m above ground, within 2 km, below 50 m/s horizontal");
             ImGui::TextDisabled("and below 30 m/s vertical speed.");
+            ImGui::TextDisabled("From orbit, choose a base; spherical gravity and no weather are required.");
+            ImGui::TextDisabled("Use time warp while waiting for the window; planning may take time.");
             if (landing)
+            {
                 ImGui::Text("Target distance: %.0f m", p.get_double("/autopilot/land/distance"));
+                if (p.get_string("/autopilot/land/state") == "Planning orbit")
+                    ImGui::Text("Forecast candidate %d of %d", p.get_int("/autopilot/land/candidate"),
+                                p.get_int("/autopilot/land/candidates"));
+                if (p.get_string("/autopilot/land/state") == "Waiting for window")
+                    ImGui::Text("Time to plane burn: %.0f s", p.get_double("/autopilot/land/window"));
+            }
         }
         else
             ImGui::TextDisabled("Untargeted Mars landing; start in orbit.");
-        ImGui::TextDisabled("Nose-axis hover engines required. Target is not a cleared pad.");
-        ImGui::TextDisabled("No terrain avoidance or fuel sufficiency prediction; monitor descent.");
+        ImGui::TextDisabled("A selected base aims at its pad; orbital success is within 3 km of the base.");
+        ImGui::TextDisabled("Forecasts are approximate; no terrain or obstacle avoidance. Monitor and take over.");
         const std::string landing_status = p.get_string("/autopilot/land/state");
         if (!landing_status.empty() && landing_status != "off")
             ImGui::TextWrapped("%s", landing_status.c_str());
@@ -1602,22 +1630,41 @@ namespace kosmos
         const bool timed = p.get_bool("/autopilot/timed/armed");
         if ((engaged && scripted) || landing || timed)
             ImGui::BeginDisabled();
-        static const char *const modes[] = {"stability", "prograde", "retrograde", "target-retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
+        static const char *const modes[] = {"stability", "prograde", "retrograde", "target-retrograde", "earth-communications", "radial-out", "radial-in", "normal", "antinormal", "attitude", "off"};
         const std::string sas = p.get_string("/controls/sas", "stability");
         int current = 0;
-        for (int i = 0; i < 10; ++i)
+        for (int i = 0; i < static_cast<int>(sizeof(modes) / sizeof(modes[0])); ++i)
             if (sas == modes[i])
                 current = i;
         ImGui::SetNextItemWidth(160.0f);
         if (ImGui::BeginCombo("Mode", modes[current]))
         {
-            for (int i = 0; i < 10; ++i)
+            for (int i = 0; i < static_cast<int>(sizeof(modes) / sizeof(modes[0])); ++i)
                 if (ImGui::Selectable(modes[i], i == current))
                 {
                     sim.cancel_vessel_ascent("Ascent cancelled: manual SAS");
                     p.set_string("/controls/sas", modes[i]);
                 }
             ImGui::EndCombo();
+        }
+        if (sas == "earth-communications")
+        {
+            bool valid = false;
+            if (ship)
+            {
+                Controls controls;
+                controls.sas = sas;
+                ship->sas_direction(controls, valid);
+            }
+            if (!valid)
+                ImGui::TextWrapped("Earth unavailable; SAS damps rotation.");
+            else if (ship->on_rails())
+                ImGui::TextWrapped("Earth hold suspended on rails.");
+            else if (!ship->attitude_control_available() ||
+                     (ship->spec().rcs_modes && p.get_string("/controls/rcs-mode", "rot") == "off"))
+                ImGui::TextWrapped("Earth hold unavailable: attitude control is off or exhausted.");
+            else
+                ImGui::TextWrapped("Points the nose at Earth during physics flight; rails suspend attitude control.");
         }
         if (sas == "attitude")
         {

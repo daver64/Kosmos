@@ -4,10 +4,12 @@
  "active": 0,
  "date": "1979-03-05 06:00:00",
  "target": "Jupiter",
+ "set": {"/controls/sas": "earth-communications"},
  "ships": [
   {
    "ship": "NASA Voyager",
    "body": "Jupiter",
+   "point_at": "Earth",
    "orbit": {
     "altitude_km": 280000,
     "apoapsis_km": 30000000,

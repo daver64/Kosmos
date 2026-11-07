@@ -107,6 +107,11 @@ namespace kosmos
         return ensure(universe, body);
     }
 
+    bool Weather::supports_body(const Universe &universe, int body)
+    {
+        return rocky_with_air(universe, body);
+    }
+
     std::string Weather::live_status() const
     {
         return live_.status(real_unix_time());

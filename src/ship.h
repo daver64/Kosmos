@@ -518,12 +518,15 @@ namespace kosmos
         std::string rcs_mode = "rot";
         /** Targets of the ship's animation controls, in the order of `ShipSpec::animation_controls`. */
         std::vector<double> anim;
-        /** off, stability, prograde, retrograde, target-retrograde, radial-out, radial-in, normal, antinormal or attitude. */
+        /** off, stability, prograde, retrograde, target-retrograde, earth-communications, radial-out, radial-in, normal, antinormal or attitude. */
         std::string sas = "stability";
         sl::dvec3 target_relative_velocity{0.0};
         bool target_velocity_valid = false;
         double target_pitch = 90.0, target_heading = 90.0;
         bool ascent_attitude = false;
+        bool landing_attitude = false;
+        sl::dvec3 landing_direction{0.0, 1.0, 0.0};
+        sl::dvec3 landing_axis{0.0, 1.0, 0.0};
         bool stage = false;
         /** 1 deploys the next parachute, -1 cuts every open one. */
         int parachute = 0;
