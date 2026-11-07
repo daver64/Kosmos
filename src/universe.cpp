@@ -121,6 +121,8 @@ namespace kosmos
                     : kind == "comet" ? BodyKind::comet : BodyKind::planet;
         body.gm = entry.value("gm", 0.0);
         body.radius = entry.value("radius", 1000.0);
+        body.gravity_j2 = entry.value("gravity_j2", 0.0);
+        body.gravity_reference_radius = entry.value("gravity_reference_radius", 0.0);
         body.spin = entry.value("spin", 0.0);
         body.terrain = entry.value("terrain", "");
         if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
@@ -257,6 +259,8 @@ namespace kosmos
         sl::FlightBody *fb = world.body(id);
         fb->gm = body.gm;
         fb->radius = body.radius;
+        fb->gravity_j2 = body.gravity_j2;
+        fb->gravity_reference_radius = body.gravity_reference_radius;
         fb->spin_rate = body.spin;
         fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
         fb->atmosphere.surface_density = body.atmosphere_density;

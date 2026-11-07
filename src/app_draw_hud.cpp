@@ -322,9 +322,10 @@ namespace kosmos::app
             else
                 sl::gprintf(16, 70, {255, 220, 150}, "Throttle %3.0f%%   Thrust %.0f kN   TWR %.2f   Stage %d/%d fuel %.0f kg   Mass %.1f t", props.get_double("/controls/throttle") * 100.0,
                             tm.thrust / 1000.0, tm.twr, ship->active_stage() + 1, ship->stage_count(), tm.stage_fuel, tm.mass / 1000.0);
-            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   RCS: %s   Warp x%g%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(),
+            sl::gprintf(16, 88, {220, 220, 220}, "Pitch %.1f  Heading %.1f   Hold: %s   RCS: %s   Warp x%g%s%s", tm.pitch, tm.heading, props.get_string("/controls/sas").c_str(),
                         props.get_string("/controls/rcs-mode", "rot") == "lin" ? "LIN" : props.get_string("/controls/rcs-mode", "rot") == "off" ? "OFF" : "ROT", sim.current_warp(),
-                        ship->on_rails() ? " (rails)" : "");
+                        ship->on_rails() ? " (rails)" : "",
+                        ship->on_rails() && props.get_bool("/sim/settings/nonspherical-gravity") ? "  J2 SUSPENDED" : "");
             const std::string status = props.get_string("/autopilot/status");
             const bool autopilot_enabled = props.get_bool("/autopilot/enabled") || props.get_bool("/autopilot/land/armed");
             if (autopilot_enabled || !status.empty())
@@ -909,7 +910,8 @@ namespace kosmos::app
                                props.get_double("/environment/cloud-cover") * 100.0, props.get_double("/environment/visibility") / 1000.0,
                                props.get_string("/environment/station").c_str(), props.get_bool("/environment/live") ? " (live)" : "");
         if (!options.hide_info && props.get_bool("/sim/settings/clock"))
-            sl::gprintf_center(screen_h - 22, {235, 235, 200}, "Warp x%g%s   %s   T+%s", sim.current_warp(), ship->on_rails() ? " (rails)" : "",
+            sl::gprintf_center(screen_h - 22, {235, 235, 200}, "Warp x%g%s%s   %s   T+%s", sim.current_warp(), ship->on_rails() ? " (rails)" : "",
+                               ship->on_rails() && props.get_bool("/sim/settings/nonspherical-gravity") ? "  J2 SUSPENDED" : "",
                                kosmos::format_utc(universe.julian_date()).c_str(), format_time(universe.time()).c_str());
         if (galaxy_mode)
             gview.draw(sim.galaxy, sim.system_index());

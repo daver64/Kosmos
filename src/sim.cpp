@@ -653,6 +653,7 @@ namespace kosmos
 
     void Sim::step(double frame)
     {
+        universe.world.nonspherical_gravity = props.get_bool("/sim/settings/nonspherical-gravity");
         // HUD messages are notices: they go after a few seconds.
         const auto now = std::chrono::steady_clock::now();
         while (!messages_.empty() && now - message_times_.front() > std::chrono::milliseconds(3500))
@@ -1064,7 +1065,8 @@ namespace kosmos
         }
         update_target();
         nav.update(universe, ships_, active_);
-        log("Time advanced " + std::to_string(static_cast<long long>(seconds)) + " s");
+        log("Time advanced " + std::to_string(static_cast<long long>(seconds)) + " s" +
+            (props.get_bool("/sim/settings/nonspherical-gravity") ? " (J2 suspended during time skip)" : ""));
         return true;
     }
 

@@ -426,6 +426,10 @@ namespace kosmos::app
                 if (ui::slider_int("Volume", &volume, 0, 100, "%d%%"))
                     props.set_int("/sim/settings/volume", volume);
                 ImGui::SeparatorText("Simulation");
+                flag("Nonspherical gravity (J2)", "/sim/settings/nonspherical-gravity",
+                     "Earth and Mars J2 gravity during physics flight.\nHigh-warp rails and time skips suspend it; orbit predictions remain Keplerian.");
+                if (props.get_bool("/sim/settings/nonspherical-gravity") && ship && ship->on_rails())
+                    ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.2f, 1.0f), "J2 suspended on rails");
                 int warp = props.get_int("/sim/warp-index");
                 if (ui::slider_int("Time warp", &warp, 0, Sim::warp_levels - 1))
                     props.set_int("/sim/warp-index", warp);

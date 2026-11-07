@@ -92,7 +92,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (press ` or hold Alt to free the pointer for the menus), arrows also look, F manoeuvring pack, Q/E roll when floating |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
-| **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp. Saved to `~/.config/kosmos/settings.json` on exit. **Edit > Performance settings** (no key) holds the graphics, weather (including the cloud style: simple deck, layers or volumetric), scenery and texture options |
+| **F3** | **Settings window**: body/ship labels (off by default), orbit line, key help, sound, volume, time warp and optional J2 gravity. Saved to `~/.config/kosmos/settings.json` on exit. **Edit > Performance settings** (no key) holds the graphics, weather (including the cloud style: simple deck, layers or volumetric), scenery and texture options |
 | **F4** | **Property browser**: browse, filter, read and write the property tree (like FlightGear). Typing in its boxes does not fly the ship |
 | **F11** | **Lua console** (like FlightGear's Nasal console): edit scripts with syntax highlighting, **Run** (Ctrl+Enter), **Save** (Ctrl+S, to `~/.config/kosmos/scripts/`). Choose the event that runs a script: manual, scenario load / ship change, every frame, timer, or when a property changes, and tick **Armed**. Scripts see `props` plus `event`, `dt`, `event_path`, `event_value`; `print` and errors go to the output pane. Examples live in `data/scripts/` |
 | **F12** | **Multiplayer** window: host or join a game, browse the IRC lobby, chat |
@@ -382,6 +382,12 @@ A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead
 Planets whose VSOP87A file is in `data/vsop87/` (VSOP87A.mer ... .nep) start at their true heliocentric position and velocity for the Julian date
 `epoch_jd` in `data/sol.json` (default J2000, 2451545.0); the state is converted to osculating elements and the planet then follows that Kepler orbit.
 Other bodies use the elements in the json.
+
+### Nonspherical gravity
+
+F3 > **Nonspherical gravity (J2)** enables an optional equatorial-bulge correction for Earth and Mars during integrated physics flight. It is off by default and the setting is saved. J2 rotates orbital planes and changes elliptical orbits over time; it does not model local mass concentrations or the higher-degree gravity maps used by Orbiter. The coefficients and reference radii are derived from the degree-2 zonal terms in Orbiter's EGM96 and JGMRO models, with fully normalized C20 converted to J2.
+
+High-warp Keplerian rails suspend J2, as do time skips; the HUD and Settings indicate when the flown ship is on rails and the time-skip message reports the suspension. J2 resumes in physics flight, but the omitted drift is not recovered. Orbit lines, orbital elements and OrbitComp remain instantaneous two-body or patched-conic approximations, not J2-aware predictions. Switching this setting does not instantly reposition a ship. System authors can specify dimensionless `gravity_j2` and `gravity_reference_radius` in metres on a body; the spin axis is its pole and both values default to zero.
 
 ## Bases
 

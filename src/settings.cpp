@@ -48,6 +48,7 @@ namespace kosmos
         props.set_bool("/sim/settings/tooltips", true);
         props.set_bool("/sim/settings/clock", true);
         props.set_bool("/sim/settings/orbit-line", true);
+        props.set_bool("/sim/settings/nonspherical-gravity", false);
         props.set_bool("/sim/settings/sound", true);
         props.set_int("/sim/settings/volume", 20);
         props.set_string("/sim/settings/blender", "blender");
@@ -90,7 +91,7 @@ namespace kosmos
         nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
         if (!j.is_object())
             return;
-        for (const char *key : {"labels", "ship-labels", "help-text", "tooltips", "orbit-line", "sound", "clock"})
+        for (const char *key : {"labels", "ship-labels", "help-text", "tooltips", "orbit-line", "sound", "clock", "nonspherical-gravity"})
             if (j.contains(key) && j[key].is_boolean())
                 props.set_bool(std::string("/sim/settings/") + key, j[key].get<bool>());
         if (j.contains("volume") && j["volume"].is_number())
@@ -152,7 +153,7 @@ namespace kosmos
         if (path.empty())
             return;
         nlohmann::json j;
-        for (const char *key : {"labels", "ship-labels", "help-text", "tooltips", "orbit-line", "sound", "clock"})
+        for (const char *key : {"labels", "ship-labels", "help-text", "tooltips", "orbit-line", "sound", "clock", "nonspherical-gravity"})
             j[key] = props.get_bool(std::string("/sim/settings/") + key);
         j["volume"] = props.get_int("/sim/settings/volume");
         j["burn-lead-min"] = props.get_int("/sim/settings/burn-lead-min", 5);

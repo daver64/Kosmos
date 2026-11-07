@@ -5,6 +5,7 @@
 #include "menu.h"
 #include "ordnance.h"
 #include "scenario_start.h"
+#include "settings.h"
 #include "ship_weapons.h"
 #include "terrain_warning.h"
 
@@ -1373,6 +1374,60 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/gravity-j2"))
+        {
+            int failures = 0;
+            const auto check = [&](bool ok, const char *what) {
+                std::printf("%s: %s\n", ok ? "ok  " : "FAIL", what);
+                failures += ok ? 0 : 1;
+            };
+            const int earth = sim.universe.find("Earth"), mars = sim.universe.find("Mars");
+            check(earth >= 0 && mars >= 0 &&
+                      sim.universe.world.body(earth)->gravity_j2 > 0.001 &&
+                      sim.universe.world.body(mars)->gravity_j2 > 0.001,
+                  "Earth and Mars carry J2 data");
+            sl::PropertyTree settings;
+            settings_defaults(settings);
+            check(!settings.get_bool("/sim/settings/nonspherical-gravity"), "J2 defaults off");
+            settings.set_bool("/sim/settings/nonspherical-gravity", true);
+            settings_save(settings);
+            sl::PropertyTree restored;
+            settings_defaults(restored);
+            settings_load(restored);
+            check(restored.get_bool("/sim/settings/nonspherical-gravity"), "J2 setting persists");
+            sim.props.set_bool("/sim/settings/nonspherical-gravity", true);
+            sim.step(0.05);
+            check(sim.universe.world.nonspherical_gravity && !ship->on_rails(), "J2 enabled during physics");
+            const sl::dvec3 point = ship->body().position;
+            const sl::dvec3 with_j2 = sim.universe.world.gravity_at(point);
+            sim.universe.world.nonspherical_gravity = false;
+            const sl::dvec3 without_j2 = sim.universe.world.gravity_at(point);
+            check(glm::length(with_j2 - without_j2) > 1e-5, "configured J2 changes gravity");
+            sim.universe.world.nonspherical_gravity = true;
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.05);
+            check(ship->on_rails(), "high warp uses Keplerian rails with J2 suspended");
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.step(0.05);
+            check(!ship->on_rails() && sim.universe.world.nonspherical_gravity, "J2 resumes after rails");
+            std::string why;
+            const sl::FlightBody *parent = sim.universe.world.body(ship->telemetry().soi);
+            sl::OrbitElements orbit;
+            const bool valid_orbit = sl::orbit_from_state(parent->gm, ship->body().position - parent->position,
+                                                           ship->body().velocity - parent->velocity, orbit);
+            const sl::OrbitState expected = sl::state_from_orbit(parent->gm, orbit, 60.0);
+            const bool skipped = sim.skip_time(60.0, why);
+            check(skipped && !sim.messages().empty() && sim.messages().back().find("J2 suspended") != std::string::npos,
+                  "time skip reports suspended J2");
+            parent = sim.universe.world.body(ship->telemetry().soi);
+            check(skipped && valid_orbit && glm::length(ship->body().position - parent->position - expected.position) < 0.1,
+                  "time skip remains Keplerian with J2 enabled");
+            sim.props.set_bool("/sim/settings/nonspherical-gravity", false);
+            sim.step(0.05);
+            check(!sim.universe.world.nonspherical_gravity, "J2 switches off at runtime");
+            std::printf("J2 selftest: %d failure(s)\n", failures);
+            return failures ? 1 : 0;
+        }
         if (options.orbitcomp)
             return run_orbitcomp_test(sim, ship);
         if (options.save)

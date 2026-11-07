@@ -27,6 +27,8 @@ namespace kosmos
         int parent = -1;
         double gm = 0.0;
         double radius = 1.0;
+        double gravity_j2 = 0.0;
+        double gravity_reference_radius = 0.0;
         /** Spin about +Y in rad/s. */
         double spin = 0.0;
         /** Angle of the body-fixed frame about +Y at time zero; a body with terrain does not spin, so this fixes its orientation. */
