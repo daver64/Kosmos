@@ -1382,10 +1382,51 @@ namespace kosmos
                 failures += ok ? 0 : 1;
             };
             const int earth = sim.universe.find("Earth"), mars = sim.universe.find("Mars");
+            {
+                Universe invalid;
+                std::string error;
+                const bool loaded = invalid.load_text(
+                    R"({"name":"Invalid","bodies":[{"name":"Star","kind":"star","gravity_model":"__missing_gravity_20261107.json"}]})",
+                    "data/__gravity_test_system__.json", error);
+                check(!loaded && error.find("cannot open gravity model") != std::string::npos,
+                      "missing gravity model is reported");
+            }
             check(earth >= 0 && mars >= 0 &&
                       sim.universe.world.body(earth)->gravity_j2 > 0.001 &&
                       sim.universe.world.body(mars)->gravity_j2 > 0.001,
                   "Earth and Mars carry J2 data");
+            for (const char *name : {"Mercury", "Venus", "Earth", "Moon", "Mars", "Ceres", "Vesta"})
+            {
+                const int id = sim.universe.find(name);
+                sl::FlightBody *body = id >= 0 ? sim.universe.world.body(id) : nullptr;
+                check(body && body->gravity_harmonics &&
+                          body->gravity_harmonics->degree == (std::string(name) == "Ceres" ? 70 : 10),
+                      name);
+                if (body && body->gravity_harmonics)
+                {
+                    const sl::dquat original = body->gravity_orientation;
+                    const auto frame = body->gravity_frame;
+                    body->gravity_frame = {};
+                    body->gravity_orientation = glm::angleAxis(-body->spin_rate * sim.universe.world.time(), sl::dvec3(0, 1, 0));
+                    const sl::dvec3 point = body->position + body->gravity_harmonics->reference_radius * sl::dvec3(1.05, 0.35, -0.25);
+                    sim.universe.world.nonspherical_gravity = true;
+                    const sl::dvec3 enabled = sim.universe.world.gravity_at(point);
+                    sim.universe.world.nonspherical_gravity = false;
+                    const sl::dvec3 delta = enabled - sim.universe.world.gravity_at(point);
+                    std::printf("gravity-model %s %.17g %.17g %.17g\n", name, delta.x, delta.y, delta.z);
+                    body->gravity_orientation = original;
+                    body->gravity_frame = frame;
+                    if (frame)
+                        for (double t : {0.0, 86400.0})
+                        {
+                            const sl::dquat q = frame(t);
+                            const sl::dvec3 prime = q * sl::dvec3(1, 0, 0);
+                            const sl::dvec3 pole = q * sl::dvec3(0, 1, 0);
+                            std::printf("gravity-frame %s %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
+                                        name, sim.universe.epoch_jd, t, prime.x, prime.y, prime.z, pole.x, pole.y, pole.z);
+                        }
+                }
+            }
             sl::PropertyTree settings;
             settings_defaults(settings);
             check(!settings.get_bool("/sim/settings/nonspherical-gravity"), "J2 defaults off");
@@ -1417,8 +1458,8 @@ namespace kosmos
                                                            ship->body().velocity - parent->velocity, orbit);
             const sl::OrbitState expected = sl::state_from_orbit(parent->gm, orbit, 60.0);
             const bool skipped = sim.skip_time(60.0, why);
-            check(skipped && !sim.messages().empty() && sim.messages().back().find("J2 suspended") != std::string::npos,
-                  "time skip reports suspended J2");
+            check(skipped && !sim.messages().empty() && sim.messages().back().find("nonspherical gravity suspended") != std::string::npos,
+                  "time skip reports suspended nonspherical gravity");
             parent = sim.universe.world.body(ship->telemetry().soi);
             check(skipped && valid_orbit && glm::length(ship->body().position - parent->position - expected.position) < 0.1,
                   "time skip remains Keplerian with J2 enabled");

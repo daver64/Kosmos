@@ -102,6 +102,9 @@ namespace kosmos::app
                 const sl::dvec3 lon0 = b.axis_tilt * sl::dvec3(1.0, 0.0, 0.0);
                 b.rotation_offset = std::atan2(glm::dot(pole, glm::cross(lon0, to_parent)), glm::dot(lon0, to_parent));
             }
+            if (b.gravity_harmonics && !b.gravity_frame_defined)
+                sim.universe.world.body(static_cast<int>(i))->gravity_orientation =
+                    b.axis_tilt * glm::angleAxis(b.rotation_offset, sl::dvec3(0.0, 1.0, 0.0));
         }
         loading.note("Placing bases and beacons");
         sim.nav.truncate_beacons(base_beacon_mark);

@@ -654,6 +654,14 @@ namespace kosmos
     void Sim::step(double frame)
     {
         universe.world.nonspherical_gravity = props.get_bool("/sim/settings/nonspherical-gravity");
+        if (universe.world.nonspherical_gravity)
+            for (std::size_t i = 0; i < universe.bodies.size(); ++i)
+            {
+                const Body &body = universe.bodies[i];
+                if (body.gravity_harmonics && !body.gravity_frame_defined)
+                    universe.world.body(static_cast<int>(i))->gravity_orientation =
+                        body.axis_tilt * glm::angleAxis(body.rotation_offset, sl::dvec3(0.0, 1.0, 0.0));
+            }
         // HUD messages are notices: they go after a few seconds.
         const auto now = std::chrono::steady_clock::now();
         while (!messages_.empty() && now - message_times_.front() > std::chrono::milliseconds(3500))
@@ -1066,7 +1074,7 @@ namespace kosmos
         update_target();
         nav.update(universe, ships_, active_);
         log("Time advanced " + std::to_string(static_cast<long long>(seconds)) + " s" +
-            (props.get_bool("/sim/settings/nonspherical-gravity") ? " (J2 suspended during time skip)" : ""));
+            (props.get_bool("/sim/settings/nonspherical-gravity") ? " (nonspherical gravity suspended during time skip)" : ""));
         return true;
     }
 

@@ -29,6 +29,13 @@ namespace kosmos
         double radius = 1.0;
         double gravity_j2 = 0.0;
         double gravity_reference_radius = 0.0;
+        std::shared_ptr<const sl::GravityHarmonics> gravity_harmonics;
+        bool gravity_frame_defined = false;
+        bool gravity_lunar_frame = false;
+        bool gravity_mercury_frame = false;
+        double gravity_ra = 0.0, gravity_dec = 90.0, gravity_w0 = 0.0, gravity_rate = 0.0;
+        double gravity_ra_rate = 0.0, gravity_dec_rate = 0.0;
+        double gravity_node_ra = 0.0;
         /** Spin about +Y in rad/s. */
         double spin = 0.0;
         /** Angle of the body-fixed frame about +Y at time zero; a body with terrain does not spin, so this fixes its orientation. */

@@ -1317,7 +1317,7 @@ namespace kosmos
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
                                    " Mars autoland offers untargeted orbital descent or a local coordinate target; neither avoids obstacles or predicts fuel sufficiency.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
-                                   " F3 offers optional Earth/Mars J2 gravity; rails and time skips suspend it, and orbit predictions stay approximate.\n"
+                                   " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
                                    "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"
                                    "  Sync Orbit APPR shows short-range relative motion; RVEL points against target-relative velocity for a manual burn. Cut thrust before zero; use Docking for port alignment.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"

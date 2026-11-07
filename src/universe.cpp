@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <iterator>
 #include <random>
 
@@ -25,6 +26,79 @@ namespace kosmos
         double deg(const nlohmann::json &j, const char *key)
         {
             return j.value(key, 0.0) * pi / 180.0;
+        }
+
+        std::shared_ptr<const sl::GravityHarmonics> load_gravity_model(const std::filesystem::path &path)
+        {
+            std::ifstream in(path);
+            if (!in)
+                throw std::runtime_error("cannot open gravity model " + path.string());
+            nlohmann::json json;
+            in >> json;
+            auto model = std::make_shared<sl::GravityHarmonics>();
+            model->degree = json.at("degree").get<int>();
+            model->reference_radius = json.at("reference_radius").get<double>();
+            model->gm = json.at("gm").get<double>();
+            model->cosine = json.at("cosine").get<std::vector<double>>();
+            model->sine = json.at("sine").get<std::vector<double>>();
+            if (model->degree < 2 || model->degree > 70 || !std::isfinite(model->reference_radius) ||
+                model->reference_radius <= 0.0 || !std::isfinite(model->gm) || model->gm <= 0.0)
+                throw std::runtime_error("invalid gravity model header: " + path.string());
+            const std::size_t count = static_cast<std::size_t>((model->degree + 1) * (model->degree + 2) / 2);
+            if (model->cosine.size() != count || model->sine.size() != count ||
+                !std::all_of(model->cosine.begin(), model->cosine.end(), [](double x) { return std::isfinite(x); }) ||
+                !std::all_of(model->sine.begin(), model->sine.end(), [](double x) { return std::isfinite(x); }) ||
+                model->cosine[0] != 0.0 || model->sine[0] != 0.0)
+                throw std::runtime_error("invalid gravity model coefficients: " + path.string());
+            return model;
+        }
+
+        sl::dquat harmonic_frame(const Body &body, double epoch_jd, double time)
+        {
+            const double days = epoch_jd - 2451545.0 + time / 86400.0;
+            const double centuries = days / 36525.0;
+            double ra = body.gravity_ra + body.gravity_ra_rate * centuries;
+            double dec = body.gravity_dec + body.gravity_dec_rate * centuries;
+            double w = body.gravity_w0 + body.gravity_rate * days;
+            if (body.gravity_mercury_frame)
+            {
+                constexpr double phase[] = {174.7910857, 349.5821714, 164.3732571, 339.1643429, 153.9554286};
+                constexpr double rate[] = {4.092335, 8.184670, 12.277005, 16.369340, 20.461675};
+                constexpr double terms[] = {0.01067257, -0.00112309, -0.00011040, -0.00002539, -0.00000571};
+                for (int i = 0; i < 5; ++i)
+                    w += terms[i] * std::sin(std::remainder(phase[i] + rate[i] * days, 360.0) * pi / 180.0);
+            }
+            if (body.gravity_lunar_frame)
+            {
+                constexpr double phase[] = {125.045, 250.089, 260.008, 176.625, 357.529, 311.589, 134.963,
+                                            276.617, 34.226, 15.134, 119.743, 239.961, 25.053};
+                constexpr double rate[] = {-0.0529921, -0.1059842, 13.0120009, 13.3407154, 0.9856003, 26.4057084,
+                                           13.0649930, 0.3287146, 1.7484877, -0.1589763, 0.0036096, 0.1643573, 12.9590088};
+                constexpr double ra_terms[] = {-3.8787, -0.1204, 0.0700, -0.0172, 0, 0.0072, 0, 0, 0, -0.0052, 0, 0, 0.0043};
+                constexpr double dec_terms[] = {1.5419, 0.0239, -0.0278, 0.0068, 0, -0.0029, 0.0009, 0, 0, 0.0008, 0, 0, -0.0009};
+                constexpr double w_terms[] = {3.5610, 0.1208, -0.0642, 0.0158, 0.0252, -0.0066, -0.0047, -0.0046,
+                                              0.0028, 0.0052, 0.0040, 0.0019, -0.0044};
+                for (int i = 0; i < 13; ++i)
+                {
+                    const double angle = std::remainder(phase[i] + rate[i] * days, 360.0) * pi / 180.0;
+                    ra += ra_terms[i] * std::sin(angle);
+                    dec += dec_terms[i] * std::cos(angle);
+                    w += w_terms[i] * std::sin(angle);
+                }
+                w -= 1.4e-12 * days * days;
+            }
+            const sl::dvec3 pole = equatorial_to_world(ra, dec);
+            const sl::dvec3 up(0, 1, 0);
+            const sl::dvec3 cross = glm::cross(up, pole);
+            const double length = glm::length(cross);
+            const sl::dquat tilt = length > 1e-12 ? glm::angleAxis(std::acos(std::clamp(pole.y, -1.0, 1.0)), cross / length)
+                                                   : (pole.y >= 0.0 ? sl::dquat(1, 0, 0, 0) : glm::angleAxis(pi, sl::dvec3(1, 0, 0)));
+            const double node_ra = body.gravity_lunar_frame ? ra + 90.0 : body.gravity_node_ra + (ra - body.gravity_ra);
+            const sl::dvec3 node = equatorial_to_world(node_ra, 0.0);
+            const sl::dvec3 target = glm::angleAxis(std::remainder(w, 360.0) * pi / 180.0, pole) * node;
+            const sl::dvec3 lon0 = tilt * sl::dvec3(1, 0, 0);
+            const double angle = std::atan2(glm::dot(pole, glm::cross(lon0, target)), glm::dot(lon0, target));
+            return tilt * glm::angleAxis(angle, sl::dvec3(0, 1, 0));
         }
     } // namespace
 
@@ -123,6 +197,25 @@ namespace kosmos
         body.radius = entry.value("radius", 1000.0);
         body.gravity_j2 = entry.value("gravity_j2", 0.0);
         body.gravity_reference_radius = entry.value("gravity_reference_radius", 0.0);
+        if (const auto frame = entry.find("gravity_frame"); frame != entry.end())
+        {
+            body.gravity_frame_defined = true;
+            body.gravity_ra = frame->at("ra").get<double>();
+            body.gravity_dec = frame->at("dec").get<double>();
+            body.gravity_w0 = frame->at("w0").get<double>();
+            body.gravity_rate = frame->at("rate").get<double>();
+            body.gravity_ra_rate = frame->value("ra_rate", 0.0);
+            body.gravity_dec_rate = frame->value("dec_rate", 0.0);
+            body.gravity_node_ra = frame->value("node_ra", body.gravity_ra + 90.0);
+            body.gravity_lunar_frame = frame->value("lunar_libration", false);
+            body.gravity_mercury_frame = frame->value("mercury_libration", false);
+            if (!std::isfinite(body.gravity_ra) || !std::isfinite(body.gravity_dec) ||
+                body.gravity_dec < -90.0 || body.gravity_dec > 90.0 ||
+                !std::isfinite(body.gravity_w0) || !std::isfinite(body.gravity_rate) ||
+                !std::isfinite(body.gravity_ra_rate) || !std::isfinite(body.gravity_dec_rate) ||
+                !std::isfinite(body.gravity_node_ra))
+                throw std::runtime_error("invalid gravity frame");
+        }
         body.spin = entry.value("spin", 0.0);
         body.terrain = entry.value("terrain", "");
         if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
@@ -261,6 +354,10 @@ namespace kosmos
         fb->radius = body.radius;
         fb->gravity_j2 = body.gravity_j2;
         fb->gravity_reference_radius = body.gravity_reference_radius;
+        fb->gravity_harmonics = body.gravity_harmonics;
+        fb->gravity_orientation = body.axis_tilt * glm::angleAxis(body.rotation_offset, sl::dvec3(0.0, 1.0, 0.0));
+        if (body.gravity_frame_defined)
+            fb->gravity_frame = [body, epoch = epoch_jd](double time) { return harmonic_frame(body, epoch, time); };
         fb->spin_rate = body.spin;
         fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
         fb->atmosphere.surface_density = body.atmosphere_density;
@@ -307,7 +404,28 @@ namespace kosmos
         for (const nlohmann::json &entry : list)
         {
             Body body;
-            read_body_fields(entry, body);
+            try
+            {
+                read_body_fields(entry, body);
+            }
+            catch (const std::exception &e)
+            {
+                error = file + ": invalid body: " + e.what();
+                return false;
+            }
+            if (entry.contains("gravity_model"))
+            {
+                try
+                {
+                    body.gravity_harmonics = load_gravity_model(std::filesystem::path(file).parent_path() /
+                                                                entry.at("gravity_model").get<std::string>());
+                }
+                catch (const std::exception &e)
+                {
+                    error = body.name + ": gravity model: " + e.what();
+                    return false;
+                }
+            }
             body.parent = -1;
             if (entry.contains("parent"))
             {
