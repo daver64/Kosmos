@@ -66,8 +66,9 @@ def check_version(source, member, version):
 
 def check_excluded_assets(source, names):
     excluded = ("addons/cvel-ariane5", "scenarios/CVEL/CVEL-Ariane", "data/textures/planets",
-                "addons/cvel-saturn-v", "addons/cvel-saturn-mlv3", "addons/cvel-saturn-v23",
-                "scenarios/CVEL/CVEL-SaturnV", "scenarios/Ares_To_Mars.json",
+                "addons/cvel-saturn-mlv3", "addons/cvel-saturn-v23",
+                "scenarios/CVEL/CVEL-SaturnV/saturn_v_mlv3_kennedy.json",
+                "scenarios/CVEL/CVEL-SaturnV/saturn_v_23l_kennedy.json", "scenarios/Ares_To_Mars.json",
                 "data/textures/skybox", "data/reference",
                 *(f"data/textures/{body}.jpg" for body in
                   ("amalthea", "ariel", "charon", "earth_lights", "hyperion",

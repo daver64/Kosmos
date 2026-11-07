@@ -373,7 +373,7 @@ else()
 endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated(/|$)" "/import(/|$)"
     "/addons/cvel-ariane5(/|$)" "/scenarios/CVEL/CVEL-Ariane(/|$)"
-    "/addons/cvel-saturn-(v|mlv3|v23)(/|$)" "/scenarios/CVEL/CVEL-SaturnV(/|$)" "/scenarios/Ares_To_Mars\\.json$"
+    "/addons/cvel-saturn-(mlv3|v23)(/|$)" "/scenarios/CVEL/CVEL-SaturnV/saturn_v_(mlv3|23l)_kennedy\\.json$" "/scenarios/Ares_To_Mars\\.json$"
     "/addons/cvel-deltaglider/Skins/Shuttle_(BRI|CAN|FRA|USA)(/|$)"
     "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
     "/data/textures/(amalthea|ariel|charon|earth_lights|hyperion|mercury|miranda|moon|neptune|oberon|phoebe|pluto|proteus|saturn|titan|titania|triton|umbriel|uranus|venus)\\.jpg$"

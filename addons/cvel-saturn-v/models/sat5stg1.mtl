@@ -1,0 +1,61 @@
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+
+newmtl fina__SICFIND
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl finb__SICFINC
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl finc__SICFINB
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl find__SICFINA
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl s1cfin
+Kd 0.494 0.494 0.494
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+
+newmtl stage01black
+Kd 0.000 0.000 0.000
+Ks 0.553 0.553 0.553
+Ke 0.000 0.000 0.000
+
+newmtl stage01texture_S1C
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/S1C.png
+
+newmtl stage01white
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steeldark
+Kd 0.329 0.329 0.329
+Ks 0.647 0.647 0.647
+Ke 0.000 0.000 0.000
+
+newmtl steellight
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl tankyellow
+Kd 1.000 0.894 0.467
+Ks 1.000 0.973 0.867
+Ke 0.000 0.000 0.000
+

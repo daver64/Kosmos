@@ -1,0 +1,363 @@
+{
+ "name": "CVEL Saturn V Payload",
+ "class": "launcher",
+ "ports": [
+  {
+   "name": "Payload",
+   "position": [
+    0,
+    0,
+    -64.3
+   ],
+   "direction": [
+    0,
+    0,
+    -1
+   ],
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "payload_bays": [
+  {
+   "name": "Payload section",
+   "shape": "cylinder",
+   "radius": 4.5,
+   "length": 22,
+   "port": "Payload"
+  }
+ ],
+ "script": "@launcher.lua",
+ "torque_accel": 0.12,
+ "max_rate": 0.25,
+ "rcs_thrust": 0,
+ "drag_area": 80,
+ "camera_distance": 120,
+ "camera_target": [
+  0,
+  0,
+  -70
+ ],
+ "systems": [],
+ "stages": [
+  {
+   "name": "S-IC first stage",
+   "dry_mass": 169000,
+   "propellant": 2100000,
+   "z": -1.5,
+   "length": 47,
+   "radius": 5.03,
+   "separation_speed": 2.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -3.5,
+      3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      3.5,
+      3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -3.5,
+      -3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      3.5,
+      -3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    }
+   ],
+   "gear": [
+    [
+     7.3,
+     0,
+     22
+    ],
+    [
+     -7.3,
+     0,
+     22
+    ],
+    [
+     0,
+     7.3,
+     22
+    ],
+    [
+     0,
+     -7.3,
+     22
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg1.obj"
+    },
+    {
+     "model": "models/sat5intstg.obj",
+     "offset": [
+      0,
+      0,
+      -23
+     ]
+    }
+   ]
+  },
+  {
+   "name": "S-II second stage",
+   "dry_mass": 49000,
+   "propellant": 450000,
+   "z": -34.6,
+   "length": 30,
+   "radius": 5.05,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -2,
+      2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      2,
+      2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -2,
+      -2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      2,
+      -2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg2.obj",
+     "offset": [
+      0,
+      0,
+      -36
+     ]
+    }
+   ]
+  },
+  {
+   "name": "S-IVB third stage",
+   "dry_mass": 13000,
+   "propellant": 96000,
+   "z": -57.3,
+   "length": 27,
+   "radius": 3.3,
+   "separation_speed": 1.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -44.1
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 22,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg3.obj",
+     "offset": [
+      0,
+      0,
+      -55
+     ]
+    }
+   ]
+  }
+ ]
+}

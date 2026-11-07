@@ -41,6 +41,13 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   mesh by D Henderson, released under the GNU LGPL according to its upstream
   notice. The original mesh, notice and licence text are in
   `addons/cvel-fregat/source/`.
+- **CVEL Saturn V and Apollo** (`addons/cvel-saturn-v/`): meshes credited to
+  TomPA and Sputnik in the original `source/SaturnV.txt` notice. The CVEL
+  author reports that both gave permission to bundle their meshes with CVEL,
+  and that the textures came with the models. Kosmos converts the source meshes
+  and textures with `tools/import_cvel_saturn_v.py` and removes overlapping
+  faces. The notice's LGPL statement applies to the original C++ module code,
+  not a stated licence for the meshes.
 
 ## NASA source inventory
 

@@ -978,6 +978,7 @@ This is a game-level model: gas is ideal, temperature is constant and there is n
 Ship| Class| Launch mass| Notes  
 ---|---|---|---  
 Kestrel| Launcher| 219.5 t| Three stages (booster, upper stage, capsule); ascent autopilot  
+CVEL Saturn V| Launcher| 3,000 t class| Apollo-era multistage launcher; Apollo 11 launch scenario
 CVEL Deltaglider| Spaceplane| 12.0 t dry| Retractable gear, nose hatch; [beam, sparkle guns and shield](#weapons)  
 Ares Spider| Lander| 30.0 t| Four 80 kN hover engines; top and aft docking ports  
 Salyut| Station| 20.0 t| Two docking ports  

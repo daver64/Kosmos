@@ -46,6 +46,7 @@ Shuttle-A has no animated landing gear, and its detachable pods use simplified v
 Wheel has a simplified ring and hub without spokes.
 Kennedy's launch pad and tower are procedural; its VAB uses a NASA-derived
 model and the pad deck is lower than in earlier builds.
+The CVEL Saturn V and Apollo 11 launch scenario are included.
 
 ## What you can do
 

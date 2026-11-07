@@ -10,6 +10,7 @@ __pycache__/
 !/addons/cvel-shuttle-a/orbiter-models/textures/*.png
 !/addons/cvel-deltaglider/orbiter-models/vc/textures/*.png
 !/addons/cvel-shuttle-a/orbiter-models/vc/textures/*.png
+!/addons/cvel-saturn-v/models/textures/*.png
 !/addons/cvel-dragonfly/orbiter-models/textures/*.png
 !/addons/orbiter-stations/orbiter-models/textures/*.png
 !/addons/cvel-soyuz/models/textures/SOY-DESC.png

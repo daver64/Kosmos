@@ -32,7 +32,8 @@ scene() {
     CLEAN=(--clean)
     case "$1" in
         orbit) SCENE=(--no-clouds --ship "CVEL Deltaglider" --orbit --alone --sunlit --sun-angle 20 --orbit-alt 400 --cam-yaw -1.5 --cam-pitch 0.4 --cam-distance 40 --cam-spin 1) ;;
-        launch|launch_photo) echo "Saturn V footage cannot be recaptured: the add-on was removed pending asset rights review" >&2; return 1 ;;
+        launch) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 300) ;;
+        launch_photo) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.04 --cam-distance 470) ;;
         titan) SCENE=(--no-clouds --scenario titan4b_vandenberg --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 180 --set /sim/settings/weather=0) ;;
         soyuz) SCENE=(--no-clouds --scenario soyuz_fg_twickenham --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 140 --set /sim/settings/weather=0) ;;
         weapons) SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/weapons.json" --sunlit --sun-angle 45 --set /controls/weapons/primary/fire=1 --cam-yaw 3.7 --cam-pitch 0.25 --cam-distance 90 --cam-spin 2.5) ;;

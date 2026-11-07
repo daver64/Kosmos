@@ -1,0 +1,535 @@
+{
+ "name": "CVEL Saturn V",
+ "class": "launcher",
+ "script": "@launcher.lua",
+ "torque_accel": 0.12,
+ "max_rate": 0.25,
+ "rcs_thrust": 0,
+ "drag_area": 80,
+ "camera_distance": 120,
+ "camera_target": [
+  0,
+  0,
+  -70
+ ],
+ "systems": [
+  {
+   "type": "fuel_cell",
+   "name": "Fuel cells (3)",
+   "stage": "Service module",
+   "watts": 4200
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "name": "Cryogenic oxygen (2 tanks)",
+   "stage": "Service module",
+   "capacity_kg": 295
+  },
+  {
+   "type": "tank",
+   "gas": "hydrogen",
+   "name": "Cryogenic hydrogen (2 tanks)",
+   "stage": "Service module",
+   "capacity_kg": 25.4
+  },
+  {
+   "type": "load",
+   "name": "Service module systems",
+   "stage": "Service module",
+   "watts": 450,
+   "priority": 0
+  },
+  {
+   "type": "battery",
+   "name": "Entry batteries",
+   "stage": "Command module",
+   "capacity_wh": 3360,
+   "max_w": 2000
+  },
+  {
+   "type": "tank",
+   "gas": "oxygen",
+   "name": "Surge and emergency oxygen",
+   "stage": "Command module",
+   "capacity_kg": 2
+  },
+  {
+   "type": "tank",
+   "gas": "water",
+   "name": "Potable water",
+   "stage": "Command module",
+   "kg": 16,
+   "capacity_kg": 16
+  },
+  {
+   "type": "load",
+   "name": "Guidance and instruments",
+   "stage": "Command module",
+   "watts": 500,
+   "priority": 0
+  },
+  {
+   "type": "load",
+   "name": "Cabin fans and coolant pumps",
+   "stage": "Command module",
+   "watts": 200,
+   "priority": 0
+  },
+  {
+   "type": "load",
+   "name": "Cabin lighting",
+   "stage": "Command module",
+   "watts": 80,
+   "priority": 2
+  },
+  {
+   "type": "regulator",
+   "name": "Cabin regulator",
+   "stage": "Command module",
+   "vessel": "Cabin"
+  },
+  {
+   "type": "scrubber",
+   "name": "LiOH canisters",
+   "stage": "Command module",
+   "vessel": "Cabin",
+   "kg_per_day": 6,
+   "sorbent_kg": 50
+  }
+ ],
+ "vessels": [
+  {
+   "name": "Cabin",
+   "stage": "Command module",
+   "position": [
+    0,
+    0,
+    -76.4
+   ],
+   "size": [
+    2.0,
+    1.9,
+    1.62
+   ],
+   "crew": 3,
+   "pressure_kpa": 34.5,
+   "o2_fraction": 1.0
+  }
+ ],
+ "stages": [
+  {
+   "name": "S-IC first stage",
+   "dry_mass": 169000,
+   "propellant": 2100000,
+   "z": -1.5,
+   "length": 47,
+   "radius": 5.03,
+   "separation_speed": 2.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -3.5,
+      3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      3.5,
+      3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      -3.5,
+      -3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    },
+    {
+     "position": [
+      3.5,
+      -3.5,
+      21
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 9193000,
+     "isp": 304,
+     "isp_sl": 265,
+     "plume": 100,
+     "plume_width": 2.7,
+     "plume_glow": 2.5,
+     "plume_density": 6,
+     "type": "rocket",
+     "fuel": "kerosene"
+    }
+   ],
+   "gear": [
+    [
+     7.3,
+     0,
+     22
+    ],
+    [
+     -7.3,
+     0,
+     22
+    ],
+    [
+     0,
+     7.3,
+     22
+    ],
+    [
+     0,
+     -7.3,
+     22
+    ]
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg1.obj"
+    },
+    {
+     "model": "models/sat5intstg.obj",
+     "offset": [
+      0,
+      0,
+      -23
+     ]
+    }
+   ]
+  },
+  {
+   "name": "S-II second stage",
+   "dry_mass": 49000,
+   "propellant": 450000,
+   "z": -34.6,
+   "length": 30,
+   "radius": 5.05,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -2,
+      2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      2,
+      2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -2,
+      -2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      2,
+      -2,
+      -19.9
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 16,
+     "plume_width": 1.8,
+     "plume_density": 3,
+     "plume_billow": 0.85,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg2.obj",
+     "offset": [
+      0,
+      0,
+      -36
+     ]
+    }
+   ]
+  },
+  {
+   "name": "S-IVB third stage",
+   "dry_mass": 13000,
+   "propellant": 96000,
+   "z": -57.3,
+   "length": 27,
+   "radius": 3.3,
+   "separation_speed": 1.0,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -44.1
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 1033400,
+     "isp": 421,
+     "isp_sl": 200,
+     "plume": 22,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/sat5stg3.obj",
+     "offset": [
+      0,
+      0,
+      -55
+     ]
+    },
+    {
+     "model": "models/sat5stg31.obj",
+     "offset": [
+      -1.48,
+      -1.48,
+      -67.5
+     ]
+    },
+    {
+     "model": "models/sat5stg32.obj",
+     "offset": [
+      1.48,
+      -1.48,
+      -67.5
+     ]
+    },
+    {
+     "model": "models/sat5stg33.obj",
+     "offset": [
+      1.48,
+      1.48,
+      -67.5
+     ]
+    },
+    {
+     "model": "models/sat5stg34.obj",
+     "offset": [
+      -1.48,
+      1.48,
+      -67.5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Service module",
+   "dry_mass": 2156,
+   "propellant": 18413,
+   "z": -72.5,
+   "length": 8.4,
+   "radius": 2.0,
+   "separation_speed": 0.5,
+   "engines": [
+    {
+     "position": [
+      0,
+      0,
+      -68.4
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 97900,
+     "isp": 342,
+     "isp_sl": 220,
+     "plume": 8,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/nsaturn1_sm.obj",
+     "offset": [
+      0,
+      0.07,
+      -72.5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Command module",
+   "dry_mass": 5560,
+   "z": -80.9,
+   "length": 11.2,
+   "radius": 2.0,
+   "separation_speed": 0.5,
+   "parts": [
+    {
+     "model": "models/nsaturn1_cm.obj",
+     "offset": [
+      0,
+      0.07,
+      -76.4
+     ]
+    },
+    {
+     "model": "models/sat5bpc.obj",
+     "offset": [
+      0,
+      0.07,
+      -80.9
+     ]
+    }
+   ]
+  }
+ ]
+}
