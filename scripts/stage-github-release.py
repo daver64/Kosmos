@@ -43,13 +43,17 @@ def check_version(source, member, version):
         raise ValueError(f"missing input: {source}")
     if source.suffix == ".zip":
         with zipfile.ZipFile(source) as archive:
-            matches = [item for item in archive.infolist() if item.filename == member]
+            entries = archive.infolist()
+            check_excluded_assets(source, (item.filename for item in entries))
+            matches = [item for item in entries if item.filename == member]
             if len(matches) != 1 or matches[0].file_size > 128:
                 raise ValueError(f"missing or duplicate version in {source}")
             data = archive.read(matches[0])
     else:
         with tarfile.open(source, "r:gz") as archive:
-            matches = [item for item in archive if item.name == member]
+            entries = list(archive)
+            check_excluded_assets(source, (item.name for item in entries))
+            matches = [item for item in entries if item.name == member]
             if len(matches) != 1 or not matches[0].isfile() or matches[0].size > 128:
                 raise ValueError(f"missing or duplicate version in {source}")
             entry = archive.extractfile(matches[0])
@@ -58,6 +62,21 @@ def check_version(source, member, version):
             data = entry.read()
     if data.decode("ascii").strip() != version:
         raise ValueError(f"version mismatch in {source}")
+
+
+def check_excluded_assets(source, names):
+    excluded = ("addons/cvel-ariane5", "scenarios/CVEL/CVEL-Ariane", "data/textures/planets",
+                "data/textures/skybox", "data/reference",
+                *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}"
+                  for country in ("BRI", "CAN", "FRA", "USA")))
+    for name in names:
+        parts = PurePosixPath(name).parts
+        if len(parts) < 2:
+            continue
+        relative = "/".join(parts[1:])
+        if (any(relative == item or relative.startswith(item + "/") for item in excluded)
+                or re.fullmatch(r"data/textures/[^/]+_normal\.jpg", relative)):
+            raise ValueError(f"archive contains excluded asset: {source}: {name}")
 
 
 def split_pack(source, output, part_size):
@@ -92,10 +111,10 @@ def split_pack(source, output, part_size):
             raise ValueError("pack changed while splitting")
     return {
         "id": "hires",
-        "name": "High-resolution Earth, Moon and Mars",
-        "description": "Optional high-resolution planet textures and surface tiles.",
+        "name": "Procedural planet textures",
+        "description": "Optional fictional procedural maps; not geographically accurate and no surface tiles.",
         "file": "kosmos-hires.tar.gz",
-        "marker": "data/textures-hires",
+        "marker": "data/textures-generated",
         "size": total,
         "sha256": full_hash.hexdigest(),
         "parts": parts,
@@ -104,29 +123,27 @@ def split_pack(source, output, part_size):
 
 def check_pack(source):
     seen = set()
-    required = {"data/textures-hires", "data/CREDITS-textures.md"}
-    blocked = {
-        f"data/textures-hires/{name}.dds"
-        for name in ("gaspra", "ida", "kleopatra", "toutatis")
-    } | {
-        f"data/textures-hires/bodies/{name}.obj"
-        for name in ("gaspra", "ida", "kleopatra", "toutatis")
+    textures = {
+        f"data/textures-generated/{name}.dds"
+        for name in ("earth", "moon", "mars", "mercury", "venus", "jupiter", "saturn", "uranus", "neptune")
     }
+    required = {"data/textures-generated", "data/textures-generated/CREDITS.md"} | textures
+    allowed = required | {"data"}
     with tarfile.open(source, "r|gz") as archive:
         for member in archive:
             path = PurePosixPath(member.name)
             name = path.as_posix()
             if path.is_absolute() or ".." in path.parts or name in seen:
                 raise ValueError(f"unsafe or duplicate pack entry: {member.name}")
-            if name in blocked:
+            if name not in allowed:
                 raise ValueError(f"pack contains an asset not approved for redistribution: {name}")
-            if name not in ("data", "data/CREDITS-textures.md", "data/textures-hires") and not name.startswith("data/textures-hires/"):
-                raise ValueError(f"unexpected pack entry: {name}")
-            if not (member.isfile() or member.isdir()):
+            if (name in ("data", "data/textures-generated") and not member.isdir()) or (
+                name not in ("data", "data/textures-generated") and not member.isfile()
+            ):
                 raise ValueError(f"unsupported pack entry type: {name}")
             seen.add(name)
     if not required.issubset(seen):
-        raise ValueError("pack is missing high-resolution data or texture credits")
+        raise ValueError("pack is missing procedural maps or texture credits")
 
 
 def main():

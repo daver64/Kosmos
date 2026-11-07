@@ -401,10 +401,9 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const char *file : {"ship.json", "es.json", "eca.json"})
         {
             ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ariane5/" + file, spec, error));
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/tests/fixtures/radial_pair.json", spec, error));
             assert(spec.stages[0].radial_pair);
             Ship rocket(universe, spec);
             rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));

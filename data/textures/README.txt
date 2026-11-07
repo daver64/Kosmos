@@ -1,4 +1,5 @@
-Default surface images: equirectangular, in this folder (a fresh git checkout runs on these, from Celestia).
+Default surface images: equirectangular, in this folder. Earth, Mars, Jupiter, Europa, Ganymede, Callisto, Io, Phobos and Deimos are NASA maps; many other maps are from Celestia. Some NASA mosaics have visible coverage gaps or seams. See data/CREDITS-textures.md for provenance and unresolved terms.
+Unverified planetary *_normal.jpg files are excluded from packages; without an installed normal map those surfaces have no normal-map relief.
 High-resolution replacements go in data/textures-hires/ (git-ignored) with the same names; a file there wins over one here.
 
 Drop equirectangular surface images here, named after the body in lower case (earth.png, earth.jpg, mars.jpg, moon.png ...),
@@ -23,4 +24,4 @@ into one of these .dds files without decoding the tiles, keeping the tree's leve
     python3 tools/orbiter_import.py "C:/Orbiter" --body Earth --level 8      (8 = 16384 x 8192 with 512 px tiles; writes to data/textures-hires/)
 Only the surface layer (DXT1/DXT5 tiles) is imported; mask, cloud and elevation layers are ignored.
 
-Planet images: textures/planets/*.jpg are the original 2k downloads; the old procedural 8k ones were moved to textures-hires/procedural/ (not in git; regenerate with tools/gen_textures.py).
+The local textures/planets/ directory contains old 2k downloads and outdated documentation; the simulator's surface loader does not use it, although KosmosMap can. It is excluded from new packages pending provenance review. The old procedural 8k maps were moved to textures-hires/procedural/ (not in git; regenerate with tools/gen_textures.py).

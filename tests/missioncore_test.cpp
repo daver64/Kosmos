@@ -225,7 +225,7 @@ int main()
         };
         const ShipSpec *titan = find("CVEL Titan IVA"), *centaur = find("CVEL Centaur G"), *fregat = find("CVEL Fregat"), *luna = find("Luna E3");
         CHECK(titan && centaur && fregat && luna); // ships listed from addon.json, not only ship.json
-        CHECK(find("CVEL Ariane 5 ECA") != nullptr && find("CVEL Energia") != nullptr);
+        CHECK(find("CVEL Soyuz-FG") != nullptr && find("CVEL Energia") != nullptr);
         if (titan && centaur && fregat && luna)
         {
             CHECK(!titan->bays.empty() && titan->bays[0].port == "Payload");

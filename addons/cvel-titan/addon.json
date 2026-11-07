@@ -2,7 +2,7 @@
  "id": "cvel-titan",
  "name": "CVEL Titan",
  "version": "0.1",
- "author": "Erik Anderson (Sputnik) CVE-lite Titans, LGPL; Kosmos conversion",
+ "author": "Erik Anderson (Sputnik) CVE-lite Titans; Kosmos conversion",
  "description": "Titan I, II, IIIB, IIIC, IIID, IIIE, 34D, IVA and IVB launchers.",
  "ships": [
   "titan1.json",

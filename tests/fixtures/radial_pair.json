@@ -1,0 +1,50 @@
+{
+  "name": "Radial separation test",
+  "class": "launcher",
+  "stages": [
+    {
+      "name": "Paired boosters",
+      "dry_mass": 200,
+      "propellant": 400,
+      "z": 3,
+      "length": 6,
+      "radius": 2,
+      "separation_speed": 2.5,
+      "radial_pair": true,
+      "parts": [
+        { "profile": [[-3, 0.5], [3, 0.5]], "offset": [-2, 0, 3] },
+        { "profile": [[-3, 0.5], [3, 0.5]], "offset": [2, 0, 3] }
+      ]
+    },
+    {
+      "name": "Core",
+      "dry_mass": 100,
+      "propellant": 300,
+      "length": 6,
+      "radius": 1,
+      "separation_speed": 1.5
+    },
+    {
+      "name": "Fairing left",
+      "dry_mass": 10,
+      "propellant": 0,
+      "length": 2,
+      "radius": 1,
+      "with_next": true
+    },
+    {
+      "name": "Fairing right",
+      "dry_mass": 10,
+      "propellant": 0,
+      "length": 2,
+      "radius": 1
+    },
+    {
+      "name": "Upper stage",
+      "dry_mass": 50,
+      "propellant": 100,
+      "length": 2,
+      "radius": 1
+    }
+  ]
+}

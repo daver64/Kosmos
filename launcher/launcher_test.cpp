@@ -107,6 +107,11 @@ int main()
         std::string error;
         CHECK(parse_release_manifest(metadata, release, error));
         CHECK(release.version == "0.51" && release.packs.size() == 1 && release.packs[0].parts.size() == 2);
+        std::string procedural = metadata;
+        const std::string old_marker = "data/textures-hires";
+        procedural.replace(procedural.find(old_marker), old_marker.size(), "data/textures-generated");
+        CHECK(parse_release_manifest(procedural, release, error));
+        CHECK(release.packs[0].pack.marker == "data/textures-generated");
         std::string bad = metadata;
         bad.replace(bad.find("\"size\":7"), 8, "\"size\":8");
         CHECK(!parse_release_manifest(bad, release, error) && !error.empty());

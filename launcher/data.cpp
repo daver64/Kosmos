@@ -380,7 +380,7 @@ namespace launcher
             pack.pack.size = entry["size"].get<long long>();
             if (pack.pack.id != "hires" || !ids.insert(pack.pack.id).second || pack.pack.file != "kosmos-hires.tar.gz" ||
                 !valid_hash(pack.pack.sha256) || pack.pack.size <= 0 ||
-                pack.pack.marker != "data/textures-hires")
+                (pack.pack.marker != "data/textures-hires" && pack.pack.marker != "data/textures-generated"))
                 return fail("Invalid pack details");
             long long total = 0;
             for (const auto &part_json : entry["parts"])

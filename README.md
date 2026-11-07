@@ -10,6 +10,10 @@ Kosmos began around twenty years ago as a personal project. It is now ready for 
 
 > **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
 
+The Ariane 5 and ATV add-on and its scenarios are not included while their
+asset provenance is unresolved; existing local copies and older builds may
+still contain them.
+
 ## Help test Kosmos
 
 Until now, Kosmos has been tested mainly by its developers. We would welcome a wider range of people willing to fly it, explore its systems and tell us what goes wrong.
@@ -110,6 +114,12 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 
 `import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
 
+The launcher's **Scenery packs > Get Orbiter terrain** button opens the
+independent [Orbiter-Mods downloads page](https://orbiter-mods.com/downloads.html),
+which also lists torrents. These third-party downloads are not verified or
+installed by the launcher; check their source and terms and follow the
+[manual installation instructions](docs/manual/manual.md#hires).
+
 ## Native addons
 
 Native addons: programs that connect over KosmosLink (loopback only) and are allowed per addon in View > Native addons. The client library, examples and manual are the separate Kosmos SDK (`sdk/`, packaged by `scripts/build-sdk.sh`; the protocol and server are in `src/link/`). `addons/kosmosmap` is the launcher for KosmosMap, a GTK 3 moving map of the body the ship is at (Linux); its source is the SDK's model program, `sdk/kosmosmap`.
@@ -141,7 +151,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
 | Ctrl+P / Ctrl+C / Ctrl+Q | Pause / start or stop video recording / quit |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Ariane 5, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes (also B) |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
@@ -305,7 +315,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 
 ## Textures
 
-`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
+`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body. The Earth image is NASA Blue Marble; many other maps are derived from Celestia packs and still need individual provenance review (see `data/CREDITS-textures.md`). A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. For release staging, `scripts/pack-procedural-hires.py` generates a separate pack of fictional procedural maps in `data/textures-generated/`: they are not geographically accurate and do not contain terrain tiles. Existing hi-res overrides and local Celestia maps take priority. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed. Locally imported third-party imagery requires its own redistribution review.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter's high-resolution `Surf.tree` archives can be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
@@ -442,7 +452,7 @@ Mode ids and labels: `orbit` Orbit, `surface` Surface, `map` Map, `attitude` RCS
 
 `scenarios/default.json` is loaded when Kosmos is run with no arguments (Kestrel on the Chippenham pad). Copy it to `~/.config/kosmos/scenarios/default.json` to change the default start; any start flag (`--scenario`, `--orbit-start`, `--orbit`, `--ship`) skips it.
 
-A ship entry can name a texture set with `"skin": "Shuttle_BRI"`: the folder of that name inside the `Skins/` folder next to the ship's `models/` folder (the CVEL Deltaglider and Nuclear Deltaglider share the Deltaglider's). Its `.dds` files replace the model textures of the same name (`*_norm` files are ignored). The scenario editor has a Skin selector for ships that have skins.
+A ship entry can name a texture set with `"skin": "MySkin"`: the folder of that name inside the `Skins/` folder next to the ship's `models/` folder (the CVEL Deltaglider and Nuclear Deltaglider share the Deltaglider's). Its `.dds` files replace the model textures of the same name (`*_norm` files are ignored). The scenario editor has a Skin selector for ships that have skins.
 
 A ship can use `"surface": {"pad" | "latitude", "longitude", "heading"}` instead of `orbit`. Run with `--scenario NAME`, list with `--list-scenarios`, and press F10 to load the next one.
 

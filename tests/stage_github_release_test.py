@@ -28,11 +28,14 @@ def run():
         for name, content in inputs.items():
             (root / name).write_bytes(content)
         with tarfile.open(root / "hires.tar.gz", "w:gz") as archive:
-            item = tarfile.TarInfo("data/textures-hires")
+            item = tarfile.TarInfo("data/textures-generated")
             item.type = tarfile.DIRTYPE
             archive.addfile(item)
-            for name, data in (("data/textures-hires/earth.dds", bytes(range(37))),
-                               ("data/CREDITS-textures.md", b"fixture credits")):
+            files = [(f"data/textures-generated/{name}.dds", bytes(range(37)))
+                     for name in ("earth", "moon", "mars", "mercury", "venus",
+                                  "jupiter", "saturn", "uranus", "neptune")]
+            files.append(("data/textures-generated/CREDITS.md", b"fixture credits"))
+            for name, data in files:
                 item = tarfile.TarInfo(name)
                 item.size = len(data)
                 archive.addfile(item, io.BytesIO(data))
@@ -114,6 +117,38 @@ def run():
         for name in ("build-linux.sh", "build-windows.sh"):
             assert (wrapper_root / "scripts" / (name + ".args")).read_text() == "kosmos_package\n"
         assert (wrapper_root / "VERSION").read_text() == "1.42\n"
+        for option, name, prefix in (
+            ("--linux", "kosmos-beta-1.42-Linux.tar.gz", "kosmos-beta-1.42-Linux"),
+            ("--windows", "kosmos-beta-1.42-Windows.zip", "kosmos-beta-1.42-Windows"),
+        ):
+            for index, asset in enumerate(("addons/cvel-ariane5/models/core.obj",
+                                           "scenarios/CVEL/CVEL-Ariane/ariane5_eca_kourou.json",
+                                           "data/textures/planets/earth.jpg",
+                                           "data/textures/skybox/milkyway_procedural_4k.jpg",
+                                           "data/textures/ganymede_normal.jpg",
+                                           "data/reference/orbiter_screenshots/3091a.jpg",
+                                           *(f"addons/cvel-deltaglider/Skins/Shuttle_{country}/idpanel1.dds"
+                                             for country in ("BRI", "CAN", "FRA", "USA")))):
+                fixture_dir = root / f"excluded-{option[2:]}-{index}"
+                fixture_dir.mkdir()
+                fixture = fixture_dir / name
+                if option == "--linux":
+                    with tarfile.open(fixture, "w:gz") as archive:
+                        for member, content in ((f"{prefix}/VERSION.txt", b"1.42\n"),
+                                                (f"{prefix}/{asset}", b"excluded")):
+                            info = tarfile.TarInfo(member)
+                            info.size = len(content)
+                            archive.addfile(info, io.BytesIO(content))
+                else:
+                    with zipfile.ZipFile(fixture, "w") as archive:
+                        archive.writestr(f"{prefix}/VERSION.txt", "1.42\n")
+                        archive.writestr(f"{prefix}/{asset}", "excluded")
+                bad = args.copy()
+                bad[bad.index(option) + 1] = str(fixture)
+                bad[bad.index("--out") + 1] = str(fixture_dir / "stage")
+                failure = subprocess.run(bad, capture_output=True, text=True)
+                assert failure.returncode != 0 and "excluded asset" in failure.stderr
+                assert not (fixture_dir / "stage").exists()
         blocked = root / "blocked.tar.gz"
         with tarfile.open(blocked, "w:gz") as archive:
             item = tarfile.TarInfo("data/textures-hires/ida.dds")
@@ -170,6 +205,29 @@ def run():
             assert "data/CREDITS-textures.md" in names
             assert not any(name.endswith((".obj", "gaspra.dds", "ida.dds", "kleopatra.dds", "toutatis.dds")) for name in names)
             assert not any("procedural" in name for name in names)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("stage_release", SCRIPT)
+        stage = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(stage)
+        try:
+            stage.check_pack(pack_out)
+        except ValueError as error:
+            assert "not approved for redistribution" in str(error)
+        else:
+            raise AssertionError("legacy mixed pack was accepted")
+        generated = root / "generated.tar.gz"
+        subprocess.run([sys.executable, str(ROOT / "scripts/pack-procedural-hires.py"),
+                        "--scale", "32", str(generated)], check=True, capture_output=True)
+        stage.check_pack(generated)
+        with tarfile.open(generated) as archive:
+            names = archive.getnames()
+            assert "data/CREDITS-textures.md" not in names
+            assert "data/textures-generated/CREDITS.md" in names
+            assert len([name for name in names if name.endswith(".dds")]) == 9
+        old = generated.read_bytes()
+        assert subprocess.run([sys.executable, str(ROOT / "scripts/pack-procedural-hires.py"),
+                               "--scale", "32", str(generated)], capture_output=True).returncode != 0
+        assert generated.read_bytes() == old
     print("stage_github_release_test: passed")
 
 

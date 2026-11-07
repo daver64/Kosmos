@@ -360,7 +360,11 @@ if(TARGET planetbake)
 else()
     message(STATUS "planetbake will not be built (needs zlib, glm and FastNoiseLite.h)")
 endif()
-set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/import(/|$)"
+set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated(/|$)" "/import(/|$)"
+    "/addons/cvel-ariane5(/|$)" "/scenarios/CVEL/CVEL-Ariane(/|$)"
+    "/addons/cvel-deltaglider/Skins/Shuttle_(BRI|CAN|FRA|USA)(/|$)"
+    "/data/textures/planets(/|$)" "/data/textures/skybox(/|$)" "/data/reference(/|$)"
+    "/data/textures/[^/]+_normal\\.jpg$"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)

@@ -586,15 +586,17 @@ namespace
         {
             auto *page = new wxPanel(book_);
             auto *col = new wxBoxSizer(wxVERTICAL);
-            col->Add(new wxStaticText(page, wxID_ANY, "Optional downloads. They install into the Kosmos folder and are checked against the published SHA-256 checksum."), 0, wxALL, 8);
+            col->Add(new wxStaticText(page, wxID_ANY, "Kosmos release packs install into the Kosmos folder and are checked against the published SHA-256 checksum."), 0, wxALL, 8);
             pack_list_ = new wxListBox(page, wxID_ANY);
             pack_text_ = new wxStaticText(page, wxID_ANY, "");
             pack_gauge_ = new wxGauge(page, wxID_ANY, 1000);
             pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
             pack_remove_ = new wxButton(page, wxID_ANY, "Remove");
+            auto *orbiter_download = new wxButton(page, wxID_ANY, "Get Orbiter terrain...");
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(pack_install_, 0, wxALL, 8);
             buttons->Add(pack_remove_, 0, wxALL, 8);
+            buttons->Add(orbiter_download, 0, wxALL, 8);
             col->Add(pack_list_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
             col->Add(pack_text_, 0, wxALL, 8);
             col->Add(pack_gauge_, 0, wxEXPAND | wxLEFT | wxRIGHT, 8);
@@ -603,6 +605,18 @@ namespace
             book_->AddPage(page, "Scenery packs");
             pack_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { ShowPack(); });
             pack_install_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallPack(); });
+            orbiter_download->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
+                                   {
+                                       if (wxMessageBox("Orbiter terrain is a separate third-party download, not a Kosmos release pack. "
+                                                        "Check the source and applicable terms. Downloads can be many gigabytes and are not "
+                                                        "verified or installed by this launcher.\n\n"
+                                                        "For Earth, Moon or Mars, place Elev.tree and Surf.tree in "
+                                                        "import/orbiter/<body>/Archive/ inside the Kosmos folder. "
+                                                        "Open the third-party downloads page?",
+                                                        "Orbiter terrain", wxYES_NO | wxICON_INFORMATION, this) == wxYES &&
+                                           !wxLaunchDefaultBrowser("https://orbiter-mods.com/downloads.html"))
+                                           wxMessageBox("Could not open the download page in your browser.", "Orbiter terrain", wxICON_ERROR, this);
+                                   });
             pack_remove_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
                                {
                                    const int i = pack_list_->GetSelection();

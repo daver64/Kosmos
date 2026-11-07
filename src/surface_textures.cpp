@@ -293,6 +293,9 @@ namespace kosmos::app
         const std::string celestia = find_image_in_folder(root + "/import/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;
+        const std::string generated = find_texture_in_directory(root, "/data/textures-generated/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        if (!generated.empty())
+            return generated;
         const std::string shipped = find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
         if (shipped.empty() && b.style.valid() && !b.minor)
             return generated_surface_image(b);

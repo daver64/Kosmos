@@ -21,7 +21,7 @@ NOTES = b"Fixture release notes\n"
 HASH = "a" * 64
 pack_buffer = io.BytesIO()
 with tarfile.open(fileobj=pack_buffer, mode="w:gz") as archive:
-    info = tarfile.TarInfo("data/textures-hires/fixture.txt")
+    info = tarfile.TarInfo("data/textures-generated/fixture.txt")
     data = b"fixture textures"
     info.size = len(data)
     archive.addfile(info, io.BytesIO(data))
@@ -45,7 +45,7 @@ def release_manifest():
         },
         "packs": [{
             "id": "hires", "name": "High resolution", "file": "kosmos-hires.tar.gz",
-            "marker": "data/textures-hires", "size": len(PACK), "sha256": hashlib.sha256(PACK).hexdigest(),
+            "marker": "data/textures-generated", "size": len(PACK), "sha256": hashlib.sha256(PACK).hexdigest(),
             "parts": [asset(f"kosmos-hires.tar.gz.part{i:03}", len(part), hashlib.sha256(part).hexdigest())
                       for i, part in enumerate(PARTS, 1)],
         }],
@@ -187,7 +187,7 @@ def main():
                                     text=True, capture_output=True, timeout=30, env=env)
             assert result.returncode == 0, (result.stdout, result.stderr)
             assert "Pack OK" in result.stdout, (result.stdout, result.stderr)
-            assert (install / "data/textures-hires/fixture.txt").read_bytes() == b"fixture textures"
+            assert (install / "data/textures-generated/fixture.txt").read_bytes() == b"fixture textures"
             assert not (Path(temp) / "kosmos/downloads/v1.1/kosmos-hires.tar.gz.part001").exists()
             bad_install = Path(temp) / "bad-install"
             bad_install.mkdir()
@@ -195,12 +195,12 @@ def main():
             result = subprocess.run([str(launcher), "--check-release-pack", base + "/api", base + "/corrupt", str(bad_install)],
                                     text=True, capture_output=True, timeout=30, env=env)
             assert "Pack ERROR" in result.stdout and "checksum mismatch" in result.stdout, (result.stdout, result.stderr)
-            assert not (bad_install / "data/textures-hires/fixture.txt").exists()
+            assert not (bad_install / "data/textures-generated/fixture.txt").exists()
             env["XDG_CONFIG_HOME"] = str(Path(temp) / "missing-config")
             result = subprocess.run([str(launcher), "--check-release-pack", base + "/api", base + "/missing", str(bad_install)],
                                     text=True, capture_output=True, timeout=30, env=env)
             assert "Pack ERROR" in result.stdout, (result.stdout, result.stderr)
-            assert not (bad_install / "data/textures-hires/fixture.txt").exists()
+            assert not (bad_install / "data/textures-generated/fixture.txt").exists()
     finally:
         server.shutdown()
         thread.join()

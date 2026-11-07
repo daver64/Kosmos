@@ -34,7 +34,6 @@ scene() {
         orbit) SCENE=(--no-clouds --ship "CVEL Deltaglider" --orbit --alone --sunlit --sun-angle 20 --orbit-alt 400 --cam-yaw -1.5 --cam-pitch 0.4 --cam-distance 40 --cam-spin 1) ;;
         launch) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 300) ;;
         launch_photo) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.04 --cam-distance 470) ;;
-        ariane) SCENE=(--no-clouds --scenario ariane5_eca_kourou --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 160 --set /sim/settings/weather=0) ;;
         titan) SCENE=(--no-clouds --scenario titan4b_vandenberg --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 180 --set /sim/settings/weather=0) ;;
         weapons) SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/weapons.json" --sunlit --sun-angle 45 --set /controls/weapons/primary/fire=1 --cam-yaw 3.7 --cam-pitch 0.25 --cam-distance 90 --cam-spin 2.5) ;;
         reentry)
@@ -90,7 +89,7 @@ capture_shot() {
 edit_video() {
     local name start duration filter caption caption_x index=0 total
     local -a shots=(
-        "orbit|3|4" "launch|6|4" "ariane|6|4" "titan|6|4"
+        "orbit|3|4" "launch|6|4" "titan|6|4"
         "flight|3|4" "reentry|3|4" "cockpit|3|4"
         "orbitcomp|3|4.5" "autoland|3|4" "shuttle|3|3.5"
         "habitat|3|4" "eva|5|4" "moon|3|3.5"
@@ -113,7 +112,6 @@ edit_video() {
             caption_x=60
             case "$name" in
                 launch) caption="Saturn V launch" ;;
-                ariane) caption="Ariane 5 launch" ;;
                 titan) caption="Titan 4B launch" ;;
                 flight) caption="Atmospheric flight" ;;
                 reentry) caption="Atmospheric re-entry" ;;
@@ -163,7 +161,6 @@ case "$MODE" in
     all|clips)
         capture_clip orbit 17
         capture_clip launch 17
-        capture_clip ariane 14
         capture_clip titan 14
         capture_clip flight 17
         capture_clip reentry 18

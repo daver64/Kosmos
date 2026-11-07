@@ -35,7 +35,9 @@ The easiest way to start Kosmos is the **Kosmos Launcher** (`kosmos-launcher`, n
 The other pages:
 
   * **Addons** : tick an addon to enable it, install one from a zip, or open the addons folder.
-  * **Scenery packs** : download or remove the hi-res texture pack.
+  * **Scenery packs** : download or remove optional texture packs. The
+    procedural pack uses fictional, geographically inaccurate planet maps;
+    it does not contain detailed surface tiles.
   * **Graphics** : render style, clouds, weather (on or off, live Earth weather, rain), frame-rate limit, light radius, terrain detail and Earth relief from orbit (the same settings as _Edit → Performance settings_ in flight).
   * **Options** : graphics backend (OpenGL, Vulkan, Direct3D 12), full screen, and extra command-line arguments.
   * **Updates** : check for a new version and download it; it unpacks beside the current install.
@@ -888,7 +890,7 @@ centaur_g_orbit| Centaur G, 400 km orbit| CVEL Centaur G
 ares_spider_gale_crater| Ares Spider, Gale Crater| Ares Spider  
 ares_spider_mars_orbit| Ares Spider, 200 km Mars orbit| Ares Spider  
 delta_iv_heavy_kennedy| Delta IV Heavy, Kennedy| CVEL Delta IV Heavy  
-deltaglider_chippenham| Deltaglider, Chippenham (30 July 2020)| CVEL Deltaglider (Nuclear), Shuttle_BRI skin  
+deltaglider_chippenham| Deltaglider, Chippenham (30 July 2020)| CVEL Deltaglider (Nuclear)
 dragonfly_orbit| Dragonfly, 1500 km orbit| CVEL Dragonfly  
 soyuz_tma_orbit| Soyuz TMA, 400 km orbit| CVEL Soyuz TMA  
 soyuz_fg_twickenham| Soyuz-FG, Twickenham| CVEL Soyuz-FG  
@@ -1068,11 +1070,11 @@ planetbake (SDK tool)| For big maps and more layers (colour, height, normal, spe
 
 ## High-resolution terrain
 
-Kosmos ships with low-resolution runtime textures and procedural terrain for every body. For real elevation and close-up imagery, Kosmos can read **Orbiter high-resolution planet packs** directly: the same `Elev.tree` (heights) and `Surf.tree` (surface imagery) archives Orbiter uses. They are optional and are not included in the download because of their size and licence terms, so you add them yourself.
+Kosmos ships with low-resolution runtime textures and procedural terrain for every body. For real elevation and close-up imagery, Kosmos can read **Orbiter high-resolution planet packs** directly: the same `Elev.tree` (heights) and `Surf.tree` (surface imagery) archives Orbiter uses. They are optional and are not included in the Kosmos download, so you add them yourself.
 
-  1. Obtain the Orbiter 2016 high-resolution packs for the bodies you want (Earth, Moon, Mars). Check each pack’s licence terms.
+  1. Obtain the Orbiter 2016 high-resolution packs for the bodies you want (Earth, Moon, Mars), for example from [Orbiter-Mods downloads](https://orbiter-mods.com/downloads.html). The launcher's **Scenery packs > Get Orbiter terrain** button opens that page; the third-party downloads are not verified or installed by the launcher. The [Orbiter Forum mirror listing](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) also lists individual `.tree` files and torrents. Check the source and applicable terms.
   2. Unpack each pack as its own folder inside `import/orbiter/`, next to the executable. The folder name must _end_ with the body’s name, for example `import/orbiter/Orbiter 2016 High Res: Earth`.
-  3. Check that each folder holds `Elev.tree` and, for imagery, `Surf.tree`.
+  3. Check that each folder holds `Elev.tree` and, for imagery, `Surf.tree`. These may be in an `Archive` subfolder; the downloaded ZIPs may contain additional folders that must be unpacked or moved into this layout.
   4. Start Kosmos. The console prints `Earth terrain from Orbiter data` (and so on) for each body it found.
 
 
