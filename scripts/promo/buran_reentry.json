@@ -1,0 +1,19 @@
+{
+ "name": "Promo: Buran atmospheric entry",
+ "description": "Buran on a descending Earth entry trajectory, with normal atmospheric and thermal simulation.",
+ "active": 0,
+ "date": "2024-06-21 10:30:00",
+ "ships": [
+  {
+   "ship": "CVEL Buran",
+   "body": "Earth",
+   "orbit": { "altitude_km": 70 },
+   "state": {
+    "r": [6441000, 0, 0],
+    "v": [-140, 0, -7800],
+    "q": [1, 0, 0, 0],
+    "omega": [0, 0, 0]
+   }
+  }
+ ]
+}

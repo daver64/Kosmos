@@ -33,6 +33,15 @@ scene() {
     case "$1" in
         orbit) SCENE=(--no-clouds --ship "CVEL Deltaglider" --orbit --alone --sunlit --sun-angle 20 --orbit-alt 400 --cam-yaw -1.5 --cam-pitch 0.4 --cam-distance 40 --cam-spin 1) ;;
         launch) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 300) ;;
+        launch_photo) SCENE=(--no-clouds --scenario apollo11_saturn_v_t_minus_5 --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.04 --cam-distance 470) ;;
+        ariane) SCENE=(--no-clouds --scenario ariane5_eca_kourou --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 160 --set /sim/settings/weather=0) ;;
+        titan) SCENE=(--no-clouds --scenario titan4b_vandenberg --auto-stage --launch-at 4 --cam-yaw 0.8 --cam-pitch 0.08 --cam-distance 180 --set /sim/settings/weather=0) ;;
+        weapons) SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/weapons.json" --sunlit --sun-angle 45 --set /controls/weapons/primary/fire=1 --cam-yaw 3.7 --cam-pitch 0.25 --cam-distance 90 --cam-spin 2.5) ;;
+        reentry)
+            SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/buran_reentry.json" --cam-yaw 0.8 --cam-pitch 0.2 --cam-distance 100 --cam-spin 1)
+            if [[ -n ${PROMO_TELEMETRY_PORT:-} ]]; then
+                SCENE+=(--link --link-port "$PROMO_TELEMETRY_PORT")
+            fi ;;
         flight) SCENE=(--no-clouds --scenario-file "$ROOT/scripts/promo/alps_deltaglider.json" --cam-yaw 0.7 --cam-pitch 0.15 --cam-distance 38 --cam-spin 1) ;;
         shuttle) SCENE=(--no-clouds --scenario shuttle_a_cargo_orbit --sunlit --sun-angle 20 --orbit-alt 400 --cam-yaw 0.8 --cam-pitch 0.6 --cam-distance 55 --cam-spin 1) ;;
         cockpit) SCENE=(--no-clouds --ship "CVEL Deltaglider" --orbit --alone --sunlit --sun-angle 20 --cockpit --mfd-left orbit --mfd-right surface) ;;
@@ -81,11 +90,11 @@ capture_shot() {
 edit_video() {
     local name start duration filter index=0 total
     local -a shots=(
-        "orbit|3|4" "launch|6|5" "flight|3|4" "cockpit|3|4"
-        "orbitcomp|3|4.5" "autoland|3|4.5" "shuttle|3|4"
-        "habitat|3|4.5" "eva|5|4.5" "moon|3|4"
-        "mars|3|4.5" "exoplanet|3|4.5" "orbitcomp|8|4"
-        "flight|8|4" "launch|10|4.5" "closing|3|6"
+        "orbit|3|4" "launch|6|4" "ariane|6|4" "titan|6|4"
+        "flight|3|4" "reentry|3|4" "cockpit|3|4"
+        "orbitcomp|3|4.5" "autoland|3|4" "shuttle|3|3.5"
+        "habitat|3|4" "eva|5|4" "moon|3|3.5"
+        "mars|3|3.5" "exoplanet|3|4" "weapons|0|4.5" "closing|3|6"
     )
     : >"$OUT/edit/list.txt"
     for shot in "${shots[@]}"; do
@@ -99,7 +108,7 @@ edit_video() {
             filter+=",drawtext=fontfile='$FONT':text='KOSMOS':fontsize=80:fontcolor=white:x=(w-text_w)/2:y=h*0.64"
             filter+=",drawtext=fontfile='$FONT':text='Independent Spaceflight Simulator':fontsize=39:fontcolor=white:x=(w-text_w)/2:y=h*0.755"
             filter+=",drawtext=fontfile='$FONT':text='Free beta available now':fontsize=35:fontcolor=white:x=(w-text_w)/2:y=h*0.825"
-            filter+=",drawtext=fontfile='$FONT':text='salyut.ddns.net/kosmos':fontsize=34:fontcolor=white:x=(w-text_w)/2:y=h*0.895"
+            filter+=",drawtext=fontfile='$FONT':text='github.com/daver64/Kosmos':fontsize=34:fontcolor=white:x=(w-text_w)/2:y=h*0.895"
         fi
         test -s "$OUT/clips/$name.mp4"
         if ! ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "$OUT/clips/$name.mp4" | grep -q audio; then
@@ -133,7 +142,10 @@ case "$MODE" in
     all|clips)
         capture_clip orbit 17
         capture_clip launch 17
+        capture_clip ariane 14
+        capture_clip titan 14
         capture_clip flight 17
+        capture_clip reentry 18
         capture_clip shuttle 17
         capture_clip cockpit 17
         capture_clip orbitcomp 16
@@ -143,10 +155,11 @@ case "$MODE" in
         capture_clip moon 16
         capture_clip mars 15
         capture_clip exoplanet 15
+        capture_clip weapons 14
         capture_clip closing 17
         ;;&
     all|screenshots)
-        capture_shot launch 12
+        capture_shot launch_photo 12
         capture_shot orbit 12
         capture_shot cockpit 12
         capture_shot orbitcomp 8
@@ -155,7 +168,8 @@ case "$MODE" in
         capture_shot moon 12
         capture_shot exoplanet 10
         mkdir -p "$OUT/selected"
-        for name in launch orbit cockpit orbitcomp habitat mars moon exoplanet; do
+        cp "$OUT/screenshots/launch_photo.png" "$OUT/selected/launch.png"
+        for name in orbit cockpit orbitcomp habitat mars moon exoplanet; do
             cp "$OUT/screenshots/$name.png" "$OUT/selected/$name.png"
         done
         ;;&

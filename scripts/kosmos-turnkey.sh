@@ -3,14 +3,14 @@
 #
 # Usage: kosmos-turnkey.sh [--yes] [--no-build] [--no-kav] [--local-only] [--delete] [--host USER@HOST]
 #
-# 1. clean-builds the Linux and Windows packages and publishes them to this machine's web site (scripts/release.sh: stamps the version, notes, SDK)
+# 1. Requires --no-build: release archives are now built and staged separately.
 # 2. installs the KosmosAV server here (scripts/deploy-kav.sh)
 # 3. asks you to check the local site, then copies the Kosmos and arcade-game site directories plus the landing page to the public host with rsync
 # 4. installs the KosmosAV server on the public host (scripts/deploy-kav.sh HOST)
 #
 # Tests are separate: run scripts/run-tests.sh when desired.
 # --yes          do not stop for the "local site looks right" question
-# --no-build     skip the builds and publishing in step 1 (use what is already on the site)
+# --no-build     use what is already on the site; required during the release transition
 # --no-kav       leave the KosmosAV server alone (steps 2 and 4)
 # --local-only   stop after the local steps; nothing goes to the public host
 # --delete       remove stale files within the explicitly synced site directories
@@ -34,16 +34,18 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+if [ $build -eq 1 ]; then
+    echo "Website publishing is no longer part of scripts/release.sh; build and stage release assets separately." >&2
+    echo "Use --no-build only when intentionally deploying the existing site and independent services." >&2
+    exit 1
+fi
+
 step() { printf '\n== %s\n' "$*"; }
 
 if [ $public -eq 1 ]; then
     ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" true || { echo "cannot reach $HOST over ssh without a password; nothing has been changed"; exit 1; }
 fi
 
-if [ $build -eq 1 ]; then
-    step "Build and publish to this machine"
-    env -u INCREMENTAL "$SRC/scripts/release.sh"
-fi
 if [ $kav -eq 1 ]; then
     step "KosmosAV server on this machine"
     "$SRC/scripts/deploy-kav.sh"

@@ -4,7 +4,8 @@
 #
 # Usage: build-sdk.sh [--publish]
 #   --publish   also copies the archives to the web download folder, updates SHA256SUMS.txt, and regenerates sdk.html
-# Overrides (env): WEB_ROOT (default /var/www/html), FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
+# Overrides (env): OUT (default build/package), JOBS (default 4), WEB_ROOT (default /var/www/html),
+#                  FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
 #                  VCPKG_MINGW (vcpkg root with x64-mingw-static zlib, default ~/vcpkg-mingw; no Windows planetbake.exe without it)
 #                  GLM_INCLUDE_DIR (folder holding glm/, default FASTNOISE_DIR; for the Windows planetbake build)
 # The build never runs more than 4 jobs at once.
@@ -12,7 +13,10 @@ set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WEB_ROOT=${WEB_ROOT:-/var/www/html}
 . "$SRC/scripts/release-web-common.sh"
-OUT=$SRC/build/package
+OUT=${OUT:-$SRC/build/package}
+JOBS=${JOBS:-4}
+case $JOBS in ''|*[!0-9]*|0) echo "jobs must be a positive number" >&2; exit 1 ;; esac
+if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 STAGE=$OUT/sdk-stage/kosmos-sdk
 VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
 
@@ -33,9 +37,9 @@ cp "$SRC/LICENSE"* "$STAGE/" 2>/dev/null || true
 # Prove the package builds before shipping it.
 BUILD=$(mktemp -d)
 cmake -S "$STAGE" -B "$BUILD" > /dev/null
-cmake --build "$BUILD" --parallel 4 > /dev/null
+cmake --build "$BUILD" --parallel "$JOBS" > /dev/null
 cmake -S "$STAGE/template" -B "$BUILD/template" > /dev/null
-cmake --build "$BUILD/template" --parallel 4 > /dev/null
+cmake --build "$BUILD/template" --parallel "$JOBS" > /dev/null
 
 # Ship planetbake as a program too: the Linux build from the test build above, and a Windows command line build if mingw is here.
 mkdir -p "$STAGE/planetbake/bin"
@@ -61,7 +65,7 @@ if command -v "$WINCXX" > /dev/null 2>&1 && [ -f "$WINZ/lib/libzs.a" ]; then
     WINTMP=$(mktemp -d)
     # At most 4 compiles at once.
     export WINCXX PB WINZ WINTMP VER FASTNOISE_DIR GTKDEF GTKINC
-    printf '%s\n' main bake layers encode gui imageio pack settings fill edit | xargs -P 4 -I{} sh -c \
+    printf '%s\n' main bake layers encode gui imageio pack settings fill edit | xargs -P "$JOBS" -I{} sh -c \
         '"$WINCXX" -std=c++17 -O2 $GTKDEF $GTKINC "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/src/{}.cpp" -o "$WINTMP/{}.o"' 2> /dev/null || true
     "$WINCXX" -std=c++17 -O2 "-DPLANETBAKE_VERSION=\"$VER\"" -I"$PB/compat" -I"$PB/src" -I"$PB/gen" -I"$WINZ/include" -I"${GLM_INCLUDE_DIR:-$FASTNOISE_DIR}" -c "$PB/gen/planet_gen.cpp" -o "$WINTMP/planet_gen.o" 2> /dev/null || true
     if [ -n "$GTKDEF" ]; then

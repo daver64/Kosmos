@@ -34,6 +34,38 @@ namespace launcher
         bool installed = false;
     };
 
+    struct ReleaseAsset
+    {
+        std::string file, sha256;
+        long long size = 0;
+    };
+
+    struct SplitPack
+    {
+        PackInfo pack;
+        std::vector<ReleaseAsset> parts;
+    };
+
+    struct ReleaseManifest
+    {
+        std::string version;
+        ReleaseAsset linux_archive, windows_archive, sdk_linux, sdk_windows, notes;
+        std::vector<SplitPack> packs;
+    };
+
+    // Validate a staged release manifest before using any filenames or checksums.
+    bool parse_release_manifest(const std::string &text, ReleaseManifest &manifest, std::string &error);
+    // Verify every downloaded part and the concatenated archive before it can be extracted.
+    bool reconstruct_pack(const SplitPack &pack, const fs::path &directory, const fs::path &archive, std::string &error);
+
+    struct GitHubRelease
+    {
+        std::string version, tag, manifest_url;
+    };
+
+    // Select the highest numbered non-draft release, including prereleases.
+    bool select_github_release(const std::string &text, GitHubRelease &release, std::string &error);
+
     struct Profile
     {
         std::string backend = "auto"; // auto, gl, vulkan, d3d12
@@ -41,8 +73,6 @@ namespace launcher
         int max_texture = 0;   // 0 = Kosmos default
         int world_texture = 0; // 0 = automatic
         std::string extra_args, last_scenario;
-        // The folder that holds VERSION.txt, SHA256SUMS.txt and the archives.
-        std::string server = "https://salyut.ddns.net/kosmos/download";
     };
 
     // The folder that holds data/, addons/ and the kosmos executable: beside the launcher, or the source tree in development.
@@ -91,16 +121,6 @@ namespace launcher
     std::string scrub_paths(const std::string &text, const std::string &home);
     // The last `limit` bytes of a log, marked when earlier output was cut.
     std::string log_tail(const std::string &text, size_t limit);
-    // Where reports are posted, derived from the download server URL (".../kosmos/download" -> ".../kosmos/report/submit.php").
-    std::string report_url(const std::string &server);
-    // The address of the web page for sending a report by hand.
-    std::string report_page_url(const std::string &server);
-    struct ReportContent
-    {
-        std::string log, info, options, note, contact, kosmos, launcher, exit_code, scenario;
-    };
-    // The JSON body for submit.php.
-    std::string report_payload(const ReportContent &report);
     // Reads "Exit code N" from the first line of a launcher log, or an empty string.
     std::string log_exit_code(const std::string &log);
 }

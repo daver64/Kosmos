@@ -3,6 +3,7 @@
 // either leaves the launcher running.
 #include "data.h"
 #include "icon_data.h"
+#include "json.hpp"
 
 #include <wx/wx.h>
 #include <wx/checklst.h>
@@ -22,6 +23,7 @@
 #include <cstdio>
 #include <fstream>
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 
@@ -68,15 +70,6 @@ namespace
         explicit IdData(std::string i) : id(std::move(i)) {}
     };
 
-    std::string platform_archive(const std::string &version)
-    {
-#ifdef _WIN32
-        return "kosmos-beta-" + version + "-Windows.zip";
-#else
-        return "kosmos-beta-" + version + "-Linux.tar.gz";
-#endif
-    }
-
     // One HTTP request at a time: either a small text fetch or a resumable file download with progress.
     class Http : public wxEvtHandler
     {
@@ -93,24 +86,38 @@ namespace
             Start(url, false);
         }
 
-        // Posts a JSON body; the reply is delivered like Fetch's.
-        void PostJson(const std::string &url, const std::string &json, std::function<void(bool, const std::string &)> done)
-        {
-            on_text = std::move(done);
-            text_.clear();
-            file_.reset();
-            post_body_ = json;
-            Start(url, false);
-        }
-
         void Download(const std::string &url, const fs::path &part, std::function<void(long long, long long)> progress, std::function<void(bool, const std::string &)> done)
         {
             on_progress = std::move(progress);
             on_file = std::move(done);
             std::error_code ec;
             part_ = part;
-            resume_from_ = fs::exists(part, ec) ? static_cast<long long>(fs::file_size(part, ec)) : 0;
+            const bool exists = fs::exists(part, ec);
+            if (!ec && exists)
+            {
+                const auto size = fs::file_size(part, ec);
+                if (!ec && size <= static_cast<std::uintmax_t>(std::numeric_limits<long long>::max()))
+                    resume_from_ = static_cast<long long>(size);
+                else if (!ec)
+                    ec = std::make_error_code(std::errc::file_too_large);
+            }
+            else
+                resume_from_ = 0;
+            if (ec)
+            {
+                auto callback = std::move(on_file);
+                callback(false, "Cannot inspect partial download: " + ec.message());
+                return;
+            }
             file_ = std::make_unique<std::ofstream>(part, std::ios::binary | std::ios::app);
+            if (!*file_)
+            {
+                file_.reset();
+                auto callback = std::move(on_file);
+                callback(false, "Cannot open partial download (check disk space and permissions)");
+                return;
+            }
+            file_error_.clear();
             Start(url, true);
         }
 
@@ -130,14 +137,9 @@ namespace
                 Finish(false, "Cannot create a web request");
                 return;
             }
-            if (!post_body_.empty())
-            {
-                request_.SetData(W(post_body_), "application/json");
-                request_.SetHeader("Accept", "application/json");
-                post_body_.clear();
-            }
             if (to_file && resume_from_ > 0)
                 request_.SetHeader("Range", wxString::Format("bytes=%lld-", resume_from_));
+            request_.SetHeader("User-Agent", "Kosmos-Launcher");
             request_.SetStorage(wxWebRequest::Storage_None);
             Bind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
             Bind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
@@ -149,15 +151,30 @@ namespace
             const char *bytes = static_cast<const char *>(e.GetDataBuffer());
             if (to_file_)
             {
+                const int status = request_.GetResponse().GetStatus();
+                if (!started_ && status == 206)
+                {
+                    const std::string range = U(request_.GetResponse().GetHeader("Content-Range"));
+                    const std::string prefix = "bytes " + std::to_string(resume_from_) + "-";
+                    if (resume_from_ <= 0 || range.compare(0, prefix.size(), prefix) != 0)
+                        file_error_ = "Invalid Content-Range in resumed download";
+                }
                 // A 200 reply to a Range request means the server ignored it; restart the file.
-                if (!started_ && resume_from_ > 0 && request_.GetResponse().GetStatus() == 200)
+                if (!started_ && resume_from_ > 0 && status == 200)
                 {
                     file_->close();
                     file_ = std::make_unique<std::ofstream>(part_path(), std::ios::binary | std::ios::trunc);
                     resume_from_ = 0;
                 }
                 started_ = true;
-                file_->write(bytes, static_cast<std::streamsize>(e.GetDataSize()));
+                if (status != 200 && status != 206)
+                    return;
+                if (file_error_.empty())
+                {
+                    file_->write(bytes, static_cast<std::streamsize>(e.GetDataSize()));
+                    if (!*file_)
+                        file_error_ = "Cannot write download (check disk space and permissions)";
+                }
                 received_ += static_cast<long long>(e.GetDataSize());
                 if (on_progress)
                 {
@@ -191,35 +208,59 @@ namespace
         {
             Unbind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
             Unbind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
-            const bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
+            bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
             std::string why = error;
             if (ok && !http_ok)
                 why = "Server replied " + std::to_string(request_.GetResponse().GetStatus());
+            if (http_ok && to_file_)
+            {
+                const wxString length = request_.GetResponse().GetHeader("Content-Length");
+                long long expected = 0;
+                if (!length.empty() && (!length.ToLongLong(&expected) || expected < 0 || expected != received_))
+                {
+                    http_ok = false;
+                    why = "Incomplete download: response length does not match";
+                }
+            }
             started_ = false;
             received_ = 0;
             if (to_file_)
             {
                 if (file_)
+                {
                     file_->close();
+                    if (!*file_ && file_error_.empty())
+                        file_error_ = "Cannot finish download (check disk space and permissions)";
+                }
                 file_.reset();
+                if (!file_error_.empty())
+                {
+                    http_ok = false;
+                    why = file_error_;
+                }
                 if (on_file)
-                    on_file(http_ok, why);
+                {
+                    auto callback = std::move(on_file);
+                    callback(http_ok, why);
+                }
             }
             else if (on_text)
-                on_text(http_ok, http_ok ? text_ : why);
+            {
+                auto callback = std::move(on_text);
+                const std::string result = http_ok ? text_ : why;
+                callback(http_ok, result);
+            }
         }
 
         fs::path part_path() const { return part_; }
 
         wxWebRequest request_;
-        std::string text_, post_body_;
+        std::string text_, file_error_;
         std::unique_ptr<std::ofstream> file_;
         fs::path part_;
         long long resume_from_ = 0, received_ = 0;
         bool to_file_ = false, started_ = false;
 
-    public:
-        void SetPart(const fs::path &p) { part_ = p; }
     };
 
     // Starts Kosmos, keeps its output for the Logs page and reports how it ended.
@@ -257,7 +298,11 @@ namespace
     class Frame : public wxFrame
     {
     public:
-        Frame(const fs::path &root) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
+        Frame(const fs::path &root,
+              std::string api_url = "https://api.github.com/repos/daver64/Kosmos/releases",
+              std::string asset_url = "https://github.com/daver64/Kosmos/releases/download")
+            : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)),
+              root_(root), api_url_(std::move(api_url)), asset_url_(std::move(asset_url))
         {
             {
                 wxMemoryInputStream stream(launcher_icon_png, sizeof launcher_icon_png);
@@ -288,34 +333,21 @@ namespace
             RefreshPreview();
             if (find_kosmos(root_).empty())
                 SetStatusText("Kosmos was not found next to the launcher.");
-            // The server's pack list carries the real sizes and checksums; the built-in list is the offline fallback.
-            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
-                              {
-                                  if (!ok)
-                                      return;
-                                  packs_remote_ = parse_packs(body, root_);
-                                  RefreshPacks();
-                              });
         }
 
     public:
-        // Headless smoke test for --check: read the server's version and pack list, print them and close.
+        void StartDiscovery() { CheckUpdates(); }
+
         void SelfCheck()
         {
-            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
-                        {
-                            std::printf("server version: %s (installed: %s)\n", ok ? body.c_str() : ("ERROR " + body).c_str(), installed_version(root_).c_str());
-                            std::printf("scenarios: %zu, addons: %zu\n", scenarios_.size(), addons_.size());
-                            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok2, const std::string &text)
-                                              {
-                                                  const auto list = ok2 ? parse_packs(text, root_) : std::vector<PackInfo>();
-                                                  for (const PackInfo &p : list)
-                                                      std::printf("pack %s: %lld bytes, sha256 %s, installed=%d\n", p.id.c_str(), p.size, p.sha256.c_str(), int(p.installed));
-                                                  if (!ok2)
-                                                      std::printf("packs ERROR %s\n", text.c_str());
-                                                  Close();
-                                              });
-                        });
+            self_check_ = true;
+            CheckUpdates();
+        }
+        void SelfCheckPack()
+        {
+            self_check_ = true;
+            self_check_pack_ = true;
+            CheckUpdates();
         }
 
     private:
@@ -587,7 +619,7 @@ namespace
         void RefreshPacks()
         {
             const int keep = pack_list_->GetSelection();
-            packs_ = packs_remote_.empty() ? builtin_packs(root_) : packs_remote_;
+            packs_ = packs_remote_;
             std::error_code ec;
             for (PackInfo &p : packs_)
                 p.installed = !p.marker.empty() && fs::exists(root_ / p.marker, ec);
@@ -603,7 +635,7 @@ namespace
         {
             const int i = pack_list_->GetSelection();
             const bool ok = i != wxNOT_FOUND;
-            pack_install_->Enable(ok && !busy_);
+            pack_install_->Enable(ok && !busy_ && !release_.tag.empty());
             pack_remove_->Enable(ok && packs_[i].installed && !busy_);
             if (ok)
             {
@@ -618,84 +650,145 @@ namespace
             const int i = pack_list_->GetSelection();
             if (i == wxNOT_FOUND || busy_)
                 return;
-            const PackInfo pack = packs_[i];
-            DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this](bool ok, const std::string &msg)
-                            {
-                                SetStatusText(ok ? "Pack installed." : W("Pack failed: " + msg));
-                                RefreshPacks();
-                            });
-        }
-
-        // Downloads FILE from the server into a temporary folder, verifies it, then unpacks it into DEST.
-        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done)
-        {
+            if (static_cast<std::size_t>(i) >= manifest_.packs.size())
+                return;
             busy_ = true;
             ShowPack();
-            const std::string base = profile_.server + "/";
-            auto finish = [this, done](bool ok, const std::string &msg)
+            DownloadPack(manifest_.packs[i], 0);
+        }
+
+        fs::path DownloadDir() const { return user_dir() / "downloads" / release_.tag; }
+
+        void DownloadAsset(const ReleaseAsset &asset, wxGauge *gauge, std::function<void(bool, const std::string &)> done)
+        {
+            std::error_code ec;
+            if (user_dir().empty())
             {
-                busy_ = false;
-                done(ok, msg);
-            };
-            auto start = [this, file, dest, gauge, finish](std::string sum)
-            {
-                std::error_code ec;
-                const fs::path dir = user_dir() / "downloads";
-                fs::create_directories(dir, ec);
-                const fs::path part = dir / (file + ".part");
-                http_.SetPart(part);
-                http_.Download(profile_.server + "/" + file, part,
-                               [this, gauge](long long got, long long total)
-                               {
-                                   gauge->SetValue(total > 0 ? int(got * 1000 / total) : 0);
-                                   SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
-                               },
-                               [this, part, dir, file, dest, sum, gauge, finish](bool ok, const std::string &error)
-                               {
-                                   gauge->SetValue(0);
-                                   if (!ok)
-                                   {
-                                       finish(false, error + " (run it again to resume)");
-                                       return;
-                                   }
-                                   SetStatusText("Checking the download...");
-                                   wxYield();
-                                   if (!sum.empty() && sha256_file(part) != sum)
-                                   {
-                                       std::error_code e;
-                                       fs::remove(part, e);
-                                       finish(false, "The checksum does not match; the file was discarded");
-                                       return;
-                                   }
-                                   const fs::path archive = dir / file;
-                                   std::error_code e;
-                                   fs::rename(part, archive, e);
-                                   SetStatusText("Unpacking...");
-                                   wxYield();
-                                   fs::create_directories(dest, e);
-                                   const bool unpacked = Extract(archive, dest);
-                                   fs::remove(archive, e);
-                                   finish(unpacked, unpacked ? "" : "Could not unpack the archive");
-                               });
-            };
-            if (!expected.empty())
-            {
-                start(expected);
+                done(false, "Cannot find the user configuration directory");
                 return;
             }
-            http_.Fetch(base + "SHA256SUMS.txt", [this, file, start, finish](bool ok, const std::string &body)
-                        {
-                            if (!ok)
-                            {
-                                finish(false, "Could not read the checksum list: " + body);
-                                return;
-                            }
-                            const std::string sum = find_checksum(body, file);
-                            if (sum.empty())
-                                finish(false, "No checksum is published for " + file);
-                            else
-                                start(sum);
-                        });
+            const fs::path dir = DownloadDir();
+            fs::create_directories(dir, ec);
+            if (ec)
+            {
+                done(false, "Cannot create download directory: " + ec.message());
+                return;
+            }
+            const fs::path file = dir / asset.file;
+            const bool exists = fs::exists(file, ec);
+            std::uintmax_t size = 0;
+            if (!ec && exists)
+                size = fs::file_size(file, ec);
+            if (ec)
+            {
+                done(false, "Cannot inspect download: " + ec.message());
+                return;
+            }
+            if (size >= static_cast<std::uintmax_t>(asset.size))
+            {
+                if (size == static_cast<std::uintmax_t>(asset.size) && sha256_file(file) == asset.sha256)
+                {
+                    done(true, "");
+                    return;
+                }
+                fs::remove(file, ec);
+                done(false, ec ? "Cannot discard invalid download: " + ec.message() :
+                                 "Invalid download discarded; retry to download it again");
+                return;
+            }
+            const auto space = fs::space(dir, ec);
+            if (ec || space.available < static_cast<std::uintmax_t>(asset.size) - size)
+            {
+                done(false, ec ? "Cannot check free disk space: " + ec.message() : "Not enough disk space for the download");
+                return;
+            }
+            const std::string url = asset_url_ + "/" + release_.tag + "/" + asset.file;
+            http_.Download(url, file,
+                           [this, gauge, asset](long long got, long long)
+                           {
+                               gauge->SetValue(std::min(1000, int(1000.0 * got / asset.size)));
+                               SetStatusText(W("Downloading " + asset.file) + ": " + human_size(got) + " of " + human_size(asset.size));
+                           },
+                           [this, file, asset, gauge, done](bool ok, const std::string &error)
+                           {
+                               gauge->SetValue(0);
+                               if (!ok)
+                               {
+                                   done(false, error + " (retry to resume)");
+                                   return;
+                               }
+                               std::error_code e;
+                               const auto size = fs::file_size(file, e);
+                               if (e || size != static_cast<std::uintmax_t>(asset.size) || sha256_file(file) != asset.sha256)
+                               {
+                                   fs::remove(file, e);
+                                   done(false, e ? "Invalid download; cannot discard it: " + e.message() :
+                                                   "Download size or checksum mismatch; retry");
+                                   return;
+                               }
+                               done(true, "");
+                           });
+        }
+
+        void DownloadPack(const SplitPack &pack, std::size_t index)
+        {
+            if (index < pack.parts.size())
+            {
+                DownloadAsset(pack.parts[index], pack_gauge_, [this, pack, index](bool ok, const std::string &error)
+                              {
+                                  if (!ok)
+                                  {
+                                      busy_ = false;
+                                      SetStatusText(W("Pack failed: " + error));
+                                      RefreshPacks();
+                                      if (self_check_pack_)
+                                      {
+                                          std::printf("Pack ERROR: %s\n", error.c_str());
+                                          Close();
+                                      }
+                                      return;
+                                  }
+                                  CallAfter([this, pack, index] { DownloadPack(pack, index + 1); });
+                              });
+                return;
+            }
+            std::error_code ec;
+            std::string error;
+            const fs::path archive = DownloadDir() / pack.pack.file;
+            fs::remove(archive, ec);
+            if (ec)
+                error = "Cannot clear previous reconstructed archive: " + ec.message();
+            const auto space = fs::space(DownloadDir(), ec);
+            if (error.empty() && (ec || space.available < static_cast<std::uintmax_t>(pack.pack.size)))
+                error = ec ? "Cannot check disk space: " + ec.message() : "Not enough disk space to reconstruct the pack";
+            bool installed = false;
+            if (error.empty() && reconstruct_pack(pack, DownloadDir(), archive, error))
+            {
+                SetStatusText("Unpacking pack...");
+                if (!Extract(archive, root_))
+                    error = "Could not unpack the pack";
+                else
+                {
+                    installed = true;
+                    fs::remove(archive, ec);
+                    if (ec)
+                        error = "Could not remove temporary archive: " + ec.message();
+                    for (const ReleaseAsset &part : pack.parts)
+                    {
+                        fs::remove(DownloadDir() / part.file, ec);
+                        if (ec && error.empty())
+                            error = "Could not remove downloaded part: " + ec.message();
+                    }
+                }
+            }
+            busy_ = false;
+            SetStatusText(error.empty() ? "Pack installed." : W((installed ? "Pack installed; cleanup warning: " : "Pack failed: ") + error));
+            RefreshPacks();
+            if (self_check_pack_)
+            {
+                std::printf("Pack %s%s%s\n", error.empty() ? "OK" : "ERROR", error.empty() ? "" : ": ", error.c_str());
+                Close();
+            }
         }
 
         // Unpacks a .zip or .tar.gz with tar (bsdtar ships with Windows 10 and later).
@@ -842,7 +935,6 @@ namespace
             for (const char *t : {"Automatic", "2048", "4096", "8192", "16384"})
                 world_texture_->Append(t);
             extra_ = new wxTextCtrl(page, wxID_ANY);
-            server_ = new wxTextCtrl(page, wxID_ANY);
             command_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
             auto row = [&](const wxString &label, wxWindow *w)
             {
@@ -854,7 +946,6 @@ namespace
             row("Largest texture", max_texture_);
             row("Invented-world texture", world_texture_);
             row("Extra options", extra_);
-            row("Update server", server_);
             row("Command line", command_);
             auto *col = new wxBoxSizer(wxVERTICAL);
             col->Add(grid, 0, wxEXPAND | wxALL, 12);
@@ -867,7 +958,6 @@ namespace
             world_texture_->Bind(wxEVT_CHOICE, sync);
             fullscreen_->Bind(wxEVT_CHECKBOX, sync);
             extra_->Bind(wxEVT_TEXT, sync);
-            server_->Bind(wxEVT_TEXT, sync);
         }
 
         static int texture_index(int v)
@@ -884,7 +974,6 @@ namespace
             max_texture_->SetSelection(texture_index(profile_.max_texture));
             world_texture_->SetSelection(texture_index(profile_.world_texture));
             extra_->SetValue(W(profile_.extra_args));
-            server_->SetValue(W(profile_.server));
             loading_ = false;
             RefreshPreview();
         }
@@ -899,7 +988,6 @@ namespace
             profile_.max_texture = texture_value(max_texture_->GetSelection());
             profile_.world_texture = texture_value(world_texture_->GetSelection());
             profile_.extra_args = U(extra_->GetValue());
-            profile_.server = U(server_->GetValue());
             save_profile(profile_);
             RefreshPreview();
         }
@@ -942,23 +1030,109 @@ namespace
             update_label_->SetLabel(have.empty() ? "Installed version unknown" : W("Installed version " + have));
         }
 
-        void CheckUpdates()
+        void FetchReleasePage(int page, nlohmann::json releases, std::function<void(bool, const std::string &)> done)
         {
-            update_label_->SetLabel("Checking...");
-            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+            const std::string url = api_url_ + "?per_page=100&page=" + std::to_string(page);
+            http_.Fetch(url, [this, page, releases = std::move(releases), done](bool ok, const std::string &body) mutable
                         {
                             if (!ok)
                             {
-                                update_label_->SetLabel(W("Could not reach the server: " + body));
+                                done(false, "GitHub releases request failed: " + body);
                                 return;
                             }
-                            latest_ = body.substr(0, body.find_first_of(" \t\r\n"));
-                            const std::string have = installed_version(root_);
-                            const bool newer = have.empty() || version_newer(latest_, have);
-                            update_label_->SetLabel(W(newer ? "Version " + latest_ + " is available (you have " + (have.empty() ? "an unknown version" : have) + ")" : "You are up to date (" + have + ")"));
-                            update_button_->Enable(newer && !busy_);
-                            http_.Fetch(profile_.server + "/notes/" + latest_ + ".md", [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
+                            const auto entries = nlohmann::json::parse(body, nullptr, false);
+                            if (!entries.is_array() || entries.size() > 100)
+                            {
+                                done(false, "Invalid GitHub releases response");
+                                return;
+                            }
+                            for (const auto &entry : entries)
+                                releases.push_back(entry);
+                            if (entries.size() == 100)
+                            {
+                                if (page >= 100)
+                                    done(false, "Too many GitHub release pages to inspect");
+                                else
+                                    FetchReleasePage(page + 1, std::move(releases), done);
+                            }
+                            else
+                                done(true, releases.dump());
                         });
+        }
+
+        void CheckUpdates()
+        {
+            if (busy_)
+                return;
+            busy_ = true;
+            latest_.clear();
+            release_ = {};
+            manifest_ = {};
+            packs_remote_.clear();
+            update_button_->Disable();
+            notes_->Clear();
+            update_label_->SetLabel("Checking GitHub releases...");
+            RefreshPacks();
+            auto fail = [this](const std::string &error)
+            {
+                busy_ = false;
+                update_label_->SetLabel(W(error));
+                SetStatusText(W(error));
+                RefreshPacks();
+                if (self_check_)
+                {
+                    std::printf("GitHub release ERROR: %s\n", error.c_str());
+                    Close();
+                }
+            };
+            FetchReleasePage(1, nlohmann::json::array(), [this, fail](bool ok, const std::string &body)
+                             {
+                                 std::string error;
+                                 GitHubRelease selected;
+                                 if (!ok || !select_github_release(body, selected, error))
+                                 {
+                                     fail(ok ? error : body);
+                                     return;
+                                 }
+                                 selected.manifest_url = asset_url_ + "/" + selected.tag + "/manifest.json";
+                                 http_.Fetch(selected.manifest_url, [this, fail, selected](bool ok2, const std::string &text)
+                                             {
+                                                 ReleaseManifest manifest;
+                                                 std::string error;
+                                                 if (!ok2 || !parse_release_manifest(text, manifest, error) || manifest.version != selected.version)
+                                                 {
+                                                     fail(!ok2 ? "Cannot download release manifest: " + text :
+                                                          error.empty() ? "Release tag and manifest version differ" : error);
+                                                     return;
+                                                 }
+                                                 release_ = selected;
+                                                 manifest_ = std::move(manifest);
+                                                 latest_ = release_.version;
+                                                 for (const SplitPack &pack : manifest_.packs)
+                                                     packs_remote_.push_back(pack.pack);
+                                                 DownloadAsset(manifest_.notes, update_gauge_, [this](bool notes_ok, const std::string &notes_error)
+                                                               {
+                                                                   notes_->SetValue(notes_ok ? W(read_text(DownloadDir() / manifest_.notes.file)) : W("Could not download verified release notes: " + notes_error));
+                                                                   busy_ = false;
+                                                                   const std::string have = installed_version(root_);
+                                                                   const bool newer = have.empty() || version_newer(latest_, have);
+                                                                   update_label_->SetLabel(W(newer ? "Version " + latest_ + " is available (you have " + (have.empty() ? "an unknown version" : have) + ")" : "You are up to date (" + have + ")"));
+                                                                   update_button_->Enable(newer);
+                                                                   SetStatusText(notes_ok ? "GitHub release information loaded." : W("Release notes error: " + notes_error));
+                                                                   RefreshPacks();
+                                                                   if (self_check_)
+                                                                   {
+                                                                       std::printf("GitHub version: %s, installed: %s; packs: %zu\n", latest_.c_str(), have.c_str(), packs_.size());
+                                                                       if (!notes_ok)
+                                                                           std::printf("Release notes ERROR: %s\n", notes_error.c_str());
+                                                                       if (self_check_pack_ && notes_ok && !packs_.empty())
+                                                                           InstallPack();
+                                                                       else
+                                                                           Close();
+                                                                   }
+                                                               });
+                                             });
+                             });
         }
 
         void InstallUpdate()
@@ -968,16 +1142,31 @@ namespace
             // Unpack beside the current install so the running copy is never overwritten.
             const fs::path dest = root_.parent_path() / ("kosmos-" + latest_);
             update_button_->Disable();
-            DownloadArchive(platform_archive(latest_), "", dest, update_gauge_, [this, dest](bool ok, const std::string &msg)
+            busy_ = true;
+            ShowPack();
+#ifdef _WIN32
+            const ReleaseAsset archive = manifest_.windows_archive;
+            const fs::path install = dest / ("kosmos-beta-" + latest_ + "-Windows");
+#else
+            const ReleaseAsset archive = manifest_.linux_archive;
+            const fs::path install = dest / ("kosmos-beta-" + latest_ + "-Linux");
+#endif
+            DownloadAsset(archive, update_gauge_, [this, dest, install, archive](bool ok, const std::string &msg)
                             {
+                                std::error_code ec;
                                 if (ok)
+                                    fs::create_directories(dest, ec);
+                                const bool unpacked = ok && !ec && Extract(DownloadDir() / archive.file, dest);
+                                busy_ = false;
+                                ShowPack();
+                                if (unpacked)
                                 {
-                                    update_label_->SetLabel(W("Version " + latest_ + " unpacked to " + dest.string()));
-                                    wxMessageBox("Version " + W(latest_) + " is in\n" + Wp(dest) + "\n\nYour current install was not changed. Start the new launcher from that folder.", "Update ready");
+                                    update_label_->SetLabel(W("Version " + latest_ + " unpacked to " + install.string()));
+                                    wxMessageBox("Version " + W(latest_) + " is in\n" + Wp(install) + "\n\nYour current install was not changed. Start the new launcher from that folder.", "Update ready");
                                 }
                                 else
                                 {
-                                    SetStatusText(W("Update failed: " + msg));
+                                    SetStatusText(W("Update failed: " + (!ok ? msg : ec ? ec.message() : "Could not unpack the archive")));
                                     update_button_->Enable();
                                 }
                             });
@@ -1026,7 +1215,7 @@ namespace
 
         fs::path log_dir() const { return user_dir() / "logs"; }
 
-        // Shows what would be sent (home paths removed) and posts it to the server when the user agrees.
+        // The user reviews the report and submits it themselves in a browser.
         void ReportLog()
         {
             const int i = log_choice_->GetSelection();
@@ -1037,69 +1226,47 @@ namespace
             }
             const std::string home = U(wxGetHomeDir());
             const std::string raw = read_text(log_files_[i]);
-            ReportContent content;
-            content.log = log_tail(scrub_paths(raw, home), 400000);
-            content.exit_code = log_exit_code(raw);
-            content.kosmos = installed_version(root_);
-            content.launcher = content.kosmos;
-            content.scenario = log_files_[i].stem().string();
-            content.info = U(wxGetOsDescription()) + "\n" + U(wxPlatformInfo::Get().GetBitnessName()) + "\nbackend setting: " + profile_.backend;
+            std::string report = "What happened?\n\n\nKosmos: " + installed_version(root_) +
+                                 "\nScenario: " + log_files_[i].stem().string() +
+                                 "\nExit code: " + log_exit_code(raw) +
+                                 "\nSystem: " + U(wxGetOsDescription()) + " " + U(wxPlatformInfo::Get().GetBitnessName()) +
+                                 "\nBackend setting: " + profile_.backend + "\n";
             std::string options = "Command line options: ";
             for (const std::string &a : build_arguments(profile_, ""))
                 options += a + " ";
-            content.options = scrub_paths(options, home);
+            report += scrub_paths(options, home) + "\n\nLog:\n" + log_tail(scrub_paths(raw, home), 400000);
 
             wxDialog dlg(this, wxID_ANY, "Report this log", wxDefaultPosition, wxSize(720, 640), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
             auto *col = new wxBoxSizer(wxVERTICAL);
-            col->Add(new wxStaticText(&dlg, wxID_ANY, "This is what will be sent to the developer. Check it for anything you do not want shared."), 0, wxALL, 8);
-            auto *preview = new wxTextCtrl(&dlg, wxID_ANY, W(content.log), wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL);
+            col->Add(new wxStaticText(&dlg, wxID_ANY, "Edit and review this report before sharing. Paths are scrubbed where possible,\nbut logs may contain other private information. Nothing is uploaded automatically."), 0, wxALL, 8);
+            const wxString report_text(report.c_str(), wxMBConvUTF8(wxMBConvUTF8::MAP_INVALID_UTF8_TO_OCTAL), report.size());
+            auto *preview = new wxTextCtrl(&dlg, wxID_ANY, report_text, wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxHSCROLL);
             preview->SetFont(wxFont(wxFontInfo(9).Family(wxFONTFAMILY_TELETYPE)));
             col->Add(preview, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
-            auto *with_info = new wxCheckBox(&dlg, wxID_ANY, "Include system details (" + W(content.info.substr(0, content.info.find('\n'))) + ")");
-            with_info->SetValue(true);
-            auto *with_options = new wxCheckBox(&dlg, wxID_ANY, "Include the launch options");
-            with_options->SetValue(true);
-            col->Add(with_info, 0, wxALL, 6);
-            col->Add(with_options, 0, wxLEFT | wxRIGHT, 6);
-            col->Add(new wxStaticText(&dlg, wxID_ANY, "What were you doing? (optional)"), 0, wxLEFT | wxTOP, 8);
-            auto *note = new wxTextCtrl(&dlg, wxID_ANY, "", wxDefaultPosition, wxSize(-1, 70), wxTE_MULTILINE);
-            col->Add(note, 0, wxEXPAND | wxALL, 8);
-            col->Add(new wxStaticText(&dlg, wxID_ANY, "Email, if you want a reply (optional)"), 0, wxLEFT, 8);
-            auto *contact = new wxTextCtrl(&dlg, wxID_ANY);
-            col->Add(contact, 0, wxEXPAND | wxALL, 8);
+            col->Add(new wxStaticText(&dlg, wxID_ANY, "Copy the report, then paste it into a GitHub issue. Very long logs may need shortening."), 0, wxALL, 8);
             col->Add(dlg.CreateStdDialogButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 8);
             if (auto *ok = dlg.FindWindow(wxID_OK))
-                static_cast<wxButton *>(ok)->SetLabel("Send");
+                static_cast<wxButton *>(ok)->SetLabel("Copy and open GitHub");
             dlg.SetSizer(col);
-            if (dlg.ShowModal() != wxID_OK)
-                return;
-
-            if (!with_info->GetValue())
-                content.info.clear();
-            if (!with_options->GetValue())
-                content.options.clear();
-            content.note = scrub_paths(U(note->GetValue()), home);
-            content.contact = U(contact->GetValue());
-            report_->Disable();
-            SetStatusText("Sending the report...");
-            report_http_.PostJson(report_url(profile_.server), report_payload(content), [this](bool ok, const std::string &reply)
-                                  {
-                                      report_->Enable();
-                                      if (ok)
-                                      {
-                                          std::string id;
-                                          const size_t at = reply.find("\"id\":\"");
-                                          if (at != std::string::npos)
-                                              id = reply.substr(at + 6, reply.find('"', at + 6) - at - 6);
-                                          SetStatusText("Report sent.");
-                                          wxMessageBox("Thank you, the report was sent." + (id.empty() ? wxString() : "\nReference: " + W(id)), "Report", wxICON_INFORMATION);
-                                      }
-                                      else
-                                      {
-                                          SetStatusText("The report could not be sent.");
-                                          wxMessageBox("The report could not be sent (" + W(reply) + ").\n\nYou can use \"Copy to clipboard\" and paste the log into\n" + W(report_page_url(profile_.server)), "Report", wxICON_WARNING);
-                                      }
-                                  });
+            for (;;)
+            {
+                if (dlg.ShowModal() != wxID_OK)
+                    return;
+                if (!wxTheClipboard->Open())
+                {
+                    wxMessageBox("Could not open the clipboard. The report was not copied.", "Report", wxICON_ERROR, &dlg);
+                    continue;
+                }
+                const bool copied = wxTheClipboard->SetData(new wxTextDataObject(preview->GetValue()));
+                wxTheClipboard->Close();
+                if (copied)
+                    break;
+                wxMessageBox("Could not copy the report to the clipboard.", "Report", wxICON_ERROR, &dlg);
+            }
+            if (!wxLaunchDefaultBrowser("https://github.com/daver64/Kosmos/issues/new"))
+                wxMessageBox("The report was copied, but the browser could not be opened.\nVisit https://github.com/daver64/Kosmos/issues/new", "Report", wxICON_WARNING);
+            else
+                SetStatusText("Report copied. Paste and submit it in GitHub if you choose.");
         }
 
         void RefreshLogList()
@@ -1256,14 +1423,17 @@ namespace
         }
 
         fs::path root_;
+        std::string api_url_, asset_url_;
         Profile profile_;
         std::vector<ScenarioInfo> scenarios_;
         std::vector<AddonInfo> addons_;
         std::vector<PackInfo> packs_, packs_remote_;
         std::vector<fs::path> log_files_;
         std::string latest_, last_run_scenario_;
-        bool busy_ = false, loading_ = false;
-        Http http_, packs_http_;
+        bool busy_ = false, loading_ = false, self_check_ = false, self_check_pack_ = false;
+        GitHubRelease release_;
+        ReleaseManifest manifest_;
+        Http http_;
         Run *run_ = nullptr;
         wxDateTime started_;
         wxTimer timer_;
@@ -1274,9 +1444,8 @@ namespace
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
         wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
-        Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;
-        wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
+        wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
@@ -1293,13 +1462,41 @@ namespace
         bool OnInit() override
         {
             wxInitAllImageHandlers();
+            if (argc == 4 && wxString(argv[1]) == "--check-http")
+            {
+                auto *frame = new wxFrame(nullptr, wxID_ANY, "HTTP check");
+                SetTopWindow(frame);
+                const std::string url = U(argv[2]);
+                const fs::path file = P(argv[3]);
+                CallAfter([this, frame, url, file]
+                          {
+                              test_http_.Download(url, file, {}, [frame](bool ok, const std::string &error)
+                                                  {
+                                                      std::printf("HTTP %s%s%s\n", ok ? "OK" : "ERROR", error.empty() ? "" : ": ", error.c_str());
+                                                      frame->Close();
+                                                  });
+                          });
+                return true;
+            }
             const fs::path here = P(wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath());
-            auto *frame = new Frame(find_root(here));
-            frame->Show();
-            if (argc > 1 && wxString(argv[1]) == "--check")
+            const bool check_pack = argc == 5 && wxString(argv[1]) == "--check-release-pack";
+            const bool check_release = argc == 4 && wxString(argv[1]) == "--check-release";
+            auto *frame = check_pack ? new Frame(P(argv[4]), U(argv[2]), U(argv[3])) :
+                          check_release ? new Frame(find_root(here), U(argv[2]), U(argv[3])) : new Frame(find_root(here));
+            if (check_pack)
+                frame->SelfCheckPack();
+            else if (check_release || (argc > 1 && wxString(argv[1]) == "--check"))
                 frame->SelfCheck();
+            else
+            {
+                frame->Show();
+                frame->StartDiscovery();
+            }
             return true;
         }
+
+    private:
+        Http test_http_;
     };
 }
 

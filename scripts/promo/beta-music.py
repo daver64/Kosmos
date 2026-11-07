@@ -35,21 +35,43 @@ def main(path, duration):
     snare = rng.standard_normal(len(t)).astype(np.float32) * np.exp(-t * 30)
     t = np.arange(round(0.045 * RATE), dtype=np.float32) / RATE
     hat = rng.standard_normal(len(t)).astype(np.float32) * np.exp(-t * 95)
-    chords = ((45, 52, 57, 60), (41, 48, 53, 57), (48, 55, 60, 64), (43, 50, 55, 59))
+    progressions = (
+        ((45, 52, 57, 60), (41, 48, 53, 57), (48, 55, 60, 64), (43, 50, 55, 59)),
+        ((45, 52, 57, 60), (48, 55, 60, 64), (43, 50, 55, 59), (41, 48, 53, 57)),
+        ((41, 48, 53, 57), (43, 50, 55, 59), (45, 52, 57, 60), (45, 52, 57, 64)),
+        ((48, 55, 60, 64), (43, 50, 55, 59), (41, 48, 53, 57), (45, 52, 57, 60)),
+    )
+    motifs = (
+        (0, 2, 1, 3, 2, 1, 0, 1),
+        (2, 3, 1, 0, 1, 2, 3, 1),
+        (3, 2, 1, 2, 0, 1, 2, 1),
+        (0, 1, 2, 3, 1, 2, 1, 0),
+    )
     for beat in range(math.ceil(duration / BEAT)):
         start = beat * BEAT
-        chord = chords[(beat // 4) % len(chords)]
+        section = min(3, int(start / max(duration / 4, BEAT)))
+        chord = progressions[section][(beat // 4) % 4]
+        within_bar = beat % 4
+        # A short drop before the final section leaves room for the scene change.
+        transition = section == 2 and int((start + BEAT) / max(duration / 4, BEAT)) == 3
         if beat % 4 == 0:
             for note in chord:
-                add(start, tone(note, BEAT * 4.2, 0.7), 0.026)
-        add(start, kick, 0.19)
-        if beat % 4 in (1, 3):
-            add(start, snare, 0.055)
-        for half in range(2):
+                add(start, tone(note, BEAT * 4.2, 0.7), 0.022 if section == 2 else 0.026)
+        if not transition and (section != 0 or within_bar in (0, 2)):
+            add(start, kick, 0.18 if section != 2 else 0.13)
+        if not transition and section != 0 and within_bar in (1, 3):
+            add(start, snare, 0.05 if section != 2 else 0.035)
+        if section >= 1 and not transition:
+            add(start, tone(chord[0] - 12, BEAT * 0.8, 3.8), 0.06)
+        for half in range(2 if section != 2 else 1):
             at = start + half * BEAT / 2
-            add(at, hat, 0.025, -0.3 if half else 0.3)
-            note = chord[(beat * 2 + half) % len(chord)] + 12
-            add(at, tone(note, BEAT * 0.65, 5.0), 0.055, -0.35 if half else 0.35)
+            if not transition and section != 0:
+                add(at, hat, 0.018 if section == 2 else 0.025, -0.3 if half else 0.3)
+            if not transition and (section != 0 or half == 0):
+                note = chord[motifs[section][(beat * 2 + half) % 8]] + 12
+                add(at, tone(note, BEAT * (1.1 if section == 2 else 0.65),
+                             2.4 if section == 2 else 5.0),
+                    0.045 if section == 2 else 0.05, -0.35 if half else 0.35)
     fade = min(round(RATE * 1.5), n // 2)
     mix[:fade] *= np.linspace(0, 1, fade, dtype=np.float32)[:, None]
     mix[-fade:] *= np.linspace(1, 0, fade, dtype=np.float32)[:, None]

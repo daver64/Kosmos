@@ -377,7 +377,7 @@ endif()
 # builds the separate hi-res pack. The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
 # it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${KOSMOS_VERSION}-${CMAKE_SYSTEM_NAME}
-    ASSETS data scenarios addons assets
+    ASSETS data scenarios addons assets docs
     EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})

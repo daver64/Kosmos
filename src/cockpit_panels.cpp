@@ -172,7 +172,7 @@ namespace kosmos::app
         if (scale_text && (c.type == "gauge" || c.type == "readout" || !c.label.empty()))
         {
             static std::map<int, sl::Font *> fonts;
-            const int point = std::clamp(static_cast<int>(std::round(15.0f * scale)), 6, 96);
+            const int point = std::clamp(static_cast<int>(std::round(12.0f * scale)), 6, 96);
             auto it = fonts.find(point);
             if (it == fonts.end())
             {

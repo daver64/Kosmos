@@ -24,7 +24,10 @@ Please do not remove the credits when redistributing.
 
 - **Hydra and Nix** (`textures/hydra.dds`, `textures/nix.dds`): from the Orbiter 2016 textures in `import/orbiter/Textures/`, installed by `tools/celbody_import.py`.
 
-Licensing note: the OpenGameArt textures are Creative Commons, which is fine for a free release. Before any commercial sale of Kosmos, run a full asset audit (check each licence for commercial use and attribution terms).
+Licensing note: a free release still requires permission to redistribute each asset
+and compliance with its specific licence, including attribution and any
+share-alike or noncommercial terms. Review the individual source licences
+before distributing Kosmos or its data packs.
 
 ## Main Belt Asteroids (not shipped)
 
