@@ -1,14 +1,14 @@
 #!/bin/sh
 # Builds the Linux and Windows packages locally; it never publishes or advances VERSION.
 # Usage: release.sh [-j N] [--linux-only | --windows-only]
-#        release.sh --stage-only DIR --pack FILE --rights-audit FILE
+#        release.sh --stage-only DIR --pack FILE --rights-audit FILE [--sdk-linux FILE --sdk-windows FILE]
 # -j N (or JOBS=N) sets the most compile jobs run at once; the default is 4.
 # --stage-only stages already built and rights-reviewed assets; the output directory must not exist.
 # Overrides (env): the ones of build-linux.sh and build-windows.sh (OUT is not passed on).
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 linux=1 windows=1
-stage= pack= audit=
+stage= pack= audit= sdk_linux= sdk_windows=
 JOBS=${JOBS:-4}
 while [ $# -gt 0 ]; do
     a=$1; shift
@@ -18,9 +18,12 @@ while [ $# -gt 0 ]; do
         --no-publish) : ;;
         --linux-only) windows=0 ;;
         --windows-only) linux=0 ;;
-        --stage-only|--pack|--rights-audit)
+        --stage-only|--pack|--rights-audit|--sdk-linux|--sdk-windows)
             [ $# -gt 0 ] || { echo "missing value for $a" >&2; exit 1; }
-            case $a in --stage-only) stage=$1 ;; --pack) pack=$1 ;; --rights-audit) audit=$1 ;; esac
+            case $a in
+                --stage-only) stage=$1 ;; --pack) pack=$1 ;; --rights-audit) audit=$1 ;;
+                --sdk-linux) sdk_linux=$1 ;; --sdk-windows) sdk_windows=$1 ;;
+            esac
             shift ;;
         *) sed -n 2,4p "$0"; exit 1 ;;
     esac
@@ -37,8 +40,8 @@ if [ -n "$stage" ]; then
     [ -f "$pack" ] && [ -f "$audit" ] && [ -f "$SRC/docs/release-notes/$VER.md" ] || {
         echo "staging requires an existing --pack, --rights-audit and release notes for $VER" >&2; exit 1;
     }
-elif [ -n "$pack" ] || [ -n "$audit" ]; then
-    echo "--pack and --rights-audit require --stage-only" >&2; exit 1
+elif [ -n "$pack" ] || [ -n "$audit" ] || [ -n "$sdk_linux" ] || [ -n "$sdk_windows" ]; then
+    echo "--pack, --rights-audit and SDK overrides require --stage-only" >&2; exit 1
 fi
 archives=
 if [ -z "$stage" ] && [ $linux -eq 1 ]; then
@@ -51,11 +54,13 @@ if [ -z "$stage" ] && [ $windows -eq 1 ]; then
 fi
 
 if [ -n "$stage" ]; then
+    sdk_linux=${sdk_linux:-"$SRC/build/package/kosmos-sdk.tar.gz"}
+    sdk_windows=${sdk_windows:-"$SRC/build/package/kosmos-sdk.zip"}
     python3 "$SRC/scripts/stage-github-release.py" --version "$VER" \
         --linux "$SRC/build/package/kosmos-beta-$VER-Linux.tar.gz" \
         --windows "$SRC/build-win/package/kosmos-beta-$VER-Windows.zip" \
-        --sdk-linux "$SRC/build/package/kosmos-sdk.tar.gz" \
-        --sdk-windows "$SRC/build/package/kosmos-sdk.zip" \
+        --sdk-linux "$sdk_linux" \
+        --sdk-windows "$sdk_windows" \
         --pack "$pack" --rights-audit "$audit" --notes "$SRC/docs/release-notes/$VER.md" --out "$stage"
 fi
 if [ -z "$stage" ]; then

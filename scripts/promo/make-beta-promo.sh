@@ -88,7 +88,7 @@ capture_shot() {
 }
 
 edit_video() {
-    local name start duration filter index=0 total
+    local name start duration filter caption caption_x index=0 total
     local -a shots=(
         "orbit|3|4" "launch|6|4" "ariane|6|4" "titan|6|4"
         "flight|3|4" "reentry|3|4" "cockpit|3|4"
@@ -106,9 +106,30 @@ edit_video() {
         elif [[ $name == closing ]]; then
             filter+=",drawbox=x=0:y=ih*0.60:w=iw:h=ih*0.40:color=black@0.52:t=fill"
             filter+=",drawtext=fontfile='$FONT':text='KOSMOS':fontsize=80:fontcolor=white:x=(w-text_w)/2:y=h*0.64"
-            filter+=",drawtext=fontfile='$FONT':text='Independent Spaceflight Simulator':fontsize=39:fontcolor=white:x=(w-text_w)/2:y=h*0.755"
+            filter+=",drawtext=fontfile='$FONT':text='Space and Atmospheric Flight Simulator':fontsize=39:fontcolor=white:x=(w-text_w)/2:y=h*0.755"
             filter+=",drawtext=fontfile='$FONT':text='Free beta available now':fontsize=35:fontcolor=white:x=(w-text_w)/2:y=h*0.825"
             filter+=",drawtext=fontfile='$FONT':text='github.com/daver64/Kosmos':fontsize=34:fontcolor=white:x=(w-text_w)/2:y=h*0.895"
+        else
+            caption_x=60
+            case "$name" in
+                launch) caption="Saturn V launch" ;;
+                ariane) caption="Ariane 5 launch" ;;
+                titan) caption="Titan 4B launch" ;;
+                flight) caption="Atmospheric flight" ;;
+                reentry) caption="Atmospheric re-entry" ;;
+                cockpit) caption="2D cockpit and flight instruments" ;;
+                orbitcomp) caption="OrbitComp navigation and planning" ;;
+                autoland) caption="Experimental Mars autoland"; caption_x="w-text_w-60" ;;
+                shuttle) caption="Orbital flight" ;;
+                habitat) caption="Habitat life-support systems" ;;
+                eva) caption="Lunar EVA" ;;
+                moon) caption="Explore the Moon" ;;
+                mars) caption="Explore Mars" ;;
+                exoplanet) caption="Explore other star systems" ;;
+                weapons) caption="Spacecraft weapons" ;;
+                *) echo "Missing caption for scene: $name" >&2; return 1 ;;
+            esac
+            filter+=",drawtext=fontfile='$FONT':text='$caption':fontsize=38:fontcolor=white:box=1:boxcolor=black@0.60:boxborderw=14:x=$caption_x:y=60"
         fi
         test -s "$OUT/clips/$name.mp4"
         if ! ffprobe -v error -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "$OUT/clips/$name.mp4" | grep -q audio; then

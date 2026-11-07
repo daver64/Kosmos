@@ -99,6 +99,12 @@ def run():
                        check=True, capture_output=True)
         assert json.loads((wrapper_out / "manifest.json").read_text())["version"] == "1.42"
         assert (wrapper_root / "VERSION").read_text() == "1.42\n"
+        alternate_out = root / "alternate-stage"
+        subprocess.run(["sh", str(wrapper_root / "scripts/release.sh"), "--stage-only", str(alternate_out),
+                        "--pack", str(root / "hires.tar.gz"), "--rights-audit", str(root / "audit.json"),
+                        "--sdk-linux", str(root / "kosmos-sdk.tar.gz"),
+                        "--sdk-windows", str(root / "kosmos-sdk.zip")], check=True, capture_output=True)
+        assert json.loads((alternate_out / "manifest.json").read_text())["version"] == "1.42"
         for name in ("build-linux.sh", "build-windows.sh"):
             stub = wrapper_root / "scripts" / name
             stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@" > "$0.args"\n')

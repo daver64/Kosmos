@@ -6,7 +6,9 @@ publish the website, or advance `VERSION`.
 1. Review the changes since the last published build and write
    `docs/release-notes/<VERSION>.md`.
 2. Build the two application archives with `scripts/release.sh -j 1` and
-   build both SDK archives with `scripts/build-sdk.sh`. Create a fresh
+   build both SDK archives with `scripts/build-sdk.sh`. To preserve existing
+   SDK archives, use `JOBS=1 OUT=/path/to/new-sdk-output sh scripts/build-sdk.sh`.
+   Create a fresh
    high-resolution pack with `scripts/pack-hires.sh OUTPUT.tar.gz`.
 3. Audit the actual contents of each application archive, both SDK archives,
    and the pack: identify each third-party asset's source, licence, required
@@ -14,6 +16,13 @@ publish the website, or advance `VERSION`.
    Belt Asteroids add-on's Ida, Gaspra, Kleopatra and Toutatis assets, but
    that exclusion is **not** a clearance of the remaining assets. The older
    website pack contains those excluded assets and must not be used as-is.
+   The local source inventory is incomplete: for example,
+   `import/open-game-art/textures/metal/readme.txt` identifies the Majestical
+   textures as CC BY-SA 4.0, while individual Celestia packs have their own
+   terms. `import/orbiter/CVELAtlas/Models/AtlasIII/The Artistic License.txt`
+   is another item to investigate, not proof that every CVEL asset shares
+   those terms. Match evidence and required notices to the actual packaged
+   files; neither a free release nor a project-level licence clears all media.
 4. Record the review in a JSON file with an entry for each exact input
    filename. Each entry must include the input's SHA-256, `approved: true`,
    and a nonempty `evidence` reference to the actual review. For example:
@@ -40,6 +49,9 @@ publish the website, or advance `VERSION`.
    sh scripts/release.sh --stage-only /path/to/new-stage \
      --pack /path/to/kosmos-hires.tar.gz --rights-audit /path/to/audit.json
    ```
+
+   SDK archives built outside `build/package` can be selected with
+   `--sdk-linux /path/to/kosmos-sdk.tar.gz --sdk-windows /path/to/kosmos-sdk.zip`.
 
    The staging tool checks embedded archive versions and the audit hashes,
    splits the pack into ordered parts of at most 1800 MiB and writes

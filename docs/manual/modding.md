@@ -2,6 +2,10 @@
 
 Build ships, aircraft, spaceports, scenarios, planets and instruments for Kosmos using JSON and Lua. No compiler is needed. For flying, see the [Flight manual](manual.md).
 
+KosmosCAD, ShipEdit and KosmosMission are very early editions with known bugs
+and interface issues. Unless you are specifically testing those tools, edit
+JSON data by hand and use Blender for modelling for now.
+
 <a id="overview"></a>
 
 ## Overview
@@ -17,7 +21,7 @@ Kosmos is data-driven. The simulator reads plain files at start-up and publishes
 
 
 
-Native (compiled) code does not run inside Kosmos. Lua covers scripting and everything else is JSON; for the rare addon that needs a separate native program, see [Native addons](#native) and the [SDK manual](../../sdk/docs/MANUAL.md).
+Native (compiled) code does not run inside Kosmos. Lua covers scripting and everything else is JSON; for the rare addon that needs a separate native program, see [Native addons](#native) and the [SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md).
 
 ![Chippenham base](img/chippenham.jpg)Everything in this scene (pad, tower, hangars, runway) comes from one JSON file, `data/bases/chippenham.json`.
 
@@ -94,7 +98,7 @@ Field| Meaning
 `camera_target`| `[x, y, z]` in the ship frame (metres, nose along −Z): the point the chase camera orbits and looks at. Unset, it is the centre of mass. On a staged rocket the point follows the stages still attached, so the camera stays on what is left (the Soyuz capsule, say) after the lower stages go.  
 `horizontal`| For a rocket-class ship: true to rest level on its gear (roof up, nose along the heading) instead of standing on its tail. Ground vehicles are horizontal by default.  
 `hybrid`| For an `aircraft` that also flies in space (the Deltaglider): it flies as an aircraft only in air of at least 0.1225 kg/m³ below the top of the atmosphere, and as a spacecraft everywhere else.  
-`module`| A block for ships a link program (see the [SDK manual](../../sdk/docs/MANUAL.md)) can claim with `kl_claim_ship`: `"addon"` names the program, `"max_force"` (N) and `"max_torque"` (N·m) cap what it may apply (default 20 × the ship's mass in kg). The block does not start the program.  
+`module`| A block for ships a link program (see the [SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)) can claim with `kl_claim_ship`: `"addon"` names the program, `"max_force"` (N) and `"max_torque"` (N·m) cap what it may apply (default 20 × the ship's mass in kg). The block does not start the program.
 `rcs_modes`, `pod_turn_rate`| `rcs_effects: false` hides the generic RCS puffs, which are drawn at the ends of the stage envelope. `rcs_modes` adds an RCS mode switch (`/controls/rcs-mode`: `rot`, `lin` or `off`; in `lin` W/S, A/D and Q/E translate). An engine with `"group": "pod"` is a swivelling pod: thrust from `/controls/pod-left` or `pod-right` (by the sign of its x position), direction from `pod-tilt-left` or `pod-tilt-right` (0 aft, 0.5 up, 1 forward) at `pod_turn_rate` rad/s (default 0.2). An engine with `"group": "rcs"` and an `"rcs_groups"` list (`left`, `right`, `up`, `down`, `forward`, `back`, `pitch-up`, `pitch-down`, `yaw-left`, `yaw-right`, `bank-left`, `bank-right`) is a reaction-control thruster; a ship with any replaces the generic `rcs_thrust` jets. Animations can read `pod-left` and `pod-right` (0 to 1); a button on property `/controls/pod-tilt` sets both pods.  
 `thermal`, `hypersonic`, `parachutes`| Re-entry: `thermal` (nose radius, heat capacity, ablative shield) gives stagnation heating and burn-up; `hypersonic` blends a Newtonian aero model with trim at high speed; `parachutes` adds canopies (Delete deploys, Shift+Delete cuts); give one a `model` (OBJ) and `model_radius` to draw the canopy, scaled to `canopy_radius`, and it switches SAS off while a chute is out. Hardpoints also take `eject` and `eject_speed`. Equipment may name a `ship` class that is released as a real vessel (the ICBM warhead). See the `cvel-icbm` and `cvel-soyuz` addons.  
 `parachutes[].arm_altitude`| Altitude in metres above which automatic deployment is armed; defaults to three times `auto_altitude`, at least 20 km. Manual deployment does not require arming.  
@@ -724,7 +728,7 @@ The addon declares its program in a `native` block of `addon.json`:
       "restart": true
     }
 
-`capabilities` is the most the addon may ever hold: `read`, `controls`, `write`, `spawn`, `draw`, `keys`, `world` (change the weather, place and remove ships), `ui` (windows and notices), `vessel` (own a ship's controls, apply forces) and `draw3d` (lines, markers and labels in the 3D view). The player grants them per addon. Everything else (the client library, a C++ wrapper, a Python client, examples, an addon template, a mock server, the protocol and the full reference) is in the separate [Kosmos SDK](https://github.com/daver64/Kosmos/releases) download, documented in the [SDK manual](../../sdk/docs/MANUAL.md). For a larger worked example, the SDK includes `kosmosmap`, a C++ GTK 3 moving map (Linux) that the game also ships as an addon.
+`capabilities` is the most the addon may ever hold: `read`, `controls`, `write`, `spawn`, `draw`, `keys`, `world` (change the weather, place and remove ships), `ui` (windows and notices), `vessel` (own a ship's controls, apply forces) and `draw3d` (lines, markers and labels in the 3D view). The player grants them per addon. Everything else (the client library, a C++ wrapper, a Python client, examples, an addon template, a mock server, the protocol and the full reference) is in the separate [Kosmos SDK](https://github.com/daver64/Kosmos/releases) download, documented in the [SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md). For a larger worked example, the SDK includes `kosmosmap`, a C++ GTK 3 moving map (Linux) that the game also ships as an addon.
 
 <a id="navaids"></a>
 
@@ -866,7 +870,7 @@ The figures are for a Mars-like world measured here; smooth oceans compress bett
 
 ### planetbake: big maps, many layers
 
-For large or multi-layer output use **planetbake** , a separate program next to KosmosMap (`addons/planetbake/bin`; the window is in the Linux and Windows game packages) whose source is in the [SDK](../../sdk/docs/MANUAL.md), with ready-made Linux and Windows programs. It bakes a generated world into colour, height, normal, specular, night-lights and cloud maps as PNG or DDS (BC1, BC3 or uncompressed, with mip chains), as single images up to 16384 wide or as resumable tile pyramids up to 65536 wide. It has a GTK 3 window with a 1024×512 preview and a button per layer, and a command line. It uses the game's own generator, so the maps match what Kosmos draws, and never more than 4 threads. `--gen-world` and `--bake-planet` print the planetbake command line for the world you name.
+For large or multi-layer output use **planetbake** , a separate program next to KosmosMap (`addons/planetbake/bin`; the window is in the Linux and Windows game packages) whose source is in the [SDK](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md), with ready-made Linux and Windows programs. It bakes a generated world into colour, height, normal, specular, night-lights and cloud maps as PNG or DDS (BC1, BC3 or uncompressed, with mip chains), as single images up to 16384 wide or as resumable tile pyramids up to 65536 wide. It has a GTK 3 window with a 1024×512 preview and a button per layer, and a command line. It uses the game's own generator, so the maps match what Kosmos draws, and never more than 4 threads. `--gen-world` and `--bake-planet` print the planetbake command line for the world you name.
 
 planetbake can also **open an existing pack** (`--open DIR`): fill missing tiles, levels and layers from pictures, folders (Celestia or Orbiter textures) or NASA datasets, click a tile to edit it in your graphics program (Krita by default; `--set-editor` changes it) and lock tiles, layers or the pack with `--lock` so baking and filling leave them alone. See `sdk/planetbake/README.md` in the SDK.
     
@@ -1381,7 +1385,7 @@ Any ship can carry energy weapons: beams, pulses, bolts and flak, drawn as addit
 
 Mounts are in the ship frame. `group` is `primary` (keypad `1`) or `secondary` (keypad `7`), or any name you drive yourself. A shot hits terrain, buildings and ships. A shield soaks hits first (its `capacity` is in fractions of the hull, it recharges after `delay` quiet seconds) and flashes in its colour; only the rest reaches the hull. Shields do not stop bombs. The `field-kit` addon supplies four tiers of each, in increasing effect: `beam-red`, `beam-yellow`, `beam-green`, `beam-violet` and `spark-red`, `spark-yellow`, `spark-green`, `spark-violet`; any ship can mount them. The sparkle weapons are volleys of six small bright bolts. The Deltaglider is fitted with them, plus a shield.
 
-Fire any ship’s weapons by property: `/ships/ship[N]/weapons/<group>/fire` (0 or 1), and for the flown ship `/controls/weapons/<group>/fire`. Scripts and scenarios use the same properties, so ships can shoot each other. `/ships/ship[N]/shield` and `health` read the shield level and hull health (0–1). Native and Python programs pull a trigger with KosmosLink’s `fire` request (`kl_fire`, which needs the `spawn` permission) and can read the shield and health; see the [SDK manual](../../sdk/docs/MANUAL.md). Beams hum with a deep whump as they fire and volleys zap like a plasma rifle; both sounds are made in the game, fall off with distance and follow the sound setting. At most four weapon lights are used at once, sharing the scene’s 16 light slots; change the number in Settings (_Weapon lights_).
+Fire any ship’s weapons by property: `/ships/ship[N]/weapons/<group>/fire` (0 or 1), and for the flown ship `/controls/weapons/<group>/fire`. Scripts and scenarios use the same properties, so ships can shoot each other. `/ships/ship[N]/shield` and `health` read the shield level and hull health (0–1). Native and Python programs pull a trigger with KosmosLink’s `fire` request (`kl_fire`, which needs the `spawn` permission) and can read the shield and health; see the [SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md). Beams hum with a deep whump as they fire and volleys zap like a plasma rifle; both sounds are made in the game, fall off with distance and follow the sound setting. At most four weapon lights are used at once, sharing the scene’s 16 light slots; change the number in Settings (_Weapon lights_).
 
 <a id="buildings"></a>
 

@@ -20,6 +20,11 @@ To get started, download a packaged build from [GitHub Releases](https://github.
 
 If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher's **Report this log** option lets you edit a path-scrubbed report, copy it and open GitHub Issues. Review it for private information before pasting and submitting it yourself; nothing is uploaded automatically.
 
+**Editor testers:** KosmosCAD, ShipEdit and KosmosMission are very early
+editions with known bugs and interface issues. If you are not specifically
+testing those tools, we recommend editing JSON data by hand and using Blender
+for modelling for now.
+
 ## What you can do
 
 - **Fly spacecraft and aircraft:** launch, stage, manoeuvre, rendezvous, dock, land and explore using orbital and atmospheric flight systems.
@@ -35,6 +40,14 @@ If you encounter a problem, please open a GitHub issue (once this repository is 
 This README also serves as the technical reference for developers. The detailed build instructions, source layout, tests, command-line options and subsystem notes are retained below.
 
 Kosmos is directed by a small core team. Suggestions, bug reports and community-created content are welcome; architectural and project-direction decisions remain with the maintainers. Public source availability does not imply that every proposed feature or pull request will be accepted.
+
+### AI-assisted contributions
+
+AI can be a powerful tool, but it can also produce convincing mistakes.
+AI assistance is welcome when a human defines the API, scope, acceptance
+criteria and other requirements, and directs the work in small functional
+chunks. A competent developer must continually review the code as the work
+progresses; responsibility for correctness remains with the humans involved.
 
 The sections below describe the current implementation, including experimental behaviour and known limitations.
 

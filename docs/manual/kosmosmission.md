@@ -1,5 +1,9 @@
 # KosmosMission manual
 
+**Early edition:** KosmosMission has known bugs and interface issues. If you
+are not specifically testing it, edit JSON data by hand for now; use Blender
+for modelling.
+
 KosmosMission is a mission planner (Linux and Windows). You choose where the mission starts, which ship flies it and what it carries, then add the legs one after another: ascent, orbit change, transfer to another body, capture. It keeps a running delta-v ledger against what the ship's stages can deliver and shows you the trajectory. The same transfer search is what OrbitComp uses in the game, so the numbers agree. A finished plan is saved as an ordinary scenario, exported as a text or CSV table, and any leg can be sent to OrbitComp's manoeuvre node in the running game.
 
 ![KosmosMission with a three-leg plan from Alcantara to Mars orbit: left, the start, ship and add-leg panels; right, the transfer drawn over Earth's and Mars's orbits and the ledger.](img/mission/mars-plan.png)A launch from Alcantara to a 300 km orbit of Mars with a Saturn V-23L: the plan on the left, the transfer (yellow) between Earth's (green) and Mars's (red) orbits on the right, and the ledger underneath.
@@ -142,5 +146,4 @@ The same steps are in the app: press **Guide: a complete mission** in the left c
   * **Every leg is red.** The ship has less delta-v than the mission needs. Look at the summary line under the Ship panel and compare.
   * **The window is blank or the view is black.** The view needs OpenGL 3.2; check the graphics driver.
   * **To game does nothing.** The game must be running with _Native addons_ on, and KosmosMission allowed to write. The message line shows what was sent or why not.
-
 

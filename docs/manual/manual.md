@@ -2,6 +2,10 @@
 
 For pilots and operators of Kosmos. To build your own ships, bases or scenarios, see the [Modders manual](modding.md).
 
+KosmosCAD, ShipEdit and KosmosMission are very early editions with known bugs
+and interface issues. Unless you are specifically testing those tools, edit
+JSON data by hand and use Blender for modelling for now.
+
 New: the [**MFD Operations Manual**](mfd-manual.md) covers every display, with step-by-step guides to [Transfer](mfd-manual.md#transfer-howto) and [OrbitComp](mfd-manual.md#orbitcomp-howto).
 
 Something wrong? See Report a problem below to review and submit a GitHub issue.
@@ -199,7 +203,7 @@ Deltaglider| Yellow nose beam| Two green sparkle guns| Blue
 
 ![The Deltaglider firing its yellow beam and green sparklies](img/weapons.jpg)The Deltaglider firing its beam and a volley of sparklies.
 
-The weapons come from the `field-kit` addon, which has four tiers of each, red, yellow, green and violet, in increasing effect. Modders add their own ([modders manual](modding.md#weapons)), and programs can fire them through KosmosLink ([SDK manual](../../sdk/docs/MANUAL.md)).
+The weapons come from the `field-kit` addon, which has four tiers of each, red, yellow, green and violet, in increasing effect. Modders add their own ([modders manual](modding.md#weapons)), and programs can fire them through KosmosLink ([SDK manual](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md)).
 
 <a id="buildings"></a>
 
@@ -662,7 +666,7 @@ Mouse wheel| Zoom about the pointer
   
 ### Without the game
 
-Run it on its own to browse any body: `kosmosmap --body Moon --lat 10 --lon 20 --ppd 12` (`--ppd` is pixels per degree). `--imagery` starts with the picture, `--root DIR` names the Kosmos folder, `--no-link` skips the connection, and `--shot FILE.png [--size WxH]` writes a picture and exits. If no window opens, check _View > Native addons_ shows it connected and that `addons/kosmosmap/bin/kosmosmap` exists. Developers: [how it is built](../../sdk/docs/MANUAL.md).
+Run it on its own to browse any body: `kosmosmap --body Moon --lat 10 --lon 20 --ppd 12` (`--ppd` is pixels per degree). `--imagery` starts with the picture, `--root DIR` names the Kosmos folder, `--no-link` skips the connection, and `--shot FILE.png [--size WxH]` writes a picture and exits. If no window opens, check _View > Native addons_ shows it connected and that `addons/kosmosmap/bin/kosmosmap` exists. Developers: [how it is built](https://github.com/daver64/Kosmos/blob/main/sdk/docs/MANUAL.md).
 
 <a id="shipedit"></a>
 

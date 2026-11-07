@@ -1,5 +1,9 @@
 # KosmosCAD manual
 
+**Early edition:** KosmosCAD has known bugs and interface issues. If you are
+not specifically testing it, use Blender for modelling and edit JSON by hand
+for now.
+
 KosmosCAD is a 3D modeller for Kosmos ships (Linux). It shows your model in four views at once, lets you pick and edit meshes down to single vertices, and places engines, gear, tanks, ISRU units, reactors and pressure vessels as markers you can drag. It is simpler than Blender, closer to Anim8or. Every view is drawn with OpenGL 3.2.
 
 ![KosmosCAD with a cylinder: Top \(top left\), Front \(top right\), Side \(bottom left\) and Perspective \(bottom right, with the orange frame because it is the active view\).](img/cad/cylinder-views.png)KosmosCAD with a cylinder: Top (top left), Front (top right), Side (bottom left) and Perspective (bottom right, with the orange frame because it is the active view).
@@ -210,5 +214,4 @@ You will model a lander with a body, a tapered nose, two legs and one engine, an
   * **Nothing appears after opening a ship:** its parts use GLB models or generated props, which KosmosCAD does not show. Import an OBJ, or edit the OBJ version.
   * **A boolean looks wrong:** flip normals, weld near-duplicate vertices and make sure the objects are closed meshes.
   * **OpenGL 3.2 is required:** update your graphics driver.
-
 
