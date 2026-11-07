@@ -122,6 +122,13 @@ def run():
             ("--windows", "kosmos-beta-1.42-Windows.zip", "kosmos-beta-1.42-Windows"),
         ):
             for index, asset in enumerate(("addons/cvel-ariane5/models/core.obj",
+                                           "docs/manual/img/ap_aircraft.jpg",
+                                           "data/landclass/sol/earth/landclass.kavlc",
+                                           "data/landclass/sol/earth/landclass.kavlc.gz",
+                                           "scenarios/CVEL/CVEL-Deltaglider/thumbs/piper_cub_chippenham.png",
+                                           "scenarios/CVEL/CVEL-Vulcan/thumbs/vulcan_atom_iceland.png",
+                                           "scenarios/CVEL/CVEL-Vulcan/thumbs/vulcan_wagga.png",
+                                           "scenarios/CVEL/CVEL-Argo/thumbs/argo_thalassa.png",
                                            "scenarios/CVEL/CVEL-Ariane/ariane5_eca_kourou.json",
                                            "addons/cvel-saturn-v/models/sat5stg1.obj",
                                            "addons/cvel-saturn-mlv3/ship.json",

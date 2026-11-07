@@ -117,7 +117,7 @@ namespace kosmos::app
         return text;
     }
 
-    // Land cover is optional per body: it lives in data/landclass/<system>/<body> (Sol's Earth ships one).
+    // Land cover is optional per body: it lives in data/landclass/<system>/<body>.
     static void open_landclass(Sim &sim, const kosmos::Body &b, BodyTerrain &result)
     {
         const std::string where = lower_case(sim.universe.name) + "/" + lower_case(b.name);
@@ -127,7 +127,7 @@ namespace kosmos::app
         {
             auto land = std::make_shared<kosmos::Landclass>();
             std::string land_error;
-            // The raw rasters are developer data under import/; the shipped cache stays in data/.
+            // Local rasters are under import/; the cache stays in data/.
             if (land->open(sim.root() + "/import/landclass/" + where, land_dir + "/landclass.kavlc", land_error, [](double, const std::string &message) { loading.note(message); }))
             {
                 std::fprintf(stderr, "[kosmos] %s land cover: %d x %d cells\n", b.name.c_str(), land->width(), land->height());

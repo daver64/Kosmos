@@ -729,7 +729,7 @@ Trees, buildings and rocks| `/sim/settings/gfx-clutter`| on
 Scatter density| `/sim/settings/gfx-clutter-density`| 100 % (10 to 200)  
 Scenery draw distance| `/sim/settings/gfx-clutter-radius`| 100 % (25 to 200); scales how far trees, houses and rocks are drawn  
   
-_Trees, buildings and rocks_ scatters scenery over the ground near a base or your ship: trees, shrubs and houses on Earth (placed by real land cover), alien plants on an inhabited invented world, and rocks, boulders and the odd pressure dome, habitat or rover on Mars, the Moon and other airless or thin-aired worlds. _Scatter density_ thickens or thins it.
+_Trees, buildings and rocks_ scatters scenery over the ground near a base or your ship: trees, shrubs and houses on Earth (placed using procedural land cover unless local land-cover data is installed), alien plants on an inhabited invented world, and rocks, boulders and the odd pressure dome, habitat or rover on Mars, the Moon and other airless or thin-aired worlds. _Scatter density_ thickens or thins it.
 
 The _Graphics_ settings are also on the launcher's Graphics page. _Render style_ Flat shaded and Wireframe skip textures, clouds and haze and are far lighter on slow or software graphics (for example Kosmos over VNC). _Terrain detail_ applies the next time a world's terrain is built (restart). `--render-style normal|flat|wireframe` overrides the style from the command line.
 
@@ -819,8 +819,6 @@ Bundled examples live in `data/scripts/`: `hello_props` (manual), `throttle_watc
 Press `P` to engage the ship's autopilot, and again to disengage it. Which one you get depends on the ship: an _aircraft_ uses the aircraft autopilot below, and a ship with its own script (Kestrel) uses that script's ascent autopilot. The _Autopilot_ menu opens a window for each kind where every mode can be set with the mouse. The status line (on the HUD and in the window) says what is engaged, and the same values are in `/autopilot/status`.
 
 ### Aircraft autopilot
-
-![Aircraft autopilot window](img/ap_aircraft.jpg)Autopilot → Aircraft, with the optional Skylark addon flying an approach at Chippenham.
 
 When you press `P` in the air, the autopilot captures the **heading and altitude** the aircraft has at that moment, holds them, and leaves the throttle where you set it. It does nothing on the ground. Open _Autopilot → Aircraft_ to change what it does:
 

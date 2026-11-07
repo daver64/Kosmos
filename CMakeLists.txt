@@ -386,6 +386,10 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated
     "/addons/cvel-atlas/thumbs(/|$)" "/scenarios/CVEL/CVEL-Atlas/thumbs/atlas_iii_kennedy\\.png$"
     "/addons/cvel-deltaglider/(models|panel|thumbs)(/|$)"
     "/scenarios/CVEL/CVEL-Deltaglider/thumbs/(deltaglider_chippenham|nuclear_deltaglider_gale)\\.png$"
+    "/scenarios/CVEL/CVEL-Deltaglider/thumbs/piper_cub_chippenham\\.png$"
+    "/scenarios/CVEL/CVEL-Vulcan/thumbs/(vulcan_atom_iceland|vulcan_wagga)\\.png$"
+    "/scenarios/CVEL/CVEL-Argo/thumbs/argo_thalassa\\.png$"
+    "/docs/manual/img/ap_aircraft\\.jpg$"
     "/docs/manual/img/weapons\\.jpg$" "\\.bak$"
     "/addons/cvel-shuttle-a/(models|panel|thumbs)(/|$)" "/addons/cvel-shuttle-aq/thumbs(/|$)"
     "/scenarios/CVEL/CVEL-ShuttleA/thumbs(/|$)"
@@ -395,7 +399,8 @@ set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/textures-generated
     "/addons/cvel-delta-iv/thumbs(/|$)" "/scenarios/CVEL/CVEL-Titan/thumbs(/|$)"
     "/scenarios/CVEL/CVEL-Atlas/thumbs/delta_iv_heavy_kennedy\\.png$"
     "/data/textures/[^/]+_normal\\.jpg$"
-    "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
+    "/data/landclass/.*\\.kavlc$" "/data/landclass/sol/earth/landclass\\.kavlc\\.gz$"
+    "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")

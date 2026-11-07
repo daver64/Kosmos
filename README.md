@@ -136,6 +136,8 @@ Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for
 The default Moon, Mercury, Venus, Saturn, Uranus and Neptune maps are fictional
 procedural approximations, not accurate geography. Some smaller bodies use
 generated textures, and Earth night lights are not bundled.
+Earth's ground scenery uses procedural land cover unless a local dataset is installed;
+the EarthEnv-derived cache is not included in application packages.
 
 The launcher's **Scenery packs** page links to the independent
 [Orbiter Forum terrain mirrors](https://www.orbiter-forum.com/resources/orbiter-2016-high-resolution-texture-packs.5676/) and
