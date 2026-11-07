@@ -66,9 +66,7 @@ def check_version(source, member, version):
 
 def check_excluded_assets(source, names):
     excluded = ("addons/cvel-ariane5", "scenarios/CVEL/CVEL-Ariane", "data/textures/planets",
-                "addons/cvel-saturn-mlv3", "addons/cvel-saturn-v23",
-                "scenarios/CVEL/CVEL-SaturnV/saturn_v_mlv3_kennedy.json",
-                "scenarios/CVEL/CVEL-SaturnV/saturn_v_23l_kennedy.json", "scenarios/Ares_To_Mars.json",
+                "scenarios/Ares_To_Mars.json",
                 "data/textures/skybox", "data/reference",
                 *(f"data/textures/{body}.jpg" for body in
                   ("amalthea", "ariel", "charon", "earth_lights", "hyperion",
@@ -78,7 +76,7 @@ def check_excluded_assets(source, names):
                 "data/textures/hydra.dds", "data/textures/nix.dds", "data/parts/apollo-soyuz", "data/parts/orbiter",
                 "data/landclass/sol/earth/landclass.kavlc",
                 "data/landclass/sol/earth/landclass.kavlc.gz",
-                "addons/cvel-titan/models", "addons/cvel-delta-iv/models", "addons/cvel-atlas/models",
+                "addons/cvel-titan/models", "addons/cvel-delta-iv/models",
                 "addons/cvel-energia-m/models", "addons/cvel-energia-m/thumbs",
                 "scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur.png",
                 "addons/cvel-proton/models", "addons/cvel-proton/thumbs",

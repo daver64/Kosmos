@@ -1,0 +1,70 @@
+Credits:
+
+AtlasIII Programming Dave Rowbotham
+AtlasIII Meshes by Alex Hohlov
+Sat1 Mesh by Dave Rowbotham
+
+CVE-Light Programming by David Henderson with some parts by Dave Rowbotham.
+
+REquirements : CVE-Light 
+
+License : 
+	C++ Module Code LGPL .
+	Meshes Artistic Licence ( see Models Folder for licence ).
+
+
+Keys:
+
+ G --- Toggle Autopilot ( experimental and it shuts down at centaur jettison ! )
+ F --- Manual Jettison Fairing ( only works above 70,000metres )
+ J --- Stage rocket or if the current stage is the Centaur, deploys payload(s).
+
+;
+;
+; ATLAS CONTROL SEQUENCER DESCRIPTION
+;
+; Atlas Control Sequencer, syntax is MODE STARTMODETIME ENDMODETIME
+; where MODE is the navigation mode , STARTMODETIME is the seconds after MET 
+; (Mission Elapsed Time) to begin applyng the mode and ENDMODETIME is 
+; the seconds after MET the mode will no longer be applied.
+;
+; Note. Throttle settings need an end time later than the start time, however
+;   at the end time the throttle is not turned off , rather it is left as is
+;   and the throttle level is not "forced".
+; 
+;  Valid control input modes are ;
+;  ATLAS_AUTO:ATLAS_PITCH_UP			
+;  ATLAS_AUTO:ATLAS_PITCH_DOWN		
+;  ATLAS_AUTO:ATLAS_KILLROT			
+;  ATLAS_AUTO:ATLAS_FULLTHROTTLE_MAIN 
+;  ATLAS_AUTO:ATLAS_ZEROTHROTTLE_MAIN 
+;  ATLAS_AUTO:ATLAS_BANK_LEFT			
+;  ATLAS_AUTO:ATLAS_BANK_RIGHT		
+;  ATLAS_AUTO:ATLAS_YAW_LEFT			
+;  ATLAS_AUTO:ATLAS_YAW_RIGHT			
+;  ATLAS_AUTO:ATLAS_PROGRADE			
+;  ATLAS_AUTO:ATLAS_RETROGRADE		
+;
+;
+;
+
+
+EXAMPLE : Also see the "Sat1" scenario to see an "in situ" example.
+
+; Mode..................................start...end
+;
+  ATLAS_AUTO:ATLAS_FULLTHROTTLE_MAIN  	5.0     10.0
+  ATLAS_AUTO:ATLAS_KILLROT  		58.0    70.0
+  ATLAS_AUTO:ATLAS_PITCH_DOWN		72.0	74.0
+  ATLAS_AUTO:ATLAS_PITCH_UP  		86.0    88.0
+  ATLAS_AUTO:ATLAS_KILLROT  		86.0    172.0	
+  ATLAS_AUTO:ATLAS_PROGRADE  		172.0   173.0
+  ATLAS_AUTO:ATLAS_BANK_LEFT		200.0	202.0
+  ATLAS_AUTO:ATLAS_BANK_RIGHT  		202.0   204.0
+  ATLAS_AUTO:ATLAS_KILLROT  		204.0   206.0
+  ATLAS_AUTO:ATLAS_PROGRADE  		206.0   220.0
+		
+
+Copyright Dave Rowbotham 2004
+
+

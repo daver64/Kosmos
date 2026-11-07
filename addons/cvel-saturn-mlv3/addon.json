@@ -1,0 +1,11 @@
+{
+  "id": "cvel-saturn-mlv3",
+  "name": "CVEL Saturn V MLV3",
+  "version": "0.1",
+  "author": "Dave Rowbotham (CVEL)",
+  "description": "Saturn V Modified Launch Vehicle with a stretched S-IC and HG-3 engines on the upper stages. Meshes credited to TomPA and Sputnik; see source/SaturnV.txt.",
+  "ships": [
+    "ship.json",
+    "payload.json"
+  ]
+}

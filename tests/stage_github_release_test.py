@@ -50,6 +50,7 @@ def run():
                 archive.addfile(item, io.BytesIO(data))
                 if name.startswith("kosmos-beta-"):
                     for asset in ("addons/cvel-saturn-v/models/sat5stg1.obj",
+                                  "addons/cvel-atlas/models/atlasiii_stg1.obj",
                                   "scenarios/CVEL/CVEL-SaturnV/apollo11_saturn_v_t_minus_5.json"):
                         item = tarfile.TarInfo("kosmos-beta-1.42-Linux/" + asset)
                         item.size = 1
@@ -62,6 +63,7 @@ def run():
                 archive.writestr(member, "1.42\n")
                 if name.startswith("kosmos-beta-"):
                     for asset in ("addons/cvel-saturn-v/models/sat5stg1.obj",
+                                  "addons/cvel-atlas/models/atlasiii_stg1.obj",
                                   "scenarios/CVEL/CVEL-SaturnV/apollo11_saturn_v_t_minus_5.json"):
                         archive.writestr("kosmos-beta-1.42-Windows/" + asset, b"x")
         asset_names = [name for name in inputs if name != "1.42.md"]
@@ -140,10 +142,6 @@ def run():
                                            "scenarios/CVEL/CVEL-Vulcan/thumbs/vulcan_wagga.png",
                                            "scenarios/CVEL/CVEL-Argo/thumbs/argo_thalassa.png",
                                            "scenarios/CVEL/CVEL-Ariane/ariane5_eca_kourou.json",
-                                           "addons/cvel-saturn-mlv3/ship.json",
-                                           "addons/cvel-saturn-v23/ship.json",
-                                           "scenarios/CVEL/CVEL-SaturnV/saturn_v_mlv3_kennedy.json",
-                                           "scenarios/CVEL/CVEL-SaturnV/saturn_v_23l_kennedy.json",
                                            "scenarios/Ares_To_Mars.json",
                                            "data/textures/planets/earth.jpg",
                                            "data/textures/skybox/milkyway_procedural_4k.jpg",
@@ -161,7 +159,6 @@ def run():
                                            "data/parts/orbiter/textures/Station2.png",
                                            "addons/cvel-titan/models/titan21.obj",
                                            "addons/cvel-delta-iv/models/deltaivstg1.obj",
-                                           "addons/cvel-atlas/models/atlasiii_stg1.obj",
                                            "addons/cvel-energia-m/models/energiamcore.obj",
                                            "addons/cvel-energia-m/thumbs/addon.png",
                                            "scenarios/CVEL/CVEL-Energia/thumbs/energia_m_baikonur.png",

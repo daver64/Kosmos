@@ -1,0 +1,65 @@
+# Kosmos conversion, 2026-11-07: converted from Orbiter meshes and textures, mirrored the Z axis, converted DDS to PNG, and removed coincident faces. See ../source/README.md and ../source/ARTISTIC-LICENSE.txt.
+newmtl default
+Kd 0.878 0.878 0.878
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+
+newmtl j2engred
+Kd 1.000 0.000 0.000
+Ks 1.000 0.773 0.773
+Ke 0.000 0.000 0.000
+
+newmtl material01_AtlasIIIsust
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/AtlasIIIsust.png
+
+newmtl material02_AtlasIIInumb
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/AtlasIIInumb.png
+
+newmtl material03
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material08
+Kd 0.129 0.369 0.569
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material09
+Kd 0.514 0.243 0.165
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material10
+Kd 0.004 0.004 0.624
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material11_Centaurcover
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Centaurcover.png
+
+newmtl material12_Centaur
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Centaur.png
+
+newmtl stage01white
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
