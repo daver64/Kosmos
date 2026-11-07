@@ -34,7 +34,7 @@ Use the Visual Studio generator name matching the installed version. The default
 
 ### Tests
 
-`sh scripts/run-tests.sh` builds and runs the unit tests, checks bundled scenario ship references and runs headless arsenal, weapons and ordnance selftests. The arsenal and ordnance tests use an isolated test craft with bomb racks. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.
+`sh scripts/run-tests.sh` builds and runs the unit tests, checks bundled scenario ship references and runs headless flight, arsenal, weapons and ordnance selftests. The flight tests can take several minutes; they are separate from `scripts/kosmos-turnkey.sh`, which clean-builds and publishes without running tests. The arsenal and ordnance tests use an isolated test craft with bomb racks. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib.
 
 ## Launcher
 

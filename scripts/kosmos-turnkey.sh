@@ -1,18 +1,17 @@
 #!/bin/sh
 # One command from "everything is ready" to "it is live on the public server".
 #
-# Usage: kosmos-turnkey.sh [--yes] [--skip-tests] [--no-build] [--no-kav] [--local-only] [--delete] [--host USER@HOST]
+# Usage: kosmos-turnkey.sh [--yes] [--no-build] [--no-kav] [--local-only] [--delete] [--host USER@HOST]
 #
-# 1. runs the tests (scripts/run-tests.sh)
-# 2. builds the Linux and Windows packages and publishes them to this machine's web site (scripts/release.sh: stamps the version, notes, SDK)
-# 3. installs the KosmosAV server here (scripts/deploy-kav.sh)
-# 4. asks you to check the local site, then copies the Kosmos and arcade-game site directories plus the landing page to the public host with rsync
-# 5. installs the KosmosAV server on the public host (scripts/deploy-kav.sh HOST)
+# 1. clean-builds the Linux and Windows packages and publishes them to this machine's web site (scripts/release.sh: stamps the version, notes, SDK)
+# 2. installs the KosmosAV server here (scripts/deploy-kav.sh)
+# 3. asks you to check the local site, then copies the Kosmos and arcade-game site directories plus the landing page to the public host with rsync
+# 4. installs the KosmosAV server on the public host (scripts/deploy-kav.sh HOST)
 #
+# Tests are separate: run scripts/run-tests.sh when desired.
 # --yes          do not stop for the "local site looks right" question
-# --skip-tests   skip step 1
-# --no-build     skip the builds and publishing in step 2 (use what is already on the site)
-# --no-kav       leave the KosmosAV server alone (steps 3 and 5)
+# --no-build     skip the builds and publishing in step 1 (use what is already on the site)
+# --no-kav       leave the KosmosAV server alone (steps 2 and 4)
 # --local-only   stop after the local steps; nothing goes to the public host
 # --delete       remove stale files within the explicitly synced site directories
 # --host H       the public host (default dave@gemini, over ssh without a password)
@@ -21,12 +20,11 @@ set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 WEB_ROOT=${WEB_ROOT:-/var/www/html}
 HOST=${HOST:-dave@gemini}
-yes=0 tests=1 build=1 kav=1 public=1 del=
+yes=0 build=1 kav=1 public=1 del=
 while [ $# -gt 0 ]; do
     a=$1; shift
     case $a in
         --yes) yes=1 ;;
-        --skip-tests) tests=0 ;;
         --no-build) build=0 ;;
         --no-kav) kav=0 ;;
         --local-only) public=0 ;;
@@ -42,13 +40,9 @@ if [ $public -eq 1 ]; then
     ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" true || { echo "cannot reach $HOST over ssh without a password; nothing has been changed"; exit 1; }
 fi
 
-if [ $tests -eq 1 ]; then
-    step "Tests"
-    "$SRC/scripts/run-tests.sh"
-fi
 if [ $build -eq 1 ]; then
     step "Build and publish to this machine"
-    "$SRC/scripts/release.sh"
+    env -u INCREMENTAL "$SRC/scripts/release.sh"
 fi
 if [ $kav -eq 1 ]; then
     step "KosmosAV server on this machine"
