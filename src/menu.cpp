@@ -1316,6 +1316,7 @@ namespace kosmos
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
                                    "  Orbit MFD Orb is planet-centred speed; Surface and RADALT show ground-relative speeds and estimated terrain clearance.\n"
+                                   "  Sync Orbit APPR shows short-range relative motion and a straight-line closest-approach estimate; use Docking for port alignment.\n"
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"

@@ -247,6 +247,94 @@ namespace kosmos
             }
             check(drawn && labelled, id);
         }
+        const int sync_mode = sim.mfd.mode_by_id("sync");
+        check(sync_mode >= 0, "Sync Orbit available");
+        if (sync_mode >= 0)
+        {
+            const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(sync_mode)].table;
+            const sol::table hooks = table["_test"];
+            sol::protected_function linear = hooks["linear_approach"];
+            const auto approach_case = [&](double rx, double ry, double vx, double vy,
+                                           double closing, double lateral, double time, double miss, const char *name) {
+                sim.lua.execute("");
+                sol::protected_function_result result = linear(rx, ry, 0.0, vx, vy, 0.0);
+                if (!result.valid())
+                {
+                    const sol::error error = result;
+                    std::fprintf(stderr, "sync approach selftest: %s\n", error.what());
+                    check(false, name);
+                    return;
+                }
+                const sol::table values = result;
+                const auto near = [](double a, double b) { return std::abs(a - b) < 1e-6; };
+                check(near(values.get<double>("closing"), closing) &&
+                      near(values.get<double>("lateral"), lateral) &&
+                      near(values.get<double>("time"), time) &&
+                      near(values.get<double>("miss"), miss), name);
+            };
+            approach_case(100, 0, -10, 0, 10, 0, 10, 0, "approach head-on");
+            approach_case(100, 0, -10, 10, 10, 10, 5, std::sqrt(5000.0), "approach with sideways drift");
+            approach_case(100, 0, 10, 0, -10, 0, 0, 100, "approach separating");
+            approach_case(100, 0, 0, 0, 0, 0, 0, 100, "approach stationary");
+            sol::protected_function button = table["button"];
+            sol::protected_function draw = table["draw"];
+            sim.lua.execute("");
+            sol::protected_function_result toggled = button(table, 5);
+            MfdCanvas canvas;
+            sim.lua.execute("");
+            sol::protected_function_result drawn = draw(table, std::ref(canvas), mfd_size, mfd_size);
+            const bool target_ship = sim.props.get_bool("/target/valid") && sim.props.get_string("/target/kind") == "ship";
+            bool expected_text = false;
+            for (const MfdCommand &command : canvas.commands)
+                if (command.kind == MfdCommand::Kind::text &&
+                    command.text.find(target_ship ? "Sideways speed" : "Select a target ship") != std::string::npos)
+                    expected_text = true;
+            check(toggled.valid() && drawn.valid() && expected_text, "Sync approach display");
+            if (target_ship)
+            {
+                Ship *target = nullptr;
+                for (int i = 0; i < sim.ship_count(); ++i)
+                    if (sim.ship(i) != ship && sim.ship(i)->name == sim.props.get_string("/sim/target"))
+                        target = sim.ship(i);
+                check(target != nullptr, "Sync target ship found");
+                if (target)
+                {
+                    const sl::dvec3 position = target->body().position, velocity = target->body().velocity;
+                    const auto display_contains = [&](double distance, double speed, const char *text) {
+                        target->body().position = ship->body().position + sl::dvec3(distance, 0, 0);
+                        target->body().velocity = ship->body().velocity + sl::dvec3(speed, 0, 0);
+                        MfdCanvas c;
+                        sim.lua.execute("");
+                        sol::protected_function_result result = draw(table, std::ref(c), mfd_size, mfd_size);
+                        if (!result.valid())
+                        {
+                            const sol::error error = result;
+                            std::fprintf(stderr, "sync approach draw: %s\n", error.what());
+                            return false;
+                        }
+                        for (const MfdCommand &command : c.commands)
+                            if (command.kind == MfdCommand::Kind::text && command.text.find(text) != std::string::npos)
+                                return true;
+                        return false;
+                    };
+                    check(display_contains(1000, -10, "Linear closest  0 m"), "Sync displays linear closest approach");
+                    check(display_contains(1000, 10, "Not approaching"), "Sync warns when separating");
+                    check(display_contains(100000, -1000, "Linear closest"), "Sync accepts range boundary");
+                    check(display_contains(100001, -1000, "Straight-line estimate unavailable"), "Sync limits range");
+                    check(display_contains(900, -3, "Linear closest"), "Sync accepts time boundary");
+                    check(display_contains(1000, -1, "Straight-line estimate unavailable"), "Sync limits prediction time");
+                    const bool same_soi = sim.props.get_bool("/target/same-soi");
+                    sim.props.set_bool("/target/same-soi", false);
+                    check(display_contains(1000, -10, "Straight-line estimate unavailable"), "Sync requires the same SOI");
+                    sim.props.set_bool("/target/same-soi", same_soi);
+                    target->body().position = position;
+                    target->body().velocity = velocity;
+                }
+            }
+            sim.lua.execute("");
+            toggled = button(table, 5);
+            check(toggled.valid(), "Sync approach returns to orbit page");
+        }
         check(!sim.arm_timed_burn(-1.0, 1.0, 0.5, "main", "stability"), "negative countdown rejected");
         check(!sim.arm_timed_burn(1.0, 0.0, 0.5, "main", "stability"), "zero duration rejected");
         check(!sim.arm_timed_burn(1.0, 1.0, 1.1, "main", "stability"), "invalid throttle rejected");

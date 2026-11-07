@@ -120,13 +120,74 @@ local function plan(orbits, phase)
 end
 
 local orbits = 1
+local approach = false
+
+local function linear_approach(rx, ry, rz, vx, vy, vz)
+  local range2 = rx * rx + ry * ry + rz * rz
+  local speed2 = vx * vx + vy * vy + vz * vz
+  local range = math.sqrt(range2)
+  local closing = range > 0 and -(rx * vx + ry * vy + rz * vz) / range or 0
+  local lateral = math.sqrt(math.max(0, speed2 - closing * closing))
+  local time = speed2 > 1e-12 and -(rx * vx + ry * vy + rz * vz) / speed2 or 0
+  time = math.max(0, time)
+  local x, y, z = rx + vx * time, ry + vy * time, rz + vz * time
+  return { range = range, speed = math.sqrt(speed2), closing = closing, lateral = lateral,
+           time = time, miss = math.sqrt(x * x + y * y + z * z) }
+end
+
+local function draw_approach(g)
+  g:colour(255, 240, 140)
+  g:text(200, 14, "SYNC APPROACH", 1)
+  if not props.get("/target/valid") or props.get("/target/kind") ~= "ship" then
+    g:colour(255, 200, 80)
+    g:text(200, 200, "Select a target ship", 1)
+    return
+  end
+  local target
+  for i = 0, props.get("/ships/count") - 1 do
+    local path = "/ships/ship[" .. i .. "]/"
+    if i ~= props.get("/sim/active-ship") and props.get(path .. "name") == props.get("/sim/target") then target = path end
+  end
+  if not target then
+    g:colour(255, 200, 80)
+    g:text(200, 200, "Target ship unavailable", 1)
+    return
+  end
+  local function delta(field, axis)
+    return props.get(target .. field .. "/" .. axis) - ship(field .. "/" .. axis)
+  end
+  local a = linear_approach(delta("position", "x"), delta("position", "y"), delta("position", "z"),
+                            delta("velocity", "x"), delta("velocity", "y"), delta("velocity", "z"))
+  g:colour(120, 255, 140)
+  g:text(200, 42, "Target: " .. props.get("/sim/target"), 1)
+  g:text(40, 78, "Range           " .. fmt_len(a.range), 0)
+  g:text(40, 100, string.format("Relative speed  %.2f m/s", a.speed), 0)
+  g:text(40, 122, string.format("Closing         %+.2f m/s", a.closing), 0)
+  g:text(40, 144, string.format("Sideways speed  %.2f m/s", a.lateral), 0)
+  g:colour(255, 200, 80)
+  if not props.get("/target/same-soi") or a.range > 100000 or a.time > 300 then
+    g:text(200, 204, "Straight-line estimate unavailable", 1)
+    g:text(200, 226, "Requires same SOI, <100 km, <5 min", 1)
+  elseif a.closing <= 0 or a.speed < 1e-6 then
+    g:text(200, 204, "Not approaching", 1)
+  else
+    g:text(40, 204, "Linear closest  " .. fmt_len(a.miss), 0)
+    g:text(40, 226, "In              " .. fmt_time(a.time), 0)
+  end
+  g:colour(255, 200, 80)
+  g:text(200, 280, "Estimate only: gravity and burns change it", 1)
+  g:text(200, 302, "Reduce relative speed before docking", 1)
+  g:text(200, 324, "Use Docking MFD for port alignment", 1)
+end
 
 return {
   name = "Sync Orbit",
-  buttons = { "TGT+", "TGT-", "ORB+", "ORB-", "", "", "", "", "", "", "", "" },
+  buttons = { "TGT+", "TGT-", "ORB+", "ORB-", "APPR", "", "", "", "", "", "", "" },
+  _test = { linear_approach = linear_approach },
   init = function(self) end,
 
   draw = function(self, g, w, h)
+    if approach then draw_approach(g) return end
     g:colour(255, 240, 140)
     g:text(200, 14, "SYNC ORBIT", 1)
     if not props.get("/target/valid") then
@@ -201,6 +262,7 @@ return {
   button = function(self, i)
     if i == 1 then cycle_target(1) elseif i == 2 then cycle_target(-1)
     elseif i == 3 then orbits = math.min(orbits + 1, 20)
-    elseif i == 4 then orbits = math.max(orbits - 1, 1) end
+    elseif i == 4 then orbits = math.max(orbits - 1, 1)
+    elseif i == 5 then approach = not approach end
   end,
 }

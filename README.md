@@ -330,6 +330,8 @@ The website has an MFD Operations Manual (`mfd-manual.html`) covering every disp
 
 The Transfer MFD's AUTO button arms a burn autopilot (`/autopilot/burn/*`: `armed`, `start` as `/sim/time` of the window, `target-radius`, and read-only `state`, `remaining`, `ignition-in`): it holds prograde, burns until the apoapsis reaches the target radius, and ABORT cancels. Transfer and OrbitComp's PLN page draw the central body, both orbits, the transfer ellipse and a dot for each of you and the target (the Sun at the centre for a planet-to-planet plan). Align Planes, Sync Orbit and Transfer work against a target ship or body. Set it with the TGT+/TGT- buttons, `--target NAME`, or `/sim/target`. Telemetry appears under `/target/...`.
 
+For the final rendezvous, Sync Orbit's **APPR** page shows range, closing and sideways relative speed, and a straight-line closest-approach estimate. The estimate is shown only for a ship in the same sphere of influence within 100 km and five minutes; gravity and thrust can change it, so it is not an orbital prediction or collision guarantee. Reduce relative speed and use the Docking MFD for port alignment.
+
 ### Cameras
 
 In the chase view, dragging with the mouse orbits the ship (the ship stays centred); the camera is kept above the terrain.
