@@ -44,7 +44,8 @@ Kosmos is directed by a small core team. Suggestions, bug reports and community-
 
 The sections below describe the current implementation, including experimental behaviour and known limitations.
 
-Third-party assets have their own credits and terms: see [sounds](data/CREDITS-sounds.md),
+Kosmos's own code is available under the [MIT License](LICENSE). Third-party code and assets
+retain their own licences and credits; see their accompanying notices and the credits for [sounds](data/CREDITS-sounds.md),
 [models](data/CREDITS-models.md), [textures](data/CREDITS-textures.md), and
 [gravity data](data/gravity/README.md).
 
