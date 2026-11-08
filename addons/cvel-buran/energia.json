@@ -5,7 +5,7 @@
   {"name": "Orbiter cradle", "shape": "box", "size": [26, 12, 40], "port": "Orbiter cradle"}
  ],
  "script": "@launcher.lua",
- "description": "Energia: four RD-170 strap-on boosters around a hydrogen core (modelled as one RD-0120). The orbiter cradle on the core carries a Buran. Boosters and core burn together; undock the orbiter (Ctrl+D) after the core burns out.",
+ "description": "Energia: four RD-170 strap-on boosters around a hydrogen core (modelled as one RD-0120). The boosters kick radially away when jettisoned; the core carries a Buran. Undock the orbiter (Ctrl+D) after the core burns out.",
  "torque_accel": 0.1,
  "max_rate": 0.2,
  "rcs_thrust": 0,
@@ -71,6 +71,7 @@
    "length": 38,
    "radius": 7,
    "separation_speed": 2.6,
+   "radial_parts": true,
    "engines": [
     {
      "position": [

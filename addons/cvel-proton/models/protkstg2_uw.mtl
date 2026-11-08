@@ -1,0 +1,30 @@
+newmtl Engiencoating
+Kd 0.906 0.886 0.667
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl EngineInside
+Kd 0.133 0.133 0.133
+Ks 0.624 0.251 0.075
+Ke 0.000 0.000 0.000
+
+newmtl GreenishStuff
+Kd 0.176 0.537 0.412
+Ks 0.439 0.757 0.816
+Ke 0.000 0.000 0.000
+
+newmtl HullPaint_ProtonStage2
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl PlainMetal
+Kd 0.878 0.878 0.878
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl White
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

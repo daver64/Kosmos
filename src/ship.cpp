@@ -424,7 +424,8 @@ namespace kosmos
         const StageSpec &st = spec_.stages[static_cast<std::size_t>(index)];
         const double leftover = body().tanks[static_cast<std::size_t>(index)].mass;
         const double total = body().mass();
-        const int count = st.radial_pair ? 2 : 1;
+        const bool radial_parts = st.radial_pair || st.radial_parts;
+        const int count = st.radial_pair ? 2 : st.radial_parts ? static_cast<int>(st.parts.size()) : 1;
         std::vector<int> ids;
         for (int i = 0; i < count; ++i)
         {
@@ -449,7 +450,7 @@ namespace kosmos
             sl::FlightBody &d = *universe_.world.body(id);
             sl::dvec3 centre(0.0, 0.0, st.z);
             sl::dvec3 direction = st.separation_dir;
-            if (st.radial_pair)
+            if (radial_parts)
             {
                 centre.x = st.parts[i].offset.x;
                 centre.y = st.parts[i].offset.y;
@@ -457,7 +458,7 @@ namespace kosmos
             }
             const sl::dvec3 kick = b.direction_to_world(glm::normalize(direction)) * st.separation_speed;
             d.dry_mass = std::max((st.dry_mass + leftover) / count, 1.0);
-            const double radius = st.radial_pair ? st.radius / std::sqrt(2.0) : st.radius;
+            const double radius = radial_parts ? st.radius / std::sqrt(static_cast<double>(count)) : st.radius;
             const double transverse = d.dry_mass * (st.length * st.length / 12.0 + radius * radius / 4.0);
             d.dry_inertia = {transverse, transverse, d.dry_mass * radius * radius / 2.0};
             const sl::dvec3 arm = b.direction_to_world(centre - com_);
@@ -470,7 +471,7 @@ namespace kosmos
             debris.body = id;
             debris.stage = index;
             debris.centre = centre;
-            debris.part = st.radial_pair ? static_cast<int>(i) : -1;
+            debris.part = radial_parts ? static_cast<int>(i) : -1;
             debris_.push_back(debris);
             impulse += kick * d.dry_mass;
             separated_mass += d.dry_mass;

@@ -22,14 +22,10 @@ return {
   buttons = {},
   init = function(self) self.peak = 0; self.flow = 0 end,
 
-  update = function(self, dt)
+  update = function(self)
     local fuel = num("stage-fuel")
     self.peak = math.max(self.peak or 0, fuel)
-    if self.last and dt > 0 then
-      local burn = math.max(0, (self.last - fuel) / dt)
-      self.flow = self.flow + (burn - self.flow) * math.min(1, dt * 2)
-    end
-    self.last = fuel
+    self.flow = num("fuel-flow")
   end,
 
   draw = function(self, g, w, h)

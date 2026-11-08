@@ -428,6 +428,7 @@ namespace kosmos
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
                 stage.with_next = js.value("with_next", false);
                 stage.radial_pair = js.value("radial_pair", false);
+                stage.radial_parts = js.value("radial_parts", false);
                 stage.separation_dir = vec3(js.value("separation_dir", nlohmann::json()), stage.separation_dir);
                 for (const nlohmann::json &je : js.value("engines", nlohmann::json::array()))
                 {
@@ -495,6 +496,16 @@ namespace kosmos
                     const sl::dvec3 b(stage.parts[1].offset.x, stage.parts[1].offset.y, 0.0);
                     if (glm::length(a) < 1.0e-6 || glm::length(a + b) > 1.0e-6)
                         throw std::runtime_error("radial_pair parts require opposite nonzero X/Y offsets");
+                }
+                if (stage.radial_parts)
+                {
+                    if (stage.radial_pair)
+                        throw std::runtime_error("radial_pair and radial_parts cannot both be enabled");
+                    if (stage.parts.size() < 2)
+                        throw std::runtime_error("radial_parts requires at least two parts");
+                    for (const PartSpec &part : stage.parts)
+                        if (std::hypot(part.offset.x, part.offset.y) < 1.0e-6)
+                            throw std::runtime_error("radial_parts require nonzero X/Y offsets for every part");
                 }
             return stage;
         }

@@ -759,10 +759,35 @@ namespace kosmos
                       sim.props.get_string("/autopilot/vessel-ascent/state") == "Not started: docked vessel or controlled payload",
                   "addon-controlled payload rejected");
             sim.link_claims.erase(payload);
+            const double launch_heading = ship->telemetry().heading;
+            const double requested_heading = std::fmod(launch_heading + 90.0, 360.0);
+            sim.props.set_double("/autopilot/vessel-ascent/heading", requested_heading);
             sim.mfd.press(0, 0);
             sim.step(0.05);
             check(sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") > 0.0,
                   "MFD starts ascent with docked cargo");
+            check(std::abs(std::remainder(sim.props.get_double("/controls/target-heading") - launch_heading, 360.0)) < 1e-3,
+                  "Shuttle-A holds its launch heading below tower-clearance altitude");
+            const std::string ship_path = "/ships/ship[" + std::to_string(sim.active_index()) + "]/";
+            check(sim.props.get_double(ship_path + "fuel-flow") > 0.0,
+                  "Shuttle-A publishes hover-engine fuel flow during ascent");
+            const int engine_mode = sim.mfd.mode_by_id("engine");
+            bool engine_flow_visible = false;
+            if (engine_mode >= 0)
+            {
+                sim.mfd.set_mode(0, engine_mode);
+                sim.mfd.update(0.05);
+                MfdCanvas canvas;
+                const MfdMode &engine = sim.mfd.modes()[static_cast<std::size_t>(engine_mode)];
+                sol::protected_function draw = engine.table["draw"];
+                if (draw.valid() && draw(sim.mfd.unit(0).self, std::ref(canvas), mfd_size, mfd_size).valid())
+                    for (const MfdCommand &command : canvas.commands)
+                        if (command.kind == MfdCommand::Kind::text && command.text.rfind("Flow", 0) == 0 &&
+                            command.text.find("0.00 kg/s") == std::string::npos)
+                            engine_flow_visible = true;
+            }
+            check(engine_flow_visible, "Engine MFD shows active Shuttle-A fuel flow");
+            sim.mfd.set_mode(0, mode);
             sim.link_claims[payload] = {};
             sim.step(0.05);
             check(!sim.vessel_ascent_active() && sim.props.get_double("/controls/hover") == 0.0 &&

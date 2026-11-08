@@ -136,8 +136,10 @@ namespace kosmos
         bool with_next = false; // also drop the next stage on the same press; chains are allowed
         /** Two equally massive parts at opposite offsets separate radially as independent debris. */
         bool radial_pair = false;
+        /** Every part separates independently, kicked radially from its ship-frame X/Y offset. */
+        bool radial_parts = false;
         /** Ship-frame direction the stage is pushed when dropped; the default is straight back along +z. */
-        sl::dvec3 separation_dir{0.0, 0.0, 1.0};
+        sl::dvec3 separation_dir{0.0,  0.0, 1.0};
     };
 
     /** A docking port: where it sits in the ship frame, which way it faces (outward) and the "up" that fixes roll alignment. */

@@ -208,7 +208,7 @@ namespace kosmos
         bool script_loaded_ = false;
         int ascent_ship_ = -1, ascent_body_ = -1, ascent_stage_ = -1;
         std::string ascent_profile_, ascent_phase_;
-        double ascent_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
+        double ascent_heading_ = 90.0, ascent_launch_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
         double ascent_throttle_ = 0.0, ascent_hover_ = 0.0;
         double ascent_gimbal_ = 0.0, ascent_saved_gimbal_ = 0.0;
         bool landing_targeted_ = false, landing_orbital_ = false, landing_forecast_changed_ = false, landing_reserve_warned_ = false;

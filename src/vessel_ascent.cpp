@@ -139,6 +139,7 @@ namespace kosmos
                 ascent_profile_ = request;
                 ascent_phase_ = "Liftoff";
                 ascent_heading_ = std::fmod(std::fmod(heading, 360.0) + 360.0, 360.0);
+                ascent_launch_heading_ = ship->telemetry().heading;
                 ascent_target_ = target * 1000.0;
                 ascent_pitch_ = request == "Ares" ? 90.0 : 0.0;
                 ascent_start_ = universe.time();
@@ -226,7 +227,8 @@ namespace kosmos
         }
         const double radial = glm::dot(v, up);
         const sl::dvec3 tangential = v - up * radial;
-        double heading = ascent_heading_;
+        const bool shuttle_tower_clear = ascent_profile_ != "Shuttle-A" || t.altitude > 150.0;
+        double heading = shuttle_tower_clear ? ascent_heading_ : ascent_launch_heading_;
         if ((ascent_phase_ == "Coast" || ascent_phase_ == "Circularise") && glm::length(tangential) > 1.0)
         {
             sl::dvec3 east = glm::cross(planet_body->spin_axis, up);

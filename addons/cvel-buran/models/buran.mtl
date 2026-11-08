@@ -1,0 +1,175 @@
+newmtl Material4_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material10_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material3_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.020 0.020 0.020
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material2_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material1_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material5_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material6_cve_gpds_cve_gpds_buran_BURPANELS
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURPANELS.png
+
+newmtl Material7
+Kd 0.384 0.408 0.396
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+
+newmtl Material8_cve_gpds_cve_gpds_buran_BURPANELS
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURPANELS.png
+
+newmtl Material9_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material12_cve_gpds_cve_gpds_buran_BURODS
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURODS.png
+
+newmtl Material11_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material14_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material23_cve_gpds_cve_gpds_buran_BURPANELS
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURPANELS.png
+
+newmtl Material0
+Kd 1.000 1.000 1.000
+Ks 0.498 0.498 0.498
+Ke 0.000 0.000 0.000
+
+newmtl Material24
+Kd 0.384 0.384 0.396
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+
+newmtl Material21_cve_gpds_cve_gpds_buran_BURODS
+Kd 1.000 1.000 1.000
+Ks 0.020 0.020 0.020
+Ke 0.000 0.000 0.000
+map_Kd textures/BURODS.png
+
+newmtl Material37_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material29_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.020 0.020 0.020
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material30_cve_gpds_cve_gpds_buran_BURWING
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURWING.png
+
+newmtl Material25_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material26_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material27_cve_gpds_cve_gpds_buran_BURWING
+Kd 1.000 1.000 1.000
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+map_Kd textures/BURWING.png
+
+newmtl Material36_cve_gpds_cve_gpds_buran_BURANTEX
+Kd 1.000 1.000 1.000
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+map_Kd textures/BURANTEX.png
+
+newmtl Material28_cve_gpds_cve_gpds_buran_BURTEX2
+Kd 1.000 1.000 1.000
+Ks 0.020 0.020 0.020
+Ke 0.000 0.000 0.000
+map_Kd textures/BURTEX2.png
+
+newmtl Material31
+Kd 0.200 0.184 0.133
+Ks 0.027 0.027 0.027
+Ke 0.000 0.000 0.000
+
+newmtl Material32
+Kd 0.357 0.482 0.369
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+
+newmtl Material33
+Kd 0.235 0.384 0.235
+Ks 0.349 0.349 0.349
+Ke 0.000 0.000 0.000
+d 0.500
+
+newmtl Material34
+Kd 0.310 0.298 0.298
+Ks 0.039 0.039 0.039
+Ke 0.000 0.000 0.000
+d 0.700
+
+newmtl Material35
+Kd 0.322 0.322 0.322
+Ks 0.918 0.918 0.918
+Ke 0.000 0.000 0.000
+d 0.700
+

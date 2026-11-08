@@ -292,6 +292,37 @@ int main()
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-buran/energia.json", spec, error));
+        assert(spec.stages[0].radial_parts && spec.stages[0].parts.size() == 4);
+        Ship rocket(universe, spec);
+        rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));
+        rocket.body().velocity = {100.0, -20.0, 3.0};
+        const sl::dvec3 velocity = rocket.body().velocity;
+        const sl::dvec3 origin = rocket.origin();
+        const sl::dmat3 rotation = rocket.body().rotation();
+        const double mass = rocket.body().mass();
+        const double dropped_mass = spec.stages[0].dry_mass + rocket.body().tanks[0].mass;
+        assert(rocket.stage_once());
+        assert(rocket.active_stage() == 1 && rocket.debris().size() == 4);
+        sl::dvec3 momentum = rocket.body().velocity * rocket.body().mass();
+        for (int i = 0; i < 4; ++i)
+        {
+            const Debris &debris = rocket.debris()[static_cast<std::size_t>(i)];
+            const sl::FlightBody *body = universe.world.body(debris.body);
+            assert(body && debris.part == i && debris.stage == 0);
+            assert(std::abs(body->mass() - dropped_mass / 4.0) < 1e-8);
+            const sl::dvec3 radial = glm::normalize(sl::dvec3(spec.stages[0].parts[i].offset.x, spec.stages[0].parts[i].offset.y, 0.0));
+            assert(glm::length(body->velocity - velocity - rotation * radial * spec.stages[0].separation_speed) < 1e-8);
+            assert(glm::length(body->position - origin - rotation * debris.centre) < 1e-8);
+            momentum += body->velocity * body->mass();
+        }
+        assert(glm::length(momentum - velocity * mass) < 1e-6);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
         spec.name = "PropellantStateTest";
         spec.rcs_propellant = 12.0;
         StageSpec lower;
