@@ -373,11 +373,15 @@ u32  request id  chosen by the client; replies carry the same id; pushed message
 
 A malformed frame, a frame larger than 1 MiB or a missing hello within 5 seconds closes the connection. Strings are `u16 byte-length` followed by UTF-8 bytes. A value is a `u8` tag (0 none, 1 bool, 2 int32, 3 double, 4 string) followed by `u8` / `i32` / `f64` / string.
 
+### Version compatibility
+
+Send HELLO with protocol 3 for a version 3 client. The current server also accepts versions 1 and 2 for older clients; it rejects versions outside 1-3 with error 5 and closes the connection. WELCOME reports the server's protocol version, not a negotiated version: a version 1 or 2 client must still use only features it supports. If supporting an older server, a client can reconnect with a lower HELLO version after a version rejection, and must restrict itself to features available in that version. Protocol 3 clients also need to handle the idle ping described below.
+
 ### Client to Kosmos
 
 | Type | Name | Payload |
 |---|---|---|
-| 1 | hello | `u16 protocol` (1 or 2; send 2), str addon id, str name, str version, str token, `u32 capabilities` |
+| 1 | hello | `u16 protocol` (1, 2 or 3; send 3 for a version 3 client), str addon id, str name, str version, str token, `u32 capabilities` |
 | 2 | subscribe | str path, `u16 hz` (0 = every change) |
 | 3 | unsubscribe | str path |
 | 4 | get | str path |
@@ -405,7 +409,7 @@ Draw kinds: 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image
 
 | Type | Name | Payload |
 |---|---|---|
-| 101 | welcome | `u16 protocol`, str Kosmos version, `u32 granted` |
+| 101 | welcome | `u16` server protocol version, str Kosmos version, `u32 granted` |
 | 102 | error | `u16 code`, str message |
 | 103 | value | str path, value (reply to get, or a subscription update with request id 0) |
 | 104 | event | str name, str argument |
@@ -417,13 +421,13 @@ Draw kinds: 0 line, 1 rect, 2 fillrect, 3 circle, 4 disc, 5 tri, 6 text, 7 image
 
 Error codes: 1 bad request, 2 unknown, 3 denied, 4 failed, 5 version. Events: `ship`, `mfd` (sent at 20 Hz while the page is on screen), `granted`, `shutdown`. Capability bits: read 1, controls 2, write 4, spawn 8, draw 16, keys 32, world 64 (change the weather, place and remove ships), ui 128, vessel 256, draw3d 512.
 
-Protocol 2 adds requests 14 to 21 and replies 107 to 109. Kosmos accepts a hello carrying 1 or 2, and a version 1 client simply never sends the new requests. An older Kosmos (protocol 1) refuses a version 2 hello with error 5; retry with 1 if you want to support it. Weather values are SI units except temperature (Celsius) and pressure (hPa); wind east and north are the way the air moves, wind from is the compass direction it blows from. The weather the game shows is a global override while `set_weather` is in force: it lasts until the player (or another addon) changes it, and `auto` returns to simulated weather. `remove_ship` works only on ships link addons spawned and never on the flown ship; the ships after it move down one place, so list again afterwards. `place_ship` may move any ship including the flown one (in multiplayer the other players will not follow). List replies are capped (2000 ships, 200 facilities) to stay under the frame limit.
+Protocol 2 adds requests 14 to 21 and replies 107 to 109. Weather values are SI units except temperature (Celsius) and pressure (hPa); wind east and north are the way the air moves, wind from is the compass direction it blows from. The weather the game shows is a global override while `set_weather` is in force: it lasts until the player (or another addon) changes it, and `auto` returns to simulated weather. `remove_ship` works only on ships link addons spawned and never on the flown ship; the ships after it move down one place, so list again afterwards. `place_ship` may move any ship including the flown one (in multiplayer the other players will not follow). List replies are capped (2000 ships, 200 facilities) to stay under the frame limit.
 
 Opt-in events, sent only after `subscribe_event`: `pause` (argument 1 or 0), `warp` (the new factor), `scenario` (the scenario id, when one starts), `soi` (the flown ship entered a new body's sphere of influence; the name), `crash` and `touchdown` (the flown ship's name), `weather` (conditions changed noticeably; the METAR if any), `ships` (the number of ships changed), `tick` (once a second; the Julian date), `weapon` (a weapon hit a ship; argument `<ship index> <shield|hull> <weapon id> <health>`). Always-on events are unchanged.
 
 ### Protocol 3
 
-Protocol 3 adds requests 22 to 31. Kosmos accepts a hello carrying 1, 2 or 3. Requests answer with `ok` or an error frame (102) where noted; the others are fire and forget and report failures as errors with request id 0.
+Protocol 3 includes requests 22 to 32. Requests answer with `ok` or an error frame (102) where noted; the others are fire and forget and report failures as errors with request id 0.
 
 | Type | Name | Payload |
 |---|---|---|

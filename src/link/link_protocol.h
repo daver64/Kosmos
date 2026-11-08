@@ -1,7 +1,8 @@
 #pragma once
 
-// KosmosLink wire protocol, version 2 (version 1 clients are still accepted; they just never use the later requests). The same layout is implemented by the SDK clients (sdk/src/kosmos_link.c and
-// sdk/docs/PROTOCOL.md). All integers are little-endian.
+// KosmosLink wire protocol, version 3. Versions 1 and 2 are also accepted.
+// The SDK client implements the same layout; see sdk/docs/PROTOCOL.md.
+// All integers are little-endian.
 //
 //   frame   = u32 length (bytes after this field), u16 type, u32 request id, payload
 //   string  = u16 byte count, UTF-8 bytes
