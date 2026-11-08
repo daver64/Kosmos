@@ -629,6 +629,25 @@ namespace kosmos
                   !app::gui_input_release_event(sl::Event::Type::key_down) &&
                   !app::gui_input_release_event(sl::Event::Type::mouse_wheel),
               "transition does not replay clicks or keystrokes");
+        {
+            bool window_open = true, panel_open = true;
+            const auto dismiss = [&]() {
+                if (!window_open)
+                    return false;
+                window_open = false;
+                return true;
+            };
+            const auto close_panel = [&]() { panel_open = false; };
+            check(!app::handle_escape(false, dismiss, close_panel) && !window_open && panel_open,
+                  "escape closes a window before a habitat panel");
+            check(!app::handle_escape(false, dismiss, close_panel) && !panel_open,
+                  "escape returns from a habitat panel");
+            check(!app::handle_escape(false, dismiss, close_panel),
+                  "escape does not quit with nothing open");
+            window_open = panel_open = true;
+            check(app::handle_escape(true, dismiss, close_panel) && window_open && panel_open,
+                  "control escape quits without dismissing UI");
+        }
 
         ImGui::CreateContext();
         ImGuiIO &io = ImGui::GetIO();
@@ -1575,6 +1594,37 @@ namespace kosmos
             if (!sim.nav.dock_links().empty())
                 return fail("payloads remain docked after staging");
             std::puts("Star 48 stack selftest ok");
+            return 0;
+        }
+        if (sim.props.get_bool("/selftest/entrance-label-settings"))
+        {
+            sl::PropertyTree settings;
+            settings_defaults(settings);
+            if (!settings.get_bool("/sim/settings/entrance-labels"))
+            {
+                std::fprintf(stderr, "Entrance labels should default on\n");
+                return 1;
+            }
+            settings_load(settings);
+            if (!settings.get_bool("/sim/settings/entrance-labels"))
+            {
+                std::fprintf(stderr, "Existing settings should retain the entrance label default\n");
+                return 1;
+            }
+            for (bool enabled : {false, true})
+            {
+                settings.set_bool("/sim/settings/entrance-labels", enabled);
+                settings_save(settings);
+                sl::PropertyTree restored;
+                settings_defaults(restored);
+                settings_load(restored);
+                if (restored.get_bool("/sim/settings/entrance-labels") != enabled)
+                {
+                    std::fprintf(stderr, "Entrance label setting did not persist\n");
+                    return 1;
+                }
+            }
+            std::puts("Entrance label settings selftest ok");
             return 0;
         }
         if (sim.props.get_bool("/selftest/curiosity"))

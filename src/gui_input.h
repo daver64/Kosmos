@@ -5,6 +5,16 @@
 
 namespace kosmos::app
 {
+    template <typename Dismiss, typename ClosePanel>
+    inline bool handle_escape(bool control, Dismiss dismiss, ClosePanel close_panel)
+    {
+        if (control)
+            return true;
+        if (!dismiss())
+            close_panel();
+        return false;
+    }
+
     inline bool gui_input_release_event(sl::Event::Type type)
     {
         return type == sl::Event::Type::mouse_button_up || type == sl::Event::Type::key_up ||

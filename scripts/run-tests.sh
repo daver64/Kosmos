@@ -29,6 +29,7 @@ trap 'rm -rf "$HOME"' EXIT
 
 python3 "$SRC/tests/scenario_start_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/rover_rollover_test.py" "$PWD/kosmos"
+python3 "$SRC/tests/entrance_label_settings_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/star48_stack_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/centaur_handoff_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/scenario_save_test.py" "$PWD/kosmos"

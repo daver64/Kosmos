@@ -417,6 +417,7 @@ namespace kosmos::app
                 ImGui::SeparatorText("Display");
                 flag("Body labels", "/sim/settings/labels", "Name tags on planets and moons too small to recognise");
                 flag("Ship labels", "/sim/settings/ship-labels", "Name and distance tags on other ships");
+                flag("Entrance labels", "/sim/settings/entrance-labels", "Mark building entrances while on foot");
                 flag("Orbit line", "/sim/settings/orbit-line", "Draw the flown ship's orbit (O)");
                 flag("Key help text", "/sim/settings/help-text", "The key reminder lines under the info text");
                 flag("Cockpit tooltips", "/sim/settings/tooltips", "Name the panel control or virtual cockpit switch under the mouse");

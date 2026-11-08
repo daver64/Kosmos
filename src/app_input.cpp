@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "gui_input.h"
 
 #include <cstring>
 
@@ -186,7 +187,17 @@ namespace kosmos::app
                                    sl::key_down(sl::Key::left_control) || sl::key_down(sl::Key::right_control),
                                    sl::key_down(sl::Key::left_alt) || sl::key_down(sl::Key::right_alt)};
         auto hit = [&](const char *id) { return keys.pressed(id, key, mods); };
-        if (keys.learning())
+        if (key == sl::Event::Key::escape && (mods.ctrl || !keys.learning()))
+        {
+            if (handle_escape(mods.ctrl, [&] { return menu_bar.dismiss(menu_windows); }, [&] {
+                    Ship *flown = sim.active_ship();
+                    if (!eva.active && walk.panel_return >= 0 && walk.panel_return < sim.ship_count() &&
+                        flown == sim.ship(walk.panel_return) && flown->spec().building() && flown->spec().interior)
+                        toggle_eva();
+                }))
+                running = false;
+        }
+        else if (keys.learning())
         {
             bool done = false;
             const std::string taken = keys.learn_key(key, mods, done);
@@ -213,11 +224,6 @@ namespace kosmos::app
             windows.lua_window = !windows.lua_window;
         else if (hit("window_multiplayer"))
             windows.net_window = !windows.net_window;
-        else if (key == sl::Event::Key::escape)
-        {
-            if (!menu_bar.dismiss(menu_windows))
-                running = false;
-        }
         else if (hit("restart"))
         {
         restart_scenario();
@@ -444,7 +450,8 @@ namespace kosmos::app
             sl::gamepad_handle_event(event);
             if (event.type() == sl::Event::Type::quit)
                 running = false;
-            else if (event.type() == sl::Event::Type::key_down && sl::gui_available() && ImGui::GetIO().WantTextInput)
+            else if (event.type() == sl::Event::Type::key_down && event.key() != sl::Event::Key::escape &&
+                     sl::gui_available() && ImGui::GetIO().WantTextInput)
                 continue;
             else if (event.type() == sl::Event::Type::key_down)
             {

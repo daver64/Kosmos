@@ -148,17 +148,18 @@ namespace kosmos::app
                 const double distance = glm::length(rel);
                 if (distance > 300.0)
                     continue;
-                if (eva.building == s && walk.interior_panel >= 0)
-                    sl::gprintf_center(screen_h / 2 + 70, {120, 255, 150}, "Press Enter to use the panel");
-                else if (s == building_at_door() && eva.building == s && !sim.ship(s)->spec().interior->airlock_name().empty())
+                const bool using_panel = eva.building == s && walk.interior_panel >= 0;
+                if (!using_panel && s == building_at_door() && eva.building == s && !sim.ship(s)->spec().interior->airlock_name().empty())
                 {
                     if (walk.in_airlock)
                         sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, walk.room_kpa > kosmos::airlock_safe_kpa ? "Press Enter to depressurise and go out" : "Press Enter to go outside");
                 }
-                else if (s == building_at_door())
+                else if (!using_panel && s == building_at_door())
                     sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, eva.building == s ? "Press Enter to go outside" : "Press Enter to go into %s", sim.ship(s)->name.c_str());
                 if (eva.building == s && walk.room_kpa >= 0.0)
                     sl::gprintf_center(screen_h / 2 + 130, {160, 210, 255}, "%s  %.0f kPa", walk.room_label.empty() ? "Room" : walk.room_label.c_str(), walk.room_kpa);
+                if (!props_ref->get_bool("/sim/settings/entrance-labels", true))
+                    continue;
                 float x = 0.0f, y = 0.0f;
                 if (distance < 1.0 || !project(view_proj, glm::vec3(rel / distance * 1000.0), x, y) || x < 0 || x > screen_w || y < 0 || y > screen_h)
                     continue;

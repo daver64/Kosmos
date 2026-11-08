@@ -286,7 +286,7 @@ namespace kosmos::app
     struct WalkState
     {
         kosmos::InteriorWalker walker;
-        int panel_return{-1}; // index of the building whose panel is open from inside; Enter returns to walking there
+        int panel_return{-1}; // index of the building whose panel is open from inside; Enter or Escape returns to walking there
         bool in_airlock{};     // the walker stands in the airlock room
         double room_kpa{-1.0}; // pressure of the room the walker is in, or negative
         std::string room_label;

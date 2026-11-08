@@ -1295,8 +1295,9 @@ namespace kosmos
                                    "  O                orbit line\n"
                                    "  Ctrl+M / N       map / galaxy map (Enter dials the quantum portal)   Ctrl+I  on-screen text\n"
                                    "Time\n"
-                                   "  Ctrl+P           pause   Ctrl+C  record video   Ctrl+Q  quit\n"
+                                   "  Ctrl+P           pause   Ctrl+C  record video   Ctrl+Esc or Ctrl+Q  quit\n"
                                    "On foot (Enter to leave the ship, board one within 30 m, or enter a building at its door; inside, face a wall panel and Enter to use it, and leave through the airlock hatch)\n"
+                                   "  F3 Settings     toggle building entrance labels\n"
                                    "  W A S D          walk / strafe       Shift   boost\n"
                                    "  Space jump  Ctrl crouch              Mouse or arrows   look (` or Alt frees the mouse)\n"
                                    "  F                manoeuvring pack on / off (airless worlds, orbit)\n"
@@ -1335,7 +1336,7 @@ namespace kosmos
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"
                                    "  OrbitComp planet-to-planet windows are estimates; check the predicted encounter and correct the flight.\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
-                                   "  Esc closes menus and windows; with none open it quits.";
+                                   "  Esc closes menus and windows or leaves a habitat panel; Ctrl+Esc quits.";
     }
 
     bool MenuBar::has_open_window(const std::vector<MenuWindow> &windows) const
@@ -2051,7 +2052,7 @@ namespace kosmos
         if (ImGui::MenuItem("Restart scenario", "R") && actions.restart)
             actions.restart();
         ImGui::Separator();
-        if (ImGui::MenuItem("Quit", "Esc") && actions.quit)
+        if (ImGui::MenuItem("Quit", "Ctrl+Esc") && actions.quit)
             actions.quit();
         ImGui::EndMenu();
     }
