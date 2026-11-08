@@ -306,6 +306,33 @@ namespace kosmos
         sim.step(0.05);
         check(std::abs(capture_scenario(sim, "Date test").epoch_jd - sim.universe.julian_date()) < 1.0e-9,
               "captured scenario retains current date");
+        const int orbitcomp_mode = sim.mfd.mode_by_id("orbitcomp");
+        check(orbitcomp_mode >= 0, "OrbitComp available");
+        if (orbitcomp_mode >= 0)
+        {
+            const sol::table &table = sim.mfd.modes()[static_cast<std::size_t>(orbitcomp_mode)].table;
+            const sol::table hooks = table["_test"];
+            sol::protected_function format = hooks["approach_text"];
+            const auto approach_case = [&](double distance, const char *kind, double radius,
+                                           const char *expected, const char *name) {
+                sim.lua.execute("");
+                sol::protected_function_result result = format(distance, kind, radius);
+                if (!result.valid())
+                {
+                    const sol::error error = result;
+                    std::fprintf(stderr, "orbitcomp approach selftest: %s\n", error.what());
+                    check(false, name);
+                    return;
+                }
+                check(result.get<std::string>() == expected, name);
+            };
+            const double mars_radius = 3389500.0;
+            approach_case(mars_radius + 200000, "body", mars_radius, "Alt 200.0 km", "body approach above reference radius");
+            approach_case(200000, "body", mars_radius, "Alt -3.2 Mm", "body approach inside reference radius");
+            approach_case(mars_radius, "body", mars_radius, "Alt 0 m", "body approach at reference radius");
+            approach_case(200000, "ship", mars_radius, "Dist 200.0 km", "ship approach remains separation");
+            approach_case(200000, "body", 0, "Ctr 200.0 km (no radius)", "missing body radius is explicit");
+        }
         for (const char *id : {"radar-altimeter", "orbit", "surface"})
         {
             const int mode = sim.mfd.mode_by_id(id);
@@ -1343,6 +1370,37 @@ namespace kosmos
             std::fprintf(stderr, "orbitcomp patched selftest: invalid prediction\n");
             return 1;
         }
+        sol::protected_function text_fn = hooks["target_approach_text"];
+        sim.lua.execute("");
+        const double target_radius = sim.universe.bodies[static_cast<std::size_t>(target)].radius;
+        result = text_fn(target_radius + 200000.0);
+        if (!result.valid() || result.get<std::string>() != "Alt 200.0 km")
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: target radius not applied\n");
+            return 1;
+        }
+        sim.lua.execute("");
+        result = text_fn(predicted_distance);
+        if (!result.valid())
+        {
+            const sol::error error = result;
+            std::fprintf(stderr, "orbitcomp patched selftest: formatting: %s\n", error.what());
+            return 1;
+        }
+        const std::string expected = "Close " + result.get<std::string>() + " in ";
+        canvas.commands.clear();
+        sim.lua.execute("");
+        result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+        bool displayed = false;
+        for (const MfdCommand &command : canvas.commands)
+            if (command.kind == MfdCommand::Kind::text && command.text.rfind(expected, 0) == 0 &&
+                command.text.find("(SOI patched)") != std::string::npos)
+                displayed = true;
+        if (!result.valid() || expected.rfind("Close Alt ", 0) != 0 || !displayed)
+        {
+            std::fprintf(stderr, "orbitcomp patched selftest: expected body altitude on MAN: %s\n", expected.c_str());
+            return 1;
+        }
         std::string why;
         if (wait > 0.0 && !sim.skip_time(wait, why))
         {
@@ -1465,6 +1523,34 @@ namespace kosmos
         check(std::abs(sim.props.get_double("/plan/orbitcomp/at") -
                        (sim.universe.time() + wait - duration / 2.0)) < 1e-5,
               "published burn start follows the Lambert departure");
+        sol::protected_function button = table["button"];
+        sim.lua.execute("");
+        result = button(table, 7);
+        check(result.valid(), "load Lambert plan into MAN");
+        const auto check_page = [&](int page, const char *prefix, const char *name) {
+            if (page > 0) sim.props.set_double("/orbitcomp/page", page);
+            canvas.commands.clear();
+            sim.lua.execute("");
+            sol::protected_function_result drawn = draw(table, std::ref(canvas), mfd_size, mfd_size);
+            bool found = false;
+            for (const MfdCommand &command : canvas.commands)
+                if (command.kind == MfdCommand::Kind::text && command.text.rfind(prefix, 0) == 0)
+                    found = true;
+            check(drawn.valid() && found, name);
+        };
+        check_page(0, "Close Dist ", "MAN post-burn ship separation");
+        check_page(1, "Cls Dist ", "ORB current ship separation");
+        check_page(2, "Close Dist ", "MAN no-burn ship separation");
+        const std::string original_target = sim.props.get_string("/sim/target");
+        sim.props.set_string("/sim/target", "Moon");
+        sim.props.set_string("/target/kind", "body");
+        check_page(1, "Cls Alt ", "ORB current body altitude");
+        check_page(2, "Close Alt ", "MAN no-burn body altitude");
+        sim.props.set_double("/orbitcomp/prograde", 10);
+        check_page(2, "Close Alt ", "MAN post-burn body altitude");
+        sim.props.set_double("/orbitcomp/prograde", 0);
+        sim.props.set_string("/sim/target", original_target);
+        sim.props.set_string("/target/kind", "ship");
         std::string why;
         const double finite_duration = duration / finite_throttle;
         const double coast = finite_burn ? wait - finite_duration / 2.0 : wait;

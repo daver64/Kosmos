@@ -370,6 +370,23 @@ local function fmt_len(m)
   return string.format("%.0f m", m)
 end
 
+local function approach_text(distance, kind, radius)
+  if kind == "body" then
+    if type(radius) == "number" and radius > 0 then
+      return "Alt " .. fmt_len(distance - radius)
+    end
+    return "Ctr " .. fmt_len(distance) .. " (no radius)"
+  end
+  return "Dist " .. fmt_len(distance)
+end
+
+local function target_approach_text(distance)
+  local kind = props.get("/target/kind")
+  local idx = kind == "body" and body_by_name(target_name()) or nil
+  local radius = idx and props.get("/universe/bodies/body[" .. idx .. "]/radius") or nil
+  return approach_text(distance, kind, radius)
+end
+
 local function fmt_time(s)
   if s == nil or s ~= s then return "--" end
   local sign = s < 0 and "-" or ""
@@ -516,8 +533,11 @@ end
 
 -- Closest approach of the ship, on its current or its post-burn orbit, to the target, refreshed a few times a second.
 local function scan(f, ot, nd)
-  if scan_cache and frame_count - scan_cache.at < 12 then return scan_cache end
-  local res = { at = frame_count }
+  local key = table.concat({ tostring(props.get("/sim/active-ship")), f.soi, tostring(f.home ~= nil),
+                             tostring(target_name()), tostring(props.get("/target/kind")), tostring(ot ~= nil),
+                             tostring(nd ~= nil) }, "|")
+  if scan_cache and scan_cache.key == key and frame_count - scan_cache.at < 12 then return scan_cache end
+  local res = { at = frame_count, key = key }
   if ot then
     local span = look_span(f.o, f.o.nu, ot)
     res.now_d, res.now_t = closest(f.o, f.o.nu, ot, ot.nu, span)
@@ -664,7 +684,7 @@ local function draw_orb(g, f, ot, tr)
     g:text(LX, 124, "Tgt " .. target_name(), 0)
     if scanned and scanned.now_d then
       g:colour(255, 90, 90)
-      g:text(LX, 140, "Cls " .. fmt_len(scanned.now_d), 0)
+      g:text(LX, 140, "Cls " .. target_approach_text(scanned.now_d), 0)
       g:text(LX, 156, "in " .. fmt_time(scanned.now_t), 0)
     end
     g:colour(120, 255, 140)
@@ -727,7 +747,7 @@ local function publish_burn(centre_in, burn, label)
 end
 
 -- The heliocentric view of a patched encounter: the planet's and the target's orbits, the path the burn gives, and where the
--- ship and the target are when they pass closest. Changing the node moves the path, so the miss distance can be walked to zero.
+-- ship and the target are when they pass closest.
 local function draw_arrival(g, geo, cx, cy)
   local pl = geo.planet_orbit
   local P, Q = pl.P, pl.Q
@@ -798,12 +818,12 @@ local function draw_man(g, f, ot, tr)
   local scanned = scan(f, ot, nd)
   if scanned and scanned.man_d then
     g:colour(255, 140, 60)
-    local line = "Close " .. fmt_len(scanned.man_d) .. " in " .. fmt_time(scanned.man_t)
+    local line = "Close " .. target_approach_text(scanned.man_d) .. " in " .. fmt_time(scanned.man_t)
     if scanned.patched then line = line .. " (SOI patched)" end
     g:text(LX, 191, line, 0)
   elseif ot and scanned then
     g:colour(255, 140, 60)
-    local line = scanned.now_d and ("Close " .. fmt_len(scanned.now_d) .. " (no burn)") or "No close approach"
+    local line = scanned.now_d and ("Close " .. target_approach_text(scanned.now_d) .. " (no burn)") or "No close approach"
     g:text(LX, 191, line, 0)
   elseif props.get("/target/valid") then
     g:colour(255, 200, 80)
@@ -1537,6 +1557,7 @@ function M.init(self) end
 local function apply_script()
   local p = tonumber(props.get("/orbitcomp/page")) or 0
   if p < 1 then return end
+  scan_cache = nil
   page = clamp(math.floor(p), 1, 4)
   node.mode = clamp(math.floor(tonumber(props.get("/orbitcomp/node-mode")) or 1), 1, #NODE_MODES)
   node.time = tonumber(props.get("/orbitcomp/time")) or node.time
@@ -1675,6 +1696,7 @@ M._test = { make_orbit = make_orbit, advance = advance, state_at = state_at, tim
             plan_ejection = plan_ejection, plan_hohmann = plan_hohmann, plan_lambert = plan_lambert,
             lambert_velocity = lambert_velocity, mean_from_nu = mean_from_nu, nu_from_mean = nu_from_mean,
             plan_ejection_fast = plan_ejection_fast, body_catalog = body_catalog, body_at = body_at, patched_encounter = patched_encounter,
-            ship_frame = ship_frame, compute_node = compute_node }
+            ship_frame = ship_frame, compute_node = compute_node, approach_text = approach_text,
+            target_approach_text = target_approach_text }
 
 return M
