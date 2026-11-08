@@ -89,7 +89,10 @@ namespace kosmos
         char text[160];
         std::snprintf(text, sizeof(text), "%s-%d-o%.3f-i%.3f-r%.3f-t%.3f_%.3f_%.3f-b%d-c%.3f", archetype_name(type), seed, ocean, ice, relief,
                       tint[0], tint[1], tint[2], bands, contrast);
-        return text;
+        std::string result = text;
+        if (local_relief != 0.0f)
+            result += "-local" + std::to_string(local_relief);
+        return result;
     }
 
     sl::dvec3 texture_direction(double u, double v)
@@ -105,7 +108,7 @@ namespace kosmos
         // Continents or large-scale relief, a second large-scale field (volcanoes, highlands), moisture and albedo.
         FastNoiseLite continents, highlands, moisture, albedo;
         // Small relief from kilometres down to tens of metres, ridged mountains, and canyon lines.
-        FastNoiseLite hills, ridges, canyons;
+        FastNoiseLite hills, ridges, canyons, local_hills;
         // Crater fields from large basins to small bowls.
         FastNoiseLite craters[4];
         float crater_wavelength_km[4] = {500.0f, 120.0f, 30.0f, 7.0f};
@@ -136,6 +139,7 @@ namespace kosmos
             fbm(moisture, 3, 2.4f, 4, 0.5f);
             fbm(albedo, 4, per_metre(2000e3), 6, 0.55f);
             fbm(hills, 5, per_metre(300e3), 14, 0.55f);
+            fbm(local_hills, 10, per_metre(8000.0), 5, 0.5f);
             fbm(ridges, 6, per_metre(160e3), 8, 0.5f);
             ridges.SetFractalType(FastNoiseLite::FractalType_Ridged);
             fbm(canyons, 7, 3.0f, 2, 0.5f);
@@ -167,7 +171,7 @@ namespace kosmos
             case Archetype::earth:
                 sea = 0.35f * probit(s.ocean);
                 lowest = 0.0;
-                highest = 1500.0 + 5500.0 * relief + 500.0;
+                highest = 1500.0 + 5500.0 * relief + 500.0 + std::fabs(s.local_relief);
                 break;
             case Archetype::mars:
                 crater_scales = 3;
@@ -236,7 +240,11 @@ namespace kosmos
                 const double plains = m * 1500.0;
                 const float mask = smooth(0.25f, 0.7f, land);
                 const float ridge = clamp01((ridges.GetNoise(x, y, z) + 0.2f) / 1.2f);
-                return plains + mask * ridge * ridge * 5500.0 * relief + hills.GetNoise(x, y, z) * 500.0 * m;
+                const double base = plains + mask * ridge * ridge * 5500.0 * relief + hills.GetNoise(x, y, z) * 500.0 * m;
+                if (style.local_relief == 0.0f)
+                    return base;
+                const double local = local_hills.GetNoise(x, y, z) * style.local_relief * smooth(0.0f, 0.05f, land);
+                return std::max(0.0, base + local);
             }
             case Archetype::mars:
             {
@@ -505,16 +513,21 @@ namespace kosmos
         class GeneratedSource final : public sl::TerrainSource
         {
         public:
-            explicit GeneratedSource(PlanetSurface surface) : surface_(std::move(surface)) {}
+            GeneratedSource(PlanetSurface surface, const glm::dquat &orientation)
+                : surface_(std::move(surface)), inverse_orientation_(glm::inverse(orientation)) {}
             double height(double, double) const override { return 0.0; }
-            double height_on_sphere(const sl::dvec3 &direction, double) const override { return surface_.height(direction); }
+            double height_on_sphere(const sl::dvec3 &direction, double) const override { return surface_.height(inverse_orientation_ * direction); }
             double min_height() const override { return surface_.min_height(); }
             double max_height() const override { return surface_.max_height(); }
 
         private:
             PlanetSurface surface_;
+            glm::dquat inverse_orientation_;
         };
     }
 
-    std::shared_ptr<sl::TerrainSource> PlanetSurface::make_source() const { return std::make_shared<GeneratedSource>(*this); }
+    std::shared_ptr<sl::TerrainSource> PlanetSurface::make_source(const glm::dquat &orientation) const
+    {
+        return std::make_shared<GeneratedSource>(*this, orientation);
+    }
 }

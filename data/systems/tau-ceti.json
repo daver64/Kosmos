@@ -52,6 +52,7 @@
     "ocean": 0.34,
     "ice": 0.35,
     "relief": 1.0,
+    "local_relief": 250.0,
     "tint": [
      0.6,
      0.6,

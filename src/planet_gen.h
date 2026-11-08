@@ -4,6 +4,7 @@
 #include <string>
 
 #include "terrain.h"
+#include <glm/gtc/quaternion.hpp>
 
 namespace sl
 {
@@ -37,6 +38,8 @@ namespace kosmos
         float ice = 0.15f;
         /** Multiplies the height of mountains and the depth of craters. */
         float relief = 1.0f;
+        /** Earth-like: amplitude in metres of additional kilometre-scale hills. */
+        float local_relief = 0.0f;
         /** The body's main colour (0-1); each archetype derives its palette from it. */
         float tint[3] = {0.6f, 0.6f, 0.6f};
         /** Gas: number of latitude bands, and how strongly they differ in colour (0-1). */
@@ -46,6 +49,7 @@ namespace kosmos
         bool valid() const { return type != Archetype::none; }
         /** True when the world has a solid surface that gets streaming terrain. */
         bool has_ground() const { return type != Archetype::none && type != Archetype::gas; }
+        bool use_generated_ground(bool real_world) const { return has_ground() && !real_world; }
         /** A stable text key of every parameter, for naming cached images. */
         std::string key() const;
     };
@@ -72,7 +76,7 @@ namespace kosmos
         /** The same, for the rectangle u0..u1 by v0..v1 of the equirectangular map (both 0-1), as one tile of a larger image. At most max_threads threads are used. */
         sl::Bitmap *make_region(double u0, double v0, double u1, double v1, int width, int height, unsigned max_threads = 16) const;
         /** The terrain source for sl::Terrain (not valid for a gas world). */
-        std::shared_ptr<sl::TerrainSource> make_source() const;
+        std::shared_ptr<sl::TerrainSource> make_source(const glm::dquat &orientation = glm::dquat(1.0, 0.0, 0.0, 0.0)) const;
 
     private:
         struct Impl;

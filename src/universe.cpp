@@ -225,6 +225,7 @@ namespace kosmos
             body.style.ocean = st->value("ocean", 0.6f);
             body.style.ice = st->value("ice", 0.15f);
             body.style.relief = st->value("relief", 1.0f);
+            body.style.local_relief = st->value("local_relief", 0.0f);
             body.style.bands = st->value("bands", 9);
             body.style.contrast = st->value("contrast", 0.5f);
             if (const auto tint = st->find("tint"); tint != st->end() && tint->is_array() && tint->size() >= 3)

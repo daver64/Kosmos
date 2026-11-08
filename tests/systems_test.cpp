@@ -2,6 +2,7 @@
 #include "systems.h"
 
 #include "nav.h"
+#include "planet_gen.h"
 #include "ship.h"
 #include "transfer_plan.h"
 #include "terrain.h"
@@ -64,6 +65,49 @@ namespace
 
 int main()
 {
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/systems/tau-ceti.json", error));
+        const int id = universe.find("Thalassa");
+        assert(id >= 0);
+        const Body &body = universe.bodies[static_cast<std::size_t>(id)];
+        assert(body.style.use_generated_ground(body.real_world));
+        assert(!body.style.use_generated_ground(true));
+        assert(body.style.local_relief == 250.0f);
+        PlanetSurface surface(body.style, body.radius);
+        PlanetStyle without_local = body.style;
+        without_local.local_relief = 0.0f;
+        PlanetSurface baseline(without_local, body.radius);
+        assert(body.style.key() != without_local.key());
+        double low = 1.0e30, high = -1.0e30;
+        double close_low = 1.0e30, close_high = -1.0e30;
+        for (int lat = -10; lat <= 10; ++lat)
+            for (int lon = -10; lon <= 10; ++lon)
+            {
+                const sl::dvec3 d = glm::inverse(universe.orientation(id)) *
+                                    surface_direction(universe, id, -8.0 + lat * 0.02, 45.0 + lon * 0.02);
+                const double h = surface.height(d);
+                low = std::min(low, h);
+                high = std::max(high, h);
+                assert(h >= surface.min_height() && h <= surface.max_height());
+                if (std::abs(lat) <= 2 && std::abs(lon) <= 2)
+                {
+                    close_low = std::min(close_low, h);
+                    close_high = std::max(close_high, h);
+                }
+            }
+        const sl::dvec3 depot = glm::inverse(universe.orientation(id)) * surface_direction(universe, id, -8.0, 45.0);
+        assert(surface.height(depot) > 1.5);
+        const glm::dquat rotation = glm::angleAxis(1.2, glm::normalize(sl::dvec3(1.0, 2.0, 3.0)));
+        const auto rotated_source = surface.make_source(rotation);
+        assert(std::fabs(rotated_source->height_on_sphere(rotation * depot, body.radius) - surface.height(depot)) < 1.0e-6);
+        assert(std::fabs(surface.height(depot) - baseline.height(depot)) > 1.0);
+        assert(high - low > 250.0);
+        assert(close_high - close_low > 20.0);
+        std::printf("Thalassa depot terrain: %.1f m nearby relief, %.1f m across the wider area\n",
+                    close_high - close_low, high - low);
+    }
     check_ship_models("/addons/cvel-atlas/ship.json", 5);
     check_ship_models("/addons/cvel-centaur/ship.json", 1);
     check_ship_models("/addons/cvel-transtage/ship.json", 2);

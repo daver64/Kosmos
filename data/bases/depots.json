@@ -201,7 +201,7 @@
    "longitude": 45.0,
    "heading": 90,
    "flat_radius": 160,
-   "blend": 120,
+   "blend": 60,
    "cameras": [
     {
      "name": "Pad",

@@ -601,7 +601,7 @@ namespace kosmos::app
             draw_body(i, body_light);
         }
 
-        if (near_earth && !options.no_clouds && gfx_clouds)
+        if (earth_id >= 0 && eye_earth_distance - earth_body->radius <= camera.far_plane * 0.95 && !options.no_clouds && gfx_clouds)
         {
             // From space the terrain hides the sky's clouds, so the weather is a translucent shell lifted as depth coarsens.
             sl::Material cloud;
@@ -652,7 +652,7 @@ namespace kosmos::app
             }
         }
 
-        if (earth_id >= 0 && near_earth)
+        if (earth_id >= 0 && near_earth && !earth_as_sphere)
             draw_atmosphere_glow(universe.position(earth_id) - eye_world, universe.bodies[static_cast<std::size_t>(earth_id)]);
         sl::set_light_3d(light);
 

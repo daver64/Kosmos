@@ -194,11 +194,14 @@ namespace kosmos::app
         };
     }
 
-    static void make_generated_ground(sl::TerrainConfig &config, const kosmos::Body &b, const kosmos::SurfaceFrame &frame, std::shared_ptr<sl::TerrainSource> &source)
+    static void make_generated_ground(sl::TerrainConfig &config, const kosmos::Body &b, const kosmos::SurfaceFrame &frame, bool home, std::shared_ptr<sl::TerrainSource> &source)
     {
         // An invented world: the same generator that painted its far-view image shapes and colours the ground.
         const auto planet_surface = std::make_shared<kosmos::PlanetSurface>(b.style, b.radius);
-        source = planet_surface->make_source();
+        const auto generated_direction = [frame, home](const sl::dvec3 &direction) {
+            return home ? glm::inverse(frame.orientation) * direction : direction;
+        };
+        source = home ? planet_surface->make_source(frame.orientation) : planet_surface->make_source();
         // A baked tile set (see --bake-planet) is used wherever it is at least as fine as the terrain cell; finer than that the generator takes over.
         std::vector<std::shared_ptr<kosmos::CelestiaImagery>> baked;
         const std::filesystem::path tiles = kosmos::baked_tiles_dir(b.style, b.radius);
@@ -218,14 +221,15 @@ namespace kosmos::app
             lazy = std::make_shared<kosmos::LazyTiles>(planet_surface, tiles, b.radius, lazy_width);
             std::fprintf(stderr, "[kosmos] %s lazy tiles up to %d wide: %s\n", b.name.c_str(), kosmos::estimate_bake(lazy_width).width, tiles.string().c_str());
         }
-        config.colour_function = [planet_surface, baked, lazy](const sl::TerrainSample &sample, float rgb[3])
+        config.colour_function = [planet_surface, baked, lazy, generated_direction](const sl::TerrainSample &sample, float rgb[3])
         {
-            if (lazy && lazy->colour(sample.position, sample.cell_size, rgb))
+            const sl::dvec3 direction = generated_direction(sample.position);
+            if (lazy && lazy->colour(direction, sample.cell_size, rgb))
                 return true;
             double resolution = 0.0;
             if (!baked.empty() && baked.front()->colour(sample.position, sample.cell_size, rgb, resolution) && resolution <= std::max(sample.cell_size, 1.0))
                 return true;
-            planet_surface->colour(sample.position, sample.height, sample.slope_degrees, rgb);
+            planet_surface->colour(direction, sample.height, sample.slope_degrees, rgb);
             return true;
         };
         std::fprintf(stderr, "[kosmos] %s generated %s terrain\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
@@ -297,7 +301,7 @@ namespace kosmos::app
         const std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
-        const bool generated_ground = b.style.has_ground() && !home;
+        const bool generated_ground = b.style.use_generated_ground(b.real_world);
         if (!celestia_tiles.empty())
             surface_paths.push_back(celestia_tiles);
         else if (!surface_image.empty() && !generated_ground)
@@ -320,7 +324,7 @@ namespace kosmos::app
         }
         else if (generated_ground)
         {
-            make_generated_ground(config, b, frame, source);
+            make_generated_ground(config, b, frame, home, source);
         }
         else if (home)
         {

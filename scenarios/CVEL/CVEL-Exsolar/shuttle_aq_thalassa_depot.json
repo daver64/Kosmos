@@ -1,15 +1,16 @@
 {
- "name": "CVEL: Shuttle-AQ, Thalassa depot",
- "description": "The CVEL Shuttle-AQ, a Shuttle-A with a quantum jump drive, on the pad of the Thalassa Freight Depot in the Tau Ceti system. One of the KosmosAV interstellar depots; View > Quantum navigation jumps to Sol, Sirius, Proxima Centauri or TRAPPIST-1.",
- "system": "Tau Ceti",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Shuttle-AQ",
-   "body": "Thalassa",
-   "surface": {
-    "base": "thalassa_depot"
-   }
-  }
- ]
+  "active": 0,
+  "description": "The CVEL Shuttle-AQ, a Shuttle-A with a quantum jump drive, on the pad of the Thalassa Freight Depot in the Tau Ceti system. One of the KosmosAV interstellar depots; View > Quantum navigation jumps to Sol, Sirius, Proxima Centauri or TRAPPIST-1.",
+  "name": "CVEL: Shuttle-AQ, Thalassa depot",
+  "ships": [
+    {
+      "body": "Thalassa",
+      "ship": "CVEL Shuttle-AQ",
+      "surface": {
+        "base": "thalassa_depot"
+      }
+    }
+  ],
+  "system": "Tau Ceti",
+  "thumbnail": "thumbs/shuttle_aq_thalassa_depot-1794133842213027382-0.png"
 }
