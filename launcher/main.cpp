@@ -148,12 +148,20 @@ namespace
 #endif
     }
 
-    std::string update_archive_url(const std::string &server, const std::string &version)
+    std::string update_base_url(const std::string &server, const std::string &version)
     {
-        const std::string file = platform_archive(version);
         if (server == Profile().server)
-            return "https://github.com/daver64/Kosmos/releases/download/v" + version + "/" + file;
-        return server + "/" + file;
+            return version.empty() ? "https://github.com/daver64/Kosmos/releases/latest/download"
+                                   : "https://github.com/daver64/Kosmos/releases/download/v" + version;
+        return server;
+    }
+
+    bool valid_release_version(const std::string &version)
+    {
+        const auto dot = version.find('.');
+        return dot != std::string::npos && dot > 0 && dot + 1 < version.size() &&
+               version.find('.', dot + 1) == std::string::npos &&
+               version.find_first_not_of("0123456789.") == std::string::npos;
     }
 
     // One HTTP request at a time: either a small text fetch or a resumable file download with progress.
@@ -460,7 +468,8 @@ namespace
             if (!fetch_catalogues)
                 return;
             // The server's pack list carries the real sizes and checksums; the built-in list is the offline fallback.
-            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
+            if (profile_.server != Profile().server)
+                packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
                               {
                                   if (!ok)
                                   {
@@ -487,11 +496,11 @@ namespace
         // Headless smoke test for --check: read the server's version and pack list, print them and close.
         void SelfCheck()
         {
-            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+            http_.Fetch(update_base_url(profile_.server, "") + "/VERSION.txt", [this](bool ok, const std::string &body)
                         {
                             std::printf("server version: %s (installed: %s)\n", ok ? body.c_str() : ("ERROR " + body).c_str(), installed_version(root_).c_str());
                             std::printf("scenarios: %zu, addons: %zu\n", scenarios_.size(), addons_.size());
-                            packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok2, const std::string &text)
+                            packs_http_.Fetch(update_base_url(profile_.server, "") + "/packs.json", [this](bool ok2, const std::string &text)
                                               {
                                                   const auto list = ok2 ? parse_packs(text, root_) : std::vector<PackInfo>();
                                                   for (const PackInfo &p : list)
@@ -847,7 +856,9 @@ namespace
         {
             const int keep = pack_list_->GetSelection();
             const std::string selected = keep != wxNOT_FOUND && static_cast<std::size_t>(keep) < packs_.size() ? packs_[keep].id : "";
-            packs_ = packs_remote_.empty() ? builtin_packs(root_) : packs_remote_;
+            packs_ = packs_remote_;
+            if (packs_.empty() && profile_.server != Profile().server)
+                packs_ = builtin_packs(root_);
             packs_.insert(packs_.end(), orbiter_packs_.begin(), orbiter_packs_.end());
             const auto hires = orbiter_hires_packs(root_);
             packs_.insert(packs_.end(), hires.begin(), hires.end());
@@ -1161,11 +1172,11 @@ namespace
         }
 
         // Downloads FILE from the server into a temporary folder, verifies it, then unpacks it into DEST.
-        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done, const std::string &url = {})
+        void DownloadArchive(const std::string &file, std::string expected, const fs::path &dest, wxGauge *gauge, std::function<void(bool, const std::string &)> done, const std::string &url = {}, const std::string &checksum_base = {})
         {
             busy_ = true;
             ShowPack();
-            const std::string base = profile_.server + "/";
+            const std::string base = (checksum_base.empty() ? profile_.server : checksum_base) + "/";
             auto finish = [this, done, gauge](bool ok, const std::string &msg)
             {
                 gauge->SetValue(0);
@@ -1587,7 +1598,7 @@ namespace
                 return;
             }
             update_label_->SetLabel("Checking...");
-            update_http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+            update_http_.Fetch(update_base_url(profile_.server, "") + "/VERSION.txt", [this](bool ok, const std::string &body)
                         {
                             if (!ok)
                             {
@@ -1595,11 +1606,21 @@ namespace
                                 return;
                             }
                             latest_ = body.substr(0, body.find_first_of(" \t\r\n"));
+                            if (!valid_release_version(latest_))
+                            {
+                                latest_.clear();
+                                update_label_->SetLabel("The update server returned an invalid version.");
+                                update_button_->Disable();
+                                return;
+                            }
                             const std::string have = installed_version(root_);
                             const bool newer = have.empty() || version_newer(latest_, have);
                             update_label_->SetLabel(W(newer ? "Version " + latest_ + " is available (you have " + (have.empty() ? "an unknown version" : have) + ")" : "You are up to date (" + have + ")"));
                             update_button_->Enable(newer && !busy_);
-                            update_http_.Fetch(profile_.server + "/notes/" + latest_ + ".md", [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
+                            const std::string notes = profile_.server == Profile().server
+                                ? update_base_url(profile_.server, latest_) + "/RELEASE_NOTES.md"
+                                : profile_.server + "/notes/" + latest_ + ".md";
+                            update_http_.Fetch(notes, [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
                         });
         }
 
@@ -1622,7 +1643,8 @@ namespace
                                     SetStatusText(W("Update failed: " + msg));
                                     update_button_->Enable();
                                 }
-                            }, update_archive_url(profile_.server, latest_));
+                            }, update_base_url(profile_.server, latest_) + "/" + platform_archive(latest_),
+                            update_base_url(profile_.server, latest_));
         }
 
         // ---- Logs ----------------------------------------------------------------------------------------------
