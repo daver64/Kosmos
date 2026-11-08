@@ -86,11 +86,15 @@ Use the Visual Studio generator name matching the installed version. The default
 
 ### Tests
 
-`sh scripts/run-tests.sh` builds and runs the quick regression suite, including unit tests and headless selftests. Add `--extended` for the slower OrbitComp trajectory, ascent, cargo, autoland and Atlas flight tests; these can take several minutes. Both suites are separate from `scripts/kosmos-turnkey.sh`, which clean-builds and publishes without running tests. The arsenal and ordnance tests use an isolated test craft with bomb racks. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib. The check verifies the checkout, not the installed libraries: rebuild and install the pinned revision for each release platform before building Kosmos.
+`sh scripts/run-tests.sh` builds and runs the quick regression suite, including unit tests and headless selftests. Add `--extended` for the slower OrbitComp trajectory, ascent, cargo, autoland and Atlas flight tests; these can take several minutes. The suites are separate from website deployment and release packaging. The arsenal and ordnance tests use an isolated test craft with bomb racks. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib. The check verifies the checkout, not the installed libraries: rebuild and install the pinned revision for each release platform before building Kosmos.
+
+GitHub Actions runs the quick suite on Linux with the exact simlib revision in `SIMLIB_COMMIT`. CI builds the OpenGL backend and runs off-screen with software rendering; it does not cover Windows or the extended suite.
 
 ## Launcher
 
 `kosmos-launcher` (wxWidgets) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs, with a "Report this log" button that posts a log (home paths removed, after a preview) to the server's `report/submit.php`. The server side is `report/` (PHP: submit, password-protected `admin.php`, public form), installed once with `scripts/setup-reports.sh [HOST]`; reports are kept in `/var/lib/kosmos-reports`, outside the web root. With the default server, game updates, their metadata and the standard Orbiter scenery catalogue come from GitHub releases; a custom server supplies its own game updates and catalogue. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them.
+
+Website traffic can be summarized with `python3 scripts/page-report.py`: it reads the public host's Apache logs over SSH and writes `~/kosmos-page-report.txt`, with completed daily page-hit totals and likely bots separated. The running history is stored in `~/.local/share/kosmos/page-days.json` without visitor IP addresses. The server account needs access to its Apache logs. This reports website page requests, not GitHub downloads.
 
 ## Distributions
 
