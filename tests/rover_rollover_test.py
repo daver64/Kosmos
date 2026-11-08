@@ -20,12 +20,15 @@ with tempfile.TemporaryDirectory() as home:
         if result.returncode or f"Rover {mode} selftest ok" not in result.stdout:
             raise SystemExit(result.stdout + result.stderr)
         print(f"rover {mode} test ok")
-    for scenario in ("lunar_rover_tranquility", "rover_gale_crater"):
+    for scenario, mode, label in (
+        ("lunar_rover_tranquility", "sev", "SEV"),
+        ("rover_gale_crater", "curiosity", "Curiosity"),
+    ):
         result = subprocess.run(
             [str(binary), "--root", str(root), "--scenario", scenario,
-             "--selftest", "1", "--set", "/selftest/curiosity=true"],
+             "--selftest", "1", "--set", f"/selftest/{mode}=true"],
             cwd=root, env=env, capture_output=True, text=True, timeout=60,
         )
-        if result.returncode or "Curiosity selftest ok" not in result.stdout:
+        if result.returncode or f"{label} selftest ok" not in result.stdout:
             raise SystemExit(result.stdout + result.stderr)
-        print(f"Curiosity {scenario} test ok")
+        print(f"{label} {scenario} test ok")

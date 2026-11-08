@@ -1,0 +1,6 @@
+{
+  "id": "nasa-sev",
+  "name": "NASA Space Exploration Vehicle",
+  "version": "0.1",
+  "ships": ["ship.json"]
+}

@@ -429,6 +429,46 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/salyut/ship.json", spec, error));
+        Ship ship(universe, spec);
+        assert(spec.animation_controls.size() == 1 && spec.animation_controls[0].property == "solar_panels");
+        assert(ship.animation_position(0) == 1.0 && ship.systems());
+        const int earth = universe.find("Earth"), sun = universe.find("Sun");
+        assert(earth >= 0 && sun >= 0);
+        const sl::dvec3 earth_pos = universe.position(earth);
+        const sl::dvec3 toward_sun = glm::normalize(universe.position(sun) - earth_pos);
+        ship.body().position = earth_pos + toward_sun * 10000000.0;
+        ship.body().orientation = sl::dquat(sl::dvec3(0.0, 1.0, 0.0), toward_sun);
+        const auto solar_output = [&ship] {
+            double output = 0.0;
+            for (const SystemComponent &component : ship.systems()->components())
+                if (component.type == "solar")
+                    output += component.output_w;
+            return output;
+        };
+        ship.after_step(1.0);
+        assert(solar_output() > 0.0);
+        Controls controls;
+        controls.anim = {0.0};
+        ship.apply_controls(controls, 6.0);
+        assert(std::abs(ship.animation_position(0) - 0.5) < 1e-9);
+        ship.after_step(6.0);
+        ship.after_step(1.0);
+        assert(solar_output() == 0.0);
+        ship.apply_controls(controls, 6.0);
+        ship.after_step(6.0);
+        assert(ship.animation_position(0) == 0.0 && solar_output() == 0.0);
+        controls.anim = {1.0};
+        ship.apply_controls(controls, 12.0);
+        ship.after_step(12.0);
+        ship.after_step(1.0);
+        assert(ship.animation_position(0) == 1.0 && solar_output() > 0.0);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         const int earth = universe.find("Earth"), sun = universe.find("Sun");
         assert(earth >= 0 && sun >= 0);
         const sl::dvec3 earth_position = universe.position(earth);

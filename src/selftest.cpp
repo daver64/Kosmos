@@ -1627,14 +1627,16 @@ namespace kosmos
             std::puts("Entrance label settings selftest ok");
             return 0;
         }
-        if (sim.props.get_bool("/selftest/curiosity"))
+        if (sim.props.get_bool("/selftest/curiosity") || sim.props.get_bool("/selftest/sev"))
         {
-            const auto fail = [](const char *message) {
-                std::fprintf(stderr, "Curiosity selftest: %s\n", message);
+            const bool curiosity = sim.props.get_bool("/selftest/curiosity");
+            const char *name = curiosity ? "Curiosity" : "SEV";
+            const auto fail = [name](const char *message) {
+                std::fprintf(stderr, "%s selftest: %s\n", name, message);
                 return 1;
             };
-            if (!ship || ship->spec().name != "Curiosity Rover" || !ship->systems())
-                return fail("expected Curiosity with electrical systems");
+            if (!ship || ship->spec().name != (curiosity ? "Curiosity Rover" : "Space Exploration Vehicle") || !ship->systems())
+                return fail("expected rover with electrical systems");
             const int planet = ship->telemetry().soi;
             const sl::dvec3 up = glm::normalize(ship->body().position - sim.universe.position(planet));
             const sl::FlightBody &primary = *sim.universe.world.body(planet);
@@ -1644,11 +1646,12 @@ namespace kosmos
             if (glm::length(ship->body().velocity - ground_velocity) > 0.25 || ship->crashed())
                 return fail("parked rover moved or crashed");
             const double battery = ship->systems()->battery_wh();
-            sim.props.set_double("/controls/anim/mast", 1.0);
+            if (curiosity)
+                sim.props.set_double("/controls/anim/mast", 1.0);
             sim.props.set_double("/controls/throttle", 1.0);
             for (int i = 0; i < 1000; ++i)
                 sim.step(0.01);
-            if (ship->animation_position(0) < 0.99)
+            if (curiosity && ship->animation_position(0) < 0.99)
                 return fail("mast control did not reach its target");
             if (ship->systems()->battery_wh() >= battery || ship->systems()->demand_w() < 500.0)
                 return fail("wheel motors did not draw battery power");
@@ -1667,7 +1670,7 @@ namespace kosmos
                 if (!std::isfinite(altitude) || altitude < 0.3 || !ship->telemetry().landed || ship->crashed())
                     return fail("overturned rover was not supported");
             }
-            std::puts("Curiosity selftest ok");
+            std::printf("%s selftest ok\n", name);
             return 0;
         }
         if (sim.props.get_bool("/selftest/rover-collision"))

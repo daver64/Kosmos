@@ -1,16 +1,15 @@
 {
   "active": 0,
   "date": "2024-01-01 00:00:00",
-  "description": "A Curiosity rover visiting the Moon, parked at the Tranquility outpost. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer the front and rear wheels, B brakes. It parks itself on its brakes when the throttle is at zero. Turn the camera mast using the Animations menu.",
-  "name": "Curiosity Rover, Tranquility",
+  "description": "NASA's Space Exploration Vehicle at the Tranquility outpost. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer the front and rear wheels, B brakes. It parks itself on its brakes when the throttle is at zero.",
+  "name": "Space Exploration Vehicle, Tranquility",
   "ships": [
     {
       "body": "Moon",
-      "ship": "Curiosity Rover",
+      "ship": "Space Exploration Vehicle",
       "surface": {
         "base": "tranquility"
       }
     }
-  ],
-  "thumbnail": "thumbs/lunar_rover_tranquility-1794139772129311528-0.png"
+  ]
 }

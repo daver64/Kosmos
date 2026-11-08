@@ -1,0 +1,44 @@
+{
+ "name": "Space Exploration Vehicle",
+ "description": "NASA's pressurised Space Exploration Vehicle concept, adapted for driving on the Moon. Mass, power and driving performance are approximate.",
+ "class": "ground",
+ "torque_accel": 0.0,
+ "drag_area": 5.0,
+ "camera_distance": 16,
+ "camera_target": [0, 0.8, 0],
+ "inertia": [12000, 16000, 8000],
+ "ground": { "drive_force": 12000, "max_speed": 5 },
+ "cockpit": { "eye": [0, 2.4, -1.1], "yaw": 0, "pitch": 0 },
+ "wheels": [
+  { "position": [-1.7, -0.84, -1.7], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.7, -0.84, -1.7], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.7, -0.84, 0], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.7, -0.84, 0], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.7, -0.84, 1.7], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.7, -0.84, 1.7], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 }
+ ],
+ "stages": [
+  {
+   "name": "Rover",
+   "dry_mass": 4000,
+   "propellant": 0,
+   "z": 0,
+   "length": 6,
+   "radius": 2,
+   "gear": [
+    [1.2, 2.8, -1.5], [-1.2, 2.8, -1.5],
+    [1.2, 2.8, 1.5], [-1.2, 2.8, 1.5],
+    [1.9, 0, -1.7], [-1.9, 0, -1.7],
+    [1.9, 0, 1.7], [-1.9, 0, 1.7]
+   ],
+   "parts": [
+    { "model": "sev.glb" }
+   ]
+  }
+ ],
+ "systems": [
+  { "type": "battery", "name": "Battery", "capacity_wh": 40000, "max_w": 30000 },
+  { "type": "load", "name": "Vehicle systems", "watts": 500, "priority": 0 },
+  { "type": "drive_motor", "name": "Wheel motors", "watts": 12000, "priority": 2 }
+ ]
+}

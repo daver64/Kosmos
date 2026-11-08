@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "solar_panels",
+   "objects": ["SolarPositiveY"],
+   "axis": [1, 0, 0],
+   "center": [0.06, 1.95, -7.15],
+   "interpolation": [[0, 90], [1, 0]]
+  },
+  {
+   "type": "rotate",
+   "property": "solar_panels",
+   "objects": ["SolarNegativeX"],
+   "axis": [0, 1, 0],
+   "center": [-1.85, 0.02, -7.19],
+   "interpolation": [[0, 90], [1, 0]]
+  },
+  {
+   "type": "rotate",
+   "property": "solar_panels",
+   "objects": ["SolarNegativeY"],
+   "axis": [1, 0, 0],
+   "center": [0.25, -2.0, -7.15],
+   "interpolation": [[0, -90], [1, 0]]
+  }
+ ]
+}

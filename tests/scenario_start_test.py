@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BINARY = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build/kosmos"
 GALE = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_gale_crater.json"
 ORBIT = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_mars_orbit.json"
+SALYUT = ROOT / "scenarios/CVEL/CVEL-Salyut/salyut_earth_orbit.json"
 
 
 def run(*args):
@@ -36,6 +37,13 @@ def main():
     result = run("--scenario", "ares_spider_mars_orbit")
     assert result.returncode == 0 and "soi Mars" in result.stdout, result.stdout + result.stderr
     assert "alt=199." in result.stdout and "m=  30000" in result.stdout, result.stdout
+    salyut = json.loads(SALYUT.read_text())
+    assert salyut["ships"][salyut["active"]] == {
+        "ship": "Salyut", "body": "Earth",
+        "orbit": {"altitude_km": 400, "inclination": 51.6, "phase": 0},
+    }
+    result = run("--scenario", "salyut_earth_orbit")
+    assert result.returncode == 0 and "soi Earth" in result.stdout, result.stdout + result.stderr
 
     result = run("--scenario", "missing-scenario-regression-test")
     assert result.returncode != 0 and 'scenario "missing-scenario-regression-test" not found' in result.stderr, result.stderr

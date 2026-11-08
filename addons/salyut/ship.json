@@ -9,6 +9,8 @@
   {
    "type": "solar",
    "name": "Solar arrays",
+   "deployment_control": "solar_panels",
+   "deployment_threshold": 0.9,
    "area_m2": 40,
    "efficiency": 0.25,
    "facing": [
@@ -20,6 +22,8 @@
   {
    "type": "solar",
    "name": "Solar arrays (aft)",
+   "deployment_control": "solar_panels",
+   "deployment_threshold": 0.9,
    "area_m2": 40,
    "efficiency": 0.25,
    "facing": [
@@ -91,6 +95,14 @@
  "rcs_thrust": 1500,
  "drag_area": 12,
  "camera_distance": 45,
+ "animation_controls": [
+  {
+   "name": "Solar arrays",
+   "property": "solar_panels",
+   "duration": 12,
+   "initial": 1.0
+  }
+ ],
  "stages": [
   {
    "name": "Station",
@@ -138,6 +150,7 @@
    "parts": [
     {
      "model": "models/salyut.obj",
+     "animations": "animations.json",
      "offset": [
       0,
       0,
