@@ -301,7 +301,7 @@ def publish(args):
         major, minor = version.split(".")
         (ROOT / "VERSION").write_text(f"{major}.{int(minor) + 1}\n")
         print(f"Published {tag}; VERSION advanced locally. Commit and push that change separately.")
-        print("Update website version labels and release notes separately.")
+        print("Website deployment is not performed by this script.")
 
 
 def main():
