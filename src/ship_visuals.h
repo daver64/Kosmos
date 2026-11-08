@@ -230,6 +230,19 @@ namespace kosmos::app
             }
             return part_model(found->second, directory);
         }
+        void configure_part_model(sl::Model *model)
+        {
+            if (!model)
+                return;
+            for (sl::ModelPart &mp : model->parts)
+            {
+                const bool nose_shell = mp.name.rfind("NCone", 0) == 0 && mp.name != "NConeDock";
+                // The NCone texture layers are reverse-wound copies; cull front to keep the exterior layer visible.
+                mp.material.cull = nose_shell ? sl::CullMode::front : sl::CullMode::none;
+                if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
+                    mp.visible = false;
+            }
+        }
         sl::Model *part_model(const kosmos::PartSpec &part, const std::string &directory)
         {
             auto found = models.find(&part);
@@ -244,13 +257,7 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
             if (loaded.model && !part.animations.empty() && !sl::load_model_animations_json(loaded.model, (std::filesystem::path(directory) / part.animations).string()))
                 std::fprintf(stderr, "[kosmos] cannot load animations %s: %s\n", part.animations.c_str(), sl::last_error().c_str());
-            if (loaded.model)
-                for (sl::ModelPart &mp : loaded.model->parts)
-                {
-                    mp.material.cull = sl::CullMode::none; // Orbiter draws meshes double-sided and many are not closed
-                    if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
-                        mp.visible = false; // systems markers, not geometry
-                }
+            configure_part_model(loaded.model);
             models[&part] = loaded;
             return loaded.model;
         }

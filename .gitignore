@@ -8,6 +8,7 @@ __pycache__/
 !/data/textures/**/*.png
 !/addons/*/models/*.png
 !/addons/*/models/**/*.png
+!/scenarios/**/thumbs/*.png
 imgui.ini
 kosmos-*.png
 data/textures-hires/

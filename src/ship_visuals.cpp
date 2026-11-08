@@ -220,12 +220,7 @@ namespace kosmos::app
         sl::Model *model = sl::load_model(obj.string());
         if (model)
         {
-            for (sl::ModelPart &mp : model->parts)
-            {
-                mp.material.cull = sl::CullMode::none;
-                if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
-                    mp.visible = false;
-            }
+            configure_part_model(model);
             if (!part.animations.empty())
                 sl::load_model_animations_json(model, (std::filesystem::path(spec.directory) / part.animations).string());
             const std::map<std::string, std::string> names = material_texture_names(obj);
