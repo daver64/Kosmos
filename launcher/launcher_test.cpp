@@ -86,6 +86,48 @@ int main()
         CHECK(fs::is_regular_file(thumbnail));
     }
 
+    {
+        const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+        const fs::path dir = fs::temp_directory_path() / ("launcher-scenario-watch-" + std::to_string(stamp));
+        const fs::path folder = dir / "scenarios" / "Nested";
+        const fs::path addon_folder = dir / "addon" / "scenarios";
+        fs::create_directories(folder / "thumbs");
+        fs::create_directories(addon_folder);
+        const fs::path file = folder / "launcher_watch_unique.json";
+        std::ofstream(file) << R"({"name":"Before","ships":[]})";
+        AddonInfo addon;
+        addon.name = "Test addon";
+        addon.directory = dir / "addon";
+        const auto first = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(first.generation == 7);
+        std::ofstream(file) << R"({"name":"After","ships":[]})";
+        const auto renamed = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(first.scenarios, renamed.scenarios));
+        const fs::path image = folder / "thumbs" / "launcher_watch_unique.png";
+        std::ofstream(image) << "first";
+        const auto added_image = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(renamed.scenarios, added_image.scenarios));
+        fs::last_write_time(image, fs::last_write_time(image) + std::chrono::seconds(2));
+        const auto changed_image = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(same_scenario_list(added_image.scenarios, changed_image.scenarios));
+        CHECK(added_image.thumbnail_times != changed_image.thumbnail_times);
+        const fs::path addon_scenario = addon_folder / "launcher_addon_watch_unique.json";
+        std::ofstream(addon_scenario) << R"({"name":"Addon","ships":[]})";
+        const auto added = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(changed_image.scenarios, added.scenarios));
+        addon.enabled = false;
+        const auto disabled = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(added.scenarios, disabled.scenarios));
+        addon.enabled = true;
+        fs::remove(image);
+        const auto removed_image = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(added.scenarios, removed_image.scenarios));
+        fs::remove(file);
+        const auto removed = scan_scenario_changes(dir, {addon}, 7);
+        CHECK(!same_scenario_list(removed_image.scenarios, removed.scenarios));
+        fs::remove_all(dir);
+    }
+
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);
     {

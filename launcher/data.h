@@ -7,6 +7,7 @@
 #include <functional>
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <vector>
 
 namespace launcher
@@ -27,6 +28,13 @@ namespace launcher
         std::vector<std::string> ships;
         fs::path directory, thumbnail;
         bool enabled = true;
+    };
+
+    struct ScenarioScan
+    {
+        std::vector<ScenarioInfo> scenarios;
+        std::vector<std::tuple<fs::path, fs::file_time_type, std::uintmax_t>> thumbnail_times;
+        unsigned generation = 0;
     };
 
     struct PackInfo
@@ -71,6 +79,8 @@ namespace launcher
 
     std::vector<AddonInfo> scan_addons(const fs::path &root);
     std::vector<ScenarioInfo> scan_scenarios(const fs::path &root, const std::vector<AddonInfo> &addons);
+    ScenarioScan scan_scenario_changes(const fs::path &root, const std::vector<AddonInfo> &addons, unsigned generation);
+    bool same_scenario_list(const std::vector<ScenarioInfo> &a, const std::vector<ScenarioInfo> &b);
     // The built-in pack list; a packs.json from the server (see parse_packs) replaces it.
     std::vector<PackInfo> builtin_packs(const fs::path &root);
     std::vector<PackInfo> orbiter_hires_packs(const fs::path &root);

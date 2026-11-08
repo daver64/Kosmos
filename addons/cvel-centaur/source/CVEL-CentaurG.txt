@@ -1,0 +1,13 @@
+CVE-lite Centaur G. (C) 2004 E Reinverts (erv)
+
+The module and sourcecode are copyright E Reinverts 2004, based upon the code
+of CVEL Fregat by D Henderson, 2004, and released under the terms of the GNU LGPL.
+
+
+This is a basic upper stage as used on TitanIV-B launch vehicles. It's a
+firm staple of the CVE-lite GPDS-using community. :-)
+
+Press "j" to jettison payloads described in the scenario file using
+the Generic Payload Description System (GPDS).
+
+http://projectganymede.sourceforge.net/cve-lite

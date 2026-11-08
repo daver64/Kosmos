@@ -1,30 +1,31 @@
 {
- "name": "CVEL: Centaur G, 400 km orbit",
- "description": "CVEL Centaur G upper stage with its probe, coasting in a circular 400 km orbit over the sunlit Earth.",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Centaur G",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 28.5,
-    "phase": 180
-   }
-  },
-  {
-   "ship": "Luna E3",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 1,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 28.5,
-    "phase": 180
-   }
-  }
- ]
+  "active": 0,
+  "description": "CVEL Centaur G upper stage with its probe, coasting in a circular 400 km orbit over the sunlit Earth.",
+  "name": "CVEL: Centaur G, 400 km orbit",
+  "ships": [
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "CVEL Centaur G"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 0
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/centaur_g_orbit-1794109799757536210-0.png"
 }

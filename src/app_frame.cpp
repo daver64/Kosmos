@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "scenario_thumbnail.h"
 #include "bitmap_release.h"
 #include "gui_input.h"
 #include "watchdog.h" // WATCHDOG
@@ -96,6 +97,7 @@ namespace kosmos::app
             return false;
         }
         options.scenario.clear();
+        active_scenario_path.clear();
         options.orbit_altitude = 0.0;
         options.orbit_body.clear();
         options.orbit_start = false;
@@ -238,8 +240,24 @@ namespace kosmos::app
         {
             screenshot_requested = false;
             const std::string file = "kosmos-" + std::to_string(sl::time_ms()) + ".png";
-            sl::save_bitmap(sl::screen, file);
-            sim.log("Saved " + file);
+            if (sl::save_bitmap(sl::screen, file))
+                sim.log("Saved " + file);
+            else
+                sim.log("Could not save screenshot " + file);
+        }
+        if (thumbnail_requested && sl::time_ms() >= screenshot_due_ms)
+        {
+            thumbnail_requested = false;
+            std::string image, problem;
+            if (kosmos::save_scenario_thumbnail(thumbnail_scenario_path,
+                                               [](const std::string &path) { return sl::save_bitmap(sl::screen, path); },
+                                               image, problem))
+                sim.log("Saved scenario thumbnail " + image);
+            else
+            {
+                std::fprintf(stderr, "kosmos: %s\n", problem.c_str());
+                sim.log(problem);
+            }
         }
         if (options.record_seconds > 0.0)
         {

@@ -1,26 +1,27 @@
 {
- "name": "CVEL: Buran on Energia, Baikonur",
- "description": "The Buran orbiter on its Energia launcher on the pad at Baikonur Cosmodrome. Press P for the launcher autopilot; undock the orbiter (Ctrl+D) after the core burns out, then fly it home as a spaceplane.",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Energia",
-   "body": "Earth",
-   "surface": {
-    "base": "baikonur"
-   }
-  },
-  {
-   "ship": "CVEL Buran",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 0,
-    "own_port": 1
-   },
-   "surface": {
-    "base": "baikonur"
-   }
-  }
- ]
+  "active": 0,
+  "description": "The Buran orbiter on its Energia launcher on the pad at Baikonur Cosmodrome. Press P for the launcher autopilot; undock the orbiter (Ctrl+D) after the core burns out, then fly it home as a spaceplane.",
+  "name": "CVEL: Buran on Energia, Baikonur",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Energia",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 1,
+        "port": 0,
+        "to": 0
+      },
+      "ship": "CVEL Buran",
+      "surface": {
+        "base": "baikonur"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/buran_energia_baikonur-1794109898165845839-0.png"
 }

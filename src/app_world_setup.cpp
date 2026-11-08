@@ -509,6 +509,9 @@ namespace kosmos::app
             sl::shutdown();
             return 1;
         }
+        if (!options.scenario.empty())
+            if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+                active_scenario_path = sc->path;
 
         if (!options.hud.empty())
         {

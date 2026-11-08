@@ -388,6 +388,8 @@ namespace kosmos::app
         std::string keys_status;
         kosmos::MenuBar menu_bar;
         bool screenshot_requested{};
+        bool thumbnail_requested{};
+        std::string active_scenario_path, thumbnail_scenario_path;
         decltype(sl::time_ms()) screenshot_due_ms{};
         std::vector<kosmos::MenuWindow> menu_windows;
         kosmos::MenuActions menu_actions;

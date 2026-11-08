@@ -20,7 +20,7 @@ local vehicles = {
   ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Energia"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },
-  ["CVEL Energia-M"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },
+  ["CVEL Energia-M"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Saturn V"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },
   ["CVEL Saturn V MLV3"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },
   ["CVEL Saturn V-23L"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 3 },

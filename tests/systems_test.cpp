@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include "systems.h"
 
+#include "nav.h"
 #include "ship.h"
 #include "transfer_plan.h"
 #include "terrain.h"
@@ -23,10 +24,111 @@ namespace
         parse_systems(nlohmann::json::parse(text), {"Lower", "Capsule"}, spec);
         return spec;
     }
+
+    void check_ship_models(const char *file, std::size_t expected_models)
+    {
+        ShipSpec spec;
+        std::string error;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+        std::size_t models = 0;
+        for (const StageSpec &stage : spec.stages)
+            for (const PartSpec &part : stage.parts)
+            {
+                if (part.model.empty())
+                    continue;
+                ++models;
+                const std::filesystem::path model = std::filesystem::path(spec.directory) / part.model;
+                std::ifstream obj(model);
+                assert(obj);
+                bool faces = false, material_library = false;
+                std::string line;
+                while (std::getline(obj, line))
+                {
+                    if (line.rfind("f ", 0) == 0)
+                        faces = true;
+                    if (line.rfind("mtllib ", 0) != 0)
+                        continue;
+                    std::ifstream mtl(model.parent_path() / line.substr(7));
+                    assert(mtl);
+                    material_library = true;
+                    std::string material_line;
+                    while (std::getline(mtl, material_line))
+                        if (material_line.rfind("map_Kd ", 0) == 0)
+                            assert(std::filesystem::is_regular_file(model.parent_path() / material_line.substr(7)));
+                }
+                assert(faces && material_library);
+            }
+        assert(models == expected_models);
+    }
 } // namespace
 
 int main()
 {
+    check_ship_models("/addons/cvel-atlas/ship.json", 5);
+    check_ship_models("/addons/cvel-centaur/ship.json", 1);
+    check_ship_models("/addons/cvel-transtage/ship.json", 2);
+    check_ship_models("/addons/cvel-energia-m/ship.json", 5);
+    check_ship_models("/addons/cvel-buran/energia.json", 5);
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec energia, centaur, fregat, probe;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-energia-m/ship.json", energia, error));
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-centaur/ship.json", centaur, error));
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-fregat/ship.json", fregat, error));
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", probe, error));
+        std::ifstream input(std::string(KOSMOS_ROOT) + "/scenarios/CVEL/CVEL-Energia/energia_m_baikonur.json");
+        assert(input);
+        const auto scenario = nlohmann::json::parse(input);
+        const auto &ships = scenario.at("ships");
+        assert(ships.size() == 4);
+        const ShipSpec *stack[] = {&energia, &centaur, &fregat, &probe};
+        for (std::size_t i = 0; i < ships.size(); ++i)
+        {
+            assert(ships[i].at("ship") == stack[i]->name);
+            if (i == 0)
+                continue;
+            const auto &dock = ships[i].at("dock");
+            assert(dock.at("to") == i - 1);
+            const int parent_port = dock.at("port");
+            const int own_port = dock.at("own_port");
+            assert(parent_port >= 0 && static_cast<std::size_t>(parent_port) < stack[i - 1]->ports.size());
+            assert(own_port >= 0 && static_cast<std::size_t>(own_port) < stack[i]->ports.size());
+            assert(stack[i - 1]->ports[static_cast<std::size_t>(parent_port)].direction.z == -1.0);
+            assert(stack[i]->ports[static_cast<std::size_t>(own_port)].direction.z == 1.0);
+        }
+        assert(energia.ports[0].position.z == -9.7 && energia.ports[0].stage == 3);
+        std::vector<std::unique_ptr<Ship>> fleet;
+        for (const ShipSpec *spec : stack)
+            fleet.push_back(std::make_unique<Ship>(universe, *spec));
+        sl::PropertyTree props;
+        NavSystem nav;
+        nav.init(props);
+        for (std::size_t i = 1; i < ships.size(); ++i)
+        {
+            const auto &dock = ships[i].at("dock");
+            nav.link(dock.at("to"), dock.at("port"), static_cast<int>(i), dock.at("own_port"));
+        }
+        nav.couple(universe, fleet, 0, 0.0);
+        assert(nav.dock_links().size() == 3);
+        const sl::dvec3 origin = fleet[0]->origin();
+        assert(std::abs((fleet[1]->origin() - origin).z + 19.2) < 1e-6);
+        assert(std::abs((fleet[2]->origin() - origin).z + 20.0) < 1e-6);
+        assert(std::abs((fleet[3]->origin() - origin).z + 21.67) < 1e-6);
+        const double payload_mass = fleet[1]->body().mass() + fleet[2]->body().mass() + fleet[3]->body().mass();
+        const double full_mass = fleet[0]->body().mass();
+        assert(fleet[0]->stage_once() && fleet[0]->active_stage() == 3);
+        assert(fleet[0]->debris().size() == 4 && fleet[0]->port_attached(0));
+        assert(energia.stages[3].name == "Core stage" && !energia.stages[3].engines.empty());
+        assert(!fleet[0]->stage_once());
+        assert(nav.undock(fleet, 0, 0) && nav.dock_links().size() == 2);
+        nav.couple(universe, fleet, 1, 0.0);
+        assert(fleet[0]->body().mass() < full_mass - payload_mass);
+        assert(nav.undock(fleet, 1, 1) && nav.dock_links().size() == 1);
+        nav.couple(universe, fleet, 2, 0.0);
+        assert(nav.undock(fleet, 2, 1) && nav.dock_links().empty());
+    }
     {
         Universe universe;
         std::string error;
@@ -118,7 +220,57 @@ int main()
         assert(rocket.stage_once() && rocket.active_stage() == 1);
         assert(rocket.stage_once() && rocket.active_stage() == 2);
         assert(rocket.stage_once() && rocket.active_stage() == 5);
-        assert(rocket.debris().size() == 5);
+        assert(rocket.debris().size() == 6);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *file : {
+                 "/addons/cvel-buran/energia.json",
+                 "/addons/cvel-delta-iv/ship.json",
+                 "/addons/cvel-energia-m/ship.json",
+                 "/addons/cvel-saturn-v23/ship.json",
+                 "/addons/cvel-saturn-v23/payload.json",
+                 "/addons/cvel-soyuz/fg.json",
+                 "/addons/cvel-titan/titan3c.json",
+                 "/addons/cvel-titan/titan3d.json",
+                 "/addons/cvel-titan/titan3e.json",
+                 "/addons/cvel-titan/titan34d.json",
+                 "/addons/cvel-titan/titan4a.json",
+                 "/addons/cvel-titan/titan4b.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+            const StageSpec &boosters = spec.stages[0];
+            assert(boosters.radial_parts && boosters.parts.size() >= 2 && boosters.separation_speed > 0.0);
+            Ship rocket(universe, spec);
+            rocket.body().orientation = glm::angleAxis(0.7, glm::normalize(sl::dvec3(1.0, 2.0, 3.0)));
+            rocket.body().velocity = {100.0, -20.0, 3.0};
+            const sl::dvec3 velocity = rocket.body().velocity;
+            const sl::dmat3 rotation = rocket.body().rotation();
+            const double mass = rocket.body().mass();
+            assert(rocket.stage_once());
+            assert(rocket.debris().size() >= boosters.parts.size());
+            sl::dvec3 momentum = rocket.body().velocity * rocket.body().mass();
+            for (std::size_t i = 0; i < rocket.debris().size(); ++i)
+            {
+                const Debris &debris = rocket.debris()[i];
+                const sl::FlightBody *body = universe.world.body(debris.body);
+                assert(body);
+                momentum += body->velocity * body->mass();
+                if (i >= boosters.parts.size())
+                    continue;
+                const sl::dvec3 offset = boosters.parts[i].offset;
+                const sl::dvec3 radial = glm::normalize(sl::dvec3(offset.x, offset.y, 0.0));
+                assert(debris.stage == 0 && debris.part == static_cast<int>(i));
+                assert(glm::length(body->velocity - velocity - rotation * radial * boosters.separation_speed) < 1e-8);
+            }
+            const double momentum_error = glm::length(momentum - velocity * mass);
+            if (momentum_error >= 1e-5)
+                std::fprintf(stderr, "%s: separation momentum error %.9f\n", file, momentum_error);
+            assert(momentum_error < 1e-5);
+        }
     }
     {
         Universe universe;

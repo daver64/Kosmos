@@ -73,6 +73,7 @@ namespace kosmos
             out.id = std::filesystem::path(path).stem().string();
             out.name = json.value("name", out.id);
             out.description = json.value("description", "");
+            out.thumbnail = json.value("thumbnail", "");
             out.active = json.value("active", 0);
             out.target = json.value("target", "");
             out.system = json.value("system", "");
@@ -208,6 +209,8 @@ namespace kosmos
         json["name"] = sc.name;
         if (!sc.description.empty())
             json["description"] = sc.description;
+        if (!sc.thumbnail.empty())
+            json["thumbnail"] = sc.thumbnail;
         json["active"] = sc.active;
         if (!sc.system.empty() && sc.system != "Sol")
             json["system"] = sc.system;

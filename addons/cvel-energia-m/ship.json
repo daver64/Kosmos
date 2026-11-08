@@ -2,9 +2,10 @@
  "name": "CVEL Energia-M",
  "class": "launcher",
  "payload_bays": [
-  {"name": "Orbiter cradle", "shape": "box", "size": [20, 8, 22], "port": "Orbiter cradle"}
+  {"name": "Payload fairing", "shape": "cylinder", "radius": 3.4, "length": 16, "port": "Payload"}
  ],
  "script": "@launcher.lua",
+ "description": "Energia-M: two RD-170 boosters and a hydrogen core with a jettisonable payload fairing. The fairing separates with the boosters; release the payload after the core burn.",
  "torque_accel": 0.12,
  "max_rate": 0.2,
  "rcs_thrust": 0,
@@ -16,7 +17,7 @@
   0
  ],
  "ports": [
-  {"name":"Orbiter cradle","position":[0,4,4],"direction":[0,1,0],"up":[0,0,-1],"stage":1}
+  {"name":"Payload","position":[0,0,-9.7],"direction":[0,0,-1],"up":[0,1,0],"stage":3}
  ],
  "systems": [
   {
@@ -41,6 +42,7 @@
    "length": 38,
    "radius": 8.0,
    "separation_speed": 2.6,
+   "radial_parts": true,
    "engines": [
     {
      "position": [
@@ -107,6 +109,7 @@
     }
    ],
    "gear": [[5.95, 0, 23.0], [-5.95, 0, 23.0], [0, 4, 23.0], [0, -4, 23.0]],
+   "with_next": true,
    "parts": [
     {
      "model": "models/boosterm1.obj",
@@ -127,48 +130,6 @@
    ]
   },
   {
-   "name": "Core stage",
-   "dry_mass": 28000,
-   "propellant": 189500,
-   "z": 0,
-   "length": 28.6,
-   "radius": 4.0,
-   "separation_speed": 1.5,
-   "engines": [
-    {
-     "position": [
-      0,
-      0,
-      20.25
-     ],
-     "direction": [
-      0,
-      0,
-      -1
-     ],
-     "thrust": 1961000,
-     "isp": 455,
-     "isp_sl": 352,
-     "plume": 30,
-     "plume_width": 1.6,
-     "plume_glow": 1.6,
-     "plume_density": 2,
-     "type": "rocket",
-     "fuel": "hydrogen"
-    }
-   ],
-   "parts": [
-    {
-     "model": "models/energiamcore.obj",
-     "offset": [
-      0,
-      0,
-      0
-     ]
-    }
-   ]
-  },
-  {
    "name": "Fairing half",
    "dry_mass": 2500,
    "propellant": 0,
@@ -182,6 +143,7 @@
     -0.2
    ],
    "engines": [],
+   "with_next": true,
    "parts": [
     {
      "model": "models/energiamfair_1.obj",
@@ -207,6 +169,7 @@
     -0.2
    ],
    "engines": [],
+   "with_next": true,
    "parts": [
     {
      "model": "models/energiamfair_2.obj",
@@ -215,6 +178,36 @@
       0,
       -16.65
      ]
+    }
+   ]
+  },
+  {
+   "name": "Core stage",
+   "dry_mass": 28000,
+   "propellant": 189500,
+   "z": 0,
+   "length": 28.6,
+   "radius": 4.0,
+   "separation_speed": 1.5,
+   "engines": [
+    {
+     "position": [0, 0, 20.25],
+     "direction": [0, 0, -1],
+     "thrust": 1961000,
+     "isp": 455,
+     "isp_sl": 352,
+     "plume": 30,
+     "plume_width": 1.6,
+     "plume_glow": 1.6,
+     "plume_density": 2,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    }
+   ],
+   "parts": [
+    {
+     "model": "models/energiamcore.obj",
+     "offset": [0, 0, 0]
     }
    ]
   }

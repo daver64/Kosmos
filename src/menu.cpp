@@ -1323,6 +1323,7 @@ namespace kosmos
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
                                    " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Orbital planning and checking run at 1x; flight allows up to 4x. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
+                                   " Tools > Scenario thumbnail captures the view for the active saved scenario, replacing its previous generated thumbnail; the launcher refreshes automatically.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
                                    " Autopilot > Spacecraft > earth-communications points the active ship's nose at Earth in physics flight, not on rails.\n"
                                    "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"
@@ -2011,11 +2012,15 @@ namespace kosmos
         if (ImGui::MenuItem("Save scenario..."))
         {
             Scenario sc = capture_scenario(sim, "My scenario");
-            dialog.show(FileDialog::Mode::save, "Save scenario", user_folder("scenarios"), "my_scenario.json", [&sim, sc](const std::string &path) mutable {
+            dialog.show(FileDialog::Mode::save, "Save scenario", user_folder("scenarios"), "my_scenario.json", [&sim, &actions, sc](const std::string &path) mutable {
                 sc.name = fs::path(path).stem().string();
                 std::string error;
                 if (save_scenario(path, sc, error))
+                {
+                    if (actions.scenario_saved)
+                        actions.scenario_saved(path);
                     sim.load_user_content();
+                }
                 else
                     std::fprintf(stderr, "kosmos: %s\n", error.c_str());
             });
@@ -2238,6 +2243,8 @@ namespace kosmos
                     ImGui::Separator();
                     if (ImGui::MenuItem("Screenshot") && actions.screenshot)
                         actions.screenshot();
+                    if (ImGui::MenuItem("Scenario thumbnail") && actions.scenario_thumbnail)
+                        actions.scenario_thumbnail();
                     if (actions.toggle_recording && ImGui::MenuItem(actions.recording && actions.recording() ? "Stop recording" : "Start recording video"))
                         actions.toggle_recording();
                     if (ImGui::MenuItem("Reload user scenarios and bases"))

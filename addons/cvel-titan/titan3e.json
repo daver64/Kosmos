@@ -71,6 +71,7 @@
    "length": 27,
    "radius": 4.6,
    "separation_speed": 2.0,
+   "radial_parts": true,
    "engines": [
     {
      "position": [

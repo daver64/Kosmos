@@ -330,6 +330,34 @@ namespace launcher
         return unique;
     }
 
+    ScenarioScan scan_scenario_changes(const fs::path &root, const std::vector<AddonInfo> &addons, unsigned generation)
+    {
+        ScenarioScan scan;
+        scan.generation = generation;
+        scan.scenarios = scan_scenarios(root, addons);
+        for (const ScenarioInfo &scenario : scan.scenarios)
+        {
+            std::error_code ec;
+            const auto time = scenario.thumbnail.empty() ? fs::file_time_type::min() : fs::last_write_time(scenario.thumbnail, ec);
+            const auto checked_time = ec ? fs::file_time_type::min() : time;
+            const auto size = scenario.thumbnail.empty() ? 0 : fs::file_size(scenario.thumbnail, ec);
+            scan.thumbnail_times.emplace_back(scenario.thumbnail, checked_time, ec ? 0 : size);
+        }
+        return scan;
+    }
+
+    bool same_scenario_list(const std::vector<ScenarioInfo> &a, const std::vector<ScenarioInfo> &b)
+    {
+        if (a.size() != b.size())
+            return false;
+        for (std::size_t i = 0; i < a.size(); ++i)
+            if (a[i].id != b[i].id || a[i].name != b[i].name || a[i].description != b[i].description ||
+                a[i].category != b[i].category || a[i].body != b[i].body || a[i].ships != b[i].ships ||
+                a[i].file != b[i].file || a[i].thumbnail != b[i].thumbnail)
+                return false;
+        return true;
+    }
+
     std::vector<PackInfo> builtin_packs(const fs::path &root)
     {
         PackInfo hires;

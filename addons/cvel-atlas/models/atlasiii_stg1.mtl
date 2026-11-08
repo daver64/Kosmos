@@ -1,0 +1,49 @@
+newmtl default
+Kd 0.878 0.878 0.878
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material01_AtlasIIIsust
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/AtlasIIIsust.png
+
+newmtl material02_AtlasIIInumb
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/AtlasIIInumb.png
+
+newmtl material03
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material04_Centaurcover
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Centaurcover.png
+
+newmtl material05
+Kd 0.761 0.000 0.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material06_RD_180
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/RD-180.png
+
+newmtl material07
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl stage02texture
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

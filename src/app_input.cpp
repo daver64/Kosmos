@@ -45,6 +45,10 @@ namespace kosmos::app
             return;
         }
         ship = restarted;
+        active_scenario_path.clear();
+        if (!options.scenario.empty())
+            if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+                active_scenario_path = sc->path;
         eva.active = false;
         arsenal.reset();
         rig.cam_dyn.reset();

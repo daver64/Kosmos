@@ -1403,6 +1403,64 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/centaur-handoff"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Centaur handoff selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || ship->spec().name != "CVEL Energia-M" || sim.ship_count() < 4 ||
+                sim.ship(1)->spec().name != "CVEL Centaur G" || sim.ship(2)->spec().name != "CVEL Fregat" ||
+                sim.ship(3)->spec().name != "Luna E3")
+                return fail("expected Energia-M, Centaur, Fregat and Luna E3");
+            sim.step(0.05);
+            if (sim.nav.dock_links().size() != 3 || ship->body().tanks.size() < 4)
+                return fail("initial payload stack not docked");
+            ship->body().tanks[0].mass = 0.0;
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            if (ship->active_stage() != 3)
+                return fail("Energia-M boosters and fairing did not separate");
+            ship->body().tanks[3].mass = 0.0;
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            ship = sim.active_ship();
+            if (ship != sim.ship(1) || sim.nav.dock_links().size() != 2 || ship->body().tanks.empty())
+                return fail("Centaur was not released with its payload");
+            ship->body().tanks[0].mass = 0.1;
+            sim.props.set_double("/controls/throttle", 1.0);
+            sim.step(0.1);
+            if (ship->body().tanks[0].mass > 1e-6)
+                return fail("Centaur fuel did not run out");
+            if (sim.props.get_bool("/selftest/centaur-handoff-rails"))
+            {
+                sim.props.set_double("/controls/throttle", 0.0);
+                sim.props.set_int("/sim/warp-index", 8);
+                sim.step(0.05);
+                if (!ship->on_rails())
+                    return fail("could not enter time warp before staging");
+            }
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            if (sim.active_ship() != sim.ship(2) || sim.nav.dock_links().size() != 1 ||
+                !sim.nav.docked(2) || !sim.nav.docked(3))
+                return fail("staging did not hand control to Fregat with Luna attached");
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 100; ++i)
+                sim.step(0.05);
+            for (int i = 0; i < 4; ++i)
+            {
+                const sl::FlightBody &body = sim.ship(i)->body();
+                for (int axis = 0; axis < 3; ++axis)
+                    if (!std::isfinite(body.position[axis]) || !std::isfinite(body.velocity[axis]))
+                        return fail("non-finite vessel state after handoff");
+            }
+            if (sim.ship(2)->body().tanks[0].mass >= sim.ship(2)->spec().stages[0].propellant)
+                return fail("Fregat engine did not burn");
+            std::puts("Centaur handoff selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/orbital-base-landing"))
         {
             sim.props.set_bool("/autopilot/land/targeted", true);

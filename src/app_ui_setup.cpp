@@ -370,6 +370,17 @@ namespace kosmos::app
         menu_actions.show_panel = [this](int index) { menu_show_panel(index); };
         menu_actions.quit = [&]() { running = false; };
         menu_actions.screenshot = [&]() { screenshot_requested = true; screenshot_due_ms = sl::time_ms() + 300; };
+        menu_actions.scenario_thumbnail = [&]() {
+            if (flight_replay.playing || active_scenario_path.empty())
+            {
+                sim.log("No saved scenario is active; open or launch a scenario first.");
+                return;
+            }
+            thumbnail_scenario_path = active_scenario_path;
+            thumbnail_requested = true;
+            screenshot_due_ms = sl::time_ms() + 300;
+        };
+        menu_actions.scenario_saved = [this](const std::string &path) { active_scenario_path = path; };
     return keep_going;
     }
 
@@ -466,6 +477,8 @@ namespace kosmos::app
             sl::set_fullscreen(true);
         if (Ship *flown = apply_scenario(sim, sc, terrain_set))
         {
+            if (!flight_replay.applying)
+                active_scenario_path = sc.path;
             link_state.link_scenario = sc.id;
             ship = flown;
             rig.cam_distance = ship->spec().camera_distance;
@@ -500,6 +513,10 @@ namespace kosmos::app
             return;
         }
         ship = restarted;
+        active_scenario_path.clear();
+        if (!options.scenario.empty())
+            if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
+                active_scenario_path = sc->path;
         eva.active = false;
         arsenal.reset();
         ship_weapons.reset();

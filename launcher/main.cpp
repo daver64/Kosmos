@@ -24,8 +24,10 @@
 #include <cstdio>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <map>
 #include <memory>
+#include <set>
 
 namespace
 {
@@ -291,9 +293,12 @@ namespace
             BuildLogs();
             CreateStatusBar();
             timer_.SetOwner(this);
-            Bind(wxEVT_TIMER, [this](wxTimerEvent &) { if (run_) run_->Drain(); });
+            Bind(wxEVT_TIMER, [this](wxTimerEvent &) { if (run_) run_->Drain(); }, timer_.GetId());
+            scenario_timer_.SetOwner(this);
+            Bind(wxEVT_TIMER, [this](wxTimerEvent &) { CheckScenarioChanges(); }, scenario_timer_.GetId());
             Bind(wxEVT_CLOSE_WINDOW, &Frame::OnClose, this);
             Rescan();
+            scenario_timer_.Start(2000);
             RefreshPreview();
             if (find_kosmos(root_).empty())
                 SetStatusText("Kosmos was not found next to the launcher.");
@@ -419,7 +424,13 @@ namespace
             const ScenarioInfo *s = SelectedScenario();
             launch_->Enable(s != nullptr && !run_);
             if (!s)
+            {
+                thumb_->SetBitmap(load_thumbnail({}, 480, 270));
+                for (wxString &text : scenario_text_)
+                    text.clear();
+                WrapScenarioText();
                 return;
+            }
             thumb_->SetBitmap(load_thumbnail(s->thumbnail, 480, 270));
             scenario_text_[0] = W(s->name);
             wxString ships;
@@ -433,6 +444,28 @@ namespace
 
         void FillTree()
         {
+            std::string selected = selected_scenario_for_refresh_;
+            if (selected.empty())
+            {
+                if (const ScenarioInfo *current = SelectedScenario())
+                    selected = current->id;
+            }
+            std::set<std::string> expanded;
+            std::function<void(const wxTreeItemId &, const std::string &)> remember =
+                [&](const wxTreeItemId &item, const std::string &path) {
+                    wxTreeItemIdValue cookie;
+                    for (wxTreeItemId child = tree_->GetFirstChild(item, cookie); child.IsOk(); child = tree_->GetNextChild(item, cookie))
+                    {
+                        if (tree_->GetItemData(child))
+                            continue;
+                        const std::string name = path.empty() ? U(tree_->GetItemText(child)) : path + "/" + U(tree_->GetItemText(child));
+                        if (tree_->IsExpanded(child))
+                            expanded.insert(name);
+                        remember(child, name);
+                    }
+                };
+            if (tree_->GetRootItem().IsOk())
+                remember(tree_->GetRootItem(), "");
             tree_->DeleteAllItems();
             const wxTreeItemId root = tree_->AddRoot("");
             std::map<std::string, wxTreeItemId> groups; // keyed by folder path, so nested folders become nested nodes
@@ -459,9 +492,12 @@ namespace
             {
                 const wxTreeItemId parent = group_for(s.category.empty() ? "Standard" : s.category);
                 const wxTreeItemId item = tree_->AppendItem(parent, W(s.name), -1, -1, new IdData(s.id));
-                if (s.id == profile_.last_scenario)
+                if (s.id == (selected.empty() ? profile_.last_scenario : selected))
                     select = item;
             }
+            for (const auto &group : groups)
+                if (expanded.count(group.first))
+                    tree_->Expand(group.second);
             if (select.IsOk())
             {
                 tree_->EnsureVisible(select);
@@ -470,6 +506,7 @@ namespace
             else if (!groups.empty())
                 tree_->Expand(groups.begin()->second);
             resume_->Enable(!profile_.last_scenario.empty());
+            ShowScenario();
         }
 
         // ---- Addons --------------------------------------------------------------------------------------------
@@ -502,6 +539,7 @@ namespace
                                   const int i = e.GetInt();
                                   addons_[i].enabled = addon_list_->IsChecked(i);
                                   save_disabled_addons(addons_);
+                                  ++scenario_generation_;
                                   scenarios_ = scan_scenarios(root_, addons_);
                                   FillTree();
                                   SetStatusText("Addon changes apply the next time Kosmos starts.");
@@ -1476,11 +1514,57 @@ namespace
             }
             if (run_)
                 run_->Detach(); // Kosmos keeps running; the launcher just stops watching it
+            scenario_timer_.Stop();
             e.Skip();
+        }
+
+        void CheckScenarioChanges()
+        {
+            using namespace std::chrono_literals;
+            if (scenario_scan_.valid())
+            {
+                if (scenario_scan_.wait_for(0s) != std::future_status::ready)
+                    return;
+                ScenarioScan scan;
+                try
+                {
+                    scan = scenario_scan_.get();
+                }
+                catch (const std::exception &e)
+                {
+                    SetStatusText(W(std::string("Scenario refresh failed: ") + e.what()));
+                    return;
+                }
+                if (scan.generation == scenario_generation_)
+                {
+                    const bool list_changed = !same_scenario_list(scenarios_, scan.scenarios);
+                    const bool images_changed = scan.thumbnail_times != thumbnail_times_;
+                    if (list_changed)
+                    {
+                        std::string selected;
+                        if (const ScenarioInfo *s = SelectedScenario())
+                            selected = s->id;
+                        scenarios_ = std::move(scan.scenarios);
+                        selected_scenario_for_refresh_ = selected;
+                        FillTree();
+                        selected_scenario_for_refresh_.clear();
+                    }
+                    else if (images_changed)
+                        ShowScenario();
+                    thumbnail_times_ = std::move(scan.thumbnail_times);
+                }
+            }
+            const fs::path root = root_;
+            const auto addons = addons_;
+            const unsigned generation = scenario_generation_;
+            scenario_scan_ = std::async(std::launch::async, [root, addons, generation]() {
+                return scan_scenario_changes(root, addons, generation);
+            });
         }
 
         void Rescan()
         {
+            ++scenario_generation_;
             addons_ = scan_addons(root_);
             scenarios_ = scan_scenarios(root_, addons_);
             addon_list_->Clear();
@@ -1510,6 +1594,11 @@ namespace
         Run *run_ = nullptr;
         wxDateTime started_;
         wxTimer timer_;
+        wxTimer scenario_timer_;
+        std::future<ScenarioScan> scenario_scan_;
+        unsigned scenario_generation_ = 0;
+        std::vector<std::tuple<fs::path, fs::file_time_type, std::uintmax_t>> thumbnail_times_;
+        std::string selected_scenario_for_refresh_;
 
         wxListbook *book_ = nullptr;
         wxTreeCtrl *tree_ = nullptr;

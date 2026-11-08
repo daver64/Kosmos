@@ -412,6 +412,7 @@ namespace kosmos
             with_next = spec_.stages[static_cast<std::size_t>(active_stage_)].with_next;
             drop_stage(active_stage_);
             ++active_stage_;
+            refresh_mass_properties();
         } while (with_next && active_stage_ < stage_count() - 1);
         stage_time_ = universe_.time();
         recentre();

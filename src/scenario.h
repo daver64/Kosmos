@@ -62,7 +62,7 @@ namespace kosmos
      */
     struct Scenario
     {
-        std::string id, name, description, path;
+        std::string id, name, description, path, thumbnail;
         /** Menu folder, from the sub-folders the file sits in ("Saturn", "Saturn/Moons"); empty at the top level. Not stored in the file. */
         std::string group;
         int active = 0;

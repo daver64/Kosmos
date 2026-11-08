@@ -23,6 +23,8 @@ namespace kosmos
         std::function<void()> restart;
         std::function<void()> quit;
         std::function<void()> screenshot;
+        std::function<void()> scenario_thumbnail;
+        std::function<void(const std::string &)> scenario_saved;
         std::function<void()> toggle_recording;
         std::function<bool()> recording;
         std::function<void(const std::string &)> start_flight_recording;
