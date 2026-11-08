@@ -37,7 +37,7 @@ namespace launcher
         {
             if (entry->IsDir())
                 continue;
-            const std::string name(entry->GetName().ToUTF8());
+            const std::string name(entry->GetName(wxPATH_UNIX).ToUTF8());
             if (name.rfind("Textures/", 0) != 0)
             {
                 error = "Unexpected file in minor-body archive: " + name;

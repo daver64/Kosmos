@@ -33,9 +33,24 @@ int main(int argc, char **argv)
         assert(archive.Close());
     }
     std::string error;
+    {
+        wxFileInputStream input(wxString::FromUTF8(zip.u8string().c_str()));
+        wxZipInputStream archive(input);
+        std::unique_ptr<wxZipEntry> entry{archive.GetNextEntry()};
+        assert(entry);
+        assert(entry->GetName(wxPATH_UNIX) == "Textures/Enceladus/Archive/Surf.tree");
+#ifdef _WIN32
+        assert(entry->GetName() == "Textures\\Enceladus\\Archive\\Surf.tree");
+#endif
+    }
     const fs::path target = root / "MinorBodies";
     assert(launcher::extract_minor_bodies(zip, target, error));
     assert(fs::exists(target / "Io/Archive/Elev.tree"));
+    {
+        std::ifstream contents(target / "Io/Archive/Elev.tree", std::ios::binary);
+        const std::string value((std::istreambuf_iterator<char>(contents)), std::istreambuf_iterator<char>());
+        assert(value == "Io/Archive/Elev.tree");
+    }
     assert(!launcher::extract_minor_bodies(zip, target, error));
     assert(fs::exists(target / "Io/Archive/Elev.tree"));
     {
@@ -47,6 +62,19 @@ int main(int argc, char **argv)
     }
     assert(!launcher::extract_minor_bodies(zip, root / "bad", error));
     assert(!fs::exists(root / "bad") && !fs::exists(root / "escape"));
+    assert(!fs::exists(root / "bad.installing"));
+    {
+        wxFileOutputStream output(wxString::FromUTF8(zip.u8string().c_str()));
+        wxZipOutputStream archive(output);
+        assert(archive.PutNextEntry("Textures/Io/Archive/Surf.tree"));
+        archive.Write("one", 3);
+        assert(archive.PutNextEntry("Textures/Io/Archive/Surf.tree"));
+        archive.Write("two", 3);
+        assert(archive.Close());
+    }
+    assert(!launcher::extract_minor_bodies(zip, root / "duplicate", error));
+    assert(error.find("duplicate") != std::string::npos);
+    assert(!fs::exists(root / "duplicate") && !fs::exists(root / "duplicate.installing"));
     if (argc > 1)
     {
         assert(launcher::extract_minor_bodies(fs::u8path(argv[1]), root / "real", error));
