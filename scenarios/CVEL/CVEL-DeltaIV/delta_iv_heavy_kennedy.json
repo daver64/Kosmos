@@ -1,0 +1,40 @@
+{
+  "active": 0,
+  "date": "2014-12-05 16:05:00",
+  "description": "CVEL Delta IV Heavy on the pad at Kennedy Space Center, with a Centaur G upper stage and its probe under the payload fairing. The date, 18 May 2003, puts the Earth-Mars transfer window a few days after you reach orbit.",
+  "name": "CVEL: Delta IV Heavy, Kennedy",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Delta IV Heavy",
+      "surface": {
+        "base": "kennedy"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 0
+      },
+      "ship": "CVEL Centaur G",
+      "surface": {
+        "base": "kennedy"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 1
+      },
+      "ship": "Luna E3",
+      "surface": {
+        "base": "kennedy"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/delta_iv_heavy_kennedy-1794131454043807089-0.png"
+}

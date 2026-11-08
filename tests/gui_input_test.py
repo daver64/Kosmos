@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory() as home:
     result = subprocess.run(
         [str(BINARY), "--ship", "CVEL Deltaglider (Nuclear)", "--orbit-body", "Mars",
          "--orbit-alt", "20000", "--selftest-ui-windows", "--selftest", "1"],
-        cwd=ROOT, capture_output=True, text=True, timeout=300, env=env, check=True,
+        cwd=ROOT, capture_output=True, text=True, timeout=300, env=env,
     )
-    assert "UI windows selftest: 0 failure(s)" in result.stdout, result.stdout + result.stderr
+    assert result.returncode == 0 and "UI windows selftest: 0 failure(s)" in result.stdout, result.stdout + result.stderr
     print("GUI input test passed")

@@ -1312,6 +1312,7 @@ namespace kosmos
 "  Probes with cameras, radar or a spectrometer have an INST MFD: switch the instrument LOAD on in Systems, point it with AZ/EL, SHOOT saves a picture or spectrum, GALLERY browses them\n"
 "Planets\n"
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
+                                   "  Installed Orbiter Mars elevation shapes the terrain in low and medium orbit as well as near the ground.\n"
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"
@@ -2194,11 +2195,9 @@ namespace kosmos
         const bool mouse_known = io.MousePos.x > -1.0e6f;
         const bool at_top = mouse_known && io.MousePos.y >= 0.0f && io.MousePos.y <= 2.0f;
         const bool near_bar = mouse_known && io.MousePos.y >= 0.0f && io.MousePos.y <= height + 8.0f;
-        const bool popups = ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId);
-        const bool want = keep_visible || popups || at_top || (slide_ > 0.01f && near_bar);
+        const bool want = keep_visible || menu_open_ || at_top || (slide_ > 0.01f && near_bar);
         const float step = io.DeltaTime * 7.0f;
         slide_ = want ? std::min(1.0f, slide_ + step) : std::max(0.0f, slide_ - step);
-        menu_open_ = popups;
         if (close_menus_)
         {
             ImGui::ClosePopupToLevel(0, true);
@@ -2207,6 +2206,7 @@ namespace kosmos
         if (slide_ <= 0.001f)
             return;
 
+        menu_open_ = false;
         const float eased = 1.0f - (1.0f - slide_) * (1.0f - slide_);
         ImGui::SetNextWindowPos(ImVec2(0.0f, -height * (1.0f - eased)));
         ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, height));
@@ -2214,31 +2214,36 @@ namespace kosmos
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings |
-                                       ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoBringToFrontOnFocus;
+                                       ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoFocusOnAppearing;
         if (ImGui::Begin("##kosmos_menubar", nullptr, flags))
         {
             if (ImGui::BeginMenuBar())
             {
                 if (ImGui::BeginMenu("File"))
                 {
+                    menu_open_ = true;
                     menu_file(sim, actions);
                 }
                 if (ImGui::BeginMenu("Edit"))
                 {
+                    menu_open_ = true;
                     menu_edit(sim, windows, actions);
                 }
                 if (ImGui::BeginMenu("View"))
                 {
+                    menu_open_ = true;
                     menu_view(sim, windows, actions);
                 }
                 if (ImGui::BeginMenu("Autopilot"))
                 {
+                    menu_open_ = true;
                     ImGui::MenuItem("Aircraft...", nullptr, &aircraft_autopilot_open);
                     ImGui::MenuItem("Spacecraft...", nullptr, &spacecraft_autopilot_open);
                     ImGui::EndMenu();
                 }
                 if (ImGui::BeginMenu("Tools"))
                 {
+                    menu_open_ = true;
                     ImGui::MenuItem("Scenario editor", nullptr, &scenario_editor_open);
                     ImGui::MenuItem("Base editor", nullptr, &base_editor_open);
                     ImGui::Separator();
@@ -2254,6 +2259,7 @@ namespace kosmos
                 }
                 if (ImGui::BeginMenu("Help"))
                 {
+                    menu_open_ = true;
                     ImGui::MenuItem("Controls", nullptr, &help_open);
                     ImGui::MenuItem("About Kosmos", nullptr, &about_open);
                     ImGui::EndMenu();

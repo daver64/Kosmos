@@ -1,15 +1,16 @@
 {
- "name": "CVEL: Ares Spider, Gale Crater",
- "description": "The Ares Spider Mars lander on the pad at Gale Crater base, with the crater and its central mound around it.",
- "active": 0,
- "ships": [
-  {
-   "ship": "Ares Spider",
-   "body": "Mars",
-   "surface": {
-    "base": "gale"
-   }
-  }
- ],
- "date": "2024-01-01 10:00:00"
+  "active": 0,
+  "date": "2024-01-01 10:00:00",
+  "description": "The Ares Spider Mars lander on the pad at Gale Crater base, with the crater and its central mound around it.",
+  "name": "CVEL: Ares Spider, Gale Crater",
+  "ships": [
+    {
+      "body": "Mars",
+      "ship": "Ares Spider",
+      "surface": {
+        "base": "gale"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/ares_spider_gale_crater-1794132516329210966-0.png"
 }

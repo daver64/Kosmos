@@ -313,6 +313,9 @@ The launcher can also scan a selected Orbiter installation or `Textures`
 folder and use its installed `.tree` archives directly, without copying them
 into the Kosmos installation. Supported surface and elevation trees are read
 when building planetary terrain.
+With Mars elevation installed, its terrain mesh remains visible through low and
+medium orbits (up to approximately 1,596 km altitude); farther away it uses
+the smooth orbital sphere.
 The launcher also offers individual Orbiter high-resolution Earth, Moon, Mars
 (legacy), Mercury and Titan trees, plus the minor-bodies pack, from the Orbiter Forum's mirror, verified
 against SHA-256 values derived from copies matching its published checksums.
@@ -388,6 +391,12 @@ into Kosmos's nose -Z frame, so it can be used as is: a part of `{"model": "mode
 with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. Orbiter keeps masses, thrust and fuel in C++
 (often in headers that are not part of the add-on download), so `ship.json` files for imported add-ons are written by hand;
 `addons/cvel-ares` is the worked example.
+
+The CVEL Star 48B and Star 37FM are available as separate upper stages, with
+fictional stacked-payload scenarios in Earth orbit and on the Delta IV Heavy.
+Their masses, thrust and specific impulse follow the original CVEL addon.
+Unlike real solid motors, Kosmos currently permits throttling and restarting
+them; attitude control also substitutes for spin stabilisation.
 
 ## MFDs (multi-function displays)
 

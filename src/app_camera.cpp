@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "terrain_visibility.h"
 
 namespace kosmos::app
 {
@@ -1000,9 +1001,8 @@ namespace kosmos::app
             BodyTerrain &bt = *body_terrains[k];
             const kosmos::Body &b = universe.bodies[static_cast<std::size_t>(bt.body)];
             bt.eye_rel = eye_world - universe.position(bt.body);
-            const double threshold = 300.0e3 * b.radius / 6.371e6;
             const bool has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), bt.body) != vis.surface_textured.end();
-            bt.active = glm::length(bt.eye_rel) - b.radius < (has_image ? threshold : 10.0 * threshold);
+            bt.active = terrain_visible(glm::length(bt.eye_rel) - b.radius, b.radius, has_image, bt.orbital_relief);
             if (bt.active)
             {
                 sl::TerrainView body_view = view;

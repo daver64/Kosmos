@@ -1,0 +1,22 @@
+newmtl material04_48rings
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/48rings.png
+
+newmtl material08
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material12_ringssilver
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/ringssilver.png
+
+newmtl material07
+Kd 0.208 0.208 0.208
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

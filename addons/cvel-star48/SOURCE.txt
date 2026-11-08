@@ -1,0 +1,9 @@
+CVEL Star48B and Star37FM, version 0.1, by Ervins Reinverts (2004).
+Meshes by Alex Hohlov (STS-107), described by the original addon as used
+with permission. The converted models and textures come from that addon.
+The addon, including its meshes, is licensed under the LGPL, as confirmed
+by the Kosmos project owner.
+
+The mass, thrust and specific impulse values follow the original addon.
+The Kosmos implementation is a separate configuration, not the original
+Orbiter plugin. The original plugin source identifies its licence as LGPL.

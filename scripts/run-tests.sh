@@ -21,7 +21,7 @@ python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/ares_legs_test.py"
 python3 "$SRC/tests/proton_exhaust_test.py"
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test orbiter_tree_lookup_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 cd "$OUT"
 export HOME=$(mktemp -d)
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -29,6 +29,7 @@ trap 'rm -rf "$HOME"' EXIT
 
 python3 "$SRC/tests/scenario_start_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/rover_rollover_test.py" "$PWD/kosmos"
+python3 "$SRC/tests/star48_stack_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/centaur_handoff_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/scenario_save_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/gravity_j2_test.py" "$PWD/kosmos"
@@ -49,7 +50,7 @@ echo "== finite landing plane burns (Ares on Mars and Moon)"
 ./kosmos --ship "Ares Spider" --orbit-body Moon --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=tranquility --set /selftest/landing-plane-burn=true
 ./kosmos --ship "CVEL Shuttle-A" --orbit-body Earth --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=kourou --set /selftest/landing-plane-burn=true
 
-for t in systems_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
+for t in systems_test orbiter_tree_lookup_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
     echo "== $t"
     ./$t
 done

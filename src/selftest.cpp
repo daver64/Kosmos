@@ -12,6 +12,7 @@
 #include "ship_weapons.h"
 #include "terrain_warning.h"
 
+#include <imgui.h>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -594,7 +595,7 @@ namespace kosmos
         return failures ? 1 : 0;
     }
 
-    static int run_ui_windows_test()
+    static int run_ui_windows_test(Sim &sim)
     {
         int failures = 0;
         const auto check = [&](bool ok, const char *what) {
@@ -627,6 +628,118 @@ namespace kosmos
                   !app::gui_input_release_event(sl::Event::Type::key_down) &&
                   !app::gui_input_release_event(sl::Event::Type::mouse_wheel),
               "transition does not replay clicks or keystrokes");
+
+        ImGui::CreateContext();
+        ImGuiIO &io = ImGui::GetIO();
+        io.IniFilename = nullptr;
+        io.DisplaySize = ImVec2(800, 600);
+        io.DeltaTime = 1.0f / 60.0f;
+        unsigned char *pixels;
+        int width, height;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+        MenuBar auto_bar;
+        auto_bar.keep_visible = false;
+        std::vector<MenuWindow> menu_windows;
+        MenuActions actions;
+        ImVec2 combo_pos, choice_pos;
+        bool choice_shown = false;
+        int selected = 0;
+        const auto frame = [&]() {
+            ImGui::NewFrame();
+            ImGui::SetNextWindowPos(ImVec2(100, 100), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(300, 180), ImGuiCond_Always);
+            ImGui::Begin("Dropdown test");
+            if (ImGui::BeginCombo("Choice", selected == 0 ? "First" : "Second"))
+            {
+                if (ImGui::Selectable("First", selected == 0))
+                    selected = 0;
+                if (ImGui::Selectable("Second", selected == 1))
+                    selected = 1;
+                const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+                choice_pos = ImVec2((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+                choice_shown = true;
+                ImGui::EndCombo();
+            }
+            const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+            combo_pos = ImVec2((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f);
+            ImGui::End();
+            auto_bar.draw(sim, menu_windows, actions);
+            ImGui::Render();
+        };
+        io.AddMousePosEvent(200, 200);
+        frame();
+        io.AddMousePosEvent(combo_pos.x, combo_pos.y);
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        check(choice_shown, "dropdown opens with autohide enabled");
+        choice_shown = false;
+        frame();
+        check(choice_shown && !auto_bar.visible(), "dropdown stays open without revealing the menu bar");
+        io.AddMousePosEvent(5, 0);
+        for (int i = 0; i < 15; ++i)
+        {
+            choice_shown = false;
+            frame();
+        }
+        check(choice_shown && auto_bar.visible(), "revealing the menu bar does not steal focus from a dropdown");
+        io.AddMousePosEvent(choice_pos.x, choice_pos.y);
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        check(selected == 1, "dropdown selection works with autohide enabled");
+
+        io.AddMousePosEvent(400, 400);
+        for (int i = 0; i < 15; ++i)
+            frame();
+        check(!auto_bar.visible(), "menu bar hides when the pointer leaves");
+        io.AddMousePosEvent(5, 0);
+        for (int i = 0; i < 15; ++i)
+            frame();
+        io.AddMousePosEvent(22, 10);
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        check(ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId), "main menu opens with autohide enabled");
+        io.AddMousePosEvent(50, 80);
+        for (int i = 0; i < 15; ++i)
+            frame();
+        check(auto_bar.visible() && ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId),
+              "main menu remains visible while its popup is open");
+        check(auto_bar.dismiss(menu_windows), "escape dismisses the main menu");
+        frame();
+        check(!ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId), "main menu popup closes on escape");
+        for (int i = 0; i < 15; ++i)
+            frame();
+        check(!auto_bar.visible(), "menu bar hides after its popup closes");
+
+        auto_bar.keep_visible = true;
+        selected = 0;
+        for (int i = 0; i < 15; ++i)
+            frame();
+        io.AddMousePosEvent(combo_pos.x, combo_pos.y);
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        choice_shown = false;
+        frame();
+        check(choice_shown && auto_bar.visible(), "dropdown stays open with the menu pinned");
+        io.AddMousePosEvent(choice_pos.x, choice_pos.y);
+        frame();
+        io.AddMouseButtonEvent(0, true);
+        frame();
+        io.AddMouseButtonEvent(0, false);
+        frame();
+        check(selected == 1, "dropdown selection works with the menu pinned");
+        ImGui::DestroyContext();
         std::printf("UI windows selftest: %d failure(s)\n", failures);
         return failures ? 1 : 0;
     }
@@ -1403,6 +1516,66 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/star48-stack"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Star 48 stack selftest: %s\n", message);
+                return 1;
+            };
+            const bool delta = ship && ship->spec().name == "CVEL Delta IV Heavy";
+            const int first = delta ? 1 : 0;
+            if (!ship || sim.ship_count() < first + 3 ||
+                sim.ship(first)->spec().name != "CVEL Star 48B" ||
+                sim.ship(first + 1)->spec().name != "CVEL Star 37FM" ||
+                sim.ship(first + 2)->spec().name != "Luna E3")
+                return fail("expected Star 48B, Star 37FM and Luna E3 stack");
+            sim.step(0.05);
+            if (sim.nav.dock_links().size() != static_cast<std::size_t>(first + 2))
+                return fail("stack did not dock");
+            for (const auto &link : sim.nav.dock_links())
+            {
+                sl::dvec3 position_a, direction_a, up_a, position_b, direction_b, up_b;
+                sim.ship(link[0])->port_world(link[1], position_a, direction_a, up_a);
+                sim.ship(link[2])->port_world(link[3], position_b, direction_b, up_b);
+                if (glm::length(position_a - position_b) > 0.1 || glm::dot(direction_a, direction_b) > -0.99)
+                    return fail("stack ports are misaligned");
+            }
+            if (delta)
+            {
+                for (int i = 0; i < 3; ++i)
+                {
+                    sim.props.set_bool("/controls/stage", true);
+                    sim.step(0.05);
+                }
+                if (ship->active_stage() != 4)
+                    return fail("Delta did not separate boosters, core and fairing");
+                sim.props.set_bool("/controls/stage", true);
+                sim.step(0.05);
+                if (sim.active_ship() != sim.ship(first))
+                    return fail("Delta did not release Star 48B");
+            }
+            for (int i = first; i < first + 2; ++i)
+            {
+                ship = sim.active_ship();
+                if (ship != sim.ship(i) || ship->body().tanks.empty())
+                    return fail("wrong active stage");
+                const double fuel = ship->body().tanks[0].mass;
+                sim.props.set_double("/controls/throttle", 1.0);
+                for (int step = 0; step < 20; ++step)
+                    sim.step(0.05);
+                sim.props.set_double("/controls/throttle", 0.0);
+                if (ship->body().tanks[0].mass >= fuel || ship->telemetry().thrust <= 0.0)
+                    return fail("upper stage did not burn");
+                sim.props.set_bool("/controls/stage", true);
+                sim.step(0.05);
+                if (sim.active_ship() != sim.ship(i + 1))
+                    return fail("upper stage did not release payload");
+            }
+            if (!sim.nav.dock_links().empty())
+                return fail("payloads remain docked after staging");
+            std::puts("Star 48 stack selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/rover-rollover"))
         {
             const auto fail = [](const char *message) {
@@ -2661,7 +2834,7 @@ namespace kosmos
         if (options.orbital_sas)
             return run_orbital_sas_test(sim, ship);
         if (options.ui_windows)
-            return run_ui_windows_test();
+            return run_ui_windows_test(sim);
         if (options.vessel_ascent)
             return run_vessel_ascent_test(sim);
         if (options.weapons)

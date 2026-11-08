@@ -2,6 +2,7 @@
 #include "loading_screen.h"
 #include "surface_textures.h"
 #include "terrain_mesh.h"
+#include "terrain_visibility.h"
 
 #include <algorithm>
 #include <cctype>
@@ -259,14 +260,20 @@ namespace kosmos::app
         }
 
         std::shared_ptr<sl::TerrainSource> source;
+        bool has_elevation = false;
         const std::string elevation = orbiter_layer("Elev");
         if (!elevation.empty())
         {
             // Earth's elevation file includes the sea floor; the sea itself stays flat at zero.
-            auto data = std::make_shared<kosmos::OrbiterElevation>(elevation, frame, b.radius, home ? 0.0 : -12000.0, home ? 9000.0 : 12000.0,
+            const double max_height = orbiter_max_height(home, sim.universe.name == "Sol" && b.name == "Mars");
+            auto data = std::make_shared<kosmos::OrbiterElevation>(elevation, frame, b.radius, home ? 0.0 : -12000.0, max_height,
                                                                    home ? 0.0 : std::numeric_limits<double>::quiet_NaN());
             if (data->ok())
+            {
                 source = data;
+                has_elevation = true;
+                std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), elevation.c_str());
+            }
             else
                 std::fprintf(stderr, "[kosmos] %s elevation: %s\n", b.name.c_str(), data->error().c_str());
         }
@@ -338,6 +345,9 @@ namespace kosmos::app
         level_ground_under_bases(sim, b, id, source);
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
+        result->orbital_relief = has_elevation && sim.universe.name == "Sol" && b.name == "Mars";
+        if (result->orbital_relief)
+            std::fprintf(stderr, "[kosmos] Mars orbital terrain relief: on\n");
         result->terrain = std::make_unique<sl::Terrain>(config, source);
         result->frame = frame;
         result->clutter_zones = kosmos::clutter_zones(sim.bases, sim.universe, id, b.radius);

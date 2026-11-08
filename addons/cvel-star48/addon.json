@@ -1,0 +1,6 @@
+{
+  "id": "cvel-star48",
+  "name": "CVEL Star 48B and Star 37FM",
+  "version": "0.1",
+  "ships": ["star48b.json", "star37fm.json"]
+}

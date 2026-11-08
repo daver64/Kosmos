@@ -1,27 +1,28 @@
 {
- "name": "CVEL: Titan IVB, Vandenberg",
- "description": "CVEL Titan IVB on the pad at Vandenberg with a Luna E3 probe as payload. Press P for the launcher autopilot.",
- "date": "1999-04-09 18:00:00",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Titan IVB",
-   "body": "Earth",
-   "surface": {
-    "base": "vandenberg"
-   }
-  },
-  {
-   "ship": "Luna E3",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 0,
-    "own_port": 0
-   },
-   "surface": {
-    "base": "vandenberg"
-   }
-  }
- ]
+  "active": 0,
+  "date": "1999-04-09 18:00:00",
+  "description": "CVEL Titan IVB on the pad at Vandenberg with a Luna E3 probe as payload. Press P for the launcher autopilot.",
+  "name": "CVEL: Titan IVB, Vandenberg",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Titan IVB",
+      "surface": {
+        "base": "vandenberg"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 0
+      },
+      "ship": "Luna E3",
+      "surface": {
+        "base": "vandenberg"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/titan4b_vandenberg-1794117229040163547-0.png"
 }

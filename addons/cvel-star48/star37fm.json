@@ -1,0 +1,32 @@
+{
+  "name": "CVEL Star 37FM",
+  "class": "launcher",
+  "description": "CVEL Star 37FM solid upper stage. The original addon uses attitude control in place of spin stabilisation; Kosmos also permits throttle control and restart, unlike a real solid motor.",
+  "payload_bays": [
+    {"name": "Payload adapter", "shape": "cylinder", "radius": 1.8, "length": 5, "port": "Payload"}
+  ],
+  "torque_accel": 0.3,
+  "max_rate": 0.4,
+  "rcs_thrust": 0,
+  "drag_area": 1,
+  "camera_distance": 12,
+  "ports": [
+    {"name": "Aft", "position": [0, 0, 0.877], "direction": [0, 0, 1], "up": [0, 1, 0]},
+    {"name": "Payload", "position": [0, 0, -0.877], "direction": [0, 0, -1], "up": [0, 1, 0]}
+  ],
+  "stages": [
+    {
+      "name": "Star 37FM",
+      "dry_mass": 81,
+      "propellant": 1066,
+      "z": 0,
+      "length": 1.754,
+      "radius": 0.511,
+      "engines": [
+        {"position": [0, 0, 0.8], "direction": [0, 0, -1], "thrust": 47900, "isp": 273, "isp_sl": 203,
+         "type": "solid", "fuel": "solid", "plume": 5, "plume_width": 0.2, "plume_density": 1}
+      ],
+      "parts": [{"model": "models/star37fm.obj"}]
+    }
+  ]
+}

@@ -32,6 +32,7 @@ extern bool detail_disabled;
         int body = -1;
         std::unique_ptr<sl::Terrain> terrain;
         bool active = false;
+        bool orbital_relief = false;
         sl::dvec3 eye_rel{0.0};
         // Trees, houses, rocks and outposts scattered over the ground; declared after the terrain so it is freed first.
         kosmos::SurfaceFrame frame;
