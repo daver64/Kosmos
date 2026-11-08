@@ -6,7 +6,7 @@ Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.c
 
 Kosmos began around twenty years ago as a personal project. It is now ready for wider testing.
 
-**[Download Kosmos](https://salyut.ddns.net/kosmos/download.html) · [Website](https://salyut.ddns.net/kosmos/index.html) · [User manual](https://salyut.ddns.net/kosmos/manual.html) · [Modding guide](https://salyut.ddns.net/kosmos/modding.html) · [SDK](https://salyut.ddns.net/kosmos/sdk.html)**
+**[Download Kosmos](https://github.com/daver64/Kosmos/releases/latest) · [Website](https://salyut.ddns.net/kosmos/index.html) · [User manual](https://salyut.ddns.net/kosmos/manual.html) · [Modding guide](https://salyut.ddns.net/kosmos/modding.html) · [SDK](https://salyut.ddns.net/kosmos/sdk.html)**
 
 | Dragonfly and Deltaglider | Apollo 11 launch |
 | :---: | :---: |
@@ -22,7 +22,7 @@ Until now, Kosmos has been tested mainly by its developers. We would welcome a w
 
 You **do not need to be a programmer**. Useful feedback includes installation problems, crashes, unexpected flight behaviour, confusing controls, poor performance and unclear documentation. If you enjoy creating spacecraft, scenarios, instruments or external tools, the modding and SDK facilities are also available to try.
 
-To get started, download a packaged build from the [download page](https://salyut.ddns.net/kosmos/download.html), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](https://salyut.ddns.net/kosmos/manual.html) explains the controls and systems.
+To get started, download a packaged build from the [latest GitHub release](https://github.com/daver64/Kosmos/releases/latest), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](https://salyut.ddns.net/kosmos/manual.html) explains the controls and systems.
 
 If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher also has a **Report this log** option that lets you preview a sanitised log before submitting it.
 

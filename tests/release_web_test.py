@@ -22,7 +22,8 @@ class ReleaseWebTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             env = dict(os.environ, WEB_ROOT=temp)
             for command in (["sh", str(ROOT / "scripts/publish-web.sh"), "archive.tar.gz"],
-                            ["sh", str(ROOT / "scripts/build-sdk.sh"), "--publish"]):
+                            ["sh", str(ROOT / "scripts/build-sdk.sh"), "--publish"],
+                            ["sh", str(ROOT / "scripts/make-packs-json.sh")]):
                 result = subprocess.run(command, env=env, capture_output=True, text=True)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("GitHub", result.stderr)
