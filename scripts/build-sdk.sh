@@ -2,16 +2,17 @@
 # Builds the Kosmos SDK archives (kosmos-sdk.tar.gz and kosmos-sdk.zip) in build/package/ from sdk/.
 # The SDK is separate from the game: it holds the KosmosLink client library, examples, KosmosMap (a larger example program), a mock server and the manual.
 #
-# Usage: build-sdk.sh [--publish]
-#   --publish   also copies the archives to the web download folder, updates SHA256SUMS.txt, and regenerates sdk.html
-# Overrides (env): WEB_ROOT (default /var/www/html), FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
+# Usage: build-sdk.sh
+# Overrides (env): FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
 #                  VCPKG_MINGW (vcpkg root with x64-mingw-static zlib, default ~/vcpkg-mingw; no Windows planetbake.exe without it)
 #                  GLM_INCLUDE_DIR (folder holding glm/, default FASTNOISE_DIR; for the Windows planetbake build)
 # The build never runs more than 4 jobs at once.
 set -e
+if [ "${1:-}" = "--publish" ]; then
+    echo "build-sdk: publish SDK archives on GitHub, not the website" >&2
+    exit 1
+fi
 SRC=$(cd "$(dirname "$0")/.." && pwd)
-WEB_ROOT=${WEB_ROOT:-/var/www/html}
-. "$SRC/scripts/release-web-common.sh"
 OUT=$SRC/build/package
 STAGE=$OUT/sdk-stage/kosmos-sdk
 VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
@@ -83,17 +84,3 @@ rm -f "$OUT/kosmos-sdk.tar.gz" "$OUT/kosmos-sdk.zip"
 (cd "$OUT/sdk-stage" && tar czf "$OUT/kosmos-sdk.tar.gz" kosmos-sdk && zip -qr "$OUT/kosmos-sdk.zip" kosmos-sdk)
 rm -rf "$OUT/sdk-stage"
 echo "built $OUT/kosmos-sdk.tar.gz and kosmos-sdk.zip (Kosmos $VER)"
-
-if [ "$1" = "--publish" ]; then
-    DOWNLOAD=$WEB_ROOT/kosmos/download
-    mkdir -p "$DOWNLOAD"
-    for name in kosmos-sdk.tar.gz kosmos-sdk.zip; do
-        cp "$OUT/$name" "$DOWNLOAD/$name"
-        sums=$(grep -s -v "  $name\$" "$DOWNLOAD/SHA256SUMS.txt" || true)
-        { [ -z "$sums" ] || echo "$sums"; (cd "$OUT" && sha256sum "$name"); } | sort -k2 > "$DOWNLOAD/SHA256SUMS.txt.new"
-        mv "$DOWNLOAD/SHA256SUMS.txt.new" "$DOWNLOAD/SHA256SUMS.txt"
-        update_download_size "$WEB_ROOT/kosmos/download.html" "$DOWNLOAD/$name"
-    done
-    python3 "$SRC/scripts/sdk-manual-html.py" "$SRC/sdk/docs/MANUAL.md" "$WEB_ROOT/kosmos"
-    echo "published to $DOWNLOAD"
-fi

@@ -8,6 +8,12 @@ Kosmos began around twenty years ago as a personal project. It is now ready for 
 
 **[Download Kosmos](https://salyut.ddns.net/kosmos/download.html) · [Website](https://salyut.ddns.net/kosmos/index.html) · [User manual](https://salyut.ddns.net/kosmos/manual.html) · [Modding guide](https://salyut.ddns.net/kosmos/modding.html) · [SDK](https://salyut.ddns.net/kosmos/sdk.html)**
 
+| Dragonfly and Deltaglider | Apollo 11 launch |
+| :---: | :---: |
+| ![Dragonfly and Deltaglider above Earth](scenarios/CVEL/CVEL-Dragonfly/thumbs/dragonfly_deltaglider_mars-1794137219512217474-0.png) | ![Saturn V launching from Kennedy](scenarios/CVEL/CVEL-SaturnV/thumbs/apollo11_saturn_v_t_minus_5-1794113694264053257-0.png) |
+| **Space Exploration Vehicle at Tranquility** | **Shuttle-AQ at Thalassa depot** |
+| ![Space Exploration Vehicle on the Moon](scenarios/CVEL/CVEL-Bases/thumbs/lunar_rover_tranquility-1794146415215524803-0.png) | ![Shuttle-AQ at a planetary depot](scenarios/CVEL/CVEL-Exsolar/thumbs/shuttle_aq_thalassa_depot-1794133842213027382-0.png) |
+
 > **Project status — beta.** The main feature set is in place. Current work concentrates on bug fixes, stability, performance and visual improvements rather than major new features. Expect rough edges and experimental systems; some navigation and autopilot features have significant limitations documented below.
 
 ## Help test Kosmos
@@ -90,7 +96,7 @@ Use the Visual Studio generator name matching the installed version. The default
 
     scripts/build-linux.sh                          # build/package/kosmos-beta-<version>-Linux.tar.gz
     scripts/build-windows.sh                        # build-win/package/kosmos-beta-<version>-Windows.zip (mingw-w64 + vcpkg cross-build) (both do a clean rebuild; INCREMENTAL=1 skips the clean)
-    scripts/release.sh                              # both builds, then publish to the web site (--no-publish, --linux-only, --windows-only, -j N)
+    scripts/release.sh                              # build both packages for GitHub (--linux-only, --windows-only, -j N)
     # builds run at most 4 compile or link jobs at once, even a bare `ninja` (a Ninja job pool); use -j N or JOBS=N with the scripts, or -DKOSMOS_BUILD_JOBS=N with cmake, to change that
 
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
@@ -235,9 +241,7 @@ In **Autopilot > Spacecraft**, set an ignition countdown in seconds or an absolu
 
 ## Versions
 
-Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the number the next published build will carry, so a fresh binary already shows it in **Help > About**, in `--version`, and on the web pages. `scripts/publish-web.sh ARCHIVE...` copies built archives to the web site; if their SHA-256 differs from the published one it updates `SHA256SUMS.txt`, stamps the version on the landing page, download pages and docs, and then bumps `VERSION` to the next build. If the checksums are unchanged nothing happens. Archives carry the version in their name (`kosmos-beta-0.32-Linux.tar.gz`); the publisher removes older and legacy game archives and their checksum entries for each published platform. Turnkey mirrors these removals to the public download directory without removing other downloads.
-
-    scripts/publish-web.sh build/package/kosmos-beta-$(cat VERSION)-Linux.tar.gz build-win/package/kosmos-beta-$(cat VERSION)-Windows.zip
+Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the next build number. Build both platform archives and publish them to the GitHub release tagged `v<VERSION>`, together with `VERSION.txt`, `SHA256SUMS.txt`, `RELEASE_NOTES.md`, the optional Orbiter packs and their `packs.json`. The launcher reads the latest release's version and fetches the matching release's checksums, notes and archive. Update the website and advance `VERSION` only after verifying the published release. The website deployment does not copy release downloads.
 
 ## Galaxy
 

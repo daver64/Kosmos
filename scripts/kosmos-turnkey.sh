@@ -3,14 +3,14 @@
 #
 # Usage: kosmos-turnkey.sh [--yes] [--no-build] [--no-kav] [--local-only] [--delete] [--host USER@HOST]
 #
-# 1. clean-builds the Linux and Windows packages and publishes them to this machine's web site (scripts/release.sh: stamps the version, notes, SDK)
+# 1. requires --no-build; game packages and GitHub releases are handled separately
 # 2. installs the KosmosAV server here (scripts/deploy-kav.sh)
 # 3. asks you to check the local site, then copies the Kosmos and arcade-game site directories plus the landing page to the public host with rsync
 # 4. installs the KosmosAV server on the public host (scripts/deploy-kav.sh HOST)
 #
 # Tests are separate: run scripts/run-tests.sh when desired.
 # --yes          do not stop for the "local site looks right" question
-# --no-build     skip the builds and publishing in step 1 (use what is already on the site)
+# --no-build     deploy the website without building or publishing game archives
 # --no-kav       leave the KosmosAV server alone (steps 2 and 4)
 # --local-only   stop after the local steps; nothing goes to the public host
 # --delete       remove stale files within the explicitly synced site directories
@@ -41,8 +41,8 @@ if [ $public -eq 1 ]; then
 fi
 
 if [ $build -eq 1 ]; then
-    step "Build and publish to this machine"
-    env -u INCREMENTAL "$SRC/scripts/release.sh"
+    echo "Builds and GitHub releases are separate from website deployment; use --no-build after preparing the site." >&2
+    exit 1
 fi
 if [ $kav -eq 1 ]; then
     step "KosmosAV server on this machine"
@@ -60,8 +60,7 @@ fi
 step "Copy the site to $HOST"
 # Sync only known site directories. Never recurse over WEB_ROOT: it also contains large unrelated downloads.
 # kav/ is root-owned (the KosmosAV install writes it with sudo), so it is left to deploy-kav.sh.
-rsync -rlt --omit-dir-times --exclude=/kav/ --partial --info=progress2 $del "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
-sh "$SRC/scripts/sync-release-archives.sh" "$WEB_ROOT/kosmos/download" "$HOST:$WEB_ROOT/kosmos/download"
+rsync -rlt --omit-dir-times --exclude=/kav/ --exclude='/download/' --partial --info=progress2 $del "$WEB_ROOT/kosmos/" "$HOST:$WEB_ROOT/kosmos/"
 for game in exinvaders exbomberman exdefender exasteroids; do
     rsync -rlt --omit-dir-times --partial --info=progress2 $del "$WEB_ROOT/$game/" "$HOST:$WEB_ROOT/$game/"
 done

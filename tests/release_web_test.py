@@ -18,6 +18,16 @@ def common(function, *args):
 
 
 class ReleaseWebTest(unittest.TestCase):
+    def test_old_website_binary_publishers_refuse_to_run(self):
+        with tempfile.TemporaryDirectory() as temp:
+            env = dict(os.environ, WEB_ROOT=temp)
+            for command in (["sh", str(ROOT / "scripts/publish-web.sh"), "archive.tar.gz"],
+                            ["sh", str(ROOT / "scripts/build-sdk.sh"), "--publish"]):
+                result = subprocess.run(command, env=env, capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("GitHub", result.stderr)
+            self.assertEqual(list(Path(temp).iterdir()), [])
+
     def test_prunes_old_archives_and_orphan_checksums_per_platform(self):
         with tempfile.TemporaryDirectory() as temp:
             download = Path(temp)

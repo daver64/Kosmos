@@ -1,20 +1,18 @@
 #!/bin/sh
-# Builds the Linux and Windows packages and publishes them to the web site.
+# Builds the Linux and Windows packages for a GitHub release.
 # Usage: release.sh [-j N] [--no-publish] [--linux-only | --windows-only]
 # -j N (or JOBS=N) sets the most compile jobs run at once; the default is 4.
-# Publishing (scripts/publish-web.sh) only acts when an archive's checksum differs from the published one,
-# then it stamps the new version on the pages and moves VERSION on to the next build.
-# Overrides (env): the ones of build-linux.sh, build-windows.sh and publish-web.sh (OUT is not passed on).
+# Overrides (env): the ones of build-linux.sh and build-windows.sh (OUT is not passed on).
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
-linux=1 windows=1 publish=1
+linux=1 windows=1
 JOBS=${JOBS:-4}
 while [ $# -gt 0 ]; do
     a=$1; shift
     case $a in
         -j|--jobs) JOBS=$1; shift ;;
         -j*) JOBS=${a#-j} ;;
-        --no-publish) publish=0 ;;
+        --no-publish) ;;
         --linux-only) windows=0 ;;
         --windows-only) linux=0 ;;
         *) sed -n 2,3p "$0"; exit 1 ;;
@@ -28,17 +26,12 @@ export JOBS
 VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
 archives=
 if [ $linux -eq 1 ]; then
-    env -u OUT "$SRC/scripts/build-linux.sh"
+    env -u OUT "$SRC/scripts/build-linux.sh" kosmos_package
     archives="$archives $SRC/build/package/kosmos-beta-$VER-Linux.tar.gz"
 fi
 if [ $windows -eq 1 ]; then
-    env -u OUT "$SRC/scripts/build-windows.sh"
+    env -u OUT "$SRC/scripts/build-windows.sh" kosmos_package
     archives="$archives $SRC/build-win/package/kosmos-beta-$VER-Windows.zip"
 fi
 
-if [ $publish -eq 1 ]; then
-    # shellcheck disable=SC2086
-    "$SRC/scripts/publish-web.sh" $archives
-else
-    echo "built:$archives (not published)"
-fi
+echo "built:$archives (not published; upload to GitHub)"
