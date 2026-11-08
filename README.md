@@ -24,7 +24,7 @@ You **do not need to be a programmer**. Useful feedback includes installation pr
 
 To get started, download a packaged build from the [latest GitHub release](https://github.com/daver64/Kosmos/releases/latest), unpack it and run the launcher. Choose a scenario and fly; you do not need to build from source. The [manual](https://salyut.ddns.net/kosmos/manual.html) explains the controls and systems.
 
-If you encounter a problem, please open a GitHub issue (once this repository is public), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher also has a **Report this log** option that lets you preview a sanitised log before submitting it.
+If you encounter a problem, please [open a GitHub issue](https://github.com/daver64/Kosmos/issues), ideally including your operating system, Kosmos version, scenario or spacecraft, steps to reproduce and any relevant log. The launcher also has a **Report this log** option that lets you preview a sanitised log before submitting it.
 
 ## What you can do
 
@@ -51,7 +51,7 @@ retain their own licences and credits; see their accompanying notices and the cr
 
 ### Recent flight improvements
 
-Changes for 0.50 improve saved-flight resume and OrbitComp encounter and burn estimates. Sync Orbit's APPR page and target-relative retrograde hold help with manual rendezvous, while RADALT adds a sampled terrain-ahead warning. Experimental Mars autoland can approach a nearby coordinate or base, and flights can be recorded and replayed as snapshots. Optional Earth/Mars J2 gravity models equatorial bulges during integrated flight. These aids have important limits: see the sections below before relying on them.
+Recent releases improve saved-flight resume and OrbitComp encounter and burn estimates. Sync Orbit's APPR page and target-relative retrograde hold help with manual rendezvous, while RADALT adds a sampled terrain-ahead warning. Experimental autoland can approach a target or plan an orbital base landing, and flights can be recorded and replayed as snapshots. Optional nonspherical gravity uses spherical-harmonic fields for several Solar System bodies during integrated flight. These aids have important limits: see the sections below before relying on them.
 
 ---
 
@@ -360,7 +360,7 @@ Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Lua c
 
 ## Roadmap
 
-Kosmos is feature complete. From 0.30 on, no major new features will be added: releases are bug fixes and performance work on what is already here. The items below are ideas only and are not scheduled.
+The main feature set is in place; current work concentrates on stability, performance and visual improvements rather than major new features. The items below are ideas only and are not scheduled.
 
 - Idea: a module block that launches its KosmosLink program with the ship, and more ships carrying weapons.
 - Not planned: in-process native modules ([old design](docs/native_addon_roadmap.md), superseded by KosmosLink).

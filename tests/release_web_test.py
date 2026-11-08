@@ -18,6 +18,23 @@ def common(function, *args):
 
 
 class ReleaseWebTest(unittest.TestCase):
+    def test_stamp_preserves_historical_release_note_archive_names(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "kosmos").mkdir()
+            page = root / "kosmos/download.html"
+            notes = root / "kosmos/release-notes.html"
+            page.write_text('<span class="ver" data-ver="kosmos">0.50</span> kosmos-beta-0.50-Linux.tar.gz')
+            notes.write_text('<span class="ver" data-ver="kosmos">0.50</span> kosmos-beta-0.32-Windows.zip')
+
+            subprocess.run(["sh", str(ROOT / "scripts/publish-web.sh"), "--stamp", "0.51"],
+                           env=dict(os.environ, WEB_ROOT=temp), check=True)
+
+            self.assertIn('data-ver="kosmos">0.51', page.read_text())
+            self.assertIn("kosmos-beta-0.51-Linux.tar.gz", page.read_text())
+            self.assertIn('data-ver="kosmos">0.51', notes.read_text())
+            self.assertIn("kosmos-beta-0.32-Windows.zip", notes.read_text())
+
     def test_old_website_binary_publishers_refuse_to_run(self):
         with tempfile.TemporaryDirectory() as temp:
             env = dict(os.environ, WEB_ROOT=temp)
