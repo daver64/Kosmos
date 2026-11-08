@@ -1,0 +1,22 @@
+newmtl Mtl_0
+Kd 0.941 0.941 0.941
+Ks 0.900 0.900 0.900
+Ke 0.000 0.000 0.000
+
+newmtl Mtl_5_probe02
+Kd 1.000 1.000 1.000
+Ks 0.900 0.900 0.900
+Ke 0.000 0.000 0.000
+map_Kd textures/probe02.png
+
+newmtl Copy_Of_Mtl_0
+Kd 0.020 0.020 0.020
+Ks 0.900 0.900 0.900
+Ke 0.000 0.000 0.000
+
+newmtl Mtl_6_probe03
+Kd 1.000 1.000 1.000
+Ks 0.900 0.900 0.900
+Ke 0.000 0.000 0.000
+map_Kd textures/probe03.png
+

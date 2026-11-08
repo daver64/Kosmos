@@ -1,0 +1,26 @@
+Saturn MLV stage specifications
+
+The MLV-V-1, MLV-V-2, and MLV-V-3 stage masses, dimensions, and engine
+performance in these vehicle files follow the stage data published by the
+Encyclopedia Astronautica. This is more specific than the rounded propellant
+figures in the Saturn MLV overview. The MLV-V-3 S-II mesh is the available
+41-inch-stretch mesh, axially scaled to represent the 187-inch stretch.
+
+The Saturn V-23L stage data follows the corresponding Encyclopedia
+Astronautica entry. The four liquid boosters are represented as one separable
+stage with aggregate mass and thrust values; each separated booster therefore
+receives one quarter of the aggregate mass.
+
+The MLV-V-1/NERVA entry is a visualization/performance approximation, not a
+reconstruction of an MLV-specific NERVA configuration. Its engine and nuclear
+stage mass use the generic NERVA values below; the MLV S-IVB model is retained
+as a placeholder because a MLV-specific nuclear-stage mesh and tank definition
+were not found.
+
+References:
+- https://en.wikipedia.org/wiki/Saturn_MLV
+- https://astronautix.com/s/saturnmlv-v-1.html
+- https://astronautix.com/s/saturnmlv-v-2.html
+- https://astronautix.com/s/saturnmlv-v-3.html
+- https://astronautix.com/s/saturnv-23l.html
+- https://astronautix.com/n/nerva.html

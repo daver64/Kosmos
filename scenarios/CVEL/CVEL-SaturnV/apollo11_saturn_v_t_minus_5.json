@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Apollo 11, Saturn V, T-5 minutes",
+ "description": "The CVEL Saturn V on Pad 39A at Kennedy Space Center, five minutes before Apollo 11 lifted off at 13:32 GMT on 16 July 1969. The Sun, Moon and planets stand where they did that morning. Its engines have separate sea-level and vacuum thrust, so they gain thrust as the rocket climbs.",
+ "thumbnail": "thumbs/saturn_v.png",
+ "date": "1969-07-16 13:27:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Saturn V",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

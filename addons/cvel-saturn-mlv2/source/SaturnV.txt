@@ -1,0 +1,30 @@
+Credits:
+
+/**
+*
+* ORBITER vessel module: Saturn V Module
+*
+* License LGPL
+*
+* Credits:
+* Booster and Logic Integration Dave Rowbotham. ( daver   ).
+* Saturn Meshe TomPA , some meshes provided by Sputnik.
+
+*/
+
+
+
+Oct 2004: Removed McDopes Code and Meshes ( Guidance and propellant variable naming convention )
+
+CVE-Light Programming by David Henderson with some parts by Dave Rowbotham.
+
+REquirements : CVE-Light 
+
+License : 
+	C++ Module Code LGPL .
+
+
+
+C++ Code Copyright Dave Rowbotham 2004
+
+

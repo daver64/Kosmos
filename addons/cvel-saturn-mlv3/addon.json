@@ -1,0 +1,11 @@
+{
+  "id": "cvel-saturn-mlv3",
+  "name": "CVEL Saturn V MLV3",
+  "version": "0.1",
+  "author": "Dave Rowbotham (CVEL)",
+  "description": "Saturn V MLV-V-3 with stretched stages and HG-3 engines. Meshes credited to TomPA and Sputnik; see source/SaturnV.txt and the MLV specification note.",
+  "ships": [
+    "ship.json",
+    "payload.json"
+  ]
+}

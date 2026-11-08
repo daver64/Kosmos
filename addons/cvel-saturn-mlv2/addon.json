@@ -1,0 +1,10 @@
+{
+  "id": "cvel-saturn-mlv2",
+  "name": "CVEL Saturn V MLV2",
+  "version": "0.1",
+  "description": "CVEL Saturn V MLV-V-2 with historically based stage specifications; see source notice for credits.",
+  "ships": [
+    "ship.json",
+    "payload.json"
+  ]
+}

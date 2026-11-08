@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Saturn V-23L, Kennedy",
+ "description": "The CVEL Saturn V-23L on the Kennedy pad, five minutes before Apollo 11's launch.",
+ "thumbnail": "thumbs/saturn_v523L.png",
+ "date": "1969-07-16 13:27:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Saturn V-23L",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

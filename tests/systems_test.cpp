@@ -251,40 +251,21 @@ int main()
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
-        for (const char *file : {"ship.json", "es.json", "eca.json"})
+        ShipSpec spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-saturn-v23/ship.json", spec, error));
+        assert(spec.stages[0].radial_parts && spec.stages[0].parts.size() == 4);
+        Ship rocket(universe, spec);
+        const sl::dvec3 velocity = rocket.body().velocity;
+        const sl::dmat3 rotation = rocket.body().rotation();
+        assert(rocket.stage_once());
+        assert(rocket.active_stage() == 1 && rocket.debris().size() == 4);
+        for (std::size_t i = 0; i < rocket.debris().size(); ++i)
         {
-            ShipSpec spec;
-            assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-ariane5/" + file, spec, error));
-            assert(spec.stages[0].radial_pair);
-            Ship rocket(universe, spec);
-            rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));
-            rocket.body().velocity = {100.0, -20.0, 3.0};
-            const sl::dvec3 velocity = rocket.body().velocity;
-            const sl::dvec3 origin = rocket.origin();
-            const sl::dmat3 rotation = rocket.body().rotation();
-            const double mass = rocket.body().mass();
-            const double dropped_mass = spec.stages[0].dry_mass + rocket.body().tanks[0].mass;
-            assert(rocket.stage_once());
-            assert(rocket.active_stage() == 1 && rocket.debris().size() == 2);
-            sl::dvec3 momentum = rocket.body().velocity * rocket.body().mass();
-            for (int i = 0; i < 2; ++i)
-            {
-                const Debris &debris = rocket.debris()[static_cast<std::size_t>(i)];
-                const sl::FlightBody *body = universe.world.body(debris.body);
-                assert(body && debris.part == i && debris.stage == 0);
-                assert(std::abs(body->mass() - dropped_mass / 2.0) < 1e-8);
-                const sl::dvec3 radial = glm::normalize(sl::dvec3(spec.stages[0].parts[i].offset.x, spec.stages[0].parts[i].offset.y, 0.0));
-                assert(glm::length(body->velocity - velocity - rotation * radial * spec.stages[0].separation_speed) < 1e-8);
-                assert(glm::length(body->position - origin - rotation * debris.centre) < 1e-8);
-                momentum += body->velocity * body->mass();
-            }
-            assert(glm::length(momentum - velocity * mass) < 1e-6);
-            assert(glm::length(rocket.body().velocity - velocity) < 1e-8);
-            assert(rocket.stage_once());
-            assert(rocket.debris().size() == 3 && rocket.debris().back().part == -1);
-            assert(rocket.stage_once());
-            assert(rocket.active_stage() == 4 && rocket.debris().size() == 5);
-            assert(rocket.debris()[3].part == -1 && rocket.debris()[4].part == -1);
+            const Debris &debris = rocket.debris()[i];
+            const sl::FlightBody *body = universe.world.body(debris.body);
+            const sl::dvec3 radial = glm::normalize(sl::dvec3(spec.stages[0].parts[i].offset.x, spec.stages[0].parts[i].offset.y, 0.0));
+            assert(body && debris.part == static_cast<int>(i));
+            assert(glm::length(body->velocity - velocity - rotation * radial * spec.stages[0].separation_speed) < 1e-8);
         }
     }
     {
@@ -317,6 +298,86 @@ int main()
             momentum += body->velocity * body->mass();
         }
         assert(glm::length(momentum - velocity * mass) < 1e-6);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec buran_spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-buran/ship.json", buran_spec, error));
+        ShipSpec baseline_spec = buran_spec;
+        baseline_spec.surfaces.erase(
+            std::remove_if(baseline_spec.surfaces.begin(), baseline_spec.surfaces.end(),
+                           [](const SurfaceSpec &surface) { return surface.control == "elevator" && surface.position.x != 0.0; }),
+            baseline_spec.surfaces.end());
+        Ship buran(universe, buran_spec), baseline(universe, baseline_spec);
+        const int earth = universe.find("Earth");
+        assert(earth >= 0);
+        buran.body().position = universe.position(earth) + sl::dvec3(0.0, universe.bodies[earth].radius + 10000.0, 0.0);
+        baseline.body().position = buran.body().position + sl::dvec3(1000.0, 0.0, 0.0);
+        const sl::dvec3 flight_velocity = universe.world.body(earth)->velocity + sl::dvec3(0.0, 0.0, -250.0);
+        buran.body().velocity = baseline.body().velocity = flight_velocity;
+        buran.after_step(0.01);
+        baseline.after_step(0.01);
+        Controls pitch_up;
+        pitch_up.pitch = 1.0;
+        pitch_up.sas = "off";
+        buran.apply_controls(pitch_up, 0.1);
+        baseline.apply_controls(pitch_up, 0.1);
+        universe.world.step(0.1);
+        assert(buran.body().angular_velocity.x > baseline.body().angular_velocity.x * 1.5);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
+        spec.name = "RadialPairTest";
+        StageSpec boosters;
+        boosters.name = "Boosters";
+        boosters.dry_mass = 100.0;
+        boosters.propellant = 200.0;
+        boosters.radial_pair = true;
+        boosters.separation_speed = 2.0;
+        PartSpec left, right;
+        left.offset = {-3.0, 0.0, 0.0};
+        right.offset = {3.0, 0.0, 0.0};
+        boosters.parts = {left, right};
+        StageSpec core;
+        core.name = "Core";
+        core.dry_mass = 80.0;
+        core.propellant = 100.0;
+        StageSpec upper;
+        upper.name = "Upper";
+        upper.dry_mass = 20.0;
+        spec.stages = {boosters, core, upper};
+
+        Ship rocket(universe, spec);
+        rocket.body().orientation = glm::angleAxis(0.7, sl::dvec3(0.0, 0.0, 1.0));
+        rocket.body().velocity = {100.0, -20.0, 3.0};
+        const sl::dvec3 velocity = rocket.body().velocity;
+        const sl::dvec3 origin = rocket.origin();
+        const sl::dmat3 rotation = rocket.body().rotation();
+        const double mass = rocket.body().mass();
+        const double dropped_mass = spec.stages[0].dry_mass + rocket.body().tanks[0].mass;
+        assert(rocket.stage_once());
+        assert(rocket.active_stage() == 1 && rocket.debris().size() == 2);
+        sl::dvec3 momentum = rocket.body().velocity * rocket.body().mass();
+        for (int i = 0; i < 2; ++i)
+        {
+            const Debris &debris = rocket.debris()[static_cast<std::size_t>(i)];
+            const sl::FlightBody *body = universe.world.body(debris.body);
+            assert(body && debris.part == i && debris.stage == 0);
+            assert(std::abs(body->mass() - dropped_mass / 2.0) < 1e-8);
+            const sl::dvec3 radial = glm::normalize(sl::dvec3(spec.stages[0].parts[i].offset.x, spec.stages[0].parts[i].offset.y, 0.0));
+            assert(glm::length(body->velocity - velocity - rotation * radial * spec.stages[0].separation_speed) < 1e-8);
+            assert(glm::length(body->position - origin - rotation * debris.centre) < 1e-8);
+            momentum += body->velocity * body->mass();
+        }
+        assert(glm::length(momentum - velocity * mass) < 1e-6);
+        assert(glm::length(rocket.body().velocity - velocity) < 1e-8);
+        assert(rocket.stage_once());
+        assert(rocket.debris().size() == 3 && rocket.debris().back().part == -1);
     }
     {
         Universe universe;

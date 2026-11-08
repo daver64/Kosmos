@@ -1,0 +1,543 @@
+{
+  "name": "CVEL Saturn V MLV1/NERVA",
+  "class": "launcher",
+  "script": "@launcher.lua",
+  "torque_accel": 0.12,
+  "max_rate": 0.25,
+  "rcs_thrust": 0,
+  "drag_area": 80,
+  "camera_distance": 120,
+  "camera_target": [
+    0,
+    0,
+    -70.0
+  ],
+  "systems": [
+    {
+      "type": "fuel_cell",
+      "name": "Fuel cells (3)",
+      "stage": "Service module",
+      "watts": 4200
+    },
+    {
+      "type": "tank",
+      "gas": "oxygen",
+      "name": "Cryogenic oxygen (2 tanks)",
+      "stage": "Service module",
+      "capacity_kg": 295
+    },
+    {
+      "type": "tank",
+      "gas": "hydrogen",
+      "name": "Cryogenic hydrogen (2 tanks)",
+      "stage": "Service module",
+      "capacity_kg": 25.4
+    },
+    {
+      "type": "load",
+      "name": "Service module systems",
+      "stage": "Service module",
+      "watts": 450,
+      "priority": 0
+    },
+    {
+      "type": "battery",
+      "name": "Entry batteries",
+      "stage": "Command module",
+      "capacity_wh": 3360,
+      "max_w": 2000
+    },
+    {
+      "type": "tank",
+      "gas": "oxygen",
+      "name": "Surge and emergency oxygen",
+      "stage": "Command module",
+      "capacity_kg": 2
+    },
+    {
+      "type": "tank",
+      "gas": "water",
+      "name": "Potable water",
+      "stage": "Command module",
+      "kg": 16,
+      "capacity_kg": 16
+    },
+    {
+      "type": "load",
+      "name": "Guidance and instruments",
+      "stage": "Command module",
+      "watts": 500,
+      "priority": 0
+    },
+    {
+      "type": "load",
+      "name": "Cabin fans and coolant pumps",
+      "stage": "Command module",
+      "watts": 200,
+      "priority": 0
+    },
+    {
+      "type": "load",
+      "name": "Cabin lighting",
+      "stage": "Command module",
+      "watts": 80,
+      "priority": 2
+    },
+    {
+      "type": "regulator",
+      "name": "Cabin regulator",
+      "stage": "Command module",
+      "vessel": "Cabin"
+    },
+    {
+      "type": "scrubber",
+      "name": "LiOH canisters",
+      "stage": "Command module",
+      "vessel": "Cabin",
+      "kg_per_day": 6,
+      "sorbent_kg": 50
+    }
+  ],
+  "vessels": [
+    {
+      "name": "Cabin",
+      "stage": "Command module",
+      "position": [
+        0,
+        0,
+        -82.0
+      ],
+      "size": [
+        2.0,
+        1.9,
+        1.62
+      ],
+      "crew": 3,
+      "pressure_kpa": 34.5,
+      "o2_fraction": 1.0
+    }
+  ],
+  "stages": [
+    {
+      "name": "S-IC first stage",
+      "dry_mass": 169719,
+      "propellant": 2524984,
+      "z": -3.5,
+      "length": 48.15,
+      "radius": 5.03,
+      "separation_speed": 2.0,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            25
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 9189750.8,
+          "isp": 310,
+          "isp_sl": 270,
+          "plume": 100,
+          "plume_width": 2.7,
+          "plume_glow": 2.5,
+          "plume_density": 6,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -3.5,
+            3.5,
+            25
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 9189750.8,
+          "isp": 310,
+          "isp_sl": 270,
+          "plume": 100,
+          "plume_width": 2.7,
+          "plume_glow": 2.5,
+          "plume_density": 6,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            3.5,
+            3.5,
+            25
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 9189750.8,
+          "isp": 310,
+          "isp_sl": 270,
+          "plume": 100,
+          "plume_width": 2.7,
+          "plume_glow": 2.5,
+          "plume_density": 6,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -3.5,
+            -3.5,
+            25
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 9189750.8,
+          "isp": 310,
+          "isp_sl": 270,
+          "plume": 100,
+          "plume_width": 2.7,
+          "plume_glow": 2.5,
+          "plume_density": 6,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            3.5,
+            -3.5,
+            25
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 9189750.8,
+          "isp": 310,
+          "isp_sl": 270,
+          "plume": 100,
+          "plume_width": 2.7,
+          "plume_glow": 2.5,
+          "plume_density": 6,
+          "type": "rocket",
+          "fuel": "kerosene"
+        }
+      ],
+      "gear": [
+        [
+          7.3,
+          0,
+          22
+        ],
+        [
+          -7.3,
+          0,
+          22
+        ],
+        [
+          0,
+          7.3,
+          22
+        ],
+        [
+          0,
+          -7.3,
+          22
+        ]
+      ],
+      "parts": [
+        {
+          "model": "../cvel-saturn-v23/models/s1c_stretch240.obj",
+          "offset": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v23/models/sat5intstg.obj",
+          "offset": [
+            0,
+            0,
+            -27.5
+          ]
+        }
+      ]
+    },
+    {
+      "name": "S-II second stage",
+      "dry_mass": 49877,
+      "propellant": 471570,
+      "z": -40.1,
+      "length": 25.88,
+      "radius": 5.03,
+      "separation_speed": 1.5,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            -23.165000000000003
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1033158,
+          "isp": 425,
+          "isp_sl": 306,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        },
+        {
+          "position": [
+            -2,
+            2,
+            -23.85
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1033158,
+          "isp": 425,
+          "isp_sl": 306,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        },
+        {
+          "position": [
+            2,
+            2,
+            -23.85
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1033158,
+          "isp": 425,
+          "isp_sl": 306,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        },
+        {
+          "position": [
+            -2,
+            -2,
+            -23.85
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1033158,
+          "isp": 425,
+          "isp_sl": 306,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        },
+        {
+          "position": [
+            2,
+            -2,
+            -23.85
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1033158,
+          "isp": 425,
+          "isp_sl": 306,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        }
+      ],
+      "parts": [
+        {
+          "model": "../cvel-saturn-v23/models/s2_stretch41.obj",
+          "offset": [
+            0,
+            0,
+            -40.1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NERVA nuclear upper stage",
+      "dry_mass": 34019,
+      "propellant": 144302,
+      "z": -62,
+      "length": 18.08,
+      "radius": 3.305,
+      "separation_speed": 1.0,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            -49.565
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 867410,
+          "isp": 825,
+          "isp_sl": 380,
+          "plume": 16,
+          "plume_width": 1.8,
+          "plume_density": 3,
+          "plume_billow": 0.85,
+          "type": "nuclear",
+          "fuel": "hydrogen"
+        }
+      ],
+      "parts": [
+        {
+          "model": "../cvel-saturn-v/models/sat5stg3.obj",
+          "offset": [
+            0,
+            0,
+            -60.5
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v/models/sat5stg31.obj",
+          "offset": [
+            -1.48,
+            -1.48,
+            -73.0
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v/models/sat5stg32.obj",
+          "offset": [
+            1.48,
+            -1.48,
+            -73.0
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v/models/sat5stg33.obj",
+          "offset": [
+            1.48,
+            1.48,
+            -73.0
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v/models/sat5stg34.obj",
+          "offset": [
+            -1.48,
+            1.48,
+            -73.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Service module",
+      "dry_mass": 2156,
+      "propellant": 18413,
+      "z": -78.0,
+      "length": 8.4,
+      "radius": 2.0,
+      "separation_speed": 0.5,
+      "engines": [
+        {
+          "position": [
+            0,
+            0,
+            -73.9
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 97900,
+          "isp": 342,
+          "isp_sl": 220,
+          "plume": 8,
+          "type": "rocket",
+          "fuel": "hydrogen"
+        }
+      ],
+      "parts": [
+        {
+          "model": "../cvel-saturn-v/models/nsaturn1_sm.obj",
+          "offset": [
+            0,
+            0.07,
+            -78.0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Command module",
+      "dry_mass": 5560,
+      "z": -86.5,
+      "length": 11.2,
+      "radius": 2.0,
+      "separation_speed": 0.5,
+      "parts": [
+        {
+          "model": "../cvel-saturn-v/models/nsaturn1_cm.obj",
+          "offset": [
+            0,
+            0.07,
+            -82.0
+          ]
+        },
+        {
+          "model": "../cvel-saturn-v/models/sat5bpc.obj",
+          "offset": [
+            0,
+            0.07,
+            -86.4
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "cvel-saturn-mlv1",
+  "name": "CVEL Saturn V MLV1",
+  "version": "0.1",
+  "description": "CVEL Saturn V MLV-V-1 with historically based stage specifications; includes an explicitly approximate NERVA upper-stage study.",
+  "ships": [
+    "ship.json",
+    "payload.json",
+    "ship_nerva.json"
+  ]
+}

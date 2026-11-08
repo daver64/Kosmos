@@ -70,6 +70,21 @@ int main()
     for (const ScenarioInfo &s : scenarios)
         found = found || (s.id == "dragonfly_orbit" && s.category.rfind("CVEL", 0) == 0 && !s.ships.empty() && s.body == "Earth");
     CHECK(found);
+    for (const auto &expected : std::vector<std::pair<std::string, std::string>>{
+             {"apollo11_saturn_v_t_minus_5", "saturn_v.png"},
+             {"saturn_v_23l_kennedy", "saturn_v523L.png"},
+             {"saturn_v_mlv1_kennedy", "saturn_vmlv1.png"},
+             {"saturn_v_mlv1_nerva_kennedy", "saturn_vmlv1_nerva.png"},
+             {"saturn_v_mlv2_kennedy", "saturn_v_mlv2.png"},
+             {"saturn_v_mlv3_kennedy", "saturn_v_mlv3.png"}})
+    {
+        bool thumbnail_found = false;
+        const fs::path thumbnail = root / "scenarios/CVEL/CVEL-SaturnV/thumbs" / expected.second;
+        for (const ScenarioInfo &s : scenarios)
+            thumbnail_found = thumbnail_found || (s.id == expected.first && s.thumbnail == thumbnail);
+        CHECK(thumbnail_found);
+        CHECK(fs::is_regular_file(thumbnail));
+    }
 
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);

@@ -1,0 +1,21 @@
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+
+newmtl s1cinter_S1CINTER
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/S1CINTER.png
+
+newmtl stage01white
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steellight
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

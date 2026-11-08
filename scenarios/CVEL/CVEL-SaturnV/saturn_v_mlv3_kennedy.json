@@ -1,0 +1,16 @@
+{
+ "name": "CVEL: Saturn V MLV3, Kennedy",
+ "description": "The CVEL Saturn V MLV3 on the Kennedy pad, five minutes before Apollo 11's launch.",
+ "thumbnail": "thumbs/saturn_v_mlv3.png",
+ "date": "1969-07-16 13:27:00",
+ "active": 0,
+ "ships": [
+  {
+   "ship": "CVEL Saturn V MLV3",
+   "body": "Earth",
+   "surface": {
+    "base": "kennedy"
+   }
+  }
+ ]
+}

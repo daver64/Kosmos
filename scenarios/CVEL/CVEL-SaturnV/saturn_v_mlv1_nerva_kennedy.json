@@ -1,0 +1,16 @@
+{
+  "name": "CVEL Saturn V MLV1/NERVA, Kennedy",
+  "description": "An illustrative MLV-V-1 with a generic NERVA-powered upper stage, on the Kennedy pad on Apollo 11 launch day.",
+  "thumbnail": "thumbs/saturn_vmlv1_nerva.png",
+  "date": "1969-07-16 13:27:00",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "CVEL Saturn V MLV1/NERVA",
+      "body": "Earth",
+      "surface": {
+        "base": "kennedy"
+      }
+    }
+  ]
+}
