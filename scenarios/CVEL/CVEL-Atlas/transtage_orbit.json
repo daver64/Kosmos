@@ -1,16 +1,17 @@
 {
- "name": "CVEL: Transtage, 400 km orbit",
- "description": "CVEL Transtage upper stage with its probe, coasting in a circular 400 km orbit over the sunlit Earth.",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Transtage",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 28.5,
-    "phase": 180
-   }
-  }
- ]
+  "active": 0,
+  "description": "CVEL Transtage upper stage with its probe, coasting in a circular 400 km orbit over the sunlit Earth.",
+  "name": "CVEL: Transtage, 400 km orbit",
+  "ships": [
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "CVEL Transtage"
+    }
+  ],
+  "thumbnail": "thumbs/transtage_orbit-1794137367956782842-0.png"
 }

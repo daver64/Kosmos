@@ -1,40 +1,41 @@
 {
- "name": "CVEL: Dragonfly and Deltaglider, Mars departure",
- "description": "18 November 2013, the Mars window MAVEN used. The Dragonfly tug, with a Deltaglider docked to its nose, has just finished the burn that puts the pair on a Lambert transfer orbit to Mars (arrival after 308 days, as MAVEN's) and is outbound from Earth on the escape hyperbola. The left MFD is OrbitComp on its HEL page, showing the transfer about the Sun with Earth's orbit, Mars's orbit and the closest approach; the right MFD is the Orbit MFD.",
- "active": 0,
- "date": "2013-11-18 19:30:00",
- "target": "Mars",
- "mfd_left": "orbitcomp",
- "mfd_right": "orbit",
- "set": {
-  "/orbitcomp/page": 4,
-  "/controls/anim/dock-latch": 1
- },
- "ships": [
-  {
-   "ship": "CVEL Dragonfly",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 300,
-    "escape_to": "Mars",
-    "escape_days": 308,
-    "phase": 12
-   }
+  "active": 0,
+  "date": "2013-11-18 19:30:00",
+  "description": "18 November 2013, the Mars window MAVEN used. The Dragonfly tug, with a Deltaglider docked to its nose, has just finished the burn that puts the pair on a Lambert transfer orbit to Mars (arrival after 308 days, as MAVEN's) and is outbound from Earth on the escape hyperbola. The left MFD is OrbitComp on its HEL page, showing the transfer about the Sun with Earth's orbit, Mars's orbit and the closest approach; the right MFD is the Orbit MFD.",
+  "mfd_left": "orbitcomp",
+  "mfd_right": "orbit",
+  "name": "CVEL: Dragonfly and Deltaglider, Mars departure",
+  "set": {
+    "/controls/anim/dock-latch": 1,
+    "/orbitcomp/page": 4
   },
-  {
-   "ship": "CVEL Deltaglider (Nuclear)",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 0,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 300,
-    "escape_to": "Mars",
-    "escape_days": 308,
-    "phase": 12
-   }
-  }
- ]
+  "ships": [
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 300,
+        "escape_days": 308,
+        "escape_to": "Mars",
+        "phase": 12
+      },
+      "ship": "CVEL Dragonfly"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 0
+      },
+      "orbit": {
+        "altitude_km": 300,
+        "escape_days": 308,
+        "escape_to": "Mars",
+        "phase": 12
+      },
+      "ship": "CVEL Deltaglider (Nuclear)"
+    }
+  ],
+  "target": "Mars",
+  "thumbnail": "thumbs/dragonfly_deltaglider_mars-1794137219512217474-0.png"
 }

@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build/kosmos"
@@ -19,6 +19,19 @@ def mean_centre(path, radius):
         x, y = image.width // 2, image.height // 2
         half = max(3, int(image.height / 8 * 4.15 / radius))
         return sum(ImageStat.Stat(image.crop((x - half, y - half, x + half, y + half))).mean) / 3
+
+
+def cloud_hole_fraction(cloudy_path, clear_path):
+    with Image.open(cloudy_path) as cloudy, Image.open(clear_path) as clear:
+        difference = ImageChops.subtract(cloudy.convert("L"), clear.convert("L"))
+        surrounding = difference.filter(ImageFilter.BoxBlur(5))
+        x, y = difference.width // 2, difference.height // 2
+        half = int(difference.height * 0.194)
+        region = (x - half, y - half, x + half, y + half)
+        values = difference.crop(region).getdata()
+        neighbours = surrounding.crop(region).getdata()
+        # A surface-coloured pixel inside an otherwise bright cloud is a likely depth hole.
+        return sum(value < 8 and nearby > 35 for value, nearby in zip(values, neighbours)) / (4 * half * half)
 
 
 with tempfile.TemporaryDirectory() as directory:
@@ -43,4 +56,8 @@ with tempfile.TemporaryDirectory() as directory:
         assert abs(below - above) < max(below * 0.15, 5), (tiled, readings)
         assert above - clear > 10, (tiled, readings)
         assert far - far_clear > 10, (tiled, readings)
-        print(f"Earth cloud brightness, {'tiled' if tiled else 'single-image'}: {readings}")
+        holes = cloud_hole_fraction(temp / f"{tiled}-4.15-True.png", temp / f"{tiled}-4.15-False.png")
+        # The collapsed shell produces over 7% holes in this view; natural cloud gaps
+        # remain below 3% with the shell at its intended height.
+        assert holes < 0.03, (tiled, holes)
+        print(f"Earth clouds, {'tiled' if tiled else 'single-image'}: brightness {readings}, holes {holes:.3%}")

@@ -1,10 +1,45 @@
 {
-  "name": "CVEL: Star 48B and Star 37FM, Earth orbit",
-  "description": "A Star 48B carries a Star 37FM and Luna E3 in a 400 km Earth orbit, inspired by the original addon's stacked upper-stage scenario. This is a fictional mission. Aim before burning, then stage to the next vessel.",
   "active": 0,
+  "description": "A Star 48B carries a Star 37FM and Luna E3 in a 400 km Earth orbit, inspired by the original addon's stacked upper-stage scenario. This is a fictional mission. Aim before burning, then stage to the next vessel.",
+  "name": "CVEL: Star 48B and Star 37FM, Earth orbit",
   "ships": [
-    {"ship": "CVEL Star 48B", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 28.5, "phase": 180}},
-    {"ship": "CVEL Star 37FM", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 28.5, "phase": 180}, "dock": {"to": 0, "port": 1, "own_port": 0}},
-    {"ship": "Luna E3", "body": "Earth", "orbit": {"altitude_km": 400, "inclination": 28.5, "phase": 180}, "dock": {"to": 1, "port": 1, "own_port": 0}}
-  ]
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "CVEL Star 48B"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 0
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "CVEL Star 37FM"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 1
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5,
+        "phase": 180
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/star48b_orbit-1794137342074306371-0.png"
 }

@@ -184,6 +184,13 @@ namespace kosmos::app
             const double cloud_room = near_earth ? 12.0e3 : 0.0;
             // Capped so a star-sized distance cannot push the near plane past the far one.
             near_plane = std::max(ship_near, std::min(0.6 * (nearest_surface - cloud_room), 1.0e8));
+            // The orbital cloud shell can sit higher than the terrain cloud allowance above.
+            if (earth_id >= 0 && earth_as_sphere && !options.no_clouds && gfx_clouds)
+            {
+                const double cloud_distance = eye_earth_distance - earth_body->radius - home_cloud_height;
+                if (cloud_distance > 0.0)
+                    near_plane = std::max(ship_near, std::min(near_plane, 0.6 * cloud_distance));
+            }
             // The near plane is flat across the view, so ground straight below is nearer to it the more the camera looks toward the
             // horizon. Pull the plane in to match, or the cloud shell is sliced along a line across the view.
             if (near_earth)
