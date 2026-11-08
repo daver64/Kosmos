@@ -122,7 +122,7 @@ Native addons: programs that connect over KosmosLink (loopback only) and are all
 
 ## Controls
 
-The keys below are the defaults. View > Keyboard rebinds any of them (saved in `keys.json` in the config folder); addons can add bindable actions with a `keys.json` of their own, see the modders manual.
+The keys below are the defaults. View > Keyboard rebinds the configurable actions (saved in `keys.json` in the config folder); Ctrl+Esc is a fixed quit shortcut. Addons can add bindable actions with a `keys.json` of their own, see the modders manual.
 
 | Key | Action |
 |---|---|
@@ -138,12 +138,15 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | Keypad 5 / `[` / `]` / `;` / `'` | SAS: kill rotation / prograde / retrograde / normal / anti-normal (as Orbiter's navigation modes) |
 | View > Camera | Standard Camera or Dynamic Camera (spring-mounted cockpit eye that lags under acceleration) |
 | X / Z, Ctrl+X / Ctrl+Z | Widen / narrow the field of view while held / by a step (10 to 90 degrees), as in Orbiter |
-| Ctrl+P / Ctrl+C / Ctrl+Esc (or Ctrl+Q) | Pause / start or stop video recording / quit |
+| Ctrl+P | Pause or resume |
+| Ctrl+C | Start or stop video recording |
+| Ctrl+Esc | Quit the simulator (fixed shortcut) |
+| Ctrl+Q | Quit the simulator (default configurable shortcut) |
 | P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
-| `,` | Wheel brakes (also B) |
+| `,` | Wheel brakes |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
-| **G** | Toggle landing gear (also **L**) |
+| **G** | Toggle landing gear |
 | **N** | **Galaxy map** (Left/Right choose star, `-` `=` zoom, **Enter** jump) |
 | Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
 | **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (press ` or hold Alt to free the pointer for the menus), arrows also look, F manoeuvring pack, Q/E roll when floating |
@@ -208,7 +211,7 @@ The keys below are the defaults. View > Keyboard rebinds any of them (saved in `
 | `--perf` | Print frame rate and ground-scatter CPU time every few seconds |
 | `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
 | `--cam-planet R`, `--cam-phase DEG` | Planet-only camera at R planet radii, with the given sun phase angle (for screenshots) |
-| `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `I`). The bottom warp and time line is separate (View menu) |
+| `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `Ctrl+I`). The bottom warp and time line is separate (View menu) |
 | `--clean` | Like `--hide-info`, and also hides the on-foot HUD (suit panel, door markers, prompts, log lines, held item) for promotional shots |
 | `--interior-at X Z YAW PITCH` | After walking into an interior building, stand at this spot (metres in the plan, degrees) |
 | `--console` | Windows only: open a console window for the output when Kosmos was not started from a terminal (it is a GUI program and shows none by default) |
@@ -541,9 +544,9 @@ Every ship feels atmospheric drag (`drag_area`) and wind; weapons hit a ship's b
 
 - `payload_bays` and `payload_size`: where a launcher carries cargo (cylinders or boxes with `length`, `radius` or `size`, optional `max_mass`) and how big a ship is as cargo. KosmosMission uses them to check that the ships it is asked to carry fit. A bay's optional `"port"` names the launcher port a payload docks to when KosmosMission spawns it (default "Payload"). KosmosMission can also build 2-3 stage payload stacks.
 
-- `surfaces`: lifting surfaces in the ship frame (nose is -Z, roof +Y). Each has `position`, `area`, `cl0`, `cl_alpha`, `cd0`, `induced_drag`, `stall_deg`, optional `forward`/`up` (a fin has `up: [1,0,0]`), and a `control` of `elevator` (pitch), `aileron` (roll), `rudder` (yaw) or `flaps`, with `gain_deg` the angle change at full deflection. W/S, Q/E and A/D drive the surfaces; with SAS on, a rate damper (`damping`) steadies them.
+- `surfaces`: lifting surfaces in the ship frame (nose is -Z, roof +Y). Each has `position`, `area`, `cl0`, `cl_alpha`, `cd0`, `induced_drag`, `stall_deg`, optional `forward`/`up` (a fin has `up: [1,0,0]`), and a `control` of `elevator` (pitch), `aileron` (roll), `rudder` (yaw) or `flaps`, with `gain_deg` the angle change at full deflection. Keypad 2/8, 4/6 and 1/3 control pitch, roll and yaw respectively; with SAS on, a rate damper (`damping`) steadies them.
 - `wheels`: contact points (`position`, optional `steer_deg` for the nose wheel, `rolling_resistance`, and `drive` for a driven wheel of a ground vehicle). `,` brakes; a parked aircraft holds its brakes.
-- **Ground vehicles.** `"class": "ground"` makes a wheeled vehicle (it rests level on its wheels, like an aircraft, and shows surface instruments only). Its `wheels` carry the drive: `"ground": { "drive_force": N, "max_speed": m/s }` is the total force shared by the `drive` wheels, fading to nothing at `max_speed`, limited by the wheels' grip. The throttle (Shift and Ctrl; Ctrl continues below zero) goes from -1 (reverse) to 1, A/D steer wheels that have `steer_deg` (negative for rear wheels that turn the other way), and the vehicle parks on its brakes when the throttle is zero. A `"prop": "lunar_rover"` part draws the six-wheeled rover. See `addons/cvel-lunar-rover`.
+- **Ground vehicles.** `"class": "ground"` makes a wheeled vehicle (it rests level on its wheels, like an aircraft, and shows surface instruments only). Its `wheels` carry the drive: `"ground": { "drive_force": N, "max_speed": m/s }` is the total force shared by the `drive` wheels, fading to nothing at `max_speed`, limited by the wheels' grip. The throttle (Ctrl+Keypad + / -; down continues below zero) goes from -1 (reverse) to 1, Keypad 1/3 steer wheels that have `steer_deg` (negative for rear wheels that turn the other way), and the vehicle parks on its brakes when the throttle is zero. A `"prop": "lunar_rover"` part draws the six-wheeled rover. See `addons/cvel-lunar-rover`.
 - An optional `{"type": "drive_motor", "watts": 24000, "priority": 2}` systems component draws its rated power in proportion to absolute throttle, including reverse and while stalled. It is idle at zero throttle; the bus sheds it on insufficient power, disabling its share of the drive. The CVEL Lunar Rover uses solar power; the Curiosity Rover uses an RTG and battery, with approximate loads and faster-than-real driving for play. Its camera mast turns via the Animations menu. The Space Exploration Vehicle uses a battery and approximate drive and system loads. Vehicles without a drive motor component retain their original unpowered drive.
 - A ground vehicle's stage `gear` points can provide additional body contacts for rollover; put them on the hull above the wheel contact points. They do not drive or steer, and suspension stiffness is sized from the wheels.
 - `inertia` (optional): moments about X, Y, Z in kg m^2.
