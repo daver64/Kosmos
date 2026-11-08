@@ -2,6 +2,8 @@
 
 #include "app.h"
 
+#include <string>
+
 namespace kosmos::app
 {
     std::vector<sl::TerrainLayer> planet_layers();
@@ -41,7 +43,7 @@ extern bool detail_disabled;
         bool clutter_live = false;
     };
 
-    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home);
+    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home, const std::string &orbiter_textures = {});
 
     void settle(sl::Terrain &terrain, const sl::TerrainView &view);
 

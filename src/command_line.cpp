@@ -98,6 +98,7 @@ namespace kosmos::app
         {"--test-jump", 1, whole(&Options::test_jump)},
         {"--test-dial", 1, whole(&Options::test_dial)},
         {"--max-texture", 1, whole(&Options::max_texture)},
+        {"--orbiter-textures", 1, text(&Options::orbiter_textures)},
         {"--join", 1, text(&Options::net_join)},
         {"--name", 1, text(&Options::net_name)},
         {"--advertise", 1, text(&Options::net_advertise)},

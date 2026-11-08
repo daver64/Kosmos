@@ -41,10 +41,16 @@ int main()
     p.fullscreen = true;
     p.max_texture = 4096;
     p.extra_args = "--hide-info";
+    p.orbiter_textures = "/opt/Orbiter/Textures";
     const auto cmd = build_arguments(p, "02_earth_orbit");
-    const std::vector<std::string> want = {"--scenario", "02_earth_orbit", "--vulkan", "--fullscreen", "--max-texture", "4096", "--hide-info"};
+    const std::vector<std::string> want = {"--scenario", "02_earth_orbit", "--vulkan", "--fullscreen", "--max-texture", "4096",
+                                           "--orbiter-textures", "/opt/Orbiter/Textures", "--hide-info"};
     CHECK(cmd == want);
     CHECK(build_arguments(Profile(), "").empty());
+    {
+        std::size_t count = 1;
+        CHECK(scan_orbiter_textures({}, count).empty() && count == 0);
+    }
 
     {
         const fs::path f = launcher::fs::temp_directory_path() / "launcher_sha_test.bin";
@@ -105,6 +111,21 @@ int main()
         fs::remove(part, ec);
         fs::remove(target, ec);
         fs::remove(dir, ec);
+    }
+    {
+        const fs::path dir = fs::temp_directory_path() /
+                             ("kosmos-orbiter-scan-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        const fs::path textures = dir / "Textures";
+        fs::create_directories(textures / "Earth" / "Archive");
+        std::ofstream(textures / "Earth" / "Archive" / "Surf.tree") << "tree";
+        fs::create_directories(textures / "Other");
+        std::ofstream(textures / "Other" / "Anything.tree") << "tree";
+        std::size_t count = 0;
+        CHECK(scan_orbiter_textures(dir, count) == textures && count == 1);
+        CHECK(scan_orbiter_textures(textures, count) == textures && count == 1);
+        std::error_code ec;
+        fs::remove_all(dir, ec);
+        CHECK(scan_orbiter_textures(dir, count).empty() && count == 0);
     }
 
     {

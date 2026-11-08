@@ -392,10 +392,10 @@ namespace kosmos::app
     {
         try
         {
-            body_terrains.push_back(make_body_terrain(sim, earth_id, true));
+            body_terrains.push_back(make_body_terrain(sim, earth_id, true, options.orbiter_textures));
             for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
                 if (static_cast<int>(i) != earth_id && (!sim.universe.bodies[i].terrain.empty() || sim.universe.bodies[i].style.has_ground()))
-                    if (std::unique_ptr<BodyTerrain> extra = make_body_terrain(sim, static_cast<int>(i), false))
+                    if (std::unique_ptr<BodyTerrain> extra = make_body_terrain(sim, static_cast<int>(i), false, options.orbiter_textures))
                         body_terrains.push_back(std::move(extra));
         }
         catch (const std::exception &e)

@@ -42,13 +42,15 @@ namespace launcher
         bool fullscreen = false;
         int max_texture = 0;   // 0 = Kosmos default
         int world_texture = 0; // 0 = automatic
-        std::string extra_args, last_scenario;
+        std::string extra_args, last_scenario, orbiter_textures;
         // The folder that holds VERSION.txt, SHA256SUMS.txt and the archives.
         std::string server = "https://salyut.ddns.net/kosmos/download";
     };
 
     // The folder that holds data/, addons/ and the kosmos executable: beside the launcher, or the source tree in development.
     fs::path find_root(const fs::path &launcher_dir);
+    // Accepts an Orbiter installation directory or its Textures directory; returns a valid texture folder with .tree archives.
+    fs::path scan_orbiter_textures(const fs::path &directory, std::size_t &tree_count);
     fs::path find_kosmos(const fs::path &root);
     fs::path find_addon_program(const fs::path &root, const std::string &addon, const std::string &program); // addons/<addon>/bin/<program>[.exe]
     fs::path user_dir(); // ~/.config/kosmos or %APPDATA%\kosmos

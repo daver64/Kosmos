@@ -309,6 +309,10 @@ both generated archives and `packs.json` together as GitHub release assets. The 
 within GitHub's per-asset size limit. Orbiter surface and elevation trees under
 `import/orbiter/` take precedence, separately for each layer. Mask, cloud,
 elevation-modification and label trees are not yet read directly by Kosmos.
+The launcher can also scan a selected Orbiter installation or `Textures`
+folder and use its installed `.tree` archives directly, without copying them
+into the Kosmos installation. Supported surface and elevation trees are read
+when building planetary terrain.
 The launcher also offers individual Orbiter high-resolution Earth, Moon, Mars
 (legacy), Mercury and Titan trees, plus the minor-bodies pack, from the Orbiter Forum's mirror, verified
 against SHA-256 values derived from copies matching its published checksums.

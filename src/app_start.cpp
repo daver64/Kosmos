@@ -3,6 +3,8 @@
 #endif
 #include "app_state.h"
 
+#include <filesystem>
+
 namespace kosmos::app
 {
     // The planetbake (SDK) command line that makes the same world, with every value in full so the maps match the game.
@@ -204,6 +206,12 @@ namespace kosmos::app
         backend_args = std::vector<char *>{argv[0]};
         if (const int code = parse_command_line(argc, argv, options, backend_args); code != keep_going)
             return code;
+        if (!options.orbiter_textures.empty())
+        {
+            std::error_code ec;
+            if (!std::filesystem::is_directory(std::filesystem::u8path(options.orbiter_textures), ec))
+                std::fprintf(stderr, "[kosmos] Orbiter texture folder is unavailable: %s\n", options.orbiter_textures.c_str());
+        }
 
         if (!options.system_name.empty())
         {
