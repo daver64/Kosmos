@@ -8,6 +8,8 @@ __pycache__/
 !/data/textures/**/*.png
 !/addons/*/models/*.png
 !/addons/*/models/**/*.png
+!/addons/cvel-deltaglider/panel/panel1.png
+!/addons/cvel-deltaglider/panel/panel2.png
 !/scenarios/**/thumbs/*.png
 imgui.ini
 kosmos-*.png

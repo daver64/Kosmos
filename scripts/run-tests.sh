@@ -20,6 +20,8 @@ if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/station_assets_test.py"
+python3 "$SRC/tools/msh_import.py" --selftest
+python3 "$SRC/tests/deltaglider_panel_assets_test.py"
 python3 "$SRC/tests/salyut_panels_test.py"
 python3 "$SRC/tests/sev_assets_test.py"
 python3 "$SRC/tests/ares_legs_test.py"

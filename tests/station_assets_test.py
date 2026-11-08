@@ -23,12 +23,21 @@ for model in sorted(models):
     assert model.is_file(), f"missing model: {model}"
     materials = set()
     faces = 0
+    normals = []
     with model.open() as stream:
         for line in stream:
             if line.startswith("mtllib "):
                 materials.add(model.parent / line.split(maxsplit=1)[1].strip())
+            elif line.startswith("vn "):
+                normals.append(tuple(map(float, line.split()[1:4])))
             elif line.startswith("f "):
                 faces += 1
+                if model.name == "mir.obj":
+                    for corner in line.split()[1:]:
+                        indices = corner.split("/")
+                        if len(indices) > 2 and indices[2]:
+                            normal = normals[int(indices[2]) - 1]
+                            assert sum(value * value for value in normal) > 1e-8, f"zero normal in {model}"
     assert faces > 0 and materials, f"empty or untextured model: {model}"
     textures = set()
     for material in materials:

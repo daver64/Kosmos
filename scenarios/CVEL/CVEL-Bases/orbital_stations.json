@@ -1,262 +1,263 @@
 {
- "name": "CVEL: Orbital stations",
- "description": "Dormant ISS stations around Earth, Jupiter and Saturn, Mir stations around every planet, Earth's Moon, Europa and Ganymede, and a Wheel station at the Moon and Mars. Each carries a month of life support for two people: when a crew arrives, press the crew button in the Ship systems window (F1) to switch on systems and life support, and again when they leave. Cycle ships to visit them all. The Mir at Earth has a fully fuelled Deltaglider docked to its fore port and a Nuclear Shuttle-A with four life support pods docked to its aft port. At Earth the ISS and Mir share a 400 km orbit about 2 km apart. Every station beyond Mars's orbit (the ISS at Jupiter and Saturn, and the Mirs from Jupiter outward including Europa and Ganymede) is a Nuclear variant with a fission reactor (10 kW for Mir, 20 kW for the ISS), since sunlight there is too weak for solar arrays.",
- "active": 15,
- "view": "cockpit",
- "ships": [
-  {
-   "ship": "ISS",
-   "label": "ISS (Earth)",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.0
-   }
-  },
-  {
-   "ship": "ISS (Nuclear)",
-   "label": "ISS (Jupiter)",
-   "body": "Jupiter",
-   "orbit": {
-    "altitude_km": 120000,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "ISS (Nuclear)",
-   "label": "ISS (Saturn)",
-   "body": "Saturn",
-   "orbit": {
-    "altitude_km": 300000,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir",
-   "label": "Mir (Earth)",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "Mir",
-   "label": "Mir (Mercury)",
-   "body": "Mercury",
-   "orbit": {
-    "altitude_km": 300,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir",
-   "label": "Mir (Venus)",
-   "body": "Venus",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir",
-   "label": "Mir (Mars)",
-   "body": "Mars",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Jupiter)",
-   "body": "Jupiter",
-   "orbit": {
-    "altitude_km": 120000,
-    "inclination": 0,
-    "phase": 180
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Saturn)",
-   "body": "Saturn",
-   "orbit": {
-    "altitude_km": 300000,
-    "inclination": 0,
-    "phase": 180
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Uranus)",
-   "body": "Uranus",
-   "orbit": {
-    "altitude_km": 30000,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Neptune)",
-   "body": "Neptune",
-   "orbit": {
-    "altitude_km": 30000,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Pluto)",
-   "body": "Pluto",
-   "orbit": {
-    "altitude_km": 200,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir",
-   "label": "Mir (Moon)",
-   "body": "Moon",
-   "orbit": {
-    "altitude_km": 100,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Europa)",
-   "body": "Europa",
-   "orbit": {
-    "altitude_km": 100,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "Mir (Nuclear)",
-   "label": "Mir (Ganymede)",
-   "body": "Ganymede",
-   "orbit": {
-    "altitude_km": 150,
-    "inclination": 0,
-    "phase": 0
-   }
-  },
-  {
-   "ship": "CVEL Deltaglider",
-   "body": "Earth",
-   "dock": {
-    "to": 3,
-    "port": 0,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "CVEL Shuttle-A (Nuclear)",
-   "body": "Earth",
-   "dock": {
-    "to": 3,
-    "port": 1,
-    "own_port": 6
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "CVEL Shuttle-A Life Support Pod",
-   "body": "Earth",
-   "dock": {
-    "to": 16,
-    "port": 0,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "CVEL Shuttle-A Life Support Pod",
-   "body": "Earth",
-   "dock": {
-    "to": 16,
-    "port": 1,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "CVEL Shuttle-A Life Support Pod",
-   "body": "Earth",
-   "dock": {
-    "to": 16,
-    "port": 2,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "CVEL Shuttle-A Life Support Pod",
-   "body": "Earth",
-   "dock": {
-    "to": 16,
-    "port": 3,
-    "own_port": 0
-   },
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 180.01692387520694
-   }
-  },
-  {
-   "ship": "Wheel",
-   "label": "Wheel (Moon)",
-   "body": "Moon",
-   "orbit": {
-    "altitude_km": 150,
-    "inclination": 0,
-    "phase": 90
-   }
-  },
-  {
-   "ship": "Wheel",
-   "label": "Wheel (Mars)",
-   "body": "Mars",
-   "orbit": {
-    "altitude_km": 500,
-    "inclination": 0,
-    "phase": 90
-   }
-  }
- ]
+  "active": 15,
+  "description": "Dormant ISS stations around Earth, Jupiter and Saturn, Mir stations around every planet, Earth's Moon, Europa and Ganymede, and a Wheel station at the Moon and Mars. Each carries a month of life support for two people: when a crew arrives, press the crew button in the Ship systems window (F1) to switch on systems and life support, and again when they leave. Cycle ships to visit them all. The Mir at Earth has a fully fuelled Deltaglider docked to its fore port and a Nuclear Shuttle-A with four life support pods docked to its aft port. At Earth the ISS and Mir share a 400 km orbit about 2 km apart. Every station beyond Mars's orbit (the ISS at Jupiter and Saturn, and the Mirs from Jupiter outward including Europa and Ganymede) is a Nuclear variant with a fission reactor (10 kW for Mir, 20 kW for the ISS), since sunlight there is too weak for solar arrays.",
+  "name": "CVEL: Orbital stations",
+  "ships": [
+    {
+      "body": "Earth",
+      "label": "ISS (Earth)",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.0
+      },
+      "ship": "ISS"
+    },
+    {
+      "body": "Jupiter",
+      "label": "ISS (Jupiter)",
+      "orbit": {
+        "altitude_km": 120000,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "ISS (Nuclear)"
+    },
+    {
+      "body": "Saturn",
+      "label": "ISS (Saturn)",
+      "orbit": {
+        "altitude_km": 300000,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "ISS (Nuclear)"
+    },
+    {
+      "body": "Earth",
+      "label": "Mir (Earth)",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "Mir"
+    },
+    {
+      "body": "Mercury",
+      "label": "Mir (Mercury)",
+      "orbit": {
+        "altitude_km": 300,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir"
+    },
+    {
+      "body": "Venus",
+      "label": "Mir (Venus)",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir"
+    },
+    {
+      "body": "Mars",
+      "label": "Mir (Mars)",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir"
+    },
+    {
+      "body": "Jupiter",
+      "label": "Mir (Jupiter)",
+      "orbit": {
+        "altitude_km": 120000,
+        "inclination": 0,
+        "phase": 180
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Saturn",
+      "label": "Mir (Saturn)",
+      "orbit": {
+        "altitude_km": 300000,
+        "inclination": 0,
+        "phase": 180
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Uranus",
+      "label": "Mir (Uranus)",
+      "orbit": {
+        "altitude_km": 30000,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Neptune",
+      "label": "Mir (Neptune)",
+      "orbit": {
+        "altitude_km": 30000,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Pluto",
+      "label": "Mir (Pluto)",
+      "orbit": {
+        "altitude_km": 200,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Moon",
+      "label": "Mir (Moon)",
+      "orbit": {
+        "altitude_km": 100,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir"
+    },
+    {
+      "body": "Europa",
+      "label": "Mir (Europa)",
+      "orbit": {
+        "altitude_km": 100,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Ganymede",
+      "label": "Mir (Ganymede)",
+      "orbit": {
+        "altitude_km": 150,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Mir (Nuclear)"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 3
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Deltaglider"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 6,
+        "port": 1,
+        "to": 3
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Shuttle-A (Nuclear)"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 16
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Shuttle-A Life Support Pod"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 16
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Shuttle-A Life Support Pod"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 2,
+        "to": 16
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Shuttle-A Life Support Pod"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 3,
+        "to": 16
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 180.01692387520694
+      },
+      "ship": "CVEL Shuttle-A Life Support Pod"
+    },
+    {
+      "body": "Moon",
+      "label": "Wheel (Moon)",
+      "orbit": {
+        "altitude_km": 150,
+        "inclination": 0,
+        "phase": 90
+      },
+      "ship": "Wheel"
+    },
+    {
+      "body": "Mars",
+      "label": "Wheel (Mars)",
+      "orbit": {
+        "altitude_km": 500,
+        "inclination": 0,
+        "phase": 90
+      },
+      "ship": "Wheel"
+    }
+  ],
+  "thumbnail": "thumbs/orbital_stations-1794147071269475035-0.png",
+  "view": "cockpit"
 }

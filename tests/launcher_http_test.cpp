@@ -44,6 +44,52 @@ public:
             OpenFrame();
             frame->Show();
             frame->Layout();
+            if (frame->thumb_->IsShown() || frame->launch_->IsEnabled())
+                return Fail("preview or launch shown with no scenario selected");
+            wxImage image(480, 270);
+            image.SetRGB(wxRect(0, 0, 480, 270), 200, 30, 40);
+            const fs::path thumbnail = root / "preview-test.png";
+            if (!image.SaveFile(Wp(thumbnail), wxBITMAP_TYPE_PNG))
+                return Fail("could not create preview test image");
+            ScenarioInfo with_image;
+            with_image.id = "with-image";
+            with_image.name = "With image";
+            with_image.category = "Test folder";
+            with_image.thumbnail = thumbnail;
+            ScenarioInfo without_image;
+            without_image.id = "without-image";
+            without_image.name = "Without image";
+            without_image.category = "Test folder";
+            frame->scenarios_ = {with_image, without_image};
+            frame->FillTree();
+            wxTreeItemIdValue cookie;
+            const wxTreeItemId folder = frame->tree_->GetFirstChild(frame->tree_->GetRootItem(), cookie);
+            wxTreeItemIdValue child_cookie;
+            const wxTreeItemId first = frame->tree_->GetFirstChild(folder, child_cookie);
+            const wxTreeItemId second = frame->tree_->GetNextChild(folder, child_cookie);
+            if (!folder.IsOk() || !first.IsOk() || !second.IsOk())
+                return Fail("preview test scenario tree missing items");
+            frame->tree_->SelectItem(folder);
+            if (frame->thumb_->IsShown() || frame->launch_->IsEnabled() ||
+                !(frame->thumb_->GetContainingSizer()->GetItem(frame->thumb_)->GetFlag() & wxRESERVE_SPACE_EVEN_IF_HIDDEN))
+                return Fail("folder preview is visible or does not reserve space");
+            frame->tree_->SelectItem(first);
+            wxImage displayed = frame->thumb_->GetBitmap().ConvertToImage();
+            if (!frame->thumb_->IsShown() || !frame->launch_->IsEnabled() ||
+                displayed.GetRed(0, 0) != 200 || displayed.GetGreen(0, 0) != 30 || displayed.GetBlue(0, 0) != 40)
+                return Fail("scenario thumbnail was not shown");
+            frame->tree_->SelectItem(folder);
+            if (frame->thumb_->IsShown() || frame->launch_->IsEnabled() || !frame->title_->GetLabel().empty())
+                return Fail("folder retained scenario preview");
+            frame->tree_->SelectItem(second);
+            displayed = frame->thumb_->GetBitmap().ConvertToImage();
+            const wxImage placeholder = load_thumbnail({}, 480, 270).ConvertToImage();
+            if (!frame->thumb_->IsShown() || !frame->launch_->IsEnabled() ||
+                !std::equal(displayed.GetData(), displayed.GetData() + 480 * 270 * 3, placeholder.GetData()))
+                return Fail("scenario without thumbnail did not show placeholder");
+            frame->scenarios_.clear();
+            frame->FillTree();
+            fs::remove(thumbnail);
             auto *splitter = dynamic_cast<wxSplitterWindow *>(frame->page_list_->GetParent());
             if (!splitter || !splitter->IsSplit() || frame->page_list_->GetCount() != 7 ||
                 frame->page_list_->GetString(2) != "Scenery packs" || frame->page_list_->GetString(6) != "Logs")

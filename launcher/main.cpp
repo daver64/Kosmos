@@ -511,7 +511,8 @@ namespace
             launch_ = new wxButton(page, wxID_ANY, "Launch");
             launch_->SetFont(launch_->GetFont().Bold().Scaled(1.3f));
             resume_ = new wxButton(page, wxID_ANY, "Resume last scenario");
-            right->Add(thumb_, 0, wxALL, 8);
+            right->Add(thumb_, 0, wxALL | wxRESERVE_SPACE_EVEN_IF_HIDDEN, 8);
+            thumb_->Hide();
             right->Add(title_, 0, wxLEFT | wxRIGHT, 8);
             right->Add(detail_, 0, wxALL, 8);
             right->Add(blurb_, 1, wxLEFT | wxRIGHT | wxEXPAND, 8);
@@ -572,12 +573,13 @@ namespace
         {
             const ScenarioInfo *s = SelectedScenario();
             launch_->Enable(s != nullptr && !run_);
+            thumb_->Show(s != nullptr);
             if (!s)
             {
-                thumb_->SetBitmap(load_thumbnail({}, 480, 270));
                 for (wxString &text : scenario_text_)
                     text.clear();
                 WrapScenarioText();
+                Layout();
                 return;
             }
             thumb_->SetBitmap(load_thumbnail(s->thumbnail, 480, 270));

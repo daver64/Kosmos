@@ -13,6 +13,7 @@ are combined into one MTL entry named <material>_<texture>. DDS textures are dec
 because simlib's model loader reads PNG/JPG/BMP/TGA for OBJ materials.
 """
 import argparse
+import math
 import os
 import re
 import shutil
@@ -204,6 +205,10 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
     mtl_names = {}
     mtl_lines = []
 
+    def valid_normal(v):
+        n = v[3:6]
+        return all(math.isfinite(x) for x in n) and sum(x * x for x in n) > 1e-8
+
     def material_for(g):
         screen = g.label if re.search(r"DISPLAY$|DISP$", g.label or "") else ""
         key = (g.material, g.texture, screen)
@@ -252,7 +257,8 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
         for v in g.vertices:
             obj.append("v %.5f %.5f %.5f" % ((-v[0] if props else v[0]) * scale, v[1] * scale, (v[2] if props else -v[2]) * scale))
         for v in g.vertices:
-            obj.append("vn %.4f %.4f %.4f" % (-v[3] if props else v[3], v[4], v[5] if props else -v[5]))
+            n = v[3:6] if valid_normal(v) else (0.0, 0.0, 0.0)
+            obj.append("vn %.4f %.4f %.4f" % (-n[0] if props else n[0], n[1], n[2] if props else -n[2]))
         # A render target is stored bottom-up, so display groups keep Orbiter's V instead of flipping it.
         is_display = bool(re.search(r"DISPLAY$|DISP$", g.label or ""))
         for v in g.vertices:
@@ -261,8 +267,12 @@ def write_obj(mesh, out_base, texture_dirs, scale=1.0, tex_out=None, props=False
         for ti, (a, b, c) in enumerate(g.triangles):
             if ti in skip:
                 continue
-            a, b, c = (x + base_index for x in (a, b, c))
-            obj.append(f"f {a}/{a}/{a} {b}/{b}/{b} {c}/{c}/{c}")
+            corners = []
+            for index in (a, b, c):
+                vertex = g.vertices[index]
+                i = index + base_index
+                corners.append(f"{i}/{i}/{i}" if valid_normal(vertex) else f"{i}/{i}")
+            obj.append("f " + " ".join(corners))
             tris += 1
         base_index += len(g.vertices)
     with open(out_base + ".obj", "w") as f:
@@ -308,6 +318,16 @@ def selftest():
         obj = open(os.path.join(d, "t.obj")).read()
         assert "v 0.00000 0.00000 -1.00000" in obj and "vt 0.00000 1.00000" in obj
         assert "usemtl red" in obj and "usemtl grey_none" in obj
+        mesh.groups[0].nonormal = True
+        mesh.groups[0].vertices = [v[:3] + (0.0, 0.0, 0.0) + v[6:] for v in mesh.groups[0].vertices]
+        write_obj(mesh, os.path.join(d, "missing"), [d])
+        obj = open(os.path.join(d, "missing.obj")).read()
+        assert "f 1/1 2/2 3/3" in obj and "f 4/4/4 5/5/5 6/6/6" in obj
+        v = mesh.groups[1].vertices[0]
+        mesh.groups[1].vertices[0] = v[:3] + (float("nan"), 0.0, 0.0) + v[6:]
+        write_obj(mesh, os.path.join(d, "mixed"), [d])
+        obj = open(os.path.join(d, "mixed.obj")).read()
+        assert "nan" not in obj and "f 4/4 5/5/5 6/6/6" in obj
     print("selftest ok")
 
 
