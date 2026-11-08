@@ -297,11 +297,14 @@ DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with 
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
 Orbiter `Surf.tree` archives under `import/orbiter/` can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
 
-The standard Orbiter 2024 planetary archives can be packaged separately with
+The Linux and Windows game archives include low-resolution fallback textures, not
+the standard Orbiter planetary datasets. The standard Orbiter 2024 archives are
+split into separate Earth and planets packs to fit GitHub's per-asset size limit.
+After those packs are attached to a GitHub release, the launcher offers them on
+its Scenery packs page. They can be prepared from the Orbiter release ZIP with
 `python3 scripts/pack-orbiter-defaults.py Orbiter-2024.zip OUTPUT_DIR` (requires
 Python, NumPy and Pillow). The Earth pack includes converted standard cloud, night-light and water-specular maps. Publish
-both generated archives and `packs.json` together as GitHub release assets; the
-launcher offers them on its Scenery packs page. The two packs install into
+both generated archives and `packs.json` together as GitHub release assets. The two packs install into
 `data/orbiter-defaults/` and are excluded from the platform archives to stay
 within GitHub's per-asset size limit. Orbiter surface and elevation trees under
 `import/orbiter/` take precedence, separately for each layer. Mask, cloud,
