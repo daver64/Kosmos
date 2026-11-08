@@ -1,0 +1,23 @@
+newmtl material112
+Kd 0.224 0.220 0.188
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl copper1_DeltaIV_DemoSat2
+Kd 1.000 1.000 1.000
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+map_Kd textures/DemoSat2.png
+
+newmtl material013_DeltaIV_DemoSat1
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DemoSat1.png
+
+newmtl material040_DeltaIV_DemoSat3
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DemoSat3.png
+

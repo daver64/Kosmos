@@ -1,0 +1,52 @@
+newmtl Material0
+Kd 0.977 0.977 0.977
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+
+newmtl Material1_VAB_TL1
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/VAB_TL1.png
+
+newmtl Material2_VAB_FR01
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/VAB_FR01.png
+
+newmtl Material1_VAB_TL2
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/VAB_TL2.png
+
+newmtl Material1_VAB_FR02
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/VAB_FR02.png
+
+newmtl Material1_VAB_BK01
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/VAB_BK01.png
+
+newmtl Material3
+Kd 0.126 0.126 0.126
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+
+newmtl Material1_LCC_WNDS
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/LCC_WNDS.png
+
+newmtl Material1_LCC_DRS
+Kd 1.000 1.000 1.000
+Ks 0.045 0.045 0.045
+Ke 0.000 0.000 0.000
+map_Kd textures/LCC_DRS.png
+

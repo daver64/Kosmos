@@ -1,0 +1,60 @@
+newmtl default_KSC_KLC39B
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/KLC39B.png
+
+newmtl default_generic_concrete3
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/concrete3.png
+
+newmtl default_generic_concrete1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/concrete1.png
+
+newmtl default_generic_tiles1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/tiles1.png
+
+newmtl default_generic_stripes
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/stripes.png
+
+newmtl default_generic_concrete2a
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/concrete2a.png
+
+newmtl default_generic_metal_plates1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/metal_plates1.png
+
+newmtl default_KSC_MLP
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/MLP.png
+
+newmtl default_KSC_RSS39B
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/RSS39B.png
+
+newmtl default_generic_railings1
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+map_Kd textures/railings1.png
+

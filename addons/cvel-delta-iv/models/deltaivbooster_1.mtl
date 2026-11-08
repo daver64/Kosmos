@@ -1,0 +1,45 @@
+newmtl material090
+Kd 0.000 0.000 0.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material026_DeltaIV_DeltaIVcoreNose
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DeltaIVcoreNose.png
+
+newmtl material017_DeltaIV_DeltaIVcore
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DeltaIVcore.png
+
+newmtl material045
+Kd 0.396 0.098 0.031
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material071_DeltaIV_DeltaIVpipe
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DeltaIVpipe.png
+
+newmtl material062_DeltaIV_DeltaIVnozle2
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DeltaIVnozle2.png
+
+newmtl material053_DeltaIV_DeltaIVnozle
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/DeltaIVnozle.png
+
+newmtl material034
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

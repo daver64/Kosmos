@@ -1,0 +1,26 @@
+newmtl Blackish
+Kd 0.000 0.000 0.000
+Ks 0.000 0.000 0.000
+Ke 0.000 0.000 0.000
+
+newmtl Boxes
+Kd 0.592 0.294 0.000
+Ks 0.416 0.416 0.416
+Ke 0.000 0.000 0.000
+
+newmtl Nozzles_SSMEC
+Kd 1.000 1.000 1.000
+Ks 0.420 0.420 0.420
+Ke 0.000 0.000 0.000
+map_Kd textures/SSMEC.png
+
+newmtl Silver
+Kd 0.765 0.765 0.765
+Ks 0.400 0.400 0.400
+Ke 0.000 0.000 0.000
+
+newmtl White
+Kd 1.000 1.000 1.000
+Ks 0.737 0.737 0.737
+Ke 0.000 0.000 0.000
+

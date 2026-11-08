@@ -1,0 +1,18 @@
+newmtl ___default__Transtag
+Kd 1.000 1.000 1.000
+Ks 0.494 0.494 0.494
+Ke 0.000 0.000 0.000
+map_Kd textures/Transtag.png
+
+newmtl material04_Transtag
+Kd 1.000 1.000 1.000
+Ks 0.796 0.796 0.329
+Ke 0.000 0.000 0.000
+map_Kd textures/Transtag.png
+
+newmtl material05_Transtag
+Kd 1.000 1.000 1.000
+Ks 0.639 0.639 0.639
+Ke 0.000 0.000 0.000
+map_Kd textures/Transtag.png
+

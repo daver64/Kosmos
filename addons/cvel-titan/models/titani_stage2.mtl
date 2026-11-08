@@ -1,0 +1,57 @@
+newmtl ___default__titan22m
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/titan22m.png
+
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+
+newmtl j2engred
+Kd 1.000 0.000 0.000
+Ks 1.000 0.773 0.773
+Ke 0.000 0.000 0.000
+
+newmtl material02
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material06
+Kd 0.749 0.302 0.173
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material07_Titanstage2
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Titanstage2.png
+
+newmtl stage01black
+Kd 0.000 0.000 0.000
+Ks 0.553 0.553 0.553
+Ke 0.000 0.000 0.000
+
+newmtl stage01white
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steeldark
+Kd 0.329 0.329 0.329
+Ks 0.647 0.647 0.647
+Ke 0.000 0.000 0.000
+
+newmtl steellight
+Kd 0.282 0.282 0.282
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steellight1
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

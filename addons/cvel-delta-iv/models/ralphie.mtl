@@ -1,0 +1,26 @@
+newmtl dark1
+Kd 0.373 0.373 0.373
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl gold2
+Kd 0.914 0.780 0.016
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl dishwhite0
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl metal3
+Kd 0.694 0.694 0.694
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material064_DeltaIV_Nanosat1
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Nanosat1.png
+
