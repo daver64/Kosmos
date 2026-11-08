@@ -2,6 +2,7 @@
 """Check the SEV model and wheel contacts used by the Tranquility scenario."""
 
 import json
+import math
 import struct
 from pathlib import Path
 
@@ -30,6 +31,13 @@ assert positions["componentType"] == 5126 and positions["type"] == "VEC3"
 start = binary_start + view.get("byteOffset", 0) + positions.get("byteOffset", 0)
 stride = view.get("byteStride", 12)
 vertices = [struct.unpack_from("<3f", data, start + i * stride) for i in range(positions["count"])]
+# The source model's longer, windowed nose is at +Z; Kosmos drives toward -Z.
+assert max(p[2] for p in vertices) > -min(p[2] for p in vertices) + 0.5
+part = ship["stages"][0]["parts"][0]
+angle = math.radians(part.get("rotate", [0, 0, 0])[1])
+c, s = math.cos(angle), math.sin(angle)
+vertices = [(c * x + s * z, y, -s * x + c * z) for x, y, z in vertices]
+assert -min(p[2] for p in vertices) > max(p[2] for p in vertices) + 0.5
 for wheel in ship["wheels"]:
     x, y, z = wheel["position"]
     near = [p for p in vertices if abs(p[0] - x) < 0.3 and abs(p[2] - z) < 0.3]

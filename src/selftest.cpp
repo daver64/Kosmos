@@ -1658,6 +1658,21 @@ namespace kosmos
             if (ship->telemetry().surface_speed < 0.05 || ship->crashed() ||
                 glm::dot(ship->body().direction_to_world({0, 1, 0}), up) < 0.5)
                 return fail("rover did not drive upright");
+            const auto forward_speed = [&]() {
+                const sl::FlightBody &body = ship->body();
+                const sl::dvec3 surface_velocity = primary.velocity + glm::cross(primary.spin_axis * primary.spin_rate, body.position - primary.position);
+                return glm::dot(body.velocity - surface_velocity, body.direction_to_world({0, 0, -1}));
+            };
+            if (forward_speed() < 0.05)
+                return fail("forward throttle did not drive forward");
+            if (!curiosity)
+            {
+                sim.props.set_double("/controls/throttle", -1.0);
+                for (int i = 0; i < 2000; ++i)
+                    sim.step(0.01);
+                if (forward_speed() > -0.05)
+                    return fail("reverse throttle did not drive backward");
+            }
             sim.props.set_double("/controls/throttle", 0.0);
             for (double angle : {90.0, 180.0, -90.0})
             {
