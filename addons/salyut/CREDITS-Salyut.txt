@@ -1,0 +1,29 @@
+Credits:
+
+Saylut Programming Dave Rowbotham
+Saylut Meshes Dave Rowbotham
+
+CVE-Light Programming by David Henderson with some parts by Dave Rowbotham.
+
+REquirements : CVE-Light 
+
+License : 
+	C++ Module Code LGPL .
+	Meshes LGPL .
+	see lgpl.txt for usage and distribution conditions.
+
+
+Keys:
+ None at present.	
+
+
+
+Developer Notes:
+ Salyut mesh is provided in 2 basic forms "salyut_stowed" ( without solar panels ) and "salyut" ( solar panels deployed )
+
+To Do:
+ Smooth deployment sequence.
+
+Copyright Dave Rowbotham 2004
+
+

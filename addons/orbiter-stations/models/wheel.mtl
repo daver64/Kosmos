@@ -1,0 +1,16 @@
+newmtl Hull_Station2
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 0.100 0.100 0.100
+map_Kd textures/Station2.png
+
+newmtl DefaultMaterial
+Kd 1.000 1.000 1.000
+Ks 0.500 0.500 0.500
+Ke 0.000 0.000 0.000
+
+newmtl HubInside
+Kd 1.000 1.000 1.000
+Ks 0.000 0.000 0.000
+Ke 1.000 1.000 0.500
+

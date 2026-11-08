@@ -1,0 +1,44 @@
+newmtl default
+Kd 0.878 0.878 0.878
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material01_salyut_body1
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/salyut_body1.png
+
+newmtl material02_Centaurcover
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Centaurcover.png
+
+newmtl material03_salyut_body2
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/salyut_body2.png
+
+newmtl material04
+Kd 0.384 0.431 0.447
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material05_ssmec
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material06
+Kd 0.431 0.431 0.431
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material07_salyutsolar
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/salyutsolar.png
+

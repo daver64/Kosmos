@@ -6,6 +6,7 @@
 #include "ship.h"
 #include "transfer_plan.h"
 #include "terrain.h"
+#include "exhaust_fx.h"
 
 #include <filesystem>
 #include <fstream>
@@ -65,6 +66,84 @@ namespace
 
 int main()
 {
+    {
+        using kosmos::app::ExhaustFx;
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec nuclear_spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-saturn-mlv1/ship_nerva.json", nuclear_spec, error));
+        ShipSpec hydrogen_spec = nuclear_spec;
+        for (StageSpec &stage : hydrogen_spec.stages)
+            for (EngineSpec &engine : stage.engines)
+                if (engine.type == EngineType::nuclear)
+                {
+                    engine.type = EngineType::rocket;
+                    engine.fuel = "hydrogen";
+                }
+        Ship nuclear_ship(universe, nuclear_spec);
+        Ship hydrogen_ship(universe, hydrogen_spec);
+        std::size_t engine_index = 0;
+        bool found = false;
+        for (const StageSpec &stage : nuclear_spec.stages)
+        {
+            for (const EngineSpec &engine : stage.engines)
+            {
+                if (engine.type == EngineType::nuclear)
+                {
+                    found = true;
+                    break;
+                }
+                ++engine_index;
+            }
+            if (found)
+                break;
+        }
+        assert(found);
+        nuclear_ship.body().thrusters[engine_index].level = 1.0;
+        hydrogen_ship.body().thrusters[engine_index].level = 1.0;
+        const auto &colour = ExhaustFx::style(ExhaustFx::nuclear);
+        assert(colour.core.blue > colour.core.red && colour.core.red > colour.core.green);
+        assert(colour.tail.blue > colour.tail.red && colour.tail.red > colour.tail.green);
+        assert(colour.glow.blue > colour.glow.red && colour.glow.red > colour.glow.green);
+        for (double vacuum : {0.0, 1.0})
+        {
+            ExhaustFx nuclear_fx, hydrogen_fx;
+            nuclear_fx.update(nuclear_ship, vacuum, 0.1f, true);
+            hydrogen_fx.update(hydrogen_ship, vacuum, 0.1f, true);
+            assert(!nuclear_fx.particles.empty());
+            assert(nuclear_fx.particles.size() == hydrogen_fx.particles.size());
+            assert(nuclear_fx.diamonds.size() == hydrogen_fx.diamonds.size());
+            assert(nuclear_fx.diamonds.size() == (vacuum == 1.0 ? 5u : 0u));
+            const glm::vec3 direction = glm::vec3(-nuclear_ship.body().thrusters[engine_index].direction);
+            for (std::size_t i = 0; i < nuclear_fx.particles.size(); ++i)
+            {
+                const auto &n = nuclear_fx.particles[i];
+                const auto &h = hydrogen_fx.particles[i];
+                assert(n.kind == ExhaustFx::nuclear && h.kind == ExhaustFx::hydrogen);
+                assert(glm::length(n.position - h.position) < 1e-5f);
+                assert(glm::length(n.velocity - h.velocity) < 1e-5f);
+                assert(glm::dot(n.velocity, direction) > 0.0f);
+                assert(n.size == h.size && n.life == h.life && n.stretch == h.stretch);
+            }
+            for (std::size_t i = 0; i < nuclear_fx.diamonds.size(); ++i)
+            {
+                const auto &n = nuclear_fx.diamonds[i];
+                const auto &h = hydrogen_fx.diamonds[i];
+                assert(n.kind == ExhaustFx::nuclear && h.kind == ExhaustFx::hydrogen);
+                assert(glm::length(n.position - h.position) < 1e-5f && n.size == h.size);
+            }
+            const std::size_t full_count = nuclear_fx.particles.size();
+            nuclear_ship.body().thrusters[engine_index].level = 0.5;
+            ExhaustFx half_throttle;
+            half_throttle.update(nuclear_ship, vacuum, 0.1f, true);
+            assert(!half_throttle.particles.empty() && half_throttle.particles.size() < full_count);
+            nuclear_ship.body().thrusters[engine_index].level = 0.0;
+            nuclear_fx.update(nuclear_ship, vacuum, 2.0f, true);
+            assert(nuclear_fx.particles.empty() && nuclear_fx.diamonds.empty());
+            nuclear_ship.body().thrusters[engine_index].level = 1.0;
+        }
+    }
     {
         Universe universe;
         std::string error;

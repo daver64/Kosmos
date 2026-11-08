@@ -1,15 +1,16 @@
 {
- "name": "Curiosity Rover, Gale Crater",
- "description": "Curiosity at Gale Crater base on Mars, where the ground is a scanned model of the crater and its central mound (terrain/gale-crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes. Turn the camera mast using the Animations menu.",
- "active": 0,
- "ships": [
-  {
-   "ship": "Curiosity Rover",
-   "body": "Mars",
-   "surface": {
-    "base": "gale"
-   }
-  }
- ],
- "date": "2024-01-01 10:00:00"
+  "active": 0,
+  "date": "2024-01-01 10:00:00",
+  "description": "Curiosity at Gale Crater base on Mars, where the ground is a scanned model of the crater and its central mound (terrain/gale-crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes. Turn the camera mast using the Animations menu.",
+  "name": "Curiosity Rover, Gale Crater",
+  "ships": [
+    {
+      "body": "Mars",
+      "ship": "Curiosity Rover",
+      "surface": {
+        "base": "gale"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/rover_gale_crater-1794141359992270872-0.png"
 }

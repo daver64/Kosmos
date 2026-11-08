@@ -25,7 +25,7 @@ namespace kosmos::app
                 {1.15f, 0.8f, 1.0f, 0.8f, 0.09f, {255, 240, 225, 255}, {255, 150, 70, 255}, {110, 145, 255, 255}},  // methane
                 {0.8f, 0.85f, 0.9f, 0.8f, 0.06f, {255, 225, 190, 255}, {255, 150, 90, 255}, {255, 150, 80, 255}},   // hypergolic
                 {0.95f, 1.5f, 1.35f, 1.6f, 0.16f, {255, 245, 205, 255}, {255, 85, 20, 255}, {255, 90, 30, 255}},    // solid
-                {1.4f, 0.5f, 1.0f, 0.4f, 0.16f, {235, 245, 255, 255}, {90, 170, 255, 255}, {60, 130, 255, 255}},    // nuclear
+                {1.7f, 0.55f, 0.9f, 0.5f, 0.07f, {220, 160, 255, 255}, {160, 75, 255, 255}, {140, 70, 255, 255}},   // nuclear
                 {1.3f, 0.5f, 0.9f, 0.35f, 0.14f, {205, 228, 255, 255}, {70, 120, 255, 255}, {60, 110, 255, 255}},   // scramjet
                 {1.1f, 0.5f, 0.8f, 0.4f, 0.12f, {255, 235, 190, 255}, {255, 110, 40, 255}, {255, 120, 50, 255}},    // afterburner
                 {1.0f, 1.0f, 1.0f, 1.0f, 0.10f, {255, 235, 190, 255}, {255, 120, 40, 255}, {255, 110, 40, 255}},    // rcs
@@ -159,30 +159,25 @@ namespace kosmos::app
                 const float bright = i < engines.size() ? static_cast<float>(engines[i]->plume_glow) : 1.0f;
                 // An afterburner only lights above 80% throttle and ramps up from there.
                 const float level = kind == afterburner ? static_cast<float>((t.level - 0.8) / 0.2) : static_cast<float>(t.level);
-                // A hydrogen engine in thin air or vacuum runs a short, tight, clean plume with shock diamonds, like a scramjet's.
+                // Hydrogen and nuclear engines share the same plume shape.
+                const bool hydrogen_plume = kind == hydrogen || kind == nuclear;
                 const float billow = i < engines.size() ? static_cast<float>(engines[i]->plume_billow) : 0.0f;
-                const float crisp = kind == hydrogen ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
+                const float crisp = hydrogen_plume ? static_cast<float>(fx::smoothstep(0.3, 0.8, vacuum)) : (kind == scramjet || kind == afterburner ? 1.0f : 0.0f);
                 const float tight = crisp * (1.0f - billow);
                 const double expansion = vacuum * (kind == kerosene ? 0.6 : 1.0);
-                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(expansion)) * (kind == hydrogen ? 1.0f - 0.5f * crisp : 1.0f);
-                const float width = static_cast<float>((1.1 + 3.2 * expansion) * (0.5 + 0.5 * t.level)) * st.width * wide * (kind == hydrogen ? 1.0f - 0.45f * tight : 1.0f);
+                const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(expansion)) * (hydrogen_plume ? 1.0f - 0.5f * crisp : 1.0f);
+                const float width = static_cast<float>((1.1 + 3.2 * expansion) * (0.5 + 0.5 * t.level)) * st.width * wide * (hydrogen_plume ? 1.0f - 0.45f * tight : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
                 const glm::vec3 side2 = glm::cross(dir, side1);
-                if (kind == nuclear)
-                {
-                    // A nuclear engine has no flame: a hot, neon-lit panel across the nozzle with a soft glow around it.
-                    diamonds.push_back({glm::vec3(t.position + ship.com_offset()) + dir * 0.1f, dir, static_cast<float>(plume) * 0.16f, level, static_cast<std::uint8_t>(nuclear)});
-                    continue;
-                }
                 const float density = i < engines.size() ? static_cast<float>(engines[i]->plume_density) : 1.0f;
-                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * density * level * (kind == hydrogen ? 1.0f - 0.5f * tight : 1.0f);
+                const float rate = std::min(420.0f, 1000.0f / static_cast<float>(firing)) * density * level * (hydrogen_plume ? 1.0f - 0.5f * tight : 1.0f);
                 float &carry = carry_main;
                 carry += rate * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
                 {
-                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(expansion)) * st.spread * random01() * (kind == hydrogen ? 1.0f - 0.7f * tight : 1.0f);
+                    const float angle = random01() * 6.2831853f, spread = (0.1f + 0.2f * static_cast<float>(expansion)) * st.spread * random01() * (hydrogen_plume ? 1.0f - 0.7f * tight : 1.0f);
                     const float life = (0.45f + random01() * 0.35f) * st.life;
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
@@ -190,14 +185,14 @@ namespace kosmos::app
                     p.position = glm::vec3(t.position + ship.com_offset()) + radial * (0.25f * width * random01());
                     p.velocity = dir * speed + radial * (spread * speed);
                     p.age = random01() * dt;
-                    if (kind == hydrogen)
+                    if (hydrogen_plume)
                         p.position += p.velocity * p.age;
                     p.life = life;
                     p.size = width * 0.35f * (0.75f + 0.5f * random01());
                     p.kind = static_cast<std::uint8_t>(kind);
                     p.body = 0.55f - 0.48f * tight;
                     p.bright = bright;
-                    p.stretch = kind == hydrogen ? 1.0f + 2.5f * (1.0f - static_cast<float>(vacuum)) : 1.0f;
+                    p.stretch = hydrogen_plume ? 1.0f + 2.5f * (1.0f - static_cast<float>(vacuum)) : 1.0f;
                     particles.push_back(p);
                 }
                 if (crisp > 0.05f)
@@ -297,31 +292,6 @@ namespace kosmos::app
             for (const Diamond &d : diamonds)
             {
                 const Style &st = style(d.kind);
-                if (d.kind == nuclear)
-                {
-                    const glm::mat4 disc_frame = hull * glm::translate(glm::mat4(1.0f), d.position);
-                    glm::vec3 u = std::fabs(d.axis.x) < 0.9f ? glm::cross(d.axis, glm::vec3(1, 0, 0)) : glm::cross(d.axis, glm::vec3(0, 1, 0));
-                    u = glm::normalize(u);
-                    const glm::mat4 f = disc_frame * glm::mat4(glm::vec4(u, 0.0f), glm::vec4(glm::cross(d.axis, u), 0.0f), glm::vec4(d.axis, 0.0f), glm::vec4(0, 0, 0, 1));
-                    const float flicker = 0.92f + 0.08f * std::sin(static_cast<float>(sl::time_ms() % 100000) * 0.021f + d.position.x);
-                    const float k = d.strength * flicker;
-                    // Soft blur first: many faint, graduated layers so no single outline shows.
-                    glow.tint = st.glow;
-                    for (int layer = 0; layer < 32; ++layer)
-                    {
-                        const float t = static_cast<float>(layer) / 31.0f;
-                        const float r = d.size * (1.0f + 3.2f * t * t);
-                        glow.tint.alpha = static_cast<std::uint8_t>(std::clamp((0.012f + 0.020f * (1.0f - t)) * k * 255.0f, 0.0f, 255.0f));
-                        sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(r, r, r * 0.35f)), glow);
-                    }
-                    glow.tint = st.tail;
-                    glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(0.85f * k * 255.0f, 0.0f, 255.0f));
-                    sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.25f, d.size * 1.25f, d.size * 0.12f)), glow);
-                    glow.tint = st.core;
-                    glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(0.95f * k * 255.0f, 0.0f, 255.0f));
-                    sl::draw_mesh(glow_mesh, f * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 0.8f, d.size * 0.8f, d.size * 0.1f)), glow);
-                    continue;
-                }
                 glm::vec3 side1 = std::fabs(d.axis.x) < 0.9f ? glm::cross(d.axis, glm::vec3(1, 0, 0)) : glm::cross(d.axis, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
                 const glm::mat4 frame(glm::vec4(side1, 0.0f), glm::vec4(glm::cross(d.axis, side1), 0.0f), glm::vec4(d.axis, 0.0f), glm::vec4(d.position, 1.0f));
