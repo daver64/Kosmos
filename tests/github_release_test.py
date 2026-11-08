@@ -84,6 +84,52 @@ class FakeGitHub:
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_titan_materials_use_existing_single_case_textures(self):
+        models = ROOT / "addons/cvel-titan/models"
+        textures = models / "textures"
+        for stem in ("titan21m.png", "titan22m.png"):
+            matches = [path for path in textures.iterdir() if path.name.casefold() == stem]
+            self.assertEqual([path.name for path in matches], [stem])
+        references = []
+        for material in models.glob("*.mtl"):
+            for line in material.read_text().splitlines():
+                if line.startswith("map_Kd ") and line.split(None, 1)[1].lower().endswith(
+                        ("titan21m.png", "titan22m.png")):
+                    texture = line.split(None, 1)[1]
+                    references.append(texture)
+                    self.assertTrue((models / texture).is_file(), f"{material}: {texture}")
+        self.assertIn("textures/titan21m.png", references)
+        self.assertIn("textures/titan22m.png", references)
+
+    def test_windows_zip_rejects_case_and_duplicate_collisions(self):
+        examples = [
+            ("textures/TITAN21M.png", "textures/titan21m.png"),
+            ("same.png", "same.png"),
+            ("dir/image.png", "DIR/IMAGE.PNG"),
+            ("texture", "TEXTURE/child.png"),
+            ("folder/child.png", "FOLDER"),
+            ("image.png", "IMAGE.PNG."),
+        ]
+        for first, second in examples:
+            with self.subTest(first=first, second=second), tempfile.TemporaryFile() as temp:
+                with zipfile.ZipFile(temp, "w") as archive:
+                    archive.writestr(first, b"one")
+                    with patch("warnings.warn"):
+                        archive.writestr(second, b"two")
+                temp.seek(0)
+                with zipfile.ZipFile(temp) as archive, self.assertRaisesRegex(ValueError, "collision"):
+                    release.validate_windows_zip(archive)
+
+    def test_windows_zip_allows_shared_directories(self):
+        with tempfile.TemporaryFile() as temp:
+            with zipfile.ZipFile(temp, "w") as archive:
+                archive.writestr("textures/", b"")
+                archive.writestr("textures/a.png", b"a")
+                archive.writestr("textures/b.png", b"b")
+            temp.seek(0)
+            with zipfile.ZipFile(temp) as archive:
+                release.validate_windows_zip(archive)
+
     def test_release_pagination_uses_supported_gh_api(self):
         github = release.GitHub("gh")
         first = [{"tag_name": f"v0.{number}"} for number in range(100)]

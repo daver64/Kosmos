@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import unicodedata
 import zipfile
 
 
@@ -175,6 +176,31 @@ def verify_assets(github, tag, files, release, directory):
             raise ValueError(f"Release asset failed download verification: {path.name}")
 
 
+def validate_windows_zip(archive):
+    files, directories = {}, {}
+    for entry in archive.infolist():
+        name = entry.filename.replace("\\", "/").rstrip("/")
+        parts = name.split("/")
+        normalized = [unicodedata.normalize("NFC", part).rstrip(" .").casefold() for part in parts]
+        if not name or any(part in ("", ".", "..") for part in parts) or any(not part for part in normalized):
+            raise ValueError(f"Invalid Windows archive path: {entry.filename}")
+        for index in range(1, len(parts)):
+            parent = "/".join(normalized[:index])
+            if parent in files:
+                raise ValueError(f"Windows archive file/directory collision: {files[parent]} and {entry.filename}")
+            directories.setdefault(parent, "/".join(parts[:index]))
+        key = "/".join(normalized)
+        if entry.is_dir():
+            if key in files:
+                raise ValueError(f"Windows archive file/directory collision: {files[key]} and {entry.filename}")
+            directories.setdefault(key, entry.filename)
+        else:
+            previous = files.get(key) or directories.get(key)
+            if previous:
+                raise ValueError(f"Windows archive filename collision: {previous} and {entry.filename}")
+            files[key] = entry.filename
+
+
 def validate_archives(files, version):
     root = f"kosmos-beta-{version}-Linux/"
     with tarfile.open(files[0], "r:gz") as archive:
@@ -185,6 +211,7 @@ def validate_archives(files, version):
             raise ValueError("Linux package has the wrong version")
     root = f"kosmos-beta-{version}-Windows/"
     with zipfile.ZipFile(files[1]) as archive:
+        validate_windows_zip(archive)
         for name in ("kosmos.exe", "kosmos-launcher.exe", "VERSION.txt"):
             if archive.getinfo(root + name).is_dir():
                 raise ValueError(f"Windows package is missing {name}")

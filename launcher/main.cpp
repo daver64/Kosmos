@@ -168,9 +168,21 @@ namespace
     class Http : public wxEvtHandler
     {
     public:
+        Http()
+        {
+            cancel_timer_.SetOwner(this);
+            Bind(wxEVT_TIMER, [this](wxTimerEvent &) {
+                if (cancelling_)
+                    Finish(false, "Cancellation notification timed out; partial download retained");
+            }, cancel_timer_.GetId());
+        }
+
         std::function<void(bool ok, const std::string &body_or_error)> on_text;
         std::function<void(long long got, long long total, long long received)> on_progress;
         std::function<void(bool ok, const std::string &error)> on_file;
+#ifdef KOSMOS_LAUNCHER_HTTP_TEST
+        bool test_suppress_terminal_ = false;
+#endif
 
         void Fetch(const std::string &url, std::function<void(bool, const std::string &)> done)
         {
@@ -216,15 +228,20 @@ namespace
 
         void Cancel()
         {
-            if (request_.IsOk())
+            if (request_.IsOk() && active_ && !cancelling_)
+            {
+                cancelling_ = true;
+                cancel_timer_.StartOnce(3000);
                 request_.Cancel();
+            }
         }
 
     private:
         void Start(const std::string &url, bool to_file)
         {
             to_file_ = to_file;
-            request_ = wxWebSession::GetDefault().CreateRequest(this, W(url));
+            request_id_ = wxNewId();
+            request_ = wxWebSession::GetDefault().CreateRequest(this, W(url), request_id_);
             if (!request_.IsOk())
             {
                 Finish(false, "Cannot create a web request");
@@ -241,11 +258,14 @@ namespace
             request_.SetStorage(wxWebRequest::Storage_None);
             Bind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
             Bind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
+            active_ = true;
             request_.Start();
         }
 
         void OnData(wxWebRequestEvent &e)
         {
+            if (!active_ || cancelling_ || e.GetId() != request_id_)
+                return;
             const char *bytes = static_cast<const char *>(e.GetDataBuffer());
             if (to_file_)
             {
@@ -256,7 +276,7 @@ namespace
                 if (status != 200 && status != 206)
                 {
                     file_error_ = "Server replied " + std::to_string(status);
-                    request_.Cancel();
+                    Cancel();
                     return;
                 }
                 // A 200 reply to a Range request means the server ignored it; restart the file.
@@ -273,7 +293,7 @@ namespace
                     if (range.rfind(prefix, 0) != 0)
                     {
                         file_error_ = "Server returned an invalid resume range";
-                        request_.Cancel();
+                        Cancel();
                         return;
                     }
                 }
@@ -282,7 +302,7 @@ namespace
                 if (!*file_)
                 {
                     file_error_ = "Cannot write partial download";
-                    request_.Cancel();
+                    Cancel();
                     return;
                 }
                 received_ += static_cast<long long>(e.GetDataSize());
@@ -298,6 +318,12 @@ namespace
 
         void OnState(wxWebRequestEvent &e)
         {
+            if (!active_ || e.GetId() != request_id_)
+                return;
+#ifdef KOSMOS_LAUNCHER_HTTP_TEST
+            if (test_suppress_terminal_ && e.GetState() != wxWebRequest::State_Active)
+                return;
+#endif
             switch (e.GetState())
             {
             case wxWebRequest::State_Completed:
@@ -316,6 +342,10 @@ namespace
 
         void Finish(bool ok, const std::string &error)
         {
+            const bool was_cancelling = cancelling_;
+            active_ = false;
+            cancelling_ = false;
+            cancel_timer_.Stop();
             Unbind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
             Unbind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
             bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
@@ -326,6 +356,12 @@ namespace
             {
                 http_ok = true;
                 why.clear();
+            }
+            if (was_cancelling)
+            {
+                http_ok = false;
+                if (why.empty())
+                    why = "Cancelled";
             }
             if (!file_error_.empty())
             {
@@ -349,11 +385,17 @@ namespace
                     }
                 }
                 file_.reset();
-                if (on_file)
-                    on_file(http_ok, why);
+                auto done = std::move(on_file);
+                on_progress = {};
+                if (done)
+                    done(http_ok, why);
             }
-            else if (on_text)
-                on_text(http_ok, http_ok ? text_ : why);
+            else
+            {
+                auto done = std::move(on_text);
+                if (done)
+                    done(http_ok, http_ok ? text_ : why);
+            }
         }
 
         fs::path part_path() const { return part_; }
@@ -363,11 +405,21 @@ namespace
         std::unique_ptr<std::ofstream> file_;
         fs::path part_;
         long long resume_from_ = 0, received_ = 0;
-        bool to_file_ = false, started_ = false;
+        int request_id_ = wxID_NONE;
+        bool to_file_ = false, started_ = false, active_ = false, cancelling_ = false;
+        wxTimer cancel_timer_;
 
     public:
         void SetPart(const fs::path &p) { part_ = p; }
     };
+
+    Http &download_http()
+    {
+        // A Windows cancellation can omit its terminal event; keep its event handler
+        // alive until process exit so any late backend events cannot target a destroyed frame.
+        static Http *http = new Http;
+        return *http;
+    }
 
     // Starts Kosmos, keeps its output for the Logs page and reports how it ended.
     class Run : public wxProcess
@@ -1022,7 +1074,8 @@ namespace
                     pack_paused_ = true;
             }
             else if (cancelled)
-                SetStatusText("Download paused; partial file retained.");
+                SetStatusText(error.find("Cancellation notification timed out") != std::string::npos
+                                  ? W(error) : wxString("Download paused; partial file retained."));
             else
             {
                 pack_paused_ = true;
@@ -2001,7 +2054,8 @@ namespace
         std::vector<fs::path> log_files_;
         std::string latest_, last_run_scenario_;
         bool busy_ = false, loading_ = false;
-        Http http_, packs_http_, orbiter_packs_http_, update_http_;
+        Http &http_ = download_http();
+        Http packs_http_, orbiter_packs_http_, update_http_;
         Run *run_ = nullptr;
         wxDateTime started_;
         wxTimer timer_;

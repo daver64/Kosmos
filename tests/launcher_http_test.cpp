@@ -39,7 +39,7 @@ public:
             return Fail("stalled download retained a speed estimate");
         SetExitOnFrameDelete(false);
         const std::string mode = U(argv[3]);
-        if (mode == "queue" || mode == "queue-archive")
+        if (mode == "queue" || mode == "queue-archive" || mode == "queue-timeout" || mode == "queue-timeout-pause")
         {
             if (argc != 5)
                 return false;
@@ -47,6 +47,8 @@ public:
             base_url = U(argv[1]);
             checksum = U(argv[4]);
             archive = mode == "queue-archive";
+            timeout_test = mode == "queue-timeout" || mode == "queue-timeout-pause";
+            close_while_cancelling = mode == "queue-timeout";
             OpenFrame();
             frame->Show();
             frame->Layout();
@@ -208,19 +210,34 @@ private:
                 return;
             }
             wxCommandEvent event(wxEVT_BUTTON);
+            if (timeout_test)
+                frame->http_.test_suppress_terminal_ = true;
             frame->pack_pause_->GetEventHandler()->ProcessEvent(event);
-            phase = 1;
+            if (close_while_cancelling)
+            {
+                frame->Bind(wxEVT_DESTROY, [this](wxWindowDestroyEvent &destroy) {
+                    if (destroy.GetEventObject() == frame)
+                        frame = nullptr;
+                    destroy.Skip();
+                });
+                frame->Close();
+                phase = 3;
+            }
+            else
+                phase = 1;
         }
         else if (phase == 1 && !frame->busy_)
         {
             first_size = bytes;
             if (!frame->pack_paused_ || first_size == 0 ||
                 !frame->pack_list_->GetString(0).Contains("[paused / queued]") ||
-                !frame->pack_progress_text_->GetLabel().empty())
+                !frame->pack_progress_text_->GetLabel().empty() ||
+                (timeout_test && !frame->GetStatusBar()->GetStatusText().Contains("timed out")))
             {
                 Fail("pause did not retain partial download");
                 return;
             }
+            frame->http_.test_suppress_terminal_ = false;
             wxCommandEvent event(wxEVT_BUTTON);
             frame->pack_pause_->GetEventHandler()->ProcessEvent(event);
             phase = 2;
@@ -237,6 +254,7 @@ private:
         }
         else if (phase == 3 && !frame)
         {
+            download_http().test_suppress_terminal_ = false;
             OpenFrame();
             if (!frame->pack_paused_ || frame->pack_queue_.size() != 2 ||
                 !frame->pack_list_->GetString(0).Contains("[paused / queued]"))
@@ -303,7 +321,7 @@ private:
 
     Http http;
     bool cancelled = false, success = false;
-    bool archive = false;
+    bool archive = false, timeout_test = false, close_while_cancelling = false;
     Frame *frame = nullptr;
     fs::path root;
     std::string base_url, checksum;

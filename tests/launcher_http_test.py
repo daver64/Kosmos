@@ -80,10 +80,21 @@ def main():
         with tempfile.TemporaryDirectory() as directory:
             part = Path(directory) / "download.part"
             env = dict(os.environ, HOME=directory, XDG_CONFIG_HOME=str(Path(directory) / "config"))
+            wine = os.environ.get("KOSMOS_TEST_WINE") == "1"
+
+            def native_path(path):
+                if not wine:
+                    return str(path)
+                return subprocess.run(["winepath", "-w", str(path)], env=env, check=True,
+                                      capture_output=True, text=True, timeout=60).stdout.strip()
+
+            if wine:
+                env["XDG_CONFIG_HOME"] = native_path(Path(directory) / "config")
+            command = ["wine", str(BINARY)] if wine else [str(BINARY)]
 
             def run(endpoint, mode):
-                result = subprocess.run([str(BINARY), f"http://127.0.0.1:{server.server_port}/{endpoint}",
-                                         str(part), mode], capture_output=True, text=True, timeout=30, env=env)
+                result = subprocess.run(command + [f"http://127.0.0.1:{server.server_port}/{endpoint}",
+                                         native_path(part), mode], capture_output=True, text=True, timeout=60, env=env)
                 assert result.returncode == 0, result.stdout + result.stderr
 
             run("range", "pause")
@@ -103,13 +114,17 @@ def main():
             part.unlink()
             run("redirect", "resume")
             assert part.read_bytes() == DATA
-            for mode, data in (("queue", DATA), ("queue-archive", ARCHIVE)):
+            queue_modes = os.environ.get("KOSMOS_TEST_QUEUE_MODES", "queue,queue-archive,queue-timeout,queue-timeout-pause").split(",")
+            for mode in queue_modes:
+                if mode not in ("queue", "queue-archive", "queue-timeout", "queue-timeout-pause"):
+                    raise ValueError(f"Unknown queue test mode: {mode}")
+                data = ARCHIVE if mode == "queue-archive" else DATA
                 queue_root = Path(directory) / mode
                 queue_root.mkdir()
                 try:
-                    result = subprocess.run([str(BINARY), f"http://127.0.0.1:{server.server_port}",
-                                             str(queue_root), mode, hashlib.sha256(data).hexdigest()],
-                                            capture_output=True, text=True, timeout=30, env=env)
+                    result = subprocess.run(command + [f"http://127.0.0.1:{server.server_port}",
+                                             native_path(queue_root), mode, hashlib.sha256(data).hexdigest()],
+                                            capture_output=True, text=True, timeout=60, env=env)
                 except subprocess.TimeoutExpired as error:
                     raise AssertionError(f"{mode} timed out: {error.stderr!r}") from error
                 assert result.returncode == 0, result.stdout + result.stderr

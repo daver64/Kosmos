@@ -2,7 +2,7 @@ newmtl 1_Default_TITAN21M
 Kd 1.000 1.000 1.000
 Ks 0.898 0.898 0.898
 Ke 0.000 0.000 0.000
-map_Kd textures/TITAN21M.png
+map_Kd textures/titan21m.png
 
 newmtl 2_Default
 Kd 0.863 0.863 0.863
@@ -28,4 +28,3 @@ newmtl 9_Default
 Kd 0.588 0.588 0.588
 Ks 0.898 0.898 0.898
 Ke 0.000 0.000 0.000
-
