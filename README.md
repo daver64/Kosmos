@@ -1,6 +1,6 @@
 # Kosmos
 
-**An independent spaceflight and atmospheric flight simulator — now looking for beta testers.**
+**A spaceflight and atmospheric flight simulator — now looking for beta testers.**
 
 Kosmos is a free spaceflight simulator built in C++ on [simlib](https://github.com/daver64/rsimlib). Launch from Earth, navigate in orbit, travel to the Moon and other planets, or explore procedural star systems. Inspired in part by Orbiter and Kerbal Space Program, it combines flight simulation with tools for building spacecraft, missions and add-ons.
 
