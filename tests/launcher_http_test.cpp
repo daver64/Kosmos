@@ -20,6 +20,11 @@ public:
             human_size(1024) != "1.0 KB" || human_size(516929) != "504.8 KB" ||
             human_size(1LL << 20) != "1 MB" || human_size(1LL << 30) != "1.0 GB")
             return Fail("incorrect download size formatting");
+        if (update_archive_url(Profile().server, "0.51") !=
+                "https://github.com/daver64/Kosmos/releases/download/v0.51/" + platform_archive("0.51") ||
+            update_archive_url("http://localhost:1234", "0.51") !=
+                "http://localhost:1234/" + platform_archive("0.51"))
+            return Fail("incorrect update archive URL");
         DownloadProgress progress;
         const auto start = DownloadProgress::Clock::time_point{};
         progress.start(start);

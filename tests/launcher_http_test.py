@@ -29,6 +29,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         header = self.headers.get("Range", "")
         requests.append((self.path, header))
+        if self.path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", "/range")
+            self.end_headers()
+            return
         if self.path == "/SHA256SUMS.txt":
             digest = hashlib.sha256(ARCHIVE).hexdigest()
             body = f"{digest}  pack1.tar\n{digest}  pack2.tar\n".encode()
@@ -95,6 +100,9 @@ def main():
             part.write_bytes(DATA[:65536])
             run("invalid", "invalid")
             assert part.read_bytes() == DATA[:65536]
+            part.unlink()
+            run("redirect", "resume")
+            assert part.read_bytes() == DATA
             for mode, data in (("queue", DATA), ("queue-archive", ARCHIVE)):
                 queue_root = Path(directory) / mode
                 queue_root.mkdir()

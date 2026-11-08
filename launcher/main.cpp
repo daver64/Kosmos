@@ -148,6 +148,14 @@ namespace
 #endif
     }
 
+    std::string update_archive_url(const std::string &server, const std::string &version)
+    {
+        const std::string file = platform_archive(version);
+        if (server == Profile().server)
+            return "https://github.com/daver64/Kosmos/releases/download/v" + version + "/" + file;
+        return server + "/" + file;
+    }
+
     // One HTTP request at a time: either a small text fetch or a resumable file download with progress.
     class Http : public wxEvtHandler
     {
@@ -1614,7 +1622,7 @@ namespace
                                     SetStatusText(W("Update failed: " + msg));
                                     update_button_->Enable();
                                 }
-                            });
+                            }, update_archive_url(profile_.server, latest_));
         }
 
         // ---- Logs ----------------------------------------------------------------------------------------------

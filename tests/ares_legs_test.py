@@ -30,7 +30,8 @@ def main():
     control = next(c for c in spec["animation_controls"] if c["property"] == "legs")
     assert control["initial"] == 0
     animations = json.loads((ADDON / stage["parts"][0]["animations"]).read_text())["animations"]
-    vertices, indices = [], {f"Leg{i}Strut": set() for i in range(1, 5)}
+    vertices = []
+    indices = {f"Leg{i}{part}": set() for i in range(1, 5) for part in ("Strut", "ArmLow", "ArmUp")}
     current = ""
     with (ADDON / stage["parts"][0]["model"]).open() as obj:
         for line in obj:
@@ -47,6 +48,8 @@ def main():
                     indices[current].add(index - 1 if index > 0 else len(vertices) + index)
 
     for i, contact in enumerate(stage["gear"], 1):
+        for part in ("Strut", "ArmLow", "ArmUp"):
+            assert indices[f"Leg{i}{part}"], f"Leg{i}{part} has no geometry"
         name = f"Leg{i}Strut"
         foot = [vertices[n] for n in indices[name] if vertices[n][2] > 5.0]
         assert foot, f"{name} has no foot geometry"

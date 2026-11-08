@@ -90,7 +90,7 @@ int main()
         found = found || (s.id == "dragonfly_orbit" && s.category.rfind("CVEL", 0) == 0 && !s.ships.empty() && s.body == "Earth");
     CHECK(found);
     for (const auto &expected : std::vector<std::pair<std::string, std::string>>{
-             {"apollo11_saturn_v_t_minus_5", "saturn_v.png"},
+             {"apollo11_saturn_v_t_minus_5", "apollo11_saturn_v_t_minus_5-1794113694264053257-0.png"},
              {"saturn_v_23l_kennedy", "saturn_v523L.png"},
              {"saturn_v_mlv1_kennedy", "saturn_vmlv1.png"},
              {"saturn_v_mlv1_nerva_kennedy", "saturn_vmlv1_nerva.png"},
