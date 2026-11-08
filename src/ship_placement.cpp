@@ -38,14 +38,17 @@ namespace kosmos
         // Gear that carries the whole ship compresses about 0.3 m, unless that is too soft to stop a tall, narrow
         // ship toppling: the springs' restoring torque must beat gravity's by a safe margin.
         const double surface_gravity = planet.gm / (planet.radius * planet.radius);
-        const int gear_count = static_cast<int>(b.gear.size());
+        // Ground-vehicle body contacts only carry load after tipping; size the suspension for its wheels.
+        const int gear_count = static_cast<int>(spec_.ground() && !spec_.wheels.empty() ? spec_.wheels.size() : b.gear.size());
         double compression = 0.0;
         if (gear_count > 0)
         {
             const double mass = b.mass();
             double height = 0.0, spread = 0.0;
-            for (const sl::GearContact &g : b.gear)
+            const std::size_t first = spec_.ground() && !spec_.wheels.empty() ? b.gear.size() - spec_.wheels.size() : 0;
+            for (std::size_t i = first; i < b.gear.size(); ++i)
             {
+                const sl::GearContact &g = b.gear[i];
                 height += std::fabs(g.position.z) / gear_count;
                 spread += (g.position.x * g.position.x + g.position.y * g.position.y) / gear_count;
             }

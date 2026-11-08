@@ -1403,6 +1403,52 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/rover-rollover"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Rover rollover selftest: %s\n", message);
+                return 1;
+            };
+            const int mars = sim.universe.find("Mars");
+            if (!ship || ship->spec().name != "CVEL Lunar Rover" || mars < 0)
+                return fail("expected lunar rover and Mars");
+            const sl::dvec3 direction = glm::normalize(sl::dvec3(1.0, 0.2, 0.3));
+            for (double angle : {0.0, 90.0, 180.0, -90.0})
+            {
+                ship->place_on_surface(mars, direction, 0.0, 0.0);
+                sl::FlightBody &body = ship->body();
+                body.orientation = glm::normalize(body.orientation * glm::angleAxis(angle * 3.14159265358979323846 / 180.0, sl::dvec3(0, 0, 1)));
+                for (int i = 0; i < 1000; ++i)
+                    sim.step(0.01);
+                const double altitude = sim.universe.world.altitude_of(body.position);
+                double lowest_hull = 1.0e9;
+                for (double x : {-0.8, 0.8})
+                    for (double y : {-0.25, 0.25})
+                        for (double z : {-1.5, 1.5})
+                            lowest_hull = std::min(lowest_hull, sim.universe.world.altitude_of(ship->origin() + body.direction_to_world({x, y, z})));
+                for (double x : {-0.6, 0.6})
+                    for (double y : {0.25, 0.75})
+                        for (double z : {-0.9, 0.4})
+                            lowest_hull = std::min(lowest_hull, sim.universe.world.altitude_of(ship->origin() + body.direction_to_world({x, y, z})));
+                const double up = glm::dot(body.direction_to_world({0, 1, 0}), glm::normalize(body.position - sim.universe.position(mars)));
+                if (!std::isfinite(altitude) || altitude < 0.45 || lowest_hull < -0.3 ||
+                    !ship->telemetry().landed || ship->crashed() || (angle == 180.0 && up > -0.5))
+                {
+                    std::fprintf(stderr, "rover angle %.0f: altitude %.3f, hull %.3f, up %.3f, landed %d, crashed %d\n",
+                                 angle, altitude, lowest_hull, up, int(ship->telemetry().landed), int(ship->crashed()));
+                    return fail("rover did not remain supported above ground");
+                }
+            }
+            ship->place_on_surface(mars, direction, 0.0, 0.0);
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 500; ++i)
+                sim.step(0.01);
+            sim.props.set_double("/controls/throttle", 0.0);
+            if (ship->telemetry().surface_speed < 1.0 || ship->crashed())
+                return fail("upright rover did not drive");
+            std::puts("Rover rollover selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/centaur-handoff"))
         {
             const auto fail = [](const char *message) {
