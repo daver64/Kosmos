@@ -21,7 +21,7 @@ Kosmos is a Kerbal/Orbiter-style space flight sim in C++17, built on **simlib** 
 
 ## Build and run
 - Dev build: `cmake --build build -j4` (when the `build/` tree is configured). See the README for initial configuration and simlib dependencies.
-- Release builds: `sh scripts/release.sh -j4` builds Linux and Windows packages sequentially but does not publish them. The scripts check the simlib checkout against `SIMLIB_COMMIT`; this does not verify installed libraries.
+- Release builds: `sh scripts/release.sh -j4` builds Linux and Windows packages sequentially but does not publish them. `python3 scripts/publish-github-release.py` builds, tests, verifies and publishes a release; see the README's Versions section for prerequisites, scenery reuse and recovery. The scripts check the simlib checkout against `SIMLIB_COMMIT`; this does not verify installed libraries.
 - Releases, including game archives and optional scenery, are hosted on GitHub; the website and manuals remain on Salyut. See the README's Versions section for the required release assets. `scripts/publish-web.sh --stamp VERSION` only stamps website version labels; it does not publish archives or bump `VERSION`.
 - Run from `build/`. Useful options: `--ship NAME`, `--orbit`, `--cockpit`, `--cockpit3d`, `--set /path=VALUE`, `--hide-info`, `--selftest SECS` (with `--selftest-throttle`, `--selftest-gear-up`), `--test-jump N`, `--system N`, `--orbit-body auto`.
 - For off-screen screenshots and tests, use an isolated configuration directory and `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LP_NUM_THREADS=4`; see `tests/earth_cloud_distance_test.py` for an example. Avoid opening windows on the user's desktop.

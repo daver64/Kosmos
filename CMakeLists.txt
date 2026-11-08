@@ -157,7 +157,7 @@ target_compile_definitions(kosmos PRIVATE
     $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>
     $<$<PLATFORM_ID:Windows>:NOMINMAX>
     KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-# VERSION holds major.build: the number the next published build will carry (scripts/publish-web.sh bumps it).
+# VERSION holds major.build: the number the next published build will carry.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" KOSMOS_VERSION LIMIT_COUNT 1)
 target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")

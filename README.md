@@ -249,7 +249,13 @@ In **Autopilot > Spacecraft**, set an ignition countdown in seconds or an absolu
 
 ## Versions
 
-Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the next build number. Build both platform archives and publish them to the GitHub release tagged `v<VERSION>`, together with `VERSION.txt`, `SHA256SUMS.txt`, `RELEASE_NOTES.md`, the optional Orbiter packs and their `packs.json`. The launcher reads the latest release's version and fetches the matching release's checksums, notes and archive. Update the website and advance `VERSION` only after verifying the published release. The website deployment does not copy release downloads.
+Versions are `major.build`. The major number is 0 while Kosmos is in beta, and the build number counts published binaries. The [VERSION](VERSION) file holds the next build number.
+
+To publish, first commit and push the source and `docs/release-notes/<VERSION>.md`, check out the pinned simlib revision and install it for both platforms, and authenticate the GitHub CLI. Then run `python3 scripts/publish-github-release.py`. It requires a clean working tree, the committed HEAD on GitHub and a clean simlib checkout at `SIMLIB_COMMIT` (`KOSMOS_SIMLIB_DIR` or `SIMLIB_SRC` selects it); it cannot verify that separately installed simlib libraries match that checkout. It builds fresh Linux and Windows game packages and both SDK archives; runs the quick regression suite; creates a draft; uploads and downloads the new assets to verify their checksums; and publishes the release as latest. It creates the tag on GitHub, but never commits or pushes. After verifying the release and tag, it advances `VERSION` locally for the owner to commit. Website version labels and release notes are updated separately.
+
+The script carries forward the previous release's `packs.json`, pinning unchanged scenery archives to the releases that already host them; it does not re-upload them. For changed scenery, first generate a catalogue and archives with `scripts/pack-orbiter-defaults.py`, then pass `--packs-dir OUTPUT_DIR`. Each local archive is checked against its catalogue and compared by SHA-256; byte-identical archives are reused, while changed archives are uploaded. Regenerating an archive can change its bytes even if its underlying scenery is unchanged, so omit `--packs-dir` when there are no scenery updates. The latest release's `SHA256SUMS.txt` covers assets uploaded to that release, while reused packs retain their original release checksums. The launcher's high-resolution Orbiter tree downloads use the Orbiter mirror directly, not GitHub release assets. Launchers through 0.51 do not accept version-pinned scenery URLs; update the launcher before installing standard packs from the new catalogue. Already installed scenery is unaffected.
+
+The GitHub CLI must be on `PATH` or supplied with `--gh /path/to/gh`. Failures after draft creation leave the draft for inspection; do not overwrite or replace published assets blindly. The website deployment does not copy release downloads.
 
 ## Galaxy
 
@@ -313,11 +319,11 @@ Orbiter `Surf.tree` archives under `import/orbiter/` can supply terrain colour e
 The Linux and Windows game archives include low-resolution fallback textures, not
 the standard Orbiter planetary datasets. The standard Orbiter 2024 archives are
 split into separate Earth and planets packs to fit GitHub's per-asset size limit.
-After those packs are attached to a GitHub release, the launcher offers them on
+After those packs are referenced by the latest GitHub release's catalogue, the launcher offers them on
 its Scenery packs page. They can be prepared from the Orbiter release ZIP with
 `python3 scripts/pack-orbiter-defaults.py Orbiter-2024.zip OUTPUT_DIR` (requires
 Python, NumPy and Pillow). The Earth pack includes converted standard cloud, night-light and water-specular maps. Publish
-both generated archives and `packs.json` together as GitHub release assets. The two packs install into
+the catalogue with the release script's `--packs-dir` option; unchanged archives stay on their original release. The two packs install into
 `data/orbiter-defaults/` and are excluded from the platform archives to stay
 within GitHub's per-asset size limit. Orbiter surface and elevation trees under
 `import/orbiter/` take precedence, separately for each layer. Mask, cloud,

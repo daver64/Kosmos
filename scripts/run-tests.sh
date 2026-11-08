@@ -18,6 +18,7 @@ JOBS=${JOBS:-4}
 if [ "$JOBS" -gt 4 ]; then JOBS=4; fi
 
 python3 "$SRC/tests/release_web_test.py"
+python3 "$SRC/tests/github_release_test.py"
 python3 "$SRC/tests/page_report_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/station_assets_test.py"

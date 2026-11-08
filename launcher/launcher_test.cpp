@@ -19,9 +19,41 @@ static int failures = 0;
         }                                                                \
     } while (0)
 
-int main()
+static void check_github_catalogue(const launcher::fs::path &root)
+{
+    const auto github = launcher::parse_packs(R"({"packs":[
+      {"id":"earth","file":"earth.tar.gz","marker":"data/orbiter-defaults/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz"},
+      {"id":"pinned","file":"earth.tar.gz","marker":"data/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/download/v0.51/earth.tar.gz"},
+      {"id":"bad-version","file":"earth.tar.gz","marker":"data/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/download/v0.51/../earth.tar.gz"},
+      {"id":"bad-repo","file":"earth.tar.gz","marker":"data/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/other/repo/releases/download/v0.51/earth.tar.gz"},
+      {"id":"bad-url","file":"earth.tar.gz","marker":"data/x","url":"https://example.com/earth.tar.gz"},
+      {"id":"bad-marker","file":"earth.tar.gz","marker":"/tmp/x"},
+      {"id":"bad-parent","file":"earth.tar.gz","marker":"data/../x"}]})", root);
+    if (github.size() != 2)
+    {
+        std::printf("Unexpected accepted GitHub packs:");
+        for (const auto &pack : github)
+            std::printf(" %s", pack.id.c_str());
+        std::printf("\n");
+    }
+    CHECK(github.size() == 2);
+    if (github.size() == 2)
+    {
+        CHECK(github[0].id == "earth");
+        CHECK(github[1].id == "pinned");
+        CHECK(github[0].url == "https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz");
+        CHECK(github[1].url == "https://github.com/daver64/Kosmos/releases/download/v0.51/earth.tar.gz");
+    }
+}
+
+int main(int argc, char **argv)
 {
     using namespace launcher;
+    if (argc == 2 && std::string(argv[1]) == "--catalog-only")
+    {
+        check_github_catalogue(fs::temp_directory_path());
+        return failures ? 1 : 0;
+    }
     {
         const fs::path dir = fs::temp_directory_path() /
             ("kosmos-pack-queue-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -149,15 +181,7 @@ int main()
 
     const auto packs = parse_packs(R"({"packs":[{"id":"x","file":"x.tar.gz","marker":"data"},{"id":"bad","file":"../x","marker":"data"}]})", root);
     CHECK(packs.size() == 1 && packs[0].installed);
-    {
-        const auto github = parse_packs(R"({"packs":[
-          {"id":"earth","file":"earth.tar.gz","marker":"data/orbiter-defaults/earth","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz"},
-          {"id":"bad-url","file":"earth.tar.gz","marker":"data/x","url":"https://example.com/earth.tar.gz"},
-          {"id":"bad-marker","file":"earth.tar.gz","marker":"/tmp/x"},
-          {"id":"bad-parent","file":"earth.tar.gz","marker":"data/../x"}]})", root);
-        CHECK(github.size() == 1 && github[0].id == "earth");
-        CHECK(github[0].url == "https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz");
-    }
+    check_github_catalogue(root);
     {
         const auto layers = orbiter_hires_packs(root);
         CHECK(layers.size() == 15);

@@ -489,14 +489,28 @@ namespace launcher
             // Reject names that could write outside the install folder.
             const fs::path marker = fs::u8path(info.marker);
             const fs::path remove = fs::u8path(info.remove);
-            const std::string github = "https://github.com/daver64/Kosmos/releases/latest/download/";
+            const std::string github = "https://github.com/daver64/Kosmos/releases/";
+            const auto valid_github_url = [&]() {
+                if (info.url == github + "latest/download/" + info.file)
+                    return true;
+                const std::string prefix = github + "download/v";
+                const std::string suffix = "/" + info.file;
+                if (info.url.rfind(prefix, 0) != 0 || info.url.size() <= prefix.size() + suffix.size() ||
+                    info.url.compare(info.url.size() - suffix.size(), suffix.size(), suffix) != 0)
+                    return false;
+                const std::string version = info.url.substr(prefix.size(), info.url.size() - prefix.size() - suffix.size());
+                const auto dot = version.find('.');
+                return dot != std::string::npos && dot > 0 && dot + 1 < version.size() &&
+                       version.find('.', dot + 1) == std::string::npos &&
+                       version.find_first_not_of("0123456789.") == std::string::npos;
+            };
             if (info.id.empty() || info.file.empty() || info.file.find_first_of("/\\") != std::string::npos ||
                 info.file == "." || info.file == ".." || info.marker.empty() || info.marker == "." || info.remove == "." ||
-                marker.is_absolute() || marker.has_root_name() || info.marker.find("..") != std::string::npos ||
-                info.marker.find('\\') != std::string::npos || remove.is_absolute() || remove.has_root_name() ||
+                marker.has_root_directory() || marker.has_root_name() || info.marker.find("..") != std::string::npos ||
+                info.marker.find('\\') != std::string::npos || remove.has_root_directory() || remove.has_root_name() ||
                 info.remove.find("..") != std::string::npos || info.remove.find('\\') != std::string::npos ||
                 (info.remove != info.marker && info.marker.rfind(info.remove + "/", 0) != 0) ||
-                (!info.url.empty() && (info.url != github + info.file || info.sha256.size() != 64 ||
+                (!info.url.empty() && (!valid_github_url() || info.sha256.size() != 64 ||
                  info.sha256.find_first_not_of("0123456789abcdef") != std::string::npos)))
                 continue;
             info.installed = !info.marker.empty() && fs::exists(root / info.marker, ec);
