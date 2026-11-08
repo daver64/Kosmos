@@ -41,8 +41,6 @@ class FakeGitHub:
 
     def call(self, *args, capture=False):
         self.commands.append(args)
-        if args[:2] == ("api", "--paginate"):
-            return json.dumps([[self.latest]])
         if args[:2] == ("release", "create"):
             self.contents[args[2]] = {}
         if args[:2] == ("release", "upload"):
@@ -73,6 +71,9 @@ class FakeGitHub:
         return {"isDraft": True, "targetCommitish": "a" * 40,
                 "assets": [{"name": name, "size": len(data)} for name, data in self.contents[tag].items()]}
 
+    def releases(self):
+        return iter([self.latest])
+
     def download(self, tag, name, directory):
         data = self.contents[tag][name]
         if self.corrupt and tag == "v0.52" and name.endswith(".zip"):
@@ -83,6 +84,21 @@ class FakeGitHub:
 
 
 class ReleaseTest(unittest.TestCase):
+    def test_release_pagination_uses_supported_gh_api(self):
+        github = release.GitHub("gh")
+        first = [{"tag_name": f"v0.{number}"} for number in range(100)]
+        second = [{"tag_name": "v0.100", "draft": True}]
+        with patch.object(github, "call", side_effect=[json.dumps(first), json.dumps(second)]) as call:
+            self.assertEqual(list(github.releases()), first + second)
+        self.assertEqual(call.call_args_list[0].args, ("api", f"repos/{release.REPO}/releases?per_page=100&page=1"))
+        self.assertEqual(call.call_args_list[1].args, ("api", f"repos/{release.REPO}/releases?per_page=100&page=2"))
+
+    def test_release_pagination_rejects_invalid_response(self):
+        github = release.GitHub("gh")
+        with patch.object(github, "call", return_value='{"error": "failed"}'):
+            with self.assertRaisesRegex(ValueError, "Unexpected GitHub releases response"):
+                list(github.releases())
+
     def test_pins_and_checks_previous_scenery(self):
         fake = FakeGitHub()
         with tempfile.TemporaryDirectory() as temp:

@@ -95,6 +95,17 @@ class GitHub:
     def api(self, path):
         return json.loads(self.call("api", path, capture=True))
 
+    def releases(self):
+        page = 1
+        while True:
+            batch = self.api(f"repos/{REPO}/releases?per_page=100&page={page}")
+            if not isinstance(batch, list):
+                raise ValueError(f"Unexpected GitHub releases response on page {page}")
+            yield from batch
+            if len(batch) < 100:
+                return
+            page += 1
+
     def draft(self, tag):
         return json.loads(self.call("release", "view", tag, "--repo", REPO,
                                     "--json", "isDraft,targetCommitish,assets", capture=True))
@@ -223,8 +234,7 @@ def publish(args):
     if tuple(map(int, version.split("."))) <= tuple(map(int, latest_tag[1:].split("."))):
         raise ValueError(f"{tag} is not newer than the latest release {latest_tag}")
     # Check all releases, including drafts, without treating API/auth errors as absence.
-    releases = json.loads(github.call("api", "--paginate", "--slurp", f"repos/{REPO}/releases?per_page=100", capture=True))
-    if any(release["tag_name"] == tag for page in releases for release in page):
+    if any(release["tag_name"] == tag for release in github.releases()):
         raise ValueError(f"Release {tag} already exists; inspect it rather than overwriting assets")
     if run(["git", "tag", "--list", tag], capture=True).strip():
         raise ValueError(f"Local tag {tag} already exists; inspect it before proceeding")
