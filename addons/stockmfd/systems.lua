@@ -24,7 +24,8 @@ local function load_list()
   local list = {}
   for i = 0, num("component-count") - 1 do
     local c = "component[" .. i .. "]/"
-    if sys(c .. "type") == "load" and num(c .. "watts") > 0 and num(c .. "failed") == 0 then list[#list + 1] = i end
+    local kind = sys(c .. "type")
+    if (kind == "load" or kind == "drive_motor") and num(c .. "watts") > 0 and num(c .. "failed") == 0 then list[#list + 1] = i end
   end
   return list
 end
@@ -33,7 +34,7 @@ local function set_load(i, on) props.set(ship_path() .. "component[" .. i .. "]/
 
 -- How long the battery lasts at the present net drain.
 local function endurance()
-  local net = num("bus/demand-w") - num("bus/supply-w")
+  local net = num("battery/power-w")
   local wh = num("battery/wh")
   if wh <= 0 or num("battery/percent") <= 0 then return nil end
   if net <= 0.01 then return "BATTERY HOLDING" end
@@ -127,10 +128,12 @@ M = {
     for n = first, math.min(#list, first + rows - 1) do
       local c = "component[" .. list[n] .. "]/"
       local on = num(c .. "enabled") > 0.5
-      local state = not on and "OFF" or (num(c .. "powered") > 0.5 and "ON" or "SHED")
-      if state == "ON" then g:colour(120, 255, 140) elseif state == "OFF" then g:colour(140, 140, 150) else g:colour(255, 80, 80) end
+      local motor = sys(c .. "type") == "drive_motor"
+      local watts = num(c .. (motor and "demand-w" or "watts"))
+      local state = not on and "OFF" or (motor and watts == 0 and "IDLE" or (num(c .. "powered") > 0.5 and "ON" or "SHED"))
+      if state == "ON" then g:colour(120, 255, 140) elseif state == "OFF" or state == "IDLE" then g:colour(140, 140, 150) else g:colour(255, 80, 80) end
       if n == self.cur then g:text(52, y, ">", 0) end
-      g:text(64, y, string.format("%-24.24s %5.1f W  %s", sys(c .. "name") or "", num(c .. "watts"), state), 0)
+      g:text(64, y, string.format("%-24.24s %5.1f W  %s", sys(c .. "name") or "", watts, state), 0)
       y = y + 16
     end
     g:colour(150, 160, 170)

@@ -57,11 +57,12 @@ namespace kosmos::app
                         }
                         else if (c.output_w > 0.0)
                             ImGui::Text("%s  %.0f W", c.name.c_str(), c.output_w);
-                        else if (c.type == "load" && c.watts > 0.0)
+                        else if ((c.type == "load" || c.type == "drive_motor") && c.watts > 0.0)
                         {
                             // Each load can be switched on its own, to shed instruments when the generators fade.
                             char label[128];
-                            std::snprintf(label, sizeof label, "%s  %.1f W%s##load%p", c.name.c_str(), c.watts, c.enabled && !c.powered ? " (shed)" : "", static_cast<const void *>(&c));
+                            const double watts = c.type == "drive_motor" ? c.demand_w : c.watts;
+                            std::snprintf(label, sizeof label, "%s  %.1f W%s##load%p", c.name.c_str(), watts, c.enabled && watts > 0.0 && !c.powered ? " (shed)" : "", static_cast<const void *>(&c));
                             ImGui::Checkbox(label, &const_cast<kosmos::SystemComponent &>(c).enabled);
                         }
                         else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && !c.enabled)

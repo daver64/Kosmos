@@ -1,5 +1,6 @@
 #include "selftest.h"
 
+#include "eva_solids.h"
 #include "gui_input.h"
 #include "flight_recording.h"
 #include "landing_descent.h"
@@ -1574,6 +1575,104 @@ namespace kosmos
             if (!sim.nav.dock_links().empty())
                 return fail("payloads remain docked after staging");
             std::puts("Star 48 stack selftest ok");
+            return 0;
+        }
+        if (sim.props.get_bool("/selftest/curiosity"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Curiosity selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || ship->spec().name != "Curiosity Rover" || !ship->systems())
+                return fail("expected Curiosity with electrical systems");
+            const int planet = ship->telemetry().soi;
+            const sl::dvec3 up = glm::normalize(ship->body().position - sim.universe.position(planet));
+            const sl::FlightBody &primary = *sim.universe.world.body(planet);
+            for (int i = 0; i < 300; ++i)
+                sim.step(0.01);
+            const sl::dvec3 ground_velocity = primary.velocity + glm::cross(primary.spin_axis * primary.spin_rate, ship->body().position - primary.position);
+            if (glm::length(ship->body().velocity - ground_velocity) > 0.25 || ship->crashed())
+                return fail("parked rover moved or crashed");
+            const double battery = ship->systems()->battery_wh();
+            sim.props.set_double("/controls/anim/mast", 1.0);
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 1000; ++i)
+                sim.step(0.01);
+            if (ship->animation_position(0) < 0.99)
+                return fail("mast control did not reach its target");
+            if (ship->systems()->battery_wh() >= battery || ship->systems()->demand_w() < 500.0)
+                return fail("wheel motors did not draw battery power");
+            if (ship->telemetry().surface_speed < 0.05 || ship->crashed() ||
+                glm::dot(ship->body().direction_to_world({0, 1, 0}), up) < 0.5)
+                return fail("rover did not drive upright");
+            sim.props.set_double("/controls/throttle", 0.0);
+            for (double angle : {90.0, 180.0, -90.0})
+            {
+                ship->place_on_surface(planet, up, 0.0, 0.0);
+                sl::FlightBody &body = ship->body();
+                body.orientation = glm::normalize(body.orientation * glm::angleAxis(angle * 3.14159265358979323846 / 180.0, sl::dvec3(0, 0, 1)));
+                for (int i = 0; i < 1000; ++i)
+                    sim.step(0.01);
+                const double altitude = sim.universe.world.altitude_of(body.position);
+                if (!std::isfinite(altitude) || altitude < 0.3 || !ship->telemetry().landed || ship->crashed())
+                    return fail("overturned rover was not supported");
+            }
+            std::puts("Curiosity selftest ok");
+            return 0;
+        }
+        if (sim.props.get_bool("/selftest/rover-collision"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Rover collision selftest: %s\n", message);
+                return 1;
+            };
+            const int moon = sim.universe.find("Moon");
+            if (!ship || !ship->spec().ground() || moon < 0)
+                return fail("expected ground vehicle and Moon");
+            const auto base_it = std::find_if(sim.bases.begin(), sim.bases.end(), [](const Base &base) { return base.id == "tranquility"; });
+            if (base_it == sim.bases.end())
+                return fail("Tranquility base missing");
+            Base base = *base_it;
+            base.objects.clear();
+            BaseObject obstacle;
+            obstacle.type = "tank";
+            obstacle.radius = 2.5;
+            obstacle.height = 5.0;
+            obstacle.x = base.pad_x;
+            obstacle.z = base.pad_z;
+            base.objects.push_back(obstacle);
+            const std::vector<Base> bases{base};
+            SolidScene scene;
+            scene.universe = &sim.universe;
+            scene.body = moon;
+            scene.bases = &bases;
+            sl::dvec3 direction;
+            double heading;
+            base_pad(base, sim.universe.bodies[static_cast<std::size_t>(moon)].radius, direction, heading);
+            ship->place_on_surface(moon, direction, heading, base.height);
+            const sl::dvec3 initial = ship->body().position;
+            collide_ground_vehicle(scene, *ship);
+            const sl::dvec3 displacement = ship->body().position - initial;
+            if (glm::length(displacement) < 0.1)
+                return fail("fixture did not collide");
+            const sl::dvec3 normal = glm::normalize(displacement);
+            const sl::dvec3 tangent = glm::normalize(glm::cross(direction, normal));
+            sl::FlightBody &planet = *sim.universe.world.body(moon);
+            planet.velocity = -30000.0 * normal;
+            for (double incoming : {0.0, -2.0, 2.0})
+            {
+                ship->place_on_surface(moon, direction, heading, base.height);
+                ship->body().velocity += incoming * normal + tangent;
+                collide_ground_vehicle(scene, *ship);
+                const sl::dvec3 ground_velocity = planet.velocity + glm::cross(planet.spin_axis * planet.spin_rate, ship->body().position - planet.position);
+                const sl::dvec3 relative = ship->body().velocity - ground_velocity;
+                if (glm::length(relative - normal * std::max(0.0, incoming) - tangent) > 0.01)
+                {
+                    std::fprintf(stderr, "incoming %.1f, surface-relative speed %.3f\n", incoming, glm::length(relative));
+                    return fail("collision changed the wrong velocity");
+                }
+            }
+            std::puts("Rover collision selftest ok");
             return 0;
         }
         if (sim.props.get_bool("/selftest/rover-rollover"))

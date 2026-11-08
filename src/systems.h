@@ -38,6 +38,7 @@ namespace kosmos
      *  scrubber     vessel, watts, kg_per_day, sorbent_kg
      *  regulator    vessel, watts (keeps a vessel at its pressure from the tanks)
      *  load         watts, priority (0 is shed last)
+     *  drive_motor  watts at full throttle, priority; ground vehicle drive draws in proportion to absolute throttle
      */
     struct SystemComponent
     {
@@ -64,6 +65,7 @@ namespace kosmos
         bool alive = true;
         double wear = 0.0;
         double output_w = 0.0;
+        double demand_w = 0.0;
         bool powered = true;
     };
 
@@ -127,6 +129,8 @@ namespace kosmos
         double water_richness = 0.0, nitrogen_richness = 0.0;
         /** Free space (kg) in the active stage's propellant tank, for a refinery. */
         double propellant_room = 0.0;
+        /** Absolute ground-vehicle throttle (0..1) for drive motor loads. */
+        double drive_throttle = 0.0;
     };
 
     class Systems
@@ -183,6 +187,8 @@ namespace kosmos
         double demand_w() const { return demand_w_; }
         double battery_wh() const;
         double battery_capacity_wh() const;
+        /** Net battery discharge in watts; negative while charging. */
+        double battery_power_w() const { return battery_power_w_; }
         double tank_kg(const std::string &gas) const;
         int vessel_count() const { return static_cast<int>(vessels_.size()); }
 
@@ -253,6 +259,7 @@ namespace kosmos
         bool bus_powered_ = true;
         bool instruments_powered_ = true;
         double supply_w_ = 0.0, demand_w_ = 0.0;
+        double battery_power_w_ = 0.0;
         std::vector<std::string> alarms_;
         std::map<std::pair<int, int>, double> openings_; // (vessel, key) -> area_cm2
         struct Link

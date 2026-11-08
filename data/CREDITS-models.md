@@ -13,6 +13,9 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
   Vehicle, Vehicle Assembly Building.
 - **Asteroid shape:** Vesta (shape model from the Dawn mission).
 - **Terrain:** Gale Crater (`terrain/gale-crater.stl`, a scan of the crater and Mount Sharp from NASA's 3D Resources).
+- **Curiosity rover** (`addons/nasa-curiosity/curiosity.glb`): NASA/JPL-Caltech's
+  [Curiosity Rover (MSL) (Dirty)](https://github.com/nasa/NASA-3D-Resources/tree/master/3D%20Models/Curiosity%20Rover%20(MSL))
+  model and textures, re-oriented and exported with `scripts/export-curiosity.py`. NASA does not endorse Kosmos.
 - **Orbiter meshes** (`parts/orbiter/`, `addons/orbiter-stations/`): Kennedy Space Center pad, VAB, tarmac and other scenery, plus the Mir, Wheel and Project Alpha ISS (`addons/orbiter-stations/`), converted from the stock meshes of Orbiter Space Flight Simulator (Martin Schweiger, MIT licence).
 - **CVE-Lite Ares Spider** (`addons/cvel-ares/models/`): converted from the Orbiter add-on mesh by Rich Wall (2004); the original add-on credits Dave Rowbotham for programming. Distributed with permission; see `addons/cvel-ares/LICENSE-Ares-Spider.txt`.
 

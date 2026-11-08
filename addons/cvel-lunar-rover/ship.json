@@ -40,10 +40,11 @@
   }
  ],
  "systems": [
-  { "type": "battery", "name": "Battery", "capacity_wh": 8000, "max_w": 3000 },
+  { "type": "battery", "name": "Battery", "capacity_wh": 8000, "max_w": 25000 },
   { "type": "solar", "name": "Solar panel", "area_m2": 2, "efficiency": 0.28, "facing": [0, 1, 0] },
   { "type": "load", "name": "Drive control and telemetry", "watts": 25, "priority": 0 },
   { "type": "load", "name": "Communications", "watts": 20, "priority": 1 },
-  { "type": "load", "name": "Navigation and hazard cameras", "watts": 15, "priority": 1 }
+  { "type": "load", "name": "Navigation and hazard cameras", "watts": 15, "priority": 1 },
+  { "type": "drive_motor", "name": "Wheel motors", "watts": 24000, "priority": 2 }
  ]
 }

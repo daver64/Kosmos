@@ -1,0 +1,13 @@
+{
+ "version": 1,
+ "animations": [
+  {
+   "type": "rotate",
+   "property": "mast",
+   "objects": ["mast_03", "ChemCam", "MastCam", "NavCam"],
+   "axis": [0, 1, 0],
+   "center": [0.54, 0.95, -0.71],
+   "interpolation": [[0, 0], [1, 90]]
+  }
+ ]
+}

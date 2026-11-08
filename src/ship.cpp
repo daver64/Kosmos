@@ -670,6 +670,7 @@ namespace kosmos
             mission_time_ += dt;
             SystemsContext ctx;
             ctx.mission_time = mission_time_;
+            ctx.drive_throttle = drive_throttle_;
             for (std::size_t i = 0; i < spec_.animation_controls.size(); ++i)
                 ctx.animation_positions.push_back(animation_position(i));
             ctx.landed = telemetry_.landed;

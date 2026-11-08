@@ -1,0 +1,49 @@
+{
+ "name": "Curiosity Rover",
+ "description": "NASA's Curiosity Mars rover, with a controllable camera mast and an approximate RTG and battery. Drive speed is increased for interactive exploration; the real rover moves much more slowly.",
+ "class": "ground",
+ "torque_accel": 0.0,
+ "drag_area": 2.0,
+ "camera_distance": 10,
+ "camera_target": [0, 0.1, 0],
+ "inertia": [850, 1100, 600],
+ "ground": { "drive_force": 1200, "max_speed": 1.5 },
+ "cockpit": { "eye": [0, 1.0, -0.5], "yaw": 0, "pitch": 0 },
+ "animation_controls": [
+  { "property": "mast", "name": "Turn camera mast", "duration": 3, "initial": 0 }
+ ],
+ "wheels": [
+  { "position": [-1.063, -0.8, -1.095], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.063, -0.8, -1.095], "steer_deg": 28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.194, -0.8, 0.089], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.194, -0.8, 0.089], "drive": true, "rolling_resistance": 0.03 },
+  { "position": [-1.063, -0.8, 1.165], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 },
+  { "position": [1.063, -0.8, 1.165], "steer_deg": -28, "drive": true, "rolling_resistance": 0.03 }
+ ],
+ "stages": [
+  {
+   "name": "Rover",
+   "dry_mass": 899,
+   "propellant": 0,
+   "z": 0,
+   "length": 3.5,
+   "radius": 1.4,
+   "gear": [
+    [0.7, 0.62, -0.9], [-0.7, 0.62, -0.9],
+    [0.7, 0.62, 1.1], [-0.7, 0.62, 1.1],
+    [1.25, -0.2, -1.1], [-1.25, -0.2, -1.1],
+    [1.25, -0.2, 1.1], [-1.25, -0.2, 1.1]
+   ],
+   "parts": [
+    { "model": "curiosity.glb", "animations": "animations.json", "offset": [0, 0.12, 0] }
+   ]
+  }
+ ],
+ "systems": [
+  { "type": "battery", "name": "Batteries", "capacity_wh": 2700, "max_w": 1000 },
+  { "type": "rtg", "name": "MMRTG", "watts": 110, "half_life_years": 14 },
+  { "type": "load", "name": "Control and telemetry", "watts": 35, "priority": 0 },
+  { "type": "load", "name": "Cameras and communications", "watts": 25, "priority": 1 },
+  { "type": "drive_motor", "name": "Wheel motors", "watts": 500, "priority": 2 }
+ ]
+}

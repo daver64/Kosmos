@@ -104,6 +104,8 @@ namespace kosmos
             c.type = jc.value("type", "");
             if (c.type.empty())
                 continue;
+            if (c.type == "drive_motor")
+                c.powered = false;
             c.name = jc.value("name", c.type);
             c.stage = resolve_stage(jc, stage_names);
             c.gas = jc.value("gas", "");
@@ -560,8 +562,15 @@ namespace kosmos
         // Loads, in priority order.
         std::vector<SystemComponent *> loads;
         for (SystemComponent &c : components_)
-            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser" || c.type == "isru" || c.type == "refinery" || c.type == "comms") && c.wear < 1.0)
+        {
+            if (c.type == "drive_motor")
+            {
+                c.powered = false;
+                c.demand_w = c.alive && c.enabled && c.wear < 1.0 ? std::max(c.watts, 0.0) * std::clamp(ctx.drive_throttle, 0.0, 1.0) : 0.0;
+            }
+            if (c.alive && c.enabled && c.watts > 0.0 && (c.type == "load" || c.type == "regulator" || c.type == "scrubber" || c.type == "electrolyser" || c.type == "isru" || c.type == "refinery" || c.type == "comms" || (c.type == "drive_motor" && ctx.drive_throttle > 0.0)) && c.wear < 1.0)
                 loads.push_back(&c);
+        }
         std::stable_sort(loads.begin(), loads.end(), [](const SystemComponent *a, const SystemComponent *b) { return a->priority < b->priority; });
 
         double dispatch_capacity = 0.0;
@@ -584,10 +593,11 @@ namespace kosmos
         bool shed = false;
         for (SystemComponent *c : loads)
         {
-            wanted += c->watts;
-            c->powered = c->watts <= budget - used + 1e-9;
+            const double watts = c->type == "drive_motor" ? c->demand_w : c->watts;
+            wanted += watts;
+            c->powered = watts <= budget - used + 1e-9;
             if (c->powered)
-                used += c->watts;
+                used += watts;
             else
                 shed = true;
         }
@@ -603,6 +613,7 @@ namespace kosmos
     // Generators and batteries cover a shortfall (need > 0); surplus power charges the batteries.
     void Systems::balance_supply(double need, double discharge_capacity, double charge_room, double dt)
     {
+        battery_power_w_ = 0.0;
         if (need > 0.0)
         {
             for (SystemComponent &c : components_)
@@ -636,6 +647,7 @@ namespace kosmos
             if (need > 0.0 && discharge_capacity > 0.0)
             {
                 const double draw = std::min(need, discharge_capacity);
+                battery_power_w_ = draw;
                 for (SystemComponent &c : components_)
                     if (c.alive && c.type == "battery")
                     {
@@ -648,6 +660,7 @@ namespace kosmos
         else if (need < 0.0 && charge_room > 0.0)
         {
             const double put = std::min(-need, charge_room);
+            battery_power_w_ = -put;
             for (SystemComponent &c : components_)
                 if (c.alive && c.type == "battery")
                 {
@@ -966,6 +979,7 @@ namespace kosmos
         num("bus/supply-w", [this] { return supply_w_; });
         num("bus/demand-w", [this] { return demand_w_; });
         num("battery/wh", [this] { return battery_wh(); });
+        num("battery/power-w", [this] { return battery_power_w(); });
         num("battery/percent", [this] {
             const double cap = battery_capacity_wh();
             return cap > 0.0 ? 100.0 * battery_wh() / cap : 0.0;
@@ -982,6 +996,8 @@ namespace kosmos
             tree.node(base + "/" + cb + "powered")->tie_double([this, i] { return components_[i].enabled && components_[i].powered && components_[i].wear < 1.0 ? 1.0 : 0.0; });
             tree.node(base + "/" + cb + "wear")->tie_double([this, i] { return components_[i].wear; });
             tree.node(base + "/" + cb + "output-w")->tie_double([this, i] { return components_[i].output_w; });
+            if (components_[i].type == "drive_motor")
+                tree.node(base + "/" + cb + "demand-w")->tie_double([this, i] { return components_[i].demand_w; });
             tree.node(base + "/" + cb + "failed")->tie_double([this, i] { return components_[i].wear >= 1.0 ? 1.0 : 0.0; });
         }
         // Writing 1 or 0 switches every load, scrubber and regulator on or off.

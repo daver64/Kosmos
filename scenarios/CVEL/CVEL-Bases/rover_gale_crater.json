@@ -1,10 +1,10 @@
 {
- "name": "CVEL: Lunar Rover, Gale Crater",
- "description": "The CVEL Lunar Rover on Mars at Gale Crater base, where the ground is a scanned model of the crater and its central mound (terrain/gale-crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes.",
+ "name": "Curiosity Rover, Gale Crater",
+ "description": "Curiosity at Gale Crater base on Mars, where the ground is a scanned model of the crater and its central mound (terrain/gale-crater.stl) set into the terrain. Shift and Ctrl raise and lower the throttle, which goes below zero to reverse (X sets zero), A/D steer, B brakes. Turn the camera mast using the Animations menu.",
  "active": 0,
  "ships": [
   {
-   "ship": "CVEL Lunar Rover",
+   "ship": "Curiosity Rover",
    "body": "Mars",
    "surface": {
     "base": "gale"

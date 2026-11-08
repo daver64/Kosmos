@@ -188,12 +188,27 @@ namespace kosmos
             forward_speed = glm::dot(b.velocity - ground_velocity, b.direction_to_world({0.0, 0.0, -1.0}));
         }
         const double throttle = std::clamp(c.throttle, -1.0, 1.0);
+        drive_throttle_ = std::fabs(throttle);
+        bool has_motor = false;
+        double motor_rating = 0.0, powered_watts = 0.0;
+        if (systems_)
+            for (const SystemComponent &component : systems_->components())
+                if (component.type == "drive_motor")
+                {
+                    has_motor = true;
+                    motor_rating += std::max(component.watts, 0.0);
+                    if (component.alive && component.enabled && component.wear < 1.0 && component.powered && component.watts > 0.0)
+                        powered_watts += component.demand_w;
+                }
         int driven = 0;
         for (const WheelSpec &w : spec_.wheels)
             driven += w.drive ? 1 : 0;
         // The drive fades as the vehicle nears its top speed in the direction it is being driven.
         const double taper = std::clamp(1.0 - forward_speed * (throttle < 0.0 ? -1.0 : 1.0) / std::max(spec_.ground_max_speed, 0.1), 0.0, 1.0);
-        const double per_wheel = driven > 0 ? throttle * spec_.ground_force * taper / driven : 0.0;
+        // The bus resolves after physics; limit this step to the demand it granted on the previous step.
+        const double available = motor_rating > 0.0 ? powered_watts / motor_rating : 0.0;
+        const double drive = has_motor ? std::copysign(std::min(drive_throttle_, available), throttle) : throttle;
+        const double per_wheel = driven > 0 ? drive * spec_.ground_force * taper / driven : 0.0;
         // Steering is eased off with speed so the vehicle does not roll over in a turn.
         const double lock = std::clamp(1.0 - 0.6 * std::fabs(forward_speed) / std::max(spec_.ground_max_speed, 0.1), 0.4, 1.0);
         const std::size_t first = b.gear.size() - spec_.wheels.size();
@@ -215,7 +230,10 @@ namespace kosmos
         Controls c = input;
         rcs_torque_ = rcs_push_ = sl::dvec3(0.0);
         if (crashed_ || health_ <= 0.0)
+        {
+            drive_throttle_ = 0.0;
             return;
+        }
         apply_rcs_mode(c);
         animate_mechanisms(c, dt);
         if (c.parachute > 0)

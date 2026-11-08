@@ -326,10 +326,10 @@ namespace kosmos
             half_z = std::max(half_z, std::fabs(w.position.z));
         }
         const sl::dvec3 centre = scene.universe->position(scene.body);
-        const sl::dvec3 origin = ship.origin();
         const sl::dvec3 points[] = {{0, 0, 0}, {half_x, 0, half_z}, {-half_x, 0, half_z}, {half_x, 0, -half_z}, {-half_x, 0, -half_z}, {0, 0, half_z}, {0, 0, -half_z}};
         for (int pass = 0; pass < 2; ++pass)
         {
+            const sl::dvec3 origin = ship.origin();
             sl::dvec3 best(0.0);
             for (const sl::dvec3 &p : points)
             {
@@ -345,7 +345,9 @@ namespace kosmos
                 break;
             b.position += best;
             const sl::dvec3 n = best / l;
-            const double into = glm::dot(b.velocity, n);
+            const sl::FlightBody &planet = *scene.universe->world.body(scene.body);
+            const sl::dvec3 surface_velocity = planet.velocity + glm::cross(planet.spin_axis * planet.spin_rate, b.position - planet.position);
+            const double into = glm::dot(b.velocity - surface_velocity, n);
             if (into < 0.0)
                 b.velocity -= n * into;
         }

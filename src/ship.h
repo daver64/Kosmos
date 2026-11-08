@@ -843,6 +843,7 @@ namespace kosmos
         std::vector<bool> thruster_hover_;
         sl::dvec3 rcs_torque_{0.0}, rcs_push_{0.0};
         std::unique_ptr<Systems> systems_;
+        double drive_throttle_ = 0.0;
         std::vector<InstrumentState> instrument_state_;
         LifeSupportMode life_support_ = LifeSupportMode::warn;
         double mission_time_ = 0.0;

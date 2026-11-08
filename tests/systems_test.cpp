@@ -616,6 +616,64 @@ int main()
         assert(arrival.gear_position() == 0.25);
     }
 
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        universe.stellar_luminosity = 0.0;
+        ShipSpec rover_spec;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-lunar-rover/ship.json", rover_spec, error));
+        Ship rover(universe, rover_spec);
+        const int moon = universe.find("Moon");
+        assert(moon >= 0 && rover.systems());
+        rover.place_on_surface(moon, glm::normalize(sl::dvec3(1.0, 0.2, 0.3)), 0.0, 0.0);
+        Systems &power = *rover.systems();
+        Controls controls;
+        rover.apply_controls(controls, 1.0);
+        const double initial = power.battery_wh();
+        rover.after_step(1.0);
+        assert(std::fabs(power.demand_w() - 60.0) < 1e-6);
+        assert(std::fabs(power.battery_power_w() - 60.0) < 1e-6);
+        assert(std::fabs(initial - power.battery_wh() - 60.0 / 3600.0) < 1e-6);
+        controls.throttle = 0.5;
+        rover.apply_controls(controls, 1.0);
+        const double before_drive = power.battery_wh();
+        rover.after_step(1.0);
+        assert(std::fabs(power.demand_w() - 12060.0) < 1e-6);
+        assert(std::fabs(power.battery_power_w() - 12060.0) < 1e-6);
+        assert(std::fabs(before_drive - power.battery_wh() - 12060.0 / 3600.0) < 1e-6);
+        rover.apply_controls(controls, 1.0);
+        assert(rover.body().gear.back().drive_force > 0.0);
+        controls.throttle = -0.5;
+        rover.apply_controls(controls, 1.0);
+        assert(rover.body().gear.back().drive_force < 0.0);
+        rover.after_step(1.0);
+        assert(std::fabs(power.demand_w() - 12060.0) < 1e-6);
+        controls.throttle = 1.0;
+        rover.apply_controls(controls, 1.0);
+        assert(std::fabs(rover.body().gear.back().drive_force - 500.0) < 1e-6);
+        rover.after_step(1.0);
+        assert(std::fabs(power.demand_w() - 24060.0) < 1e-6);
+        rover.apply_controls(controls, 1.0);
+        assert(rover.body().gear.back().drive_force > 0.0);
+        power.set_battery_fraction(0.0);
+        rover.after_step(1.0);
+        assert(!power.powered());
+        rover.apply_controls(controls, 1.0);
+        assert(rover.body().gear.back().drive_force == 0.0);
+        controls.throttle = 0.0;
+        rover.apply_controls(controls, 1.0);
+        rover.after_step(1.0);
+        assert(std::fabs(power.demand_w() - 60.0) < 1e-6);
+
+        rover_spec.systems.components.clear();
+        Ship legacy(universe, rover_spec);
+        legacy.place_on_surface(moon, glm::normalize(sl::dvec3(1.0, 0.2, 0.3)), 0.0, 0.0);
+        controls.throttle = 1.0;
+        legacy.apply_controls(controls, 1.0);
+        assert(legacy.body().gear.back().drive_force > 0.0);
+    }
+
     // Parsing: stages default to the last one, tanks start full, vessels read their box.
     SystemsSpec spec = parse(R"({
       "systems": [
@@ -632,6 +690,23 @@ int main()
     assert(spec.components.size() == 7 && spec.components[0].stage == 1 && spec.components[2].stage == 0);
     assert(spec.vessels.size() == 1 && spec.vessels[0].crew == 2);
 
+    {
+        SystemsSpec s = parse(R"({"systems":[{"type":"battery","capacity_wh":100,"charge":0.5,"max_w":5000},
+            {"type":"solar","area_m2":10,"efficiency":0.2},{"type":"drive_motor","watts":2000}]})");
+        Systems sys(s, LifeSupportMode::warn);
+        SystemsContext sun;
+        const double initial = sys.battery_wh();
+        sys.step(10.0, sun);
+        assert(sys.battery_wh() > initial && sys.demand_w() == 0.0);
+        assert(sys.battery_power_w() < 0.0);
+        sun.drive_throttle = 0.5;
+        sys.step(10.0, sun);
+        assert(sys.components()[2].powered && sys.demand_w() == 1000.0);
+        assert(sys.battery_wh() > initial);
+        sys.components()[2].enabled = false;
+        sys.step(1.0, sun);
+        assert(!sys.components()[2].powered && sys.demand_w() == 0.0);
+    }
     {
         // Sunlit solar panels carry the bus and charge the battery; in eclipse the battery drains.
         Systems sys(spec, LifeSupportMode::warn);
