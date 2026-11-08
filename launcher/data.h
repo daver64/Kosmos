@@ -44,6 +44,10 @@ namespace launcher
         bool installed = false, tree = false, minor_bodies = false;
     };
 
+    // Queue entries survive launcher restarts; a restored queue always starts paused.
+    bool load_pack_queue(const fs::path &file, std::vector<std::string> &ids, std::string &error);
+    bool save_pack_queue(const fs::path &file, const std::vector<std::string> &ids, std::string &error);
+
     struct Profile
     {
         std::string backend = "auto"; // auto, gl, vulkan, d3d12

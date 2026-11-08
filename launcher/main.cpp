@@ -29,6 +29,10 @@
 #include <memory>
 #include <set>
 
+#ifdef KOSMOS_LAUNCHER_HTTP_TEST
+class HttpTestApp;
+#endif
+
 namespace
 {
     using namespace launcher;
@@ -114,6 +118,12 @@ namespace
             std::error_code ec;
             part_ = part;
             resume_from_ = fs::exists(part, ec) ? static_cast<long long>(fs::file_size(part, ec)) : 0;
+            if (ec)
+            {
+                if (on_file)
+                    on_file(false, "Cannot inspect partial download: " + ec.message());
+                return;
+            }
             file_ = std::make_unique<std::ofstream>(part, std::ios::binary | std::ios::app);
             if (!*file_)
             {
@@ -160,6 +170,16 @@ namespace
             const char *bytes = static_cast<const char *>(e.GetDataBuffer());
             if (to_file_)
             {
+                const int status = request_.GetResponse().GetStatus();
+                if (status == 416 && resume_from_ > 0 &&
+                    U(request_.GetResponse().GetHeader("Content-Range")) == "bytes */" + std::to_string(resume_from_))
+                    return;
+                if (status != 200 && status != 206)
+                {
+                    file_error_ = "Server replied " + std::to_string(status);
+                    request_.Cancel();
+                    return;
+                }
                 // A 200 reply to a Range request means the server ignored it; restart the file.
                 if (!started_ && resume_from_ > 0 && request_.GetResponse().GetStatus() == 200)
                 {
@@ -167,8 +187,25 @@ namespace
                     file_ = std::make_unique<std::ofstream>(part_path(), std::ios::binary | std::ios::trunc);
                     resume_from_ = 0;
                 }
+                if (!started_ && resume_from_ > 0 && request_.GetResponse().GetStatus() == 206)
+                {
+                    const std::string range = U(request_.GetResponse().GetHeader("Content-Range"));
+                    const std::string prefix = "bytes " + std::to_string(resume_from_) + "-";
+                    if (range.rfind(prefix, 0) != 0)
+                    {
+                        file_error_ = "Server returned an invalid resume range";
+                        request_.Cancel();
+                        return;
+                    }
+                }
                 started_ = true;
                 file_->write(bytes, static_cast<std::streamsize>(e.GetDataSize()));
+                if (!*file_)
+                {
+                    file_error_ = "Cannot write partial download";
+                    request_.Cancel();
+                    return;
+                }
                 received_ += static_cast<long long>(e.GetDataSize());
                 if (on_progress)
                 {
@@ -202,16 +239,36 @@ namespace
         {
             Unbind(wxEVT_WEBREQUEST_DATA, &Http::OnData, this);
             Unbind(wxEVT_WEBREQUEST_STATE, &Http::OnState, this);
-            const bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
+            bool http_ok = ok && request_.IsOk() && request_.GetResponse().IsOk() && (request_.GetResponse().GetStatus() == 200 || request_.GetResponse().GetStatus() == 206);
             std::string why = error;
-            if (ok && !http_ok)
+            if (to_file_ && file_error_.empty() && request_.IsOk() && request_.GetResponse().IsOk() &&
+                request_.GetResponse().GetStatus() == 416 && resume_from_ > 0 &&
+                U(request_.GetResponse().GetHeader("Content-Range")) == "bytes */" + std::to_string(resume_from_))
+            {
+                http_ok = true;
+                why.clear();
+            }
+            if (!file_error_.empty())
+            {
+                http_ok = false;
+                why = file_error_;
+                file_error_.clear();
+            }
+            if (ok && !http_ok && why.empty())
                 why = "Server replied " + std::to_string(request_.GetResponse().GetStatus());
             started_ = false;
             received_ = 0;
             if (to_file_)
             {
                 if (file_)
+                {
                     file_->close();
+                    if (!*file_ && http_ok)
+                    {
+                        http_ok = false;
+                        why = "Cannot finish writing partial download";
+                    }
+                }
                 file_.reset();
                 if (on_file)
                     on_file(http_ok, why);
@@ -223,7 +280,7 @@ namespace
         fs::path part_path() const { return part_; }
 
         wxWebRequest request_;
-        std::string text_, post_body_;
+        std::string text_, post_body_, file_error_;
         std::unique_ptr<std::ofstream> file_;
         fs::path part_;
         long long resume_from_ = 0, received_ = 0;
@@ -267,8 +324,11 @@ namespace
 
     class Frame : public wxFrame
     {
+#ifdef KOSMOS_LAUNCHER_HTTP_TEST
+        friend class ::HttpTestApp;
+#endif
     public:
-        Frame(const fs::path &root) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
+        Frame(const fs::path &root, bool fetch_catalogues = true) : wxFrame(nullptr, wxID_ANY, "Kosmos Launcher", wxDefaultPosition, wxSize(1000, 680)), root_(root)
         {
             {
                 wxMemoryInputStream stream(launcher_icon_png, sizeof launcher_icon_png);
@@ -292,6 +352,13 @@ namespace
             BuildUpdates();
             BuildLogs();
             CreateStatusBar();
+            std::string queue_error;
+            if (!load_pack_queue(root_ / ".kosmos-pack-queue.json", pack_queue_, queue_error))
+            {
+                queue_available_ = false;
+                wxMessageBox(W(queue_error), "Scenery download queue", wxICON_ERROR);
+            }
+            pack_paused_ = !pack_queue_.empty();
             timer_.SetOwner(this);
             Bind(wxEVT_TIMER, [this](wxTimerEvent &) { if (run_) run_->Drain(); }, timer_.GetId());
             scenario_timer_.SetOwner(this);
@@ -302,6 +369,8 @@ namespace
             RefreshPreview();
             if (find_kosmos(root_).empty())
                 SetStatusText("Kosmos was not found next to the launcher.");
+            if (!fetch_catalogues)
+                return;
             // The server's pack list carries the real sizes and checksums; the built-in list is the offline fallback.
             packs_http_.Fetch(profile_.server + "/packs.json", [this](bool ok, const std::string &body)
                               {
@@ -620,9 +689,13 @@ namespace
             pack_text_ = new wxStaticText(page, wxID_ANY, "");
             pack_gauge_ = new wxGauge(page, wxID_ANY, 1000);
             pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
+            pack_pause_ = new wxButton(page, wxID_ANY, "Pause downloads");
+            pack_dequeue_ = new wxButton(page, wxID_ANY, "Remove from queue");
             pack_remove_ = new wxButton(page, wxID_ANY, "Remove");
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(pack_install_, 0, wxALL, 8);
+            buttons->Add(pack_pause_, 0, wxALL, 8);
+            buttons->Add(pack_dequeue_, 0, wxALL, 8);
             buttons->Add(pack_remove_, 0, wxALL, 8);
             col->Add(pack_list_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
             col->Add(pack_text_, 0, wxALL, 8);
@@ -632,6 +705,35 @@ namespace
             book_->AddPage(page, "Scenery packs");
             pack_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { ShowPack(); });
             pack_install_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallPack(); });
+            pack_pause_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+                if (pack_paused_)
+                {
+                    pack_paused_ = false;
+                    StartNextPack();
+                }
+                else
+                {
+                    pack_paused_ = true;
+                    if (pack_phase_ == PackPhase::download)
+                    {
+                        pack_cancelling_ = true;
+                        http_.Cancel();
+                    }
+                    RefreshPacks();
+                }
+            });
+            pack_dequeue_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) {
+                const int i = pack_list_->GetSelection();
+                if (i == wxNOT_FOUND || packs_[i].id == active_pack_)
+                    return;
+                auto next = pack_queue_;
+                next.erase(std::remove(next.begin(), next.end(), packs_[i].id), next.end());
+                if (SavePackQueue(next))
+                    pack_queue_ = std::move(next);
+                if (pack_queue_.empty())
+                    pack_paused_ = false;
+                RefreshPacks();
+            });
             pack_remove_->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
                                {
                                    const int i = pack_list_->GetSelection();
@@ -651,18 +753,41 @@ namespace
         void RefreshPacks()
         {
             const int keep = pack_list_->GetSelection();
+            const std::string selected = keep != wxNOT_FOUND && static_cast<std::size_t>(keep) < packs_.size() ? packs_[keep].id : "";
             packs_ = packs_remote_.empty() ? builtin_packs(root_) : packs_remote_;
             packs_.insert(packs_.end(), orbiter_packs_.begin(), orbiter_packs_.end());
             const auto hires = orbiter_hires_packs(root_);
             packs_.insert(packs_.end(), hires.begin(), hires.end());
+            for (const std::string &id : pack_queue_)
+                if (std::none_of(packs_.begin(), packs_.end(), [&id](const PackInfo &p) { return p.id == id; }))
+                {
+                    PackInfo missing;
+                    missing.id = id;
+                    missing.name = id;
+                    missing.description = "This queued pack is not in the current catalogue. Refresh the catalogue or remove it from the queue.";
+                    packs_.push_back(std::move(missing));
+                }
             std::error_code ec;
             for (PackInfo &p : packs_)
                 p.installed = !p.marker.empty() && fs::exists(root_ / p.marker, ec);
             pack_list_->Clear();
             for (const PackInfo &p : packs_)
-                pack_list_->Append(W(p.name) + (p.installed ? "   [installed]" : ""));
+            {
+                wxString state;
+                if (p.id == active_pack_)
+                    state = pack_cancelling_ ? "   [pausing]" : pack_phase_ == PackPhase::install ? "   [installing]" : "   [downloading]";
+                else if (std::find(pack_queue_.begin(), pack_queue_.end(), p.id) != pack_queue_.end())
+                    state = pack_paused_ ? "   [paused / queued]" : "   [queued]";
+                else if (p.installed)
+                    state = "   [installed]";
+                pack_list_->Append(W(p.name) + state);
+            }
             if (!packs_.empty())
-                pack_list_->SetSelection(keep == wxNOT_FOUND ? 0 : std::min<int>(keep, int(packs_.size()) - 1));
+            {
+                const auto found = std::find_if(packs_.begin(), packs_.end(), [&selected](const PackInfo &p) { return p.id == selected; });
+                pack_list_->SetSelection(found == packs_.end() ? (keep == wxNOT_FOUND ? 0 : std::min<int>(keep, int(packs_.size()) - 1))
+                                                               : static_cast<int>(found - packs_.begin()));
+            }
             ShowPack();
         }
 
@@ -670,11 +795,19 @@ namespace
         {
             const int i = pack_list_->GetSelection();
             const bool ok = i != wxNOT_FOUND;
-            pack_install_->Enable(ok && !busy_ && !(packs_[i].installed && (packs_[i].tree || packs_[i].minor_bodies || packs_[i].id.rfind("orbiter-default-", 0) == 0)));
+            const bool queued = ok && std::find(pack_queue_.begin(), pack_queue_.end(), packs_[i].id) != pack_queue_.end();
+            pack_install_->SetLabel(busy_ || !pack_queue_.empty() ? "Add to queue" : "Download and install");
+            pack_install_->Enable(queue_available_ && ok && !queued && !(packs_[i].installed && (packs_[i].tree || packs_[i].minor_bodies || packs_[i].id.rfind("orbiter-default-", 0) == 0)));
+            pack_dequeue_->Enable(queue_available_ && queued && packs_[i].id != active_pack_);
+            pack_pause_->SetLabel(pack_paused_ ? "Resume downloads" : "Pause downloads");
+            pack_pause_->Enable(queue_available_ && !pack_queue_.empty() && !pack_cancelling_);
             pack_remove_->Enable(ok && packs_[i].installed && !busy_);
             if (ok)
             {
-                pack_text_->SetLabel(W(packs_[i].description) + "\n" + (packs_[i].installed ? "Installed." : "Not installed.") + "  Download size: " + human_size(packs_[i].size));
+                const wxString state = packs_[i].id == active_pack_ ? (pack_phase_ == PackPhase::install ? "Checking or installing." : "Downloading.")
+                                       : queued ? (pack_paused_ ? "Queued; downloads paused." : "Queued for installation.")
+                                                : packs_[i].installed ? "Installed." : "Not installed.";
+                pack_text_->SetLabel(W(packs_[i].description) + "\n" + state + "  Download size: " + human_size(packs_[i].size));
                 pack_text_->Wrap(600);
             }
             Layout();
@@ -683,9 +816,61 @@ namespace
         void InstallPack()
         {
             const int i = pack_list_->GetSelection();
-            if (i == wxNOT_FOUND || busy_)
+            if (i == wxNOT_FOUND || !queue_available_)
                 return;
-            const PackInfo pack = packs_[i];
+            const PackInfo &pack = packs_[i];
+            if (std::find(pack_queue_.begin(), pack_queue_.end(), pack.id) != pack_queue_.end())
+                return;
+            auto next = pack_queue_;
+            next.push_back(pack.id);
+            if (!SavePackQueue(next))
+                return;
+            pack_queue_ = std::move(next);
+            RefreshPacks();
+            StartNextPack();
+        }
+
+        bool SavePackQueue(const std::vector<std::string> &ids)
+        {
+            std::string error;
+            if (save_pack_queue(root_ / ".kosmos-pack-queue.json", ids, error))
+                return true;
+            SetStatusText(W(error));
+            wxMessageBox(W(error), "Scenery download queue", wxICON_ERROR);
+            return false;
+        }
+
+        void StartNextPack()
+        {
+            if (pack_paused_ || pack_queue_.empty() || busy_ || pack_cancelling_)
+                return;
+            const auto found = std::find_if(packs_.begin(), packs_.end(), [this](const PackInfo &p) { return p.id == pack_queue_.front(); });
+            if (found == packs_.end() || found->file.empty())
+            {
+                pack_paused_ = true;
+                SetStatusText(W("Queued pack is not in the current catalogue: " + pack_queue_.front()));
+                RefreshPacks();
+                return;
+            }
+            const PackInfo pack = *found;
+            if (pack.installed && (pack.tree || pack.minor_bodies || pack.id.rfind("orbiter-default-", 0) == 0))
+            {
+                auto next = pack_queue_;
+                next.erase(next.begin());
+                if (!SavePackQueue(next))
+                {
+                    pack_paused_ = true;
+                    RefreshPacks();
+                    return;
+                }
+                pack_queue_ = std::move(next);
+                RefreshPacks();
+                CallAfter([this] { StartNextPack(); });
+                return;
+            }
+            active_pack_ = pack.id;
+            pack_phase_ = PackPhase::download;
+            RefreshPacks();
             if (pack.minor_bodies)
             {
                 DownloadMinorBodies(pack);
@@ -699,16 +884,53 @@ namespace
             DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this, pack](bool ok, const std::string &msg)
                             {
                                 std::string error = msg;
-                                if (!ok && pack.id.rfind("orbiter-default-", 0) == 0)
+                                if (!ok && !pack_cancelling_ && pack_phase_ == PackPhase::install && pack.id.rfind("orbiter-default-", 0) == 0)
                                 {
                                     std::error_code ec;
                                     fs::remove(root_ / pack.marker, ec);
                                     if (ec)
                                         error += "; could not remove incomplete marker: " + ec.message();
                                 }
-                                SetStatusText(ok ? "Pack installed." : W("Pack failed: " + error));
-                                RefreshPacks();
+                                FinishPack(ok, error);
                             }, pack.url);
+        }
+
+        void FinishPack(bool ok, const std::string &error)
+        {
+            busy_ = false;
+            pack_gauge_->SetValue(0);
+            const bool cancelled = pack_cancelling_;
+            pack_cancelling_ = false;
+            pack_phase_ = PackPhase::idle;
+            active_pack_.clear();
+            if (ok && !cancelled)
+            {
+                auto next = pack_queue_;
+                if (!next.empty())
+                    next.erase(next.begin());
+                if (SavePackQueue(next))
+                {
+                    pack_queue_ = std::move(next);
+                    SetStatusText("Pack installed.");
+                }
+                else
+                    pack_paused_ = true;
+            }
+            else if (cancelled)
+                SetStatusText("Download paused; partial file retained.");
+            else
+            {
+                pack_paused_ = true;
+                SetStatusText(W("Pack failed: " + error));
+            }
+            RefreshPacks();
+            if (close_after_pause_)
+            {
+                close_after_pause_ = false;
+                CallAfter([this] { Close(); });
+            }
+            else if (!pack_paused_)
+                CallAfter([this] { StartNextPack(); });
         }
 
         void DownloadMinorBodies(const PackInfo &pack)
@@ -718,7 +940,7 @@ namespace
             fs::create_directories(dir, ec);
             if (ec)
             {
-                SetStatusText(W("Pack failed: " + ec.message()));
+                FinishPack(false, ec.message());
                 return;
             }
             const fs::path part = dir / (pack.file + ".part");
@@ -734,8 +956,10 @@ namespace
                            [this, pack, part](bool ok, const std::string &error)
                            {
                                std::string problem = error;
-                               if (ok)
+                               if (ok && !pack_cancelling_)
                                {
+                                   pack_phase_ = PackPhase::install;
+                                   RefreshPacks();
                                    SetStatusText("Checking the download...");
                                    wxYield();
                                    if (sha256_file(part, [this, &pack](std::uint64_t bytes)
@@ -763,10 +987,7 @@ namespace
                                }
                                else
                                    problem += " (run it again to resume)";
-                               pack_gauge_->SetValue(0);
-                               busy_ = false;
-                               SetStatusText(problem.empty() ? "Pack installed." : W("Pack failed: " + problem));
-                               RefreshPacks();
+                               FinishPack(ok && problem.empty(), problem);
                            });
         }
 
@@ -778,12 +999,12 @@ namespace
             fs::create_directories(target.parent_path(), ec);
             if (ec)
             {
-                SetStatusText(W("Pack failed: " + ec.message()));
+                FinishPack(false, ec.message());
                 return;
             }
             if (fs::exists(target, ec) || ec)
             {
-                SetStatusText("Pack failed: target already exists or cannot be checked.");
+                FinishPack(false, "Target already exists or cannot be checked.");
                 return;
             }
             busy_ = true;
@@ -799,8 +1020,10 @@ namespace
                            {
                                pack_gauge_->SetValue(0);
                                std::string problem = error;
-                               if (ok)
+                               if (ok && !pack_cancelling_)
                                {
+                                   pack_phase_ = PackPhase::install;
+                                   RefreshPacks();
                                    SetStatusText("Checking the download...");
                                    wxYield();
                                    install_downloaded_tree(part, target, pack.sha256, problem,
@@ -812,10 +1035,7 @@ namespace
                                }
                                else
                                    problem += " (run it again to resume)";
-                               pack_gauge_->SetValue(0);
-                               busy_ = false;
-                               SetStatusText(problem.empty() ? "Pack installed." : W("Pack failed: " + problem));
-                               RefreshPacks();
+                               FinishPack(ok && problem.empty(), problem);
                            });
         }
 
@@ -830,6 +1050,8 @@ namespace
                 gauge->SetValue(0);
                 busy_ = false;
                 done(ok, msg);
+                if (active_pack_.empty() && !pack_paused_)
+                    CallAfter([this] { StartNextPack(); });
             };
             auto start = [this, file, dest, gauge, finish, url](std::string sum)
             {
@@ -852,10 +1074,15 @@ namespace
                                [this, part, dir, file, dest, sum, gauge, finish](bool ok, const std::string &error)
                                {
                                    gauge->SetValue(0);
-                                   if (!ok)
+                                   if (!ok || (!active_pack_.empty() && pack_cancelling_))
                                    {
                                        finish(false, error + " (run it again to resume)");
                                        return;
+                                   }
+                                   if (!active_pack_.empty())
+                                   {
+                                       pack_phase_ = PackPhase::install;
+                                       RefreshPacks();
                                    }
                                    SetStatusText("Checking the download...");
                                    wxYield();
@@ -910,6 +1137,11 @@ namespace
             }
             http_.Fetch(base + "SHA256SUMS.txt", [this, file, start, finish](bool ok, const std::string &body)
                         {
+                            if (!active_pack_.empty() && pack_cancelling_)
+                            {
+                                finish(false, "Cancelled");
+                                return;
+                            }
                             if (!ok)
                             {
                                 finish(false, "Could not read the checksum list: " + body);
@@ -1219,8 +1451,13 @@ namespace
 
         void CheckUpdates()
         {
+            if (busy_)
+            {
+                SetStatusText("Wait for the current download or installation before checking updates.");
+                return;
+            }
             update_label_->SetLabel("Checking...");
-            http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
+            update_http_.Fetch(profile_.server + "/VERSION.txt", [this](bool ok, const std::string &body)
                         {
                             if (!ok)
                             {
@@ -1232,7 +1469,7 @@ namespace
                             const bool newer = have.empty() || version_newer(latest_, have);
                             update_label_->SetLabel(W(newer ? "Version " + latest_ + " is available (you have " + (have.empty() ? "an unknown version" : have) + ")" : "You are up to date (" + have + ")"));
                             update_button_->Enable(newer && !busy_);
-                            http_.Fetch(profile_.server + "/notes/" + latest_ + ".md", [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
+                            update_http_.Fetch(profile_.server + "/notes/" + latest_ + ".md", [this](bool ok2, const std::string &text) { notes_->SetValue(ok2 ? W(text) : "No release notes found."); });
                         });
         }
 
@@ -1508,7 +1745,20 @@ namespace
         {
             if (busy_ && e.CanVeto())
             {
-                SetStatusText("Wait for the current download or installation to finish before closing.");
+                if (!active_pack_.empty() && pack_phase_ == PackPhase::download)
+                {
+                    pack_paused_ = true;
+                    close_after_pause_ = true;
+                    if (!pack_cancelling_)
+                    {
+                        pack_cancelling_ = true;
+                        http_.Cancel();
+                    }
+                    SetStatusText("Pausing the download before closing...");
+                    RefreshPacks();
+                }
+                else
+                    SetStatusText("Wait for verification or installation to finish before closing.");
                 e.Veto();
                 return;
             }
@@ -1587,10 +1837,15 @@ namespace
         std::vector<ScenarioInfo> scenarios_;
         std::vector<AddonInfo> addons_;
         std::vector<PackInfo> packs_, packs_remote_, orbiter_packs_;
+        enum class PackPhase { idle, download, install };
+        std::vector<std::string> pack_queue_;
+        std::string active_pack_;
+        PackPhase pack_phase_ = PackPhase::idle;
+        bool pack_paused_ = false, pack_cancelling_ = false, close_after_pause_ = false, queue_available_ = true;
         std::vector<fs::path> log_files_;
         std::string latest_, last_run_scenario_;
         bool busy_ = false, loading_ = false;
-        Http http_, packs_http_, orbiter_packs_http_;
+        Http http_, packs_http_, orbiter_packs_http_, update_http_;
         Run *run_ = nullptr;
         wxDateTime started_;
         wxTimer timer_;
@@ -1605,7 +1860,7 @@ namespace
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
-        wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
+        wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_pause_ = nullptr, *pack_dequeue_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
         Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;
         wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
@@ -1637,4 +1892,6 @@ namespace
     };
 }
 
+#ifndef KOSMOS_LAUNCHER_HTTP_TEST
 wxIMPLEMENT_APP(App);
+#endif

@@ -22,6 +22,25 @@ static int failures = 0;
 int main()
 {
     using namespace launcher;
+    {
+        const fs::path dir = fs::temp_directory_path() /
+            ("kosmos-pack-queue-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        fs::create_directories(dir);
+        const fs::path file = dir / "queue.json";
+        std::vector<std::string> ids;
+        std::string error;
+        CHECK(load_pack_queue(file, ids, error) && ids.empty());
+        CHECK(save_pack_queue(file, {"first", "second"}, error));
+        CHECK(load_pack_queue(file, ids, error) && ids == std::vector<std::string>({"first", "second"}));
+        CHECK(save_pack_queue(file, {"second"}, error));
+        CHECK(load_pack_queue(file, ids, error) && ids == std::vector<std::string>({"second"}));
+        std::ofstream(file) << R"(["same","same"])";
+        CHECK(!load_pack_queue(file, ids, error) && ids.empty() && !error.empty());
+        std::ofstream(file) << "{ invalid";
+        CHECK(!load_pack_queue(file, ids, error) && !error.empty());
+        CHECK(!save_pack_queue(dir / "missing" / "queue.json", {"x"}, error) && !error.empty());
+        fs::remove_all(dir);
+    }
     CHECK(version_newer("0.19", "0.18"));
     CHECK(version_newer("0.100", "0.99"));
     CHECK(!version_newer("0.18", "0.18"));

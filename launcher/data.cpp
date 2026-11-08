@@ -13,6 +13,13 @@
 #include <set>
 #include <sstream>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace launcher
 {
     namespace
@@ -496,6 +503,74 @@ namespace launcher
             out.push_back(std::move(info));
         }
         return out;
+    }
+
+    bool load_pack_queue(const fs::path &file, std::vector<std::string> &ids, std::string &error)
+    {
+        ids.clear();
+        error.clear();
+        std::error_code ec;
+        if (!fs::exists(file, ec))
+        {
+            if (ec)
+                error = "Cannot inspect download queue: " + ec.message();
+            return !ec;
+        }
+        std::ifstream in(file, std::ios::binary);
+        if (!in)
+        {
+            error = "Cannot open download queue: " + file.u8string();
+            return false;
+        }
+        const auto json = nlohmann::json::parse(in, nullptr, false);
+        if (in.bad() || !json.is_array())
+        {
+            error = "Cannot read download queue: " + file.u8string();
+            return false;
+        }
+        std::set<std::string> seen;
+        for (const auto &entry : json)
+        {
+            if (!entry.is_string() || entry.get_ref<const std::string &>().empty() ||
+                !seen.insert(entry.get_ref<const std::string &>()).second)
+            {
+                error = "Invalid download queue: " + file.u8string();
+                ids.clear();
+                return false;
+            }
+            ids.push_back(entry.get<std::string>());
+        }
+        return true;
+    }
+
+    bool save_pack_queue(const fs::path &file, const std::vector<std::string> &ids, std::string &error)
+    {
+        error.clear();
+        const fs::path temp = file.parent_path() / (file.filename().u8string() + ".tmp");
+        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+        if (out)
+        {
+            out << nlohmann::json(ids).dump(2) << '\n';
+            out.close();
+        }
+        if (!out)
+        {
+            error = "Cannot write download queue: " + temp.u8string();
+            return false;
+        }
+        std::error_code ec;
+#ifdef _WIN32
+        if (!MoveFileExW(temp.c_str(), file.c_str(), MOVEFILE_REPLACE_EXISTING))
+            ec = std::error_code(static_cast<int>(GetLastError()), std::system_category());
+#else
+        fs::rename(temp, file, ec);
+#endif
+        if (ec)
+        {
+            error = "Cannot save download queue: " + ec.message();
+            return false;
+        }
+        return true;
     }
 
     Profile load_profile()

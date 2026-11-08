@@ -318,6 +318,11 @@ The launcher also offers individual Orbiter high-resolution Earth, Moon, Mars
 against SHA-256 values derived from copies matching its published checksums.
 Surface and elevation trees install under `import/orbiter/` without overwriting
 the standard packs; remove an installed layer before downloading it again.
+On the launcher's Scenery packs page, add multiple packs to the queue and pause
+or resume downloads. The list identifies downloading, installing and queued
+packs. Closing during a download pauses it; the queue reopens paused and
+partial files resume when supported by the server (otherwise the download
+restarts). Verification and installation must finish before the launcher closes.
 Other Orbiter high-resolution datasets are not yet offered by the launcher.
 See `data/textures/README.txt` and the developers manual.
 
