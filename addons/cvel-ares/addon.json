@@ -2,5 +2,7 @@
   "id": "ares",
   "name": "CVE-Lite Ares Spider (Mars lander)",
   "version": "0.1",
+  "author": "Sputnik; original Orbiter add-on credits Rich Wall (mesh) and Dave Rowbotham (programming)",
+  "description": "CVE-Lite Ares Spider, converted from the Orbiter add-on with permission.",
   "ships": ["ship.json"]
 }

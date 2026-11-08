@@ -1,0 +1,19 @@
+Credits:
+
+Ares Spider Programming Dave Rowbotham
+Ares Spider Mesh by Rich Wall
+
+CVE-Light Programming by David Henderson with some parts by Dave Rowbotham.
+
+REquirements : CVE-Light 
+
+License : 
+	C++ Module Code LGPL .
+	Meshes Artistic Licence .
+
+
+
+C++ Code Copyright Dave Rowbotham 2004
+Mesh Copyright Rich Wall 2004
+
+

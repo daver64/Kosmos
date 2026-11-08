@@ -9,6 +9,8 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
+from PIL import Image
+
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("orbiter_pack", ROOT / "scripts/pack-orbiter-defaults.py")
@@ -76,6 +78,8 @@ class DefaultPackTest(unittest.TestCase):
                 self.assertEqual(item["size"], archive.stat().st_size)
                 self.assertEqual(item["sha256"], hashlib.sha256(archive.read_bytes()).hexdigest())
                 self.assertEqual(item["marker"], item["remove"] + "/.complete")
+                self.assertEqual(archive.stat().st_mode & 0o777, 0o644)
+            self.assertEqual((root / "out" / "packs.json").stat().st_mode & 0o777, 0o644)
 
     def test_missing_layer_rejected_without_output(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,6 +88,29 @@ class DefaultPackTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Moon/Archive/Elev.tree"):
                 pack.build(root / "source.zip", root / "out")
             self.assertEqual(list((root / "out").iterdir()), [])
+
+    def test_mask_alpha_becomes_water_specular(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_source(root / "source.zip")
+            (root / "work").mkdir()
+
+            def fake_converter(args, check):
+                self.assertTrue(check)
+                tiles = Path(args[3])
+                (tiles / "level0").mkdir(parents=True)
+                (tiles / "tiles.ctx").write_text('TileType "dds"\n')
+                image = Image.new("RGBA", (2, 1))
+                image.putdata([(30, 40, 50, 0), (200, 150, 100, 255)])
+                image.save(tiles / "level0" / "tx_0_0.dds")
+
+            with zipfile.ZipFile(root / "source.zip") as archive, patch.object(pack.subprocess, "run", fake_converter):
+                colour, specular = pack.convert_earth_tiles(archive, root / "work")
+            self.assertTrue((colour / "level0" / "tx_0_0.dds").is_file())
+            self.assertFalse((specular / "level0" / "tx_0_0.dds").exists())
+            self.assertIn('TileType "png"', (specular / "tiles.ctx").read_text())
+            with Image.open(specular / "level0" / "tx_0_0.png") as image:
+                self.assertEqual(list(image.getdata()), [(255, 255, 255), (0, 0, 0)])
 
     def test_asset_size_limit(self):
         with tempfile.TemporaryDirectory() as tmp:

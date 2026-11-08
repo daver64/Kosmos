@@ -344,6 +344,9 @@ namespace kosmos::app
                     vis.earth_tiles = sl::PlanetTiles::create(tiles);
                     if (!vis.earth_tiles)
                         std::fprintf(stderr, "kosmos: tiled Earth unavailable: %s\n", sl::last_error().c_str());
+                    else
+                        std::fprintf(stderr, "kosmos: Earth tiles: colour=%s, specular=%s\n",
+                                     tiles.colour.c_str(), tiles.specular.empty() ? "(none)" : tiles.specular.c_str());
                 }
                 if (vis.earth_tiles)
                 {

@@ -6,6 +6,8 @@ __pycache__/
 *.png
 !/docs/*.png
 !/data/textures/**/*.png
+!/addons/*/models/*.png
+!/addons/*/models/**/*.png
 imgui.ini
 kosmos-*.png
 data/textures-hires/

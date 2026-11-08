@@ -1,0 +1,9 @@
+newmtl pod_tank
+Kd 0.80 0.82 0.85
+Ks 0.5 0.5 0.5
+Ke 0 0 0
+
+newmtl pod_band
+Kd 0.90 0.45 0.10
+Ks 0.3 0.3 0.3
+Ke 0 0 0

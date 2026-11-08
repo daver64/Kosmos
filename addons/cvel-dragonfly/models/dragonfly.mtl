@@ -1,0 +1,119 @@
+newmtl Material0_Dragonfly_dfly3x
+Kd 1.000 1.000 1.000
+Ks 0.914 0.831 0.584
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly3x.png
+
+newmtl Material0_Dragonfly_dfly1x
+Kd 1.000 1.000 1.000
+Ks 0.914 0.831 0.584
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Material1_Dragonfly_dfly1x
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Material2_Dragonfly_dfly4x
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly4x.png
+
+newmtl Material3_Dragonfly_dfly7x
+Kd 1.000 1.000 1.000
+Ks 0.925 0.922 0.914
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly7x.png
+
+newmtl Material4_Dragonfly_dfly7x
+Kd 1.000 1.000 1.000
+Ks 0.300 0.300 0.300
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly7x.png
+
+newmtl Material5_Dragonfly_dfly1x
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Material6_Dragonfly_dfly1x
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Material7_Dragonfly_dfly7x
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.750 0.200 0.200
+map_Kd textures/dfly7x.png
+
+newmtl Material9_Dragonfly_dfly4x
+Kd 1.000 1.000 1.000
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly4x.png
+
+newmtl Material10_Dragonfly_dfly6x
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.710
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly6x.png
+
+newmtl Material11_Dragonfly_dfly5x
+Kd 1.000 1.000 1.000
+Ks 0.700 0.700 0.710
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly5x.png
+
+newmtl Material8
+Kd 0.263 0.184 0.063
+Ks 0.804 0.627 0.318
+Ke 0.000 0.000 0.000
+d 0.240
+
+newmtl Latch_L
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Latch_R
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl Latch_Slide
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly1x.png
+
+newmtl AntU_a
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly4x.png
+
+newmtl AntL_a
+Kd 1.000 1.000 1.000
+Ks 0.831 0.831 0.824
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly4x.png
+
+newmtl AntU_b
+Kd 1.000 1.000 1.000
+Ks 0.914 0.831 0.584
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly3x.png
+
+newmtl AntL_b
+Kd 1.000 1.000 1.000
+Ks 0.914 0.831 0.584
+Ke 0.000 0.000 0.000
+map_Kd textures/dfly3x.png

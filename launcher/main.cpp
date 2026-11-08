@@ -786,8 +786,9 @@ namespace
             busy_ = true;
             ShowPack();
             const std::string base = profile_.server + "/";
-            auto finish = [this, done](bool ok, const std::string &msg)
+            auto finish = [this, done, gauge](bool ok, const std::string &msg)
             {
+                gauge->SetValue(0);
                 busy_ = false;
                 done(ok, msg);
             };
@@ -819,11 +820,22 @@ namespace
                                    }
                                    SetStatusText("Checking the download...");
                                    wxYield();
-                                   if (!sum.empty() && sha256_file(part) != sum)
+                                   std::error_code size_error;
+                                   const std::uintmax_t size = fs::file_size(part, size_error);
+                                   if (size_error)
+                                   {
+                                       finish(false, "Cannot check download size: " + size_error.message());
+                                       return;
+                                   }
+                                   if (!sum.empty() && sha256_file(part, [this, gauge, size](std::uint64_t bytes)
+                                       {
+                                           gauge->SetValue(size > 0 ? static_cast<int>(std::min<std::uintmax_t>(1000, bytes * 1000 / size)) : 0);
+                                           wxYield();
+                                       }) != sum)
                                    {
                                        std::error_code e;
                                        fs::remove(part, e);
-                                       finish(false, "The checksum does not match; the file was discarded");
+                                       finish(false, "The checksum does not match" + (e ? "; could not discard the file: " + e.message() : "; the file was discarded"));
                                        return;
                                    }
                                    const fs::path archive = dir / file;

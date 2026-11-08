@@ -1,0 +1,56 @@
+newmtl Black
+Kd 0.000 0.000 0.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl GoldFoil
+Kd 0.518 0.518 0.518
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl SilverFoil
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl j2engred
+Kd 1.000 0.000 0.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl s2inter_SPIDER
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/SPIDER.png
+
+newmtl stage01black
+Kd 0.000 0.000 0.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl stage01white
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steeldark
+Kd 0.329 0.329 0.329
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steellight
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steellight1
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

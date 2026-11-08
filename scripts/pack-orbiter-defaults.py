@@ -108,6 +108,7 @@ def build(source, output):
                         entry.size = 0
                         entry.mode = 0o644
                         pack.addfile(entry)
+                os.chmod(temporary, 0o644)
                 size = temporary.stat().st_size
                 if size >= LIMIT:
                     raise ValueError(f"{filename} is {size} bytes, exceeding GitHub's 2 GiB asset limit")
@@ -120,7 +121,7 @@ def build(source, output):
                 manifest.append({
                     "id": f"orbiter-default-{group}",
                     "name": f"Orbiter standard scenery: {group.title()}",
-                    "description": "Standard Orbiter 2024 planetary archives. Surface and elevation are used by Kosmos; Earth includes converted clouds and night lights. Other layers are retained for future support.",
+                    "description": "Standard Orbiter 2024 planetary archives. Surface and elevation are used by Kosmos; Earth includes converted clouds, night lights and water-specular maps. Other layers are retained for future support.",
                     "file": filename,
                     "url": f"https://github.com/daver64/Kosmos/releases/latest/download/{filename}",
                     "marker": f"data/orbiter-defaults/{group}/.complete",
@@ -137,6 +138,7 @@ def build(source, output):
             with temporary.open("w", encoding="utf-8") as temp:
                 json.dump({"packs": manifest}, temp, indent=2)
                 temp.write("\n")
+            os.chmod(temporary, 0o644)
             os.replace(temporary, manifest_path)
         finally:
             temporary.unlink(missing_ok=True)
