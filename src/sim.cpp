@@ -445,6 +445,7 @@ namespace kosmos
         cancel_timed_burn("Timed burn cancelled: flight changed");
         cancel_vessel_ascent("Ascent cancelled: flight changed");
         nav.clear_links();
+        stage_handoff_from_ = stage_handoff_to_ = nullptr;
         ships_.clear();
         active_ = 0;
         props.set_int("/ships/count", 0);
@@ -455,6 +456,9 @@ namespace kosmos
     {
         if (index < 0 || index >= ship_count() || index == active_)
             return false;
+        if (ships_[static_cast<std::size_t>(index)].get() == stage_handoff_from_ ||
+            ships_[static_cast<std::size_t>(index)].get() == stage_handoff_to_)
+            stage_handoff_from_ = stage_handoff_to_ = nullptr;
         nav.clear_links();
         std::map<int, LinkClaim> shifted;
         for (auto &entry : link_claims)
@@ -498,13 +502,26 @@ namespace kosmos
             return;
         props.set_bool("/controls/stage", false);
         if (nav.undock(ships_, active_, port))
+        {
+            const Ship *from = stage_handoff_to_ == ship ? stage_handoff_from_ : ship;
             activate(other);
+            stage_handoff_from_ = from;
+            stage_handoff_to_ = active_ship();
+        }
+    }
+
+    bool Sim::consume_stage_handoff(const Ship *from, const Ship *to)
+    {
+        const bool matches = from && from == stage_handoff_from_ && to == stage_handoff_to_ && to == active_ship();
+        stage_handoff_from_ = stage_handoff_to_ = nullptr;
+        return matches;
     }
 
     void Sim::activate(int index)
     {
         if (index < 0 || index >= ship_count())
             return;
+        stage_handoff_from_ = stage_handoff_to_ = nullptr;
         cancel_autoland("Autoland cancelled: vessel changed");
         cancel_timed_burn("Timed burn cancelled: vessel changed");
         cancel_vessel_ascent("Ascent cancelled: vessel changed");

@@ -2,6 +2,8 @@
 
 #include "sim.h"
 
+#include <functional>
+
 namespace kosmos
 {
     /** What `--selftest` was asked to do. */
@@ -25,6 +27,8 @@ namespace kosmos
         bool vessel_ascent = false;
         bool save = false;
         bool orbitcomp = false;
+        /** Apply the app's active-ship instrument selection in handoff tests. */
+        std::function<void()> select_instruments;
         /** Hold this throttle (negative leaves the controls alone). */
         double throttle = -1.0;
     };

@@ -7,6 +7,7 @@ public:
     bool OnInit() override
     {
         delete wxLog::SetActiveTarget(new wxLogStderr);
+        wxInitAllImageHandlers();
         wxSetAssertHandler([](const wxString &file, int line, const wxString &function,
                               const wxString &condition, const wxString &message) {
             std::fprintf(stderr, "wx assertion %s:%d %s: %s (%s)\n",
@@ -15,6 +16,21 @@ public:
         });
         if (argc < 4)
             return false;
+        if (human_size(0) != "unknown size" || human_size(1) != "1 byte" ||
+            human_size(1024) != "1.0 KB" || human_size(516929) != "504.8 KB" ||
+            human_size(1LL << 20) != "1 MB" || human_size(1LL << 30) != "1.0 GB")
+            return Fail("incorrect download size formatting");
+        DownloadProgress progress;
+        const auto start = DownloadProgress::Clock::time_point{};
+        progress.start(start);
+        progress.update(6 * 1024, 10 * 1024, 1024);
+        if (!progress.text(start + std::chrono::seconds(1)).Contains("Speed: 1.0 KB/s  |  Remaining: 4s"))
+            return Fail("resume speed or remaining time incorrect");
+        progress.update(6 * 1024, 0, 1024);
+        if (!progress.text(start + std::chrono::seconds(2)).Contains("Remaining: unknown"))
+            return Fail("unknown download length has an estimate");
+        if (!progress.text(start + std::chrono::seconds(8)).Contains("Speed: 0 bytes/s  |  Remaining: unknown"))
+            return Fail("stalled download retained a speed estimate");
         SetExitOnFrameDelete(false);
         const std::string mode = U(argv[3]);
         if (mode == "queue" || mode == "queue-archive")
@@ -26,10 +42,42 @@ public:
             checksum = U(argv[4]);
             archive = mode == "queue-archive";
             OpenFrame();
+            frame->Show();
+            frame->Layout();
+            auto *splitter = dynamic_cast<wxSplitterWindow *>(frame->page_list_->GetParent());
+            if (!splitter || !splitter->IsSplit() || frame->page_list_->GetCount() != 7 ||
+                frame->page_list_->GetString(2) != "Scenery packs" || frame->page_list_->GetString(6) != "Logs")
+                return Fail("launcher page selector is missing");
+            splitter->SetSashPosition(frame->FromDIP(230));
+            if (splitter->GetSashPosition() != frame->FromDIP(230))
+                return Fail("launcher page selector is not resizable");
+            frame->page_list_->SetSelection(2);
+            wxCommandEvent page_event(wxEVT_LISTBOX, frame->page_list_->GetId());
+            page_event.SetInt(2);
+            frame->page_list_->GetEventHandler()->ProcessEvent(page_event);
+            if (frame->book_->GetSelection() != 2)
+                return Fail("launcher page selector did not change page");
+            frame->book_->GetCurrentPage()->Layout();
+            if (frame->pack_progress_text_->GetSize().GetWidth() <= 0 ||
+                frame->pack_progress_text_->GetSize().GetHeight() <= 0)
+                return Fail("download progress label has no visible space");
+            frame->book_->SetSelection(6);
+            if (frame->page_list_->GetSelection() != 6)
+                return Fail("launcher page selector did not follow page changes");
+            frame->book_->SetSelection(2);
+            const auto earth_elev_mod = std::find_if(frame->packs_.begin(), frame->packs_.end(),
+                [](const PackInfo &p) { return p.id == "orbiter-hires-Earth-Elev_mod"; });
+            if (earth_elev_mod == frame->packs_.end())
+                return Fail("Earth elevation modifier pack missing");
+            frame->pack_list_->SetSelection(static_cast<int>(earth_elev_mod - frame->packs_.begin()));
+            frame->ShowPack();
+            if (!frame->pack_text_->GetLabel().Contains("Download size: 504.8 KB"))
+                return Fail("Earth elevation modifier size displayed incorrectly");
             frame->pack_list_->SetSelection(0);
             frame->InstallPack();
             frame->pack_list_->SetSelection(1);
             frame->InstallPack();
+            download_start = DownloadProgress::Clock::now();
             if (frame->pack_queue_.size() != 2 || !frame->busy_ ||
                 !frame->pack_list_->GetString(0).Contains("[downloading]") ||
                 !frame->pack_list_->GetString(1).Contains("[queued]"))
@@ -40,7 +88,7 @@ public:
             return true;
         }
         http.Download(U(argv[1]), P(argv[2]),
-                      [this, mode](long long got, long long) {
+                      [this, mode](long long got, long long, long long) {
                           if (mode == "pause" && got >= 65536 && !cancelled)
                           {
                               cancelled = true;
@@ -72,7 +120,7 @@ private:
             pack.name = pack.id;
             pack.marker = "data/pack" + std::to_string(i) + (archive ? ".marker" : ".tree");
             pack.file = "pack" + std::to_string(i) + (archive ? ".tar" : ".tree");
-            pack.url = base_url + (archive ? "/archive" : "/range");
+            pack.url = base_url + (archive ? "/archive-slow" : "/range-slow");
             pack.sha256 = archive ? "" : checksum;
             pack.size = 256 * 8192;
             pack.tree = !archive;
@@ -96,8 +144,17 @@ private:
         std::error_code ec;
         const fs::path first = archive ? user_dir() / "downloads/pack1.tar.part" : root / "data/pack1.tree.part";
         const std::uintmax_t bytes = fs::exists(first, ec) ? fs::file_size(first, ec) : 0;
-        if (phase == 0 && bytes >= 65536)
+        if (phase == 0 && bytes >= 65536 &&
+            DownloadProgress::Clock::now() - download_start >= std::chrono::milliseconds(600))
         {
+            frame->ShowDownloadProgress();
+            if (!frame->pack_progress_text_->GetLabel().Contains("/s  |  Remaining: ") ||
+                frame->pack_progress_text_->GetLabel().Contains("Remaining: unknown"))
+            {
+                std::fprintf(stderr, "Progress: %s\n", U(frame->pack_progress_text_->GetLabel()).c_str());
+                Fail("download speed or remaining time not shown");
+                return;
+            }
             wxCommandEvent event(wxEVT_BUTTON);
             frame->pack_pause_->GetEventHandler()->ProcessEvent(event);
             phase = 1;
@@ -106,7 +163,8 @@ private:
         {
             first_size = bytes;
             if (!frame->pack_paused_ || first_size == 0 ||
-                !frame->pack_list_->GetString(0).Contains("[paused / queued]"))
+                !frame->pack_list_->GetString(0).Contains("[paused / queued]") ||
+                !frame->pack_progress_text_->GetLabel().empty())
             {
                 Fail("pause did not retain partial download");
                 return;
@@ -199,6 +257,7 @@ private:
     std::string base_url, checksum;
     wxTimer timer;
     std::uintmax_t first_size = 0;
+    DownloadProgress::Clock::time_point download_start = DownloadProgress::Clock::now();
     int phase = 0;
 };
 

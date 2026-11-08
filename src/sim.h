@@ -90,6 +90,8 @@ namespace kosmos
         void cancel_vessel_ascent(const std::string &reason);
         bool vessel_ascent_active() const { return ascent_ship_ >= 0; }
         void release_payload_on_stage();
+        /** Consume a pending staging handoff between the displayed and active ships. */
+        bool consume_stage_handoff(const Ship *from, const Ship *to);
         Ship *active_ship();
         int ship_count() const { return static_cast<int>(ships_.size()); }
         Ship *ship(int index) { return ships_[static_cast<std::size_t>(index)].get(); }
@@ -192,6 +194,7 @@ namespace kosmos
         std::vector<Addon> addons_;
         std::vector<Scenario> scenarios_;
         std::vector<std::unique_ptr<Ship>> ships_;
+        const Ship *stage_handoff_from_ = nullptr, *stage_handoff_to_ = nullptr;
         int system_ = 0;
         int active_ = 0;
         double current_warp_ = 1.0;

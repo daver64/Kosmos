@@ -10,7 +10,8 @@
 #include <wx/dir.h>
 #include <wx/dirdlg.h>
 #include <wx/gauge.h>
-#include <wx/listbook.h>
+#include <wx/simplebook.h>
+#include <wx/splitter.h>
 #include <wx/mstream.h>
 #include <wx/process.h>
 #include <wx/stdpaths.h>
@@ -21,7 +22,9 @@
 #include <wx/filename.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
+#include <deque>
 #include <fstream>
 #include <functional>
 #include <future>
@@ -46,10 +49,70 @@ namespace
     {
         if (bytes <= 0)
             return "unknown size";
-        if (bytes > (1LL << 30))
+        if (bytes >= (1LL << 30))
             return wxString::Format("%.1f GB", bytes / double(1LL << 30));
+        if (bytes < (1LL << 10))
+        {
+            if (bytes == 1)
+                return "1 byte";
+            return wxString::Format("%lld bytes", bytes);
+        }
+        if (bytes < (1LL << 20))
+            return wxString::Format("%.1f KB", bytes / double(1LL << 10));
         return wxString::Format("%.0f MB", bytes / double(1LL << 20));
     }
+
+    class DownloadProgress
+    {
+    public:
+        using Clock = std::chrono::steady_clock;
+        void start(Clock::time_point now)
+        {
+            samples_.clear();
+            samples_.emplace_back(now, 0);
+            got_ = total_ = received_ = 0;
+        }
+        void update(long long got, long long total, long long received)
+        {
+            got_ = got;
+            total_ = total;
+            received_ = received;
+        }
+        wxString text(Clock::time_point now)
+        {
+            if (samples_.empty())
+                return {};
+            if (now > samples_.back().first)
+                samples_.emplace_back(now, received_);
+            while (samples_.size() > 2 && now - samples_[1].first >= std::chrono::seconds(5))
+                samples_.pop_front();
+            const double seconds = std::chrono::duration<double>(now - samples_.front().first).count();
+            const double speed = seconds >= 0.5 ? (received_ - samples_.front().second) / seconds : 0.0;
+            wxString result = "Downloading: " + (got_ > 0 ? human_size(got_) : wxString("0 bytes"));
+            if (total_ > 0)
+                result += " of " + human_size(total_);
+            result += "  |  Speed: ";
+            result += seconds < 0.5 ? wxString("calculating")
+                      : speed >= 1.0 ? human_size(static_cast<long long>(speed)) + "/s" : wxString("0 bytes/s");
+            result += "  |  Remaining: ";
+            if (total_ <= 0 || speed < 1.0)
+                return result + "unknown";
+            const double remaining = std::max(0.0, double(total_ - got_) / speed);
+            if (remaining >= 86400.0)
+                return result + wxString::Format("%.1f days", remaining / 86400.0);
+            const long long seconds_left = static_cast<long long>(remaining + 0.5);
+            if (seconds_left >= 3600)
+                return result + wxString::Format("%lldh %lldm", seconds_left / 3600, (seconds_left % 3600) / 60);
+            if (seconds_left >= 60)
+                return result + wxString::Format("%lldm %llds", seconds_left / 60, seconds_left % 60);
+            return result + wxString::Format("%llds", seconds_left);
+        }
+        void stop() { samples_.clear(); }
+
+    private:
+        std::deque<std::pair<Clock::time_point, long long>> samples_;
+        long long got_ = 0, total_ = 0, received_ = 0;
+    };
 
     wxBitmap load_thumbnail(const fs::path &file, int width, int height)
     {
@@ -90,7 +153,7 @@ namespace
     {
     public:
         std::function<void(bool ok, const std::string &body_or_error)> on_text;
-        std::function<void(long long got, long long total)> on_progress;
+        std::function<void(long long got, long long total, long long received)> on_progress;
         std::function<void(bool ok, const std::string &error)> on_file;
 
         void Fetch(const std::string &url, std::function<void(bool, const std::string &)> done)
@@ -111,7 +174,7 @@ namespace
             Start(url, false);
         }
 
-        void Download(const std::string &url, const fs::path &part, std::function<void(long long, long long)> progress, std::function<void(bool, const std::string &)> done)
+        void Download(const std::string &url, const fs::path &part, std::function<void(long long, long long, long long)> progress, std::function<void(bool, const std::string &)> done)
         {
             on_progress = std::move(progress);
             on_file = std::move(done);
@@ -210,7 +273,7 @@ namespace
                 if (on_progress)
                 {
                     const long long expected = request_.GetBytesExpectedToReceive();
-                    on_progress(resume_from_ + received_, expected > 0 ? resume_from_ + expected : 0);
+                    on_progress(resume_from_ + received_, expected > 0 ? resume_from_ + expected : 0, received_);
                 }
             }
             else
@@ -343,7 +406,9 @@ namespace
             const std::string installed = installed_version(root_);
             SetTitle(installed.empty() ? "Kosmos Launcher" : "Kosmos Launcher - Kosmos " + installed + " installed");
             profile_ = load_profile();
-            book_ = new wxListbook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLB_LEFT);
+            auto *splitter = new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxSP_LIVE_UPDATE);
+            page_list_ = new wxListBox(splitter, wxID_ANY);
+            book_ = new wxSimplebook(splitter, wxID_ANY);
             BuildPlay();
             BuildAddons();
             BuildPacks();
@@ -351,6 +416,19 @@ namespace
             BuildOptions();
             BuildUpdates();
             BuildLogs();
+            for (std::size_t i = 0; i < book_->GetPageCount(); ++i)
+                page_list_->Append(book_->GetPageText(i));
+            page_list_->SetSelection(0);
+            page_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &e) { book_->SetSelection(e.GetSelection()); });
+            book_->Bind(wxEVT_BOOKCTRL_PAGE_CHANGED, [this](wxBookCtrlEvent &e) {
+                page_list_->SetSelection(e.GetSelection());
+                e.Skip();
+            });
+            splitter->SetMinimumPaneSize(FromDIP(100));
+            splitter->SplitVertically(page_list_, book_, FromDIP(190));
+            auto *layout = new wxBoxSizer(wxVERTICAL);
+            layout->Add(splitter, 1, wxEXPAND);
+            SetSizer(layout);
             CreateStatusBar();
             std::string queue_error;
             if (!load_pack_queue(root_ / ".kosmos-pack-queue.json", pack_queue_, queue_error))
@@ -363,6 +441,8 @@ namespace
             Bind(wxEVT_TIMER, [this](wxTimerEvent &) { if (run_) run_->Drain(); }, timer_.GetId());
             scenario_timer_.SetOwner(this);
             Bind(wxEVT_TIMER, [this](wxTimerEvent &) { CheckScenarioChanges(); }, scenario_timer_.GetId());
+            download_timer_.SetOwner(this);
+            Bind(wxEVT_TIMER, [this](wxTimerEvent &) { ShowDownloadProgress(); }, download_timer_.GetId());
             Bind(wxEVT_CLOSE_WINDOW, &Frame::OnClose, this);
             Rescan();
             scenario_timer_.Start(2000);
@@ -687,6 +767,8 @@ namespace
             col->Add(new wxStaticText(page, wxID_ANY, "Optional downloads. They install into the Kosmos folder and are checked against the published SHA-256 checksum."), 0, wxALL, 8);
             pack_list_ = new wxListBox(page, wxID_ANY);
             pack_text_ = new wxStaticText(page, wxID_ANY, "");
+            pack_progress_text_ = new wxStaticText(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
+            pack_progress_text_->SetMinSize(wxSize(-1, FromDIP(20)));
             pack_gauge_ = new wxGauge(page, wxID_ANY, 1000);
             pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
             pack_pause_ = new wxButton(page, wxID_ANY, "Pause downloads");
@@ -700,6 +782,7 @@ namespace
             col->Add(pack_list_, 1, wxEXPAND | wxLEFT | wxRIGHT, 8);
             col->Add(pack_text_, 0, wxALL, 8);
             col->Add(pack_gauge_, 0, wxEXPAND | wxLEFT | wxRIGHT, 8);
+            col->Add(pack_progress_text_, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 8);
             col->Add(buttons, 0);
             page->SetSizer(col);
             book_->AddPage(page, "Scenery packs");
@@ -897,6 +980,7 @@ namespace
 
         void FinishPack(bool ok, const std::string &error)
         {
+            StopDownloadProgress();
             busy_ = false;
             pack_gauge_->SetValue(0);
             const bool cancelled = pack_cancelling_;
@@ -933,6 +1017,31 @@ namespace
                 CallAfter([this] { StartNextPack(); });
         }
 
+        void StartDownloadProgress()
+        {
+            download_progress_.start(DownloadProgress::Clock::now());
+            ShowDownloadProgress();
+            download_timer_.Start(1000);
+        }
+
+        void ShowDownloadProgress()
+        {
+            pack_progress_text_->SetLabel(download_progress_.text(DownloadProgress::Clock::now()));
+        }
+
+        void StopDownloadProgress()
+        {
+            download_timer_.Stop();
+            download_progress_.stop();
+            pack_progress_text_->SetLabel("");
+        }
+
+        void UpdatePackProgress(long long got, long long total, long long received)
+        {
+            pack_gauge_->SetValue(total > 0 ? static_cast<int>(std::min(1000.0, double(got) * 1000.0 / total)) : 0);
+            download_progress_.update(got, total, received);
+        }
+
         void DownloadMinorBodies(const PackInfo &pack)
         {
             std::error_code ec;
@@ -947,14 +1056,15 @@ namespace
             busy_ = true;
             ShowPack();
             http_.SetPart(part);
+            StartDownloadProgress();
             http_.Download(pack.url, part,
-                           [this](long long got, long long total)
+                           [this](long long got, long long total, long long received)
                            {
-                               pack_gauge_->SetValue(total > 0 ? int(got * 1000 / total) : 0);
-                               SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                               UpdatePackProgress(got, total, received);
                            },
                            [this, pack, part](bool ok, const std::string &error)
                            {
+                               StopDownloadProgress();
                                std::string problem = error;
                                if (ok && !pack_cancelling_)
                                {
@@ -1010,14 +1120,15 @@ namespace
             busy_ = true;
             ShowPack();
             http_.SetPart(part);
+            StartDownloadProgress();
             http_.Download(pack.url, part,
-                           [this](long long got, long long total)
+                           [this](long long got, long long total, long long received)
                            {
-                               pack_gauge_->SetValue(total > 0 ? int(got * 1000 / total) : 0);
-                               SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                               UpdatePackProgress(got, total, received);
                            },
                            [this, pack, part, target](bool ok, const std::string &error)
                            {
+                               StopDownloadProgress();
                                pack_gauge_->SetValue(0);
                                std::string problem = error;
                                if (ok && !pack_cancelling_)
@@ -1065,14 +1176,23 @@ namespace
                 }
                 const fs::path part = dir / (file + ".part");
                 http_.SetPart(part);
+                if (!active_pack_.empty())
+                    StartDownloadProgress();
                 http_.Download(url.empty() ? profile_.server + "/" + file : url, part,
-                               [this, gauge](long long got, long long total)
+                               [this, gauge](long long got, long long total, long long received)
                                {
-                                   gauge->SetValue(total > 0 ? int(got * 1000 / total) : 0);
-                                   SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                                   if (!active_pack_.empty())
+                                       UpdatePackProgress(got, total, received);
+                                   else
+                                   {
+                                       gauge->SetValue(total > 0 ? static_cast<int>(std::min(1000.0, double(got) * 1000.0 / total)) : 0);
+                                       SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
+                                   }
                                },
                                [this, part, dir, file, dest, sum, gauge, finish](bool ok, const std::string &error)
                                {
+                                   if (!active_pack_.empty())
+                                       StopDownloadProgress();
                                    gauge->SetValue(0);
                                    if (!ok || (!active_pack_.empty() && pack_cancelling_))
                                    {
@@ -1738,7 +1858,10 @@ namespace
             log_text_->GetParent()->Layout();
             SetStatusText(failed ? "Kosmos ended unexpectedly; see the Logs page." : "Kosmos closed.");
             if (failed)
-                book_->SetSelection(5);
+            {
+                page_list_->SetSelection(6);
+                book_->SetSelection(6);
+            }
         }
 
         void OnClose(wxCloseEvent &e)
@@ -1765,6 +1888,7 @@ namespace
             if (run_)
                 run_->Detach(); // Kosmos keeps running; the launcher just stops watching it
             scenario_timer_.Stop();
+            download_timer_.Stop();
             e.Skip();
         }
 
@@ -1850,16 +1974,20 @@ namespace
         wxDateTime started_;
         wxTimer timer_;
         wxTimer scenario_timer_;
+        wxTimer download_timer_;
+        DownloadProgress download_progress_;
         std::future<ScenarioScan> scenario_scan_;
         unsigned scenario_generation_ = 0;
         std::vector<std::tuple<fs::path, fs::file_time_type, std::uintmax_t>> thumbnail_times_;
         std::string selected_scenario_for_refresh_;
 
-        wxListbook *book_ = nullptr;
+        wxSimplebook *book_ = nullptr;
+        wxListBox *page_list_ = nullptr;
         wxTreeCtrl *tree_ = nullptr;
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
+        wxStaticText *pack_progress_text_ = nullptr;
         wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_pause_ = nullptr, *pack_dequeue_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
         Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;

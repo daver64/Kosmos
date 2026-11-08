@@ -368,6 +368,11 @@ namespace kosmos::app
             test.orbitcomp = options.selftest_orbitcomp;
             test.weapons = options.selftest_weapons;
             test.throttle = options.selftest_throttle;
+            test.select_instruments = [this] {
+                props_ref = &sim.props;
+                ship = sim.active_ship();
+                select_default_instruments();
+            };
             return kosmos::run_selftest(sim, flown, test);
         }
     return keep_going;

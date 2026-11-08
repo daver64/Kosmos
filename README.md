@@ -320,7 +320,9 @@ Surface and elevation trees install under `import/orbiter/` without overwriting
 the standard packs; remove an installed layer before downloading it again.
 On the launcher's Scenery packs page, add multiple packs to the queue and pause
 or resume downloads. The list identifies downloading, installing and queued
-packs. Closing during a download pauses it; the queue reopens paused and
+packs; active downloads show recent speed and an estimated time remaining when
+the server provides the size. Drag the divider to resize the page selector.
+Closing during a download pauses it; the queue reopens paused and
 partial files resume when supported by the server (otherwise the download
 restarts). Verification and installation must finish before the launcher closes.
 Other Orbiter high-resolution datasets are not yet offered by the launcher.
@@ -390,6 +392,8 @@ with optional `offset`. `./kosmos --ship "Ares Spider"` starts with that ship. O
 ## MFDs (multi-function displays)
 
 Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. Each display has an **MNU** button (the mode list, paged, with short codes on the see-through displays) and a cross button that closes it; F5 brings it back. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
+
+When staging hands control to a docked payload, the first two MFDs retain their modes and settings if those modes are available on the new vessel. An incompatible mode uses the new vessel's default instead.
 
 Modes are Lua addons. An addon.json lists them:
 

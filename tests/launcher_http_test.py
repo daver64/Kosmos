@@ -37,7 +37,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        data = ARCHIVE if self.path == "/archive" else DATA
+        data = ARCHIVE if self.path.startswith("/archive") else DATA
         start = int(header[6:-1]) if header.startswith("bytes=") else 0
         if self.path == "/full" and start == len(data):
             self.send_response(416)
@@ -57,7 +57,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             for offset in range(start, len(data), 8192):
                 self.wfile.write(data[offset:offset + 8192])
                 self.wfile.flush()
-                time.sleep(0.001)
+                time.sleep(0.004 if self.path.endswith("-slow") else 0.001)
         except (BrokenPipeError, ConnectionResetError):
             pass
 

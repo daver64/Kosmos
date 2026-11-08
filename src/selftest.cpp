@@ -1413,6 +1413,17 @@ namespace kosmos
                 sim.ship(1)->spec().name != "CVEL Centaur G" || sim.ship(2)->spec().name != "CVEL Fregat" ||
                 sim.ship(3)->spec().name != "Luna E3")
                 return fail("expected Energia-M, Centaur, Fregat and Luna E3");
+            if (!options.select_instruments)
+                return fail("instrument selection unavailable");
+            options.select_instruments();
+            const int surface = sim.mfd.mode_by_id("surface"), orbit = sim.mfd.mode_by_id("orbit");
+            if (surface < 0 || orbit < 0)
+                return fail("expected surface and orbit MFDs");
+            sim.mfd.set_mode(0, surface);
+            sim.mfd.set_mode(1, orbit);
+            sim.mfd.unit(0).self["handoff_test"] = 42;
+            sim.mfd.unit(0).selecting = true;
+            sim.mfd.unit(1).power = false;
             sim.step(0.05);
             if (sim.nav.dock_links().size() != 3 || ship->body().tanks.size() < 4)
                 return fail("initial payload stack not docked");
@@ -1421,12 +1432,19 @@ namespace kosmos
             sim.step(0.05);
             if (ship->active_stage() != 3)
                 return fail("Energia-M boosters and fairing did not separate");
+            options.select_instruments();
+            if (sim.mfd.unit(0).mode != surface || !sim.mfd.unit(0).selecting || sim.mfd.unit(1).mode != orbit)
+                return fail("MFDs changed during same-vessel staging");
             ship->body().tanks[3].mass = 0.0;
             sim.props.set_bool("/controls/stage", true);
             sim.step(0.05);
             ship = sim.active_ship();
             if (ship != sim.ship(1) || sim.nav.dock_links().size() != 2 || ship->body().tanks.empty())
                 return fail("Centaur was not released with its payload");
+            options.select_instruments();
+            if (sim.mfd.unit(0).mode != surface || sim.mfd.unit(1).mode != orbit ||
+                sim.mfd.unit(0).self.get_or("handoff_test", 0) != 42 || !sim.mfd.unit(0).selecting || sim.mfd.unit(1).power)
+                return fail("MFDs changed on Energia-M to Centaur handoff");
             ship->body().tanks[0].mass = 0.1;
             sim.props.set_double("/controls/throttle", 1.0);
             sim.step(0.1);
@@ -1445,6 +1463,10 @@ namespace kosmos
             if (sim.active_ship() != sim.ship(2) || sim.nav.dock_links().size() != 1 ||
                 !sim.nav.docked(2) || !sim.nav.docked(3))
                 return fail("staging did not hand control to Fregat with Luna attached");
+            options.select_instruments();
+            if (sim.mfd.unit(0).mode != surface || sim.mfd.unit(1).mode != orbit ||
+                sim.mfd.unit(0).self.get_or("handoff_test", 0) != 42 || !sim.mfd.unit(0).selecting || sim.mfd.unit(1).power)
+                return fail("MFDs changed on Centaur to Fregat handoff");
             sim.props.set_int("/sim/warp-index", 0);
             sim.props.set_double("/controls/throttle", 1.0);
             for (int i = 0; i < 100; ++i)
@@ -1458,6 +1480,24 @@ namespace kosmos
             }
             if (sim.ship(2)->body().tanks[0].mass >= sim.ship(2)->spec().stages[0].propellant)
                 return fail("Fregat engine did not burn");
+            const int restricted = sim.mfd.mode_by_id("dg_ascent");
+            if (restricted < 0 || sim.mfd.allowed(restricted))
+                return fail("expected ship-restricted MFD");
+            sim.mfd.set_mode(0, restricted);
+            sim.mfd.unit(0).self["handoff_test"] = 42;
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            if (sim.active_ship() != sim.ship(3))
+                return fail("Fregat did not release Luna");
+            options.select_instruments();
+            if (sim.mfd.unit(0).mode == restricted || sim.mfd.unit(0).self.get_or("handoff_test", 0) == 42 ||
+                sim.mfd.unit(1).mode != orbit || sim.mfd.unit(1).power)
+                return fail("incompatible MFD was not replaced on staging");
+            sim.mfd.unit(0).self["handooff_test"] = 42;
+            sim.activate(1);
+            options.select_instruments();
+            if (sim.mfd.unit(0).self.get_or("handoff_test", 0) == 42)
+                return fail("manual vessel selection retained staged MFD state");
             std::puts("Centaur handoff selftest ok");
             return 0;
         }

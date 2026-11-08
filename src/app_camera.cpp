@@ -324,7 +324,11 @@ namespace kosmos::app
     sl::PropertyTree &props = *props_ref;
         if (ship != targets.mfd_ship || ship->spec().name != targets.mfd_ship_id)
         {
-            // Each ship brings its own default instruments whenever it becomes the flown one.
+            const bool staging = sim.consume_stage_handoff(targets.mfd_ship, ship);
+            std::vector<MfdUnit> previous;
+            if (staging)
+                for (int side = 0; side < 2 && side < sim.mfd.unit_count(); ++side)
+                    previous.push_back(sim.mfd.unit(side));
             targets.mfd_ship = ship;
             targets.mfd_ship_id = ship->spec().name;
             if (const std::string view = props.get_string("/sim/scenario-view"); !view.empty())
@@ -369,6 +373,9 @@ namespace kosmos::app
                 }
                 apply_scenario_display();
             }
+            for (std::size_t side = 0; side < previous.size() && side < static_cast<std::size_t>(sim.mfd.unit_count()); ++side)
+                if (sim.mfd.allowed(previous[side].mode))
+                    sim.mfd.unit(static_cast<int>(side)) = previous[side];
         }
     }
 

@@ -1320,6 +1320,7 @@ namespace kosmos
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
                                    " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Orbital planning and checking run at 1x; flight allows up to 4x. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
