@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include "base.h"
 #include "orbiter_tile_terrain.h"
+#include "orbiter_tile_colour.h"
 #include "terrain_mesh.h"
 
 #include <cassert>
@@ -68,5 +69,76 @@ int main()
             const double lod_visual = kosmos::orbiter_tile_height(*final_source, initial, tile, radius, 20.0) * radius;
             assert(std::fabs(lod_visual - sample.coarse) < 1e-5);
         }
+    }
+
+    {
+        constexpr int level = 2, column = 1, row = 1, size = 8, target_x = 4, target_y = 3;
+        const double rows = std::ldexp(1.0, level);
+        const glm::dvec3 tile = kosmos::orbiter_tile_direction(
+            (column + (target_x + 0.5) / size) / (2.0 * rows),
+            (row + (target_y + 0.5) / size) / rows);
+        const glm::dvec3 centre = initial * glm::dvec3(-tile.x, tile.y, -tile.z);
+        auto coloured = std::make_shared<kosmos::MeshGrid>();
+        coloured->width = coloured->height = 5;
+        coloured->cell = 1000.0;
+        coloured->heights.assign(25, 0.0f);
+        coloured->colours.resize(75);
+        for (std::size_t k = 0; k < coloured->colours.size(); k += 3)
+            coloured->colours[k] = 255;
+        kosmos::MeshSource::Placed placement{};
+        placement.origin = centre;
+        placement.right = glm::normalize(glm::cross(centre, glm::dvec3(0, 1, 0)));
+        placement.forward = glm::cross(centre, placement.right);
+        placement.grid = coloured;
+        placement.use_colour = true;
+        kosmos::MeshSource coloured_source(natural, radius, {placement});
+        assert(coloured_source.colour_may_overlap(centre, 0.0));
+        assert(coloured_source.colour_may_overlap(-centre, 0.0));
+        assert(!coloured_source.colour_may_overlap(placement.right, 0.1));
+        sl::Bitmap bitmap;
+        bitmap.width = bitmap.height = size;
+        bitmap.pixels.resize(size * size * 4, 64);
+        for (std::size_t k = 3; k < bitmap.pixels.size(); k += 4)
+            bitmap.pixels[k] = 137;
+        assert(kosmos::apply_orbiter_mesh_colours(bitmap, coloured_source, initial, level, column, row));
+        for (int y = 0; y < size; ++y)
+            for (int x = 0; x < size; ++x)
+            {
+                const std::size_t k = static_cast<std::size_t>(y * size + x) * 4;
+                const bool target = x == target_x && y == target_y;
+                assert(bitmap.pixels[k] == (target ? 255 : 64));
+                assert(bitmap.pixels[k + 1] == (target ? 0 : 64));
+                assert(bitmap.pixels[k + 2] == (target ? 0 : 64));
+                assert(bitmap.pixels[k + 3] == 137);
+            }
+        placement.x = 1000.0;
+        placement.blend = 2000.0;
+        kosmos::MeshSource blended_source(natural, radius, {placement});
+        std::fill(bitmap.pixels.begin(), bitmap.pixels.end(), 64);
+        assert(kosmos::apply_orbiter_mesh_colours(bitmap, blended_source, initial, level, column, row));
+        const std::size_t k = static_cast<std::size_t>(target_y * size + target_x) * 4;
+        assert(bitmap.pixels[k] == 160 && bitmap.pixels[k + 1] == 32 && bitmap.pixels[k + 2] == 32);
+        assert(bitmap.pixels[k + 3] == 64);
+        for (int l = 0; l <= 12; ++l)
+        {
+            const int r = 1 << l, cols = 2 * r;
+            for (int c : {0, cols / 2, cols - 1})
+                for (int t : {0, r / 2, r - 1})
+                {
+                    const glm::dvec3 middle = kosmos::orbiter_tile_direction((c + 0.5) / cols, (t + 0.5) / r);
+                    for (int y : {0, size - 1})
+                        for (int x : {0, size - 1})
+                        {
+                            const glm::dvec3 p = kosmos::orbiter_tile_direction(
+                                (c + (x + 0.5) / size) / cols, (t + (y + 0.5) / size) / r);
+                            kosmos::MeshSource::Placed sample = placement;
+                            sample.origin = p;
+                            kosmos::MeshSource bound_source(natural, radius, {sample});
+                            assert(bound_source.colour_may_overlap(middle, glm::pi<double>() / r));
+                        }
+                }
+        }
+        bitmap.pixels.clear();
+        assert(!kosmos::apply_orbiter_mesh_colours(bitmap, coloured_source, initial, level, column, row));
     }
 }

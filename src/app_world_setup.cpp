@@ -1,5 +1,7 @@
 #include "app_state.h"
 #include "orbiter_tile_terrain.h"
+#include "orbiter_tile_colour.h"
+#include "bitmap_release.h"
 
 #include <algorithm>
 #include <cctype>
@@ -304,6 +306,92 @@ namespace kosmos::app
 
     }
 
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+    std::unique_ptr<sl::PlanetTiles> App::make_orbiter_relief_tiles(const BodyTerrain &terrain)
+    {
+        if (!terrain.orbiter_imagery || !terrain.has_orbiter_elevation)
+            return nullptr;
+        const auto image = terrain.orbiter_imagery;
+        const auto meshes = terrain.terrain_meshes;
+        const auto heights = terrain.terrain->source();
+        const kosmos::Body &body = sim.universe.bodies[static_cast<std::size_t>(terrain.body)];
+        if (!heights)
+        {
+            std::fprintf(stderr, "[kosmos] %s Orbiter relief unavailable: terrain source unavailable\n", body.name.c_str());
+            return nullptr;
+        }
+        const glm::dquat terrain_frame = terrain.frame.orientation;
+        sl::PlanetTilesOptions relief;
+        relief.has_colour = [image](int level, int column, int row)
+        {
+            return image->has_tile(level + 4, row, column);
+        };
+        relief.has_colour_children = [image](int level, int column, int row)
+        {
+            return image->has_children(level + 4, row, column);
+        };
+        relief.load_colour = [image, meshes, terrain_frame](int level, int column, int row) -> sl::Bitmap *
+        {
+            constexpr std::size_t decoded_limit = 512u * 512u * 4u;
+            kosmos::OrbiterTree::Tile ancestor;
+            std::vector<std::uint8_t> bytes;
+            if (!image->read_tile(level + 4, row, column, ancestor, bytes, 2u << 20, decoded_limit) ||
+                ancestor.level != level + 4)
+            {
+                sl::detail::set_error("Orbiter imagery tile is unreadable");
+                return nullptr;
+            }
+            sl::DdsOptions decoding;
+            decoding.allow_compressed_upload = false;
+            decoding.max_decoded_bytes = decoded_limit;
+            sl::Bitmap *bitmap = sl::load_dds_from_memory(bytes.data(), bytes.size(), decoding);
+            if (bitmap && meshes && !kosmos::apply_orbiter_mesh_colours(*bitmap, *meshes, terrain_frame, level, column, row))
+            {
+                kosmos::discard_bitmap(bitmap);
+                sl::detail::set_error("Orbiter imagery tile has invalid pixel data");
+                return nullptr;
+            }
+            return bitmap;
+        };
+        const double radius = body.radius;
+        relief.elevation = [heights, terrain_frame, radius](const glm::dvec3 &direction)
+        {
+            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, 1000.0);
+        };
+        relief.elevation_lod = [heights, terrain_frame, radius](const glm::dvec3 &direction, double cell_size)
+        {
+            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, cell_size * radius);
+        };
+        relief.max_elevation = std::max({std::fabs(heights->min_height()), std::fabs(heights->max_height()), 1.0}) / radius;
+        relief.normal_sample_spacing = 1000.0 / radius;
+        relief.match_elevation_edges = true;
+        relief.adaptive_elevation_diagonals = true;
+        relief.adaptive_elevation_normals = true;
+        relief.colour_max_level = 18;
+        relief.tile_size = 512;
+        relief.segments = 24;
+        relief.geometry_pixels = 32.0f;
+        relief.max_relief_patches = options.orbital_relief_patches;
+        relief.max_relief_meshes = options.orbital_relief_meshes;
+        relief.max_relief_mesh_jobs = 4;
+        relief.max_cached_tiles = options.orbital_relief_textures == 0 ? 512 :
+                                  std::max(8, options.orbital_relief_textures / 4 * 3);
+        relief.max_resident_tiles = options.orbital_relief_textures;
+        relief.max_failed_tiles = 256;
+        relief.max_loads_in_flight = 4;
+        relief.feather = 0.0f;
+        relief.fade_seconds = 0.0f;
+        relief.skirt = 0.02f;
+        auto result = sl::PlanetTiles::create(relief);
+        if (!result)
+            std::fprintf(stderr, "[kosmos] %s Orbiter relief unavailable: %s\n", body.name.c_str(), sl::last_error().c_str());
+        else
+            std::fprintf(stderr, "[kosmos] %s Orbiter relief budgets: patches %d, meshes %d, textures %d (0 = unlimited)\n",
+                         body.name.c_str(), relief.max_relief_patches, relief.max_relief_meshes, relief.max_resident_tiles);
+        return result;
+    }
+#endif
+
     void App::load_earth_tiles()
     {
         // Tiled Earth imagery (optional, not in the repository: see the Developers Manual) replaces the single image on the sphere.
@@ -356,80 +444,8 @@ namespace kosmos::app
                     }
                 }
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-                const kosmos::Body &body = sim.universe.bodies[static_cast<std::size_t>(home_body)];
-                if (!body_terrains.empty() && body_terrains[0] &&
-                    body_terrains[0]->body == home_body && body_terrains[0]->orbiter_imagery &&
-                    body_terrains[0]->has_orbiter_elevation)
-                {
-                    const auto image = body_terrains[0]->orbiter_imagery;
-                    const auto heights = body_terrains[0]->terrain->source();
-                    const glm::dquat terrain_frame = body_terrains[0]->frame.orientation;
-                    if (heights)
-                    {
-                        sl::PlanetTilesOptions relief;
-                        relief.has_colour = [image](int level, int column, int row)
-                        {
-                            return image->has_tile(level + 4, row, column);
-                        };
-                        relief.has_colour_children = [image](int level, int column, int row)
-                        {
-                            return image->has_children(level + 4, row, column);
-                        };
-                        relief.load_colour = [image](int level, int column, int row) -> sl::Bitmap *
-                        {
-                            constexpr std::size_t decoded_limit = 512u * 512u * 4u;
-                            kosmos::OrbiterTree::Tile ancestor;
-                            std::vector<std::uint8_t> bytes;
-                            if (!image->read_tile(level + 4, row, column, ancestor, bytes, 2u << 20, decoded_limit) ||
-                                ancestor.level != level + 4)
-                            {
-                                sl::detail::set_error("Orbiter imagery tile is unreadable");
-                                return nullptr;
-                            }
-                            sl::DdsOptions decoding;
-                            decoding.allow_compressed_upload = false;
-                            decoding.max_decoded_bytes = decoded_limit;
-                            return sl::load_dds_from_memory(bytes.data(), bytes.size(), decoding);
-                        };
-                        const double radius = body.radius;
-                        relief.elevation = [heights, terrain_frame, radius](const glm::dvec3 &direction)
-                        {
-                            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, 1000.0);
-                        };
-                        relief.elevation_lod = [heights, terrain_frame, radius](const glm::dvec3 &direction, double cell_size)
-                        {
-                            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, cell_size * radius);
-                        };
-                        relief.max_elevation = std::max({std::fabs(heights->min_height()), std::fabs(heights->max_height()), 1.0}) / radius;
-                        relief.normal_sample_spacing = 1000.0 / radius;
-                        relief.match_elevation_edges = true;
-                        relief.adaptive_elevation_diagonals = true;
-                        relief.adaptive_elevation_normals = true;
-                        relief.colour_max_level = 18;
-                        relief.tile_size = 512;
-                        relief.segments = 24;
-                        relief.geometry_pixels = 32.0f;
-                        relief.max_relief_patches = options.orbital_relief_patches;
-                        relief.max_relief_meshes = options.orbital_relief_meshes;
-                        relief.max_relief_mesh_jobs = 4;
-                        relief.max_cached_tiles = options.orbital_relief_textures == 0 ? 512 :
-                                                  std::max(8, options.orbital_relief_textures / 4 * 3);
-                        relief.max_resident_tiles = options.orbital_relief_textures;
-                        relief.max_failed_tiles = 256;
-                        relief.max_loads_in_flight = 4;
-                        relief.feather = 0.0f;
-                        relief.fade_seconds = 0.0f;
-                        relief.skirt = 0.02f;
-                        vis.earth_relief_tiles = sl::PlanetTiles::create(relief);
-                        if (!vis.earth_relief_tiles)
-                            std::fprintf(stderr, "[kosmos] Orbiter relief tiles unavailable: %s\n", sl::last_error().c_str());
-                        else
-                            std::fprintf(stderr, "[kosmos] Orbiter relief budgets: patches %d, meshes %d, textures %d (0 = unlimited)\n",
-                                         relief.max_relief_patches, relief.max_relief_meshes, relief.max_resident_tiles);
-                    }
-                    else
-                        std::fprintf(stderr, "[kosmos] Orbiter relief tiles unavailable: terrain source unavailable\n");
-                }
+                if (!body_terrains.empty() && body_terrains[0] && body_terrains[0]->body == home_body)
+                    vis.earth_relief_tiles = make_orbiter_relief_tiles(*body_terrains[0]);
 #endif
                 if (vis.earth_tiles)
                 {

@@ -348,6 +348,7 @@ namespace kosmos::app
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
         result->orbiter_imagery = orbiter_imagery;
+        result->terrain_meshes = meshes;
         result->has_orbiter_elevation = has_elevation;
         result->orbital_relief = has_elevation && sim.universe.name == "Sol" && b.name == "Mars";
         if (result->orbital_relief)

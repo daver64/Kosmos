@@ -4,6 +4,8 @@
 
 #include <string>
 
+namespace kosmos { class MeshSource; }
+
 namespace kosmos::app
 {
     std::vector<sl::TerrainLayer> planet_layers();
@@ -32,9 +34,14 @@ extern bool detail_disabled;
         int body = -1;
         std::unique_ptr<sl::Terrain> terrain;
         std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
+        std::shared_ptr<kosmos::MeshSource> terrain_meshes;
         bool has_orbiter_elevation = false;
         bool active = false;
         bool orbital_relief = false;
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        std::unique_ptr<sl::PlanetTiles> relief_tiles;
+        bool relief_attempted = false;
+#endif
         sl::dvec3 eye_rel{0.0};
         // Trees, houses, rocks and outposts scattered over the ground; declared after the terrain so it is freed first.
         kosmos::SurfaceFrame frame;

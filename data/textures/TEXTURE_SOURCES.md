@@ -68,7 +68,7 @@ Individual Orbiter BC1/BC2/BC3 surface tiles beside the selected archive, in `<b
 
 The experimental relief renderer also limits each decoded tile to 1 MiB of RGBA pixels (for example 512 x 512); a larger override falls back to the same-level archive tile, then ancestors.
 
-This default-off prototype currently covers Earth above approximately 120 km; below that it uses the existing ground renderer. Its mixed-LOD meshes still use skirts to hide gaps.
+This default-off prototype covers Earth and the current non-Earth sphere-of-influence body when both Orbiter imagery and elevation are available. Coloured terrain meshes are blended into loaded relief tiles at their imagery resolution; meshes smaller than a texel may not appear. It uses the existing ground renderer at lower altitudes (below approximately 120 km on Earth), and the change in sharpness at the transition can be visible. Mixed-LOD meshes still use skirts to hide gaps. Budgets are per renderer, not aggregate memory limits.
 
 When no archive is available for a layer, individual files may supply that layer on their own. Uncovered elevation is zero; imagery falls back to other available sources. The experimental relief renderer additionally requires readable coverage at its minimum imagery level.
 

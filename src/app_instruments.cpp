@@ -208,7 +208,7 @@ namespace kosmos::app
     // camera is placed each frame, which rebuilds every camera member this touches.
     bool App::render_instrument_scene(std::size_t index, sl::Surface3D *target)
     {
-        if (!target || first_frame || !ship || index >= ship->spec().instruments.size())
+        if (!target || !target->bitmap || first_frame || !ship || index >= ship->spec().instruments.size())
             return false;
         kosmos::Universe &universe = *universe_ref;
         const kosmos::Telemetry &tm = *tm_ref;
@@ -226,6 +226,8 @@ namespace kosmos::app
         soi_body_ref = &universe.bodies[static_cast<std::size_t>(soi)];
         soi_pos = universe.position(soi);
         set_terrain_view();
+        view.aspect = static_cast<double>(target->bitmap->width) / target->bitmap->height;
+        view.viewport_height = target->bitmap->height;
         update_earth_sphere_visibility();
         for (std::size_t k = 1; k < body_terrains.size(); ++k)
             body_terrains[k]->eye_rel = eye_world - universe.position(body_terrains[k]->body);

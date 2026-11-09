@@ -429,6 +429,29 @@ namespace kosmos::app
 
     void App::draw_body_surface(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const glm::mat4 &model, sl::Material &rock)
     {
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        if (static_cast<int>(i) != earth_id && static_cast<int>(i) == soi)
+            for (std::size_t k = 1; k < body_terrains.size(); ++k)
+            {
+                BodyTerrain &terrain = *body_terrains[k];
+                if (terrain.body != static_cast<int>(i))
+                    continue;
+                if (terrain.relief_tiles)
+                {
+                    const glm::dmat4 relief_model = glm::translate(glm::dmat4(1.0), rel) *
+                        glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(static_cast<int>(i)))) *
+                        glm::scale(glm::dmat4(1.0), glm::dvec3(b.radius));
+                    const glm::dvec3 eye_local = glm::dvec3(glm::inverse(relief_model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
+                    const glm::dmat4 view_projection =
+                        glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
+                        glm::dmat4(camera.view_matrix()) * relief_model;
+                    terrain.relief_tiles->update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
+                    terrain.relief_tiles->draw_relative(relief_model, rock);
+                    return;
+                }
+                break;
+            }
+#endif
         sl::PlanetTiles *earth_tiles = vis.earth_tiles.get();
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
         if (props_ref->get_bool("/sim/settings/gfx-earth-relief") && vis.earth_relief_tiles)
@@ -438,7 +461,7 @@ namespace kosmos::app
         {
             // The tile mesh already runs east the same way as the body body_frame, so only the half turn above is needed.
             const glm::mat4 tile_model = model;
-            const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
+            const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(view.aspect)) * camera.view_matrix() * tile_model;
             glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
             glm::dmat4 relief_model(1.0);
@@ -449,7 +472,7 @@ namespace kosmos::app
                                glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(static_cast<int>(i)))) *
                                glm::scale(glm::dmat4(1.0), glm::dvec3(b.radius));
                 eye_local = glm::dvec3(glm::inverse(relief_model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
-                relief_view_projection = glm::dmat4(camera.projection_matrix(static_cast<float>(screen_w) / screen_h)) *
+                relief_view_projection = glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
                                          glm::dmat4(camera.view_matrix()) * relief_model;
             }
 #endif
@@ -459,13 +482,13 @@ namespace kosmos::app
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
             if (earth_tiles == vis.earth_relief_tiles.get())
             {
-                earth_tiles->update_relative(eye_local, glm::radians(view_fov), screen_h, &relief_view_projection);
+                earth_tiles->update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &relief_view_projection);
                 earth_tiles->draw_relative(relief_model, rock);
             }
             else
 #endif
             {
-                earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+                earth_tiles->update(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
                 earth_tiles->draw(tile_model, rock);
             }
         }
@@ -653,9 +676,9 @@ namespace kosmos::app
                 // The tiles run east the opposite way to the shell's sphere mesh, so they are mirrored (and the culling swapped to match).
                 const glm::mat4 tile_model = glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) *
                                              glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, -static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale));
-                const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
+                const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(view.aspect)) * camera.view_matrix() * tile_model;
                 const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-                vis.earth_cloud_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+                vis.earth_cloud_tiles->update(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
                 cloud.cull = sl::CullMode::front;
                 vis.earth_cloud_tiles->draw(tile_model, cloud);
             }

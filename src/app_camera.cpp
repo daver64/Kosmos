@@ -976,6 +976,20 @@ namespace kosmos::app
                                  static_cast<int>(stats.relief_limited), static_cast<int>(stats.texture_limited),
                                  static_cast<int>(stats.failure_limited));
                 }
+                for (std::size_t k = 1; k < body_terrains.size(); ++k)
+                    if (body_terrains[k]->body == soi && !body_terrains[k]->active && body_terrains[k]->relief_tiles)
+                    {
+                        const sl::PlanetTilesStats stats = body_terrains[k]->relief_tiles->stats();
+                        const kosmos::Body &body = universe_ref->bodies[static_cast<std::size_t>(soi)];
+                        std::fprintf(stderr, "[perf] %s Orbiter relief: patches %d, colour level %d, geometry level %d; "
+                                     "parent imagery %d patches/max %d levels, undersampled %d; textures %d loaded/%d loading/%d failed; "
+                                     "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d\n",
+                                     body.name.c_str(), stats.patches, stats.deepest_level, stats.deepest_geometry_level,
+                                     stats.patches_using_parent, stats.max_colour_levels_up, stats.undersampled_patches,
+                                     stats.tiles_loaded, stats.tiles_loading, stats.tiles_failed, stats.meshes, stats.mesh_jobs,
+                                     static_cast<int>(stats.relief_limited), static_cast<int>(stats.texture_limited),
+                                     static_cast<int>(stats.failure_limited));
+                    }
 #endif
                 clutter_perf = ClutterPerf();
             }
@@ -1027,10 +1041,24 @@ namespace kosmos::app
         for (std::size_t k = 1; k < body_terrains.size(); ++k)
         {
             BodyTerrain &bt = *body_terrains[k];
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            if (bt.body != soi && bt.relief_attempted)
+            {
+                bt.relief_tiles.reset();
+                bt.relief_attempted = false;
+            }
+#endif
             const kosmos::Body &b = universe.bodies[static_cast<std::size_t>(bt.body)];
             bt.eye_rel = eye_world - universe.position(bt.body);
             const bool has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), bt.body) != vis.surface_textured.end();
             bt.active = terrain_visible(glm::length(bt.eye_rel) - b.radius, b.radius, has_image, bt.orbital_relief);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            if (bt.body == soi && !bt.active && !bt.relief_attempted)
+            {
+                bt.relief_attempted = true;
+                bt.relief_tiles = make_orbiter_relief_tiles(bt);
+            }
+#endif
             if (bt.active)
             {
                 sl::TerrainView body_view = view;

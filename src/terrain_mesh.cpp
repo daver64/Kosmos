@@ -517,6 +517,25 @@ namespace kosmos
         return changed;
     }
 
+    bool MeshSource::colour_may_overlap(const sl::dvec3 &centre, double angular_radius) const
+    {
+        for (const Placed &m : meshes_)
+        {
+            if (!m.use_colour)
+                continue;
+            const double hw = 0.5 * (m.grid->width - 1) * m.grid->cell;
+            const double hh = 0.5 * (m.grid->height - 1) * m.grid->cell;
+            const double extent = (std::hypot(m.x, m.z) + std::hypot(hw, hh)) / radius_;
+            if (extent >= 1.0)
+                return true;
+            // locate() projects onto the tangent plane, so both hemispheres can intersect it.
+            const double separation = std::acos(std::clamp(std::abs(glm::dot(centre, m.origin)), 0.0, 1.0));
+            if (separation <= std::min(angular_radius, 0.5 * pi) + std::asin(extent))
+                return true;
+        }
+        return false;
+    }
+
     std::vector<std::pair<sl::dvec3, double>> MeshSource::footprints() const
     {
         std::vector<std::pair<sl::dvec3, double>> out;

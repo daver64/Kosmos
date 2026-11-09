@@ -742,6 +742,9 @@ int main(int argc, char **argv)
     assert(kosmos::app::terrain_visible(200000.0, mars_radius, true, true));
     assert(!kosmos::app::terrain_visible(2000000.0, mars_radius, true, true));
     assert(kosmos::app::terrain_visible(200000.0, mars_radius, false, false));
+    const double mars_relief_switch = 300.0e3 * mars_radius / 6.371e6 * 10.0;
+    assert(kosmos::app::terrain_visible(mars_relief_switch - 1.0, mars_radius, true, true));
+    assert(!kosmos::app::terrain_visible(mars_relief_switch, mars_radius, true, true));
     assert(!kosmos::app::earth_sphere_visible(119000.0, 6371000.0, false, false, true, 120000.0));
     assert(kosmos::app::earth_sphere_visible(121000.0, 6371000.0, false, false, true, 120000.0));
     assert(kosmos::app::earth_sphere_visible(121000.0, 6371000.0, true, true, false, 120000.0));

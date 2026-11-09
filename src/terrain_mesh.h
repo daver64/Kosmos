@@ -76,6 +76,8 @@ namespace kosmos
 
         /** The mesh's own colour at `direction`, blended with `rgb` (the terrain's colour) over the rim; false outside every mesh that has colour. */
         bool colour(const sl::dvec3 &direction, float rgb[3]) const;
+        /** Whether a spherical cap could intersect a coloured mesh's projected footprint. */
+        bool colour_may_overlap(const sl::dvec3 &centre, double angular_radius) const;
         /** Centre (unit direction) and radius in metres of each mesh's footprint, for keeping clutter off it. */
         std::vector<std::pair<sl::dvec3, double>> footprints() const;
 
