@@ -131,6 +131,7 @@ namespace kosmos::app
         {"--eva", 0, on(&Options::eva)},
         {"--perf", 0, on(&Options::perf)},
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        {"--orbital-relief-ground", 0, on(&Options::orbital_relief_ground)},
         {"--orbital-relief-patches", 1, relief_budget(&Options::orbital_relief_patches, "--orbital-relief-patches", 2)},
         {"--orbital-relief-meshes", 1, relief_budget(&Options::orbital_relief_meshes, "--orbital-relief-meshes", 2)},
         {"--orbital-relief-textures", 1, relief_budget(&Options::orbital_relief_textures, "--orbital-relief-textures", 10)},

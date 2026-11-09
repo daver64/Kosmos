@@ -49,6 +49,7 @@ namespace kosmos::app
         int orbital_relief_patches = 96;
         int orbital_relief_meshes = 512;
         int orbital_relief_textures = 128;
+        bool orbital_relief_ground = false;
         bool camera_window = false;
         bool settings_window = false;
         bool performance_window = false;

@@ -590,6 +590,10 @@ namespace kosmos::app
         void draw_comet(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const sl::Light3D &body_light);
         void draw_body(std::size_t i, const sl::Light3D &body_light);
         void draw_terrain_body_weather(std::size_t i, const kosmos::Body &b);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        bool draw_orbiter_relief(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative, sl::Material &material,
+                                 BodyTerrain *ground_guard = nullptr);
+#endif
         void draw_body_surface(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const glm::mat4 &model, sl::Material &rock);
         void draw_body_layers(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, double distance, const glm::dquat &sphere_flip, const sl::Light3D &body_light, bool veil_only = false);
         void draw_body_rings(std::size_t i, const kosmos::Body &b, const glm::mat4 &body_frame);

@@ -1315,6 +1315,9 @@ namespace kosmos
 "Planets\n"
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
                                    "  Installed Orbiter Mars elevation shapes the terrain in low and medium orbit as well as near the ground.\n"
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                                   "  --orbital-relief-ground tests incomplete ground tiles; height checks may switch back to existing terrain.\n"
+#endif
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"

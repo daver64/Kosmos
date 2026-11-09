@@ -1,7 +1,9 @@
 #include "app_state.h"
 #include "orbiter_tile_terrain.h"
-#include "orbiter_tile_colour.h"
 #include "bitmap_release.h"
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+#include "orbiter_relief_colour_loader.h"
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -332,26 +334,7 @@ namespace kosmos::app
         };
         relief.load_colour = [image, meshes, terrain_frame](int level, int column, int row) -> sl::Bitmap *
         {
-            constexpr std::size_t decoded_limit = 512u * 512u * 4u;
-            kosmos::OrbiterTree::Tile ancestor;
-            std::vector<std::uint8_t> bytes;
-            if (!image->read_tile(level + 4, row, column, ancestor, bytes, 2u << 20, decoded_limit) ||
-                ancestor.level != level + 4)
-            {
-                sl::detail::set_error("Orbiter imagery tile is unreadable");
-                return nullptr;
-            }
-            sl::DdsOptions decoding;
-            decoding.allow_compressed_upload = false;
-            decoding.max_decoded_bytes = decoded_limit;
-            sl::Bitmap *bitmap = sl::load_dds_from_memory(bytes.data(), bytes.size(), decoding);
-            if (bitmap && meshes && !kosmos::apply_orbiter_mesh_colours(*bitmap, *meshes, terrain_frame, level, column, row))
-            {
-                kosmos::discard_bitmap(bitmap);
-                sl::detail::set_error("Orbiter imagery tile has invalid pixel data");
-                return nullptr;
-            }
-            return bitmap;
+            return kosmos::load_orbiter_relief_colour(*image, meshes.get(), terrain_frame, level, column, row);
         };
         const double radius = body.radius;
         relief.elevation = [heights, terrain_frame, radius](const glm::dvec3 &direction)

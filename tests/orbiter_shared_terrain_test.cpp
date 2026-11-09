@@ -40,6 +40,8 @@ int main()
     placed.mips = {std::vector<float>(9, 8.0f), std::vector<float>(4, 9.0f)};
     auto natural = std::make_shared<NaturalSource>();
     auto mesh = std::make_shared<kosmos::MeshSource>(natural, radius, std::vector<kosmos::MeshSource::Placed>{placed});
+    assert(mesh->height_on_sphere(-origin, radius) == 10.0);
+    assert(mesh->height_on_sphere_lod(-origin, radius, 20.0) == 30.0);
     auto final_source = std::make_shared<kosmos::FlattenSource>(
         mesh, radius, std::vector<kosmos::FlattenSite>{{origin, origin, 200.0, 3.0, 2.0}});
 
@@ -93,8 +95,12 @@ int main()
         placement.use_colour = true;
         kosmos::MeshSource coloured_source(natural, radius, {placement});
         assert(coloured_source.colour_may_overlap(centre, 0.0));
-        assert(coloured_source.colour_may_overlap(-centre, 0.0));
+        assert(!coloured_source.colour_may_overlap(-centre, 0.0));
+        assert(coloured_source.colour_may_overlap(-centre, glm::pi<double>()));
         assert(!coloured_source.colour_may_overlap(placement.right, 0.1));
+        float opposite_rgb[3] = {0.25f, 0.25f, 0.25f};
+        assert(!coloured_source.colour(-centre, opposite_rgb));
+        assert(opposite_rgb[0] == 0.25f && opposite_rgb[1] == 0.25f && opposite_rgb[2] == 0.25f);
         sl::Bitmap bitmap;
         bitmap.width = bitmap.height = size;
         bitmap.pixels.resize(size * size * 4, 64);

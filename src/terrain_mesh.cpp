@@ -421,6 +421,8 @@ namespace kosmos
         // Position of a direction in a placed mesh's frame, or false if it lies outside the footprint.
         bool locate(const MeshSource::Placed &m, const sl::dvec3 &direction, double radius, Local &at)
         {
+            if (glm::dot(direction, m.origin) <= 0.0)
+                return false;
             const sl::dvec3 offset = (direction - m.origin) * radius;
             const double dx = glm::dot(offset, m.right) - m.x, dz = glm::dot(offset, m.forward) - m.z;
             const double s = std::sin(m.heading), c = std::cos(m.heading);
@@ -528,9 +530,8 @@ namespace kosmos
             const double extent = (std::hypot(m.x, m.z) + std::hypot(hw, hh)) / radius_;
             if (extent >= 1.0)
                 return true;
-            // locate() projects onto the tangent plane, so both hemispheres can intersect it.
-            const double separation = std::acos(std::clamp(std::abs(glm::dot(centre, m.origin)), 0.0, 1.0));
-            if (separation <= std::min(angular_radius, 0.5 * pi) + std::asin(extent))
+            const double separation = std::acos(std::clamp(glm::dot(centre, m.origin), -1.0, 1.0));
+            if (separation <= std::min(angular_radius, pi) + std::asin(extent))
                 return true;
         }
         return false;

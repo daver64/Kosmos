@@ -321,7 +321,12 @@ namespace kosmos::app
                     ground.metallic = 0.0f;
                     ground.roughness = 0.4f;
                 }
-                terrain->draw(eye_from_earth, ground);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                if (!(options.orbital_relief_ground && vis.earth_relief_tiles &&
+                      props.get_bool("/sim/settings/gfx-earth-relief") &&
+                      draw_orbiter_relief(*vis.earth_relief_tiles, earth_id, -eye_from_earth, ground, body_terrains[0].get())))
+#endif
+                    terrain->draw(eye_from_earth, ground);
                 if (body_terrains[0]->clutter_live)
                 {
                     body_terrains[0]->clutter->set_impostor_light(impostor_light(body_terrains[0]->body));
@@ -334,7 +339,12 @@ namespace kosmos::app
             if (body_terrains[k]->active)
             {
                 sl::Material ground;
-                body_terrains[k]->terrain->draw(body_terrains[k]->eye_rel, ground);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                if (!(options.orbital_relief_ground && body_terrains[k]->body == soi && body_terrains[k]->relief_tiles &&
+                      draw_orbiter_relief(*body_terrains[k]->relief_tiles, body_terrains[k]->body, -body_terrains[k]->eye_rel,
+                                          ground, body_terrains[k].get())))
+#endif
+                    body_terrains[k]->terrain->draw(body_terrains[k]->eye_rel, ground);
                 if (body_terrains[k]->clutter_live)
                 {
                     body_terrains[k]->clutter->set_impostor_light(impostor_light(body_terrains[k]->body));
@@ -427,6 +437,143 @@ namespace kosmos::app
         }
     }
 
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+    bool App::draw_orbiter_relief(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative, sl::Material &material,
+                                  BodyTerrain *ground_guard)
+    {
+        const double radius = universe_ref->bodies[static_cast<std::size_t>(body)].radius;
+        const glm::dmat4 model = glm::translate(glm::dmat4(1.0), relative) *
+            glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(body))) *
+            glm::scale(glm::dmat4(1.0), glm::dvec3(radius));
+        const glm::dvec3 eye_local = glm::dvec3(glm::inverse(model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
+        const glm::dmat4 view_projection =
+            glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
+            glm::dmat4(camera.view_matrix()) * model;
+        tiles.update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
+        if (ground_guard)
+        {
+            bool fallback = false;
+            std::string fallback_reason;
+            const auto &source = ground_guard->terrain->source();
+            const glm::dquat tile_frame = kosmos::orbiter_tile_orientation(universe_ref->orientation(body));
+            const auto collision_height_at = [&](const glm::dvec3 &direction)
+            {
+                const glm::dvec3 body_direction(-direction.x, direction.y, -direction.z);
+                return source->height_on_sphere(ground_guard->frame.orientation * body_direction, radius);
+            };
+            const auto check_height = [&](const glm::dvec3 &direction, double expected, const char *where)
+            {
+                double drawn = 0.0;
+                if (!std::isfinite(expected))
+                {
+                    fallback_reason = std::string(where) + ": collision height is not finite";
+                    return false;
+                }
+                if (!tiles.drawn_elevation(direction, drawn))
+                {
+                    fallback_reason = std::string(where) + ": " + sl::last_error();
+                    return false;
+                }
+                if (std::fabs(drawn * radius - expected) > 1.0)
+                {
+                    fallback_reason = std::string(where) + ": drawn height differs from collision by " +
+                                      std::to_string(drawn * radius - expected) + " metres";
+                    return false;
+                }
+                return true;
+            };
+            const double eye_distance = glm::length(eye_local);
+            if (!std::isfinite(eye_distance) || eye_distance < 1e-12)
+            {
+                fallback = true;
+                fallback_reason = "camera position is invalid";
+            }
+            else if (!std::isfinite(source->max_height()) ||
+                     (eye_distance - 1.0) * radius <= source->max_height() + 250.0)
+            {
+                const glm::dvec3 direction = eye_local / eye_distance;
+                const double expected = collision_height_at(direction);
+                if (!std::isfinite(expected))
+                {
+                    fallback = true;
+                    fallback_reason = "camera: collision height is not finite";
+                }
+                else if ((eye_distance - 1.0) * radius - expected <= 250.0)
+                {
+                    // The sub-camera point is often behind a forward-looking cockpit, so only query it when visible.
+                    const glm::dvec4 clip = view_projection * glm::dvec4(direction * (1.0 + expected / radius), 1.0);
+                    if (clip.w > 0.0 && std::fabs(clip.x) <= clip.w && std::fabs(clip.y) <= clip.w &&
+                        clip.z >= -clip.w && clip.z <= clip.w)
+                        fallback = !check_height(direction, expected, "camera");
+                }
+            }
+            for (int s = 0; s < sim.ship_count() && !fallback; ++s)
+            {
+                const Ship &vessel = *sim.ship(s);
+                if (vessel.telemetry().soi != body || glm::length(vessel.origin() - eye_world) > 10000.0)
+                    continue;
+                const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
+                const double distance = glm::length(offset);
+                if (!std::isfinite(distance) || distance < 1.0)
+                {
+                    fallback = true;
+                    fallback_reason = "ship position is invalid";
+                    break;
+                }
+                const glm::dvec3 tile_direction = glm::inverse(tile_frame) * (offset / distance);
+                const double collision_height = collision_height_at(tile_direction);
+                if (!std::isfinite(collision_height))
+                {
+                    fallback = true;
+                    fallback_reason = "collision height is not finite";
+                    break;
+                }
+                if (distance - radius - collision_height > 250.0)
+                    continue;
+                const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
+                const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
+                const glm::dvec3 forward = glm::cross(tile_direction, right);
+                for (const glm::dvec3 &delta : {glm::dvec3(0.0), right * (10.0 / radius), -right * (10.0 / radius),
+                                                forward * (10.0 / radius), -forward * (10.0 / radius)})
+                {
+                    const glm::dvec3 direction = glm::normalize(tile_direction + delta);
+                    if (!check_height(direction, collision_height_at(direction), "ship"))
+                    {
+                        fallback = true;
+                        break;
+                    }
+                }
+            }
+            if (fallback)
+            {
+                ground_guard->relief_ground_ready_since = {};
+                if (!ground_guard->relief_ground_fallback)
+                {
+                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain until nearby surface heights agree: %s\n",
+                                 universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str());
+                    ground_guard->relief_ground_fallback = true;
+                }
+            }
+            else if (ground_guard->relief_ground_fallback)
+            {
+                const auto now = std::chrono::steady_clock::now();
+                if (ground_guard->relief_ground_ready_since == std::chrono::steady_clock::time_point{})
+                    ground_guard->relief_ground_ready_since = now;
+                else if (now - ground_guard->relief_ground_ready_since >= std::chrono::seconds(1))
+                {
+                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: nearby surface heights agree; using relief tiles\n",
+                                 universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str());
+                    ground_guard->relief_ground_fallback = false;
+                }
+            }
+            if (ground_guard->relief_ground_fallback)
+                return false;
+        }
+        tiles.draw_relative(model, material);
+        return true;
+    }
+#endif
+
     void App::draw_body_surface(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const glm::mat4 &model, sl::Material &rock)
     {
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
@@ -438,15 +585,7 @@ namespace kosmos::app
                     continue;
                 if (terrain.relief_tiles)
                 {
-                    const glm::dmat4 relief_model = glm::translate(glm::dmat4(1.0), rel) *
-                        glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(static_cast<int>(i)))) *
-                        glm::scale(glm::dmat4(1.0), glm::dvec3(b.radius));
-                    const glm::dvec3 eye_local = glm::dvec3(glm::inverse(relief_model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
-                    const glm::dmat4 view_projection =
-                        glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
-                        glm::dmat4(camera.view_matrix()) * relief_model;
-                    terrain.relief_tiles->update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
-                    terrain.relief_tiles->draw_relative(relief_model, rock);
+                    draw_orbiter_relief(*terrain.relief_tiles, static_cast<int>(i), rel, rock);
                     return;
                 }
                 break;
@@ -462,28 +601,14 @@ namespace kosmos::app
             // The tile mesh already runs east the same way as the body body_frame, so only the half turn above is needed.
             const glm::mat4 tile_model = model;
             const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(view.aspect)) * camera.view_matrix() * tile_model;
-            glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-            glm::dmat4 relief_model(1.0);
-            glm::dmat4 relief_view_projection(1.0);
-            if (earth_tiles == vis.earth_relief_tiles.get())
-            {
-                relief_model = glm::translate(glm::dmat4(1.0), rel) *
-                               glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(static_cast<int>(i)))) *
-                               glm::scale(glm::dmat4(1.0), glm::dvec3(b.radius));
-                eye_local = glm::dvec3(glm::inverse(relief_model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
-                relief_view_projection = glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
-                                         glm::dmat4(camera.view_matrix()) * relief_model;
-            }
-#endif
+            const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
             // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
             const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
             earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, earth_sphere_switch_m + 150.0e3, glint_altitude)));
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
             if (earth_tiles == vis.earth_relief_tiles.get())
             {
-                earth_tiles->update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &relief_view_projection);
-                earth_tiles->draw_relative(relief_model, rock);
+                draw_orbiter_relief(*earth_tiles, static_cast<int>(i), rel, rock);
             }
             else
 #endif

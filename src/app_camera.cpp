@@ -964,7 +964,8 @@ namespace kosmos::app
                 std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
                              1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-                if (earth_as_sphere && vis.earth_relief_tiles && props_ref->get_bool("/sim/settings/gfx-earth-relief"))
+                if ((earth_as_sphere || (options.orbital_relief_ground && near_earth)) &&
+                    vis.earth_relief_tiles && props_ref->get_bool("/sim/settings/gfx-earth-relief"))
                 {
                     const sl::PlanetTilesStats stats = vis.earth_relief_tiles->stats();
                     std::fprintf(stderr, "[perf] Orbiter relief: patches %d, colour level %d, geometry level %d; "
@@ -977,7 +978,8 @@ namespace kosmos::app
                                  static_cast<int>(stats.failure_limited));
                 }
                 for (std::size_t k = 1; k < body_terrains.size(); ++k)
-                    if (body_terrains[k]->body == soi && !body_terrains[k]->active && body_terrains[k]->relief_tiles)
+                    if (body_terrains[k]->body == soi &&
+                        (!body_terrains[k]->active || options.orbital_relief_ground) && body_terrains[k]->relief_tiles)
                     {
                         const sl::PlanetTilesStats stats = body_terrains[k]->relief_tiles->stats();
                         const kosmos::Body &body = universe_ref->bodies[static_cast<std::size_t>(soi)];
@@ -1053,7 +1055,7 @@ namespace kosmos::app
             const bool has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), bt.body) != vis.surface_textured.end();
             bt.active = terrain_visible(glm::length(bt.eye_rel) - b.radius, b.radius, has_image, bt.orbital_relief);
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-            if (bt.body == soi && !bt.active && !bt.relief_attempted)
+            if (bt.body == soi && (!bt.active || options.orbital_relief_ground) && !bt.relief_attempted)
             {
                 bt.relief_attempted = true;
                 bt.relief_tiles = make_orbiter_relief_tiles(bt);
