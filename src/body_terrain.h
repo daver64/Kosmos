@@ -31,6 +31,8 @@ extern bool detail_disabled;
     {
         int body = -1;
         std::unique_ptr<sl::Terrain> terrain;
+        std::shared_ptr<kosmos::OrbiterImagery> orbiter_imagery;
+        bool has_orbiter_elevation = false;
         bool active = false;
         bool orbital_relief = false;
         sl::dvec3 eye_rel{0.0};

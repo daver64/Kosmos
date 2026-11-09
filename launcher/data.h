@@ -66,6 +66,14 @@ namespace launcher
     fs::path user_dir(); // ~/.config/kosmos or %APPDATA%\kosmos
     std::string installed_version(const fs::path &root);
 
+    // In-place update. STAGING holds an unpacked release archive (its files may sit in one top-level folder). Every file is
+    // copied over ROOT; files the release does not ship (user addons, scenery, settings) are left alone. A file that is in
+    // use (the running launcher, its DLLs) is renamed to <name>.old and replaced; clean_update_leftovers removes those
+    // later. VERSION.txt goes last so a failed update still reports the old version. Returns false and sets ERROR on failure.
+    bool apply_update(const fs::path &staging, const fs::path &root, std::string &error);
+    void clean_update_leftovers(const fs::path &root);
+    bool is_source_checkout(const fs::path &root); // an update must never overwrite a development tree
+
     // The graphics keys of Kosmos's settings.json (gfx-style 0-2, gfx-clouds 0/1, gfx-light-radius, gfx-max-fps,
     // gfx-terrain-detail 0-3, gfx-earth-relief 0/1, weather 0/1, weather-source procedural/live, weather-rain 0/1). Missing keys come back at their defaults; saving keeps every other key in the file.
     struct GraphicsSettings

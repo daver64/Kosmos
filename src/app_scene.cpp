@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "orbiter_tile_terrain.h"
 #include "plasma_look.h"
 
 namespace kosmos::app
@@ -428,17 +429,45 @@ namespace kosmos::app
 
     void App::draw_body_surface(std::size_t i, const kosmos::Body &b, const sl::dvec3 &rel, const glm::mat4 &model, sl::Material &rock)
     {
-        if (static_cast<int>(i) == earth_id && vis.earth_tiles)
+        sl::PlanetTiles *earth_tiles = vis.earth_tiles.get();
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        if (props_ref->get_bool("/sim/settings/gfx-earth-relief") && vis.earth_relief_tiles)
+            earth_tiles = vis.earth_relief_tiles.get();
+#endif
+        if (static_cast<int>(i) == earth_id && earth_tiles)
         {
             // The tile mesh already runs east the same way as the body body_frame, so only the half turn above is needed.
             const glm::mat4 tile_model = model;
             const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(screen_w) / screen_h) * camera.view_matrix() * tile_model;
-            const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+            glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            glm::dmat4 relief_model(1.0);
+            glm::dmat4 relief_view_projection(1.0);
+            if (earth_tiles == vis.earth_relief_tiles.get())
+            {
+                relief_model = glm::translate(glm::dmat4(1.0), rel) *
+                               glm::mat4_cast(kosmos::orbiter_tile_orientation(universe_ref->orientation(static_cast<int>(i)))) *
+                               glm::scale(glm::dmat4(1.0), glm::dvec3(b.radius));
+                eye_local = glm::dvec3(glm::inverse(relief_model) * glm::dvec4(0.0, 0.0, 0.0, 1.0));
+                relief_view_projection = glm::dmat4(camera.projection_matrix(static_cast<float>(screen_w) / screen_h)) *
+                                         glm::dmat4(camera.view_matrix()) * relief_model;
+            }
+#endif
             // The terrain below the switch altitude has no sea glint, so it fades out on the way down instead of vanishing at the swap.
             const double glint_altitude = (glm::length(rel) - b.radius) * 6.371e6 / b.radius;
-            vis.earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, earth_sphere_switch_m + 150.0e3, glint_altitude)));
-            vis.earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
-            vis.earth_tiles->draw(tile_model, rock);
+            earth_tiles->set_specular_strength(0.45f * static_cast<float>(fx::smoothstep(earth_sphere_switch_m, earth_sphere_switch_m + 150.0e3, glint_altitude)));
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            if (earth_tiles == vis.earth_relief_tiles.get())
+            {
+                earth_tiles->update_relative(eye_local, glm::radians(view_fov), screen_h, &relief_view_projection);
+                earth_tiles->draw_relative(relief_model, rock);
+            }
+            else
+#endif
+            {
+                earth_tiles->update(eye_local, glm::radians(view_fov), screen_h, &view_projection);
+                earth_tiles->draw(tile_model, rock);
+            }
         }
         else
         {

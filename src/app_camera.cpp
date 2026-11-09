@@ -963,20 +963,48 @@ namespace kosmos::app
             {
                 std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
                              1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                if (earth_as_sphere && vis.earth_relief_tiles && props_ref->get_bool("/sim/settings/gfx-earth-relief"))
+                {
+                    const sl::PlanetTilesStats stats = vis.earth_relief_tiles->stats();
+                    std::fprintf(stderr, "[perf] Orbiter relief: patches %d, colour level %d, geometry level %d; "
+                                 "parent imagery %d patches/max %d levels, undersampled %d; textures %d loaded/%d loading/%d failed; "
+                                 "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d\n",
+                                 stats.patches, stats.deepest_level, stats.deepest_geometry_level,
+                                 stats.patches_using_parent, stats.max_colour_levels_up, stats.undersampled_patches,
+                                 stats.tiles_loaded, stats.tiles_loading, stats.tiles_failed, stats.meshes, stats.mesh_jobs,
+                                 static_cast<int>(stats.relief_limited), static_cast<int>(stats.texture_limited),
+                                 static_cast<int>(stats.failure_limited));
+                }
+#endif
                 clutter_perf = ClutterPerf();
             }
         }
+    }
+
+    void App::update_earth_sphere_visibility()
+    {
+        sl::PropertyTree &props = *props_ref;
+        const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
+        const bool earth_has_tiles = static_cast<bool>(vis.earth_tiles);
+        bool earth_has_orbital_relief = false;
+        earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ? 400.0e3 : 120.0e3;
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        if (vis.earth_relief_tiles && props.get_bool("/sim/settings/gfx-earth-relief"))
+        {
+            earth_sphere_switch_m = 120.0e3;
+            earth_has_orbital_relief = true;
+        }
+#endif
+        earth_as_sphere = earth_sphere_visible(eye_earth_distance - earth_body->radius, earth_body->radius,
+                                               earth_has_image, earth_has_tiles, earth_has_orbital_relief, earth_sphere_switch_m);
     }
 
     // Which terrain and sphere are drawn.
     void App::update_terrains()
     {
         kosmos::Universe &universe = *universe_ref;
-        sl::PropertyTree &props = *props_ref;
-        // With a hi-res surface image, the terrain gives way to a plain textured sphere above 300 km (lower when the tiled imagery is present, which stays sharp down to there), scaled by the body's size.
-        const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
-        earth_sphere_switch_m = props.get_bool("/sim/settings/gfx-earth-relief") ?400.0e3 : 120.0e3;
-        earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > (vis.earth_tiles ? earth_sphere_switch_m : 300.0e3) * earth_body->radius / 6.371e6;
+        update_earth_sphere_visibility();
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
         {
             const sl::FlightBody &fb = *universe.world.body(bt->body);

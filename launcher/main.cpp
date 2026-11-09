@@ -470,6 +470,7 @@ namespace
                     SetIcon(icon);
                 }
             }
+            clean_update_leftovers(root_);
             const std::string installed = installed_version(root_);
             SetTitle(installed.empty() ? "Kosmos Launcher" : "Kosmos Launcher - Kosmos " + installed + " installed");
             profile_ = load_profile();
@@ -1658,7 +1659,7 @@ namespace
             notes_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
             update_gauge_ = new wxGauge(page, wxID_ANY, 1000);
             auto *check = new wxButton(page, wxID_ANY, "Check for updates");
-            update_button_ = new wxButton(page, wxID_ANY, "Download the new version");
+            update_button_ = new wxButton(page, wxID_ANY, "Download and install the new version");
             update_button_->Disable();
             auto *buttons = new wxBoxSizer(wxHORIZONTAL);
             buttons->Add(check, 0, wxALL, 8);
@@ -1713,23 +1714,69 @@ namespace
         {
             if (latest_.empty() || busy_)
                 return;
-            // Unpack beside the current install so the running copy is never overwritten.
-            const fs::path dest = root_.parent_path() / ("kosmos-" + latest_);
+            if (run_)
+            {
+                wxMessageBox("Close Kosmos before updating it.", "Update", wxICON_INFORMATION);
+                return;
+            }
+            if (is_source_checkout(root_))
+            {
+                wxMessageBox("This is a source checkout, not an installed release. Update it with git.", "Update", wxICON_INFORMATION);
+                return;
+            }
+            // Unpack beside the install, then copy over it once the download is verified and Kosmos is not running.
+            const fs::path staging = root_ / ".update";
+            std::error_code ec;
+            fs::remove_all(staging, ec);
             update_button_->Disable();
-            DownloadArchive(platform_archive(latest_), "", dest, update_gauge_, [this, dest](bool ok, const std::string &msg)
+            DownloadArchive(platform_archive(latest_), "", staging, update_gauge_, [this, staging](bool ok, const std::string &msg)
                             {
-                                if (ok)
+                                std::error_code e;
+                                if (!ok)
                                 {
-                                    update_label_->SetLabel(W("Version " + latest_ + " unpacked to " + dest.string()));
-                                    wxMessageBox("Version " + W(latest_) + " is in\n" + Wp(dest) + "\n\nYour current install was not changed. Start the new launcher from that folder.", "Update ready");
-                                }
-                                else
-                                {
+                                    fs::remove_all(staging, e);
                                     SetStatusText(W("Update failed: " + msg));
                                     update_button_->Enable();
+                                    return;
                                 }
+                                if (run_)
+                                {
+                                    fs::remove_all(staging, e);
+                                    wxMessageBox("Kosmos was started during the download. Close it and update again.", "Update", wxICON_INFORMATION);
+                                    update_button_->Enable();
+                                    return;
+                                }
+                                std::string problem;
+                                busy_ = true;
+                                SetStatusText("Installing the update...");
+                                wxYield();
+                                const bool applied = apply_update(staging, root_, problem);
+                                busy_ = false;
+                                fs::remove_all(staging, e);
+                                if (!applied)
+                                {
+                                    SetStatusText(W("Update failed: " + problem));
+                                    wxMessageBox(W("The update could not be installed:\n" + problem + "\n\nRun the update again to retry."), "Update", wxICON_ERROR);
+                                    update_button_->Enable();
+                                    return;
+                                }
+                                update_label_->SetLabel(W("Updated to version " + latest_));
+                                SetStatusText(W("Updated to Kosmos " + latest_));
+                                if (wxMessageBox("Kosmos " + W(latest_) + " is installed.\n\nRestart the launcher now to use the new version?", "Update complete", wxYES_NO) == wxYES)
+                                    RestartLauncher();
                             }, update_base_url(profile_.server, latest_) + "/" + platform_archive(latest_),
                             update_base_url(profile_.server, latest_));
+        }
+
+        void RestartLauncher()
+        {
+            const wxString exe = wxStandardPaths::Get().GetExecutablePath();
+            wxExecuteEnv env;
+            env.cwd = Wp(root_);
+            if (wxExecute("\"" + exe + "\"", wxEXEC_ASYNC, nullptr, &env) == 0)
+                wxMessageBox("Could not restart the launcher. Start it again by hand.", "Update", wxICON_ERROR);
+            else
+                Close();
         }
 
         // ---- Logs ----------------------------------------------------------------------------------------------

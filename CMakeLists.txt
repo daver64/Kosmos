@@ -26,6 +26,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # through CMAKE_PREFIX_PATH or simlib_DIR; scripts/build-linux.sh and build-windows.sh pass the prefix for you.
 # To build against a source checkout instead, pass -DKOSMOS_SIMLIB_DIR=/path/to/rsimlib.
 set(KOSMOS_SIMLIB_DIR "" CACHE PATH "Build against this simlib source tree instead of an installed simlib")
+option(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF "Build the incomplete Orbiter textured-relief prototype" OFF)
+if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF AND NOT KOSMOS_SIMLIB_DIR)
+    message(FATAL_ERROR "KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF requires KOSMOS_SIMLIB_DIR with the matching simlib changes")
+endif()
 
 if(KOSMOS_SIMLIB_DIR)
     # Keep simlib's static libraries in our build tree rather than inside the source checkout.
@@ -161,6 +165,9 @@ target_compile_definitions(kosmos PRIVATE
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" KOSMOS_VERSION LIMIT_COUNT 1)
 target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
+if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
+    target_compile_definitions(kosmos PRIVATE KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF=1)
+endif()
 # Shipped in the package so the launcher can tell which build is installed.
 file(WRITE "${CMAKE_BINARY_DIR}/VERSION.txt" "${KOSMOS_VERSION}\n")
 
@@ -178,6 +185,15 @@ target_compile_features(scenario_thumbnail_test PRIVATE cxx_std_17)
 add_executable(orbiter_tree_lookup_test EXCLUDE_FROM_ALL tests/orbiter_tree_lookup_test.cpp src/planet_data.cpp)
 target_link_libraries(orbiter_tree_lookup_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(orbiter_tree_lookup_test PRIVATE src)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # Link only the terrain wrappers under test, rather than the rest of the base editor and renderer.
+    add_executable(orbiter_shared_terrain_test EXCLUDE_FROM_ALL tests/orbiter_shared_terrain_test.cpp src/base.cpp src/terrain_mesh.cpp)
+    target_compile_options(orbiter_shared_terrain_test PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(orbiter_shared_terrain_test PRIVATE -Wl,--gc-sections)
+    target_link_libraries(orbiter_shared_terrain_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+    target_include_directories(orbiter_shared_terrain_test PRIVATE src)
+endif()
 
 # Re-entry heating, hypersonic aerodynamics and parachute drag: cmake --build build --target reentry_test && build/reentry_test
 add_executable(reentry_test EXCLUDE_FROM_ALL tests/reentry_test.cpp src/reentry.cpp)

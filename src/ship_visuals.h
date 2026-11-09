@@ -42,6 +42,9 @@ namespace kosmos::app
         // Optional per-body normal maps (fake relief for airless moons); entries may be null.
         std::vector<sl::Bitmap *> body_normals;
         std::unique_ptr<sl::PlanetTiles> earth_tiles;
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        std::unique_ptr<sl::PlanetTiles> earth_relief_tiles;
+#endif
         std::unique_ptr<sl::PlanetTiles> earth_cloud_tiles; // the streamed cloud layer (Orbiter's cloud tree), in place of the single image shell
         std::vector<int> surface_textured;
         std::map<const kosmos::PartSpec *, sl::Mesh *> parts;

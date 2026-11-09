@@ -537,6 +537,7 @@ namespace kosmos::app
         double instrument_live_time = 0.0;
         std::string instrument_gallery_ship;
         std::vector<std::string> instrument_gallery;
+        void update_earth_sphere_visibility();
         void update_terrains();
         void update_clutter();
         void report_clutter_perf();

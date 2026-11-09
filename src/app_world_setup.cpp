@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "orbiter_tile_terrain.h"
 
 #include <algorithm>
 #include <cctype>
@@ -80,6 +81,9 @@ namespace kosmos::app
                 sl::destroy_model(m);
         vis.body_meshes.clear();
         vis.earth_tiles.reset();
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        vis.earth_relief_tiles.reset();
+#endif
         vis.earth_cloud_tiles.reset();
         vis.rings.clear();
         vis.surface_textured.clear();
@@ -307,47 +311,126 @@ namespace kosmos::app
         {
             const int home_body = sim.universe.home_id();
             const std::string pack = home_body >= 0 ? sim.universe.bodies[static_cast<std::size_t>(home_body)].tiles : std::string();
-            if (home_body >= 0 && (sim.universe.bodies[static_cast<std::size_t>(home_body)].imagery == "celestia" || !pack.empty()))
+            if (home_body >= 0)
             {
-                loading.note("Opening the Earth imagery tiles");
-                const std::string hires = sim.root() + "/import/celestia/hires/";
-                sl::PlanetTilesOptions tiles;
-                // Skirts show as bright lines along tile edges from orbit.
-                tiles.skirt = 0.0f;
-                // Full-strength, tight glint blows out into a white disc from orbit.
-                tiles.specular_strength = 0.45f;
-                tiles.specular_min_roughness = 0.3f;
-                if (!pack.empty())
+                if (sim.universe.bodies[static_cast<std::size_t>(home_body)].imagery == "celestia" || !pack.empty())
                 {
-                    const std::string base = sim.root() + "/data/textures-hires/" + pack + "/";
-                    tiles.colour = find_tile_source(base + "colour");
-                    tiles.specular = find_tile_source(base + "specular");
-                    if (!options.no_relief)
-                        tiles.normal = find_tile_source(base + "normal");
-                }
-                else
-                {
-                    tiles.colour = find_tile_source(hires + "earth");
-                    tiles.specular = find_tile_source(hires + "earth_specular");
-                    if (!options.no_relief)
-                        tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
-                    if (tiles.colour.empty() && sim.universe.bodies[static_cast<std::size_t>(home_body)].name == "Earth")
+                    loading.note("Opening the Earth imagery tiles");
+                    const std::string hires = sim.root() + "/import/celestia/hires/";
+                    sl::PlanetTilesOptions tiles;
+                    // Skirts show as bright lines along tile edges from orbit.
+                    tiles.skirt = 0.0f;
+                    // Full-strength, tight glint blows out into a white disc from orbit.
+                    tiles.specular_strength = 0.45f;
+                    tiles.specular_min_roughness = 0.3f;
+                    if (!pack.empty())
                     {
-                        const std::string defaults = sim.root() + "/data/orbiter-defaults/earth/";
-                        tiles.colour = find_tile_source(defaults + "colour");
-                        tiles.specular = find_tile_source(defaults + "specular");
-                        tiles.normal.clear();
+                        const std::string base = sim.root() + "/data/textures-hires/" + pack + "/";
+                        tiles.colour = find_tile_source(base + "colour");
+                        tiles.specular = find_tile_source(base + "specular");
+                        if (!options.no_relief)
+                            tiles.normal = find_tile_source(base + "normal");
+                    }
+                    else
+                    {
+                        tiles.colour = find_tile_source(hires + "earth");
+                        tiles.specular = find_tile_source(hires + "earth_specular");
+                        if (!options.no_relief)
+                            tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                        if (tiles.colour.empty() && sim.universe.bodies[static_cast<std::size_t>(home_body)].name == "Earth")
+                        {
+                            const std::string defaults = sim.root() + "/data/orbiter-defaults/earth/";
+                            tiles.colour = find_tile_source(defaults + "colour");
+                            tiles.specular = find_tile_source(defaults + "specular");
+                            tiles.normal.clear();
+                        }
+                    }
+                    if (!tiles.colour.empty())
+                    {
+                        vis.earth_tiles = sl::PlanetTiles::create(tiles);
+                        if (!vis.earth_tiles)
+                            std::fprintf(stderr, "kosmos: tiled Earth unavailable: %s\n", sl::last_error().c_str());
+                        else
+                            std::fprintf(stderr, "kosmos: Earth tiles: colour=%s, specular=%s\n",
+                                         tiles.colour.c_str(), tiles.specular.empty() ? "(none)" : tiles.specular.c_str());
                     }
                 }
-                if (!tiles.colour.empty())
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                const kosmos::Body &body = sim.universe.bodies[static_cast<std::size_t>(home_body)];
+                if (!body_terrains.empty() && body_terrains[0] &&
+                    body_terrains[0]->body == home_body && body_terrains[0]->orbiter_imagery &&
+                    body_terrains[0]->has_orbiter_elevation)
                 {
-                    vis.earth_tiles = sl::PlanetTiles::create(tiles);
-                    if (!vis.earth_tiles)
-                        std::fprintf(stderr, "kosmos: tiled Earth unavailable: %s\n", sl::last_error().c_str());
+                    const auto image = body_terrains[0]->orbiter_imagery;
+                    const auto heights = body_terrains[0]->terrain->source();
+                    const glm::dquat terrain_frame = body_terrains[0]->frame.orientation;
+                    if (heights)
+                    {
+                        sl::PlanetTilesOptions relief;
+                        relief.has_colour = [image](int level, int column, int row)
+                        {
+                            return image->has_tile(level + 4, row, column);
+                        };
+                        relief.has_colour_children = [image](int level, int column, int row)
+                        {
+                            return image->has_children(level + 4, row, column);
+                        };
+                        relief.load_colour = [image](int level, int column, int row) -> sl::Bitmap *
+                        {
+                            constexpr std::size_t decoded_limit = 512u * 512u * 4u;
+                            kosmos::OrbiterTree::Tile ancestor;
+                            std::vector<std::uint8_t> bytes;
+                            if (!image->read_tile(level + 4, row, column, ancestor, bytes, 2u << 20, decoded_limit) ||
+                                ancestor.level != level + 4)
+                            {
+                                sl::detail::set_error("Orbiter imagery tile is unreadable");
+                                return nullptr;
+                            }
+                            sl::DdsOptions decoding;
+                            decoding.allow_compressed_upload = false;
+                            decoding.max_decoded_bytes = decoded_limit;
+                            return sl::load_dds_from_memory(bytes.data(), bytes.size(), decoding);
+                        };
+                        const double radius = body.radius;
+                        relief.elevation = [heights, terrain_frame, radius](const glm::dvec3 &direction)
+                        {
+                            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, 1000.0);
+                        };
+                        relief.elevation_lod = [heights, terrain_frame, radius](const glm::dvec3 &direction, double cell_size)
+                        {
+                            return kosmos::orbiter_tile_height(*heights, terrain_frame, direction, radius, cell_size * radius);
+                        };
+                        relief.max_elevation = std::max({std::fabs(heights->min_height()), std::fabs(heights->max_height()), 1.0}) / radius;
+                        relief.normal_sample_spacing = 1000.0 / radius;
+                        relief.match_elevation_edges = true;
+                        relief.adaptive_elevation_diagonals = true;
+                        relief.adaptive_elevation_normals = true;
+                        relief.colour_max_level = 18;
+                        relief.tile_size = 512;
+                        relief.segments = 24;
+                        relief.geometry_pixels = 32.0f;
+                        relief.max_relief_patches = options.orbital_relief_patches;
+                        relief.max_relief_meshes = options.orbital_relief_meshes;
+                        relief.max_relief_mesh_jobs = 4;
+                        relief.max_cached_tiles = options.orbital_relief_textures == 0 ? 512 :
+                                                  std::max(8, options.orbital_relief_textures / 4 * 3);
+                        relief.max_resident_tiles = options.orbital_relief_textures;
+                        relief.max_failed_tiles = 256;
+                        relief.max_loads_in_flight = 4;
+                        relief.feather = 0.0f;
+                        relief.fade_seconds = 0.0f;
+                        relief.skirt = 0.02f;
+                        vis.earth_relief_tiles = sl::PlanetTiles::create(relief);
+                        if (!vis.earth_relief_tiles)
+                            std::fprintf(stderr, "[kosmos] Orbiter relief tiles unavailable: %s\n", sl::last_error().c_str());
+                        else
+                            std::fprintf(stderr, "[kosmos] Orbiter relief budgets: patches %d, meshes %d, textures %d (0 = unlimited)\n",
+                                         relief.max_relief_patches, relief.max_relief_meshes, relief.max_resident_tiles);
+                    }
                     else
-                        std::fprintf(stderr, "kosmos: Earth tiles: colour=%s, specular=%s\n",
-                                     tiles.colour.c_str(), tiles.specular.empty() ? "(none)" : tiles.specular.c_str());
+                        std::fprintf(stderr, "[kosmos] Orbiter relief tiles unavailable: terrain source unavailable\n");
                 }
+#endif
                 if (vis.earth_tiles)
                 {
                     const std::size_t index = static_cast<std::size_t>(home_body);
@@ -434,7 +517,9 @@ namespace kosmos::app
     bool App::enter_system()
     {
         load_planet_images();
+#ifndef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
         load_earth_tiles();
+#endif
         load_earth_cloud_tiles();
 
         // The home planet is a streaming procedural terrain whose heights the launch gear also collides with.
@@ -450,6 +535,9 @@ namespace kosmos::app
         if (!build_terrains())
             return false;
         terrain = body_terrains[0]->terrain.get();
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        load_earth_tiles();
+#endif
         // Each terrain is built in the body's frame as it stands now; from here it turns with the planet.
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
             if (sl::FlightBody *fb = sim.universe.world.body(bt->body))

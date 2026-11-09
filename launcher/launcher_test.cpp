@@ -274,6 +274,44 @@ int main(int argc, char **argv)
         CHECK(log_exit_code("nothing").empty());
     }
 
+    {
+        namespace fs = launcher::fs;
+        const fs::path base = fs::temp_directory_path() / "kosmos-update-test";
+        fs::remove_all(base);
+        const auto put = [](const fs::path &p, const std::string &text)
+        {
+            fs::create_directories(p.parent_path());
+            std::ofstream(p) << text;
+        };
+        const auto get = [](const fs::path &p)
+        {
+            std::ifstream in(p);
+            return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        };
+        put(base / "root/VERSION.txt", "0.1");
+        put(base / "root/kosmos", "old");
+        put(base / "root/addons/mine/addon.json", "user");
+        put(base / "root/data/orbiter-defaults/keep.txt", "scenery");
+        put(base / "stage/kosmos-beta-0.2-Linux/VERSION.txt", "0.2");
+        put(base / "stage/kosmos-beta-0.2-Linux/kosmos", "new");
+        put(base / "stage/kosmos-beta-0.2-Linux/addons/ship/addon.json", "ship");
+        std::string error;
+        CHECK(launcher::apply_update(base / "stage", base / "root", error) && error.empty());
+        CHECK(get(base / "root/kosmos") == "new" && get(base / "root/VERSION.txt") == "0.2");
+        CHECK(get(base / "root/addons/ship/addon.json") == "ship" && get(base / "root/addons/mine/addon.json") == "user");
+        CHECK(get(base / "root/data/orbiter-defaults/keep.txt") == "scenery");
+        CHECK(launcher::installed_version(base / "root") == "0.2");
+        put(base / "root/kosmos.old", "x");
+        put(base / "root/.update-leftovers.txt", "kosmos.old\n");
+        launcher::clean_update_leftovers(base / "root");
+        CHECK(!fs::exists(base / "root/kosmos.old") && !fs::exists(base / "root/.update-leftovers.txt"));
+        fs::create_directories(base / "empty");
+        CHECK(!launcher::apply_update(base / "empty", base / "root", error) && !error.empty());
+        put(base / "root/CMakeLists.txt", "");
+        CHECK(launcher::is_source_checkout(base / "root") && !launcher::apply_update(base / "stage", base / "root", error));
+        fs::remove_all(base);
+    }
+
     std::printf(failures ? "%d failure(s)\n" : "launcher_test: all passed\n", failures);
     return failures ? 1 : 0;
 }

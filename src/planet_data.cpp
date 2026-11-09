@@ -5,6 +5,7 @@
 #include "draw.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cctype>
 #include <cstdio>
@@ -23,6 +24,7 @@ namespace kosmos
     {
         constexpr double pi = 3.14159265358979323846;
         constexpr int deepest = 22;
+        constexpr std::uint64_t max_tree_index_bytes = 128u << 20;
 
         std::uint64_t image_tile_key(int level, int column, int row)
         {
@@ -36,40 +38,78 @@ namespace kosmos
             return text;
         }
 
-        // The tile a direction falls in at each level, from the root down to the deepest tile that carries data.
         struct Hit
         {
-            std::uint32_t node = OrbiterTree::none;
-            int level = 0;
+            int level = 0, row = 0, column = 0;
             double u = 0.0, v = 0.0; // position inside the tile, 0-1, v from its north edge
         };
 
-        Hit locate(const OrbiterTree &tree, double lat, double lon, int max_level)
+        void index_individual_tiles(const std::filesystem::path &root, const char *extension,
+                                    std::string &indexed_root, std::unordered_set<std::uint64_t> &tiles,
+                                    std::unordered_set<std::uint64_t> *parents = nullptr)
         {
-            const double t_lat = std::clamp((0.5 * pi - lat) / pi, 0.0, 1.0);
-            const double t_lng = std::clamp((lon + pi) / (2.0 * pi), 0.0, 1.0);
-            Hit best;
-            std::uint32_t node = OrbiterTree::none;
-            for (int level = 4; level <= max_level; ++level)
+            std::error_code ec;
+            if (!std::filesystem::is_directory(root, ec))
             {
-                const std::int64_t rows = std::int64_t(1) << (level - 4);
-                const std::int64_t ilat = std::min<std::int64_t>(static_cast<std::int64_t>(t_lat * rows), rows - 1);
-                const std::int64_t ilng = std::min<std::int64_t>(static_cast<std::int64_t>(t_lng * 2 * rows), 2 * rows - 1);
-                if (level == 4)
-                    node = tree.find(4, 0, static_cast<int>(ilng));
-                else
-                    node = tree.child(node, static_cast<int>(((ilat & 1) << 1) | (ilng & 1)));
-                if (node == OrbiterTree::none)
-                    break;
-                if (tree.has_data(node))
+                if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                    std::fprintf(stderr, "[kosmos] Cannot inspect Orbiter overrides %s: %s\n", root.string().c_str(), ec.message().c_str());
+                return;
+            }
+            indexed_root = root.string();
+            const auto number = [](const std::string &text, std::size_t digits, int &value)
+            {
+                if (text.size() != digits || !std::all_of(text.begin(), text.end(), [](unsigned char c) { return c >= '0' && c <= '9'; }))
+                    return false;
+                const auto result = std::from_chars(text.data(), text.data() + text.size(), value);
+                return result.ec == std::errc() && result.ptr == text.data() + text.size();
+            };
+            bool too_many = false;
+            for (int level = 4; level <= deepest && !ec && !too_many; ++level)
+            {
+                char folder[3];
+                std::snprintf(folder, sizeof folder, "%02d", level);
+                const auto level_path = root / folder;
+                if (!std::filesystem::is_directory(level_path, ec))
                 {
-                    best.node = node;
-                    best.level = level;
-                    best.v = t_lat * rows - static_cast<double>(ilat);
-                    best.u = t_lng * 2 * rows - static_cast<double>(ilng);
+                    if (ec == std::errc::no_such_file_or_directory || ec == std::errc::not_a_directory)
+                        ec.clear();
+                    continue;
+                }
+                std::filesystem::directory_iterator rows(level_path, ec), end;
+                for (; !ec && rows != end && !too_many; rows.increment(ec))
+                {
+                    int row = 0;
+                    if (!number(rows->path().filename().string(), 6, row) || row >= (1 << (level - 4)) || !rows->is_directory(ec))
+                        continue;
+                    std::filesystem::directory_iterator files(rows->path(), ec);
+                    for (; !ec && files != end; files.increment(ec))
+                    {
+                        const std::string name = files->path().filename().string();
+                        int column = 0;
+                        if (name.size() != 10 || name.substr(6) != extension || !number(name.substr(0, 6), 6, column) ||
+                            column >= (2 << (level - 4)) || !files->is_regular_file(ec))
+                            continue;
+                        tiles.insert(image_tile_key(level, column, row));
+                        if (parents)
+                            for (int ancestor = level - 1; ancestor >= 4; --ancestor)
+                                parents->insert(image_tile_key(ancestor, column >> (level - ancestor), row >> (level - ancestor)));
+                        if (tiles.size() > 200000)
+                        {
+                            too_many = true;
+                            break;
+                        }
+                    }
                 }
             }
-            return best;
+            if (ec || too_many)
+            {
+                std::fprintf(stderr, "[kosmos] Cannot index Orbiter overrides %s: %s; using archive only\n",
+                             root.string().c_str(), ec ? ec.message().c_str() : "index exceeds 200000 tiles");
+                tiles.clear();
+                if (parents)
+                    parents->clear();
+                indexed_root.clear();
+            }
         }
 
         int level_for(double radius, double cell_size, double samples_per_tile)
@@ -78,6 +118,44 @@ namespace kosmos
                 return deepest;
             const double ratio = radius * pi / (samples_per_tile * cell_size);
             return std::clamp(4 + static_cast<int>(std::ceil(std::log2(std::max(ratio, 1.0)))), 4, deepest);
+        }
+
+        bool supported_surface_dds(const std::vector<std::uint8_t> &bytes, std::size_t *data_offset = nullptr,
+                                   bool *alpha_block = nullptr, std::size_t max_decoded_bytes = 0)
+        {
+            if (bytes.size() < 128 || std::memcmp(bytes.data(), "DDS ", 4) != 0)
+                return false;
+            std::uint32_t width = 0, height = 0, pixel_flags = 0;
+            std::memcpy(&height, bytes.data() + 12, 4);
+            std::memcpy(&width, bytes.data() + 16, 4);
+            std::memcpy(&pixel_flags, bytes.data() + 80, 4);
+            bool dxt1 = std::memcmp(bytes.data() + 84, "DXT1", 4) == 0;
+            bool alpha = std::memcmp(bytes.data() + 84, "DXT3", 4) == 0 || std::memcmp(bytes.data() + 84, "DXT5", 4) == 0;
+            std::size_t offset = 128;
+            if (std::memcmp(bytes.data() + 84, "DX10", 4) == 0 && bytes.size() >= 148)
+            {
+                std::uint32_t format = 0, dimension = 0, array_size = 0;
+                std::memcpy(&format, bytes.data() + 128, 4);
+                std::memcpy(&dimension, bytes.data() + 132, 4);
+                std::memcpy(&array_size, bytes.data() + 140, 4);
+                dxt1 = format == 71 || format == 72;
+                alpha = format == 74 || format == 75 || format == 77 || format == 78;
+                if (dimension != 3 || array_size != 1)
+                    return false;
+                offset = 148;
+            }
+            if (!(pixel_flags & 0x4) || (!dxt1 && !alpha) || width < 4 || height < 4 || width % 4 != 0 || height % 4 != 0)
+                return false;
+            if (max_decoded_bytes && static_cast<std::uint64_t>(width) * height > max_decoded_bytes / 4)
+                return false;
+            const std::uint64_t needed = static_cast<std::uint64_t>(width / 4) * (height / 4) * (alpha ? 16 : 8);
+            if (needed > bytes.size() - offset)
+                return false;
+            if (data_offset)
+                *data_offset = offset;
+            if (alpha_block)
+                *alpha_block = alpha;
+            return true;
         }
     }
 
@@ -111,12 +189,20 @@ namespace kosmos
         }
         file_.seekg(0, std::ios::end);
         const std::uint64_t file_size = static_cast<std::uint64_t>(std::max<std::streamoff>(0, file_.tellg()));
-        file_.seekg(sizeof head);
-        if (static_cast<std::uint64_t>(count) * sizeof(Node) > file_size)
+        const std::uint64_t index_bytes = static_cast<std::uint64_t>(count) * sizeof(Node);
+        if (index_bytes > max_tree_index_bytes)
         {
-            error = "node table larger than " + path;
+            error = "node table exceeds 128 MiB limit in " + path;
             return false;
         }
+        const std::uint64_t offset = static_cast<std::uint64_t>(data_offset_);
+        if (offset < sizeof head + index_bytes || offset > file_size || data_length_ < 0 ||
+            static_cast<std::uint64_t>(data_length_) > file_size - offset)
+        {
+            error = "invalid node table or data bounds in " + path;
+            return false;
+        }
+        file_.seekg(sizeof head);
         nodes_.resize(count);
         file_.read(reinterpret_cast<char *>(nodes_.data()), static_cast<std::streamsize>(count) * sizeof(Node));
         if (!file_)
@@ -130,6 +216,8 @@ namespace kosmos
 
     std::uint32_t OrbiterTree::find(int level, int ilat, int ilng) const
     {
+        if (!opened_)
+            return none;
         if (level <= 3)
             return level >= 1 ? roots_[level - 1] : none;
         if (level == 4)
@@ -138,16 +226,54 @@ namespace kosmos
         return parent >= nodes_.size() ? none : nodes_[parent].child[((ilat & 1) << 1) | (ilng & 1)];
     }
 
-    bool OrbiterTree::read(std::uint32_t node, std::vector<std::uint8_t> &out) const
+    bool OrbiterTree::has_children(std::uint32_t node) const
+    {
+        if (!opened_ || node >= nodes_.size())
+            return false;
+        for (std::uint32_t child : nodes_[node].child)
+            if (child < nodes_.size())
+                return true;
+        return false;
+    }
+
+    OrbiterTree::Tile OrbiterTree::ancestor(int level, int row, int column) const
+    {
+        Tile result;
+        if (!opened_ || level < 4 || level > deepest || row < 0 || column < 0)
+            return result;
+        const int rows = 1 << (level - 4);
+        if (row >= rows || column >= 2 * rows)
+            return result;
+        std::uint32_t node = root4_[column >> (level - 4)];
+        for (int current = 4; current <= level && node < nodes_.size(); ++current)
+        {
+            const int shift = level - current;
+            if (has_data(node))
+            {
+                result.node = node;
+                result.level = current;
+                result.row = row >> shift;
+                result.column = column >> shift;
+                const int span = 1 << shift;
+                result.u0 = static_cast<double>(column % span) / span;
+                result.v0 = static_cast<double>(row % span) / span;
+                result.u1 = result.u0 + 1.0 / span;
+                result.v1 = result.v0 + 1.0 / span;
+            }
+            if (shift > 0)
+                node = nodes_[node].child[(((row >> (shift - 1)) & 1) << 1) | ((column >> (shift - 1)) & 1)];
+        }
+        return result;
+    }
+
+    bool OrbiterTree::read(std::uint32_t node, std::vector<std::uint8_t> &out, std::size_t max_bytes) const
     {
         if (!has_data(node))
             return false;
-        // A tile is at most a few MB; the cap and range checks keep a corrupt table from sizing huge buffers.
-        constexpr std::uint32_t max_tile_bytes = 256u << 20;
         const std::int64_t pos = nodes_[node].pos;
         const std::int64_t end = node + 1 < nodes_.size() ? nodes_[node + 1].pos : static_cast<std::int64_t>(data_length_);
-        if (pos < 0 || end < pos || end > static_cast<std::int64_t>(data_length_) || nodes_[node].size > max_tile_bytes ||
-            static_cast<std::uint64_t>(end - pos) > max_tile_bytes)
+        if (pos < 0 || end < pos || end > static_cast<std::int64_t>(data_length_) || nodes_[node].size > max_bytes ||
+            static_cast<std::uint64_t>(end - pos) > max_bytes)
             return false;
         std::vector<std::uint8_t> packed(static_cast<std::size_t>(end - pos));
         {
@@ -182,6 +308,15 @@ namespace kosmos
                 std::fprintf(stderr, "[kosmos] Cannot inspect Orbiter scenery %s: %s\n", file.string().c_str(), ec.message().c_str());
             ec.clear();
         }
+        for (const fs::path &folder : {base / "import/orbiter", base / "import/orbiter/MinorBodies",
+                                      base / "data/orbiter-defaults/earth", base / "data/orbiter-defaults/planets"})
+        {
+            std::string indexed_root;
+            std::unordered_set<std::uint64_t> tiles;
+            index_individual_tiles(folder / name / layer, layer == "Surf" ? ".dds" : ".elv", indexed_root, tiles);
+            if (!tiles.empty())
+                return (folder / name / "Archive" / (layer + ".tree")).string();
+        }
         return {};
     }
 
@@ -196,13 +331,40 @@ namespace kosmos
         : frame_(frame), radius_(radius), min_(min_height), max_(max_height), sea_floor_(sea_floor)
     {
         tree_.open(path, error_);
+        const std::filesystem::path archive = std::filesystem::u8path(path);
+        if (tree_ || archive.parent_path().filename() == "Archive")
+        {
+            const std::filesystem::path mod_path = archive.parent_path() / "Elev_mod.tree";
+            std::error_code ec;
+            if (std::filesystem::is_regular_file(mod_path, ec))
+            {
+                std::string mod_error;
+                if (!modifications_.open(mod_path.string(), mod_error))
+                    std::fprintf(stderr, "[kosmos] Orbiter elevation modifications: %s\n", mod_error.c_str());
+            }
+            else if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                std::fprintf(stderr, "[kosmos] Cannot inspect Orbiter elevation modifications %s: %s\n",
+                             mod_path.string().c_str(), ec.message().c_str());
+            if (archive.parent_path().filename() == "Archive")
+            {
+                const auto root = archive.parent_path().parent_path();
+                index_individual_tiles(root / "Elev", ".elv", elevation_root_, elevation_tiles_);
+                index_individual_tiles(root / "Elev_mod", ".elv", modification_root_, modification_tiles_);
+            }
+        }
+        if (!tree_ && !elevation_tiles_.empty())
+        {
+            std::error_code ec;
+            if (std::filesystem::exists(archive, ec) || ec)
+                std::fprintf(stderr, "[kosmos] Orbiter elevation archive unavailable: %s; using individual tiles\n", error_.c_str());
+            error_.clear();
+        }
     }
 
-    std::shared_ptr<const OrbiterElevation::Tile> OrbiterElevation::load(std::uint32_t node) const
+    std::shared_ptr<OrbiterElevation::Tile> OrbiterElevation::decode(const std::vector<std::uint8_t> &bytes, bool modification) const
     {
         auto tile = std::make_shared<Tile>();
-        std::vector<std::uint8_t> bytes;
-        if (!tree_.read(node, bytes) || bytes.size() < 100 || std::memcmp(bytes.data(), "ELE", 3) != 0)
+        if (bytes.size() < 100 || std::memcmp(bytes.data(), "ELE\x01", 4) != 0)
             return tile;
         std::int32_t header, type, nx, ny;
         std::memcpy(&header, bytes.data() + 4, 4);
@@ -211,22 +373,73 @@ namespace kosmos
         std::memcpy(&ny, bytes.data() + 16, 4);
         std::memcpy(&tile->scale, bytes.data() + 28, 8);
         std::memcpy(&tile->offset, bytes.data() + 36, 8);
-        const std::size_t count = static_cast<std::size_t>(nx) * ny;
-        if (type == 0 || nx < 2 || ny < 2)
+        if (header < 100 || static_cast<std::size_t>(header) > bytes.size() ||
+            nx != 259 || ny != 259 || !std::isfinite(tile->scale) || !std::isfinite(tile->offset))
             return tile;
-        tile->width = nx;
-        tile->height = ny;
+        if (type == 0)
+        {
+            tile->valid = true;
+            return tile;
+        }
+        constexpr std::size_t count = 259u * 259u;
+        const std::size_t payload = bytes.size() - static_cast<std::size_t>(header);
+        if ((modification ? (type != -16 && type != 8) : (type != -16 && type != 16 && type != -8 && type != 8)) ||
+            payload < count * (type == -16 || type == 16 ? 2 : 1))
+            return tile;
         tile->samples.resize(count);
         const std::uint8_t *data = bytes.data() + header;
-        if (type == -16 && bytes.size() >= header + count * 2)
+        tile->unsigned_samples = type == 16 || type == 8;
+        if (type == -16 || type == 16)
             std::memcpy(tile->samples.data(), data, count * 2);
-        else if (type == 8 && bytes.size() >= header + count)
-            for (std::size_t i = 0; i < count; ++i)
-                tile->samples[i] = data[i];
         else
-            return std::make_shared<Tile>();
+            for (std::size_t i = 0; i < count; ++i)
+                tile->samples[i] = static_cast<std::uint16_t>(type == -8 && data[i] >= 128 ? static_cast<int>(data[i]) - 256 : data[i]);
+        tile->valid = true;
         tile->flat = false;
         return tile;
+    }
+
+    std::shared_ptr<OrbiterElevation::Tile> OrbiterElevation::load(int level, int row, int column, bool modification) const
+    {
+        const auto &tiles = modification ? modification_tiles_ : elevation_tiles_;
+        const auto &root = modification ? modification_root_ : elevation_root_;
+        const OrbiterTree &tree = modification ? modifications_ : tree_;
+        std::vector<std::uint8_t> bytes;
+        if (tiles.count(image_tile_key(level, column, row)))
+        {
+            char relative[32];
+            std::snprintf(relative, sizeof relative, "%02d/%06d/%06d.elv", level, row, column);
+            const std::string path = (std::filesystem::u8path(root) / relative).string();
+            std::ifstream input(path, std::ios::binary | std::ios::ate);
+            const std::streamoff size = input ? static_cast<std::streamoff>(input.tellg()) : std::streamoff(-1);
+            if (size >= 0 && size <= (2 << 20))
+            {
+                bytes.resize(static_cast<std::size_t>(size));
+                input.seekg(0);
+                input.read(reinterpret_cast<char *>(bytes.data()), size);
+                if (input)
+                {
+                    auto result = decode(bytes, modification);
+                    if (result->valid)
+                        return result;
+                }
+            }
+            std::fprintf(stderr, "[kosmos] unreadable Orbiter elevation override %s; trying archive\n", path.c_str());
+        }
+        const std::uint32_t node = tree.find(level, row, column);
+        if (tree.has_data(node))
+        {
+            if (tree.read(node, bytes, 2u << 20))
+            {
+                auto result = decode(bytes, modification);
+                if (result->valid)
+                    return result;
+            }
+            std::fprintf(stderr, "[kosmos] unreadable Orbiter %s node %u; %s\n",
+                         modification ? "elevation modification" : "elevation", node,
+                         modification ? "using unmodified elevation" : "trying parent");
+        }
+        return std::make_shared<Tile>();
     }
 
     double OrbiterElevation::height_on_sphere(const glm::dvec3 &direction, double radius) const
@@ -238,23 +451,81 @@ namespace kosmos
     {
         double lat, lon;
         frame_.to_lat_lon(direction, lat, lon);
-        const Hit hit = locate(tree_, lat, lon, level_for(radius_, cell_size, 256.0));
-        double h = 0.0;
-        if (hit.node != OrbiterTree::none)
+        const int max_level = level_for(radius_, cell_size, 256.0);
+        const double latitude = std::clamp((0.5 * pi - lat) / pi, 0.0, 1.0);
+        const double longitude = std::clamp((lon + pi) / (2.0 * pi), 0.0, 1.0);
+        const int max_rows = 1 << (max_level - 4);
+        const int max_row = std::min(static_cast<int>(latitude * max_rows), max_rows - 1);
+        const int max_column = std::min(static_cast<int>(longitude * 2 * max_rows), 2 * max_rows - 1);
+        OrbiterTree::Tile ancestor = tree_.ancestor(max_level, max_row, max_column);
+        Hit hit;
+        std::shared_ptr<const Tile> tile;
+        for (int level = max_level; level >= 4; --level)
         {
-            const std::shared_ptr<const Tile> tile = cache_.get(hit.node, [&] { return load(hit.node); });
-            if (tile->flat)
+            if (elevation_tiles_.empty())
+            {
+                if (ancestor.node == OrbiterTree::none)
+                    break;
+                level = std::min(level, ancestor.level);
+            }
+            const int shift = max_level - level;
+            hit.level = level;
+            hit.row = max_row >> shift;
+            hit.column = max_column >> shift;
+            const double rows = static_cast<double>(1 << (level - 4));
+            hit.u = longitude * 2.0 * rows - hit.column;
+            hit.v = latitude * rows - hit.row;
+            const auto key = image_tile_key(level, hit.column, hit.row);
+            if (!elevation_tiles_.count(key) && (ancestor.node == OrbiterTree::none || ancestor.level != level))
+                continue;
+            tile = cache_.get(key, [&]
+            {
+                auto result = load(level, hit.row, hit.column, false);
+                if (result->valid &&
+                    (modification_tiles_.count(key) || modifications_.has_data(modifications_.find(level, hit.row, hit.column))))
+                {
+                    auto mod = load(level, hit.row, hit.column, true);
+                    if (mod->valid)
+                        result->modification = std::move(mod);
+                }
+                return result;
+            });
+            if (tile->valid)
+                break;
+            if (ancestor.node != OrbiterTree::none && ancestor.level == level && level > 4)
+                ancestor = tree_.ancestor(level - 1, hit.row >> 1, hit.column >> 1);
+        }
+        double h = 0.0;
+        if (tile && tile->valid)
+        {
+            if (tile->flat && !tile->modification)
                 h = tile->offset;
             else
             {
                 // The grid has a one sample border around the 257 x 257 samples that span the tile, stored from the south edge up.
-                const double x = std::clamp(hit.u * 256.0 + 1.0, 0.0, tile->width - 1.001);
-                const double y = std::clamp((1.0 - hit.v) * 256.0 + 1.0, 0.0, tile->height - 1.001);
+                const double x = std::clamp(hit.u * 256.0 + 1.0, 0.0, 257.999);
+                const double y = std::clamp((1.0 - hit.v) * 256.0 + 1.0, 0.0, 257.999);
                 const int ix = static_cast<int>(x), iy = static_cast<int>(y);
                 const double fx = x - ix, fy = y - iy;
-                auto at = [&](int i, int j) { return static_cast<double>(tile->samples[static_cast<std::size_t>(j) * tile->width + i]); };
-                const double v = (at(ix, iy) * (1 - fx) + at(ix + 1, iy) * fx) * (1 - fy) + (at(ix, iy + 1) * (1 - fx) + at(ix + 1, iy + 1) * fx) * fy;
-                h = v * tile->scale + tile->offset;
+                const auto at = [&](int i, int j)
+                {
+                    const std::size_t index = static_cast<std::size_t>(j) * 259 + i;
+                    const Tile *source = tile.get();
+                    if (tile->modification)
+                    {
+                        const Tile &mod = *tile->modification;
+                        if (mod.flat || (mod.unsigned_samples ? mod.samples[index] != 255 : mod.samples[index] != 32767))
+                            source = &mod;
+                    }
+                    if (source->flat)
+                        return source->offset;
+                    const std::uint16_t sample = source->samples[index];
+                    const double value = !source->unsigned_samples && sample >= 32768
+                        ? static_cast<int>(sample) - 65536 : sample;
+                    return value * source->scale + source->offset;
+                };
+                h = (at(ix, iy) * (1 - fx) + at(ix + 1, iy) * fx) * (1 - fy) +
+                    (at(ix, iy + 1) * (1 - fx) + at(ix + 1, iy + 1) * fx) * fy;
             }
         }
         if (std::isfinite(sea_floor_))
@@ -265,37 +536,134 @@ namespace kosmos
     OrbiterImagery::OrbiterImagery(const std::string &path, const SurfaceFrame &frame, double radius) : frame_(frame), radius_(radius)
     {
         tree_.open(path, error_);
+        const std::filesystem::path archive = std::filesystem::u8path(path);
+        if (archive.parent_path().filename() != "Archive")
+            return;
+        index_individual_tiles(archive.parent_path().parent_path() / "Surf", ".dds",
+                               override_root_, override_tiles_, &override_parents_);
+        if (!tree_ && !override_tiles_.empty())
+        {
+            std::error_code ec;
+            if (std::filesystem::exists(archive, ec) || ec)
+                std::fprintf(stderr, "[kosmos] Orbiter surface archive unavailable: %s; using individual tiles\n", error_.c_str());
+            error_.clear();
+        }
     }
 
-    std::shared_ptr<const OrbiterImagery::Tile> OrbiterImagery::load(std::uint32_t node) const
+    bool OrbiterImagery::has_tile(int level, int row, int column) const
+    {
+        if (level < 4 || level > deepest || row < 0 || column < 0 ||
+            row >= (1 << (level - 4)) || column >= (2 << (level - 4)))
+            return false;
+        return override_tiles_.count(image_tile_key(level, column, row)) != 0 ||
+               tree_.has_data(tree_.find(level, row, column));
+    }
+
+    bool OrbiterImagery::has_children(int level, int row, int column) const
+    {
+        if (level < 4 || level >= deepest || row < 0 || column < 0 ||
+            row >= (1 << (level - 4)) || column >= (2 << (level - 4)))
+            return false;
+        return override_parents_.count(image_tile_key(level, column, row)) != 0 ||
+               tree_.has_children(tree_.find(level, row, column));
+    }
+
+    bool OrbiterImagery::read_exact(int level, int row, int column, std::vector<std::uint8_t> &dds,
+                                    std::size_t max_bytes, std::uint32_t &node, std::size_t max_decoded_bytes) const
+    {
+        node = tree_.find(level, row, column);
+        if (override_tiles_.count(image_tile_key(level, column, row)))
+        {
+            char relative[32];
+            std::snprintf(relative, sizeof relative, "%02d/%06d/%06d.dds", level, row, column);
+            const std::string path = (std::filesystem::u8path(override_root_) / relative).string();
+            std::ifstream input(path, std::ios::binary | std::ios::ate);
+            const std::streamoff size = input ? static_cast<std::streamoff>(input.tellg()) : std::streamoff(-1);
+            if (size >= 0 && static_cast<std::uint64_t>(size) <= max_bytes)
+            {
+                dds.resize(static_cast<std::size_t>(size));
+                input.seekg(0);
+                input.read(reinterpret_cast<char *>(dds.data()), size);
+                if (input && supported_surface_dds(dds, nullptr, nullptr, max_decoded_bytes))
+                {
+                    node = OrbiterTree::none;
+                    return true;
+                }
+            }
+            std::fprintf(stderr, "[kosmos] unreadable or oversized Orbiter surface override %s; trying archive\n", path.c_str());
+            dds.clear();
+        }
+        if (tree_.has_data(node) && tree_.read(node, dds, max_bytes) &&
+            supported_surface_dds(dds, nullptr, nullptr, max_decoded_bytes))
+            return true;
+        if (tree_.has_data(node))
+            std::fprintf(stderr, "[kosmos] unreadable or oversized Orbiter imagery tile at level %d row %d column %d; trying parent\n",
+                         level, row, column);
+        dds.clear();
+        return false;
+    }
+
+    std::shared_ptr<const OrbiterImagery::Tile> OrbiterImagery::load(int level, int row, int column) const
     {
         auto tile = std::make_shared<Tile>();
         std::vector<std::uint8_t> bytes;
-        if (!tree_.read(node, bytes) || bytes.size() < 128 || std::memcmp(bytes.data(), "DDS ", 4) != 0)
+        std::uint32_t node;
+        if (!read_exact(level, row, column, bytes, 2u << 20, node))
             return tile;
         std::uint32_t h, w;
         std::memcpy(&h, bytes.data() + 12, 4);
         std::memcpy(&w, bytes.data() + 16, 4);
-        std::size_t offset = 128;
-        const bool dxt5 = std::memcmp(bytes.data() + 84, "DXT5", 4) == 0;
-        if (!dxt5 && std::memcmp(bytes.data() + 84, "DXT1", 4) != 0)
+        std::size_t offset = 0;
+        bool alpha_block = false;
+        if (!supported_surface_dds(bytes, &offset, &alpha_block))
             return tile;
-        const std::size_t need = static_cast<std::size_t>(w / 4) * (h / 4) * (dxt5 ? 16 : 8);
+        const std::size_t need = static_cast<std::size_t>(w / 4) * (h / 4) * (alpha_block ? 16 : 8);
         if (w < 4 || h < 4 || bytes.size() < offset + need)
             return tile;
         tile->width = static_cast<int>(w);
         tile->height = static_cast<int>(h);
-        tile->dxt5 = dxt5;
+        tile->alpha_block = alpha_block;
         tile->blocks.assign(bytes.begin() + static_cast<std::ptrdiff_t>(offset), bytes.begin() + static_cast<std::ptrdiff_t>(offset + need));
         return tile;
     }
 
+    bool OrbiterImagery::read_tile(int level, int row, int column, OrbiterTree::Tile &tile, std::vector<std::uint8_t> &dds,
+                                   std::size_t max_bytes, std::size_t max_decoded_bytes) const
+    {
+        dds.clear();
+        tile = {};
+        if (level < 4 || level > deepest || row < 0 || column < 0 ||
+            row >= (1 << (level - 4)) || column >= (2 << (level - 4)))
+            return false;
+        for (int candidate = level; candidate >= 4; --candidate)
+        {
+            const int shift = level - candidate;
+            const int candidate_row = row >> shift, candidate_column = column >> shift;
+            std::uint32_t node;
+            if (has_tile(candidate, candidate_row, candidate_column) &&
+                read_exact(candidate, candidate_row, candidate_column, dds, max_bytes, node, max_decoded_bytes))
+            {
+                tile.node = node;
+                tile.level = candidate;
+                tile.row = candidate_row;
+                tile.column = candidate_column;
+                const int span = 1 << shift;
+                tile.u0 = static_cast<double>(column % span) / span;
+                tile.v0 = static_cast<double>(row % span) / span;
+                tile.u1 = tile.u0 + 1.0 / span;
+                tile.v1 = tile.v0 + 1.0 / span;
+                return true;
+            }
+        }
+        return false;
+    }
+
     namespace
     {
-        void texel(const std::vector<std::uint8_t> &blocks, int width, bool dxt5, int x, int y, float rgb[3])
+        void texel(const std::vector<std::uint8_t> &blocks, int width, bool alpha_block, int x, int y, float rgb[3])
         {
-            const std::size_t size = dxt5 ? 16 : 8;
-            const std::uint8_t *block = blocks.data() + (static_cast<std::size_t>(y >> 2) * (width >> 2) + (x >> 2)) * size + (dxt5 ? 8 : 0);
+            const std::size_t size = alpha_block ? 16 : 8;
+            const std::uint8_t *block = blocks.data() + (static_cast<std::size_t>(y >> 2) * (width >> 2) + (x >> 2)) * size + (alpha_block ? 8 : 0);
             std::uint16_t c0, c1;
             std::memcpy(&c0, block, 2);
             std::memcpy(&c1, block + 2, 2);
@@ -310,7 +678,7 @@ namespace kosmos
             expand(c1, p[1]);
             for (int k = 0; k < 3; ++k)
             {
-                if (c0 > c1 || dxt5)
+                if (c0 > c1 || alpha_block)
                 {
                     p[2][k] = (2 * p[0][k] + p[1][k]) / 3;
                     p[3][k] = (p[0][k] + 2 * p[1][k]) / 3;
@@ -331,12 +699,38 @@ namespace kosmos
     {
         double lat, lon;
         frame_.to_lat_lon(direction, lat, lon);
-        const Hit hit = locate(tree_, lat, lon, level_for(radius_, cell_size, 512.0));
         metres_per_pixel = std::numeric_limits<double>::infinity();
-        if (hit.node == OrbiterTree::none)
-            return false;
-        const std::shared_ptr<const Tile> tile = cache_.get(hit.node, [&] { return load(hit.node); });
-        if (tile->blocks.empty())
+        int level = level_for(radius_, cell_size, 512.0);
+        const double max_rows = static_cast<double>(std::int64_t(1) << (level - 4));
+        const double latitude = std::clamp((0.5 * pi - lat) / pi, 0.0, 1.0);
+        const double longitude = std::clamp((lon + pi) / (2.0 * pi), 0.0, 1.0);
+        const int max_row = std::min(static_cast<int>(latitude * max_rows), static_cast<int>(max_rows) - 1);
+        const int max_column = std::min(static_cast<int>(longitude * 2.0 * max_rows), static_cast<int>(2.0 * max_rows) - 1);
+        OrbiterTree::Tile ancestor = tree_.ancestor(level, max_row, max_column);
+        Hit hit;
+        std::shared_ptr<const Tile> tile;
+        while (level >= 4)
+        {
+            const double rows = static_cast<double>(std::int64_t(1) << (level - 4));
+            const double y = latitude * rows;
+            const double x = longitude * 2.0 * rows;
+            hit.level = level;
+            hit.row = std::min(static_cast<int>(y), static_cast<int>(rows) - 1);
+            hit.column = std::min(static_cast<int>(x), static_cast<int>(2 * rows) - 1);
+            hit.u = x - hit.column;
+            hit.v = y - hit.row;
+            if (override_tiles_.count(image_tile_key(level, hit.column, hit.row)) ||
+                (ancestor.node != OrbiterTree::none && ancestor.level == level))
+            {
+                tile = cache_.get(image_tile_key(level, hit.column, hit.row), [&] { return load(level, hit.row, hit.column); });
+                if (!tile->blocks.empty())
+                    break;
+                if (ancestor.node != OrbiterTree::none && ancestor.level == level && level > 4)
+                    ancestor = tree_.ancestor(level - 1, hit.row >> 1, hit.column >> 1);
+            }
+            --level;
+        }
+        if (!tile || tile->blocks.empty())
             return false;
         const double rows = static_cast<double>(std::int64_t(1) << (hit.level - 4));
         const double cols = rows * 2.0;
@@ -347,10 +741,10 @@ namespace kosmos
         const int ix = static_cast<int>(x), iy = static_cast<int>(y);
         const float fx = static_cast<float>(x - ix), fy = static_cast<float>(y - iy);
         float c[4][3];
-        texel(tile->blocks, tile->width, tile->dxt5, ix, iy, c[0]);
-        texel(tile->blocks, tile->width, tile->dxt5, ix + 1, iy, c[1]);
-        texel(tile->blocks, tile->width, tile->dxt5, ix, iy + 1, c[2]);
-        texel(tile->blocks, tile->width, tile->dxt5, ix + 1, iy + 1, c[3]);
+        texel(tile->blocks, tile->width, tile->alpha_block, ix, iy, c[0]);
+        texel(tile->blocks, tile->width, tile->alpha_block, ix + 1, iy, c[1]);
+        texel(tile->blocks, tile->width, tile->alpha_block, ix, iy + 1, c[2]);
+        texel(tile->blocks, tile->width, tile->alpha_block, ix + 1, iy + 1, c[3]);
         for (int k = 0; k < 3; ++k)
             rgb[k] = (c[0][k] * (1 - fx) + c[1][k] * fx) * (1 - fy) + (c[2][k] * (1 - fx) + c[3][k] * fx) * fy;
         return true;

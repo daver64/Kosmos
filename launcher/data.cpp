@@ -182,6 +182,135 @@ namespace launcher
         return end == std::string::npos ? text : text.substr(0, end);
     }
 
+    bool is_source_checkout(const fs::path &root)
+    {
+        std::error_code ec;
+        return fs::exists(root / "CMakeLists.txt", ec) || fs::exists(root / ".git", ec);
+    }
+
+    namespace
+    {
+        const char *const kAside = ".old";
+        const char *const kTemp = ".update-new";
+        const char *const kLeftovers = ".update-leftovers.txt";
+
+        bool replace_file(const fs::path &from, const fs::path &to, const fs::path &root, std::string &error)
+        {
+            std::error_code ec;
+            fs::create_directories(to.parent_path(), ec);
+            if (ec)
+            {
+                error = "Cannot create " + to.parent_path().string() + ": " + ec.message();
+                return false;
+            }
+            const fs::path temp = to.string() + kTemp;
+            fs::remove(temp, ec);
+            if (fs::is_symlink(from, ec))
+            {
+                fs::remove(to, ec);
+                fs::copy_symlink(from, to, ec);
+                if (ec)
+                {
+                    error = "Cannot link " + to.string() + ": " + ec.message();
+                    return false;
+                }
+                return true;
+            }
+            fs::copy_file(from, temp, fs::copy_options::overwrite_existing, ec);
+            if (ec)
+            {
+                error = "Cannot write " + temp.string() + ": " + ec.message();
+                return false;
+            }
+            fs::rename(temp, to, ec);
+            if (!ec)
+                return true;
+            // The target is in use: move it aside (allowed for a running program, even on Windows) and put the new one in its place.
+            const fs::path aside = to.string() + kAside;
+            std::error_code e2;
+            fs::remove(aside, e2);
+            fs::rename(to, aside, e2);
+            if (!e2)
+                fs::rename(temp, to, e2);
+            if (!e2)
+                std::ofstream(root / kLeftovers, std::ios::app) << fs::relative(aside, root).generic_string() << "\n";
+            else
+            {
+                std::error_code e3;
+                fs::remove(temp, e3);
+                if (!fs::exists(to, e3) && fs::exists(aside, e3))
+                    fs::rename(aside, to, e3);
+                error = "Cannot replace " + to.string() + ": " + ec.message();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    bool apply_update(const fs::path &staging, const fs::path &root, std::string &error)
+    {
+        std::error_code ec;
+        fs::path base = staging;
+        if (!fs::exists(base / "VERSION.txt", ec))
+        {
+            std::vector<fs::path> entries;
+            for (const auto &e : fs::directory_iterator(staging, ec))
+                entries.push_back(e.path());
+            if (entries.size() == 1 && fs::is_directory(entries[0], ec))
+                base = entries[0];
+        }
+        if (!fs::exists(base / "VERSION.txt", ec))
+        {
+            error = "The update archive does not look like a Kosmos release";
+            return false;
+        }
+        if (is_source_checkout(root))
+        {
+            error = "This is a source checkout; update it with git instead";
+            return false;
+        }
+        std::vector<fs::path> files;
+        for (auto it = fs::recursive_directory_iterator(base, ec); !ec && it != fs::recursive_directory_iterator(); it.increment(ec))
+            if (it->is_symlink(ec) || it->is_regular_file(ec))
+                files.push_back(fs::relative(it->path(), base, ec));
+        if (ec)
+        {
+            error = "Cannot read the update: " + ec.message();
+            return false;
+        }
+        std::stable_partition(files.begin(), files.end(), [](const fs::path &p) { return p != "VERSION.txt"; });
+        for (const fs::path &rel : files)
+            if (!replace_file(base / rel, root / rel, root, error))
+                return false;
+        return true;
+    }
+
+    void clean_update_leftovers(const fs::path &root)
+    {
+        const fs::path list = root / kLeftovers;
+        std::ifstream in(list);
+        std::string line;
+        std::vector<std::string> kept;
+        while (std::getline(in, line))
+        {
+            std::error_code ec;
+            const fs::path p = root / fs::path(line);
+            fs::remove(p, ec);
+            if (fs::exists(p, ec))
+                kept.push_back(line); // still locked; try again next time
+        }
+        in.close();
+        std::error_code ec;
+        if (kept.empty())
+            fs::remove(list, ec);
+        else
+        {
+            std::ofstream out(list, std::ios::trunc);
+            for (const std::string &k : kept)
+                out << k << "\n";
+        }
+    }
+
     std::vector<AddonInfo> scan_addons(const fs::path &root)
     {
         std::vector<AddonInfo> out;

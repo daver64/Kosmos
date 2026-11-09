@@ -46,6 +46,9 @@ namespace kosmos::app
         int panel = 0;
         /** Ignore the tiled Earth imagery and use the single image (--no-tiles). */
         bool no_tiles = false;
+        int orbital_relief_patches = 96;
+        int orbital_relief_meshes = 512;
+        int orbital_relief_textures = 128;
         bool camera_window = false;
         bool settings_window = false;
         bool performance_window = false;

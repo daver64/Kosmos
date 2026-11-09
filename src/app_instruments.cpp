@@ -226,8 +226,7 @@ namespace kosmos::app
         soi_body_ref = &universe.bodies[static_cast<std::size_t>(soi)];
         soi_pos = universe.position(soi);
         set_terrain_view();
-        const bool earth_has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), earth_id) != vis.surface_textured.end();
-        earth_as_sphere = earth_has_image && eye_earth_distance - earth_body->radius > (vis.earth_tiles ? earth_sphere_switch_m : 300.0e3) * earth_body->radius / 6.371e6;
+        update_earth_sphere_visibility();
         for (std::size_t k = 1; k < body_terrains.size(); ++k)
             body_terrains[k]->eye_rel = eye_world - universe.position(body_terrains[k]->body);
 

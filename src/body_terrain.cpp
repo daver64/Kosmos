@@ -170,6 +170,11 @@ namespace kosmos::app
             double orbiter_resolution = std::numeric_limits<double>::infinity();
             const bool has_orbiter = orbiter_imagery &&
                                      orbiter_imagery->colour(sample.position, sample.cell_size, orbiter_rgb, orbiter_resolution);
+            if (has_orbiter)
+            {
+                std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
+                return true;
+            }
             bool has_celestia = false;
             double celestia_resolution = std::numeric_limits<double>::infinity();
             for (const auto &imagery : surface_imagery)
@@ -184,10 +189,8 @@ namespace kosmos::app
                     has_celestia = true;
                 }
             }
-            if (has_celestia && (!has_orbiter || celestia_resolution < orbiter_resolution))
+            if (has_celestia)
                 std::copy(std::begin(celestia_rgb), std::end(celestia_rgb), rgb);
-            else if (has_orbiter)
-                std::copy(std::begin(orbiter_rgb), std::end(orbiter_rgb), rgb);
             else
                 return fallback && fallback(sample, rgb);
             return true;
@@ -344,6 +347,8 @@ namespace kosmos::app
         level_ground_under_bases(sim, b, id, source);
         auto result = std::make_unique<BodyTerrain>();
         result->body = id;
+        result->orbiter_imagery = orbiter_imagery;
+        result->has_orbiter_elevation = has_elevation;
         result->orbital_relief = has_elevation && sim.universe.name == "Sol" && b.name == "Mars";
         if (result->orbital_relief)
             std::fprintf(stderr, "[kosmos] Mars orbital terrain relief: on\n");

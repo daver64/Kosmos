@@ -95,7 +95,7 @@ GitHub Actions runs the quick suite on Linux with the exact simlib revision in `
 
 ## Launcher
 
-`kosmos-launcher` (wxWidgets) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, checks for updates and shows logs, with a "Report this log" button that posts a log (home paths removed, after a preview) to the server's `report/submit.php`. The server side is `report/` (PHP: submit, password-protected `admin.php`, public form), installed once with `scripts/setup-reports.sh [HOST]`; reports are kept in `/var/lib/kosmos-reports`, outside the web root. With the default server, game updates, their metadata and the standard Orbiter scenery catalogue come from GitHub releases; a custom server supplies its own game updates and catalogue. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them.
+`kosmos-launcher` (wxWidgets) lists scenarios with previews, toggles addons (`<user dir>/addons.json`), manages texture packs, sets launch options, updates the install in place (refused while Kosmos runs; user addons, scenery and settings are kept, and a running launcher is swapped aside and replaced) and shows logs, with a "Report this log" button that posts a log (home paths removed, after a preview) to the server's `report/submit.php`. The server side is `report/` (PHP: submit, password-protected `admin.php`, public form), installed once with `scripts/setup-reports.sh [HOST]`; reports are kept in `/var/lib/kosmos-reports`, outside the web root. With the default server, game updates, their metadata and the standard Orbiter scenery catalogue come from GitHub releases; a custom server supplies its own game updates and catalogue. Previews are `thumbs/<scenario id>.png` beside each scenario JSON; `scripts/make-thumbs.sh` makes them.
 
 Website traffic can be summarized with `python3 scripts/page-report.py`: it reads the public host's Apache logs over SSH and writes `~/kosmos-page-report.txt`, with completed daily page-hit totals and likely bots separated. The running history is stored in `~/.local/share/kosmos/page-days.json` without visitor IP addresses. The server account needs access to its Apache logs. This reports website page requests, not GitHub downloads.
 
@@ -210,7 +210,8 @@ The keys below are the defaults. View > Keyboard rebinds the configurable action
 | `--lobby` | Open the Multiplayer window at start |
 | `--irc HOST`, `--channel #NAME`, `--advertise ADDR:PORT` | Lobby IRC server (default `salyut.ddns.net`, `#kosmos`) and the address you announce |
 | `--no-clutter` | Leave out trees, buildings and rocks on the ground |
-| `--perf` | Print frame rate and ground-scatter CPU time every few seconds |
+| `--perf` | Print frame rate and ground-scatter CPU time every few seconds; experimental Orbiter relief builds also report tile and mesh budgets |
+| `--orbital-relief-patches N`, `--orbital-relief-meshes N`, `--orbital-relief-textures N` | Experimental Orbiter relief builds only: set the visible patch, mesh-entry and resident/loading texture limits (defaults 96, 512 and 128); `0` removes the respective hard limit |
 | `--no-clouds` | Skip the cloud layers (faster start, helps on weak GPUs) |
 | `--cam-planet R`, `--cam-phase DEG` | Planet-only camera at R planet radii, with the given sun phase angle (for screenshots) |
 | `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `Ctrl+I`). The bottom warp and time line is separate (View menu) |
@@ -324,7 +325,9 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 Earth's cloud shell remains visible from high orbit and beyond when clouds are enabled.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
-Launcher-installed Orbiter `Surf.tree` archives can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+Launcher-installed Orbiter `Surf.tree` archives can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Orbiter individual BC1/BC2/BC3 DDS tiles in `<body>/Surf/LL/RRRRRR/CCCCCC.dds` override the selected archive's matching tiles, as in Orbiter; they are indexed when the system loads. The experimental relief renderer limits each decoded tile to 1 MiB of RGBA pixels; oversized overrides fall back to the same-level archive tile and then to parents. Terrain prefers available Orbiter imagery, including coarser parent tiles, over Celestia imagery to avoid switching between sources with different colours; where no readable Orbiter tile or parent exists it falls back to the other available imagery. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+
+The Orbiter textured-relief renderer is an incomplete, Earth-only prototype, disabled by default. It requires a source-linked simlib build and `-DKOSMOS_EXPERIMENTAL_ORBITAL_RELIEF=ON`; it uses the existing ground renderer below approximately 120 km. Its elevated mesh chooses cell diagonals and computes terrain normals from neighbouring elevations as Orbiter does, but mixed-LOD edges still require skirts and have not been verified watertight without them.
 
 The Linux and Windows game archives include low-resolution fallback textures, not
 the standard Orbiter planetary datasets. The standard Orbiter 2024 archives are
@@ -336,8 +339,7 @@ Python, NumPy and Pillow). The Earth pack includes converted standard cloud, nig
 the catalogue with the release script's `--packs-dir` option; unchanged archives stay on their original release. The two packs install into
 `data/orbiter-defaults/` and are excluded from the platform archives to stay
 within GitHub's per-asset size limit. Orbiter surface and elevation trees under
-the launcher-managed `import/orbiter/<body>/Archive/` and `import/orbiter/MinorBodies/<body>/Archive/` take precedence, separately for each layer. Legacy source-pack folders and external Orbiter installations are not scanned. Mask, cloud,
-elevation-modification and label trees are not yet read directly by Kosmos.
+the launcher-managed `import/orbiter/<body>/Archive/` and `import/orbiter/MinorBodies/<body>/Archive/` take precedence, separately for each layer. When `Elev_mod.tree` is beside the chosen `Elev.tree`, its flat or masked 8-bit and signed 16-bit modifications are applied to matching elevation tiles before interpolation, for both terrain and collision. Individual `Elev/LL/RRRRRR/CCCCCC.elv` and `Elev_mod/LL/RRRRRR/CCCCCC.elv` files beside the selected archive override matching archive tiles; a matching base elevation tile is required for a modification. They are indexed when the system loads, up to 200,000 files per layer; invalid files fall back to the archive. If no archive is installed for a layer, individual files can supply it instead; uncovered elevation falls back to zero. Legacy source-pack folders and external Orbiter installations are not scanned. Mask, cloud and label trees are not yet read directly by Kosmos.
 Supported surface and elevation trees are read when building planetary terrain.
 With Mars elevation installed, its terrain mesh remains visible through low and
 medium orbits (up to approximately 1,596 km altitude); farther away it uses

@@ -4,6 +4,8 @@
 #include "surface_textures.h"
 #include "scenario.h"
 #include <algorithm>
+#include <charconv>
+#include <cstring>
 #include <functional>
 #include <unordered_map>
 
@@ -57,6 +59,25 @@ namespace kosmos::app
         return [field](Options &o, char **a) { o.*field = std::atoi(a[0]); return true; };
     }
 
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+    Apply relief_budget(int Options::*field, const char *name, int minimum)
+    {
+        return [field, name, minimum](Options &o, char **a)
+        {
+            int value = 0;
+            const char *end = a[0] + std::strlen(a[0]);
+            const auto result = std::from_chars(a[0], end, value);
+            if (result.ec != std::errc{} || result.ptr != end || (value != 0 && value < minimum))
+            {
+                std::fprintf(stderr, "kosmos: %s requires 0 (unlimited) or an integer >= %d\n", name, minimum);
+                return false;
+            }
+            o.*field = value;
+            return true;
+        };
+    }
+#endif
+
     // A number picks among the ships spawned in orbit; a name starts the scenario with that ship.
     bool pick_ship(Options &o, char **a)
     {
@@ -109,6 +130,11 @@ namespace kosmos::app
         {"--no-clutter", 0, on(&Options::no_clutter)},
         {"--eva", 0, on(&Options::eva)},
         {"--perf", 0, on(&Options::perf)},
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        {"--orbital-relief-patches", 1, relief_budget(&Options::orbital_relief_patches, "--orbital-relief-patches", 2)},
+        {"--orbital-relief-meshes", 1, relief_budget(&Options::orbital_relief_meshes, "--orbital-relief-meshes", 2)},
+        {"--orbital-relief-textures", 1, relief_budget(&Options::orbital_relief_textures, "--orbital-relief-textures", 10)},
+#endif
         {"--no-tiles", 0, on(&Options::no_tiles)},
         {"--no-relief", 0, on(&Options::no_relief)},
         {"--blender", 1, text(&Options::blender)},
@@ -265,8 +291,19 @@ namespace kosmos::app
     int apply_flag(int argc, char **argv, int &i, Options &options)
     {
         const auto it = flag_table().find(argv[i]);
-        if (it == flag_table().end() || i + it->second.arity >= argc)
+        if (it == flag_table().end())
             return -1;
+        if (i + it->second.arity >= argc)
+        {
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            if (std::strncmp(argv[i], "--orbital-relief-", 17) == 0)
+            {
+                std::fprintf(stderr, "kosmos: %s requires an integer argument\n", argv[i]);
+                return 1;
+            }
+#endif
+            return -1;
+        }
         char **args = argv + i + 1;
         i += it->second.arity;
         return it->second.apply(options, args) ? 0 : 1;
