@@ -17,7 +17,6 @@ namespace kosmos::app
     struct Options
     {
         std::string root = KOSMOS_ROOT;
-        std::string orbiter_textures;
         std::string life_support;
         bool systems_window = false;
         double selftest = 0.0;

@@ -44,7 +44,7 @@ extern bool detail_disabled;
         bool clutter_live = false;
     };
 
-    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home, const std::string &orbiter_textures = {});
+    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home);
 
     void settle(sl::Terrain &terrain, const sl::TerrainView &view);
 

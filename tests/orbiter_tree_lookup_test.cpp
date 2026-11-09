@@ -15,19 +15,33 @@ int main(int argc, char **argv)
     namespace fs = std::filesystem;
     const fs::path root = fs::temp_directory_path() /
                           ("kosmos-tree-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    const fs::path legacy = root / "Orbiter High Res Earth" / "Surf.tree";
-    const fs::path canonical = root / "Earth" / "Archive" / "Surf.tree";
-    const fs::path standard = root / "defaults" / "Moon" / "Archive" / "Elev.tree";
-    for (const fs::path &file : {legacy, canonical, standard})
+    const fs::path legacy = root / "import/orbiter/Orbiter 2016 High Res: Earth/Surf.tree";
+    const fs::path legacy_minor = root / "import/orbiter/Orbiter High Res Minor Bodies/Io/Archive/Surf.tree";
+    const fs::path canonical = root / "import/orbiter/Earth/Archive/Surf.tree";
+    const fs::path minor = root / "import/orbiter/MinorBodies/Io/Archive/Surf.tree";
+    const fs::path standard = root / "data/orbiter-defaults/earth/Earth/Archive/Surf.tree";
+    const fs::path planet = root / "data/orbiter-defaults/planets/Moon/Archive/Elev.tree";
+    const fs::path stray = root / "import/orbiter/unrelated/Moon/Archive/Surf.tree";
+    for (const fs::path &file : {legacy, legacy_minor, canonical, minor, standard, planet, stray})
     {
         fs::create_directories(file.parent_path());
         std::ofstream(file) << "fixture";
     }
-    assert(kosmos::OrbiterTree::find_layer(root.string(), "Earth", "Surf") == canonical.string());
-    assert(kosmos::OrbiterTree::find_layer(root.string(), "Moon", "Elev") == standard.string());
+    const auto lookup = [&](const char *body, const char *layer)
+    { return fs::path(kosmos::OrbiterTree::find_layer(root.string(), body, layer)).lexically_normal(); };
+    assert(lookup("Earth", "Surf") == canonical.lexically_normal());
+    assert(lookup("Moon", "Elev") == planet.lexically_normal());
+    assert(lookup("Io", "Surf") == minor.lexically_normal());
     assert(kosmos::OrbiterTree::find_layer(root.string(), "Earth", "Elev").empty());
+    assert(kosmos::OrbiterTree::find_layer(root.string(), "Moon", "Surf").empty());
     fs::remove(canonical);
-    assert(kosmos::OrbiterTree::find_layer(root.string(), "Earth", "Surf") == legacy.string());
+    assert(lookup("Earth", "Surf") == standard.lexically_normal());
+    fs::remove(standard);
+    fs::remove(minor);
+    assert(kosmos::OrbiterTree::find_layer(root.string(), "Earth", "Surf").empty());
+    assert(kosmos::OrbiterTree::find_layer(root.string(), "Io", "Surf").empty());
+    assert(kosmos::OrbiterTree::find_layer(root.string(), "../Earth", "Surf").empty());
+    assert(kosmos::OrbiterTree::find_layer(root.string(), "Earth", "Mask").empty());
     fs::remove_all(root);
 
     constexpr double mars_radius = 3389500.0;

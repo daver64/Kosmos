@@ -1494,13 +1494,6 @@ namespace
                 world_texture_->Append(t);
             extra_ = new wxTextCtrl(page, wxID_ANY);
             server_ = new wxTextCtrl(page, wxID_ANY);
-            orbiter_textures_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-            auto *orbiter_row = new wxBoxSizer(wxHORIZONTAL);
-            orbiter_row->Add(orbiter_textures_, 1, wxEXPAND | wxRIGHT, 6);
-            auto *orbiter_browse = new wxButton(page, wxID_ANY, "Scan...");
-            orbiter_row->Add(orbiter_browse, 0);
-            auto *orbiter_clear = new wxButton(page, wxID_ANY, "Clear");
-            orbiter_row->Add(orbiter_clear, 0, wxLEFT, 6);
             command_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
             auto row = [&](const wxString &label, wxWindow *w)
             {
@@ -1512,15 +1505,17 @@ namespace
             row("Largest texture", max_texture_);
             row("Invented-world texture", world_texture_);
             row("Extra options", extra_);
-            grid->Add(new wxStaticText(page, wxID_ANY, "Orbiter installation"), 0, wxALIGN_CENTER_VERTICAL);
-            grid->Add(orbiter_row, 1, wxEXPAND);
             row("Update server", server_);
             row("Command line", command_);
             auto *col = new wxBoxSizer(wxVERTICAL);
             col->Add(grid, 0, wxEXPAND | wxALL, 12);
-            orbiter_status_ = new wxStaticText(page, wxID_ANY, "");
-            orbiter_status_->Wrap(700);
-            col->Add(orbiter_status_, 0, wxLEFT | wxRIGHT | wxBOTTOM, 12);
+            if (!profile_.legacy_orbiter_textures.empty())
+            {
+                auto *notice = new wxStaticText(page, wxID_ANY,
+                    "The previously selected Orbiter texture folder is no longer used. Install scenery from the Scenery packs page.");
+                notice->Wrap(700);
+                col->Add(notice, 0, wxLEFT | wxRIGHT | wxBOTTOM, 12);
+            }
             col->Add(new wxStaticText(page, wxID_ANY, "Texture sizes need more graphics memory when larger. If Kosmos glitches or crashes on your GPU, try another backend."), 0, wxALL, 12);
             page->SetSizer(col);
             book_->AddPage(page, "Options");
@@ -1531,35 +1526,6 @@ namespace
             fullscreen_->Bind(wxEVT_CHECKBOX, sync);
             extra_->Bind(wxEVT_TEXT, sync);
             server_->Bind(wxEVT_TEXT, sync);
-            orbiter_browse->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
-                                 {
-                                     wxDirDialog dialog(this, "Select the Orbiter installation or Textures folder",
-                                                        orbiter_textures_->GetValue());
-                                     if (dialog.ShowModal() != wxID_OK)
-                                         return;
-                                     std::size_t tree_count = 0;
-                                     const fs::path textures = scan_orbiter_textures(P(dialog.GetPath()), tree_count);
-                                     if (textures.empty())
-                                     {
-                                         wxMessageBox("No supported Orbiter Surf.tree or Elev.tree archives were found in that folder.", "Orbiter textures", wxICON_WARNING);
-                                         return;
-                                     }
-                                     profile_.orbiter_textures = textures.u8string();
-                                     orbiter_textures_->SetValue(W(profile_.orbiter_textures));
-                                     if (!save_profile(profile_))
-                                         wxMessageBox("The Orbiter folder was selected but the launcher settings could not be saved.", "Orbiter textures", wxICON_WARNING);
-                                     orbiter_status_->SetLabel(W(std::to_string(tree_count) + " supported Orbiter surface/elevation archives found. Kosmos reads them directly; no files are copied."));
-                                     RefreshPreview();
-                                 });
-            orbiter_clear->Bind(wxEVT_BUTTON, [this](wxCommandEvent &)
-                                {
-                                    profile_.orbiter_textures.clear();
-                                    orbiter_textures_->Clear();
-                                    orbiter_status_->SetLabel("Optional: scan for an Orbiter installation to use its high-resolution surface and elevation tiles.");
-                                    if (!save_profile(profile_))
-                                        wxMessageBox("The Orbiter folder was cleared for this session but the launcher settings could not be saved.", "Orbiter textures", wxICON_WARNING);
-                                    RefreshPreview();
-                                });
         }
 
         static int texture_index(int v)
@@ -1577,15 +1543,6 @@ namespace
             world_texture_->SetSelection(texture_index(profile_.world_texture));
             extra_->SetValue(W(profile_.extra_args));
             server_->SetValue(W(profile_.server));
-            orbiter_textures_->SetValue(W(profile_.orbiter_textures));
-            std::size_t tree_count = 0;
-            const fs::path found = scan_orbiter_textures(fs::u8path(profile_.orbiter_textures), tree_count);
-            if (!found.empty())
-                orbiter_status_->SetLabel(W(std::to_string(tree_count) + " supported Orbiter surface/elevation archives found."));
-            else
-                orbiter_status_->SetLabel(profile_.orbiter_textures.empty()
-                                              ? "Optional: scan for an Orbiter installation to use its high-resolution surface and elevation tiles."
-                                              : "The saved Orbiter texture folder is unavailable or contains no .tree archives.");
             loading_ = false;
             RefreshPreview();
         }
@@ -2078,8 +2035,6 @@ namespace
         Http report_http_;
         wxCheckListBox *addon_list_ = nullptr;
         wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
-        wxTextCtrl *orbiter_textures_ = nullptr;
-        wxStaticText *orbiter_status_ = nullptr;
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;

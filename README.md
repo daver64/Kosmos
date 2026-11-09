@@ -108,7 +108,7 @@ Website traffic can be summarized with `python3 scripts/page-report.py`: it read
 
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
 
-`import/orbiter/` (your own Orbiter high-resolution tiles; `import/` holds source material that is never packaged) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
+`import/orbiter/` (launcher-installed Orbiter high-resolution tiles and optional source material) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
 
 ## Native addons
 
@@ -324,7 +324,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 Earth's cloud shell remains visible from high orbit and beyond when clouds are enabled.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth switches from terrain mesh to a textured sphere above 300 km (scaled by body radius for other bodies).
-Orbiter `Surf.tree` archives under `import/orbiter/` can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
+Launcher-installed Orbiter `Surf.tree` archives can supply terrain colour even when no `Elev.tree` is available; terrain height then uses the existing fallback. Archives can also be converted with `python3 tools/orbiter_import.py <Orbiter folder> --body Earth --level 8`; the tiles are block-copied into one DDS (no decode) and the tree levels become the mip chain.
 
 The Linux and Windows game archives include low-resolution fallback textures, not
 the standard Orbiter planetary datasets. The standard Orbiter 2024 archives are
@@ -336,12 +336,9 @@ Python, NumPy and Pillow). The Earth pack includes converted standard cloud, nig
 the catalogue with the release script's `--packs-dir` option; unchanged archives stay on their original release. The two packs install into
 `data/orbiter-defaults/` and are excluded from the platform archives to stay
 within GitHub's per-asset size limit. Orbiter surface and elevation trees under
-`import/orbiter/` take precedence, separately for each layer. Mask, cloud,
+the launcher-managed `import/orbiter/<body>/Archive/` and `import/orbiter/MinorBodies/<body>/Archive/` take precedence, separately for each layer. Legacy source-pack folders and external Orbiter installations are not scanned. Mask, cloud,
 elevation-modification and label trees are not yet read directly by Kosmos.
-The launcher can also scan a selected Orbiter installation or `Textures`
-folder and use its installed `.tree` archives directly, without copying them
-into the Kosmos installation. Supported surface and elevation trees are read
-when building planetary terrain.
+Supported surface and elevation trees are read when building planetary terrain.
 With Mars elevation installed, its terrain mesh remains visible through low and
 medium orbits (up to approximately 1,596 km altitude); farther away it uses
 the smooth orbital sphere.
@@ -574,7 +571,7 @@ The prop part `{"prop": "aeroplane", "span": 12}` gives the airliner mesh. Prope
 
 `--aircraft-autopilot-window`, `--spacecraft-autopilot-window`, `--settings-window`, `--performance-window`, `--property-window`, `--systems-window` (F1) and `--lua-window` open the F3/F4/F1/F11 windows at start; `--menu` pins the menu bar and `--scenario-editor` / `--base-editor` open the editors. `--check-data` loads every scenario and base, saves and reloads them, and reports any that do not round-trip. **Start date.** `--date "1969-07-16 13:32:00"` (GMT; also `T` separators, a trailing `Z`/`UTC` or an offset like `+01:00`) or `--mjd 40408.5648` starts the simulation on that date. With no date from the command line or the scenario, the simulation starts at the real current GMT date and time (the real sky and local daylight); give a scenario a `"date"` to fix it. The planets and Moon start where they really were (VSOP87 planets, Moon from its mean elements with node and perigee precession), and the home planet is turned so the Sun is at the right place for the time of day. A scenario can carry `"date"` or `"mjd"`; try `apollo11_saturn_v_t_minus_5`. Dates apply to any selected star system and when a dated scenario is loaded during a session; the Info line shows the current GMT date. The planets rotate: Earth, Mars and the Moon (locked to Earth) turn under you, so the Sun crosses the sky, landed ships and bases are carried round with the ground, and launches gain the real eastward speed. Earth and Mars have their real axial tilt (so seasons, and the Sun's height at the pole) and are turned for the date and time: Earth by Greenwich sidereal time, Mars by the IAU prime-meridian rate. A body's `pole` (J2000 RA/Dec) and `meridian` (w0, rate, node_ra) in `sol.json` set this. Limits: no precession of the poles, and the other worlds with terrain are not oriented by date.
 
-`--no-relief` disables normal-map relief on bodies; `--no-detail` disables the fine ground-detail texture (`data/textures/detail_dirt.jpg` on Earth; a body can name its own with `detail`, `detail_tile` and `detail_strength` in `sol.json`, as the Moon and Mars do) blended into terrain colour; `--no-tiles` disables streamed Earth textures. Source packs go under `import/orbiter/` and `import/celestia/`; installed runtime textures go under `data/textures/` and optional overrides under `data/textures-hires/`. Only low-resolution fallback maps are included; large Celestia and Orbiter source packs are not shipped. Sol now includes 17 more moons with Celestia textures (`tools/celestia_import.py`). The `ares_spider_mars_orbit` scenario starts the Ares in Mars orbit. Settings live under `/sim/settings/` (`labels`, `ship-labels`, `help-text`, `clock`, `orbit-line`, `sound`, `volume`).
+`--no-relief` disables normal-map relief on bodies; `--no-detail` disables the fine ground-detail texture (`data/textures/detail_dirt.jpg` on Earth; a body can name its own with `detail`, `detail_tile` and `detail_strength` in `sol.json`, as the Moon and Mars do) blended into terrain colour; `--no-tiles` disables streamed Earth textures. Launcher-installed Orbiter trees go under `import/orbiter/`; optional Celestia source packs go under `import/celestia/`, and image overrides under `data/textures-hires/`. Only low-resolution fallback maps are included; large Celestia and Orbiter source packs are not shipped. Sol now includes 17 more moons with Celestia textures (`tools/celestia_import.py`). The `ares_spider_mars_orbit` scenario starts the Ares in Mars orbit. Settings live under `/sim/settings/` (`labels`, `ship-labels`, `help-text`, `clock`, `orbit-line`, `sound`, `volume`).
 
 ### Multiplayer (F12)
 

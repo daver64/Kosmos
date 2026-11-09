@@ -1,6 +1,7 @@
 /build*/
 /import/
 /data/landclass/
+/data/orbiter-defaults/
 __pycache__/
 *.swp
 *.png

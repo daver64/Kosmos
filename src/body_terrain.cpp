@@ -235,19 +235,14 @@ namespace kosmos::app
         std::fprintf(stderr, "[kosmos] %s generated %s terrain\n", b.name.c_str(), kosmos::archetype_name(b.style.type));
     }
 
-    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home, const std::string &orbiter_textures)
+    std::unique_ptr<BodyTerrain> make_body_terrain(Sim &sim, int id, bool home)
     {
         const kosmos::Body &b = sim.universe.bodies[static_cast<std::size_t>(id)];
         loading.note("Building the terrain of " + b.name);
         const kosmos::SurfaceFrame frame{sim.universe.orientation(id)};
         const auto orbiter_layer = [&](const char *layer)
         {
-            std::string path = kosmos::OrbiterTree::find_layer(sim.root() + "/import/orbiter", b.name, layer);
-            if (path.empty() && !orbiter_textures.empty())
-                path = kosmos::OrbiterTree::find_layer(orbiter_textures, b.name, layer);
-            if (path.empty())
-                path = kosmos::OrbiterTree::find_layer(sim.root() + "/data/orbiter-defaults", b.name, layer);
-            return path;
+            return kosmos::OrbiterTree::find_layer(sim.root(), b.name, layer);
         };
         sl::TerrainConfig config;
         config.shape = sl::TerrainShape::sphere;

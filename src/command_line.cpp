@@ -98,7 +98,6 @@ namespace kosmos::app
         {"--test-jump", 1, whole(&Options::test_jump)},
         {"--test-dial", 1, whole(&Options::test_dial)},
         {"--max-texture", 1, whole(&Options::max_texture)},
-        {"--orbiter-textures", 1, text(&Options::orbiter_textures)},
         {"--join", 1, text(&Options::net_join)},
         {"--name", 1, text(&Options::net_name)},
         {"--advertise", 1, text(&Options::net_advertise)},
@@ -282,6 +281,11 @@ namespace kosmos::app
             {
                 std::printf("Kosmos %s\n", KOSMOS_VERSION);
                 return 0;
+            }
+            if (!std::strcmp(argv[i], "--orbiter-textures"))
+            {
+                std::fprintf(stderr, "kosmos: --orbiter-textures is no longer supported; install scenery through the launcher.\n");
+                return 1;
             }
             if (!std::strcmp(argv[i], "--gen-planet") && i + 3 < argc)
                 return generate_planet_preview(argc, argv, i);

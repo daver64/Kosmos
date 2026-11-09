@@ -166,47 +166,21 @@ namespace kosmos
     std::string OrbiterTree::find_layer(const std::string &root, const std::string &body, const std::string &layer)
     {
         namespace fs = std::filesystem;
-        auto lowered = [](std::string text)
-        {
-            for (char &c : text)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            return text;
-        };
-        const std::string lower = lowered(body);
-        std::error_code ec;
-        // A pack folder ends in the body's name ("Orbiter High Res Titan"); a folder that groups several bodies ("... Minor Bodies")
-        // holds one folder per body. The tree sits in the folder itself or in its Archive folder.
-        auto in_folder = [&](const fs::path &folder) -> std::string
-        {
-            for (const char *sub : {"", "Archive"})
-            {
-                const fs::path file = folder / sub / (layer + ".tree");
-                if (fs::exists(file, ec))
-                    return file.string();
-            }
+        const fs::path name = fs::u8path(body);
+        if (body.empty() || name.has_parent_path() || name == "." || name == ".." ||
+            (layer != "Surf" && layer != "Elev"))
             return {};
-        };
-        if (const std::string canonical = in_folder(fs::path(root) / body); !canonical.empty())
-            return canonical;
-        for (const fs::directory_entry &entry : fs::directory_iterator(root, ec))
+        std::error_code ec;
+        const fs::path base = fs::u8path(root);
+        for (const fs::path &folder : {base / "import/orbiter", base / "import/orbiter/MinorBodies",
+                                      base / "data/orbiter-defaults/earth", base / "data/orbiter-defaults/planets"})
         {
-            if (!entry.is_directory())
-                continue;
-            const std::string name = lowered(entry.path().filename().string());
-            if (name.size() >= lower.size() && name.compare(name.size() - lower.size(), lower.size(), lower) == 0)
-            {
-                const std::string found = in_folder(entry.path());
-                if (!found.empty())
-                    return found;
-            }
-            std::error_code inner_ec;
-            for (const fs::directory_entry &child : fs::directory_iterator(entry.path(), inner_ec))
-                if (child.is_directory() && lowered(child.path().filename().string()) == lower)
-                {
-                    const std::string found = in_folder(child.path());
-                    if (!found.empty())
-                        return found;
-                }
+            const fs::path file = folder / name / "Archive" / (layer + ".tree");
+            if (fs::is_regular_file(file, ec))
+                return file.string();
+            if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                std::fprintf(stderr, "[kosmos] Cannot inspect Orbiter scenery %s: %s\n", file.string().c_str(), ec.message().c_str());
+            ec.clear();
         }
         return {};
     }

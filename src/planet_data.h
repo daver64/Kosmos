@@ -34,10 +34,7 @@ namespace kosmos
         bool read(std::uint32_t node, std::vector<std::uint8_t> &out) const;
         explicit operator bool() const { return opened_; }
 
-        /**
-         * Folder of an Orbiter archive for a body under root (any folder whose name ends in the body name), and the
-         * layer's file inside it ("Surf", "Elev", "Mask", "Cloud"); empty if absent.
-         */
+        // Find a launcher-installed high-resolution or standard-pack layer, in priority order.
         static std::string find_layer(const std::string &root, const std::string &body, const std::string &layer);
 
     private:

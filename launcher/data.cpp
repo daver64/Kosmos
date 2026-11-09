@@ -144,71 +144,6 @@ namespace launcher
         return launcher_dir;
     }
 
-    fs::path scan_orbiter_textures(const fs::path &directory, std::size_t &tree_count)
-    {
-        tree_count = 0;
-        if (directory.empty())
-            return {};
-        std::error_code ec;
-        fs::path textures = directory;
-        if (fs::is_directory(directory / "Textures", ec))
-            textures = directory / "Textures";
-        else if (!fs::is_directory(directory, ec))
-            return {};
-
-        const auto lower = [](std::string value)
-        {
-            for (char &c : value)
-                c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-            return value;
-        };
-        const std::vector<std::string> bodies = {"Earth", "Moon", "Mars", "Mercury", "Titan", "Phobos", "Vesta", "Io", "Europa", "Enceladus"};
-        std::set<fs::path> folders;
-        for (const std::string &body : bodies)
-            folders.insert(textures / body);
-        for (fs::directory_iterator it(textures, ec), end; it != end; it.increment(ec))
-        {
-            if (ec)
-            {
-                ec.clear();
-                continue;
-            }
-            if (!it->is_directory(ec))
-                continue;
-            const std::string name = lower(it->path().filename().string());
-            for (const std::string &body : bodies)
-            {
-                const std::string body_name = lower(body);
-                if (name.size() >= body_name.size() && name.compare(name.size() - body_name.size(), body_name.size(), body_name) == 0)
-                    folders.insert(it->path());
-            }
-            std::error_code child_ec;
-            for (fs::directory_iterator child(it->path(), child_ec), child_end; child != child_end; child.increment(child_ec))
-            {
-                if (child_ec)
-                {
-                    child_ec.clear();
-                    continue;
-                }
-                if (!child->is_directory(child_ec))
-                    continue;
-                const std::string child_name = lower(child->path().filename().string());
-                if (std::find_if(bodies.begin(), bodies.end(), [&](const std::string &body) { return lower(body) == child_name; }) != bodies.end())
-                    folders.insert(child->path());
-            }
-        }
-
-        for (const fs::path &folder : folders)
-            for (const char *layer : {"Surf", "Elev"})
-                for (const char *sub : {"", "Archive"})
-                {
-                    ec.clear();
-                    if (fs::is_regular_file(folder / sub / (std::string(layer) + ".tree"), ec))
-                        ++tree_count;
-                }
-        return tree_count ? textures : fs::path();
-    }
-
     fs::path find_kosmos(const fs::path &root)
     {
         std::error_code ec;
@@ -603,7 +538,7 @@ namespace launcher
         p.extra_args = j.value("extra_args", p.extra_args);
         p.last_scenario = j.value("last_scenario", p.last_scenario);
         p.server = j.value("server", p.server);
-        p.orbiter_textures = j.value("orbiter_textures", p.orbiter_textures);
+        p.legacy_orbiter_textures = j.value("orbiter_textures", p.legacy_orbiter_textures);
         return p;
     }
 
@@ -622,7 +557,8 @@ namespace launcher
         j["extra_args"] = p.extra_args;
         j["last_scenario"] = p.last_scenario;
         j["server"] = p.server;
-        j["orbiter_textures"] = p.orbiter_textures;
+        if (!p.legacy_orbiter_textures.empty())
+            j["orbiter_textures"] = p.legacy_orbiter_textures;
         std::ofstream out(user / "launcher.json");
         out << j.dump(2) << "\n";
         return static_cast<bool>(out);
@@ -693,8 +629,6 @@ namespace launcher
             args.insert(args.end(), {"--max-texture", std::to_string(p.max_texture)});
         if (p.world_texture > 0)
             args.insert(args.end(), {"--world-texture", std::to_string(p.world_texture)});
-        if (!p.orbiter_textures.empty())
-            args.insert(args.end(), {"--orbiter-textures", p.orbiter_textures});
         for (const std::string &a : split_arguments(p.extra_args))
             args.push_back(a);
         return args;
