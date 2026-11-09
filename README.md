@@ -374,6 +374,10 @@ Ships can carry energy weapons: beams (a pulse that flares and fades, then recha
 
 Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Lua covers scripting, and compiled or other-language addons connect to a running game through KosmosLink (see the SDK manual, `sdk/docs/MANUAL.md`; the old in-process design is kept in [docs/native_addon_roadmap.md](docs/native_addon_roadmap.md) as history).
 
+Set `"ignite_with_previous": true` on a stage to fire its engines alongside the preceding stage, each using its own propellant; staging still separates them independently. The Saturn V-23L uses this for its core and liquid boosters.
+
+The launcher's Addons page groups installed addons into expandable folders. Select an addon and use **Enabled** to change its setting; the change applies when Kosmos next starts. An optional `"category"` string in `addon.json` sets its launcher group; otherwise the launcher groups it by its contents.
+
 ## Roadmap
 
 The main feature set is in place; current work concentrates on stability, performance and visual improvements rather than major new features. The items below are ideas only and are not scheduled.

@@ -1622,6 +1622,67 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/saturn-v23-autopilot"))
+        {
+            if (!ship || ship->spec().name != "CVEL Saturn V-23L" || ship->active_stage() != 0)
+            {
+                std::fprintf(stderr, "Saturn V-23L autopilot selftest: expected the launch scenario\n");
+                return 1;
+            }
+            sim.props.set_bool("/autopilot/enabled", true);
+            bool staged = false;
+            for (int i = 0; i < 4000 && !ship->crashed(); ++i)
+            {
+                sim.step(0.05);
+                if (ship->active_stage() == 1)
+                {
+                    staged = true;
+                    break;
+                }
+            }
+            if (!staged || ship->telemetry().altitude < 50000.0 ||
+                sim.props.get_double("/controls/throttle") < 0.99 || ship->body().tanks[1].mass <= 0.0 ||
+                ship->body().tanks[1].mass >= ship->body().tanks[1].capacity)
+            {
+                std::fprintf(stderr, "Saturn V-23L autopilot selftest: booster separation or continuous core burn failed\n");
+                return 1;
+            }
+            std::puts("Saturn V-23L autopilot selftest ok");
+            return 0;
+        }
+        if (sim.props.get_bool("/selftest/saturn-v23-liftoff"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Saturn V-23L liftoff selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || (ship->spec().name != "CVEL Saturn V-23L" && ship->spec().name != "CVEL Saturn V-23L Payload") ||
+                ship->active_stage() != 0 || ship->burning_stage_end() != 2 || ship->body().tanks.size() < 3)
+                return fail("expected V-23L with boosters and core burning together");
+            const double booster = ship->body().tanks[0].mass, core = ship->body().tanks[1].mass;
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 400; ++i)
+                sim.step(0.05);
+            if (ship->crashed() || ship->telemetry().altitude < 100.0 || ship->telemetry().vertical_speed < 10.0)
+                return fail("rocket did not lift off");
+            if (ship->body().tanks[0].mass >= booster || ship->body().tanks[1].mass >= core ||
+                ship->body().tanks[2].mass != ship->body().tanks[2].capacity ||
+                ship->telemetry().max_thrust < 100000000.0 || ship->main_max_thrust() < 100000000.0)
+                return fail("parallel engine thrust or independent fuel tanks incorrect");
+            if (sim.props.get_double("/ships/ship[0]/stage-delta-v") <= 0.0 ||
+                !sim.props.get_bool("/ships/ship[0]/parallel-next-stage"))
+                return fail("parallel staging telemetry incorrect");
+            const double core_before = ship->body().tanks[1].mass;
+            if (!ship->stage_once() || ship->active_stage() != 1 || ship->burning_stage_end() != 2)
+                return fail("booster separation did not retain the core");
+            for (int i = 0; i < 20; ++i)
+                sim.step(0.05);
+            if (ship->body().tanks[0].mass != 0.0 || ship->body().tanks[1].mass >= core_before ||
+                sim.props.get_bool("/ships/ship[0]/parallel-next-stage"))
+                return fail("core did not continue after booster separation");
+            std::puts("Saturn V-23L liftoff selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/star48-stack"))
         {
             const auto fail = [](const char *message) {

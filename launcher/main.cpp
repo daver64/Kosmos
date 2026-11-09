@@ -6,7 +6,6 @@
 #include "orbiter_zip.h"
 
 #include <wx/wx.h>
-#include <wx/checklst.h>
 #include <wx/dir.h>
 #include <wx/dirdlg.h>
 #include <wx/gauge.h>
@@ -734,11 +733,13 @@ namespace
         {
             auto *page = new wxPanel(book_);
             auto *row = new wxBoxSizer(wxHORIZONTAL);
-            addon_list_ = new wxCheckListBox(page, wxID_ANY, wxDefaultPosition, wxSize(300, -1));
+            addon_tree_ = new wxTreeCtrl(page, wxID_ANY, wxDefaultPosition, wxSize(300, -1), wxTR_HIDE_ROOT | wxTR_HAS_BUTTONS | wxTR_SINGLE);
             auto *right = new wxBoxSizer(wxVERTICAL);
             addon_thumb_ = new wxStaticBitmap(page, wxID_ANY, load_thumbnail({}, 480, 270));
             addon_title_ = new wxStaticText(page, wxID_ANY, "");
             addon_title_->SetFont(addon_title_->GetFont().Bold().Scaled(1.4f));
+            addon_enabled_ = new wxCheckBox(page, wxID_ANY, "Enabled");
+            addon_enabled_->Enable(false);
             addon_text_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
             auto *open = new wxButton(page, wxID_ANY, "Open addons folder");
             auto *install = new wxButton(page, wxID_ANY, "Install addon from zip...");
@@ -747,18 +748,29 @@ namespace
             buttons->Add(install, 0, wxALL, 8);
             right->Add(addon_thumb_, 0, wxALL, 8);
             right->Add(addon_title_, 0, wxLEFT | wxRIGHT, 8);
+            right->Add(addon_enabled_, 0, wxALL, 8);
             right->Add(addon_text_, 1, wxALL | wxEXPAND, 8);
             right->Add(buttons, 0);
-            row->Add(addon_list_, 0, wxEXPAND | wxALL, 8);
+            row->Add(addon_tree_, 0, wxEXPAND | wxALL, 8);
             row->Add(right, 1, wxEXPAND);
             page->SetSizer(row);
             book_->AddPage(page, "Addons");
-            addon_list_->Bind(wxEVT_LISTBOX, [this](wxCommandEvent &) { ShowAddon(); });
-            addon_list_->Bind(wxEVT_CHECKLISTBOX, [this](wxCommandEvent &e)
+            addon_tree_->Bind(wxEVT_TREE_SEL_CHANGED, [this](wxTreeEvent &) { ShowAddon(); });
+            addon_enabled_->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &)
                               {
-                                  const int i = e.GetInt();
-                                  addons_[i].enabled = addon_list_->IsChecked(i);
-                                  save_disabled_addons(addons_);
+                                  AddonInfo *a = SelectedAddon();
+                                  if (!a)
+                                      return;
+                                  const bool previous = a->enabled;
+                                  a->enabled = addon_enabled_->GetValue();
+                                  if (!save_disabled_addons(addons_))
+                                  {
+                                      a->enabled = previous;
+                                      addon_enabled_->SetValue(previous);
+                                      wxMessageBox("Could not save addon settings.", "Addons", wxOK | wxICON_ERROR, this);
+                                      return;
+                                  }
+                                  addon_tree_->SetItemText(addon_tree_->GetSelection(), W(a->name + (a->enabled ? " (enabled)" : " (disabled)")));
                                   ++scenario_generation_;
                                   scenarios_ = scan_scenarios(root_, addons_);
                                   FillTree();
@@ -768,12 +780,34 @@ namespace
             install->Bind(wxEVT_BUTTON, [this](wxCommandEvent &) { InstallAddon(); });
         }
 
+        AddonInfo *SelectedAddon()
+        {
+            const wxTreeItemId item = addon_tree_->GetSelection();
+            if (!item.IsOk())
+                return nullptr;
+            auto *data = dynamic_cast<IdData *>(addon_tree_->GetItemData(item));
+            if (!data)
+                return nullptr;
+            for (AddonInfo &a : addons_)
+                if (a.id == data->id)
+                    return &a;
+            return nullptr;
+        }
+
         void ShowAddon()
         {
-            const int i = addon_list_->GetSelection();
-            if (i == wxNOT_FOUND)
+            const AddonInfo *selected = SelectedAddon();
+            addon_enabled_->Enable(selected != nullptr);
+            if (!selected)
+            {
+                addon_enabled_->SetValue(false);
+                addon_title_->SetLabel("");
+                addon_text_->SetValue("");
+                addon_thumb_->SetBitmap(load_thumbnail({}, 480, 270));
                 return;
-            const AddonInfo &a = addons_[i];
+            }
+            const AddonInfo &a = *selected;
+            addon_enabled_->SetValue(a.enabled);
             addon_thumb_->SetBitmap(load_thumbnail(a.thumbnail, 480, 270));
             addon_title_->SetLabel(W(a.name + "  v" + a.version));
             wxString ships;
@@ -789,6 +823,47 @@ namespace
                 text += "\n\nShips:\n" + ships;
             addon_text_->SetValue(text);
             Layout();
+        }
+
+        void FillAddons()
+        {
+            std::string selected;
+            if (const AddonInfo *a = SelectedAddon())
+                selected = a->id;
+            std::set<std::string> expanded;
+            const wxTreeItemId old_root = addon_tree_->GetRootItem();
+            if (old_root.IsOk())
+            {
+                wxTreeItemIdValue cookie;
+                for (wxTreeItemId group = addon_tree_->GetFirstChild(old_root, cookie); group.IsOk(); group = addon_tree_->GetNextChild(old_root, cookie))
+                    if (addon_tree_->IsExpanded(group))
+                        expanded.insert(U(addon_tree_->GetItemText(group)));
+            }
+            addon_tree_->DeleteAllItems();
+            const wxTreeItemId root = addon_tree_->AddRoot("");
+            std::map<std::string, std::vector<const AddonInfo *>> groups;
+            for (const AddonInfo &a : addons_)
+                groups[a.category].push_back(&a);
+            wxTreeItemId select;
+            for (auto &group : groups)
+            {
+                const wxTreeItemId parent = addon_tree_->AppendItem(root, W(group.first));
+                std::sort(group.second.begin(), group.second.end(), [](const AddonInfo *a, const AddonInfo *b) { return a->name < b->name; });
+                for (const AddonInfo *a : group.second)
+                {
+                    const wxTreeItemId item = addon_tree_->AppendItem(parent, W(a->name + (a->enabled ? " (enabled)" : " (disabled)")), -1, -1, new IdData(a->id));
+                    if (a->id == selected)
+                        select = item;
+                }
+                if (expanded.count(group.first))
+                    addon_tree_->Expand(parent);
+            }
+            if (select.IsOk())
+            {
+                addon_tree_->EnsureVisible(select);
+                addon_tree_->SelectItem(select);
+            }
+            ShowAddon();
         }
 
         void InstallAddon()
@@ -1983,16 +2058,7 @@ namespace
             ++scenario_generation_;
             addons_ = scan_addons(root_);
             scenarios_ = scan_scenarios(root_, addons_);
-            addon_list_->Clear();
-            for (const AddonInfo &a : addons_)
-                addon_list_->Append(W(a.name));
-            for (size_t i = 0; i < addons_.size(); ++i)
-                addon_list_->Check(i, addons_[i].enabled);
-            if (!addons_.empty())
-            {
-                addon_list_->SetSelection(0);
-                ShowAddon();
-            }
+            FillAddons();
             FillTree();
             RefreshPacks();
             ShowOptions();
@@ -2026,14 +2092,14 @@ namespace
 
         wxSimplebook *book_ = nullptr;
         wxListBox *page_list_ = nullptr;
-        wxTreeCtrl *tree_ = nullptr;
+        wxTreeCtrl *tree_ = nullptr, *addon_tree_ = nullptr;
         wxStaticBitmap *thumb_ = nullptr, *addon_thumb_ = nullptr;
         wxString scenario_text_[3];
         wxStaticText *title_ = nullptr, *detail_ = nullptr, *blurb_ = nullptr, *addon_title_ = nullptr, *pack_text_ = nullptr, *update_label_ = nullptr;
         wxStaticText *pack_progress_text_ = nullptr;
         wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_pause_ = nullptr, *pack_dequeue_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
         Http report_http_;
-        wxCheckListBox *addon_list_ = nullptr;
+        wxCheckBox *addon_enabled_ = nullptr;
         wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;

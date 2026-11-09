@@ -303,7 +303,7 @@ namespace kosmos
             return 0.0;
         double sum = 0.0, level = 0.0;
         int count = 0;
-        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(burning_stage_end())]; ++i)
         {
             const sl::Thruster &t = b.thrusters[static_cast<std::size_t>(i)];
             const std::size_t k = static_cast<std::size_t>(i);
@@ -347,12 +347,13 @@ namespace kosmos
         const double yaw_angle = glm::radians(spec_.gimbal_range) * std::clamp(yaw, -1.0, 1.0);
         const double yaw_cos = std::cos(yaw_angle), yaw_sin = std::sin(yaw_angle);
         const auto &thrusters = body().thrusters;
-        const auto &engines = spec_.stages[static_cast<std::size_t>(active_stage_)].engines;
-        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
-             i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+        for (int stage = active_stage_; stage < burning_stage_end(); ++stage)
+        for (int i = stage_first_thruster_[static_cast<std::size_t>(stage)];
+             i < stage_first_thruster_[static_cast<std::size_t>(stage) + 1]; ++i)
         {
+            const auto &engines = spec_.stages[static_cast<std::size_t>(stage)].engines;
             const std::size_t k = static_cast<std::size_t>(i);
-            const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(active_stage_)]);
+            const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(stage)]);
             const sl::Thruster &t = thrusters[k];
             if (thruster_rcs_[k] || thruster_hover_[k] || thruster_pod_[k] >= 0 ||
                 local >= engines.size() || glm::length(engines[local].direction) < 1e-9 ||
@@ -446,8 +447,9 @@ namespace kosmos
         const double throttle = std::clamp(c.throttle, 0.0, 1.0);
         for (std::size_t i = 0; i < b.thrusters.size(); ++i)
             b.thrusters[i].level = 0.0;
-        for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
-             i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+        for (int stage = active_stage_; stage < burning_stage_end(); ++stage)
+        for (int i = stage_first_thruster_[static_cast<std::size_t>(stage)];
+             i < stage_first_thruster_[static_cast<std::size_t>(stage) + 1]; ++i)
         {
             const int pod = thruster_pod_[static_cast<std::size_t>(i)];
             sl::Thruster &t = b.thrusters[static_cast<std::size_t>(i)];
@@ -461,8 +463,8 @@ namespace kosmos
             {
                 const bool main_engine = !thruster_rcs_[static_cast<std::size_t>(i)] && !thruster_hover_[static_cast<std::size_t>(i)];
                 t.level = thruster_rcs_[static_cast<std::size_t>(i)] ? 0.0 : thruster_hover_[static_cast<std::size_t>(i)] ? std::clamp(c.hover, 0.0, 1.0) : throttle;
-                const auto &engines = spec_.stages[static_cast<std::size_t>(active_stage_)].engines;
-                const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(active_stage_)]);
+                const auto &engines = spec_.stages[static_cast<std::size_t>(stage)].engines;
+                const std::size_t local = static_cast<std::size_t>(i - stage_first_thruster_[static_cast<std::size_t>(stage)]);
                 if (main_engine && local < engines.size())
                 {
                     // The gimbal swings the thrust line about the ship's X (pitch) and Y (yaw) axes.

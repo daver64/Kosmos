@@ -111,6 +111,27 @@ int main(int argc, char **argv)
     const fs::path root = KOSMOS_SOURCE_DIR;
     const auto addons = scan_addons(root);
     CHECK(addons.size() > 5);
+    for (const auto &expected : std::vector<std::pair<std::string, std::string>>{
+             {"ares", "CVEL"}, {"cvel-deltaglider", "CVEL"}, {"probe", "CVEL"}, {"salyut", "CVEL"},
+             {"kosmoscad", "KosmosLink Apps"}, {"kosmosmap", "KosmosLink Apps"}, {"kosmosmission", "KosmosLink Apps"},
+             {"shipedit", "Tools"}, {"instruments", "Instruments"}, {"gale-base", "Buildings"},
+             {"nasa-voyager", "Ships"}, {"field-kit", "Other"}})
+    {
+        bool matched = false;
+        for (const AddonInfo &a : addons)
+            matched = matched || (a.id == expected.first && a.category == expected.second);
+        CHECK(matched);
+    }
+    {
+        const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+        const fs::path dir = fs::temp_directory_path() / ("launcher-addon-category-" + std::to_string(stamp));
+        fs::create_directories(dir / "addons" / "custom");
+        std::ofstream(dir / "addons" / "custom" / "addon.json")
+            << R"({"id":"custom-category-test","name":"Custom","category":"My collection","ships":["ship.json"]})";
+        const auto custom = scan_addons(dir);
+        CHECK(custom.size() == 1 && custom[0].category == "My collection");
+        fs::remove_all(dir);
+    }
     const auto scenarios = scan_scenarios(root, addons);
     CHECK(scenarios.size() > 10);
     bool found = false;

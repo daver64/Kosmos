@@ -566,14 +566,18 @@ namespace kosmos::app
                 const double t = std::clamp((clock - script.ramp_clock) / 3.0, 0.0, 1.0);
                 props.set_double("/controls/throttle", throttle * t * t * (3.0 - 2.0 * t));
             }
-            if (script.ignite_clock < 0.0 && ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().thrust < 1.0 && ship->telemetry().stage_fuel < 1.0 &&
-                ship->telemetry().total_fuel > 1.0 && ship->stage_once())
+            const bool parallel_stage = ship->burning_stage_end() > ship->active_stage() + 1;
+            if (script.ignite_clock < 0.0 && ship->active_stage() < ship->stage_count() - 1 && ship->telemetry().stage_fuel < 1.0 &&
+                (ship->telemetry().thrust < 1.0 || parallel_stage) && ship->telemetry().total_fuel > 1.0 && ship->stage_once())
             {
                 if (script.first_stage_clock < 0.0)
                     script.first_stage_clock = clock;
-                script.ignite_clock = clock + 5.0;
-                script.ramp_clock = -1.0;
-                props.set_double("/controls/throttle", 0.0);
+                if (!parallel_stage)
+                {
+                    script.ignite_clock = clock + 5.0;
+                    script.ramp_clock = -1.0;
+                    props.set_double("/controls/throttle", 0.0);
+                }
                 props.set_int("/sim/warp-index", 0);
             }
         }

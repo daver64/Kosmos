@@ -320,7 +320,7 @@ namespace kosmos
         const double g_local = planet.gm / std::max(glm::dot(r, r), 1.0);
         t.max_thrust = 0.0;
         if (!b.thrusters.empty())
-            for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+            for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(burning_stage_end())]; ++i)
                 t.max_thrust += b.thrusters[static_cast<std::size_t>(i)].max_thrust;
         t.twr = b.mass() > 0.0 ? t.max_thrust / (b.mass() * g_local) : 0.0;
         t.acceleration_g = t.thrust / (b.mass() * g0);

@@ -24,7 +24,7 @@ namespace launcher
 
     struct AddonInfo
     {
-        std::string id, name, version, author, description, long_description;
+        std::string id, name, version, author, description, long_description, category;
         std::vector<std::string> ships;
         fs::path directory, thumbnail;
         bool enabled = true;

@@ -427,6 +427,7 @@ namespace kosmos
                 stage.radius = js.value("radius", stage.radius);
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
                 stage.with_next = js.value("with_next", false);
+                stage.ignite_with_previous = js.value("ignite_with_previous", false);
                 stage.radial_pair = js.value("radial_pair", false);
                 stage.radial_parts = js.value("radial_parts", false);
                 stage.separation_dir = vec3(js.value("separation_dir", nlohmann::json()), stage.separation_dir);

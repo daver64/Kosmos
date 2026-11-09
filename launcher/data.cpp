@@ -211,6 +211,26 @@ namespace launcher
             a.id = j.value("id", folder.filename().string());
             a.name = j.value("name", a.id);
             a.version = j.contains("version") && j["version"].is_string() ? j["version"].get<std::string>() : "0";
+            a.category = str(j, "category");
+            if (a.category.empty())
+            {
+                if (a.id.rfind("cvel-", 0) == 0 || a.name.rfind("CVEL ", 0) == 0 || a.name.rfind("CVE-Lite ", 0) == 0)
+                    a.category = "CVEL";
+                else if (j.contains("native") && j["native"].is_object())
+                {
+                    const auto &native = j["native"];
+                    const bool link = native.contains("capabilities") && native["capabilities"].is_array() && !native["capabilities"].empty();
+                    a.category = (link || a.id.rfind("kosmos", 0) == 0) ? "KosmosLink Apps" : "Tools";
+                }
+                else if (j.contains("ships") && j["ships"].is_array() && !j["ships"].empty())
+                    a.category = "Ships";
+                else if (j.contains("buildings") && j["buildings"].is_array() && !j["buildings"].empty())
+                    a.category = "Buildings";
+                else if (j.contains("mfds") && j["mfds"].is_array() && !j["mfds"].empty())
+                    a.category = "Instruments";
+                else
+                    a.category = "Other";
+            }
             a.author = str(j, "author");
             a.description = str(j, "description");
             if (const fs::path longer = existing(folder, str(j, "long_description")); !longer.empty())

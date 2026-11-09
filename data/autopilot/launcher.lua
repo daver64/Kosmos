@@ -145,7 +145,11 @@ function update(dt)
     end
     if get("stage-fuel") < 50.0 then
       if stage < config.last then
-        set_phase("staging", "Staging")
+        if get("parallel-next-stage") then
+          props.set("/controls/stage", true)
+        else
+          set_phase("staging", "Staging")
+        end
       elseif apoapsis < target then
         finish("Out of propellant")
       end

@@ -70,6 +70,7 @@ namespace kosmos
         tree.node(base + "/pod-angle-right")->tie_double([this] { return pod_angle_[1] / 3.14159265358979; });
         tree.node(base + "/stage")->tie_int([this] { return active_stage_; });
         tree.node(base + "/stage-count")->tie_int([this] { return stage_count(); });
+        tree.node(base + "/parallel-next-stage")->tie_bool([this] { return burning_stage_end() > active_stage_ + 1; });
         tree.node(base + "/crashed")->tie_bool([this] { return crashed_; });
         tree.node(base + "/landed")->tie_bool([this] { return telemetry_.landed; });
         tree.node(base + "/on-rails")->tie_bool([this] { return on_rails(); });
@@ -120,23 +121,50 @@ namespace kosmos
         num("main-max-thrust", [this] { return main_max_thrust(); });
         num("acceleration-g", [this] { return telemetry_.acceleration_g; });
         num("stage-fuel", [this] { return telemetry_.stage_fuel; });
-        // Delta-v left in the active stage by the rocket equation, at the stage's thrust-weighted Isp.
+        // Delta-v until the active stage runs out, including any stages burning alongside it.
         num("stage-delta-v", [this] {
             const auto &b = body();
             if (b.thrusters.empty() || active_stage_ >= static_cast<int>(stage_first_thruster_.size()) - 1)
                 return 0.0;
-            double thrust = 0.0, flow = 0.0;
-            for (int i = stage_first_thruster_[static_cast<std::size_t>(active_stage_)]; i < stage_first_thruster_[static_cast<std::size_t>(active_stage_) + 1]; ++i)
+            const int end = burning_stage_end();
+            std::vector<double> fuel, flows, thrusts;
+            for (int stage = active_stage_; stage < end; ++stage)
             {
-                const sl::Thruster &th = b.thrusters[static_cast<std::size_t>(i)];
-                if (th.isp > 0.0)
+                double thrust = 0.0, flow = 0.0;
+                for (int i = stage_first_thruster_[static_cast<std::size_t>(stage)]; i < stage_first_thruster_[static_cast<std::size_t>(stage) + 1]; ++i)
                 {
-                    thrust += th.max_thrust;
-                    flow += th.max_thrust / th.isp;
+                    const sl::Thruster &th = b.thrusters[static_cast<std::size_t>(i)];
+                    if (th.isp > 0.0)
+                    {
+                        thrust += th.max_thrust;
+                        flow += th.max_thrust / (th.isp * g0);
+                    }
                 }
+                fuel.push_back(b.tanks[static_cast<std::size_t>(stage)].mass);
+                flows.push_back(flow);
+                thrusts.push_back(thrust);
             }
-            const double m0 = telemetry_.mass, m1 = m0 - telemetry_.stage_fuel;
-            return flow > 0.0 && m1 > 0.0 && m0 > m1 ? 9.80665 * thrust / flow * std::log(m0 / m1) : 0.0;
+            double mass = telemetry_.mass, dv = 0.0;
+            while (fuel[0] > 0.0 && flows[0] > 0.0)
+            {
+                double duration = fuel[0] / flows[0], flow = 0.0, thrust = 0.0;
+                for (std::size_t i = 0; i < fuel.size(); ++i)
+                    if (fuel[i] > 0.0 && flows[i] > 0.0)
+                        duration = std::min(duration, fuel[i] / flows[i]);
+                for (std::size_t i = 0; i < fuel.size(); ++i)
+                    if (fuel[i] > 0.0 && flows[i] > 0.0)
+                    {
+                        flow += flows[i];
+                        thrust += thrusts[i];
+                        fuel[i] = duration >= fuel[i] / flows[i] ? 0.0 : fuel[i] - flows[i] * duration;
+                    }
+                const double next_mass = mass - flow * duration;
+                if (next_mass <= 0.0 || next_mass >= mass)
+                    break;
+                dv += thrust / flow * std::log(mass / next_mass);
+                mass = next_mass;
+            }
+            return dv;
         });
         num("stage-fuel-capacity", [this] { return active_stage_ < static_cast<int>(spec_.stages.size()) ? spec_.stages[static_cast<std::size_t>(active_stage_)].propellant : 0.0; });
         num("stage-fuel-percent", [this] {

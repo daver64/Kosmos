@@ -134,6 +134,7 @@ namespace kosmos
         std::vector<sl::dvec3> gear;
         double separation_speed = 1.0;
         bool with_next = false; // also drop the next stage on the same press; chains are allowed
+        bool ignite_with_previous = false; // fire this stage while the preceding stage is active
         /** Two equally massive parts at opposite offsets separate radially as independent debris. */
         bool radial_pair = false;
         /** Every part separates independently, kicked radially from its ship-frame X/Y offset. */
@@ -622,6 +623,13 @@ namespace kosmos
         sl::dvec3 origin() const { return body().position - body().direction_to_world(com_); }
         const sl::dvec3 &com_offset() const { return com_; }
         int active_stage() const { return active_stage_; }
+        int burning_stage_end() const
+        {
+            int end = active_stage_ + 1;
+            while (end < stage_count() && spec_.stages[static_cast<std::size_t>(end)].ignite_with_previous)
+                ++end;
+            return end;
+        }
         ShipCarryState carry_state() const;
         void restore_carry_state(const ShipCarryState &state);
         bool attitude_control_available() const { return !rcs_dry() && (explicit_rcs_ || spec_.torque_accel > 0.0); }

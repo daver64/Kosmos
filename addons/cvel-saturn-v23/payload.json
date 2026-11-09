@@ -282,6 +282,7 @@
     },
     {
       "name": "S-IC first stage",
+      "ignite_with_previous": true,
       "dry_mass": 169000,
       "propellant": 2525000,
       "z": -3.5,

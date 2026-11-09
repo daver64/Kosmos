@@ -39,6 +39,55 @@ public:
             return Fail("stalled download retained a speed estimate");
         SetExitOnFrameDelete(false);
         const std::string mode = U(argv[3]);
+        if (mode == "addons")
+        {
+            root = P(argv[2]);
+            fs::create_directories(root / "addons" / "test" / "scenarios");
+            std::ofstream(root / "addons" / "test" / "addon.json")
+                << R"({"id":"launcher-ui-test","name":"CVEL Test","version":"1","ships":["ship.json"]})";
+            std::ofstream(root / "addons" / "test" / "scenarios" / "test.json")
+                << R"({"name":"Test scenario","ships":[]})";
+            frame = new Frame(root, false);
+            frame->book_->SetSelection(1);
+            const wxTreeItemId root_item = frame->addon_tree_->GetRootItem();
+            wxTreeItemIdValue cookie;
+            const wxTreeItemId group = frame->addon_tree_->GetFirstChild(root_item, cookie);
+            if (!group.IsOk() || frame->addon_tree_->GetItemText(group) != "CVEL" ||
+                frame->addon_tree_->IsExpanded(group) || frame->addon_enabled_->IsEnabled())
+                return Fail("addon group not initially collapsed");
+            frame->addon_tree_->Expand(group);
+            wxTreeItemIdValue child_cookie;
+            const wxTreeItemId item = frame->addon_tree_->GetFirstChild(group, child_cookie);
+            if (!item.IsOk() || frame->addon_tree_->GetItemText(item) != "CVEL Test (enabled)")
+                return Fail("addon item missing or enabled state incorrect");
+            frame->addon_tree_->SelectItem(item);
+            if (!frame->addon_enabled_->IsEnabled() || !frame->addon_enabled_->GetValue() ||
+                frame->addon_title_->GetLabel() != "CVEL Test  v1" || frame->scenarios_.size() != 1)
+                return Fail("addon selection did not show details");
+            frame->addon_enabled_->SetValue(false);
+            wxCommandEvent toggle(wxEVT_CHECKBOX, frame->addon_enabled_->GetId());
+            frame->addon_enabled_->GetEventHandler()->ProcessEvent(toggle);
+            if (frame->addons_[0].enabled || !frame->scenarios_.empty() ||
+                frame->addon_tree_->GetItemText(item) != "CVEL Test (disabled)")
+                return Fail("disabling addon did not update its state and scenarios");
+            frame->Rescan();
+            const wxTreeItemId new_group = frame->addon_tree_->GetFirstChild(frame->addon_tree_->GetRootItem(), cookie);
+            if (!new_group.IsOk() || !frame->addon_tree_->IsExpanded(new_group) ||
+                !frame->SelectedAddon() || frame->SelectedAddon()->enabled || frame->addon_enabled_->GetValue())
+                return Fail("addon state, selection or expansion lost on rescan");
+            frame->addon_enabled_->SetValue(true);
+            frame->addon_enabled_->GetEventHandler()->ProcessEvent(toggle);
+            if (!frame->addons_[0].enabled || frame->scenarios_.size() != 1)
+                return Fail("reenabling addon did not restore scenarios");
+            frame->addon_tree_->SelectItem(new_group);
+            if (frame->addon_enabled_->IsEnabled() || !frame->addon_title_->GetLabel().empty())
+                return Fail("addon group retained selection details");
+            success = true;
+            frame->Destroy();
+            frame = nullptr;
+            CallAfter([this] { ExitMainLoop(); });
+            return true;
+        }
         if (mode == "queue" || mode == "queue-archive" || mode == "queue-timeout" || mode == "queue-timeout-pause")
         {
             if (argc != 5)
