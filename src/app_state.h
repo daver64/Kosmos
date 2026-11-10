@@ -42,6 +42,9 @@
 #include "selftest.h"
 #include "engine_sound.h"
 #include "flight_recording.h"
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+#include "orbiter_microtexture.h"
+#endif
 
 #include <algorithm>
 #include <chrono>
@@ -325,6 +328,11 @@ namespace kosmos::app
         int earth_id{};
         const kosmos::Body * earth_body{};
         std::vector<std::unique_ptr<BodyTerrain>> body_terrains;
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+        std::unique_ptr<sl::PlanetMicrotextureArray> orbiter_microtexture_array;
+        kosmos::OrbiterMicrotextureAssets orbiter_microtexture_assets;
+        int orbiter_microtexture_body = -1;
+#endif
         sl::Terrain * terrain{};
         TerrainSet terrain_set;
         sl::Mesh * cloud_shell{};

@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "orbital_relief_guard.h"
 #include "orbiter_tile_terrain.h"
 #include "plasma_look.h"
 
@@ -353,7 +354,7 @@ namespace kosmos::app
             }
         {
             sl::Material prop_material;
-            base_renderer.draw(universe, sim.bases, eye_world, 15000.0, prop_material);
+            base_renderer.draw(universe, sim.bases, eye_world, kosmos::base_draw_range, prop_material);
         }
 
         // A sunlit limb: a camera-facing disc whose opacity follows the atmosphere's thickness along each grazing ray.
@@ -482,14 +483,97 @@ namespace kosmos::app
                 }
                 return true;
             };
+            const auto check_base_site = [&](const kosmos::FlattenSite &site, const std::string &where)
+            {
+                if (!std::isfinite(site.flat) || site.flat < 0.0 ||
+                    !std::isfinite(site.a.x) || !std::isfinite(site.a.y) || !std::isfinite(site.a.z) ||
+                    !std::isfinite(site.b.x) || !std::isfinite(site.b.y) || !std::isfinite(site.b.z))
+                {
+                    fallback_reason = "base: invalid flattened surface";
+                    return false;
+                }
+                const glm::dvec3 line = glm::cross(site.a, site.b);
+                const double line_length = glm::length(line);
+                const auto check_point = [&](const glm::dvec3 &world_direction, const char *part)
+                {
+                    const glm::dvec3 sample_position = universe_ref->position(body) +
+                                                       world_direction * (radius + site.height);
+                    const double camera_distance = glm::length(sample_position - eye_world);
+                    if (!std::isfinite(camera_distance))
+                    {
+                        fallback_reason = where + " " + part + ": surface position is invalid";
+                        return false;
+                    }
+                    if (camera_distance > 250.0)
+                        return true;
+                    const glm::dvec3 direction = glm::normalize(glm::inverse(tile_frame) * world_direction);
+                    const std::string point = where + " " + part;
+                    return check_height(direction, collision_height_at(direction), point.c_str());
+                };
+                if (line_length < 1e-12)
+                {
+                    const glm::dvec3 centre = glm::normalize(site.a);
+                    const glm::dvec3 axis = std::fabs(centre.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
+                    const glm::dvec3 right = glm::normalize(glm::cross(axis, centre));
+                    const glm::dvec3 forward = glm::cross(centre, right);
+                    if (!check_point(centre, "centre"))
+                        return false;
+                    for (int i = 0; i < 8; ++i)
+                    {
+                        const double angle = 2.0 * glm::pi<double>() * i / 8.0;
+                        const glm::dvec3 tangent = right * std::cos(angle) + forward * std::sin(angle);
+                        const glm::dvec3 direction = glm::normalize(centre * std::cos(site.flat / radius) +
+                                                                    tangent * std::sin(site.flat / radius));
+                        if (!check_point(direction, "edge"))
+                            return false;
+                    }
+                    return true;
+                }
+                const glm::dvec3 pole = line / line_length;
+                const double angle = std::acos(std::clamp(glm::dot(glm::normalize(site.a),
+                                                                    glm::normalize(site.b)), -1.0, 1.0));
+                const int steps = std::clamp(static_cast<int>(std::ceil(angle * radius / 500.0)), 1, 32);
+                for (int step = 0; step <= steps; ++step)
+                {
+                    const double t = static_cast<double>(step) / steps;
+                    const glm::dvec3 centre = glm::normalize(site.a * (1.0 - t) + site.b * t);
+                    const glm::dvec3 right = glm::normalize(glm::cross(pole, centre));
+                    for (double offset : {-site.flat, 0.0, site.flat})
+                    {
+                        const glm::dvec3 direction = glm::normalize(centre * std::cos(offset / radius) +
+                                                                    right * std::sin(offset / radius));
+                        if (!check_point(direction, "line"))
+                            return false;
+                    }
+                }
+                return true;
+            };
+            for (const kosmos::Base &base : sim.bases)
+            {
+                if (universe_ref->find(base.body) == body &&
+                    kosmos::base_in_draw_range(base, universe_ref->position(body), radius, eye_world,
+                                               kosmos::base_draw_range))
+                {
+                    const std::vector<kosmos::FlattenSite> sites = kosmos::flatten_sites(base, radius);
+                    for (std::size_t i = 0; i < sites.size(); ++i)
+                        if (!check_base_site(sites[i], "base site " + std::to_string(i)))
+                        {
+                            fallback_reason = "base " + base.name + ": " + fallback_reason;
+                            fallback = true;
+                            break;
+                        }
+                    if (fallback)
+                        break;
+                }
+            }
             const double eye_distance = glm::length(eye_local);
-            if (!std::isfinite(eye_distance) || eye_distance < 1e-12)
+            if (!fallback && (!std::isfinite(eye_distance) || eye_distance < 1e-12))
             {
                 fallback = true;
                 fallback_reason = "camera position is invalid";
             }
-            else if (!std::isfinite(source->max_height()) ||
-                     (eye_distance - 1.0) * radius <= source->max_height() + 250.0)
+            else if (!fallback && (!std::isfinite(source->max_height()) ||
+                     (eye_distance - 1.0) * radius <= source->max_height() + 250.0))
             {
                 const glm::dvec3 direction = eye_local / eye_distance;
                 const double expected = collision_height_at(direction);
@@ -510,46 +594,62 @@ namespace kosmos::app
             for (int s = 0; s < sim.ship_count() && !fallback; ++s)
             {
                 const Ship &vessel = *sim.ship(s);
-                if (vessel.telemetry().soi != body || glm::length(vessel.origin() - eye_world) > 10000.0)
+                if (vessel.telemetry().soi != body ||
+                    !kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, 10000.0))
                     continue;
-                const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
-                const double distance = glm::length(offset);
-                if (!std::isfinite(distance) || distance < 1.0)
+                const double camera_distance = glm::length(vessel.origin() - eye_world);
+                if (!std::isfinite(camera_distance))
                 {
                     fallback = true;
                     fallback_reason = "ship position is invalid";
                     break;
                 }
-                const glm::dvec3 tile_direction = glm::inverse(tile_frame) * (offset / distance);
-                const double collision_height = collision_height_at(tile_direction);
-                if (!std::isfinite(collision_height))
+                if (camera_distance <= 10000.0)
                 {
-                    fallback = true;
-                    fallback_reason = "collision height is not finite";
-                    break;
-                }
-                if (distance - radius - collision_height > 250.0)
-                    continue;
-                const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
-                const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
-                const glm::dvec3 forward = glm::cross(tile_direction, right);
-                for (const glm::dvec3 &delta : {glm::dvec3(0.0), right * (10.0 / radius), -right * (10.0 / radius),
-                                                forward * (10.0 / radius), -forward * (10.0 / radius)})
-                {
-                    const glm::dvec3 direction = glm::normalize(tile_direction + delta);
-                    if (!check_height(direction, collision_height_at(direction), "ship"))
+                    const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
+                    const double distance = glm::length(offset);
+                    if (!std::isfinite(distance) || distance < 1.0)
                     {
                         fallback = true;
+                        fallback_reason = "ship position is invalid";
                         break;
                     }
+                    const glm::dvec3 tile_direction = glm::inverse(tile_frame) * (offset / distance);
+                    const double collision_height = collision_height_at(tile_direction);
+                    if (!std::isfinite(collision_height))
+                    {
+                        fallback = true;
+                        fallback_reason = "collision height is not finite";
+                        break;
+                    }
+                    if (distance - radius - collision_height <= 250.0)
+                    {
+                        const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
+                        const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
+                        const glm::dvec3 forward = glm::cross(tile_direction, right);
+                        for (const glm::dvec3 &delta : {glm::dvec3(0.0), right * (10.0 / radius), -right * (10.0 / radius),
+                                                        forward * (10.0 / radius), -forward * (10.0 / radius)})
+                        {
+                            const glm::dvec3 direction = glm::normalize(tile_direction + delta);
+                            if (!check_height(direction, collision_height_at(direction), "ship"))
+                            {
+                                fallback = true;
+                                break;
+                            }
+                        }
+                    }
                 }
+                if (!fallback && !kosmos::check_relief_gear_contacts(vessel.body(), universe_ref->position(body),
+                                                                     glm::inverse(tile_frame), radius, eye_world, 10000.0, collision_height_at,
+                                                                     check_height, fallback_reason))
+                    fallback = true;
             }
             if (fallback)
             {
                 ground_guard->relief_ground_ready_since = {};
                 if (!ground_guard->relief_ground_fallback)
                 {
-                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain until nearby surface heights agree: %s\n",
+                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain: %s\n",
                                  universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str());
                     ground_guard->relief_ground_fallback = true;
                 }
@@ -569,6 +669,80 @@ namespace kosmos::app
             if (ground_guard->relief_ground_fallback)
                 return false;
         }
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+        double maximum_terrain_height = std::numeric_limits<double>::quiet_NaN();
+        for (const auto &terrain_body : body_terrains)
+            if (terrain_body && terrain_body->body == body)
+            {
+                maximum_terrain_height = terrain_body->terrain->source()->max_height();
+                break;
+            }
+        if (!detail_disabled && !options.orbiter_microtexture_root.empty() && body == soi &&
+            kosmos::orbiter_microtexture_near_surface(glm::length(relative), radius, maximum_terrain_height))
+        {
+            if (orbiter_microtexture_body != body)
+            {
+                orbiter_microtexture_array.reset();
+                orbiter_microtexture_assets = {};
+                orbiter_microtexture_body = body;
+                std::string detail_error;
+                const auto &name = universe_ref->bodies[static_cast<std::size_t>(body)].name;
+                const auto found = kosmos::discover_orbiter_microtextures(options.orbiter_microtexture_root, name,
+                                                                          orbiter_microtexture_assets, detail_error);
+                if (found == kosmos::OrbiterMicrotextureDiscovery::available)
+                {
+                    std::array<std::string, 3> paths;
+                    for (std::size_t i = 0; i < paths.size(); ++i)
+                        paths[i] = orbiter_microtexture_assets.paths[i].string();
+                    orbiter_microtexture_array = sl::PlanetMicrotextureArray::load_dds(paths);
+                    if (orbiter_microtexture_array)
+                        std::fprintf(stderr, "[kosmos] %s Orbiter microdetail loaded\n", name.c_str());
+                    else
+                        std::fprintf(stderr, "[kosmos] %s Orbiter microdetail unavailable: %s\n",
+                                     name.c_str(), sl::last_error().c_str());
+                }
+                else if (found == kosmos::OrbiterMicrotextureDiscovery::error)
+                    std::fprintf(stderr, "[kosmos] %s Orbiter microdetail unavailable: %s\n", name.c_str(), detail_error.c_str());
+                else
+                    std::fprintf(stderr, "[kosmos] %s Orbiter microdetail not configured\n", name.c_str());
+            }
+            if (orbiter_microtexture_array)
+            {
+                sl::Material detailed = material;
+                detailed.microdetail.array = orbiter_microtexture_array->handle();
+                detailed.microdetail.normals = orbiter_microtexture_assets.config.normals;
+                const sl::PlanetTiles::MicrodetailMapper map = [&](int level, int column, int row, int levels_up,
+                                                                   sl::PlanetMicrodetail &detail, std::string &detail_error)
+                {
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        kosmos::OrbiterMicrotextureRange range;
+                        if (!kosmos::orbiter_microtexture_range(level, column, row, levels_up, i, radius,
+                                                                orbiter_microtexture_array->source_width(i),
+                                                                orbiter_microtexture_assets.config.levels[static_cast<std::size_t>(i)].pixels_per_metre,
+                                                                range, detail_error))
+                            return false;
+                        const double values[4] = {range.u_offset, range.v_offset, range.u_scale, range.v_scale};
+                        for (int j = 0; j < 4; ++j)
+                        {
+                            detail.ranges[i][j] = static_cast<float>(values[j]);
+                            if (!std::isfinite(detail.ranges[i][j]))
+                            {
+                                detail_error = "microdetail range exceeds shader precision";
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                };
+                if (tiles.draw_relative_microdetail(model, detailed, map))
+                    return true;
+                std::fprintf(stderr, "[kosmos] %s Orbiter microdetail draw failed: %s; disabling it for this body\n",
+                             universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), sl::last_error().c_str());
+                orbiter_microtexture_array.reset();
+            }
+        }
+#endif
         tiles.draw_relative(model, material);
         return true;
     }

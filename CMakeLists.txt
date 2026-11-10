@@ -27,8 +27,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # To build against a source checkout instead, pass -DKOSMOS_SIMLIB_DIR=/path/to/rsimlib.
 set(KOSMOS_SIMLIB_DIR "" CACHE PATH "Build against this simlib source tree instead of an installed simlib")
 option(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF "Build the incomplete Orbiter textured-relief prototype" OFF)
-if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF AND NOT KOSMOS_SIMLIB_DIR)
-    message(FATAL_ERROR "KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF requires KOSMOS_SIMLIB_DIR with the matching simlib changes")
+option(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL "Build the incomplete Orbiter microdetail prototype" OFF)
+if(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL AND NOT KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
+    message(FATAL_ERROR "Experimental Orbiter microdetail requires KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF.")
 endif()
 
 if(KOSMOS_SIMLIB_DIR)
@@ -57,6 +58,47 @@ if(KOSMOS_SIMLIB_DIR)
 else()
     find_package(simlib CONFIG REQUIRED)
     set(KOSMOS_SIMLIB_LIBS simlib::simlib simlib::imgui simlib::lua sol2)
+    if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
+        include(CheckCXXSourceCompiles)
+        include(CMakePushCheckState)
+        cmake_push_check_state(RESET)
+        set(CMAKE_REQUIRED_LIBRARIES simlib::simlib)
+        unset(KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION CACHE)
+        check_cxx_source_compiles("
+            #include <planet_tiles.h>
+            int main(int argc, char **argv) {
+                if (argc > 1) {
+                    double height;
+                    auto *tiles = reinterpret_cast<sl::PlanetTiles *>(argv[1]);
+                    return tiles->drawn_elevation(glm::dvec3(1.0, 0.0, 0.0), height);
+                }
+                return 0;
+            }" KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION)
+        cmake_pop_check_state()
+        if(NOT KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION)
+            message(FATAL_ERROR "Experimental Orbiter relief requires an installed simlib with PlanetTiles::drawn_elevation; rebuild and install the revision in SIMLIB_COMMIT.")
+        endif()
+        if(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL)
+            cmake_push_check_state(RESET)
+            set(CMAKE_REQUIRED_LIBRARIES simlib::simlib)
+            unset(KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL CACHE)
+            check_cxx_source_compiles("
+                #include <planet_tiles.h>
+                int main(int argc, char **argv) {
+                    if (argc > 1) {
+                        auto *tiles = reinterpret_cast<sl::PlanetTiles *>(argv[1]);
+                        sl::Material material;
+                        sl::PlanetTiles::MicrodetailMapper mapper;
+                        return tiles->draw_relative_microdetail(glm::dmat4(1.0), material, mapper);
+                    }
+                    return 0;
+                }" KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL)
+            cmake_pop_check_state()
+            if(NOT KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL)
+                message(FATAL_ERROR "Experimental Orbiter microdetail requires a simlib with PlanetTiles::draw_relative_microdetail.")
+            endif()
+        endif()
+    endif()
 endif()
 
 # ---- kosmos -------------------------------------------------------------------------------------------------------
@@ -168,6 +210,10 @@ target_compile_definitions(kosmos PRIVATE KOSMOS_VERSION="${KOSMOS_VERSION}")
 if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
     target_compile_definitions(kosmos PRIVATE KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF=1)
 endif()
+if(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL)
+    target_compile_definitions(kosmos PRIVATE KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL=1)
+    target_sources(kosmos PRIVATE src/orbiter_microtexture.cpp)
+endif()
 # Shipped in the package so the launcher can tell which build is installed.
 file(WRITE "${CMAKE_BINARY_DIR}/VERSION.txt" "${KOSMOS_VERSION}\n")
 
@@ -185,6 +231,9 @@ target_compile_features(scenario_thumbnail_test PRIVATE cxx_std_17)
 add_executable(orbiter_tree_lookup_test EXCLUDE_FROM_ALL tests/orbiter_tree_lookup_test.cpp src/planet_data.cpp)
 target_link_libraries(orbiter_tree_lookup_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(orbiter_tree_lookup_test PRIVATE src)
+
+add_executable(orbiter_microtexture_test EXCLUDE_FROM_ALL tests/orbiter_microtexture_test.cpp src/orbiter_microtexture.cpp)
+target_include_directories(orbiter_microtexture_test PRIVATE src)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Link only the terrain wrappers under test, rather than the rest of the base editor and renderer.
@@ -237,6 +286,11 @@ add_executable(landing_plane_test EXCLUDE_FROM_ALL tests/landing_plane_test.cpp 
 target_link_libraries(landing_plane_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(landing_plane_test PRIVATE src)
 target_compile_definitions(landing_plane_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
+add_executable(orbital_relief_guard_test EXCLUDE_FROM_ALL tests/orbital_relief_guard_test.cpp)
+target_link_libraries(orbital_relief_guard_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(orbital_relief_guard_test PRIVATE src)
+target_compile_definitions(orbital_relief_guard_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

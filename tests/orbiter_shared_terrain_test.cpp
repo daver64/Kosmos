@@ -4,9 +4,11 @@
 #include "orbiter_tile_colour.h"
 #include "terrain_mesh.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <memory>
+#include <utility>
 
 namespace
 {
@@ -42,6 +44,51 @@ int main()
     auto mesh = std::make_shared<kosmos::MeshSource>(natural, radius, std::vector<kosmos::MeshSource::Placed>{placed});
     assert(mesh->height_on_sphere(-origin, radius) == 10.0);
     assert(mesh->height_on_sphere_lod(-origin, radius, 20.0) == 30.0);
+
+    // Averaging nodes moves each mip sample to the centre of its source footprint.
+    for (const auto &dimensions : {std::pair<int, int>{5, 5}, {6, 8}, {7, 5}, {5, 6}})
+    {
+        auto ramp = std::make_shared<kosmos::MeshGrid>();
+        ramp->width = dimensions.first;
+        ramp->height = dimensions.second;
+        ramp->cell = 10.0;
+        ramp->max_height = 30.0;
+        for (int j = 0; j < ramp->height; ++j)
+            for (int i = 0; i < ramp->width; ++i)
+                ramp->heights.push_back(static_cast<float>(i + 3 * j));
+        kosmos::Base base;
+        base.direction = origin;
+        base.pole = forward;
+        kosmos::TerrainMeshSpec spec;
+        spec.blend = 0.0;
+        const auto placement = kosmos::MeshSource::place(base, radius, spec, ramp, 100.0);
+        kosmos::MeshSource source(natural, radius, {placement});
+        for (int level : {1, 2})
+        {
+            const double first = level == 1 ? 0.5 : 1.5;
+            // A six-node dimension ends at 4.5 even at the next mip level.
+            const auto last_sample = [level](int size)
+            {
+                if (size == 5) return 4.0;
+                if (size == 6) return 4.5;
+                if (size == 7) return level == 1 ? 6.0 : 5.25;
+                return level == 1 ? 6.5 : 5.5;
+            };
+            const double last_x = last_sample(ramp->width);
+            const double last_y = last_sample(ramp->height);
+            for (const auto &sample : {std::pair<double, double>{2.2, 2.5}, {0.0, 0.0},
+                                       {static_cast<double>(ramp->width - 1), static_cast<double>(ramp->height - 1)}})
+            {
+                const double x = (sample.first - 0.5 * (ramp->width - 1)) * ramp->cell;
+                const double y = (sample.second - 0.5 * (ramp->height - 1)) * ramp->cell;
+                const glm::dvec3 direction = glm::normalize(origin + (placement.right * x + placement.forward * y) / radius);
+                const double expected = 100.0 + std::clamp(sample.first, first, last_x) +
+                                        3.0 * std::clamp(sample.second, first, last_y);
+                assert(std::fabs(source.height_on_sphere_lod(direction, radius, ramp->cell * (1 << level)) - expected) < 1e-6);
+            }
+        }
+    }
+
     auto final_source = std::make_shared<kosmos::FlattenSource>(
         mesh, radius, std::vector<kosmos::FlattenSite>{{origin, origin, 200.0, 3.0, 2.0}});
 

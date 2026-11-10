@@ -50,6 +50,11 @@ namespace kosmos::app
     // Everything drawn or collided with that belongs to one star system; a quantum jump drops it and builds the next.
     void App::leave_system()
     {
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+        orbiter_microtexture_array.reset();
+        orbiter_microtexture_assets = {};
+        orbiter_microtexture_body = -1;
+#endif
         body_terrains.clear();
         terrain_set.items.clear();
         terrain = nullptr;
@@ -364,7 +369,7 @@ namespace kosmos::app
         relief.max_loads_in_flight = 4;
         relief.feather = 0.0f;
         relief.fade_seconds = 0.0f;
-        relief.skirt = 0.02f;
+        relief.skirt = 0.0f;
         auto result = sl::PlanetTiles::create(relief);
         if (!result)
             std::fprintf(stderr, "[kosmos] %s Orbiter relief unavailable: %s\n", body.name.c_str(), sl::last_error().c_str());

@@ -106,24 +106,33 @@ def main():
                 "state": {"r": [5400000, 0, 0], "v": [0, 0, -2816], "q": [0, 0, 1, 0]},
             }],
         }))
-        shot = temp / "instrument-scene.png"
-        command = [str(binary), "--root", str(ROOT), "--scenario-file", str(scenario),
-                   "--hide-info", "--no-clutter", "--no-clouds", "--gen-threads", "1",
-                   "--orbital-relief-patches", "24", "--orbital-relief-meshes", "96",
-                   "--orbital-relief-textures", "32", "--set-at", "4",
-                   "/ships/ship[0]/instruments/instrument[0]/shoot=1",
-                   "--shot", str(shot), "--shot-at", "8"]
-        result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=100)
-        output = result.stdout + result.stderr
-        assert result.returncode == 0 and shot.is_file(), output
-        assert "Mars Orbiter relief budgets:" in output, output
-        captures = list((temp / "config" / "kosmos" / "instrument-shots" / "NASA_Voyager").glob("nac-*.png"))
-        assert len(captures) == 1, output
-        with Image.open(captures[0]) as image:
-            assert image.size == (800, 800), image.size
-            red, _, blue = image.convert("RGB").getpixel((400, 400))
-            assert red > blue + 5, (red, blue, output)
-        print("Mars instrument capture ok")
+        near_scenario = temp / "instrument-mars-near.json"
+        near_data = json.loads(scenario.read_text())
+        near_data["ships"][0]["orbit"]["altitude_km"] = 200
+        near_data["ships"][0]["state"]["r"] = [3590000, 0, 0]
+        near_scenario.write_text(json.dumps(near_data))
+        for camera_radius, instrument_scenario in ((None, scenario), (1.05, scenario), (4.15, near_scenario)):
+            shot = temp / f"instrument-scene-{camera_radius}.png"
+            capture_env = dict(env, XDG_CONFIG_HOME=str(temp / f"instrument-config-{camera_radius}"))
+            command = [str(binary), "--root", str(ROOT), "--scenario-file", str(instrument_scenario),
+                       "--hide-info", "--no-clutter", "--no-clouds", "--gen-threads", "1",
+                       "--orbital-relief-patches", "24", "--orbital-relief-meshes", "96",
+                       "--orbital-relief-textures", "32", "--set-at", "4",
+                       "/ships/ship[0]/instruments/instrument[0]/shoot=1",
+                       "--shot", str(shot), "--shot-at", "8"]
+            if camera_radius is not None:
+                command.extend(["--cam-planet", str(camera_radius), "--cam-phase", "0"])
+            result = subprocess.run(command, cwd=ROOT, env=capture_env, capture_output=True, text=True, timeout=100)
+            output = result.stdout + result.stderr
+            assert result.returncode == 0 and shot.is_file(), output
+            assert "Mars Orbiter relief budgets:" in output, output
+            captures = list((Path(capture_env["XDG_CONFIG_HOME"]) / "kosmos" / "instrument-shots" / "NASA_Voyager").glob("nac-*.png"))
+            assert len(captures) == 1, output
+            with Image.open(captures[0]) as image:
+                assert image.size == (800, 800), image.size
+                red, _, blue = image.convert("RGB").getpixel((400, 400))
+                assert red > blue + 5, (camera_radius, red, blue, output)
+            print(f"Mars instrument capture with camera radius {camera_radius} ok")
 
         bases = temp / "config" / "kosmos" / "bases"
         bases.mkdir(parents=True)

@@ -1170,8 +1170,7 @@ namespace kosmos
                 continue;
             const sl::dvec3 centre = universe.position(body);
             const double radius = universe.bodies[static_cast<std::size_t>(body)].radius;
-            const sl::dvec3 base_world = centre + base.direction * (radius + base.height);
-            if (glm::length(base_world - eye) > range + 2.0 * base.flat_radius + base.blend)
+            if (!base_in_draw_range(base, centre, radius, eye, range))
                 continue;
             const Frame f = local_frame(base.direction, base.pole);
             sl::dvec3 forward, right;

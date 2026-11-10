@@ -11,6 +11,7 @@
 #include "model3d.h"
 
 #include <filesystem>
+#include <cmath>
 #include <map>
 #include <set>
 #include <memory>
@@ -113,6 +114,17 @@ namespace kosmos
         sl::dvec3 pole{0.0, 1.0, 0.0};
         double height = 0.0;
     };
+
+    inline constexpr double base_draw_range = 15000.0;
+
+    inline bool base_in_draw_range(const Base &base, const sl::dvec3 &body_centre, double radius,
+                                   const sl::dvec3 &eye, double range)
+    {
+        const sl::dvec3 position = body_centre + base.direction * (radius + base.height);
+        const double distance = glm::length(position - eye);
+        const double limit = range + 2.0 * base.flat_radius + base.blend;
+        return !std::isfinite(distance) || !std::isfinite(limit) || distance <= limit;
+    }
 
     /** Read "bases" from a JSON file. Appends to out; on failure returns false and sets error. */
     bool load_bases(const std::string &file, std::vector<Base> &out, std::string &error);

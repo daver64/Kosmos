@@ -452,6 +452,33 @@ namespace kosmos
                 return std::numeric_limits<double>::quiet_NaN();
             return (h00 * (1 - a) + h10 * a) * (1 - b) + (h01 * (1 - a) + h11 * a) * b;
         }
+
+        // Mip samples are averages of pairs of nodes, not samples at every second original node.
+        double mip_coordinate(double position, int size, int level)
+        {
+            if (level == 0)
+                return position;
+            double last = size - 1.0;
+            double step = 1.0;
+            double first = 0.0;
+            for (int l = 0; l < level; ++l)
+            {
+                const int next_size = (size + 1) / 2;
+                if (size % 2 == 0)
+                    last = 0.5 * (last + first + (size - 2) * step);
+                first += 0.5 * step;
+                step *= 2.0;
+                size = next_size;
+            }
+            if (size <= 1 || position <= first)
+                return 0.0;
+            if (position >= last)
+                return size - 1.0;
+            const double penultimate = first + (size - 2) * step;
+            if (position >= penultimate)
+                return size - 2.0 + (position - penultimate) / (last - penultimate);
+            return (position - first) / step;
+        }
     }
 
     double MeshSource::apply(const sl::dvec3 &direction, double natural, double cell_size) const
@@ -465,8 +492,10 @@ namespace kosmos
             int level = 0;
             if (cell_size > g.cell)
                 level = std::min(static_cast<int>(m.mips.size()), static_cast<int>(std::floor(std::log2(cell_size / g.cell))));
-            const double step = g.cell * static_cast<double>(1 << level);
-            const double fu = (at.u + 0.5 * (g.width - 1) * g.cell) / step, fv = (at.v + 0.5 * (g.height - 1) * g.cell) / step;
+            const double x = (at.u + 0.5 * (g.width - 1) * g.cell) / g.cell;
+            const double y = (at.v + 0.5 * (g.height - 1) * g.cell) / g.cell;
+            const double fu = mip_coordinate(x, g.width, level);
+            const double fv = mip_coordinate(y, g.height, level);
             double h;
             if (level == 0)
                 h = bilinear(g.heights, g.width, g.height, fu, fv);

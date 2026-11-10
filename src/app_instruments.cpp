@@ -228,9 +228,7 @@ namespace kosmos::app
         set_terrain_view();
         view.aspect = static_cast<double>(target->bitmap->width) / target->bitmap->height;
         view.viewport_height = target->bitmap->height;
-        update_earth_sphere_visibility();
-        for (std::size_t k = 1; k < body_terrains.size(); ++k)
-            body_terrains[k]->eye_rel = eye_world - universe.position(body_terrains[k]->body);
+        update_terrains();
 
         to_sun = glm::vec3(glm::normalize(-eye_world));
         camera = sl::Camera();

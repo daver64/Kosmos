@@ -136,6 +136,9 @@ namespace kosmos::app
         {"--orbital-relief-meshes", 1, relief_budget(&Options::orbital_relief_meshes, "--orbital-relief-meshes", 2)},
         {"--orbital-relief-textures", 1, relief_budget(&Options::orbital_relief_textures, "--orbital-relief-textures", 10)},
 #endif
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+        {"--orbiter-microtexture-root", 1, text(&Options::orbiter_microtexture_root)},
+#endif
         {"--no-tiles", 0, on(&Options::no_tiles)},
         {"--no-relief", 0, on(&Options::no_relief)},
         {"--blender", 1, text(&Options::blender)},

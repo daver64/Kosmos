@@ -1318,6 +1318,9 @@ namespace kosmos
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                                    "  --orbital-relief-ground tests incomplete ground tiles; height checks may switch back to existing terrain.\n"
 #endif
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
+                                   "  --orbiter-microtexture-root PATH tests detail from an Orbiter installation; --no-detail disables it.\n"
+#endif
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
                                    "  F2 cameras   F3 settings   F4 properties   F11 Lua\n"

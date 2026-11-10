@@ -102,7 +102,7 @@ def main():
             assert result.returncode == 0 and shot.is_file(), output
             transitions = re.findall(r"Earth Orbiter ground relief: (.+)", output)
             assert transitions and transitions[0].startswith(
-                "using existing terrain until nearby surface heights agree: camera:"), output
+                "using existing terrain: camera:"), output
             assert transitions[-1].startswith(
                 "nearby surface heights agree" if resumed else "using existing terrain"), output
             assert re.search(r"\[perf\] Orbiter relief: patches [1-9]\d*", output), output
@@ -127,8 +127,11 @@ def main():
             if case != "startup":
                 assert re.search(r"\[perf\] Orbiter relief: patches [1-9]\d*", output), output
             transitions = re.findall(r"Earth Orbiter ground relief: (.+)", output)
-            assert transitions and transitions[-1].startswith(
-                "nearby surface heights agree" if case == "default" else "using existing terrain"), output
+            assert transitions and transitions[0].startswith("using existing terrain: base "), output
+            if case in ("startup", "limited"):
+                assert transitions[-1].startswith("using existing terrain: base "), output
+            else:
+                assert transitions[-1].startswith("nearby surface heights agree"), output
             runway_dark, runway_marks, wheel_dark = check_chippenham(shot, output)
             print(f"Earth Chippenham {case}: "
                   f"runway {runway_dark:.1%} dark, {runway_marks:.1%} markings; gear {wheel_dark:.1%} dark")
