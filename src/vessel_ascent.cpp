@@ -1,4 +1,5 @@
 #include "sim.h"
+#include "vessel_ascent_limits.h"
 
 #include <algorithm>
 #include <cmath>
@@ -80,7 +81,8 @@ namespace kosmos
                     error = "Ares profile requires Mars";
                 else if (request != "Ares" && universe.bodies[static_cast<std::size_t>(ship->telemetry().soi)].name != "Earth")
                     error = "profile requires Earth";
-                else if (!std::isfinite(target) || target < 150 || target > 1000 || !std::isfinite(heading))
+                else if (!std::isfinite(target) || target < vessel_ascent_min_target_km ||
+                         target > vessel_ascent_max_target_km || !std::isfinite(heading))
                     error = "invalid target or heading";
                 else if (target * 1000.0 < universe.bodies[static_cast<std::size_t>(ship->telemetry().soi)].atmosphere_scale_height * 10.0 + 5000.0)
                     error = "target is inside atmosphere";

@@ -219,6 +219,15 @@ int main()
         }
     }
     check(random_ok, "random plane changes preserve speed and place the target in the new plane");
+    check(kosmos::landing_descent_captured(1499.0, 301.0, 39.0, -24.0), "capture accepts values inside limits");
+    check(!kosmos::landing_descent_captured(1500.0, 301.0, 39.0, 0.0), "capture excludes distance boundary");
+    check(!kosmos::landing_descent_captured(0.0, 300.0, 0.0, 0.0), "capture excludes lower altitude boundary");
+    check(!kosmos::landing_descent_captured(0.0, 3000.0, 0.0, 0.0), "capture excludes upper altitude boundary");
+    check(!kosmos::landing_descent_captured(0.0, 1000.0, 40.0, 0.0), "capture excludes horizontal speed boundary");
+    check(!kosmos::landing_descent_captured(0.0, 1000.0, 0.0, -25.0), "capture excludes vertical speed boundary");
+    check(kosmos::landing_descent_remaining_seconds(0.0) == 650.0 &&
+          kosmos::landing_descent_remaining_seconds(590.0) == 60.0 &&
+          kosmos::landing_descent_remaining_seconds(700.0) == 60.0, "descent guidance time is clamped");
     const auto stationary = kosmos::landing_descent_command(sl::dvec3(2, 0, 0), sl::dvec3(0),
                                                              sl::dvec3(1, 0, 0), pole, 0.0, 4.0, 2.0, 10.0);
     check(stationary.valid && glm::length(stationary.acceleration - sl::dvec3(1, 0, 0)) < 1e-12,

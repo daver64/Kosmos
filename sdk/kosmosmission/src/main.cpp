@@ -28,6 +28,10 @@ namespace fs = std::filesystem;
 
 namespace
 {
+    constexpr double node_offset_seconds = 600.0;
+    constexpr int game_connection_attempts = 120;
+    constexpr unsigned int game_connection_interval_ms = 1000;
+
     struct Polyline
     {
         std::vector<Vec> pts;
@@ -929,12 +933,13 @@ namespace
         const Leg &leg = app.mission.legs[std::min(index, app.mission.legs.size() - 1)];
         app.link->set("/orbitcomp/page", 1.0);
         app.link->set("/orbitcomp/node-mode", 1.0);
-        app.link->set("/orbitcomp/time", 600.0);
+        app.link->set("/orbitcomp/time", node_offset_seconds);
         app.link->set("/orbitcomp/prograde", leg.dv);
         app.link->set("/orbitcomp/radial", 0.0);
         app.link->set("/orbitcomp/normal", 0.0);
         char buf[160];
-        std::snprintf(buf, sizeof buf, "Sent '%s' (%.0f m/s prograde at T+600 s) to the game's OrbitComp node.", leg.name.c_str(), leg.dv);
+        std::snprintf(buf, sizeof buf, "Sent '%s' (%.0f m/s prograde at T+%.0f s) to the game's OrbitComp node.",
+                      leg.name.c_str(), leg.dv, node_offset_seconds);
         say(buf);
     }
 
@@ -951,7 +956,7 @@ namespace
         std::string why;
         if (!connect_game(why))
         {
-            if (++waiting.tries < 120)
+            if (++waiting.tries < game_connection_attempts)
                 return G_SOURCE_CONTINUE;
             waiting.timer = 0;
             say("Kosmos did not connect (" + why + "). Check that it started.");
@@ -972,7 +977,7 @@ namespace
         waiting.push = push;
         waiting.tries = 0;
         if (!waiting.timer)
-            waiting.timer = g_timeout_add(1000, wait_for_game, nullptr);
+            waiting.timer = g_timeout_add(game_connection_interval_ms, wait_for_game, nullptr);
     }
 
     void on_start_game(GtkWidget *, gpointer)

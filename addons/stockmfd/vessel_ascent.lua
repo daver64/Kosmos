@@ -2,6 +2,8 @@ local function ship(path)
   return props.get("/ships/ship[" .. props.get("/sim/active-ship") .. "]/" .. path)
 end
 local ap = "/autopilot/vessel-ascent/"
+local min_target_km = 150
+local max_target_km = 1000
 local profiles = {
   ["Ares Spider"] = "Ares",
   ["CVEL Deltaglider"] = "Deltaglider",
@@ -38,7 +40,7 @@ return {
     elseif i == 2 then
       props.set(ap .. "request", "stop")
     elseif (i == 7 or i == 8) and not props.get(ap .. "active") then
-      props.set(ap .. "target-km", math.max(150, math.min(1000, props.get(ap .. "target-km") + (i == 7 and 10 or -10))))
+      props.set(ap .. "target-km", math.max(min_target_km, math.min(max_target_km, props.get(ap .. "target-km") + (i == 7 and 10 or -10))))
     elseif (i == 9 or i == 10) and not props.get(ap .. "active") then
       props.set(ap .. "heading", (props.get(ap .. "heading") + (i == 9 and 5 or -5)) % 360)
     end

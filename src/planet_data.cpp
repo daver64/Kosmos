@@ -25,6 +25,7 @@ namespace kosmos
         constexpr double pi = 3.14159265358979323846;
         constexpr int deepest = 22;
         constexpr std::uint64_t max_tree_index_bytes = 128u << 20;
+        constexpr std::size_t max_individual_tiles = 200000;
 
         std::uint64_t image_tile_key(int level, int column, int row)
         {
@@ -93,7 +94,7 @@ namespace kosmos
                         if (parents)
                             for (int ancestor = level - 1; ancestor >= 4; --ancestor)
                                 parents->insert(image_tile_key(ancestor, column >> (level - ancestor), row >> (level - ancestor)));
-                        if (tiles.size() > 200000)
+                        if (tiles.size() > max_individual_tiles)
                         {
                             too_many = true;
                             break;
@@ -103,8 +104,9 @@ namespace kosmos
             }
             if (ec || too_many)
             {
+                const std::string reason = ec ? ec.message() : "index exceeds " + std::to_string(max_individual_tiles) + " tiles";
                 std::fprintf(stderr, "[kosmos] Cannot index Orbiter overrides %s: %s; using archive only\n",
-                             root.string().c_str(), ec ? ec.message().c_str() : "index exceeds 200000 tiles");
+                             root.string().c_str(), reason.c_str());
                 tiles.clear();
                 if (parents)
                     parents->clear();

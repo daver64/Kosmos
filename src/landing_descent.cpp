@@ -7,6 +7,24 @@
 
 namespace kosmos
 {
+    bool landing_descent_captured(double distance, double altitude, double horizontal_speed, double vertical_speed)
+    {
+        constexpr double max_distance_m = 1500.0;
+        constexpr double min_altitude_m = 300.0;
+        constexpr double max_altitude_m = 3000.0;
+        constexpr double max_horizontal_speed_mps = 40.0;
+        constexpr double max_vertical_speed_mps = 25.0;
+        return distance < max_distance_m && altitude > min_altitude_m && altitude < max_altitude_m &&
+               horizontal_speed < max_horizontal_speed_mps && std::abs(vertical_speed) < max_vertical_speed_mps;
+    }
+
+    double landing_descent_remaining_seconds(double elapsed)
+    {
+        constexpr double planned_descent_seconds = 650.0;
+        constexpr double minimum_remaining_seconds = 60.0;
+        return std::max(planned_descent_seconds - elapsed, minimum_remaining_seconds);
+    }
+
     namespace
     {
         bool finite(const sl::dvec3 &v)
@@ -146,7 +164,7 @@ namespace kosmos
             burn_elapsed += dt;
         }
         const double descent_start = time;
-        while (time - descent_start < 1800.0)
+        while (time - descent_start < landing_descent_timeout_seconds)
         {
             const double radius = glm::length(r);
             if (!std::isfinite(radius) || radius <= in.radius + in.target_elevation)
@@ -158,8 +176,7 @@ namespace kosmos
             const double vertical = glm::dot(surface_v, up);
             const double horizontal = glm::length(surface_v - up * vertical);
             const double altitude = radius - in.radius - in.target_elevation;
-            if (distance < 1500.0 && altitude > 300.0 && altitude < 3000.0 &&
-                horizontal < 40.0 && std::abs(vertical) < 25.0)
+            if (landing_descent_captured(distance, altitude, horizontal, vertical))
             {
                 result.captured = true;
                 result.fuel = fuel;
@@ -168,9 +185,9 @@ namespace kosmos
                 result.altitude = altitude;
                 return result;
             }
-            const double remaining = std::max(650.0 - (time - descent_start), 60.0);
+            const double remaining = landing_descent_remaining_seconds(time - descent_start);
             const auto command = landing_descent_command(r, v, target, pole, in.spin_rate, in.mu,
-                                                         in.radius + in.target_elevation + 2500.0, remaining);
+                                                         in.radius + in.target_elevation + landing_capture_target_height_m, remaining);
             const double magnitude = glm::length(command.acceleration);
             if (!command.valid || !std::isfinite(magnitude) || magnitude < 1e-8)
                 break;

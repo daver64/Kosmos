@@ -27,6 +27,16 @@ int main()
 {
     const std::string root = KOSMOS_ROOT;
 
+    {
+        Body body;
+        body.radius = 1000.0;
+        body.gm = 10000000.0;
+        body.atm_density = 0.005;
+        NEAR(ascent_estimate(body, 200000.0, 0.0).loss, 1000.0, 1e-9);
+        body.atm_density = 0.0051;
+        NEAR(ascent_estimate(body, 200000.0, 0.0).loss, 1900.0, 1e-9);
+    }
+
     // Lambert recovers a propagated orbit's velocities.
     {
         const double mu = 3.986e14;

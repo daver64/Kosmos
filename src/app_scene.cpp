@@ -484,6 +484,7 @@ namespace kosmos::app
             };
             const auto check_base_site = [&](const kosmos::FlattenSite &site, const std::string &where)
             {
+                constexpr double base_sample_camera_range_m = 250.0;
                 if (!std::isfinite(site.flat) || site.flat < 0.0 ||
                     !std::isfinite(site.a.x) || !std::isfinite(site.a.y) || !std::isfinite(site.a.z) ||
                     !std::isfinite(site.b.x) || !std::isfinite(site.b.y) || !std::isfinite(site.b.z))
@@ -503,7 +504,7 @@ namespace kosmos::app
                         fallback_reason = where + " " + part + ": surface position is invalid";
                         return false;
                     }
-                    if (camera_distance > 250.0)
+                    if (camera_distance > base_sample_camera_range_m)
                         return true;
                     const glm::dvec3 direction = glm::normalize(glm::inverse(tile_frame) * world_direction);
                     const std::string point = where + " " + part;
@@ -572,7 +573,7 @@ namespace kosmos::app
                 fallback_reason = "camera position is invalid";
             }
             else if (!fallback && (!std::isfinite(source->max_height()) ||
-                     (eye_distance - 1.0) * radius <= source->max_height() + 250.0))
+                     (eye_distance - 1.0) * radius <= source->max_height() + kosmos::relief_near_surface_height_m))
             {
                 const glm::dvec3 direction = eye_local / eye_distance;
                 const double expected = collision_height_at(direction);
@@ -581,7 +582,7 @@ namespace kosmos::app
                     fallback = true;
                     fallback_reason = "camera: collision height is not finite";
                 }
-                else if ((eye_distance - 1.0) * radius - expected <= 250.0)
+                else if ((eye_distance - 1.0) * radius - expected <= kosmos::relief_near_surface_height_m)
                 {
                     // The sub-camera point is often behind a forward-looking cockpit, so only query it when visible.
                     const glm::dvec4 clip = view_projection * glm::dvec4(direction * (1.0 + expected / radius), 1.0);
@@ -594,7 +595,7 @@ namespace kosmos::app
             {
                 const Ship &vessel = *sim.ship(s);
                 if (vessel.telemetry().soi != body ||
-                    !kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, 10000.0))
+                    !kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m))
                     continue;
                 const double camera_distance = glm::length(vessel.origin() - eye_world);
                 if (!std::isfinite(camera_distance))
@@ -603,7 +604,7 @@ namespace kosmos::app
                     fallback_reason = "ship position is invalid";
                     break;
                 }
-                if (camera_distance <= 10000.0)
+                if (camera_distance <= kosmos::relief_vessel_camera_range_m)
                 {
                     const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
                     const double distance = glm::length(offset);
@@ -621,7 +622,7 @@ namespace kosmos::app
                         fallback_reason = "collision height is not finite";
                         break;
                     }
-                    if (distance - radius - collision_height <= 250.0)
+                    if (distance - radius - collision_height <= kosmos::relief_near_surface_height_m)
                     {
                         const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
                         const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
@@ -639,7 +640,7 @@ namespace kosmos::app
                     }
                 }
                 if (!fallback && !kosmos::check_relief_gear_contacts(vessel.body(), universe_ref->position(body),
-                                                                     glm::inverse(tile_frame), radius, eye_world, 10000.0, collision_height_at,
+                                                                     glm::inverse(tile_frame), radius, eye_world, kosmos::relief_vessel_camera_range_m, collision_height_at,
                                                                      check_height, fallback_reason))
                     fallback = true;
             }

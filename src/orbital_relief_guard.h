@@ -7,6 +7,9 @@
 
 namespace kosmos
 {
+    inline constexpr double relief_near_surface_height_m = 250.0;
+    inline constexpr double relief_vessel_camera_range_m = 10000.0;
+
     inline bool relief_vessel_near_camera(const glm::dvec3 &origin, const sl::FlightBody &vessel,
                                           const glm::dvec3 &eye, double range)
     {
@@ -55,7 +58,7 @@ namespace kosmos
                 reason = "ship gear: collision height is not finite";
                 return false;
             }
-            if (distance - radius - expected <= 250.0 && !check_height(direction, expected, "ship gear"))
+            if (distance - radius - expected <= relief_near_surface_height_m && !check_height(direction, expected, "ship gear"))
                 return false;
         }
         return true;

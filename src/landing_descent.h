@@ -4,6 +4,12 @@
 
 namespace kosmos
 {
+    inline constexpr double landing_descent_timeout_seconds = 1800.0;
+    inline constexpr double landing_capture_target_height_m = 2500.0;
+
+    bool landing_descent_captured(double distance, double altitude, double horizontal_speed, double vertical_speed);
+    double landing_descent_remaining_seconds(double elapsed);
+
     struct LandingDescentCommand
     {
         bool valid = false;

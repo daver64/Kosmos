@@ -38,6 +38,7 @@ class HttpTestApp;
 namespace
 {
     using namespace launcher;
+    constexpr int progress_gauge_range = 1000;
 
     wxString W(const std::string &s) { return wxString::FromUTF8(s); }
     std::string U(const wxString &s) { return std::string(s.ToUTF8()); }
@@ -916,7 +917,7 @@ namespace
             pack_text_ = new wxStaticText(page, wxID_ANY, "");
             pack_progress_text_ = new wxStaticText(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxST_NO_AUTORESIZE);
             pack_progress_text_->SetMinSize(wxSize(-1, FromDIP(20)));
-            pack_gauge_ = new wxGauge(page, wxID_ANY, 1000);
+            pack_gauge_ = new wxGauge(page, wxID_ANY, progress_gauge_range);
             pack_install_ = new wxButton(page, wxID_ANY, "Download and install");
             pack_pause_ = new wxButton(page, wxID_ANY, "Pause downloads");
             pack_dequeue_ = new wxButton(page, wxID_ANY, "Remove from queue");
@@ -1188,7 +1189,7 @@ namespace
 
         void UpdatePackProgress(long long got, long long total, long long received)
         {
-            pack_gauge_->SetValue(total > 0 ? static_cast<int>(std::min(1000.0, double(got) * 1000.0 / total)) : 0);
+            pack_gauge_->SetValue(total > 0 ? static_cast<int>(std::min(double(progress_gauge_range), double(got) * progress_gauge_range / total)) : 0);
             download_progress_.update(got, total, received);
         }
 
@@ -1224,7 +1225,7 @@ namespace
                                    wxYield();
                                    if (sha256_file(part, [this, &pack](std::uint64_t bytes)
                                                    {
-                                                       pack_gauge_->SetValue(int(std::min<std::uint64_t>(1000, bytes * 1000 / static_cast<std::uint64_t>(pack.size))));
+                                                       pack_gauge_->SetValue(int(std::min<std::uint64_t>(progress_gauge_range, bytes * progress_gauge_range / static_cast<std::uint64_t>(pack.size))));
                                                        wxYield();
                                                    }) != pack.sha256)
                                    {
@@ -1290,7 +1291,7 @@ namespace
                                    install_downloaded_tree(part, target, pack.sha256, problem,
                                                            [this, &pack](std::uint64_t bytes)
                                                            {
-                                                               pack_gauge_->SetValue(int(std::min<std::uint64_t>(1000, bytes * 1000 / static_cast<std::uint64_t>(pack.size))));
+                                                               pack_gauge_->SetValue(int(std::min<std::uint64_t>(progress_gauge_range, bytes * progress_gauge_range / static_cast<std::uint64_t>(pack.size))));
                                                                wxYield();
                                                            });
                                }
@@ -1335,7 +1336,7 @@ namespace
                                        UpdatePackProgress(got, total, received);
                                    else
                                    {
-                                       gauge->SetValue(total > 0 ? static_cast<int>(std::min(1000.0, double(got) * 1000.0 / total)) : 0);
+                                       gauge->SetValue(total > 0 ? static_cast<int>(std::min(double(progress_gauge_range), double(got) * progress_gauge_range / total)) : 0);
                                        SetStatusText(wxString::Format("Downloading... %s%s", human_size(got), total > 0 ? " of " + human_size(total) : wxString()));
                                    }
                                },
@@ -1365,7 +1366,7 @@ namespace
                                    }
                                    if (!sum.empty() && sha256_file(part, [this, gauge, size](std::uint64_t bytes)
                                        {
-                                           gauge->SetValue(size > 0 ? static_cast<int>(std::min<std::uintmax_t>(1000, bytes * 1000 / size)) : 0);
+                                           gauge->SetValue(size > 0 ? static_cast<int>(std::min<std::uintmax_t>(progress_gauge_range, bytes * progress_gauge_range / size)) : 0);
                                            wxYield();
                                        }) != sum)
                                    {
@@ -1657,7 +1658,7 @@ namespace
             update_label_ = new wxStaticText(page, wxID_ANY, "");
             update_label_->SetFont(update_label_->GetFont().Bold().Scaled(1.2f));
             notes_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_WORDWRAP);
-            update_gauge_ = new wxGauge(page, wxID_ANY, 1000);
+            update_gauge_ = new wxGauge(page, wxID_ANY, progress_gauge_range);
             auto *check = new wxButton(page, wxID_ANY, "Check for updates");
             update_button_ = new wxButton(page, wxID_ANY, "Download and install the new version");
             update_button_->Disable();

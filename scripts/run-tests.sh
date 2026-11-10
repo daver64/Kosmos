@@ -28,6 +28,7 @@ python3 "$SRC/tests/salyut_panels_test.py"
 python3 "$SRC/tests/sev_assets_test.py"
 python3 "$SRC/tests/ares_legs_test.py"
 python3 "$SRC/tests/proton_exhaust_test.py"
+python3 "$SRC/tests/vessel_ascent_limits_test.py"
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 cd "$OUT"
 export HOME=$(mktemp -d)

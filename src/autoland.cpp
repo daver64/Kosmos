@@ -475,12 +475,11 @@ namespace kosmos
                 const sl::dvec3 target = surface_direction(universe, t.soi, landing_latitude_, landing_longitude_);
                 const double distance = radius * std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
                 props.set_double("/autopilot/land/distance", distance);
-                if (distance < 1500.0 && t.altitude > 300.0 && t.altitude < 3000.0 &&
-                    hspeed < 40.0 && std::abs(t.vertical_speed) < 25.0)
+                if (landing_descent_captured(distance, t.altitude, hspeed, t.vertical_speed))
                     phase = "Target approach";
                 else
                 {
-                    if (now - landing_descent_start_ > 1800.0)
+                    if (now - landing_descent_start_ > landing_descent_timeout_seconds)
                     {
                         finish("Autoland aborted: powered descent timed out");
                         return;
@@ -488,8 +487,8 @@ namespace kosmos
                     const Body &body = universe.bodies[static_cast<std::size_t>(t.soi)];
                     const auto command = landing_descent_command(r, ship->body().velocity - planet.velocity, target,
                                                                  universe.pole(t.soi), body.spin, body.gm,
-                                                                 body.radius + landing_base_.height + landing_base_.pad_deck + 2500.0,
-                                                                 std::max(650.0 - (now - landing_descent_start_), 60.0));
+                                                                 body.radius + landing_base_.height + landing_base_.pad_deck + landing_capture_target_height_m,
+                                                                 landing_descent_remaining_seconds(now - landing_descent_start_));
                     const double magnitude = glm::length(command.acceleration);
                     if (!command.valid || !std::isfinite(magnitude) || magnitude < 1e-8)
                     {

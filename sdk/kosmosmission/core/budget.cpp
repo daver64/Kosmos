@@ -163,11 +163,14 @@ namespace km
 
     Ascent ascent_estimate(const Body &body, double altitude, double latitude_deg)
     {
+        constexpr double atmosphere_density_threshold = 0.005;
+        constexpr double atmospheric_loss_seconds = 190.0;
+        constexpr double airless_loss_seconds = 100.0;
         Ascent a;
         const double r = body.radius + altitude;
         a.v_orbit = std::sqrt(body.gm / r);
         a.v_rotation = body.equator_speed() * std::cos(latitude_deg * PI / 180.0);
-        a.loss = (body.atm_density > 0.005 ? 190.0 : 100.0) * body.surface_gravity();
+        a.loss = (body.atm_density > atmosphere_density_threshold ? atmospheric_loss_seconds : airless_loss_seconds) * body.surface_gravity();
         a.dv = std::max(0.0, a.v_orbit - a.v_rotation + a.loss);
         a.note = "Rule of thumb: orbital speed - ground speed + gravity/drag loss.";
         return a;
