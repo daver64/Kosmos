@@ -38,7 +38,7 @@ If you encounter a problem, please [open a GitHub issue](https://github.com/dave
 - **Extend the simulator:** write Lua scripts and MFDs, or connect external programs using the KosmosLink SDK.
 - **Try multiplayer:** up to four players can see one another as ghost ships; this is not a shared collision or docking simulation.
 
-Sunlight becomes visually dimmer farther from the system's star, with an exposure-compressed inverse-square curve so distant worlds remain visible. This is a rendering approximation; solar power uses the physical inverse-square flux.
+Sunlight becomes visually dimmer farther from the system's star, with an exposure-compressed inverse-square curve so distant worlds remain visible. The star's visible glare also shrinks with its apparent size. These are rendering approximations; solar power uses the physical inverse-square flux.
 
 ## Documentation and development
 

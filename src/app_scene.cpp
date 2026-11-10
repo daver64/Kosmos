@@ -255,7 +255,7 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
-        // Limb darkening, corona and glare for every star: constant-looking at any distance, bigger for bigger or nearer stars.
+        // Limb darkening, corona and glare for every star.
                     for (std::size_t i = 0; i < universe.bodies.size(); ++i)
         {
             const StarPlace sp = place_star(i);
@@ -264,7 +264,10 @@ namespace kosmos::app
             const double D = sp.distance;
             const double disc = D * std::tan(sp.angular);
             const glm::vec3 white = glm::vec3(1.0f);
-            const double min_half = D * std::tan(glm::radians(1.8));
+            // Compress angular-size changes so a distant star remains visible while its glare shrinks.
+            constexpr double sun_radius_at_one_au = 6.957e8 / 149597870700.0;
+            const double glare_scale = std::pow(std::tan(sp.angular) / sun_radius_at_one_au, 0.6);
+            const double min_half = D * std::tan(glm::radians(1.8)) * glare_scale;
             auto star_basis = [&](const StarPlace &s, double distance, double half, float spin) { return star_basis_base(s, distance, half, spin); };
             draw_photosphere(sp);
             // Up close the glare thins out so the surface shows through; from far away it stays full.
