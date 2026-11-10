@@ -93,7 +93,7 @@ Use the Visual Studio generator name matching the installed version. The default
 
 `sh scripts/run-tests.sh` builds and runs the quick regression suite, including unit tests and headless selftests. Add `--extended` for the slower OrbitComp trajectory, ascent, cargo, autoland and Atlas flight tests; these can take several minutes. The suites are separate from website deployment and release packaging. The arsenal and ordnance tests use an isolated test craft with bomb racks. The simlib commit Kosmos is built against is pinned in `SIMLIB_COMMIT`; the build scripts check your simlib checkout against it (`SIMLIB_ALLOW_MISMATCH=1` overrides). Move the pin only after changing simlib. The check verifies the checkout, not the installed libraries: rebuild and install the pinned revision for each release platform before building Kosmos.
 
-GitHub Actions runs the quick suite on Linux with the exact simlib revision in `SIMLIB_COMMIT`. CI builds the OpenGL backend and runs off-screen with software rendering; it does not cover Windows or the extended suite.
+GitHub Actions runs the quick suite on Linux when a GitHub release is published, not on pushes or pull requests. It tests the release tag after publication with the exact simlib revision in `SIMLIB_COMMIT`; this is not a pre-publication gate. It builds the OpenGL backend and runs off-screen with software rendering; it does not cover Windows or the extended suite.
 
 ## Launcher
 
@@ -173,6 +173,8 @@ The keys below are the defaults. View > Keyboard rebinds the configurable action
 | O | Orbit line |
 | M | Sound on/off (rocket, RCS, ground wind and cabin ambience inside pressurised spaces) |
 | Shift+R | Restart the scenario |
+
+High time warp remains limited while another live vessel is flying in an atmosphere. A stationary, undocked inactive vessel on the ground is held in place during rails warp, so it does not prevent an orbiting vessel from accelerating time; it remains available to fly. Vessels controlled by addons are not held this way.
 
 ### Flight recording and playback
 
@@ -506,6 +508,8 @@ Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ O
 The **Asteroids** folder has fictional Luna E3 probe orbits around the shipped NASA asteroid shapes; **NASA ▸ Gateway and Shuttle-A at the Moon** starts a Shuttle-A docked to Gateway in a fictional low lunar orbit, not Gateway's planned halo orbit. Small-body gravity and collision are spherical approximations despite the visible shapes, and asteroid positions are approximate two-body extrapolations.
 
 The **Planets** and **Moons** folders contain fictional Luna E3 orbital starts for every planet and moon in the Sol system; moons are grouped by their parent, including asteroid moons. The very close Phobos and Amalthea starts are particularly approximate and may not remain stable under their parent planet's gravity.
+
+The fictional **Luna E3 RTG** replaces the solar cells with a 100 W radioisotope generator and retains the original model and instruments. It is used in scenarios at bodies with heliocentric semimajor axes beyond Earth's, including the asteroid scenarios; Mercury, Venus, Earth and the Moon retain the solar-powered original. Some asteroid orbits cross Earth's orbit, but their larger semimajor axes make the RTG useful over the whole orbit.
 
 Save scenario and the launcher's Resume last scenario retain the current date, ship trajectories and attitudes, stages, propellant, gear, animations and system reserves. Earth-communications attitude hold is resumed; other active autopilots and burns, debris and some transient state such as the local cabin gas distribution are not. Docking is saved as one link per later-listed ship; more complex docking networks can lose links.
 

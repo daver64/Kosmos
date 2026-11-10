@@ -32,7 +32,7 @@ for scenario, name in asteroids.items():
         assert document.get("meshes") and document["meshes"][0]["primitives"], mesh
     source = json.loads((root / "scenarios/Asteroids" / f"{scenario}.json").read_text())
     assert source["ships"][source["active"]]["body"] == name
-    assert source["ships"][source["active"]]["ship"] == "Luna E3"
+    assert source["ships"][source["active"]]["ship"] == "Luna E3 RTG"
 
 base = json.loads((root / "data/bases/apollo11.json").read_text())["bases"][0]
 terrain = base["terrain_meshes"][0]

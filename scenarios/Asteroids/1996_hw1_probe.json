@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around asteroid 1996 HW1. Gravity and the irregular surface are simplified.",
-  "name": "Luna E3 at 1996 HW1",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around asteroid 1996 HW1. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 RTG at 1996 HW1",
   "ships": [
     {
       "body": "1996 HW1",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/1996_hw1_probe-1794323450009550737-0.png"

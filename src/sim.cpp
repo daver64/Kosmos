@@ -678,6 +678,15 @@ namespace kosmos
         props.set_double("/airlock/pressure", pressure);
     }
 
+    bool Sim::parked_for_warp(std::size_t index) const
+    {
+        const Ship &ship = *ships_[index];
+        const Telemetry &t = ship.telemetry();
+        return static_cast<int>(index) != active_ && !ship.spec().building() && !ship.crashed() &&
+               !ship.on_rails() && t.landed && t.surface_speed <= 0.5 && t.thrust <= 0.0 &&
+               !nav.docked(static_cast<int>(index)) && link_claims.find(static_cast<int>(index)) == link_claims.end();
+    }
+
     void Sim::step(double frame)
     {
         universe.world.nonspherical_gravity = props.get_bool("/sim/settings/nonspherical-gravity");
@@ -751,7 +760,7 @@ namespace kosmos
             for (std::size_t i = 0; i < ships_.size() && all_vacuum; ++i)
             {
                 const Ship &ship = *ships_[i];
-                if (ship.spec().building() || ship.crashed())
+                if (ship.spec().building() || ship.crashed() || parked_for_warp(i))
                     continue;
                 const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
                 if (b == "engines are firing" && ship.rails_margin() > 0.0)
@@ -767,7 +776,7 @@ namespace kosmos
             bool all_ok = !ships_.empty() && !ground_hold;
             std::string why;
             for (std::size_t i = 0; i < ships_.size(); ++i)
-                if (!ships_[i]->on_rails() && !ships_[i]->spec().building() && !ships_[i]->crashed())
+                if (!ships_[i]->on_rails() && !ships_[i]->spec().building() && !ships_[i]->crashed() && !parked_for_warp(i))
                 {
                     const std::string b = ships_[i]->rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
                     if (!b.empty())
@@ -790,8 +799,8 @@ namespace kosmos
         if (warp_factor(index) > phys_limit && !ground_hold)
         {
             double allowed = 1.0e18;
-            for (const std::unique_ptr<Ship> &ship : ships_)
-                if (!ship->spec().building() && !ship->crashed())
+            for (std::size_t i = 0; i < ships_.size(); ++i)
+                if (const auto &ship = ships_[i]; !ship->spec().building() && !ship->crashed() && !parked_for_warp(i))
                 {
                     // Leaving on an escape path, the air is behind the ship however fast it goes.
                     const Telemetry &tm = ship->telemetry();
@@ -815,7 +824,7 @@ namespace kosmos
             Ship &ship = *ships_[i];
             if (ship.spec().building())
                 ship.go_dynamic();
-            else if (warp > phys_limit)
+            else if (warp > phys_limit && !parked_for_warp(i))
                 ship.go_rails();
             else
                 ship.go_dynamic();
@@ -858,9 +867,10 @@ namespace kosmos
         // On rails everything is analytic, so big substeps lose nothing and keep a 100000x frame cheap.
         universe.world.max_substep = warp <= 4.0 ? fixed_step : (warp > phys_limit ? 1.0e12 : (ground_hold ? (warp > 100.0 ? 1.0e12 : fixed_step) : 0.05));
         // Past 100x a motionless ship is held to the ground like a building, so one huge step cannot throw its gear springs.
-        for (const std::unique_ptr<Ship> &ship : ships_)
-            if (!ship->spec().building())
-                ship->hold_for_warp(ground_hold && warp > 100.0);
+        for (std::size_t i = 0; i < ships_.size(); ++i)
+            if (!ships_[i]->spec().building())
+                ships_[i]->hold_for_warp((ground_hold && warp > 100.0) ||
+                                         (!ground_hold && warp > phys_limit && parked_for_warp(i)));
         universe.world.step(frame * warp);
         nav.couple(universe, ships_, active_, frame * warp);
 
@@ -1063,7 +1073,7 @@ namespace kosmos
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
             const Ship &ship = *ships_[i];
-            if (ship.spec().building() || ship.crashed() || ship.on_rails())
+            if (ship.spec().building() || ship.crashed() || ship.on_rails() || parked_for_warp(i))
                 continue;
             const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
             if (!b.empty())
@@ -1073,11 +1083,17 @@ namespace kosmos
             }
         }
         std::vector<bool> was_dynamic(ships_.size(), false);
+        std::vector<bool> release_hold(ships_.size(), false);
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
             Ship &ship = *ships_[i];
             was_dynamic[i] = !ship.on_rails();
-            if (!ship.spec().building() && !ship.crashed())
+            if (parked_for_warp(i))
+            {
+                release_hold[i] = !ship.warp_held();
+                ship.hold_for_warp(true);
+            }
+            else if (!ship.spec().building() && !ship.crashed())
                 ship.go_rails();
         }
         const double saved_substep = universe.world.max_substep;
@@ -1097,6 +1113,8 @@ namespace kosmos
             }
             if (was_dynamic[i] && ship.on_rails())
                 ship.go_dynamic();
+            if (release_hold[i])
+                ship.hold_for_warp(false);
         }
         update_target();
         nav.update(universe, ships_, active_);

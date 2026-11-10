@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Callisto.",
-  "name": "Luna E3 at Callisto",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Callisto.",
+  "name": "Luna E3 RTG at Callisto",
   "ships": [
     {
       "body": "Callisto",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/callisto_luna_e3-1794323886359427573-0.png"

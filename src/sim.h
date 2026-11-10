@@ -176,6 +176,7 @@ namespace kosmos
         std::vector<Base> bases;
 
     private:
+        bool parked_for_warp(std::size_t index) const;
         void scan_addons();
         std::vector<std::string> disabled_addon_ids();
         void load_addon(const std::string &folder, const std::vector<std::string> &disabled_addons, std::vector<Transmitter> &beacons);

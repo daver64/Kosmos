@@ -779,6 +779,7 @@ namespace kosmos
     public:
         /** Pins a motionless landed ship to the ground (on) or lets it go again (off); used by very high ground warp. */
         void hold_for_warp(bool on);
+        bool warp_held() const { return warp_pinned_; }
     private:
         /** Moves the body's centre of mass to that of the stages left, keeping every point of the ship where it was. */
         void recentre();

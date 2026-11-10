@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Tethys.",
-  "name": "Luna E3 at Tethys",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Tethys.",
+  "name": "Luna E3 RTG at Tethys",
   "ships": [
     {
       "body": "Tethys",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/tethys_luna_e3-1794324316531511159-0.png"

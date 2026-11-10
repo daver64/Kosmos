@@ -1180,6 +1180,37 @@ int main()
         assert(glm::length(ship.rcs_push()) > 0.0);
     }
     {
+        ShipSpec solar, rtg;
+        std::string error;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", solar, error));
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship_rtg.json", rtg, error));
+        assert(solar.name == "Luna E3" && rtg.name == "Luna E3 RTG");
+        assert(rtg.stages[0].dry_mass == solar.stages[0].dry_mass + 20.0);
+        assert(rtg.stages[0].parts[0].model == solar.stages[0].parts[0].model);
+        assert(rtg.instruments.size() == 1 && rtg.instruments[0].load == solar.instruments[0].load);
+        Systems power(rtg.systems, LifeSupportMode::warn);
+        for (auto &component : power.components())
+            if (component.type == "load")
+                component.enabled = true;
+        power.set_battery_fraction(0.0);
+        SystemsContext dark;
+        dark.sun_flux = 0.0;
+        power.step(3600.0, dark);
+        assert(power.powered() && power.instruments_powered());
+        assert(std::abs(power.supply_w() - 100.0) < 1e-6);
+        assert(std::abs(power.demand_w() - 78.0) < 1e-6);
+        assert(power.battery_wh() > 0.0);
+        for (const auto &component : power.components())
+            if (component.type == "load")
+                assert(component.powered);
+        for (auto &component : power.components())
+            if (component.type == "load")
+                component.enabled = false;
+        dark.mission_time = 87.7 * 365.25 * 86400.0;
+        power.step(1.0, dark);
+        assert(std::abs(power.supply_w() - 50.0) < 1e-6);
+    }
+    {
         Universe universe;
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));

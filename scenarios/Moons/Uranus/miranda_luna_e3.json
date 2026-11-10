@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Miranda.",
-  "name": "Luna E3 at Miranda",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Miranda.",
+  "name": "Luna E3 RTG at Miranda",
   "ships": [
     {
       "body": "Miranda",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/miranda_luna_e3-1794324460255300982-0.png"

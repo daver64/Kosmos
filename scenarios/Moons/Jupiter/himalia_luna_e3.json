@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Himalia.",
-  "name": "Luna E3 at Himalia",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Himalia.",
+  "name": "Luna E3 RTG at Himalia",
   "ships": [
     {
       "body": "Himalia",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/himalia_luna_e3-1794323907885825477-0.png"

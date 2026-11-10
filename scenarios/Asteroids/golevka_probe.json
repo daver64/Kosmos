@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Golevka. Gravity and the irregular surface are simplified.",
-  "name": "Luna E3 at Golevka",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around asteroid Golevka. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 RTG at Golevka",
   "ships": [
     {
       "body": "Golevka",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/golevka_probe-1794323503105853979-0.png"

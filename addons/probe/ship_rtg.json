@@ -1,0 +1,63 @@
+{
+ "ports": [
+  {
+   "name": "Aft",
+   "position": [0, 0, 0.7],
+   "direction": [0, 0, 1],
+   "up": [0, 1, 0]
+  }
+ ],
+ "systems": [
+  {"type": "rtg", "name": "Radioisotope generator", "watts": 100, "half_life_years": 87.7},
+  {"type": "battery", "name": "Storage batteries", "capacity_wh": 300, "max_w": 80},
+  {"type": "load", "name": "Command receiver", "watts": 6, "priority": 0},
+  {"type": "load", "name": "Radio transmitters and telemetry", "watts": 14, "priority": 0},
+  {"type": "load", "name": "Thermal control fans", "watts": 6, "priority": 0},
+  {"type": "load", "name": "Gyro units and Sun sensors", "watts": 4, "priority": 1},
+  {"type": "load", "name": "Cosmic ray and micrometeoroid counters", "watts": 4, "priority": 1},
+  {"type": "load", "name": "Three-axis orientation system", "watts": 10, "priority": 1, "enabled": false},
+  {"type": "load", "name": "Camera and film processing", "watts": 22, "priority": 2, "enabled": false},
+  {"type": "load", "name": "Phototelegraph scanner", "watts": 12, "priority": 2, "enabled": false}
+ ],
+ "instruments": [
+  {"id": "cam", "type": "visual", "name": "Film camera", "load": "Camera and film processing", "position": [0, 0, 0], "direction": [1, 0, 0], "fov": 20, "slew": 5, "max_slew": 60, "sun_limit": 25, "resolution": 512, "frames": 40}
+ ],
+ "description": "A fictional deep-space variant of the Luna E3 probe, with a 100 W radioisotope generator replacing the solar cells and 20 kg added dry mass. The generator provides power in darkness and far from the Sun, gradually declining over time. The orientation system, camera and scanner start off: switch them on for a photography pass. Power and mass figures are illustrative; the model is shared with the solar-powered probe.",
+ "name": "Luna E3 RTG",
+ "class": "probe",
+ "torque_accel": 0.4,
+ "max_rate": 0.8,
+ "rcs_thrust": 20,
+ "rcs_effects": false,
+ "drag_area": 2,
+ "payload_size": {"diameter": 1.6, "length": 1.8},
+ "camera_distance": 6,
+ "cockpit": {"eye": [0, 0, 0.9], "yaw": 180, "mfds": false},
+ "stages": [
+  {
+   "name": "Probe",
+   "dry_mass": 299,
+   "propellant": 100,
+   "z": 0,
+   "length": 1.8,
+   "radius": 0.8,
+   "engines": [
+    {
+     "position": [0, 0, 0.9],
+     "direction": [0, 0, -1],
+     "thrust": 40,
+     "isp": 347,
+     "plume": 0.3,
+     "type": "rocket",
+     "fuel": "hypergolic",
+     "plume_width": 0.02,
+     "plume_glow": 0.1,
+     "plume_density": 0.5
+    }
+   ],
+   "parts": [
+    {"model": "models/probe.obj"}
+   ]
+  }
+ ]
+}

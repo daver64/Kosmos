@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Kleopatra. Gravity and the irregular surface are simplified.",
-  "name": "Luna E3 at Kleopatra",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around asteroid Kleopatra. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 RTG at Kleopatra",
   "ships": [
     {
       "body": "Kleopatra",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/kleopatra_probe-1794323530412852430-0.png"

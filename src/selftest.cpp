@@ -1624,6 +1624,155 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/parked-warp"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Parked warp selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || sim.ship_count() < 2 || ship->spec().name != "CVEL Energia" ||
+                sim.ship(1)->spec().name != "CVEL Buran" || !sim.nav.docked(0))
+                return fail("expected docked Energia and Buran");
+            sim.props.set_bool("/dock/undock", true);
+            sim.step(0.01);
+            if (sim.nav.docked(0))
+                return fail("could not undock Buran");
+            Ship *energia = ship;
+            Ship *buran = sim.ship(1);
+            const int earth = sim.universe.find("Earth");
+            if (earth < 0)
+                return fail("Earth not found");
+            sim.activate(1);
+            sim.props.set_double("/controls/throttle", 0.0);
+            buran->place_in_orbit(earth, 400000.0, 0.0);
+            energia->place_airborne(earth, sl::dvec3(1.0, 0.0, 0.0), 0.0, 0.0, 40000.0, 0.0);
+            sim.props.set_int("/sim/warp-index", 4);
+            sim.step(0.01);
+            std::string why;
+            if (sim.current_warp() != 4.0 || buran->on_rails() ||
+                sim.skip_time(60.0, why) || why.find("CVEL Energia: inside the atmosphere") == std::string::npos)
+                return fail("atmospheric Energia did not block rails and time skip");
+            energia->place_on_surface(earth, sl::dvec3(1.0, 0.0, 0.0), 0.0, 0.0);
+            if (energia->body().gear.empty())
+                return fail("Energia has no ground contacts");
+            for (auto &gear : energia->body().gear)
+                gear.compression = 0.0;
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.step(0.01);
+            if (!energia->telemetry().landed || energia->telemetry().surface_speed > 0.5)
+                return fail("could not establish a stationary landed launcher");
+            const double latitude = energia->telemetry().latitude;
+            const double longitude = energia->telemetry().longitude;
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 1000.0 || !buran->on_rails() || energia->on_rails() ||
+                energia->body().mode != sl::FlightBodyMode::kinematic)
+                return fail("stationary inactive launcher did not stay on the ground during warp");
+            for (int i = 0; i < 50; ++i)
+            {
+                sim.step(0.1);
+                if (sim.current_warp() != 1000.0 || !buran->on_rails() || energia->on_rails() ||
+                    energia->body().mode != sl::FlightBodyMode::kinematic || energia->crashed())
+                {
+                    std::fprintf(stderr, "frame %d: warp %.0f landed %d speed %.3f thrust %.3f mode %d\n",
+                                 i, sim.current_warp(), energia->telemetry().landed, energia->telemetry().surface_speed,
+                                 energia->telemetry().thrust, static_cast<int>(energia->body().mode));
+                    return fail("parked launcher did not remain safely pinned across warp frames");
+                }
+            }
+            if (std::abs(energia->telemetry().latitude - latitude) > 1e-5 ||
+                std::abs(std::remainder(energia->telemetry().longitude - longitude, 360.0)) > 1e-5)
+                return fail("parked launcher moved relative to the ground during warp");
+            if (!sim.skip_time(60.0, why) || !energia->warp_held() ||
+                energia->body().mode != sl::FlightBodyMode::kinematic)
+                return fail("time skip did not preserve the existing warp hold");
+            sim.step(0.1);
+            if (sim.current_warp() != 1000.0 || !energia->warp_held())
+                return fail("parked launcher did not remain held after time skip");
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.step(0.01);
+            if (energia->body().mode != sl::FlightBodyMode::dynamic || buran->on_rails())
+                return fail("physics did not resume after warp");
+            energia->body().gear[0].compression = 0.01;
+            energia->refresh_telemetry();
+            if (!sim.skip_time(60.0, why) || energia->on_rails())
+                return fail("stationary inactive launcher blocked time skip");
+            if (energia->body().mode != sl::FlightBodyMode::dynamic)
+                return fail("time skip did not release its temporary ground pin");
+            energia->body().gear[0].compression = 0.01;
+            energia->body().velocity += sl::dvec3(2.0, 0.0, 0.0);
+            energia->refresh_telemetry();
+            if (sim.skip_time(60.0, why) || why.find("CVEL Energia: landed") == std::string::npos)
+                return fail("moving landed launcher did not block time skip");
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 4.0 || energia->on_rails())
+                return fail("moving landed launcher did not block rails warp");
+            energia->place_on_surface(earth, sl::dvec3(1.0, 0.0, 0.0), 0.0, 0.0);
+            energia->body().gear[0].compression = 0.01;
+            energia->refresh_telemetry();
+            auto firing = std::find_if(energia->body().thrusters.begin(), energia->body().thrusters.end(),
+                                       [](const sl::Thruster &thruster) { return thruster.max_thrust > 0.0; });
+            if (firing == energia->body().thrusters.end())
+                return fail("Energia has no thrust for the safety test");
+            firing->level = 1.0;
+            energia->refresh_telemetry();
+            if (sim.skip_time(60.0, why) || why.find("CVEL Energia: landed") == std::string::npos)
+                return fail("thrusting landed launcher did not block time skip");
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 4.0 || energia->on_rails())
+                return fail("thrusting landed launcher did not block rails warp");
+            firing->level = 0.0;
+            energia->refresh_telemetry();
+            sim.link_claims[0] = {};
+            if (sim.skip_time(60.0, why) || why.find("CVEL Energia: landed") == std::string::npos)
+                return fail("addon-controlled landed launcher did not block time skip");
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 4.0 || energia->on_rails())
+                return fail("addon-controlled landed launcher did not block rails warp");
+            sim.link_claims.erase(0);
+            energia->place_on_surface(earth, sl::dvec3(1.0, 0.0, 0.0), 0.0, 0.0);
+            energia->body().gear[0].compression = 0.01;
+            energia->refresh_telemetry();
+            sim.nav.link(0, 0, 1, 0);
+            if (sim.skip_time(60.0, why) || why.find("CVEL Energia: landed") == std::string::npos)
+                return fail("docked landed launcher did not block time skip");
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 4.0 || energia->on_rails())
+                return fail("docked landed launcher did not block rails warp");
+            sim.nav.clear_links();
+            buran->place_in_orbit(earth, 400000.0, 0.0);
+            energia->place_on_surface(earth, sl::dvec3(1.0, 0.0, 0.0), 0.0, 0.0);
+            energia->body().gear[0].compression = 0.01;
+            energia->refresh_telemetry();
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (sim.current_warp() != 1000.0 || energia->body().mode != sl::FlightBodyMode::kinematic)
+                return fail("launcher did not enter warp hold before vessel change");
+            sim.activate(0);
+            sim.step(0.01);
+            if (sim.current_warp() != 4.0 || energia->body().mode != sl::FlightBodyMode::dynamic)
+                return fail("active landed launcher did not block rails");
+            if (sim.skip_time(60.0, why) || why != "landed")
+                return fail("active landed launcher did not block time skip");
+            sim.activate(1);
+            energia->body().gear[0].compression = 0.01;
+            energia->refresh_telemetry();
+            sim.props.set_int("/sim/warp-index", 8);
+            sim.step(0.01);
+            if (!energia->warp_held())
+                return fail("launcher did not enter warp hold before damage");
+            energia->damage(1.0);
+            sim.step(0.01);
+            if (!energia->crashed() || energia->warp_held() ||
+                energia->body().mode != sl::FlightBodyMode::kinematic || sim.current_warp() != 1000.0)
+                return fail("wreck did not retain its ground pin after warp hold ended");
+            std::puts("Parked warp selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/warp-atmosphere"))
         {
             const bool expected_rails = sim.props.get_bool("/selftest/expect-rails");

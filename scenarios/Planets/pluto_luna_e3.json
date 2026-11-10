@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Pluto.",
-  "name": "Luna E3 at Pluto",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Pluto.",
+  "name": "Luna E3 RTG at Pluto",
   "ships": [
     {
       "body": "Pluto",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/pluto_luna_e3-1794321462656000633-0.png"

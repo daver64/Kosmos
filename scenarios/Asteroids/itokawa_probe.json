@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Itokawa. Gravity and the irregular surface are simplified.",
-  "name": "Luna E3 at Itokawa",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around asteroid Itokawa. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 RTG at Itokawa",
   "ships": [
     {
       "body": "Itokawa",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/itokawa_probe-1794323511911771490-0.png"

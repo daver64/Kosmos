@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Io.",
-  "name": "Luna E3 at Io",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Io.",
+  "name": "Luna E3 RTG at Io",
   "ships": [
     {
       "body": "Io",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/io_luna_e3-1794323918854955489-0.png"

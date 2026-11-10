@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around Saturn.",
-  "name": "Luna E3 at Saturn",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around Saturn.",
+  "name": "Luna E3 RTG at Saturn",
   "ships": [
     {
       "body": "Saturn",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/saturn_luna_e3-1794321384262725693-0.png"

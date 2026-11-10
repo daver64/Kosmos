@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around S2000 90 1.",
-  "name": "Luna E3 at S2000 90 1",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around S2000 90 1.",
+  "name": "Luna E3 RTG at S2000 90 1",
   "ships": [
     {
       "body": "S2000 90 1",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/s2000_90_1_luna_e3-1794323437593634432-0.png"

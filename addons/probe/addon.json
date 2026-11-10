@@ -2,5 +2,5 @@
   "id": "probe",
   "name": "CVE-Lite Luna E3 probe",
   "version": "0.1",
-  "ships": ["ship.json"]
+  "ships": ["ship.json", "ship_rtg.json"]
 }

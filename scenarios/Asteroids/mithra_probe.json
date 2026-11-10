@@ -1,7 +1,7 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Mithra. Gravity and the irregular surface are simplified.",
-  "name": "Luna E3 at Mithra",
+  "description": "A fictional Luna E3 RTG probe in a circular orbit around asteroid Mithra. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 RTG at Mithra",
   "ships": [
     {
       "body": "Mithra",
@@ -10,7 +10,7 @@
         "inclination": 0,
         "phase": 0
       },
-      "ship": "Luna E3"
+      "ship": "Luna E3 RTG"
     }
   ],
   "thumbnail": "thumbs/mithra_probe-1794323550335630110-0.png"

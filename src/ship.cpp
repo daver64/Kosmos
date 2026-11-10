@@ -624,8 +624,11 @@ namespace kosmos
         else if (!on && warp_pinned_)
         {
             warp_pinned_ = false;
-            pinned_ = false;
-            body().mode = sl::FlightBodyMode::dynamic;
+            if (!crashed_ && !resting_)
+            {
+                pinned_ = false;
+                body().mode = sl::FlightBodyMode::dynamic;
+            }
         }
     }
 
@@ -645,6 +648,8 @@ namespace kosmos
 
     void Ship::after_step(double dt)
     {
+        if (warp_pinned_)
+            hold_pinned();
         update_telemetry();
         step_systems(dt);
 
