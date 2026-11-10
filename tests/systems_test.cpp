@@ -68,6 +68,32 @@ namespace
 int main()
 {
     {
+        const auto load_haze = [](const nlohmann::json &atmosphere, bool valid, double expected)
+        {
+            nlohmann::json system = {{"bodies", {{{"name", "Test"}, {"kind", "star"},
+                                                   {"radius", 1000000.0}, {"gm", 1.0e14},
+                                                   {"atmosphere", atmosphere}}}}};
+            Universe universe;
+            std::string error;
+            assert(universe.load_text(system.dump(), "haze-test.json", error) == valid);
+            if (valid)
+                assert(universe.bodies.front().close_orbit_haze == expected);
+            else
+            {
+                assert(error.find("haze-test.json: invalid body:") != std::string::npos);
+                assert(error.find("atmosphere.close_orbit_haze") != std::string::npos);
+            }
+        };
+        load_haze(nlohmann::json::object(), true, 0.0);
+        load_haze({{"close_orbit_haze", 0.0}}, true, 0.0);
+        load_haze({{"close_orbit_haze", 0.8}}, true, 0.8);
+        load_haze({{"close_orbit_haze", 1.0}}, true, 1.0);
+        load_haze({{"close_orbit_haze", -0.01}}, false, 0.0);
+        load_haze({{"close_orbit_haze", 1.01}}, false, 0.0);
+        load_haze({{"close_orbit_haze", "strong"}}, false, 0.0);
+        load_haze({{"close_orbit_haze", nullptr}}, false, 0.0);
+    }
+    {
         constexpr double au = 149597870700.0;
         const float earth = stellar_light_scale(1.0, au);
         const float jupiter = stellar_light_scale(1.0, 5.2 * au);

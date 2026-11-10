@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Mimas",
-  "description": "A fictional Luna E3 probe in a circular orbit around Mimas.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Mimas.",
+  "name": "Luna E3 at Mimas",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Mimas",
       "orbit": {
         "altitude_km": 10,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/mimas_luna_e3-1794324229356417905-0.png"
 }

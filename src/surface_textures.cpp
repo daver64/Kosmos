@@ -280,7 +280,7 @@ namespace kosmos::app
         return ec ? std::string{} : path.string();
     }
 
-    std::string find_surface_image(const std::string &root, const kosmos::Body &b)
+    std::string find_existing_surface_image(const std::string &root, const kosmos::Body &b)
     {
         if (!b.texture.empty())
             return root + "/data/" + b.texture;
@@ -294,8 +294,16 @@ namespace kosmos::app
         if (!celestia.empty())
             return celestia;
         const std::string shipped = find_texture_in_directory(root, "/data/textures/", lower, {".dds", ".png", ".jpg", ".jpeg"});
-        if (shipped.empty() && b.style.valid() && !b.minor)
+        if (!shipped.empty())
+            return shipped;
+        return find_texture_in_directory(root, "/data/textures/planets/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+    }
+
+    std::string find_surface_image(const std::string &root, const kosmos::Body &b)
+    {
+        const std::string image = find_existing_surface_image(root, b);
+        if (image.empty() && b.style.valid() && !b.minor)
             return generated_surface_image(b);
-        return shipped;
+        return image;
     }
 } // namespace kosmos::app

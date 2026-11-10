@@ -34,6 +34,9 @@ nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test ship_lights_te
 python3 "$SRC/tests/deltaglider_takeoff_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_light_render_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_glare_render_test.py" "$OUT/kosmos"
+python3 "$SRC/tests/planet_texture_selection_test.py" "$OUT/kosmos"
+python3 "$SRC/tests/close_orbit_haze_test.py" "$OUT/kosmos"
+python3 "$SRC/tests/distant_earth_cloud_depth_test.py" "$OUT/kosmos"
 cd "$OUT"
 export HOME=$(mktemp -d)
 export XDG_CONFIG_HOME="$HOME/.config"

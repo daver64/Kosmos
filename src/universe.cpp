@@ -283,6 +283,11 @@ namespace kosmos
         {
             body.atmosphere_density = a->value("density", 0.0);
             body.atmosphere_scale_height = a->value("scale_height", 8500.0);
+            if (const auto haze = a->find("close_orbit_haze"); haze != a->end() && !haze->is_number())
+                throw std::runtime_error("atmosphere.close_orbit_haze must be a number between 0 and 1");
+            body.close_orbit_haze = a->value("close_orbit_haze", 0.0);
+            if (!std::isfinite(body.close_orbit_haze) || body.close_orbit_haze < 0.0 || body.close_orbit_haze > 1.0)
+                throw std::runtime_error("atmosphere.close_orbit_haze must be between 0 and 1");
             if (a->contains("colour"))
                 for (int i = 0; i < 3; ++i)
                     body.atmosphere_colour[i] = (*a)["colour"][i].get<float>() / 255.0f;
@@ -411,6 +416,7 @@ namespace kosmos
             try
             {
                 read_body_fields(entry, body);
+                read_atmosphere(entry, body);
             }
             catch (const std::exception &e)
             {
@@ -440,8 +446,6 @@ namespace kosmos
                     return false;
                 }
             }
-            read_atmosphere(entry, body);
-
             place_body_orbit(entry, body, file, elapsed_days);
             if (entry.value("synchronous", false) && body.parent >= 0)
                 body.spin = body.orbit.mean_motion(bodies[static_cast<std::size_t>(body.parent)].gm);

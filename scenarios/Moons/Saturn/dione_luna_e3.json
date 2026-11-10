@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Dione",
-  "description": "A fictional Luna E3 probe in a circular orbit around Dione.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Dione.",
+  "name": "Luna E3 at Dione",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Dione",
       "orbit": {
         "altitude_km": 100,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/dione_luna_e3-1794324109380374878-0.png"
 }

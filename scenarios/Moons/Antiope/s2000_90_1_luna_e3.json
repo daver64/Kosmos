@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at S2000 90 1",
-  "description": "A fictional Luna E3 probe in a circular orbit around S2000 90 1.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around S2000 90 1.",
+  "name": "Luna E3 at S2000 90 1",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "S2000 90 1",
       "orbit": {
         "altitude_km": 10,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/s2000_90_1_luna_e3-1794323437593634432-0.png"
 }

@@ -8,6 +8,14 @@
 
 namespace kosmos::app
 {
+    namespace
+    {
+        double body_layer_depth_gap(double distance, double near_plane)
+        {
+            return std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
+        }
+    }
+
     void App::scene_lighting()
     {
     kosmos::Universe &universe = *universe_ref;
@@ -373,8 +381,17 @@ namespace kosmos::app
             const double dense = std::clamp(std::log10(1.0 + b.atmosphere_density) / std::log10(66.0), 0.0, 1.0);
             const double haze = 3.0 + 1.4 * dense;
             const double thickness = std::max(b.atmosphere_scale_height * 10.0, b.radius * 0.04) * haze * 0.7;
-            if (glm::length(rel) - b.radius < thickness)
-                return;
+            const double altitude = glm::length(rel) - b.radius;
+            double strength = 1.0;
+            if (altitude < thickness)
+            {
+                if (b.close_orbit_haze <= 0.0)
+                    return;
+                const double space = fx::smoothstep(b.atmosphere_scale_height * 8.0, b.atmosphere_scale_height * 12.0, altitude);
+                strength = glm::mix(b.close_orbit_haze * space, 1.0, fx::smoothstep(thickness * 0.75, thickness, altitude));
+                if (strength <= 0.0)
+                    return;
+            }
             if (limb_used == vis.limb_pool.size())
                 vis.limb_pool.push_back(make_limb_mesh());
             sl::Mesh *mesh = vis.limb_pool[limb_used++];
@@ -385,7 +402,7 @@ namespace kosmos::app
             shell.fog = false;
             shell.cull = sl::CullMode::none;
             shell.blend = sl::MaterialBlend::additive;
-            const auto brightness = static_cast<std::uint8_t>(255.0f * kosmos::stellar_light_scale(
+            const auto brightness = static_cast<std::uint8_t>(255.0 * strength * kosmos::stellar_light_scale(
                 universe.stellar_luminosity, glm::length(eye_world + rel - universe.position(0))));
             shell.tint = {brightness, brightness, brightness, 255};
             sl::draw_mesh(mesh, glm::mat4(1.0f), shell);
@@ -818,7 +835,7 @@ namespace kosmos::app
         kosmos::Universe &universe = *universe_ref;
         // Depth precision thins with distance, so each layer over the surface is scaled about the eye towards the camera: it looks the
         // same but sits clear of the planet in depth. The layers are lifted by different amounts so they keep their order too.
-        const double depth_gap = std::min(16.0 * distance * distance / (near_plane * 1.68e7), 0.3 * distance);
+        const double depth_gap = body_layer_depth_gap(distance, near_plane);
         auto lifted = [&](double fraction)
         {
             const float lift = static_cast<float>(1.0 - depth_gap * fraction / distance);
@@ -987,11 +1004,16 @@ namespace kosmos::app
             if (!earth_as_sphere)
                 shell_height = std::min(shell_height, std::max(1.0e3, altitude_now - shell_clearance));
             const float shell_scale = static_cast<float>((earth_body->radius + shell_height) / (earth_body->radius + home_cloud_height));
+            // Move the whole shell towards the eye without changing its apparent size; increasing its physical radius
+            // alone cannot reliably separate it from a distant surface when another nearby body sets the near plane.
+            const float depth_lift = earth_as_sphere
+                ? static_cast<float>(1.0 - body_layer_depth_gap(eye_earth_distance, near_plane) / eye_earth_distance)
+                : 1.0f;
             if (vis.earth_cloud_tiles && !home_cloud_texture)
             {
                 // The tiles run east the opposite way to the shell's sphere mesh, so they are mirrored (and the culling swapped to match).
-                const glm::mat4 tile_model = glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) *
-                                             glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale, -static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale));
+                const glm::mat4 tile_model = glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world) * depth_lift) *
+                                             glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale * depth_lift, static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale * depth_lift, -static_cast<float>(earth_body->radius + home_cloud_height) * shell_scale * depth_lift));
                 const glm::mat4 view_projection = camera.projection_matrix(static_cast<float>(view.aspect)) * camera.view_matrix() * tile_model;
                 const glm::dvec3 eye_local = glm::dvec3(glm::inverse(tile_model) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
                 vis.earth_cloud_tiles->update(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
@@ -1019,7 +1041,7 @@ namespace kosmos::app
                     v.colour[3] = 1.0f;
                 sl::update_mesh_vertices(cloud_shell, cloud_shell_vertices);
             }
-            sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world)) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale)), cloud);
+            sl::draw_mesh(cloud_shell, glm::translate(glm::mat4(1.0f), glm::vec3(earth_pos - eye_world) * depth_lift) * glm::scale(glm::mat4(1.0f), glm::vec3(shell_scale * depth_lift)), cloud);
             }
         }
 

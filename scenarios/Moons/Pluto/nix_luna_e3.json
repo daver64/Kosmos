@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Nix",
-  "description": "A fictional Luna E3 probe in a circular orbit around Nix.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Nix.",
+  "name": "Luna E3 at Nix",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Nix",
       "orbit": {
         "altitude_km": 10,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/nix_luna_e3-1794324071630163772-0.png"
 }

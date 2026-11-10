@@ -1,5 +1,7 @@
-Default surface images: equirectangular, in this folder (a fresh git checkout runs on these, from Celestia).
+Default surface images: equirectangular, in this folder or planets/ (see CREDITS-textures.md).
 High-resolution replacements go in data/textures-hires/ (git-ignored) with the same names; a file there wins over one here.
+Named files in this folder take precedence over planets/; optional Celestia hires imagery takes precedence over both.
+Venus's default sphere shows a 4096 x 2048 cloud-top image; planets/venus.jpg is a radar-derived surface map.
 
 Drop equirectangular surface images here, named after the body in lower case (earth.png, earth.jpg, mars.jpg, moon.png ...),
 or set "texture": "textures/myfile.png" on the body in data/sol.json.

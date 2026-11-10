@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Miranda",
-  "description": "A fictional Luna E3 probe in a circular orbit around Miranda.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Miranda.",
+  "name": "Luna E3 at Miranda",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Miranda",
       "orbit": {
         "altitude_km": 50,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/miranda_luna_e3-1794324460255300982-0.png"
 }

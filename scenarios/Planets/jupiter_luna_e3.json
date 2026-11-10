@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Jupiter",
-  "description": "A fictional Luna E3 probe in a circular orbit around Jupiter.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Jupiter.",
+  "name": "Luna E3 at Jupiter",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Jupiter",
       "orbit": {
-        "altitude_km": 2000,
+        "altitude_km": 12000,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/jupiter_luna_e3-1794321270170539281-0.png"
 }

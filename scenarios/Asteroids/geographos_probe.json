@@ -1,6 +1,17 @@
 {
- "name": "Luna E3 at Geographos",
- "description": "A fictional Luna E3 probe in a circular orbit around asteroid Geographos. Gravity and the irregular surface are simplified.",
- "active": 0,
- "ships": [{"ship": "Luna E3", "body": "Geographos", "orbit": {"altitude_km": 5, "inclination": 0, "phase": 0}}]
+  "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Geographos. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 at Geographos",
+  "ships": [
+    {
+      "body": "Geographos",
+      "orbit": {
+        "altitude_km": 5,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/geographos_probe-1794323490493956349-0.png"
 }

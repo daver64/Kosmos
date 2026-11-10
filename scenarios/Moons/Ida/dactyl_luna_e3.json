@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Dactyl",
-  "description": "A fictional Luna E3 probe in a circular orbit around Dactyl.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Dactyl.",
+  "name": "Luna E3 at Dactyl",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Dactyl",
       "orbit": {
         "altitude_km": 0.2,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/dactyl_luna_e3-1794323824824512576-0.png"
 }

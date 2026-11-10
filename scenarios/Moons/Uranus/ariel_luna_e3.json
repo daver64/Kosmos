@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Ariel",
-  "description": "A fictional Luna E3 probe in a circular orbit around Ariel.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Ariel.",
+  "name": "Luna E3 at Ariel",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Ariel",
       "orbit": {
         "altitude_km": 100,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/ariel_luna_e3-1794324388486048122-0.png"
 }

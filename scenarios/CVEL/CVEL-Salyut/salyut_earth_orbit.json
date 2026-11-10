@@ -1,16 +1,17 @@
 {
- "name": "CVEL: Salyut, Earth orbit",
- "description": "CVE-Lite Salyut in a 400 km Earth orbit. Use View > Animations to fold or deploy the solar arrays.",
- "active": 0,
- "ships": [
-  {
-   "ship": "Salyut",
-   "body": "Earth",
-   "orbit": {
-    "altitude_km": 400,
-    "inclination": 51.6,
-    "phase": 0
-   }
-  }
- ]
+  "active": 0,
+  "description": "CVE-Lite Salyut in a 400 km Earth orbit. Use View > Animations to fold or deploy the solar arrays.",
+  "name": "CVEL: Salyut, Earth orbit",
+  "ships": [
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 51.6,
+        "phase": 0
+      },
+      "ship": "Salyut"
+    }
+  ],
+  "thumbnail": "thumbs/salyut_earth_orbit-1794323661667154947-0.png"
 }

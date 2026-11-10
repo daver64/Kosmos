@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Nereid",
-  "description": "A fictional Luna E3 probe in a circular orbit around Nereid.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Nereid.",
+  "name": "Luna E3 at Nereid",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Nereid",
       "orbit": {
         "altitude_km": 30,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/nereid_luna_e3-1794323967816461171-0.png"
 }

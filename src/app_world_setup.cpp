@@ -170,7 +170,7 @@ namespace kosmos::app
         for (std::size_t i = 0; i < sim.universe.bodies.size() && i < vis.body_textures.size(); ++i)
         {
             const kosmos::Body &b = sim.universe.bodies[i];
-            if (b.minor || !b.style.valid() || !b.texture.empty())
+            if (b.minor || !b.style.valid() || !find_existing_surface_image(sim.root(), b).empty())
                 continue;
             if (std::find(vis.surface_textured.begin(), vis.surface_textured.end(), static_cast<int>(i)) == vis.surface_textured.end())
                 continue;
@@ -198,7 +198,7 @@ namespace kosmos::app
             for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
             {
                 const kosmos::Body &b = sim.universe.bodies[i];
-                if (b.minor || !b.style.valid() || !b.texture.empty() || generated_missing_widths(b).empty())
+                if (b.minor || !b.style.valid() || !find_existing_surface_image(sim.root(), b).empty() || generated_missing_widths(b).empty())
                     continue;
                 order.push_back({glm::length(sim.universe.position(static_cast<int>(i)) - eye), i});
             }
@@ -224,6 +224,8 @@ namespace kosmos::app
                 continue;
             const std::size_t i = static_cast<std::size_t>(id);
             const kosmos::Body &b = sim.universe.bodies[i];
+            if (!find_existing_surface_image(sim.root(), b).empty())
+                continue;
             // Only ever swap upwards, and never past the width chosen in the settings.
             const std::string best = generated_surface_image(b);
             if (best != job.path || i >= vis.body_textures.size())

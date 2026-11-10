@@ -44,6 +44,8 @@ namespace kosmos
         double soi = 1.0e30;
         double atmosphere_density = 0.0;
         double atmosphere_scale_height = 8500.0;
+        /** Relative limb glow in close orbit, 0 to disable; does not affect atmospheric physics. */
+        double close_orbit_haze = 0.0;
         float atmosphere_colour[3] = {0.5f, 0.6f, 0.9f};
         double cloud_cover = 0.0;
         double cloud_height = 15000.0;

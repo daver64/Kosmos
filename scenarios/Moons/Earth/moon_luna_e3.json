@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Moon",
-  "description": "A fictional Luna E3 probe in a circular orbit around Moon.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Moon.",
+  "name": "Luna E3 at Moon",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Moon",
       "orbit": {
         "altitude_km": 100,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/moon_luna_e3-1794323788395362208-0.png"
 }

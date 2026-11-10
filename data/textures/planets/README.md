@@ -1,6 +1,9 @@
 # Planet Textures
 
 This directory contains textures for celestial bodies in the Kosmos space simulator.
+These maps are used when no explicit, hi-res, Celestia-hires or `data/textures/` image exists for the body.
+The bundled Venus image here is a radar-derived surface map; the separate `data/textures/venus.jpg` shows cloud tops.
+See `data/CREDITS-textures.md` for source and licensing details.
 
 ## Recommended Sources
 
@@ -106,7 +109,7 @@ Most Celestia textures are derived from public domain NASA imagery or have permi
 
 - **NASA imagery**: Public domain
 - **Celestia Motherlode**: Usually free for non-commercial use, check individual licenses
-- **Solar System Scope**: Free for personal and educational use
+- **Solar System Scope**: CC BY 4.0; attribution required
 
 ## Current Status
 

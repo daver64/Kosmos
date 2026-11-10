@@ -37,5 +37,7 @@ extern int generated_texture_width;
 
     std::string generated_surface_image(const kosmos::Body &b);
 
+    std::string find_existing_surface_image(const std::string &root, const kosmos::Body &b);
+
     std::string find_surface_image(const std::string &root, const kosmos::Body &b);
 } // namespace kosmos::app

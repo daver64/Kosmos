@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Pluto",
-  "description": "A fictional Luna E3 probe in a circular orbit around Pluto.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Pluto.",
+  "name": "Luna E3 at Pluto",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Pluto",
       "orbit": {
         "altitude_km": 200,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/pluto_luna_e3-1794321462656000633-0.png"
 }

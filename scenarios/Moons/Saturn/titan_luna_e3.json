@@ -1,16 +1,17 @@
 {
-  "name": "Luna E3 at Titan",
-  "description": "A fictional Luna E3 probe in a circular orbit around Titan.",
   "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Titan.",
+  "name": "Luna E3 at Titan",
   "ships": [
     {
-      "ship": "Luna E3",
       "body": "Titan",
       "orbit": {
         "altitude_km": 500,
         "inclination": 0,
         "phase": 0
-      }
+      },
+      "ship": "Luna E3"
     }
-  ]
+  ],
+  "thumbnail": "thumbs/titan_luna_e3-1794324366415331742-0.png"
 }

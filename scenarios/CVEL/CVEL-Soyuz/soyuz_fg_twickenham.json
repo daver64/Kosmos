@@ -1,13 +1,15 @@
 {
- "name": "CVEL: Soyuz-FG, Twickenham",
- "description": "The Soyuz-FG with its Soyuz TMA on the pad at Twickenham Spaceport. Stage once to release the strap-on boosters, again for the core, and again to drop the upper stage and fairing; the TMA flies on alone.",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Soyuz-FG",
-   "body": "Earth",
-   "surface": {
-    "base": "twickenham"
-   }
-  }
- ]}
+  "active": 0,
+  "description": "The Soyuz-FG with its Soyuz TMA on the pad at Twickenham Spaceport. Stage once to release the strap-on boosters, again for the core, and again to drop the upper stage and fairing; the TMA flies on alone.",
+  "name": "CVEL: Soyuz-FG, Twickenham",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Soyuz-FG",
+      "surface": {
+        "base": "twickenham"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/soyuz_fg_twickenham-1794323728530401560-0.png"
+}

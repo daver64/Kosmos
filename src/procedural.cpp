@@ -478,16 +478,21 @@ namespace kosmos
         const glm::vec3 e1 = glm::normalize(glm::cross(std::fabs(view.y) < 0.9f ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0), view));
         const glm::vec3 e2 = glm::cross(view, e1);
         const double height_scale = std::max(scale_height * 2.5, thickness * 0.12);
+        const double base = radius * 0.996;
+        const double visible_height = std::min(thickness, std::max(0.0, d * 0.999 - base));
+        const double truncation = fx::smoothstep(0.0, thickness * 0.1, thickness - visible_height);
         std::vector<sl::Vertex3D> vertices;
         vertices.reserve((limb_rings + 1) * (limb_segments + 1));
         for (int i = 0; i <= limb_rings; ++i)
         {
             const double t = static_cast<double>(i) / limb_rings;
-            const double h = thickness * t * t;
+            const double h = visible_height * t * t;
             // Start a little below the surface so the glow fills the gaps along the planet's tessellated edge.
-            const double p = std::min(radius * 0.996 + h, d * 0.999);
+            const double p = base + h;
             const double r = p * d / std::sqrt(std::max(d * d - p * p, 1.0));
-            const double density = std::exp(-h / height_scale) * (1.0 - fx::smoothstep(0.55, 1.0, t));
+            const double edge = 1.0 - truncation * fx::smoothstep(0.7, 1.0, t);
+            const double density = std::exp(-h / height_scale) *
+                                   (1.0 - fx::smoothstep(0.55, 1.0, std::sqrt(h / thickness))) * edge;
             for (int j = 0; j <= limb_segments; ++j)
             {
                 const double phi = 2.0 * pi * j / limb_segments;

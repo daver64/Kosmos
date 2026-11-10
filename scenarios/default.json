@@ -1,22 +1,25 @@
 {
- "name": "Default start",
- "description": "Loaded when Kosmos is run with no arguments. Copy this file to ~/.config/kosmos/scenarios/default.json to change it.",
- "active": 0,
-  "view": "cockpit",
- "mfd_left": "orbit",
- "mfd_power": {"right": false},
- "mfd_display": "hud",
- "ships": [
-  {
-   "ship": "Kestrel",
-   "body": "Earth",
-   "surface": {
-    "base": "chippenham"
-   }
-  }
- ],
- "nav": [
-  109.5,
-  113.4
- ]
+  "active": 0,
+  "description": "Loaded when Kosmos is run with no arguments. Copy this file to ~/.config/kosmos/scenarios/default.json to change it.",
+  "mfd_display": "hud",
+  "mfd_left": "orbit",
+  "mfd_power": {
+    "right": false
+  },
+  "name": "Default start",
+  "nav": [
+    109.5,
+    113.4
+  ],
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "Kestrel",
+      "surface": {
+        "base": "chippenham"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/default-1794324593326404964-0.png",
+  "view": "cockpit"
 }

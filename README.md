@@ -110,7 +110,7 @@ Website traffic can be summarized with `python3 scripts/page-report.py`: it read
 
 Both scripts use the installed simlib under `SIMLIB_PREFIX` (default `~/opt` for Linux, `~/opt-win` for the mingw build); set `KOSMOS_SIMLIB_DIR` to build from a source checkout instead.
 
-`import/orbiter/` (launcher-installed Orbiter high-resolution tiles and optional source material) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` that works on its own. See the developers manual for installing hi-res data.
+`import/orbiter/` (launcher-installed Orbiter high-resolution tiles and optional source material) and `data/textures-hires/` (optional high-resolution surface maps) are git-ignored and never packaged; the repository carries a default texture set in `data/textures/` and `data/textures/planets/` that works on its own. The default Venus image shows cloud tops; its radar-derived surface map is kept separately. See the developers manual for installing hi-res data.
 
 ## Native addons
 
@@ -279,6 +279,8 @@ Each star gets a procedural planetary system (planets, moons, belts, comets) wit
 Press **N**, pick a star and press **Enter** to jump; a short hyperspace effect plays while the new system loads (the window stays open), and you arrive in a 200 km orbit around its home planet.
 
 Hand-authored systems live in `data/systems/<name>.json` (same format as `sol.json`; the file name is the star's name in lower case with dashes). Sirius (with its white dwarf companion), Proxima, TRAPPIST-1, Betelgeuse and Rigel ship this way; every other star uses the generator.
+
+An atmosphere can set `"close_orbit_haze": 0.8` to tune its close-orbit limb glow (0 to 1, default 0). It fades out within the atmosphere and blends into the normal distant glow; it changes rendering only, not density or drag. Venus, Jupiter and Saturn have initial settings in `data/sol.json`.
 
 Scenarios belong to a star system: a `"system": "Sirius"` entry in the scenario file (empty means Sol) makes starting it jump there first, and the scenario editor records the current system when it saves.
 
