@@ -74,7 +74,11 @@ namespace kosmos
         props.set_int("/sim/settings/gfx-msaa", 4);
         props.set_int("/sim/settings/gfx-screen-ss", 2);
         props.set_int("/sim/settings/gfx-terrain-detail", 1);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        props.set_bool("/sim/settings/gfx-earth-relief", true);
+#else
         props.set_bool("/sim/settings/gfx-earth-relief", false);
+#endif
         props.set_bool("/sim/settings/gfx-clutter", true);
         props.set_int("/sim/settings/gfx-clutter-density", 100);
         props.set_int("/sim/settings/gfx-clutter-radius", 100);

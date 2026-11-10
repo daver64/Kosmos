@@ -279,7 +279,7 @@ namespace kosmos::app
             if (ImGui::Checkbox("Earth relief from orbit", &relief))
                 props.set_bool("/sim/settings/gfx-earth-relief", relief);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Terrain relief and sea glint from 300 km down, instead of the tiled sphere to 20 km. Slower.");
+                ImGui::SetTooltip("Uses Orbiter imagery and elevation for Earth's orbital relief view when available. New settings enable relief by default; saved preferences are preserved. May be slower.");
     }
 
     void App::settings_weather()

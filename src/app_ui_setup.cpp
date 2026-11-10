@@ -93,8 +93,7 @@ namespace kosmos::app
         if (!options.map_focus.empty())
             map.focus = sim.universe.find(options.map_focus);
         sas_index = 0;
-        // With the Earth relief option the terrain mesh (with sea glint) takes over at 300 km instead.
-        // Altitude below which the terrain mesh replaces the tiled Earth sphere. Lower keeps the 64k imagery and sea glint longer, but the sphere has no relief, so peaks pop up at the swap.
+        // Initial Earth sphere threshold; update_earth_sphere_visibility adjusts it once assets and settings are known.
         earth_sphere_switch_m = 20.0e3;
         sl::gamepad_init();
         joystick.load();

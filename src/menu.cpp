@@ -1316,7 +1316,7 @@ namespace kosmos
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
                                    "  Installed Orbiter Mars elevation shapes the terrain in low and medium orbit as well as near the ground.\n"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-                                   "  --orbital-relief-ground tests incomplete ground tiles; height checks may switch back to existing terrain.\n"
+                                   "  Orbiter relief is the default when assets are available; --no-orbital-relief-ground restores old ground terrain.\n"
 #endif
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
                                    "  --orbiter-microtexture-root PATH tests detail from an Orbiter installation; --no-detail disables it.\n"

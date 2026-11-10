@@ -324,7 +324,6 @@ namespace kosmos::app
                 }
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                 if (!(options.orbital_relief_ground && vis.earth_relief_tiles &&
-                      props.get_bool("/sim/settings/gfx-earth-relief") &&
                       draw_orbiter_relief(*vis.earth_relief_tiles, earth_id, -eye_from_earth, ground, body_terrains[0].get())))
 #endif
                     terrain->draw(eye_from_earth, ground);

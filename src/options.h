@@ -46,10 +46,10 @@ namespace kosmos::app
         int panel = 0;
         /** Ignore the tiled Earth imagery and use the single image (--no-tiles). */
         bool no_tiles = false;
-        int orbital_relief_patches = 96;
-        int orbital_relief_meshes = 512;
-        int orbital_relief_textures = 128;
-        bool orbital_relief_ground = false;
+        int orbital_relief_patches = 0;
+        int orbital_relief_meshes = 0;
+        int orbital_relief_textures = 0;
+        bool orbital_relief_ground = true;
         std::string orbiter_microtexture_root;
         bool camera_window = false;
         bool settings_window = false;
