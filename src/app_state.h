@@ -326,6 +326,8 @@ namespace kosmos::app
         int surface_h{};
         int surface_msaa{1};
         Visuals vis;
+        sl::Bitmap *map_texture = nullptr;
+        int map_texture_body = -1;
         int earth_id{};
         const kosmos::Body * earth_body{};
         std::vector<std::unique_ptr<BodyTerrain>> body_terrains;

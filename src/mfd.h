@@ -123,7 +123,7 @@ namespace kosmos
         const std::string &last_error() const { return error_; }
         /** A cached bitmap from disk, or null. */
         sl::Bitmap *bitmap(const std::string &path);
-        /** Registers a bitmap drawn by image("live:<name>"): a picture the game renders (the Instrument MFD's camera). The caller keeps ownership. */
+        /** Registers a bitmap drawn by image("live:<name>"). The caller keeps ownership. */
         void set_live_bitmap(const std::string &name, sl::Bitmap *bitmap) { live_bitmaps_[name] = bitmap; }
 
     private:

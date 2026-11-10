@@ -5,13 +5,6 @@ local function ship(path)
   return props.get("/ships/ship[" .. props.get("/sim/active-ship") .. "]/" .. path)
 end
 
--- Surface images shipped in data/textures/.
-local TEXTURES = {
-  earth = true, moon = true, mars = true, mercury = true, venus = true, io = true, europa = true,
-  ganymede = true, callisto = true, titan = true, pluto = true, charon = true, triton = true,
-  rhea = true, tethys = true, dione = true, iapetus = true, phobos = true, deimos = true,
-}
-
 local function fmt_time(s)
   if s == nil or s ~= s or s < 0 then return "--" end
   s = math.floor(s)
@@ -63,8 +56,8 @@ return {
     g:colour(255, 240, 140)
     g:text(200, 14, "MAP  " .. body, 1)
 
-    if TEXTURES[string.lower(body)] and self.texture then
-      g:image("../../data/textures/" .. string.lower(body) .. ".jpg", x0 + mw / 2, y0 + mh / 2, mw, mh)
+    if self.texture then
+      g:image("live:map-surface", x0 + mw / 2, y0 + mh / 2, mw, mh)
     end
     if self.grid then
       g:colour(60, 120, 80)

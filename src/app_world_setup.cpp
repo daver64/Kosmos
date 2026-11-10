@@ -50,6 +50,11 @@ namespace kosmos::app
     // Everything drawn or collided with that belongs to one star system; a quantum jump drops it and builds the next.
     void App::leave_system()
     {
+        sim.mfd.set_live_bitmap("map-surface", nullptr);
+        if (map_texture)
+            sl::destroy_bitmap(map_texture);
+        map_texture = nullptr;
+        map_texture_body = -1;
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
         orbiter_microtexture_array.reset();
         orbiter_microtexture_assets = {};

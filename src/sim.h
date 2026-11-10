@@ -233,7 +233,7 @@ namespace kosmos
         bool soyuz_landing_ = false, soyuz_checked_ = false;
         int soyuz_forecast_pass_ = 0;
         double soyuz_forecast_start_ = 0.0, soyuz_forecast_coast_ = 0.0;
-        double soyuz_departure_ = 0.0, soyuz_expected_arrival_ = 0.0;
+        double soyuz_departure_ = 0.0, soyuz_expected_arrival_ = 0.0, soyuz_expected_entry_ = 0.0;
         double soyuz_search_start_ = 0.0, soyuz_search_wait_ = 0.0, soyuz_search_limit_ = 0.0;
         double soyuz_search_rate_ = 0.0, soyuz_search_reference_ = 0.0, soyuz_search_duration_ = 0.0;
         double soyuz_search_best_distance_ = 0.0, soyuz_search_best_departure_ = 0.0;

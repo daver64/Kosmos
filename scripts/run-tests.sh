@@ -34,6 +34,7 @@ nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test ship_lights_te
 python3 "$SRC/tests/deltaglider_takeoff_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/buran_flight_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/mfd_overlay_layout_test.py" "$OUT/kosmos"
+python3 "$SRC/tests/mfd_map_texture_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_light_render_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_glare_render_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/planet_texture_selection_test.py" "$OUT/kosmos"
@@ -116,6 +117,7 @@ done
 if [ "$extended" -eq 1 ]; then
     echo "== extended flight tests"
     echo "== Soyuz deorbit and entry (untargeted)"
+    python3 "$SRC/tests/soyuz_countdown_test.py" "$PWD/kosmos"
     ./kosmos --scenario soyuz_tma_orbit --selftest 1 --set /selftest/soyuz-entry=true
     ./kosmos --scenario soyuz_tma_orbit --selftest 1 --set /selftest/soyuz-entry=true --set /selftest/soyuz-entry-coast=500 --set /selftest/soyuz-entry-step=0.02
     python3 "$SRC/tests/soyuz_autoland_test.py" "$PWD/kosmos"

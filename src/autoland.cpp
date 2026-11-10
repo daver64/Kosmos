@@ -22,6 +22,7 @@ namespace kosmos
         landing_candidates_.clear();
         landing_last_level_ = 0.0;
         props.set_double("/autopilot/land/window", 0.0);
+        props.set_double("/autopilot/land/reentry", -1.0);
         if (!active)
             return;
         props.set_bool("/autopilot/land/armed", false);
@@ -644,6 +645,7 @@ namespace kosmos
             props.set_double("/controls/hover", 0.0);
             props.set_string("/controls/sas", "off");
             props.set_int("/sim/warp-index", 0);
+            props.set_double("/autopilot/land/reentry", -1.0);
             props.set_string("/autopilot/land/state", "Soyuz planning");
             props.set_string("/autopilot/status", "Autoland: Soyuz planning");
             log("Soyuz autoland: prediction ignores weather; monitor entry and take over if needed");
@@ -656,6 +658,9 @@ namespace kosmos
         if (props.get_bool("/sim/settings/nonspherical-gravity"))
             return fail("spherical gravity is required");
         const std::string phase = props.get_string("/autopilot/land/state");
+        if (phase == "Soyuz waiting" || phase == "Soyuz checking" ||
+            phase == "Soyuz deorbit" || phase == "Soyuz entry")
+            props.set_double("/autopilot/land/reentry", std::max(0.0, soyuz_expected_entry_ - now));
         const std::string expected_sas = phase == "Soyuz planning" || phase == "Soyuz search" || phase == "Soyuz waiting" ||
                                          phase == "Soyuz checking" ? "off" : "retrograde";
         const std::string sas = props.get_string("/controls/sas");
@@ -697,7 +702,10 @@ namespace kosmos
         }
         if (phase == "Soyuz planning" || phase == "Soyuz checking")
         {
-            props.set_int("/sim/warp-index", 0);
+            if (phase == "Soyuz checking")
+                props.set_int("/sim/warp-index", 0);
+            else if (props.get_int("/sim/warp-index") > 3)
+                props.set_int("/sim/warp-index", 3);
             if (phase == "Soyuz checking")
                 props.set_double("/autopilot/land/window", std::max(0.0, soyuz_departure_ - now));
             const int budget = std::clamp(static_cast<int>(std::max(0.0, frame) * 1000.0), 1, 100);
@@ -710,9 +718,10 @@ namespace kosmos
             if (props.get_bool("/selftest/soyuz-autoland"))
                 std::printf("Soyuz forecast pass %d coast %.1f status %d arrival %.1f\n",
                             soyuz_forecast_pass_, soyuz_forecast_coast_, static_cast<int>(result.status), result.time);
-            if (result.status != LandingForecastStatus::captured)
-                return fail("Soyuz entry forecast failed or fuel is insufficient");
             const double forecast_departure = soyuz_forecast_start_ + soyuz_forecast_coast_;
+            if (result.status != LandingForecastStatus::captured || !std::isfinite(result.entry_time) ||
+                result.entry_time <= forecast_departure || result.entry_time >= result.time)
+                return fail("Soyuz entry forecast failed or fuel is insufficient");
             const double duration = result.time - forecast_departure;
             const double forecast_miss = miss(result.relative_position, result.time);
             if (props.get_bool("/selftest/soyuz-autoland"))
@@ -723,6 +732,8 @@ namespace kosmos
                     return fail("Soyuz landing forecast no longer meets the target");
                 soyuz_checked_ = true;
                 soyuz_expected_arrival_ = result.time;
+                soyuz_expected_entry_ = result.entry_time;
+                props.set_double("/autopilot/land/reentry", std::max(0.0, result.entry_time - now));
                 props.set_double("/autopilot/land/distance", forecast_miss);
                 props.set_string("/autopilot/land/state", "Soyuz waiting");
                 props.set_string("/autopilot/status", "Autoland: Soyuz waiting");
@@ -733,6 +744,9 @@ namespace kosmos
             {
                 soyuz_departure_ = forecast_departure;
                 soyuz_expected_arrival_ = result.time;
+                soyuz_expected_entry_ = result.entry_time;
+                props.set_double("/autopilot/land/window", std::max(0.0, forecast_departure - now));
+                props.set_double("/autopilot/land/reentry", std::max(0.0, result.entry_time - now));
                 landing_plan_time_ = now;
                 landing_plan_position_ = r;
                 landing_plan_velocity_ = v;
@@ -763,7 +777,8 @@ namespace kosmos
         }
         if (phase == "Soyuz search")
         {
-            props.set_int("/sim/warp-index", 0);
+            if (props.get_int("/sim/warp-index") > 3)
+                props.set_int("/sim/warp-index", 3);
             // Rotate the previous entry in its orbit plane; every candidate still needs a full forecast.
             for (int i = 0; i < 1024 && soyuz_search_wait_ <= soyuz_search_limit_; ++i, soyuz_search_wait_ += 2.0)
             {

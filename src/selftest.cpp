@@ -1649,6 +1649,7 @@ namespace kosmos
                 sim.link_claims[sim.active_index()] = Sim::LinkClaim{};
             sim.props.set_bool("/autopilot/land/armed", true);
             const double flight_step = sim.props.get_double("/selftest/soyuz-autoland-step", 0.1);
+            const bool countdown_test = sim.props.get_bool("/selftest/soyuz-countdowns");
             if (!std::isfinite(flight_step) || flight_step < 0.01 || flight_step > 0.1)
             {
                 std::fprintf(stderr, "Soyuz autoland selftest: invalid step\n");
@@ -1656,6 +1657,9 @@ namespace kosmos
             }
             std::string last;
             bool injected = false;
+            bool saw_planning_warp = false, saw_waiting_warp = false, saw_checking = false;
+            std::string countdown_phase;
+            double previous_burn = 0.0, previous_entry = 0.0;
             for (int step = 0; step < 600000; ++step)
             {
                 const std::string phase = sim.props.get_string("/autopilot/land/state");
@@ -1690,7 +1694,29 @@ namespace kosmos
                         injected = true;
                     }
                     if (phase == "Soyuz waiting")
-                        sim.props.set_int("/sim/warp-index", 10);
+                        sim.props.set_int("/sim/warp-index", countdown_test && !saw_waiting_warp ? 3 : 10);
+                }
+                if (countdown_test && (phase == "Soyuz planning" || phase == "Soyuz search"))
+                    sim.props.set_int("/sim/warp-index", 10);
+                if (countdown_test && (phase == "Soyuz waiting" || phase == "Soyuz checking"))
+                {
+                    const double burn = sim.props.get_double("/autopilot/land/window");
+                    const double entry = sim.props.get_double("/autopilot/land/reentry");
+                    if (!(entry > burn && burn >= 0.0))
+                    {
+                        std::fprintf(stderr, "Soyuz countdown selftest: invalid burn %.1f or entry %.1f\n", burn, entry);
+                        return 1;
+                    }
+                    if (phase == countdown_phase && !(entry < previous_entry && burn < previous_burn))
+                    {
+                        std::fprintf(stderr, "Soyuz countdown selftest: countdown did not advance\n");
+                        return 1;
+                    }
+                    countdown_phase = phase;
+                    previous_burn = burn;
+                    previous_entry = entry;
+                    if (phase == "Soyuz checking")
+                        saw_checking = true;
                 }
                 if (phase == "Soyuz deorbit" && sim.props.get_double("/controls/throttle") > 0.0 &&
                     (fault == "cancel" || fault == "disarm") && !injected)
@@ -1702,6 +1728,31 @@ namespace kosmos
                     injected = true;
                 }
                 sim.step(flight_step);
+                if (countdown_test)
+                {
+                    const int warp = sim.props.get_int("/sim/warp-index");
+                    if ((phase == "Soyuz planning" || phase == "Soyuz search") && warp == 3)
+                        saw_planning_warp = true;
+                    if (phase == "Soyuz waiting" && warp == 3)
+                        saw_waiting_warp = true;
+                    if (phase == "Soyuz checking" && warp != 0)
+                    {
+                        std::fprintf(stderr, "Soyuz countdown selftest: checking did not hold 1x\n");
+                        return 1;
+                    }
+                    if (saw_checking && sim.props.get_string("/autopilot/land/state") == "Soyuz waiting")
+                    {
+                        sim.cancel_autoland("Autoland cancelled: countdown selftest");
+                        if (!saw_planning_warp || !saw_waiting_warp ||
+                            sim.props.get_double("/autopilot/land/reentry") != -1.0)
+                        {
+                            std::fprintf(stderr, "Soyuz countdown selftest: warp or cancellation check failed\n");
+                            return 1;
+                        }
+                        std::printf("Soyuz countdowns and warp: passed\n");
+                        return 0;
+                    }
+                }
                 if (!sim.props.get_bool("/autopilot/land/armed"))
                 {
                     const std::string status = sim.props.get_string("/autopilot/land/state");
@@ -1787,7 +1838,8 @@ namespace kosmos
             if (!wind_untouched)
                 return fail("forecast accessed or changed live wind");
             const SoyuzEntryForecastResult predicted = forecast.result();
-            if (predicted.status != LandingForecastStatus::captured)
+            if (predicted.status != LandingForecastStatus::captured || predicted.entry_time <= sim.universe.time() ||
+                predicted.entry_time >= predicted.time)
                 return fail("forecast did not reach a safe parachute deployment");
             const double flight_step = sim.props.get_double("/selftest/soyuz-entry-step", 0.1);
             if (!std::isfinite(flight_step) || flight_step < 0.01 || flight_step > 0.1)
@@ -1800,7 +1852,7 @@ namespace kosmos
                 sim.props.set_int("/sim/warp-index", 0);
                 sim.props.set_string("/controls/sas", "retrograde");
             }
-            bool burned = false;
+            bool burned = false, crossed_entry = false;
             for (double elapsed = 0.0; elapsed < 10000.0 && !ship->crashed(); elapsed += flight_step)
             {
                 const Telemetry &t = ship->telemetry();
@@ -1829,9 +1881,19 @@ namespace kosmos
                     }
                 }
                 sim.step(flight_step);
+                if (burned && !crossed_entry && ship->telemetry().altitude <= 120000.0)
+                {
+                    crossed_entry = true;
+                    const double error = std::abs(sim.universe.time() - predicted.entry_time);
+                    std::printf("Soyuz 120 km entry forecast error: %.1f s\n", error);
+                    if (!std::isfinite(error) || error > 10.0)
+                        return fail("forecast diverged from actual entry interface");
+                    if (sim.props.get_bool("/selftest/soyuz-entry-interface"))
+                        return 0;
+                }
                 if (!ship->chutes().empty() && ship->chutes()[0].state != ChuteState::stowed)
                 {
-                    if (!burned || ship->active_stage() != 2 || ship->crashed() ||
+                    if (!burned || !crossed_entry || ship->active_stage() != 2 || ship->crashed() ||
                         ship->chutes()[0].state != ChuteState::reefed || ship->health() <= 0.0)
                         return fail("parachute deployment was not safe");
                     const sl::dvec3 actual = ship->body().position - sim.universe.world.body(ship->telemetry().soi)->position;

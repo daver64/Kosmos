@@ -498,6 +498,8 @@ namespace kosmos
             ship->apply_controls(controls, interval);
             copy->world.step(interval);
             ship->after_step(interval);
+            if (burned && result.entry_time == 0.0 && ship->telemetry().altitude <= 120000.0)
+                result.entry_time = copy->time();
             if (!ship->chutes().empty() && ship->chutes()[0].state != ChuteState::stowed)
             {
                 if (ship->chutes()[0].state == ChuteState::reefed && !ship->crashed())

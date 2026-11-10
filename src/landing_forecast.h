@@ -103,7 +103,7 @@ namespace kosmos
     {
         LandingForecastStatus status = LandingForecastStatus::invalid_input;
         sl::dvec3 relative_position{0.0};
-        double time = 0.0;
+        double time = 0.0, entry_time = 0.0;
     };
 
     /** Isolated, wind-free Soyuz coast and deorbit to the first safe chute deployment. */

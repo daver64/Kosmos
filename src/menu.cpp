@@ -1333,7 +1333,7 @@ namespace kosmos
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
-                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares, Shuttle-A and Soyuz TMA. Soyuz aims for chute deployment near a base, not touchdown. Monitor and take over; time skips are blocked.\n"
+                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares, Shuttle-A and Soyuz TMA. Soyuz shows deorbit and estimated 120 km entry countdowns and aims for chute deployment near a base, not touchdown. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
                                    " Tools > Scenario thumbnail captures the view for the active saved scenario, replacing its previous generated thumbnail; the launcher refreshes automatically.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
@@ -1576,9 +1576,34 @@ namespace kosmos
             else
                 sim.cancel_autoland("Autoland cancelled");
         }
+        const std::string landing_status = p.get_string("/autopilot/land/state");
+        bool targeted = p.get_bool("/autopilot/land/targeted");
+        const bool soyuz = ship->spec().name == "CVEL Soyuz TMA";
+        if (!landing_status.empty() && landing_status != "off")
+            ImGui::TextWrapped("%s", landing_status.c_str());
+        if (targeted && !landing)
+            ImGui::TextDisabled("Select a base, then tick Autoland engaged.");
+        if (targeted && landing)
+        {
+            if (landing_status == "Waiting for window" || landing_status == "Checking orbit" || landing_status == "Plane alignment")
+                ImGui::Text("Time to plane burn: %.0f s", p.get_double("/autopilot/land/window"));
+            if (soyuz)
+            {
+                if (landing_status == "Soyuz waiting" || landing_status == "Soyuz checking")
+                    ImGui::Text("Time to deorbit burn: %.0f s", p.get_double("/autopilot/land/window"));
+                else if (landing_status == "Soyuz planning" || landing_status == "Soyuz search" || landing_status == "off")
+                    ImGui::TextDisabled("Time to deorbit burn: searching for a window");
+                if (landing_status == "Soyuz waiting" || landing_status == "Soyuz checking" ||
+                    landing_status == "Soyuz deorbit" || landing_status == "Soyuz entry")
+                    ImGui::Text("Estimated time to 120 km entry: %.0f s", p.get_double("/autopilot/land/reentry"));
+                else if (landing_status == "Soyuz planning" || landing_status == "Soyuz search" || landing_status == "off")
+                    ImGui::TextDisabled("Estimated time to 120 km entry: awaiting forecast");
+            }
+            else if (landing_status == "Planning orbit")
+                ImGui::TextDisabled("Time to plane burn: awaiting forecast");
+        }
         if (landing)
             ImGui::BeginDisabled();
-        bool targeted = p.get_bool("/autopilot/land/targeted");
         if (ImGui::Checkbox("Target landing", &targeted))
             p.set_bool("/autopilot/land/targeted", targeted);
         if (targeted)
@@ -1615,13 +1640,13 @@ namespace kosmos
             ImGui::EndDisabled();
         if (targeted)
         {
-            const bool soyuz = ship->spec().name == "CVEL Soyuz TMA";
             if (soyuz)
             {
                 ImGui::TextDisabled("Soyuz: Earth orbit, periapsis at least 150 km, eccentricity at most 0.01.");
                 ImGui::TextDisabled("Spherical gravity required; weather is ignored by the prediction.");
                 ImGui::TextDisabled("Aims within 100 km at first chute deployment, not touchdown.");
-                ImGui::TextDisabled("Planning and entry use 1x; use warp while waiting.");
+                ImGui::TextDisabled("No plane change. Planning allows up to 4x; checking, burn and entry use 1x.");
+                ImGui::TextDisabled("Use warp while waiting; it slows before the check and burn.");
             }
             else
             {
@@ -1638,11 +1663,6 @@ namespace kosmos
                 if (p.get_string("/autopilot/land/state") == "Planning orbit")
                     ImGui::Text("Forecast candidate %d of %d", p.get_int("/autopilot/land/candidate"),
                                 p.get_int("/autopilot/land/candidates"));
-                const std::string phase = p.get_string("/autopilot/land/state");
-                if (phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment")
-                    ImGui::Text("Time to plane burn: %.0f s", p.get_double("/autopilot/land/window"));
-                if (phase == "Soyuz waiting" || phase == "Soyuz checking")
-                    ImGui::Text("Time to Soyuz deorbit: %.0f s", p.get_double("/autopilot/land/window"));
             }
         }
         else if (ship->spec().name == "CVEL Soyuz TMA")
@@ -1652,10 +1672,6 @@ namespace kosmos
         if (ship->spec().name != "CVEL Soyuz TMA")
             ImGui::TextDisabled("A selected base aims at its pad; orbital success is within 3 km of the base.");
         ImGui::TextDisabled("Forecasts are approximate; no terrain or obstacle avoidance. Monitor and take over.");
-        const std::string landing_status = p.get_string("/autopilot/land/state");
-        if (!landing_status.empty() && landing_status != "off")
-            ImGui::TextWrapped("%s", landing_status.c_str());
-
         ImGui::Separator();
         ImGui::TextUnformatted("Attitude hold");
         const bool timed = p.get_bool("/autopilot/timed/armed");

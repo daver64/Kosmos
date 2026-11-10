@@ -390,6 +390,34 @@ namespace kosmos::app
         update_link();
         Watchdog::stage("advance_time"); // WATCHDOG
         advance_time();
+        const Ship *map_ship = sim.active_ship();
+        const int map_body = map_ship ? map_ship->telemetry().soi : -1;
+        sl::Bitmap *map_bitmap = map_body >= 0 && static_cast<std::size_t>(map_body) < vis.body_textures.size() ?
+                                     vis.body_textures[static_cast<std::size_t>(map_body)] : nullptr;
+        // A tiled globe releases its full-image texture; keep a smaller copy for the map only when needed.
+        if (!map_bitmap && map_body >= 0 && static_cast<std::size_t>(map_body) < sim.universe.bodies.size())
+        {
+            const int map_mode = sim.mfd.mode_by_id("map");
+            bool wanted = false;
+            for (int i = 0; i < sim.mfd.unit_count(); ++i)
+                wanted = wanted || (map_mode >= 0 && sim.mfd.unit(i).power && sim.mfd.unit(i).mode == map_mode);
+            if (wanted && map_texture_body != map_body)
+            {
+                if (map_texture)
+                    sl::destroy_bitmap(map_texture);
+                map_texture = nullptr;
+                map_texture_body = map_body;
+                const Body &body = sim.universe.bodies[static_cast<std::size_t>(map_body)];
+                const std::string image = find_surface_image(sim.root(), body);
+                if (image.empty())
+                    std::fprintf(stderr, "[kosmos] Map MFD: no surface image for %s\n", body.name.c_str());
+                else
+                    map_texture = load_surface_texture(image, std::min(options.max_texture, 2048));
+            }
+            if (map_texture_body == map_body)
+                map_bitmap = map_texture;
+        }
+        sim.mfd.set_live_bitmap("map-surface", map_bitmap);
         Watchdog::stage("instruments"); // WATCHDOG
         update_instruments();
         Watchdog::stage("place_camera"); // WATCHDOG
