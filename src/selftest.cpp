@@ -1624,6 +1624,230 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/soyuz-autoland"))
+        {
+            if (!ship || ship->spec().name != "CVEL Soyuz TMA")
+            {
+                std::fprintf(stderr, "Soyuz autoland selftest: wrong vessel\n");
+                return 1;
+            }
+            const std::string fault = sim.props.get_string("/selftest/soyuz-fault");
+            sim.props.set_bool("/sim/settings/weather", fault == "weather");
+            sim.props.set_bool("/sim/settings/nonspherical-gravity", fault == "gravity");
+            sim.props.set_bool("/autopilot/land/targeted", true);
+            sim.props.set_string("/autopilot/land/base", fault == "base" ? "missing" :
+                                 sim.props.get_string("/selftest/soyuz-base", "kennedy"));
+            sim.props.set_string("/autopilot/land/state", "off");
+            if (fault == "fuel")
+            {
+                ship->body().tanks[0].mass = 0.0;
+                ship->after_step(0.0);
+            }
+            if (fault == "stage" && !ship->stage_once())
+                return 1;
+            if (fault == "addon")
+                sim.link_claims[sim.active_index()] = Sim::LinkClaim{};
+            sim.props.set_bool("/autopilot/land/armed", true);
+            const double flight_step = sim.props.get_double("/selftest/soyuz-autoland-step", 0.1);
+            if (!std::isfinite(flight_step) || flight_step < 0.01 || flight_step > 0.1)
+            {
+                std::fprintf(stderr, "Soyuz autoland selftest: invalid step\n");
+                return 1;
+            }
+            std::string last;
+            bool injected = false;
+            for (int step = 0; step < 600000; ++step)
+            {
+                const std::string phase = sim.props.get_string("/autopilot/land/state");
+                if (phase != last)
+                {
+                    std::printf("Soyuz autoland phase: %s time %.1f\n", phase.c_str(), sim.universe.time());
+                    std::fflush(stdout);
+                    last = phase;
+                }
+                if (phase == "Soyuz planning" || phase == "Soyuz waiting")
+                {
+                    if (fault == "orbit" && !injected)
+                    {
+                        ship->body().velocity += sl::dvec3(10.0, 0.0, 0.0);
+                        ship->after_step(0.0);
+                        injected = true;
+                    }
+                    if (fault == "stage-change" && !injected)
+                    {
+                        if (!ship->stage_once())
+                            return 1;
+                        injected = true;
+                    }
+                    if (fault == "sas" && !injected)
+                    {
+                        sim.props.set_string("/controls/sas", "stability");
+                        injected = true;
+                    }
+                    if (fault == "competing" && !injected)
+                    {
+                        sim.props.set_bool("/autopilot/enabled", true);
+                        injected = true;
+                    }
+                    if (phase == "Soyuz waiting")
+                        sim.props.set_int("/sim/warp-index", 10);
+                }
+                if (phase == "Soyuz deorbit" && sim.props.get_double("/controls/throttle") > 0.0 &&
+                    (fault == "cancel" || fault == "disarm") && !injected)
+                {
+                    if (fault == "cancel")
+                        sim.cancel_autoland("Autoland cancelled: selftest");
+                    else
+                        sim.props.set_bool("/autopilot/land/armed", false);
+                    injected = true;
+                }
+                sim.step(flight_step);
+                if (!sim.props.get_bool("/autopilot/land/armed"))
+                {
+                    const std::string status = sim.props.get_string("/autopilot/land/state");
+                    const double distance = sim.props.get_double("/autopilot/land/distance");
+                    std::printf("Soyuz autoland result: %s distance %.1f stage %d crashed %d throttle %.1f\n",
+                                status.c_str(), distance, ship->active_stage(), ship->crashed(),
+                                sim.props.get_double("/controls/throttle"));
+                    std::printf("Soyuz search closest estimate: %.1f m\n",
+                                sim.props.get_double("/autopilot/land/search-distance"));
+                    if (fault == "gravity" || fault == "fuel" || fault == "orbit" || fault == "base" ||
+                        fault == "stage" || fault == "stage-change" || fault == "sas" || fault == "competing" ||
+                        fault == "dock" || fault == "addon" || fault == "unreachable" ||
+                        fault == "cancel" || fault == "disarm")
+                    {
+                        const std::string expected = fault == "gravity" ? "spherical gravity" :
+                                                     fault == "fuel" ? "fuel unavailable" :
+                                                     fault == "orbit" ? "orbit, mass or fuel changed" :
+                                                     fault == "base" ? "select an available Earth base" :
+                                                     fault == "stage" ? "complete vessel" :
+                                                     fault == "stage-change" ? "body or stage changed" :
+                                                     fault == "sas" ? "manual SAS" :
+                                                     fault == "competing" ? "another autopilot engaged" :
+                                                     fault == "dock" ? "undock first" :
+                                                     fault == "addon" ? "release addon vessel control" :
+                                                     fault == "unreachable" ? "no suitable base window" :
+                                                     "Autoland cancelled";
+                        return status.find(expected) != std::string::npos &&
+                               sim.props.get_double("/controls/throttle") == 0.0 ? 0 : 1;
+                    }
+                    if (fault == "weather")
+                        return sim.props.get_bool("/sim/settings/weather") &&
+                               sim.universe.world.body(ship->telemetry().soi)->wind_field &&
+                               ship->active_stage() == 2 && !ship->crashed() &&
+                               status.find("Autoland: Soyuz chute deployed") == 0 ? 0 : 1;
+                    return status.find("Autoland: Soyuz chute deployed within 100 km") == 0 && distance <= 100000.0 &&
+                           ship->active_stage() == 2 && !ship->crashed() ? 0 : 1;
+                }
+            }
+            std::fprintf(stderr, "Soyuz autoland selftest: timed out\n");
+            return 1;
+        }
+        if (sim.props.get_bool("/selftest/soyuz-entry"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Soyuz entry selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || ship->spec().name != "CVEL Soyuz TMA" || ship->active_stage() != 0 ||
+                ship->telemetry().soi != sim.universe.find("Earth") || ship->spec().parachutes.empty())
+                return fail("expected complete Soyuz in Earth orbit with a parachute");
+            if (!ship->telemetry().bound || ship->telemetry().periapsis < 100000.0)
+                return fail("expected a bound orbit above the atmosphere");
+            sim.props.set_bool("/sim/settings/weather", false);
+            sim.props.set_bool("/sim/settings/nonspherical-gravity", false);
+            sim.props.set_int("/sim/warp-index", 0);
+            sim.props.set_double("/controls/throttle", 0.0);
+            sim.props.set_string("/controls/sas", "retrograde");
+            sim.step(0.1);
+            sim.universe.world.nonspherical_gravity = false;
+            sl::FlightBody *earth = sim.universe.world.body(ship->telemetry().soi);
+            const auto saved_wind = earth->wind_field;
+            const sl::dvec3 saved_wind_vector = earth->wind;
+            int wind_calls = 0;
+            earth->wind_field = [&wind_calls](const sl::dvec3 &) {
+                ++wind_calls;
+                return sl::dvec3(100.0, 0.0, 0.0);
+            };
+            earth->wind = sl::dvec3(30.0, 0.0, 0.0);
+            const double coast = sim.props.get_double("/selftest/soyuz-entry-coast", 0.0);
+            if (!std::isfinite(coast) || coast < 0.0 || coast > 10000.0)
+            {
+                earth->wind_field = saved_wind;
+                earth->wind = saved_wind_vector;
+                return fail("invalid selftest coast");
+            }
+            SoyuzEntryForecast forecast(sim.universe, *ship, coast);
+            while (!forecast.advance(512))
+            {
+            }
+            const bool wind_untouched = wind_calls == 0 && earth->wind_field && earth->wind.x == 30.0;
+            earth->wind_field = saved_wind;
+            earth->wind = saved_wind_vector;
+            if (!wind_untouched)
+                return fail("forecast accessed or changed live wind");
+            const SoyuzEntryForecastResult predicted = forecast.result();
+            if (predicted.status != LandingForecastStatus::captured)
+                return fail("forecast did not reach a safe parachute deployment");
+            const double flight_step = sim.props.get_double("/selftest/soyuz-entry-step", 0.1);
+            if (!std::isfinite(flight_step) || flight_step < 0.01 || flight_step > 0.1)
+                return fail("invalid selftest step");
+            if (coast > 0.0)
+            {
+                sim.props.set_string("/controls/sas", "off");
+                sim.props.set_int("/sim/warp-index", 7);
+                sim.step(coast / 100.0);
+                sim.props.set_int("/sim/warp-index", 0);
+                sim.props.set_string("/controls/sas", "retrograde");
+            }
+            bool burned = false;
+            for (double elapsed = 0.0; elapsed < 10000.0 && !ship->crashed(); elapsed += flight_step)
+            {
+                const Telemetry &t = ship->telemetry();
+                if (!burned)
+                {
+                    if (t.periapsis < -20000.0)
+                    {
+                        burned = true;
+                        sim.props.set_double("/controls/throttle", 0.0);
+                        if (!ship->stage_once() || ship->active_stage() != 1 ||
+                            !ship->stage_once() || ship->active_stage() != 2)
+                            return fail("module separation failed");
+                    }
+                    else
+                    {
+                        if (t.stage_fuel <= 0.0)
+                            return fail("deorbit fuel exhausted");
+                        const sl::FlightBody *body = sim.universe.world.body(t.soi);
+                        if (!body)
+                            return fail("invalid primary body");
+                        const sl::dvec3 v = ship->body().velocity - body->velocity;
+                        if (!std::isfinite(glm::length(v)) || glm::length(v) < 1.0)
+                            return fail("invalid orbital velocity");
+                        const double alignment = glm::dot(ship->body().direction_to_world(sl::dvec3(0, 0, -1)), -glm::normalize(v));
+                        sim.props.set_double("/controls/throttle", alignment > 0.995 ? 1.0 : 0.0);
+                    }
+                }
+                sim.step(flight_step);
+                if (!ship->chutes().empty() && ship->chutes()[0].state != ChuteState::stowed)
+                {
+                    if (!burned || ship->active_stage() != 2 || ship->crashed() ||
+                        ship->chutes()[0].state != ChuteState::reefed || ship->health() <= 0.0)
+                        return fail("parachute deployment was not safe");
+                    const sl::dvec3 actual = ship->body().position - sim.universe.world.body(ship->telemetry().soi)->position;
+                    const double error = glm::length(actual - predicted.relative_position);
+                    const double time_error = std::abs(sim.universe.time() - predicted.time);
+                    std::printf("Soyuz entry forecast error: %.1f m, %.1f s\n", error, time_error);
+                    if (!std::isfinite(error) || error > 5000.0 || time_error > 10.0)
+                        return fail("forecast diverged from actual entry");
+                    std::printf("Soyuz entry selftest: parachute deployed at %.0f m, %.1f m/s; health %.3f\n",
+                                ship->telemetry().altitude,
+                                ship->telemetry().surface_speed, ship->health());
+                    return 0;
+                }
+            }
+            return fail("vessel crashed or parachute did not deploy in time");
+        }
         if (sim.props.get_bool("/selftest/parked-warp"))
         {
             const auto fail = [](const char *message) {

@@ -15,11 +15,11 @@ mkdir -p "$OUT"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-# The framed MFD is about 340 px square at 1280x720: the left display sits at 256,321 and the right at 684,321.
-LEFT='340x340+256+321'
-RIGHT='340x340+684+321'
+# The framed MFD is about 340 px square at 1280x720, near the lower corners.
+LEFT='340x340+24+367'
+RIGHT='340x340+916+367'
 
-W='--hide-info --set /sim/settings/weather=1 --clean --mfd 1'
+W='--hide-info --set /sim/settings/weather=1 --set /sim/scenario-view=chase --clean --mfd 1'
 STN="--scenario orbital_stations $W"
 AIR="--scenario deltaglider_chippenham $W"
 AIR_INSTRUMENTS="--ship 'CVEL Buran' $W"

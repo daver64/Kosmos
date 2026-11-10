@@ -98,4 +98,27 @@ namespace kosmos
                                                      int body_id, bool shuttle, const sl::dvec3 &axis,
                                                      const LandingCandidate &candidate, double thrust,
                                                      double reserve = 0.0, bool through_touchdown = false);
+
+    struct SoyuzEntryForecastResult
+    {
+        LandingForecastStatus status = LandingForecastStatus::invalid_input;
+        sl::dvec3 relative_position{0.0};
+        double time = 0.0;
+    };
+
+    /** Isolated, wind-free Soyuz coast and deorbit to the first safe chute deployment. */
+    class SoyuzEntryForecast
+    {
+    public:
+        SoyuzEntryForecast(const Universe &universe, const Ship &ship, double coast = 0.0);
+        ~SoyuzEntryForecast();
+        SoyuzEntryForecast(const SoyuzEntryForecast &) = delete;
+        SoyuzEntryForecast &operator=(const SoyuzEntryForecast &) = delete;
+        bool advance(int max_steps);
+        const SoyuzEntryForecastResult &result() const;
+
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> impl_;
+    };
 }

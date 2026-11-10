@@ -814,13 +814,16 @@ namespace kosmos::app
     void App::draw_mfd_overlay(bool dashboard, bool cockpit_mfd_overlay)
     {
             const bool show_hud = cockpit_mfd_overlay || mfd_display == 2;
-            const float size = show_hud ? std::min({480.0f, screen_h * 0.62f, screen_w * 0.36f}) : std::min(360.0f, screen_h * 0.4f);
+            const float edge = 24.0f, bottom = 16.0f;
+            const float bezel_side = 36.0f / mfd_size, bezel_bottom = 42.0f / mfd_size;
+            const float size = show_hud ? std::min({480.0f, screen_h * 0.62f, screen_w * 0.36f}) :
+                               std::min({360.0f, screen_h * 0.4f, std::max(0.0f, (screen_w - 2.0f * edge) / (2.0f * (1.0f + 2.0f * bezel_side)))});
             kosmos::MfdLayout left, right;
             left.size = right.size = size;
             left.hud = right.hud = show_hud;
-            left.y = right.y = show_hud ? 140.0f : screen_h - size - 90.0f;
-            left.x = show_hud ? 20.0f : screen_w / 2.0f - size - 70.0f;
-            right.x = show_hud ? screen_w - size - 20.0f : screen_w / 2.0f + 70.0f;
+            left.y = right.y = show_hud ? 140.0f : screen_h - size * (1.0f + bezel_bottom) - bottom;
+            left.x = show_hud ? 20.0f : edge + size * bezel_side;
+            right.x = show_hud ? screen_w - size - 20.0f : screen_w - edge - size * (1.0f + bezel_side);
             sim.mfd.bus_power = !sim.active_ship() || !sim.active_ship()->systems() || sim.active_ship()->systems()->instruments_powered();
             sim.mfd.update(frame);
             const bool down = ui_mouse_down();

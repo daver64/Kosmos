@@ -295,6 +295,7 @@ namespace kosmos
             forecast = std::make_unique<Ship>(*copy, ship.spec());
             forecast->restore_carry_state(ship.carry_state());
             forecast->body() = state;
+            forecast->copy_forecast_reentry(ship);
             forecast->after_step(0.0);
             if (!forecast->go_rails())
             {
@@ -353,4 +354,178 @@ namespace kosmos
         }
         return forecast.result();
     }
+
+    struct SoyuzEntryForecast::Impl
+    {
+        SoyuzEntryForecastResult result;
+        std::vector<std::unique_ptr<sl::Terrain>> terrain;
+        std::unique_ptr<Universe> copy;
+        std::unique_ptr<Ship> ship;
+        int body_id = -1;
+        int steps = 0;
+        bool burned = false, done = true;
+        static constexpr double dt = 0.1;
+
+        Impl(const Universe &source, const Ship &original, double coast)
+        {
+            body_id = original.telemetry().soi;
+            if (original.spec().name != "CVEL Soyuz TMA" || original.active_stage() != 0 ||
+                original.crashed() || body_id < 0 ||
+                static_cast<std::size_t>(body_id) >= source.bodies.size() ||
+                source.bodies[static_cast<std::size_t>(body_id)].name != "Earth" ||
+                !original.telemetry().bound || original.telemetry().periapsis < 100000.0 ||
+                source.world.nonspherical_gravity || !original.attitude_control_available() ||
+                !std::isfinite(coast) || coast < 0.0 || !std::isfinite(original.telemetry().period) ||
+                original.telemetry().period <= 0.0 || coast > 60.0 * original.telemetry().period)
+                return;
+            for (const ChuteRuntime &chute : original.chutes())
+                if (chute.state != ChuteState::stowed)
+                    return;
+            if (source.world.body_count() >= 4096)
+            {
+                result.status = LandingForecastStatus::unavailable_world;
+                return;
+            }
+            copy = std::make_unique<Universe>(source);
+            auto isolate_terrain = [&](const sl::Terrain *original_terrain) {
+                sl::TerrainConfig config = original_terrain->config();
+                config.worker_threads = 0;
+                terrain.push_back(std::make_unique<sl::Terrain>(config, original_terrain->source()));
+                return terrain.back().get();
+            };
+            if (copy->world.flat_terrain)
+                copy->world.flat_terrain = isolate_terrain(copy->world.flat_terrain);
+            for (int i = 0; i < copy->world.body_count(); ++i)
+            {
+                sl::FlightBody *body = copy->world.body(i);
+                if (!body || !body->active)
+                    continue;
+                if (static_cast<std::size_t>(i) >= copy->bodies.size())
+                {
+                    if (i != original.body_id() && body->gm > 0.0)
+                    {
+                        result.status = LandingForecastStatus::unavailable_world;
+                        return;
+                    }
+                    copy->world.destroy_body(i);
+                    continue;
+                }
+                body->wind_field = {};
+                body->wind = sl::dvec3(0.0);
+                if (body->terrain)
+                    body->terrain = isolate_terrain(body->terrain);
+            }
+            const sl::FlightBody state = original.body();
+            ship = std::make_unique<Ship>(*copy, original.spec());
+            ship->name += " (forecast)";
+            ship->restore_carry_state(original.carry_state());
+            ship->body() = state;
+            ship->copy_forecast_reentry(original);
+            ship->go_dynamic();
+            ship->after_step(0.0);
+            if (coast > 0.0)
+            {
+                if (!ship->go_rails())
+                {
+                    result.status = LandingForecastStatus::unavailable_world;
+                    return;
+                }
+                copy->world.max_substep = 1.0e12;
+                copy->world.step(coast);
+                ship->go_dynamic();
+                ship->after_step(0.0);
+                if (ship->telemetry().soi != body_id)
+                {
+                    result.status = LandingForecastStatus::vessel_failure;
+                    return;
+                }
+            }
+            copy->world.max_substep = dt;
+            done = false;
+        }
+
+        void step()
+        {
+            if (++steps > 500000 || ship->crashed() || ship->telemetry().soi != body_id)
+            {
+                result.status = steps > 500000 ? LandingForecastStatus::timeout : LandingForecastStatus::vessel_failure;
+                done = true;
+                return;
+            }
+            Controls controls;
+            controls.sas = "retrograde";
+            if (!burned)
+            {
+                if (!ship->attitude_control_available())
+                {
+                    result.status = LandingForecastStatus::attitude_failure;
+                    done = true;
+                    return;
+                }
+                if (ship->telemetry().periapsis < -20000.0)
+                {
+                    burned = true;
+                    if (!ship->stage_once() || ship->active_stage() != 1 ||
+                        !ship->stage_once() || ship->active_stage() != 2)
+                    {
+                        result.status = LandingForecastStatus::vessel_failure;
+                        done = true;
+                        return;
+                    }
+                }
+                else
+                {
+                    if (ship->telemetry().stage_fuel <= 0.0)
+                    {
+                        result.status = LandingForecastStatus::insufficient_fuel;
+                        done = true;
+                        return;
+                    }
+                    const sl::dvec3 velocity = ship->body().velocity - copy->world.body(body_id)->velocity;
+                    const double speed = glm::length(velocity);
+                    if (!std::isfinite(speed) || speed < 1.0)
+                    {
+                        result.status = LandingForecastStatus::invalid_guidance;
+                        done = true;
+                        return;
+                    }
+                    const double alignment = glm::dot(ship->body().direction_to_world(sl::dvec3(0, 0, -1)), -velocity / speed);
+                    controls.throttle = alignment > 0.995 ? 1.0 : 0.0;
+                }
+            }
+            const double interval = ship->telemetry().altitude < 150000.0 ? 0.02 : dt;
+            copy->world.max_substep = interval;
+            ship->apply_controls(controls, interval);
+            copy->world.step(interval);
+            ship->after_step(interval);
+            if (!ship->chutes().empty() && ship->chutes()[0].state != ChuteState::stowed)
+            {
+                if (ship->chutes()[0].state == ChuteState::reefed && !ship->crashed())
+                {
+                    result.status = LandingForecastStatus::captured;
+                    result.relative_position = ship->body().position - copy->world.body(body_id)->position;
+                    result.time = copy->time();
+                }
+                else
+                    result.status = LandingForecastStatus::vessel_failure;
+                done = true;
+            }
+        }
+    };
+
+    SoyuzEntryForecast::SoyuzEntryForecast(const Universe &universe, const Ship &ship, double coast)
+        : impl_(std::make_unique<Impl>(universe, ship, coast))
+    {
+    }
+
+    SoyuzEntryForecast::~SoyuzEntryForecast() = default;
+
+    bool SoyuzEntryForecast::advance(int max_steps)
+    {
+        for (int i = 0; i < max_steps && !impl_->done; ++i)
+            impl_->step();
+        return impl_->done;
+    }
+
+    const SoyuzEntryForecastResult &SoyuzEntryForecast::result() const { return impl_->result; }
 }

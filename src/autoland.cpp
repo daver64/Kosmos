@@ -3,12 +3,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <limits>
+#include <glm/gtc/quaternion.hpp>
 
 namespace kosmos
 {
     void Sim::cancel_autoland(const std::string &reason)
     {
         const bool active = landing_body_ >= 0 || props.get_bool("/autopilot/land/armed");
+        const bool soyuz = soyuz_landing_;
+        soyuz_landing_ = false;
+        soyuz_forecast_.reset();
         landing_body_ = -1;
         landing_stage_ = -1;
         landing_orbital_ = false;
@@ -22,6 +28,8 @@ namespace kosmos
         props.set_string("/autopilot/land/state", reason);
         props.set_string("/autopilot/status", reason);
         props.set_double("/controls/hover", 0.0);
+        if (soyuz)
+            props.set_double("/controls/throttle", 0.0);
         props.set_string("/controls/sas", "stability");
         log(reason);
     }
@@ -44,6 +52,15 @@ namespace kosmos
             finish("Autoland cancelled: another autopilot engaged");
             return;
         }
+        Ship *active = active_ship();
+        if (soyuz_landing_ || (active && active->spec().name == "CVEL Soyuz TMA"))
+        {
+            if (!active || active->crashed())
+                finish("Autoland aborted: no operational vessel");
+            else
+                run_soyuz_autoland(frame, *active);
+            return;
+        }
         const std::string previous_phase = landing_body_ >= 0 ? props.get_string("/autopilot/land/state") : "";
         const std::string sas = props.get_string("/controls/sas");
         if ((previous_phase == "Deorbit" || previous_phase == "Entry" || previous_phase == "Braking" ||
@@ -54,6 +71,7 @@ namespace kosmos
             props.set_string("/controls/sas", sas);
             return;
         }
+
         if ((previous_phase == "Planning orbit" || previous_phase == "Waiting for window" ||
              previous_phase == "Checking orbit") && sas != "off")
         {
@@ -575,4 +593,282 @@ namespace kosmos
         props.set_string("/autopilot/land/state", phase);
         props.set_string("/autopilot/status", "Autoland: " + phase);
     }
+
+    void Sim::run_soyuz_autoland(double frame, Ship &ship)
+    {
+        const Telemetry &t = ship.telemetry();
+        const double now = universe.time();
+        const auto fail = [&](const std::string &message) { cancel_autoland("Autoland aborted: " + message); };
+        if (!soyuz_landing_)
+        {
+            soyuz_landing_ = true;
+            if (t.soi < 0 || static_cast<std::size_t>(t.soi) >= universe.bodies.size() ||
+                universe.bodies[static_cast<std::size_t>(t.soi)].name != "Earth" || ship.active_stage() != 0 ||
+                ship.spec().stages.size() != 3 || !t.bound || t.periapsis < 150000.0 ||
+                !std::isfinite(t.period) || t.period <= 0.0 || t.eccentricity > 0.01)
+                return fail("Soyuz requires a complete vessel in an Earth orbit with periapsis at least 150 km and eccentricity at most 0.01");
+            if (!props.get_bool("/autopilot/land/targeted"))
+                return fail("select an Earth base for Soyuz");
+            const std::string id = props.get_string("/autopilot/land/base");
+            const auto base = std::find_if(bases.begin(), bases.end(), [&](const Base &b) {
+                return b.id == id && b.body == "Earth";
+            });
+            if (id.empty() || base == bases.end())
+                return fail("select an available Earth base");
+            if (nav.docked(active_index()))
+                return fail("undock first");
+            if (link_claims.find(active_index()) != link_claims.end())
+                return fail("release addon vessel control");
+            if (props.get_bool("/sim/settings/nonspherical-gravity"))
+                return fail("Soyuz planning requires spherical gravity");
+            if (!ship.attitude_control_available() || t.stage_fuel < 1.0)
+                return fail("attitude control or deorbit fuel unavailable");
+            for (const ChuteRuntime &chute : ship.chutes())
+                if (chute.state != ChuteState::stowed)
+                    return fail("parachute already deployed or cut");
+            landing_body_ = t.soi;
+            landing_stage_ = 0;
+            landing_base_ = *base;
+            landing_plan_time_ = now;
+            const sl::FlightBody &primary = *universe.world.body(t.soi);
+            landing_plan_position_ = ship.body().position - primary.position;
+            landing_plan_velocity_ = ship.body().velocity - primary.velocity;
+            landing_checked_mass_ = t.mass;
+            landing_checked_fuel_ = t.stage_fuel;
+            soyuz_forecast_pass_ = 0;
+            soyuz_checked_ = false;
+            soyuz_forecast_start_ = now;
+            soyuz_forecast_coast_ = 600.0;
+            soyuz_forecast_ = std::make_unique<SoyuzEntryForecast>(universe, ship, soyuz_forecast_coast_);
+            props.set_double("/controls/throttle", 0.0);
+            props.set_double("/controls/hover", 0.0);
+            props.set_string("/controls/sas", "off");
+            props.set_int("/sim/warp-index", 0);
+            props.set_string("/autopilot/land/state", "Soyuz planning");
+            props.set_string("/autopilot/status", "Autoland: Soyuz planning");
+            log("Soyuz autoland: prediction ignores weather; monitor entry and take over if needed");
+            return;
+        }
+        if (t.soi != landing_body_ || ship.active_stage() != landing_stage_)
+            return fail("body or stage changed");
+        if (nav.docked(active_index()) || link_claims.find(active_index()) != link_claims.end())
+            return fail("vessel docked or controlled by addon");
+        if (props.get_bool("/sim/settings/nonspherical-gravity"))
+            return fail("spherical gravity is required");
+        const std::string phase = props.get_string("/autopilot/land/state");
+        const std::string expected_sas = phase == "Soyuz planning" || phase == "Soyuz search" || phase == "Soyuz waiting" ||
+                                         phase == "Soyuz checking" ? "off" : "retrograde";
+        const std::string sas = props.get_string("/controls/sas");
+        if (sas != expected_sas)
+        {
+            cancel_autoland("Autoland cancelled: manual SAS");
+            props.set_string("/controls/sas", sas);
+            return;
+        }
+        if (phase != "Soyuz entry" && !ship.attitude_control_available())
+            return fail("attitude control unavailable");
+        const sl::FlightBody &primary = *universe.world.body(landing_body_);
+        const sl::dvec3 r = ship.body().position - primary.position;
+        const sl::dvec3 v = ship.body().velocity - primary.velocity;
+        const Body &earth = universe.bodies[static_cast<std::size_t>(landing_body_)];
+        Base base = landing_base_;
+        base.direction = base_direction(universe, landing_body_, base);
+        base.pole = universe.pole(landing_body_);
+        sl::dvec3 target;
+        double heading;
+        base_pad(base, earth.radius, target, heading);
+        const auto miss = [&](const sl::dvec3 &position, double arrival) {
+            const sl::dvec3 future_target = glm::angleAxis(earth.spin * (arrival - now), base.pole) * target;
+            return earth.radius * std::acos(std::clamp(glm::dot(glm::normalize(position), future_target), -1.0, 1.0));
+        };
+        if (phase == "Soyuz planning" || phase == "Soyuz search" || phase == "Soyuz waiting" || phase == "Soyuz checking")
+        {
+            sl::OrbitElements orbit;
+            if (!sl::orbit_from_state(earth.gm, landing_plan_position_, landing_plan_velocity_, orbit))
+                return fail("invalid planning orbit");
+            const sl::OrbitState expected = sl::state_from_orbit(earth.gm, orbit, now - landing_plan_time_);
+            const double position_error = glm::length(expected.position - r);
+            const double velocity_error = glm::length(expected.velocity - v);
+            if (!std::isfinite(position_error) || !std::isfinite(velocity_error) ||
+                position_error > 500.0 || velocity_error > 0.5 ||
+                std::abs(t.mass - landing_checked_mass_) > std::max(10.0, landing_checked_mass_ * 0.001) ||
+                std::abs(t.stage_fuel - landing_checked_fuel_) > 0.5)
+                return fail("orbit, mass or fuel changed since planning");
+        }
+        if (phase == "Soyuz planning" || phase == "Soyuz checking")
+        {
+            props.set_int("/sim/warp-index", 0);
+            if (phase == "Soyuz checking")
+                props.set_double("/autopilot/land/window", std::max(0.0, soyuz_departure_ - now));
+            const int budget = std::clamp(static_cast<int>(std::max(0.0, frame) * 1000.0), 1, 100);
+            if (!soyuz_forecast_)
+                return fail("forecast state unavailable");
+            if (!soyuz_forecast_->advance(budget))
+                return;
+            const SoyuzEntryForecastResult result = soyuz_forecast_->result();
+            soyuz_forecast_.reset();
+            if (props.get_bool("/selftest/soyuz-autoland"))
+                std::printf("Soyuz forecast pass %d coast %.1f status %d arrival %.1f\n",
+                            soyuz_forecast_pass_, soyuz_forecast_coast_, static_cast<int>(result.status), result.time);
+            if (result.status != LandingForecastStatus::captured)
+                return fail("Soyuz entry forecast failed or fuel is insufficient");
+            const double forecast_departure = soyuz_forecast_start_ + soyuz_forecast_coast_;
+            const double duration = result.time - forecast_departure;
+            const double forecast_miss = miss(result.relative_position, result.time);
+            if (props.get_bool("/selftest/soyuz-autoland"))
+                std::printf("Soyuz forecast miss %.1f m\n", forecast_miss);
+            if (phase == "Soyuz checking")
+            {
+                if (!std::isfinite(forecast_miss) || forecast_miss > 75000.0 || forecast_departure - now <= 10.0)
+                    return fail("Soyuz landing forecast no longer meets the target");
+                soyuz_checked_ = true;
+                soyuz_expected_arrival_ = result.time;
+                props.set_double("/autopilot/land/distance", forecast_miss);
+                props.set_string("/autopilot/land/state", "Soyuz waiting");
+                props.set_string("/autopilot/status", "Autoland: Soyuz waiting");
+                return;
+            }
+            // Reserve margin for model and integration error; weather remains unpredictable.
+            if (soyuz_forecast_pass_ > 0 && forecast_miss <= 65000.0 && forecast_departure - now > 240.0)
+            {
+                soyuz_departure_ = forecast_departure;
+                soyuz_expected_arrival_ = result.time;
+                landing_plan_time_ = now;
+                landing_plan_position_ = r;
+                landing_plan_velocity_ = v;
+                landing_checked_mass_ = t.mass;
+                landing_checked_fuel_ = t.stage_fuel;
+                props.set_double("/autopilot/land/distance", forecast_miss);
+                props.set_string("/autopilot/land/state", "Soyuz waiting");
+                props.set_string("/autopilot/status", "Autoland: Soyuz waiting");
+                return;
+            }
+            if (++soyuz_forecast_pass_ > 4)
+                return fail("no accurate Soyuz landing window found");
+            soyuz_search_normal_ = glm::normalize(glm::cross(r, v));
+            soyuz_search_start_ = now;
+            soyuz_search_wait_ = 300.0;
+            soyuz_search_limit_ = 60.0 * t.period - 1.0;
+            soyuz_search_rate_ = 6.283185307179586 / t.period;
+            soyuz_search_reference_ = forecast_departure;
+            soyuz_search_duration_ = duration;
+            soyuz_search_position_ = result.relative_position;
+            soyuz_search_target_ = target;
+            soyuz_search_pole_ = base.pole;
+            soyuz_search_best_distance_ = std::numeric_limits<double>::infinity();
+            soyuz_search_best_departure_ = 0.0;
+            props.set_string("/autopilot/land/state", "Soyuz search");
+            props.set_string("/autopilot/status", "Autoland: Soyuz search");
+            return;
+        }
+        if (phase == "Soyuz search")
+        {
+            props.set_int("/sim/warp-index", 0);
+            // Rotate the previous entry in its orbit plane; every candidate still needs a full forecast.
+            for (int i = 0; i < 1024 && soyuz_search_wait_ <= soyuz_search_limit_; ++i, soyuz_search_wait_ += 2.0)
+            {
+                const double departure = soyuz_search_start_ + soyuz_search_wait_;
+                const sl::dvec3 predicted = glm::angleAxis(soyuz_search_rate_ * (departure - soyuz_search_reference_),
+                                                          soyuz_search_normal_) * soyuz_search_position_;
+                const sl::dvec3 future_target = glm::angleAxis(earth.spin * (departure + soyuz_search_duration_ -
+                                                                            soyuz_search_start_), soyuz_search_pole_) *
+                                                soyuz_search_target_;
+                const double distance = earth.radius * std::acos(std::clamp(glm::dot(glm::normalize(predicted), future_target), -1.0, 1.0));
+                if (distance < soyuz_search_best_distance_)
+                {
+                    soyuz_search_best_distance_ = distance;
+                    soyuz_search_best_departure_ = departure;
+                }
+            }
+            if (soyuz_search_wait_ <= soyuz_search_limit_)
+                return;
+            props.set_double("/autopilot/land/search-distance", soyuz_search_best_distance_);
+            if (!std::isfinite(soyuz_search_best_distance_) || soyuz_search_best_distance_ > 160000.0)
+                return fail("no suitable base window in the next 60 orbits without a plane change");
+            soyuz_forecast_start_ = now;
+            soyuz_forecast_coast_ = soyuz_search_best_departure_ - now;
+            if (soyuz_forecast_coast_ < 100.0)
+                return fail("not enough time to forecast the selected window");
+            soyuz_forecast_ = std::make_unique<SoyuzEntryForecast>(universe, ship, soyuz_forecast_coast_);
+            props.set_string("/autopilot/land/state", "Soyuz planning");
+            props.set_string("/autopilot/status", "Autoland: Soyuz planning");
+            return;
+        }
+        if (phase == "Soyuz waiting")
+        {
+            const double left = soyuz_departure_ - now;
+            props.set_double("/autopilot/land/window", std::max(0.0, left));
+            if (!soyuz_checked_ && left <= 180.0)
+            {
+                if (left <= 30.0)
+                    return fail("insufficient time to check the deorbit window");
+                props.set_int("/sim/warp-index", 0);
+                soyuz_forecast_start_ = now;
+                soyuz_forecast_coast_ = left;
+                soyuz_forecast_ = std::make_unique<SoyuzEntryForecast>(universe, ship, left);
+                props.set_string("/autopilot/land/state", "Soyuz checking");
+                props.set_string("/autopilot/status", "Autoland: Soyuz checking");
+                return;
+            }
+            int index = std::clamp(props.get_int("/sim/warp-index"), 0, warp_levels - 1);
+            const double reserve = soyuz_checked_ ? 1.0 : 180.0;
+            while (index > 0 && warp_factor(index) * std::max(frame, 0.25) > std::max(0.0, left - reserve) * 0.25)
+                --index;
+            props.set_int("/sim/warp-index", index);
+            if (left <= 0.1)
+            {
+                if (left < -0.5)
+                    return fail("deorbit window missed");
+                props.set_int("/sim/warp-index", 0);
+                props.set_string("/controls/sas", "retrograde");
+                props.set_string("/autopilot/land/state", "Soyuz deorbit");
+                props.set_string("/autopilot/status", "Autoland: Soyuz deorbit");
+            }
+            return;
+        }
+        props.set_int("/sim/warp-index", 0);
+        if (phase == "Soyuz deorbit")
+        {
+            if (t.periapsis < -20000.0)
+            {
+                props.set_double("/controls/throttle", 0.0);
+                if (!ship.stage_once() || ship.active_stage() != 1 || !ship.stage_once() || ship.active_stage() != 2)
+                    return fail("Soyuz module separation failed");
+                landing_stage_ = 2;
+                props.set_string("/autopilot/land/state", "Soyuz entry");
+                props.set_string("/autopilot/status", "Autoland: Soyuz entry");
+                return;
+            }
+            if (t.stage_fuel <= 0.0 || now > soyuz_departure_ + 1200.0)
+                return fail("deorbit burn incomplete");
+            const double speed = glm::length(v);
+            if (!std::isfinite(speed) || speed < 1.0)
+                return fail("invalid orbital velocity");
+            const double alignment = glm::dot(ship.body().direction_to_world(sl::dvec3(0, 0, -1)), -v / speed);
+            props.set_double("/controls/throttle", alignment > 0.995 ? 1.0 : 0.0);
+            return;
+        }
+        if (phase == "Soyuz entry")
+        {
+            props.set_double("/controls/throttle", 0.0);
+            if (!ship.chutes().empty() && ship.chutes()[0].state != ChuteState::stowed)
+            {
+                if (ship.chutes()[0].state == ChuteState::gone)
+                    return fail("parachute lost");
+                const double distance = miss(r, now);
+                if (!std::isfinite(distance))
+                    return fail("invalid chute deployment position");
+                props.set_double("/autopilot/land/distance", distance);
+                const std::string outcome = distance <= 100000.0 ? "within 100 km" : "away from target";
+                cancel_autoland("Autoland: Soyuz chute deployed " + outcome + " (" +
+                                std::to_string(static_cast<int>(std::lround(distance / 1000.0))) + " km from base)");
+                return;
+            }
+            if (t.landed || now > soyuz_expected_arrival_ + 600.0)
+                return fail("parachute did not deploy");
+            return;
+        }
+        fail("invalid Soyuz control state");
+    }
+
 }

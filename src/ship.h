@@ -638,6 +638,8 @@ namespace kosmos
         }
         ShipCarryState carry_state() const;
         void restore_carry_state(const ShipCarryState &state);
+        /** Copy re-entry state after copying another ship's FlightBody for a forecast. */
+        void copy_forecast_reentry(const Ship &source);
         bool attitude_control_available() const { return !rcs_dry() && (explicit_rcs_ || spec_.torque_accel > 0.0); }
         /** False once the stage carrying docking port `index` has been jettisoned. */
         bool port_attached(int index) const { return spec_.ports[static_cast<std::size_t>(index)].stage >= active_stage_; }

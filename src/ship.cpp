@@ -150,6 +150,16 @@ namespace kosmos
     sl::FlightBody &Ship::body() { return *universe_.world.body(body_); }
     const sl::FlightBody &Ship::body() const { return *universe_.world.body(body_); }
 
+    void Ship::copy_forecast_reentry(const Ship &source)
+    {
+        thermal_ = source.thermal_;
+        chutes_ = source.chutes_;
+        chutes_armed_ = source.chutes_armed_;
+        aero_scaled_ = source.aero_scaled_;
+        base_drag_area_ = source.base_drag_area_;
+        base_surface_area_ = source.base_surface_area_;
+    }
+
     ShipCarryState Ship::carry_state() const
     {
         ShipCarryState state;

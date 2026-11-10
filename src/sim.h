@@ -187,6 +187,7 @@ namespace kosmos
         /** Burn autopilot: waits for the ignition time, holds prograde and burns until the apoapsis reaches the target radius (see /autopilot/burn). */
         void run_burn();
         void run_autoland(double frame);
+        void run_soyuz_autoland(double frame, Ship &ship);
         void run_timed_burn();
         void run_vessel_ascent(double dt);
         void load_active_script();
@@ -229,6 +230,16 @@ namespace kosmos
         double landing_burn_delivered_ = 0.0, landing_last_time_ = 0.0, landing_last_level_ = 0.0, landing_last_mass_ = 0.0;
         double landing_checked_mass_ = 0.0, landing_checked_fuel_ = 0.0;
         sl::dvec3 landing_plan_position_{0.0}, landing_plan_velocity_{0.0};
+        bool soyuz_landing_ = false, soyuz_checked_ = false;
+        int soyuz_forecast_pass_ = 0;
+        double soyuz_forecast_start_ = 0.0, soyuz_forecast_coast_ = 0.0;
+        double soyuz_departure_ = 0.0, soyuz_expected_arrival_ = 0.0;
+        double soyuz_search_start_ = 0.0, soyuz_search_wait_ = 0.0, soyuz_search_limit_ = 0.0;
+        double soyuz_search_rate_ = 0.0, soyuz_search_reference_ = 0.0, soyuz_search_duration_ = 0.0;
+        double soyuz_search_best_distance_ = 0.0, soyuz_search_best_departure_ = 0.0;
+        sl::dvec3 soyuz_search_position_{0.0}, soyuz_search_normal_{0.0};
+        sl::dvec3 soyuz_search_target_{0.0}, soyuz_search_pole_{0.0};
+        std::unique_ptr<SoyuzEntryForecast> soyuz_forecast_;
         /** Whether the active ship was flying on its wings at the last step, to notice a hybrid ship crossing between air and space. */
         bool flying_as_aircraft_ = false;
         std::vector<std::string> messages_;

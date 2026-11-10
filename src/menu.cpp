@@ -1333,7 +1333,7 @@ namespace kosmos
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
-                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares and Shuttle-A. Orbital planning and checking run at 1x; flight allows up to 4x. Monitor and take over; time skips are blocked.\n"
+                                   " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares, Shuttle-A and Soyuz TMA. Soyuz aims for chute deployment near a base, not touchdown. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
                                    " Tools > Scenario thumbnail captures the view for the active saved scenario, replacing its previous generated thumbnail; the launcher refreshes automatically.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
@@ -1615,12 +1615,23 @@ namespace kosmos
             ImGui::EndDisabled();
         if (targeted)
         {
-            ImGui::TextDisabled("Local targets: Ares on Mars or Moon; Shuttle-A on any suitable body.");
-            ImGui::TextDisabled("Start 300-3000 m above ground, within 2 km, below 50 m/s horizontal");
-            ImGui::TextDisabled("and below 30 m/s vertical speed.");
-            ImGui::TextDisabled("From orbit, choose a base; spherical gravity and no weather are required.");
-            ImGui::TextDisabled("Planning and checking hold 1x; flight allows up to 4x.");
-            ImGui::TextDisabled("Use time warp while waiting for the window; planning may take time.");
+            const bool soyuz = ship->spec().name == "CVEL Soyuz TMA";
+            if (soyuz)
+            {
+                ImGui::TextDisabled("Soyuz: Earth orbit, periapsis at least 150 km, eccentricity at most 0.01.");
+                ImGui::TextDisabled("Spherical gravity required; weather is ignored by the prediction.");
+                ImGui::TextDisabled("Aims within 100 km at first chute deployment, not touchdown.");
+                ImGui::TextDisabled("Planning and entry use 1x; use warp while waiting.");
+            }
+            else
+            {
+                ImGui::TextDisabled("Local targets: Ares on Mars or Moon; Shuttle-A on any suitable body.");
+                ImGui::TextDisabled("Start 300-3000 m above ground, within 2 km, below 50 m/s horizontal");
+                ImGui::TextDisabled("and below 30 m/s vertical speed.");
+                ImGui::TextDisabled("From orbit, choose a base; spherical gravity and no weather are required.");
+                ImGui::TextDisabled("Planning and checking hold 1x; flight allows up to 4x.");
+                ImGui::TextDisabled("Use time warp while waiting for the window; planning may take time.");
+            }
             if (landing)
             {
                 ImGui::Text("Target distance: %.0f m", p.get_double("/autopilot/land/distance"));
@@ -1630,11 +1641,16 @@ namespace kosmos
                 const std::string phase = p.get_string("/autopilot/land/state");
                 if (phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment")
                     ImGui::Text("Time to plane burn: %.0f s", p.get_double("/autopilot/land/window"));
+                if (phase == "Soyuz waiting" || phase == "Soyuz checking")
+                    ImGui::Text("Time to Soyuz deorbit: %.0f s", p.get_double("/autopilot/land/window"));
             }
         }
+        else if (ship->spec().name == "CVEL Soyuz TMA")
+            ImGui::TextDisabled("Soyuz requires Target landing and an Earth base.");
         else
             ImGui::TextDisabled("Untargeted Mars landing; start in orbit.");
-        ImGui::TextDisabled("A selected base aims at its pad; orbital success is within 3 km of the base.");
+        if (ship->spec().name != "CVEL Soyuz TMA")
+            ImGui::TextDisabled("A selected base aims at its pad; orbital success is within 3 km of the base.");
         ImGui::TextDisabled("Forecasts are approximate; no terrain or obstacle avoidance. Monitor and take over.");
         const std::string landing_status = p.get_string("/autopilot/land/state");
         if (!landing_status.empty() && landing_status != "off")
