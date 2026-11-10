@@ -198,9 +198,13 @@ namespace kosmos
         std::string vc_model;
         /** The MFD screen parts of the vc_model have their texture coordinates the other way up from the Deltaglider's. */
         bool vc_mfd_flip = false;
+        /** Shade ordinary VC materials with the cabin light instead of drawing them unlit. */
+        bool vc_cabin_lighting = false;
         std::vector<VcAnimation> vc_animations;
         /** VC parts (name substrings) that are never drawn, such as the alternate of two overlapping panel variants. */
         std::vector<std::string> vc_hide;
+        /** VC material names whose bitmap textures repeat outside the 0..1 UV range. */
+        std::vector<std::string> vc_repeat_materials;
         /** VC parts (name substring) that show a panel instrument: `unit` indexes the cockpit's instruments list. */
         struct VcInstrument
         {

@@ -71,6 +71,9 @@ namespace kosmos::app
         targets.mfd_target[0] = sl::create_render_target(mfd_target_size, mfd_target_size);
         targets.mfd_target[1] = sl::create_render_target(mfd_target_size, mfd_target_size);
         targets.hud_target = sl::create_render_target(mfd_target_size, mfd_target_size);
+        targets.hud_scratch = sl::create_render_target(mfd_target_size, mfd_target_size);
+        if (!targets.hud_target || !targets.hud_scratch)
+            std::fprintf(stderr, "[kosmos] cannot create virtual cockpit HUD targets: %s\n", sl::last_error().c_str());
         if (targets.hud_target)
             targets.hud_target->smooth = true;
         // The boards are minified on screen; nearest sampling made thin lines shimmer as the ship rocked.

@@ -71,6 +71,7 @@ namespace kosmos
                 spec.cockpit.mfds = jc.value("mfds", true);
                 spec.cockpit.vc_model = jc.value("vc_model", "");
                 spec.cockpit.vc_mfd_flip = jc.value("vc_mfd_flip", false);
+                spec.cockpit.vc_cabin_lighting = jc.value("vc_cabin_lighting", false);
                 if (jc.contains("vc_animations") && jc["vc_animations"].is_array())
                     for (const auto &ja : jc["vc_animations"])
                     {
@@ -163,6 +164,7 @@ namespace kosmos
                 };
                 spec.cockpit.controls = read_controls(jc.value("controls", nlohmann::json::array()));
                 spec.cockpit.vc_hide = jc.value("vc_hide", std::vector<std::string>());
+                spec.cockpit.vc_repeat_materials = jc.value("vc_repeat_materials", std::vector<std::string>());
                 for (const nlohmann::json &ji : jc.value("vc_instruments", nlohmann::json::array()))
                     spec.cockpit.vc_instruments.push_back({ji.value("part", std::string()), ji.value("unit", 0)});
                 for (const nlohmann::json &jg : jc.value("vc_gauges", nlohmann::json::array()))

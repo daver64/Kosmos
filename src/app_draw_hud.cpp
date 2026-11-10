@@ -59,7 +59,7 @@ namespace kosmos::app
     // The HUD of a virtual cockpit is drawn onto a texture for the HUD glass, looking along the nose.
     void App::render_vc_hud_target()
     {
-        if (!targets.hud_target)
+        if (!targets.hud_target || !targets.hud_scratch)
             return;
         const bool active = hud.mode() != sl::HudMode::off && hud_allowed(hud.mode(), ship->spec().hud_modes());
         sl::FlightBody &fb = *fb_ref;
@@ -70,23 +70,27 @@ namespace kosmos::app
         hs.camera.up = hs.roof;
         hs.camera.right = glm::normalize(glm::cross(hs.nose, hs.roof));
         // The HUD plate is 0.15 m wide, 0.31 m from the pilot's eye.
-        const int factor = screen_supersample();
-        sl::Bitmap *big = supersample_target(factor);
-        const int size = big ? mfd_target_size * factor : mfd_target_size;
+        // HUD strokes have a fixed pixel width; supersampling makes them fainter on the small glass.
+        const int size = targets.hud_scratch->width;
         hs.camera.focal = size * 0.5 / (0.075 / 0.308);
         hs.camera.width = size;
         hs.camera.height = size;
         if (active)
             fill_hud_state(hs);
-        sl::Bitmap *into = big ? big : targets.hud_target;
-        if (!sl::begin_render_target(into))
+        if (!sl::begin_render_target(targets.hud_scratch))
             return;
         sl::clear_render_target({0, 0, 0, 0});
         if (active)
+        {
+            const sl::TextPanelStyle saved = sl::text_panel_style();
+            sl::TextPanelStyle plain = saved;
+            plain.enabled = false;
+            sl::set_text_panel_style(plain);
             hud.draw(hs);
+            sl::set_text_panel_style(saved);
+        }
         sl::end_render_target();
-        if (big)
-            downsample_target(big, targets.hud_target, {0, 0, 0, 0});
+        downsample_target(targets.hud_scratch, targets.hud_target, {0, 0, 0, 0});
     }
 
     void App::fill_hud_state(sl::HudState &hs)

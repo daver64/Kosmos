@@ -302,13 +302,13 @@
     0,
     5
    ],
-   "area": 8,
+   "area": 12,
    "cl0": 0,
    "cl_alpha": 3,
    "cd0": 0.01,
    "induced_drag": 0.08,
    "stall_deg": 18,
-   "gain_deg": -12
+   "gain_deg": -18
   },
   {
    "control": "rudder",
@@ -509,6 +509,8 @@
  ],
  "cockpit": {
   "vc_model": "../cvel-deltaglider/models/deltaglider_vc.obj",
+  "vc_cabin_lighting": true,
+  "vc_repeat_materials": ["panels_generic_noise1"],
   "hud_modes": [
    "orbit",
    "surface",

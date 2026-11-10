@@ -8,6 +8,9 @@ namespace kosmos
 {
     namespace
     {
+        constexpr double dg_hover_fade_start_m = 50.0;
+        constexpr double dg_hover_fade_end_m = 200.0;
+
         bool ascent_docking_allowed(Sim &sim, int active)
         {
             if (!sim.nav.docked(active))
@@ -117,9 +120,9 @@ namespace kosmos
                     }
                     const Body &body = universe.bodies[static_cast<std::size_t>(ship->telemetry().soi)];
                     const double radius = glm::length(ship->body().position - universe.world.body(ship->telemetry().soi)->position);
-                    if ((request == "Ares" && !hover) || (request == "Deltaglider" && !main) ||
+                    if ((request == "Ares" && !hover) || (request == "Deltaglider" && (!main || !hover)) ||
                         (request == "Shuttle-A" && (!main || !hover)) ||
-                        (request != "Deltaglider" && (radius <= 0.0 || liftoff_thrust <= ship->telemetry().mass * body.gm / (radius * radius))))
+                        (radius <= 0.0 || liftoff_thrust <= ship->telemetry().mass * body.gm / (radius * radius)))
                         error = "required engine or liftoff thrust unavailable";
                 }
                 if (!error.empty())
@@ -246,7 +249,10 @@ namespace kosmos
         if (ascent_phase_ == "Liftoff")
         {
             if (ascent_profile_ == "Deltaglider")
+            {
                 main = 1.0;
+                hover = 1.0;
+            }
             else
                 hover = 1.0;
             if ((ascent_profile_ == "Deltaglider" && t.surface_speed > 45.0) ||
@@ -263,7 +269,10 @@ namespace kosmos
             else
             {
                 main = 1.0;
-                hover = ascent_profile_ == "Deltaglider" ? 0.0 : std::clamp(1.0 - t.altitude / 5000.0, 0.0, 1.0);
+                hover = ascent_profile_ == "Deltaglider"
+                            ? std::clamp((dg_hover_fade_end_m - t.altitude) /
+                                             (dg_hover_fade_end_m - dg_hover_fade_start_m), 0.0, 1.0)
+                            : std::clamp(1.0 - t.altitude / 5000.0, 0.0, 1.0);
             }
             if (t.altitude > transition_alt)
                 ascent_phase_ = "Orbit burn";

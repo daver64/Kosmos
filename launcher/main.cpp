@@ -1570,7 +1570,6 @@ namespace
             for (const char *t : {"Automatic", "2048", "4096", "8192", "16384"})
                 world_texture_->Append(t);
             extra_ = new wxTextCtrl(page, wxID_ANY);
-            server_ = new wxTextCtrl(page, wxID_ANY);
             command_ = new wxTextCtrl(page, wxID_ANY, "", wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
             auto row = [&](const wxString &label, wxWindow *w)
             {
@@ -1582,7 +1581,6 @@ namespace
             row("Largest texture", max_texture_);
             row("Invented-world texture", world_texture_);
             row("Extra options", extra_);
-            row("Update server", server_);
             row("Command line", command_);
             auto *col = new wxBoxSizer(wxVERTICAL);
             col->Add(grid, 0, wxEXPAND | wxALL, 12);
@@ -1602,7 +1600,6 @@ namespace
             world_texture_->Bind(wxEVT_CHOICE, sync);
             fullscreen_->Bind(wxEVT_CHECKBOX, sync);
             extra_->Bind(wxEVT_TEXT, sync);
-            server_->Bind(wxEVT_TEXT, sync);
         }
 
         static int texture_index(int v)
@@ -1619,7 +1616,6 @@ namespace
             max_texture_->SetSelection(texture_index(profile_.max_texture));
             world_texture_->SetSelection(texture_index(profile_.world_texture));
             extra_->SetValue(W(profile_.extra_args));
-            server_->SetValue(W(profile_.server));
             loading_ = false;
             RefreshPreview();
         }
@@ -1634,7 +1630,6 @@ namespace
             profile_.max_texture = texture_value(max_texture_->GetSelection());
             profile_.world_texture = texture_value(world_texture_->GetSelection());
             profile_.extra_args = U(extra_->GetValue());
-            profile_.server = U(server_->GetValue());
             save_profile(profile_);
             RefreshPreview();
         }
@@ -2148,7 +2143,7 @@ namespace
         wxButton *launch_ = nullptr, *resume_ = nullptr, *mission_ = nullptr, *pack_install_ = nullptr, *pack_pause_ = nullptr, *pack_dequeue_ = nullptr, *pack_remove_ = nullptr, *update_button_ = nullptr, *retry_ = nullptr, *report_ = nullptr;
         Http report_http_;
         wxCheckBox *addon_enabled_ = nullptr;
-        wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *server_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
+        wxTextCtrl *addon_text_ = nullptr, *extra_ = nullptr, *command_ = nullptr, *notes_ = nullptr, *log_text_ = nullptr;
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;

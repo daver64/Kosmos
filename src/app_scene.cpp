@@ -1225,6 +1225,8 @@ namespace kosmos::app
                             }
                             else if (mp.name.find("HUDDISP") != std::string::npos)
                             {
+                                if (!targets.hud_target || !targets.hud_scratch)
+                                    mp.visible = false;
                                 mp.material.texture = targets.hud_target;
                                 mp.material.tint = {255, 255, 255, 255};
                                 mp.material.lit = false;
@@ -1234,10 +1236,17 @@ namespace kosmos::app
                             }
                             else
                             {
-                                // Orbiter cockpits are ambient lit, so the sun-facing shading would leave the interior black.
+                                // Keep legacy cockpits unlit unless they opt into the cabin light.
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                                 const bool glass = mp.name.find("glass") != std::string::npos || mp.name.find("visor") != std::string::npos;
+                                if (cp.vc_cabin_lighting)
+                                {
+                                    // OBJ Ke is not a glTF-style additive emissive; use textured Lambert shading.
+                                    mp.material.pbr = false;
+                                    mp.material.lit = !glass && mp.name.find("LIT_SURF") == std::string::npos &&
+                                                      mp.name.find("glowlabel") == std::string::npos;
+                                }
                                 if (!mp.material.texture && !glass)
                                 {
                                     mp.material.lit = true;

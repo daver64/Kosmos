@@ -332,6 +332,8 @@ namespace kosmos::app
         sl::destroy_bitmap(vis.puff_texture);
         sl::destroy_bitmap(vis.cloud_texture);
         sl::destroy_bitmap(vis.nebula_atlas);
+        if (targets.hud_scratch)
+            sl::destroy_bitmap(targets.hud_scratch);
         sl::destroy_surface_3d(surface);
         kosmos::drain_released_bitmaps();
         sl::gamepad_shutdown();

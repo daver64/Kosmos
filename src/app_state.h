@@ -243,7 +243,8 @@ namespace kosmos::app
         std::vector<sl::Bitmap *> gauge_target, gauge_scratch; // `vc_gauges` textures and the top-down scratch they are drawn in
         sl::Bitmap * instr_target[8]{}; // panel instruments shown on VC parts (`vc_instruments`)
         sl::Bitmap * hud_target = nullptr;
-        // Scratch targets for supersampling the MFD and HUD textures (see gfx-screen-ss).
+        sl::Bitmap * hud_scratch = nullptr;
+        // Scratch targets for supersampling the MFD textures (see gfx-screen-ss).
         sl::Bitmap * ss_big = nullptr;
         sl::Bitmap * ss_mid = nullptr;
         int ss_factor = 0;

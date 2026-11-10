@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check both Deltaglider variants' 2D cockpit artwork."""
+"""Check both Deltaglider variants' cockpit artwork."""
 
 import json
 import struct
@@ -10,6 +10,8 @@ for addon in ("cvel-deltaglider", "cvel-deltaglider-nuclear"):
     directory = root / "addons" / addon
     ship = json.loads((directory / "ship.json").read_text())
     cockpit = ship["cockpit"]
+    assert cockpit["vc_repeat_materials"] == ["panels_generic_noise1"], addon
+    assert cockpit["vc_cabin_lighting"] is True, addon
     strobe = [h for h in cockpit["vc_hotspots"] if h["control"].get("property") == "/controls/lighting/strobe"]
     assert len(strobe) == 1 and strobe[0]["control"]["type"] == "toggle", addon
     strobes = [light for light in ship["lights"] if light.get("pattern") == "strobe"]
@@ -37,4 +39,36 @@ for texture in ("dgmk4_2", "dgmk4_3", "dgmk4_4", "dgip_01", "dgip_03", "dgip_04"
 shadow = material.index("newmtl black_DG_dg_vc5")
 assert "Kd 0.000 0.000 0.000" in material[shadow:shadow + 6]
 assert "map_Kd textures/dg_vc5.png" in material[shadow:shadow + 6]
+mesh = (vc / "deltaglider_vc.obj").read_text()
+assert "g PANELS1\nusemtl panels_generic_noise1\n" in mesh
+
+button_groups = {
+    "LMFD_LBUTTONS": 6, "LMFD_RBUTTONS": 6, "LMFD_BBUTTONS": 2,
+    "RMFD_LBUTTONS": 6, "RMFD_RBUTTONS": 6, "RMFD_BBUTTONS": 2,
+}
+uvs = {}
+group = ""
+for line in mesh.splitlines():
+    fields = line.split()
+    if not fields:
+        continue
+    if fields[0] == "g":
+        group = fields[1]
+    elif fields[0] == "vt" and group in button_groups:
+        uvs.setdefault(group, []).append(tuple(map(float, fields[1:3])))
+
+with (vc / "textures/orbiter-vc/dg_vc4.png").open("rb") as stream:
+    header = stream.read(24)
+assert struct.unpack(">II", header[16:24]) == (1024, 1024)
+for group, count in button_groups.items():
+    assert len(uvs[group]) == count * 12, group
+    for start in range(0, len(uvs[group]), 12):
+        face = uvs[group][start:start + 4]
+        sides = uvs[group][start + 4:start + 12]
+        umin, umax = min(u for u, v in face), max(u for u, v in face)
+        vmin, vmax = min(v for u, v in face), max(v for u, v in face)
+        for u, v in sides:
+            # Side faces must sample two texels inside the button, not adjacent atlas artwork.
+            assert abs(min(u - umin, umax - u) - 2 / 1024) < 0.00002, group
+            assert abs(min(v - vmin, vmax - v) - 2 / 1024) < 0.00002, group
 print("deltaglider_panel_assets_test ok")

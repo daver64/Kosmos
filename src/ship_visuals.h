@@ -209,6 +209,18 @@ namespace kosmos::app
             {
                 for (sl::ModelPart &mp : model->parts)
                     mp.material.cull = sl::CullMode::none;
+                for (const std::string &name : cockpit.vc_repeat_materials)
+                {
+                    bool found_texture = false;
+                    for (sl::ModelPart &mp : model->parts)
+                        if (mp.material_name == name && mp.material.texture)
+                        {
+                            mp.material.texture->repeat = true;
+                            found_texture = true;
+                        }
+                    if (!found_texture)
+                        std::fprintf(stderr, "[kosmos] cockpit model %s: no texture for repeating material %s\n", path.c_str(), name.c_str());
+                }
                 vc_screens[&cockpit] = parse_vc_screens(path);
             }
             return vc_models[&cockpit] = model;

@@ -1005,7 +1005,8 @@ namespace kosmos
             sim.props.set_double("/controls/gimbal-pitch", 0.1);
             sim.mfd.press(0, 0);
             sim.step(0.05);
-            check(sim.vessel_ascent_active() && displays("Liftoff") && sim.props.get_double("/controls/throttle") > 0.0,
+            check(sim.vessel_ascent_active() && displays("Liftoff") && sim.props.get_double("/controls/throttle") > 0.0 &&
+                      sim.props.get_double("/controls/hover") > 0.0,
                   "MFD START engages Deltaglider ascent");
             check(std::abs(sim.props.get_double("/controls/gimbal-pitch") -
                            ship->main_pitch_trim(sim.props.get_double("/controls/gimbal-yaw"))) < 1e-9,
@@ -1052,6 +1053,7 @@ namespace kosmos
             sim.step(0.05);
             check(!sim.vessel_ascent_active() && displays("Ascent cancelled") &&
                       sim.props.get_double("/controls/throttle") == 0.0 &&
+                      sim.props.get_double("/controls/hover") == 0.0 &&
                       std::abs(sim.props.get_double("/controls/gimbal-pitch") - 0.1) < 1e-9,
                   "MFD STOP cancels Deltaglider ascent");
             std::printf("vessel ascent selftest: %d failure(s)\n", failures);
