@@ -21,6 +21,8 @@ Credits we can name from the packs' own notes:
 Cloud maps, the Orbiter terrain data and any other third-party pack are credited and licensed by their own authors.
 Please do not remove the credits when redistributing.
 
+- **Deltaglider virtual cockpit** (`addons/cvel-deltaglider/models/textures/orbiter-vc/`): converted from Orbiter's stock textures, copyright Martin Schweiger, MIT licence.
+
 The separately distributed standard Orbiter 2024 scenery packs contain the planetary
 archives and the `LICENSE` from the Orbiter 2024 release (MIT, copyright Martin
 Schweiger). The Earth cloud and night-light maps are converted from that release's

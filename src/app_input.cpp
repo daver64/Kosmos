@@ -379,7 +379,10 @@ namespace kosmos::app
         else if (hit("nav_lights") || hit("lamps"))
         {
             const char *path = hit("lamps") ? "/controls/lighting/lamps" : "/controls/lighting/nav";
-            props.set_bool(path, !props.get_bool(path, hit("lamps")));
+            const bool enabled = !props.get_bool(path, hit("lamps"));
+            props.set_bool(path, enabled);
+            if (!hit("lamps"))
+                props.set_bool("/controls/lighting/strobe", enabled);
         }
         else if (hit("undock"))
             props.set_bool("/dock/undock", true);

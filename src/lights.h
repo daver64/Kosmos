@@ -1,6 +1,7 @@
 #pragma once
 
 #include "surface3d.h"
+#include "proptree.h"
 
 #include "json.hpp"
 
@@ -34,14 +35,26 @@ namespace kosmos
         double period = 1.5, phase = 0.0;
         /** Size of the visible bulb glow in metres; 0 hides it. */
         float glow = 0.4f;
-        /** Bases switch their lamps on at dusk; a lamp with `always` stays lit by day too. */
+        /** Keep a lamp eligible by day as well as at night. */
         bool always = false;
         bool shadow = false;
         /** Ship navigation lights (running lights and strobes) are drawn subdued. Defaults to on for point lamps; spots are never navigation. */
         bool navigation = false;
+        /** Optional property controlling a ship lamp independently of the navigation or landing lights. */
+        std::string control;
         /** Ships: lit only while this stage has not been jettisoned (-1 for always). */
         int stage = -1;
     };
+
+    inline bool ship_light_enabled(const LightSpec &light, const sl::PropertyTree &props, bool daylight_on_ground = false)
+    {
+        if (daylight_on_ground && !light.always)
+            return false;
+        const std::string path = light.control.empty()
+            ? (light.navigation ? "/controls/lighting/nav" : "/controls/lighting/lamps")
+            : light.control;
+        return props.get_bool(path, !light.navigation);
+    }
 
     /** How bright a lamp is at a moment, 0 to 1, from its blink pattern. */
     inline float light_pattern(const LightSpec &l, double time)
@@ -102,6 +115,7 @@ namespace kosmos
         l.always = j.value("always", false);
         l.shadow = j.value("shadow", false);
         l.navigation = j.value("navigation", l.outer <= 0.0f);
+        l.control = j.value("control", std::string());
         l.stage = j.value("stage", -1);
         return l;
     }
@@ -136,6 +150,7 @@ namespace kosmos
         if (l.always) j["always"] = true;
         if (l.shadow) j["shadow"] = true;
         if (l.navigation != (l.outer <= 0.0f)) j["navigation"] = l.navigation;
+        if (!l.control.empty()) j["control"] = l.control;
         if (l.stage >= 0) j["stage"] = l.stage;
         return j;
     }

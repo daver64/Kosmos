@@ -27,7 +27,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # To build against a source checkout instead, pass -DKOSMOS_SIMLIB_DIR=/path/to/rsimlib.
 set(KOSMOS_SIMLIB_DIR "" CACHE PATH "Build against this simlib source tree instead of an installed simlib")
 option(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF "Build the Orbiter textured-relief renderer" ON)
-option(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL "Build the incomplete Orbiter microdetail prototype" OFF)
+option(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL "Build the Orbiter microdetail renderer" ${KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF})
 if(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL AND NOT KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
     message(FATAL_ERROR "Experimental Orbiter microdetail requires KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF.")
 endif()
@@ -234,6 +234,10 @@ target_include_directories(orbiter_tree_lookup_test PRIVATE src)
 
 add_executable(orbiter_microtexture_test EXCLUDE_FROM_ALL tests/orbiter_microtexture_test.cpp src/orbiter_microtexture.cpp)
 target_include_directories(orbiter_microtexture_test PRIVATE src)
+
+add_executable(ship_lights_test EXCLUDE_FROM_ALL tests/ship_lights_test.cpp)
+target_include_directories(ship_lights_test PRIVATE src)
+target_link_libraries(ship_lights_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Link only the terrain wrappers under test, rather than the rest of the base editor and renderer.

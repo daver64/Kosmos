@@ -1319,7 +1319,7 @@ namespace kosmos
                                    "  Orbiter relief is the default when assets are available; --no-orbital-relief-ground restores old ground terrain.\n"
 #endif
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
-                                   "  --orbiter-microtexture-root PATH tests detail from an Orbiter installation; --no-detail disables it.\n"
+                                   "  Microdetail uses assets in import/orbiter or --orbiter-microtexture-root PATH; --no-detail disables it.\n"
 #endif
                                    "  --cam-planet R --cam-phase DEG (command line) frames the planet alone for screenshots\n"
                                    "Windows\n"
@@ -2182,7 +2182,10 @@ namespace kosmos
         {
             bool nav = sim.props.get_bool("/controls/lighting/nav", false), lamps = sim.props.get_bool("/controls/lighting/lamps", true);
             if (ImGui::MenuItem("Navigation lights", actions.key_label ? actions.key_label("nav_lights").c_str() : nullptr, &nav))
+            {
                 sim.props.set_bool("/controls/lighting/nav", nav);
+                sim.props.set_bool("/controls/lighting/strobe", nav);
+            }
             if (ImGui::MenuItem("Landing and nose lights", actions.key_label ? actions.key_label("lamps").c_str() : nullptr, &lamps))
                 sim.props.set_bool("/controls/lighting/lamps", lamps);
         }

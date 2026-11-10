@@ -3,6 +3,8 @@
 #include "orbiter_tile_terrain.h"
 #include "plasma_look.h"
 
+#include <filesystem>
+
 namespace kosmos::app
 {
     void App::scene_lighting()
@@ -61,15 +63,13 @@ namespace kosmos::app
                     const sl::dvec3 up_here = glm::normalize(lit_ship.origin() - universe.position(lit_ship.telemetry().soi));
                     daylight_on_ground = glm::dot(up_here, glm::normalize(universe.position(0) - lit_ship.origin())) > 0.05;
                 }
-                if (daylight_on_ground)
-                    continue;
                 for (const kosmos::LightSpec &spec : lit_ship.spec().lights)
                 {
                     if (spec.stage >= 0 && lit_ship.active_stage() > spec.stage)
                         continue;
                     if (lit_ship.systems() && !lit_ship.systems()->instruments_powered())
                         continue;
-                    if (!sim.props.get_bool(spec.navigation ? "/controls/lighting/nav" : "/controls/lighting/lamps", !spec.navigation))
+                    if (!kosmos::ship_light_enabled(spec, sim.props, daylight_on_ground))
                         continue;
                     for (int i = 0; i < spec.count; ++i)
                     {
@@ -677,7 +677,7 @@ namespace kosmos::app
                 maximum_terrain_height = terrain_body->terrain->source()->max_height();
                 break;
             }
-        if (!detail_disabled && !options.orbiter_microtexture_root.empty() && body == soi &&
+        if (!detail_disabled && body == soi &&
             kosmos::orbiter_microtexture_near_surface(glm::length(relative), radius, maximum_terrain_height))
         {
             if (orbiter_microtexture_body != body)
@@ -687,7 +687,10 @@ namespace kosmos::app
                 orbiter_microtexture_body = body;
                 std::string detail_error;
                 const auto &name = universe_ref->bodies[static_cast<std::size_t>(body)].name;
-                const auto found = kosmos::discover_orbiter_microtextures(options.orbiter_microtexture_root, name,
+                const std::filesystem::path detail_root = options.orbiter_microtexture_root.empty()
+                    ? std::filesystem::path(options.root) / "import" / "orbiter"
+                    : std::filesystem::path(options.orbiter_microtexture_root);
+                const auto found = kosmos::discover_orbiter_microtextures(detail_root, name,
                                                                           orbiter_microtexture_assets, detail_error);
                 if (found == kosmos::OrbiterMicrotextureDiscovery::available)
                 {
@@ -1235,18 +1238,16 @@ namespace kosmos::app
                                 mp.material.lit = false;
                                 mp.material.fog = false;
                                 const bool glass = mp.name.find("glass") != std::string::npos || mp.name.find("visor") != std::string::npos;
-                                const bool hidden = false;
-                                // The loader drops Kd, so plain materials would come out white.
-                                const Uint8 level = mp.material.texture ? 217 : 100;
-                                mp.material.tint = {level, level, level, static_cast<Uint8>(hidden ? 0 : glass ? 60 : 255)};
                                 if (!mp.material.texture && !glass)
                                 {
-                                    // Plain parts (switches, levers, trim) get a soft cockpit light so they read as solid shapes.
                                     mp.material.lit = true;
-                                    mp.material.tint = {190, 190, 190, 255};
+                                    mp.material.pbr = false;
                                 }
-                                if (glass || hidden || mp.name.find("LIT_SURF") != std::string::npos)
-                                    mp.material.blend = sl::MaterialBlend::alpha; // label strips are text on a transparent background
+                                if (glass)
+                                    mp.material.tint.alpha = 60;
+                                // The Deltaglider's black panel shadow uses the texture's alpha as a mask.
+                                if (glass || mp.name.find("LIT_SURF") != std::string::npos || mp.name.find("black_DG_dg_vc5") != std::string::npos)
+                                    mp.material.blend = sl::MaterialBlend::alpha;
                             }
                         }
                         const sl::Light3D saved_light = sl::get_light_3d();

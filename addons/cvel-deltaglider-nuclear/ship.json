@@ -2586,7 +2586,20 @@
     "control": {
      "type": "toggle",
      "property": "/controls/lighting/lamps",
-     "label": "Cockpit lamps"
+     "label": "Landing light"
+    }
+   },
+   {
+    "quad": [
+     [0.11265, 1.6522, -6.93405],
+     [0.13265, 1.6522, -6.93405],
+     [0.11265, 1.66256, -6.89541],
+     [0.13265, 1.66256, -6.89541]
+    ],
+    "control": {
+     "type": "toggle",
+     "property": "/controls/lighting/strobe",
+     "label": "Strobe lights"
     }
    },
    {
@@ -3120,6 +3133,17 @@
  },
  "lights": [
   {
+   "position": [0.1, -0.3, -7.5],
+   "direction": [0, -0.17365, -0.98481],
+   "colour": [255, 255, 255],
+   "intensity": 4,
+   "range": 5000,
+   "inner": 25,
+   "outer": 40,
+   "always": true,
+   "glow": 0.4
+  },
+  {
    "position": [
     -8.9,
     2.3,
@@ -3179,6 +3203,8 @@
    "range": 80,
    "glow": 0.6,
    "pattern": "strobe",
+   "always": true,
+   "control": "/controls/lighting/strobe",
    "period": 1.6,
    "phase": 0
   },
@@ -3197,6 +3223,8 @@
    "range": 80,
    "glow": 0.6,
    "pattern": "strobe",
+   "always": true,
+   "control": "/controls/lighting/strobe",
    "period": 1.6,
    "phase": 0.5
   }

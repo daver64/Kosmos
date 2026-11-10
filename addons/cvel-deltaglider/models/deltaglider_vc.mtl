@@ -2,7 +2,7 @@ newmtl dgint1_3_M_DG_DGMK4_4
 Kd 1.000 1.000 1.000
 Ks 0.271 0.271 0.271
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl default_DG_DG_VC1
 Kd 1.000 1.000 1.000
@@ -14,43 +14,43 @@ newmtl dgint1_1_DG_DGMK4_3
 Kd 1.000 1.000 1.000
 Ks 0.784 0.784 0.784
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_3.png
+map_Kd textures/orbiter-vc/dgmk4_3.png
 
 newmtl dgint1_1_A_DG_DGMK4_3
 Kd 1.000 1.000 1.000
 Ks 0.859 0.910 0.933
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_3.png
+map_Kd textures/orbiter-vc/dgmk4_3.png
 
 newmtl dgint1_1_B_DG_DGMK4_3
 Kd 1.000 1.000 1.000
 Ks 0.973 0.949 0.886
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_3.png
+map_Kd textures/orbiter-vc/dgmk4_3.png
 
 newmtl dgint1_1_M_DG_DGMK4_3
 Kd 1.000 1.000 1.000
 Ks 0.271 0.271 0.271
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_3.png
+map_Kd textures/orbiter-vc/dgmk4_3.png
 
 newmtl dgint1_3_DG_DGMK4_4
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_A_DG_DGMK4_4
 Kd 1.000 1.000 1.000
 Ks 0.863 0.914 0.937
 Ke 0.800 0.800 0.800
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgip1_1_DG_DGIP_01
 Kd 1.000 1.000 1.000
 Ks 0.898 0.898 0.898
 Ke 0.800 0.800 0.800
-map_Kd textures/DGIP_01.png
+map_Kd textures/orbiter-vc/dgip_01.png
 
 newmtl dgip1_2_DG_DG_VC3
 Kd 1.000 1.000 1.000
@@ -62,13 +62,13 @@ newmtl dgint1_3_DG_DGIP_03
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGIP_03.png
+map_Kd textures/orbiter-vc/dgip_03.png
 
 newmtl dgip1_4_DG_DGIP_04
 Kd 1.000 1.000 1.000
 Ks 0.898 0.898 0.898
 Ke 0.800 0.800 0.800
-map_Kd textures/DGIP_04.png
+map_Kd textures/orbiter-vc/dgip_04.png
 
 newmtl dgip1_4_DG_DG_VC3
 Kd 1.000 1.000 1.000
@@ -80,7 +80,7 @@ newmtl dgip1_5_DG_DGIP_05
 Kd 1.000 1.000 1.000
 Ks 0.898 0.898 0.898
 Ke 0.800 0.800 0.800
-map_Kd textures/DGIP_05.png
+map_Kd textures/orbiter-vc/dgip_05.png
 
 newmtl dgint1_3_DG_DGPILOT1
 Kd 1.000 1.000 1.000
@@ -92,7 +92,7 @@ newmtl glider4_2_DG_DGMK4_2
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/DGMK4_2.png
+map_Kd textures/orbiter-vc/dgmk4_2.png
 
 newmtl instrument_DG_DG_VC1
 Kd 1.000 1.000 1.000
@@ -152,7 +152,7 @@ newmtl dgint1_3_DG_dg_vc4
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl instrument_DG_dg_instr
 Kd 1.000 1.000 1.000
@@ -179,7 +179,7 @@ newmtl LIT_BUTTON_DG_dg_vc4
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.600 0.600 0.600
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl inst1_6_DG_DG_VC3
 Kd 1.000 1.000 1.000
@@ -191,19 +191,18 @@ newmtl dgint1_3
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/modern_dark.png
 
 newmtl panels_generic_noise1
-Kd 1.000 1.000 1.000
+Kd 0.500 0.600 0.600
 Ks 0.200 0.200 0.200
 Ke 0.150 0.150 0.150
-map_Kd textures/modern_panel.png
+map_Kd textures/orbiter-vc/noise1.png
 
 newmtl shinysurf_DG_dg_vc4
 Kd 1.000 1.000 1.000
 Ks 0.500 0.500 0.500
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl inst1_6_DG_dg_instr_ANGVEL_DISP
 Kd 1.000 1.000 1.000
@@ -228,7 +227,7 @@ Kd 1.000 1.000 1.000
 Ks 0.300 0.300 0.300
 Ke 0.800 0.800 0.800
 d 0.000
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl dgint1_3_DG_dg_vc5
 Kd 1.000 1.000 1.000
@@ -237,10 +236,10 @@ Ke 0.150 0.150 0.150
 map_Kd textures/dg_vc5.png
 
 newmtl black_DG_dg_vc5
-Kd 1.000 1.000 1.000
+Kd 0.000 0.000 0.000
 Ks 0.000 0.000 0.000
 Ke 0.000 0.000 0.000
-map_Kd textures/modern_dark.png
+map_Kd textures/dg_vc5.png
 
 newmtl glowlabel_DG_dg_vc5
 Kd 1.000 1.000 1.000
@@ -269,85 +268,85 @@ newmtl dgint1_3_DG_DGMK4_4__THROTTLE_MAIN_L1
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_MAIN_R1
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_HOVER_1
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_SCRAM_L1
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_SCRAM_R1
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_MAIN_L2
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_MAIN_R2
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_HOVER_2
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_SCRAM_L2
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_DGMK4_4__THROTTLE_SCRAM_R2
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/DGMK4_4.png
+map_Kd textures/orbiter-vc/dgmk4_4.png
 
 newmtl dgint1_3_DG_dg_vc4__NOSECONE_LEVER
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl dgint1_3_DG_dg_vc4__GEAR_LEVER
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl dgint1_3_DG_dg_vc4__UNDOCK_LEVER
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 newmtl dgint1_3_DG_dg_vc4__AIRBRAKE_LEVER
 Kd 1.000 1.000 1.000
 Ks 0.100 0.100 0.100
 Ke 0.150 0.150 0.150
-map_Kd textures/dg_vc4.png
+map_Kd textures/orbiter-vc/dg_vc4.png
 
 
 newmtl instrument_DG_dg_instr__PROPELLANT_STATUS_SCRAM
