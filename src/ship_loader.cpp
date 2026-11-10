@@ -469,6 +469,7 @@ namespace kosmos
                     part.prop = jp.value("prop", "");
                     part.model = jp.value("model", "");
                     part.animations = jp.value("animations", "");
+                    part.single_sided = jp.value("single_sided", std::vector<std::string>{});
                     if (part.prop.empty() && part.model.empty())
                         for (const nlohmann::json &pt : jp.at("profile"))
                             part.profile.emplace_back(pt[0].get<float>(), pt[1].get<float>());

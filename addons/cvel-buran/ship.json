@@ -5,7 +5,7 @@
   {"name": "Payload bay", "shape": "cylinder", "radius": 2.3, "length": 17.5, "port": "Payload bay"}
  ],
  "payload_size": [24, 8, 36],
- "description": "Buran orbiter: a delta-winged spaceplane with two orbital manoeuvring engines and a payload bay. Orbiter-sized lift surfaces; fixed landing gear. Launches on the CVEL Energia, or rides piggyback on another launcher.",
+ "description": "Buran orbiter: a delta-winged spaceplane with two orbital manoeuvring engines and a payload bay. Orbiter-sized lift surfaces; retractable landing gear. Launches on the CVEL Energia, or rides piggyback on another launcher.",
  "torque_accel": 0.5,
  "max_rate": 0.5,
  "rcs_thrust": 15000,
@@ -76,7 +76,8 @@
     {"position": [-1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"}
    ],
    "parts": [
-    {"model": "models/buran.obj", "animations": "animations.json"}
+    {"model": "models/buran.obj", "animations": "animations.json",
+     "single_sided": ["group27", "group28", "group29", "group30", "group31", "group32", "group33", "group34", "group35", "group36", "group37", "group38"]}
    ]
   }
  ]

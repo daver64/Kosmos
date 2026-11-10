@@ -245,7 +245,7 @@ namespace kosmos::app
             }
             return part_model(found->second, directory);
         }
-        void configure_part_model(sl::Model *model)
+        void configure_part_model(sl::Model *model, const kosmos::PartSpec &part)
         {
             if (!model)
                 return;
@@ -254,9 +254,18 @@ namespace kosmos::app
                 const bool nose_shell = mp.name.rfind("NCone", 0) == 0 && mp.name != "NConeDock";
                 // The NCone texture layers are reverse-wound copies; cull front to keep the exterior layer visible.
                 mp.material.cull = nose_shell ? sl::CullMode::front : sl::CullMode::none;
+                if (std::find(part.single_sided.begin(), part.single_sided.end(), mp.name) != part.single_sided.end() ||
+                    std::find(part.single_sided.begin(), part.single_sided.end(), mp.material_name) != part.single_sided.end())
+                    mp.material.cull = sl::CullMode::back;
                 if (mp.name.rfind("vessel", 0) == 0 || mp.name.rfind("vent", 0) == 0 || mp.name.rfind("crew", 0) == 0)
                     mp.visible = false;
             }
+            for (const std::string &name : part.single_sided)
+                if (std::none_of(model->parts.begin(), model->parts.end(), [&](const sl::ModelPart &mp) {
+                        return mp.name == name || mp.material_name == name;
+                    }))
+                    std::fprintf(stderr, "[kosmos] model %s: no object or material named %s for single-sided rendering\n",
+                                 part.model.c_str(), name.c_str());
         }
         sl::Model *part_model(const kosmos::PartSpec &part, const std::string &directory)
         {
@@ -272,7 +281,7 @@ namespace kosmos::app
                 std::fprintf(stderr, "[kosmos] cannot load part model %s: %s\n", part.model.c_str(), sl::last_error().c_str());
             if (loaded.model && !part.animations.empty() && !sl::load_model_animations_json(loaded.model, (std::filesystem::path(directory) / part.animations).string()))
                 std::fprintf(stderr, "[kosmos] cannot load animations %s: %s\n", part.animations.c_str(), sl::last_error().c_str());
-            configure_part_model(loaded.model);
+            configure_part_model(loaded.model, part);
             models[&part] = loaded;
             return loaded.model;
         }

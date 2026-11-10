@@ -281,7 +281,8 @@ namespace kosmos::app
                 sim.props.set_double("/nav/nav[" + std::to_string(i) + "]/frequency", i < static_cast<int>(sc.nav.size()) ? sc.nav[static_cast<std::size_t>(i)] : 0.0);
             sim.props.set_double("/controls/throttle", sc.throttle);
             const std::size_t flown_entry = static_cast<std::size_t>(std::min<int>(sc.active, static_cast<int>(sc.ships.size()) - 1));
-            sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude <= 0.0 ? 1.0 : 0.0);
+            sim.props.set_double("/controls/gear", sc.ships[flown_entry].landed && sc.ships[flown_entry].altitude <= 0.0 &&
+                                                   sc.ships[flown_entry].dock_to < 0 ? 1.0 : 0.0);
             sim.props.set_double("/controls/hover", 0.0);
             sim.props.set_string("/controls/sas", "stability");
             sim.props.set_bool("/autopilot/enabled", sc.autopilot);

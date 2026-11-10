@@ -219,7 +219,7 @@
    "name": "Core stage",
    "ignite_with_previous": true,
    "dry_mass": 85000,
-   "propellant": 538000,
+   "propellant": 638000,
    "z": 0,
    "length": 58.8,
    "radius": 4.5,

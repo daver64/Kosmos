@@ -116,6 +116,8 @@ namespace kosmos
         sl::dvec3 rotate{0.0};
         /** Model parts only: a simlib animation JSON (relative to the addon folder) loaded onto the model. */
         std::string animations;
+        /** Model object or material names that should cull back faces instead of drawing both sides. */
+        std::vector<std::string> single_sided;
     };
 
     /** One separable section of a ship. Stages are listed from the bottom of the stack, which is jettisoned first. */

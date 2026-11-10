@@ -32,6 +32,7 @@ python3 "$SRC/tests/proton_exhaust_test.py"
 python3 "$SRC/tests/vessel_ascent_limits_test.py"
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 python3 "$SRC/tests/deltaglider_takeoff_test.py" "$OUT/kosmos"
+python3 "$SRC/tests/buran_flight_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_light_render_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/stellar_glare_render_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/planet_texture_selection_test.py" "$OUT/kosmos"

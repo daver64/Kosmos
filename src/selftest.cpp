@@ -1637,6 +1637,24 @@ namespace kosmos
                         ok ? 0 : 1, blocker.c_str(), ship->on_rails(), sim.current_warp());
             return ok ? 0 : 1;
         }
+        if (sim.props.get_bool("/selftest/buran-docked-gear"))
+        {
+            if (!ship || ship->spec().name != "CVEL Buran" || sim.props.get_double("/controls/gear") != 0.0 ||
+                ship->gear_position() != 0.0 || !sim.nav.docked(sim.active_index()))
+            {
+                std::fprintf(stderr, "Buran docked gear selftest: invalid initial gear or docking state\n");
+                return 1;
+            }
+            for (int i = 0; i < 20; ++i)
+                sim.step(0.05);
+            if (ship->gear_position() != 0.0)
+            {
+                std::fprintf(stderr, "Buran docked gear selftest: gear deployed without a command\n");
+                return 1;
+            }
+            std::puts("Buran docked gear selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/energia-autopilot"))
         {
             if (!ship || ship->spec().name != "CVEL Energia" || ship->active_stage() != 0)
@@ -1668,6 +1686,33 @@ namespace kosmos
             if (ship->crashed() || ship->body().tanks[1].mass >= core)
             {
                 std::fprintf(stderr, "Energia autopilot selftest: core did not continue after separation\n");
+                return 1;
+            }
+            if (sim.ship_count() < 2 || sim.ship(1)->spec().name != "CVEL Buran" || sim.ship(1)->gear_position() != 0.0)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: docked Buran gear was not retracted\n");
+                return 1;
+            }
+            sim.props.set_double("/controls/gear", 1.0);
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            if (sim.active_ship() != sim.ship(1) || sim.props.get_double("/controls/gear") != 0.0)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: Buran handoff inherited launcher gear command\n");
+                return 1;
+            }
+            for (int i = 0; i < 10; ++i)
+                sim.step(0.05);
+            if (sim.ship(1)->gear_position() != 0.0)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: Buran gear deployed without a command\n");
+                return 1;
+            }
+            sim.props.set_double("/controls/gear", 1.0);
+            sim.step(0.05);
+            if (sim.ship(1)->gear_position() <= 0.0)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: Buran gear ignored deployment command\n");
                 return 1;
             }
             std::puts("Energia autopilot selftest ok");

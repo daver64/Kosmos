@@ -1570,6 +1570,8 @@ namespace kosmos::app
         glow.fog = false;
         glow.blend = sl::MaterialBlend::additive;
         glow.cull = sl::CullMode::none;
+        glow.texture = vis.glow_texture;
+        std::vector<sl::InstanceData3D> blobs;
         const float dt = std::min(static_cast<float>(frame), 0.1f);
         for (PlasmaPuff &pf : plasma.plasma_puffs)
         {
@@ -1636,15 +1638,16 @@ namespace kosmos::app
             const auto mix8 = [](float a, float b, float t) { return static_cast<std::uint8_t>(std::clamp(a + (b - a) * t, 0.0f, 255.0f)); };
             const glm::vec3 lead_rel = glm::vec3(at[3]);
             const glm::vec3 origin_rel = glm::vec3(other.origin() - eye_world);
-            glow.texture = vis.glow_texture;
             const auto blob = [&](const glm::vec3 &at_rel, float half, const sl::Colour &c, float alpha)
             {
                 const glm::vec3 te = -glm::normalize(at_rel);
                 const glm::vec3 right = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), te));
                 const glm::vec3 up_v = glm::cross(te, right);
-                glow.tint = c;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(vis.quad, glm::mat4(glm::vec4(right * half, 0.0f), glm::vec4(te, 0.0f), glm::vec4(up_v * half, 0.0f), glm::vec4(at_rel, 1.0f)), glow);
+                sl::InstanceData3D instance;
+                instance.model = glm::mat4(glm::vec4(right * half, 0.0f), glm::vec4(te, 0.0f), glm::vec4(up_v * half, 0.0f), glm::vec4(at_rel, 1.0f));
+                instance.tint = c;
+                instance.tint.alpha = static_cast<std::uint8_t>(std::clamp(alpha * 255.0f, 0.0f, 255.0f));
+                blobs.push_back(instance);
             };
             // Puffs are shed across the nose and stream back, so they trace the wake; each is a soft white-yellow core fading through orange to red.
             const float life = 0.9f, stream = wake / life;
@@ -1680,7 +1683,21 @@ namespace kosmos::app
                 const glm::vec3 where = origin_rel + pf.position;
                 blob(where, pf.size * (1.0f + 1.5f * age) * 2.2f, sl::Colour{255, mix8(200, 70, cool), mix8(120, 25, cool), 255}, 0.3f * pf.bright * fade * k * 1.2f);
                 blob(where, pf.size * (1.0f + age), sl::Colour{255, mix8(245, 140, cool), mix8(215, 60, cool), 255}, 0.5f * pf.bright * fade * k * (1.0f - cool * 0.6f));
+        }
+        if (!blobs.empty() && !sl::draw_mesh_instanced(vis.quad, blobs, glow))
+        {
+            static bool reported = false;
+            if (!reported)
+            {
+                std::fprintf(stderr, "[kosmos] plasma instancing unavailable: %s; using individual draws\n", sl::last_error().c_str());
+                reported = true;
             }
+            for (const sl::InstanceData3D &instance : blobs)
+            {
+                glow.tint = instance.tint;
+                sl::draw_mesh(vis.quad, instance.model, glow);
+            }
+        }
             blob(lead_rel, look.cap * 1.8f, sl::Colour{255, mix8(110, 190, h), mix8(40, 110, h), 255}, 0.55f * k);
             blob(lead_rel, look.cap * 0.9f, sl::Colour{255, 235, mix8(150, 215, h), 255}, 0.7f * k);
                     }

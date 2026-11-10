@@ -220,7 +220,7 @@ namespace kosmos::app
         sl::Model *model = sl::load_model(obj.string());
         if (model)
         {
-            configure_part_model(model);
+            configure_part_model(model, part);
             if (!part.animations.empty())
                 sl::load_model_animations_json(model, (std::filesystem::path(spec.directory) / part.animations).string());
             const std::map<std::string, std::string> names = material_texture_names(obj);

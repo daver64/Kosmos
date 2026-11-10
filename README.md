@@ -386,6 +386,8 @@ Ships live in `addons/<name>/` (spec JSON, Lua scripts, optional cockpit). Lua c
 
 Set `"ignite_with_previous": true` on a stage to fire its engines alongside the preceding stage, each using its own propellant; staging still separates them independently. The Saturn V-23L uses this for its core and liquid boosters.
 
+Model parts are double-sided by default; `"single_sided": ["object_or_material_name"]` enables back-face culling for named objects or materials, such as reverse-wound door surfaces.
+
 The launcher's Addons page groups installed addons into expandable folders. Select an addon and use **Enabled** to change its setting; the change applies when Kosmos next starts. An optional `"category"` string in `addon.json` sets its launcher group; otherwise the launcher groups it by its contents.
 
 ## Roadmap

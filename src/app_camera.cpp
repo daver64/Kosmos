@@ -963,6 +963,9 @@ namespace kosmos::app
             {
                 std::fprintf(stderr, "[perf] %.1f fps (%.2f ms/frame); clutter CPU: update %.3f ms, draw %.3f ms per frame\n", clutter_perf.frames / span,
                              1000.0 * span / clutter_perf.frames, clutter_perf.update_ms / clutter_perf.frames, clutter_perf.draw_ms / clutter_perf.frames);
+                const sl::FrameStats render_stats = sl::get_frame_stats();
+                std::fprintf(stderr, "[perf] 3D draws %u, instanced draws %u, instances %u\n",
+                             render_stats.mesh_draws, render_stats.instanced_draws, render_stats.instances);
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                 if ((earth_as_sphere || (options.orbital_relief_ground && near_earth)) &&
                     vis.earth_relief_tiles && props_ref->get_bool("/sim/settings/gfx-earth-relief"))

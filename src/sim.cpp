@@ -522,6 +522,7 @@ namespace kosmos
     {
         if (index < 0 || index >= ship_count())
             return;
+        const bool changing_ship = index != active_;
         stage_handoff_from_ = stage_handoff_to_ = nullptr;
         cancel_autoland("Autoland cancelled: vessel changed");
         cancel_timed_burn("Timed burn cancelled: vessel changed");
@@ -531,6 +532,8 @@ namespace kosmos
         props.set_bool("/autopilot/burn/armed", false);
         props.set_bool("/autopilot/land/armed", false);
         const Ship &ship = *ships_[static_cast<std::size_t>(index)];
+        if (changing_ship)
+            props.set_double("/controls/gear", ship.gear_position() > 0.5 ? 1.0 : 0.0);
         flying_as_aircraft_ = ship.flies_as_aircraft();
         load_active_script();
     }
