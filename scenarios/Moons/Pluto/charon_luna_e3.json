@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Charon",
+  "description": "A fictional Luna E3 probe in a circular orbit around Charon.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Charon",
+      "orbit": {
+        "altitude_km": 100,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

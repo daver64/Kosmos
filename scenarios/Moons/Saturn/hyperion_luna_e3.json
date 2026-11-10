@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Hyperion",
+  "description": "A fictional Luna E3 probe in a circular orbit around Hyperion.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Hyperion",
+      "orbit": {
+        "altitude_km": 20,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

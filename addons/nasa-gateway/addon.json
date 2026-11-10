@@ -1,0 +1,6 @@
+{
+ "id": "nasa-gateway",
+ "name": "NASA Gateway",
+ "version": "0.1",
+ "ships": ["ship.json"]
+}

@@ -2,6 +2,7 @@
 #include "orbital_relief_guard.h"
 #include "orbiter_tile_terrain.h"
 #include "plasma_look.h"
+#include "stellar_light.h"
 
 #include <filesystem>
 
@@ -32,15 +33,16 @@ namespace kosmos::app
                 light.ambient = static_cast<float>(glm::mix(static_cast<double>(options.ambient), std::min<double>(options.ambient, universe.world.air_density_at(eye_world) < 0.1 ? 0.02 : 0.07), dusk * dusk * (3.0 - 2.0 * dusk) * low));
             }
         }
+        const float stellar_scale = kosmos::stellar_light_scale(universe.stellar_luminosity,
+                                                                 glm::length(eye_world - universe.position(0)));
+        light.colour *= stellar_scale;
         if (sim.system_index() != 0)
         {
-            // Other suns light the scene in their own colour, and dimmer or brighter than Sol's 1 AU by their luminosity and our distance.
+            // Other suns light the scene in their own colour.
             const float *c = universe.bodies[0].colour;
             const float peak = std::max({c[0], c[1], c[2], 0.01f});
             const glm::vec3 hue = glm::mix(glm::vec3(c[0], c[1], c[2]) / peak, glm::vec3(1.0f), 0.45f);
-            const double au_now = std::max(1.0e-3, glm::length(eye_world) / 1.495978707e11);
-            const double flux = sim.galaxy.star(sim.system_index()).luminosity / (au_now * au_now);
-            light.colour *= hue * static_cast<float>(std::clamp(std::pow(flux, 0.3), 0.45, 1.0));
+            light.colour *= hue;
         }
         sl::set_light_3d(light);
 
@@ -309,7 +311,8 @@ namespace kosmos::app
             const sl::dvec3 from_centre = eye_world - universe.position(body_index);
             const double sun_height = glm::dot(glm::normalize(from_centre), glm::normalize(universe.position(0) - eye_world));
             const double lit = std::clamp(sun_height * 4.0, 0.0, 1.0);
-            return static_cast<float>(glm::mix(static_cast<double>(light.ambient), 1.0, lit));
+            const float direct = std::max({light.colour.r, light.colour.g, light.colour.b});
+            return static_cast<float>(light.ambient + (1.0 - light.ambient) * direct * lit);
         };
         if (near_earth)
         {
@@ -379,6 +382,9 @@ namespace kosmos::app
             shell.fog = false;
             shell.cull = sl::CullMode::none;
             shell.blend = sl::MaterialBlend::additive;
+            const auto brightness = static_cast<std::uint8_t>(255.0f * kosmos::stellar_light_scale(
+                universe.stellar_luminosity, glm::length(eye_world + rel - universe.position(0))));
+            shell.tint = {brightness, brightness, brightness, 255};
             sl::draw_mesh(mesh, glm::mat4(1.0f), shell);
         };
     }
@@ -861,7 +867,9 @@ namespace kosmos::app
                     veil.tint.alpha = static_cast<std::uint8_t>(255.0f * strength);
                     sl::draw_mesh(haze.dark, frame, veil);
                     veil.blend = sl::MaterialBlend::additive;
-                    veil.tint = {static_cast<std::uint8_t>(255.0f * strength), static_cast<std::uint8_t>(255.0f * strength), static_cast<std::uint8_t>(255.0f * strength), 255};
+                    const auto brightness = static_cast<std::uint8_t>(255.0f * strength * kosmos::stellar_light_scale(
+                        universe.stellar_luminosity, glm::length(universe.position(static_cast<int>(i)) - universe.position(0))));
+                    veil.tint = {brightness, brightness, brightness, 255};
                     sl::draw_mesh(haze.mesh, frame, veil);
                 }
             }
@@ -892,6 +900,9 @@ namespace kosmos::app
         ring.fog = false;
         ring.cull = sl::CullMode::none;
         ring.blend = sl::MaterialBlend::alpha;
+        const auto brightness = static_cast<std::uint8_t>(255.0f * kosmos::stellar_light_scale(
+            universe_ref->stellar_luminosity, glm::length(universe_ref->position(static_cast<int>(i)) - universe_ref->position(0))));
+        ring.tint = {brightness, brightness, brightness, 255};
         ring.tint.alpha = static_cast<std::uint8_t>(255.0f * (0.45f + 0.55f * std::fabs(glm::dot(axis, to_sun))));
         sl::draw_mesh(vis.rings[i], body_frame * glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.ring_outer))), ring);
     }

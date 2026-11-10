@@ -38,6 +38,8 @@ def join_all():
     if len(objs) > 1:
         bpy.ops.object.join()
     obj = bpy.context.view_layer.objects.active
+    if obj.data.users > 1:
+        obj.data = obj.data.copy()
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     return obj
 
@@ -169,6 +171,31 @@ def do_body(job):
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
     bm.to_mesh(obj.data)
     bm.free()
+    if job.get("halves"):
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.separate(type="LOOSE")
+        bpy.ops.object.mode_set(mode="OBJECT")
+        parts = sorted(meshes(), key=triangles, reverse=True)
+        if len(parts) != 2:
+            raise RuntimeError(f"expected two print halves, found {len(parts)}")
+        angle, dx, dy, plane = job["halves"]
+        for part in parts:
+            bm = bmesh.new()
+            bm.from_mesh(part.data)
+            caps = [face for face in bm.faces
+                    if face.normal.z < -0.99999 and all(abs(v.co.z - plane) < 0.001 for v in face.verts)]
+            if not caps:
+                bm.free()
+                raise RuntimeError("print half has no cut-plane faces")
+            bmesh.ops.delete(bm, geom=caps, context="FACES_ONLY")
+            bm.to_mesh(part.data)
+            bm.free()
+        c, s = math.cos(angle), math.sin(angle)
+        transform = mathutils.Matrix(((c, s, 0, dx), (s, -c, 0, dy),
+                                      (0, 0, -1, 2 * plane), (0, 0, 0, 1)))
+        parts[1].data.transform(transform)
+        obj = join_all()
     decimate(obj, job["tris"])
     count = len(obj.data.vertices)
     centre = sum((v.co for v in obj.data.vertices), mathutils.Vector()) / count

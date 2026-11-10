@@ -1,0 +1,10 @@
+{
+ "name": "NASA: Gateway and Shuttle-A at the Moon",
+ "description": "A CVEL Shuttle-A docked to NASA Gateway in a fictional low lunar orbit. Gateway's actual planned orbit is a near-rectilinear halo orbit. Undock with Ctrl+D; station systems can be switched on in the Ship systems window.",
+ "active": 1,
+ "ships": [
+  {"ship": "NASA Gateway", "body": "Moon", "orbit": {"altitude_km": 200, "inclination": 90, "phase": 0}},
+  {"ship": "CVEL Shuttle-A", "body": "Moon", "orbit": {"altitude_km": 200, "inclination": 90, "phase": 0},
+   "dock": {"to": 0, "port": 0, "own_port": 6}}
+ ]
+}

@@ -1624,6 +1624,130 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/warp-atmosphere"))
+        {
+            const bool expected_rails = sim.props.get_bool("/selftest/expect-rails");
+            const std::string blocker = ship->rails_blocker(Controls{});
+            sim.props.set_int("/sim/warp-index", 4);
+            sim.step(0.01);
+            const bool ok = ship->on_rails() == expected_rails &&
+                            (expected_rails ? blocker.empty() && sim.current_warp() == 5.0
+                                            : blocker == "inside the atmosphere" && sim.current_warp() == 4.0);
+            std::printf("atmospheric warp selftest: %d failure(s), blocker '%s', rails %d, warp %.0f\n",
+                        ok ? 0 : 1, blocker.c_str(), ship->on_rails(), sim.current_warp());
+            return ok ? 0 : 1;
+        }
+        if (sim.props.get_bool("/selftest/energia-autopilot"))
+        {
+            if (!ship || ship->spec().name != "CVEL Energia" || ship->active_stage() != 0)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: expected the launch scenario\n");
+                return 1;
+            }
+            sim.props.set_bool("/autopilot/enabled", true);
+            bool staged = false;
+            for (int i = 0; i < 5000 && !ship->crashed(); ++i)
+            {
+                sim.step(0.05);
+                if (ship->active_stage() == 1)
+                {
+                    staged = true;
+                    break;
+                }
+            }
+            if (!staged || ship->telemetry().altitude < 10000.0 ||
+                sim.props.get_double("/controls/throttle") < 0.99 || ship->body().tanks[1].mass <= 0.0 ||
+                ship->body().tanks[1].mass >= ship->body().tanks[1].capacity)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: booster separation or continuous core burn failed\n");
+                return 1;
+            }
+            const double core = ship->body().tanks[1].mass;
+            for (int i = 0; i < 20; ++i)
+                sim.step(0.05);
+            if (ship->crashed() || ship->body().tanks[1].mass >= core)
+            {
+                std::fprintf(stderr, "Energia autopilot selftest: core did not continue after separation\n");
+                return 1;
+            }
+            std::puts("Energia autopilot selftest ok");
+            return 0;
+        }
+        if (sim.props.get_bool("/selftest/energia-liftoff"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Energia liftoff selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || ship->spec().name != "CVEL Energia" || ship->active_stage() != 0 ||
+                ship->burning_stage_end() != 2 || ship->body().tanks.size() < 2)
+                return fail("expected boosters and core burning in parallel");
+            const double booster = ship->body().tanks[0].mass, core = ship->body().tanks[1].mass;
+            const double expected_thrust = 4.0 * (7850806.0 + 1961000.0);
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 200; ++i)
+                sim.step(0.05);
+            const double core_fuel = ship->body().tanks[1].mass;
+            if (ship->crashed() || ship->telemetry().altitude < 10.0 ||
+                ship->body().tanks[0].mass >= booster || core_fuel >= core ||
+                std::abs(ship->main_max_thrust() - expected_thrust) > 1.0)
+                return fail("liftoff, separate tank consumption or total thrust incorrect");
+            if (std::abs(sim.props.get_double("/ships/ship[0]/stage[1]/fuel") - core_fuel) > 0.01 ||
+                !sim.props.get_bool("/ships/ship[0]/parallel-next-stage"))
+                return fail("core tank not published to Fuel MFD");
+            const int fuel_mode = sim.mfd.mode_by_id("fuel");
+            if (fuel_mode < 0)
+                return fail("Fuel MFD unavailable");
+            sim.mfd.set_mode(0, fuel_mode);
+            sim.mfd.update(0.05);
+            double previous = ship->body().tanks[0].mass, stage_flow = 0.0;
+            for (int i = 0; i < 100; ++i)
+            {
+                sim.step(0.05);
+                const double current = ship->body().tanks[0].mass;
+                stage_flow += ((previous - current) / 0.05 - stage_flow) * 0.1;
+                previous = current;
+                sim.mfd.update(0.05);
+            }
+            MfdCanvas canvas;
+            const MfdMode &fuel_mode_data = sim.mfd.modes()[static_cast<std::size_t>(fuel_mode)];
+            sol::protected_function draw = fuel_mode_data.table["draw"];
+            if (!draw.valid() || !draw(sim.mfd.unit(0).self, std::ref(canvas), mfd_size, mfd_size).valid())
+                return fail("Fuel MFD draw failed");
+            const int seconds = static_cast<int>(previous / stage_flow);
+            char endurance[80];
+            std::snprintf(endurance, sizeof(endurance), "Endurance  %d min %02d s", seconds / 60, seconds % 60);
+            char core_text[80];
+            std::snprintf(core_text, sizeof(core_text), "%.0f kg", ship->body().tanks[1].mass);
+            bool endurance_visible = false, core_visible = false;
+            for (const MfdCommand &command : canvas.commands)
+                if (command.kind == MfdCommand::Kind::text)
+                {
+                    endurance_visible = endurance_visible || command.text == endurance;
+                    core_visible = core_visible || command.text == core_text;
+                }
+            if (!endurance_visible || !core_visible)
+                return fail("Fuel MFD core fuel or booster endurance incorrect");
+            const double core_before_stage = ship->body().tanks[1].mass;
+            if (!ship->stage_once() || ship->active_stage() != 1)
+                return fail("booster separation did not retain the core");
+            for (int i = 0; i < 20; ++i)
+                sim.step(0.05);
+            if (ship->body().tanks[1].mass >= core_before_stage || ship->body().tanks[0].mass != 0.0)
+                return fail("core did not continue after booster separation");
+            sim.mfd.update(0.05);
+            canvas.commands.clear();
+            if (!draw(sim.mfd.unit(0).self, std::ref(canvas), mfd_size, mfd_size).valid())
+                return fail("Fuel MFD draw after staging failed");
+            bool reset_visible = false;
+            for (const MfdCommand &command : canvas.commands)
+                if (command.kind == MfdCommand::Kind::text && command.text == "Endurance  --")
+                    reset_visible = true;
+            if (!reset_visible)
+                return fail("Fuel MFD retained the booster flow after staging");
+            std::puts("Energia liftoff selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/saturn-v23-autopilot"))
         {
             if (!ship || ship->spec().name != "CVEL Saturn V-23L" || ship->active_stage() != 0)

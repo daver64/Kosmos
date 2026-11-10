@@ -1,0 +1,6 @@
+{
+ "name": "Luna E3 at Toutatis",
+ "description": "A fictional Luna E3 probe in a circular orbit around asteroid Toutatis. Gravity and the irregular surface are simplified.",
+ "active": 0,
+ "ships": [{"ship": "Luna E3", "body": "Toutatis", "orbit": {"altitude_km": 5, "inclination": 0, "phase": 0}}]
+}

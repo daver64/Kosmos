@@ -1,0 +1,17 @@
+{
+  "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Phobos. This very close orbit is approximate and strongly affected by the parent planet; it may not remain stable.",
+  "name": "Luna E3 at Phobos",
+  "ships": [
+    {
+      "body": "Phobos",
+      "orbit": {
+        "altitude_km": 1,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/phobos_luna_e3-1794318221570130502-0.png"
+}

@@ -7,6 +7,7 @@
 #include "transfer_plan.h"
 #include "terrain.h"
 #include "exhaust_fx.h"
+#include "stellar_light.h"
 
 #include <filesystem>
 #include <fstream>
@@ -66,6 +67,20 @@ namespace
 
 int main()
 {
+    {
+        constexpr double au = 149597870700.0;
+        const float earth = stellar_light_scale(1.0, au);
+        const float jupiter = stellar_light_scale(1.0, 5.2 * au);
+        const float saturn = stellar_light_scale(1.0, 9.5 * au);
+        const float neptune = stellar_light_scale(1.0, 30.0 * au);
+        assert(earth == 1.0f && jupiter > saturn && saturn > neptune && neptune > 0.0f);
+        assert(saturn < 0.45f);
+        assert(std::abs(jupiter - std::pow(1.0 / (5.2 * 5.2), 0.3)) < 1e-6);
+        assert(std::abs(stellar_light_scale(4.0, 2.0 * au) - earth) < 1e-6);
+        assert(stellar_light_scale(1.0, 0.5 * au) == 1.0f && stellar_light_scale(0.0, au) == 0.0f);
+        assert(stellar_light_scale(1.0, 0.0) == 1.0f);
+        assert(stellar_light_scale(0.25, 2.0 * au) < stellar_light_scale(1.0, 2.0 * au));
+    }
     {
         using kosmos::app::ExhaustFx;
         Universe universe;
@@ -192,6 +207,26 @@ int main()
     check_ship_models("/addons/cvel-transtage/ship.json", 2);
     check_ship_models("/addons/cvel-energia-m/ship.json", 5);
     check_ship_models("/addons/cvel-buran/energia.json", 5);
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *name : {"Phobos", "Amalthea"})
+        {
+            const int id = universe.find(name);
+            assert(id >= 0);
+            const Body &moon = universe.bodies[static_cast<std::size_t>(id)];
+            const Body &parent = universe.bodies[static_cast<std::size_t>(moon.parent)];
+            const double laplace = moon.orbit.semi_major_axis * std::pow(moon.gm / parent.gm, 0.4);
+            const double hill = moon.orbit.semi_major_axis * (1.0 - moon.orbit.eccentricity) * std::cbrt(moon.gm / (3.0 * parent.gm));
+            assert(laplace < moon.radius && hill > moon.radius);
+            assert(std::abs(moon.soi - hill) < 1e-6);
+            assert(universe.soi_body(universe.position(id) + sl::dvec3((moon.radius + moon.soi) * 0.5, 0, 0)) == id);
+        }
+        const Body &moon = universe.bodies[static_cast<std::size_t>(universe.find("Moon"))];
+        const Body &parent = universe.bodies[static_cast<std::size_t>(moon.parent)];
+        assert(std::abs(moon.soi - moon.orbit.semi_major_axis * std::pow(moon.gm / parent.gm, 0.4)) < 1e-6);
+    }
     {
         Universe universe;
         std::string error;

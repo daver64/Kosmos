@@ -1,0 +1,18 @@
+{
+ "bases": [
+  {
+   "id": "apollo11",
+   "name": "Apollo 11 landing site",
+   "body": "Moon",
+   "latitude": 0.67416,
+   "longitude": 23.47314,
+   "heading": 0,
+   "flat_radius": 0,
+   "blend": 0,
+   "terrain_meshes": [
+    {"file": "terrain/apollo11.stl", "scale": 117.4168297456, "vscale": 0.0166666667,
+     "y": -18.84, "blend": 2000}
+   ]
+  }
+ ]
+}

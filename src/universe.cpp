@@ -345,6 +345,9 @@ namespace kosmos
                 body.orbit.mean_anomaly = std::fmod(body.orbit.mean_anomaly, 2.0 * pi);
             }
             body.soi = body.orbit.semi_major_axis * std::pow(body.gm / parent.gm, 0.4);
+            // A Laplace SOI can lie inside a small moon; use its periapsis Hill radius in that case.
+            if (body.kind == BodyKind::moon && body.soi <= body.radius && parent.gm > 0.0 && body.gm > 0.0)
+                body.soi = body.orbit.semi_major_axis * (1.0 - body.orbit.eccentricity) * std::cbrt(body.gm / (3.0 * parent.gm));
         }
     }
 

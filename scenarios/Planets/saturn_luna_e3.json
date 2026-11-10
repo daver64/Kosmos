@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Saturn",
+  "description": "A fictional Luna E3 probe in a circular orbit around Saturn.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Saturn",
+      "orbit": {
+        "altitude_km": 2000,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

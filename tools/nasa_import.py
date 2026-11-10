@@ -51,6 +51,17 @@ MODELS = [
     dict(id="exploration_vehicle", src="Space Exploration Vehicle.glb", kind="prop", fit=("up", 3.97)),
     dict(id="vab", src="Vehicle Assembly Building (VAB).glb", kind="prop", fit=("max", 218.0)),
     dict(id="vesta", src="Asteroid 4 Vesta (A).stl", kind="body", out="data/bodies/vesta.glb", tris=20000),
+    dict(id="bennu", src="New/Asteroid 101955 Bennu.stl", kind="body", out="data/bodies/bennu.glb", tris=20000),
+    dict(id="geographos", src="New/Asteroid 1620 Geographos.stl", kind="body", out="data/bodies/geographos.glb"),
+    dict(id="kleopatra", src="New/Asteroid 216 Kleopatra.stl", kind="body", out="data/bodies/kleopatra.glb"),
+    dict(id="itokawa", src="New/Asteroid 25143 Itokawa.stl", kind="body", out="data/bodies/itokawa.glb", tris=30000,
+         halves=[0.00058411, 0.00412851, 0.02811542, -7.5934]),
+    dict(id="toutatis", src="New/Asteroid 4179 Toutatis.stl", kind="body", out="data/bodies/toutatis.glb"),
+    dict(id="eros", src="New/Asteroid 433 Eros.stl", kind="body", out="data/bodies/eros.glb", tris=30000,
+         halves=[2.87979326, -4.40272232, -25.19032233, -1.8224]),
+    dict(id="mithra", src="New/Asteroid 4486 Mithra.stl", kind="body", out="data/bodies/mithra.glb"),
+    dict(id="golevka", src="New/Asteroid 6489 Golevka.stl", kind="body", out="data/bodies/golevka.glb"),
+    dict(id="1996_hw1", src="New/Asteroid 8567 1996 HW1.stl", kind="body", out="data/bodies/1996_hw1.glb"),
 ]
 
 
@@ -63,12 +74,16 @@ def main():
     args = parser.parse_args()
 
     chosen = [m for m in MODELS if not args.only or m["id"] in args.only]
+    if args.only and set(args.only) - {m["id"] for m in chosen}:
+        parser.error("unknown model IDs: " + ", ".join(sorted(set(args.only) - {m["id"] for m in chosen})))
     work = Path(tempfile.mkdtemp(prefix="nasa_import_"))
     jobs = []
+    failed = False
     for m in chosen:
         src = SOURCE / m["src"]
         if not src.exists():
             print(f"skip {m['id']}: {src} is missing")
+            failed = failed or bool(args.only)
             continue
         if m["kind"] == "body":
             dst = ROOT / m["out"]
@@ -79,16 +94,20 @@ def main():
             glb_unpack.unpack(str(src), str(plain))
         dst.parent.mkdir(parents=True, exist_ok=True)
         jobs.append({"id": m["id"], "src": str(plain), "dst": str(dst), "mode": "body" if m["kind"] == "body" else m["kind"],
-                     "fit": list(m.get("fit", ("max", 1.0))), "tris": m.get("tris", args.tris), "lay": m.get("lay", True), "align": m.get("align", False), "flip": m.get("flip", False)})
+                     "fit": list(m.get("fit", ("max", 1.0))), "tris": m.get("tris", args.tris), "lay": m.get("lay", True), "align": m.get("align", False), "flip": m.get("flip", False), "halves": m.get("halves")})
     (work / "jobs.json").write_text(json.dumps(jobs))
-    subprocess.run([args.blender, "-b", "-P", str(ROOT / "tools" / "nasa_blender.py"), "--", str(work / "jobs.json"), str(work / "report.json")],
+    subprocess.run([args.blender, "-b", "-t", "4", "-P", str(ROOT / "tools" / "nasa_blender.py"), "--", str(work / "jobs.json"), str(work / "report.json")],
                    check=True, stdout=subprocess.DEVNULL)
     report = json.loads((work / "report.json").read_text())
+    submitted = {job["id"] for job in jobs}
 
     for m in chosen:
+        if m["id"] not in submitted:
+            continue
         info = report.get(m["id"])
         if not info or "error" in info:
             print(f"{m['id']}: FAILED {info}")
+            failed = True
             continue
         print(f"{m['id']}: {info['tris']} triangles, {info['size']}")
         if m["kind"] != "kit":
@@ -108,6 +127,8 @@ def main():
         shutil.rmtree(work, ignore_errors=True)
     else:
         print("kept", work)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

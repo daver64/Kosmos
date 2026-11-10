@@ -1,0 +1,17 @@
+{
+  "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around asteroid Eros. Gravity and the irregular surface are simplified.",
+  "name": "Luna E3 at Eros",
+  "ships": [
+    {
+      "body": "Eros",
+      "orbit": {
+        "altitude_km": 20,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/eros_probe-1794316776616530028-0.png"
+}

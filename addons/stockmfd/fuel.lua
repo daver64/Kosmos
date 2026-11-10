@@ -30,7 +30,7 @@ return {
   name = "Fuel",
   buttons = { "AUTO", "OFF", "GIVE", "TAKE", "", "", "", "", "", "", "", "" },
 
-  init = function(self) self.flow = 0 end,
+  init = function(self) self.flow, self.stage_flow = 0, 0 end,
 
   update = function(self, dt)
     local fuel = num("total-fuel") + num("rcs-fuel")
@@ -39,6 +39,14 @@ return {
       self.flow = self.flow + (burn - self.flow) * math.min(1, dt * 2)
     end
     self.last = fuel
+    local stage, stage_fuel = num("stage-index"), num("stage-fuel")
+    if self.last_stage ~= stage then
+      self.stage_flow = 0
+    elseif self.last_stage_fuel and dt > 0 then
+      local burn = math.max(0, (self.last_stage_fuel - stage_fuel) / dt)
+      self.stage_flow = self.stage_flow + (burn - self.stage_flow) * math.min(1, dt * 2)
+    end
+    self.last_stage, self.last_stage_fuel = stage, stage_fuel
   end,
 
   draw = function(self, g, w, h)
@@ -65,7 +73,8 @@ return {
     local flow = self.flow or 0
     g:text(64, y, string.format("Total %.0f kg   Flow %.2f kg/s", num("total-fuel") + num("rcs-fuel"), flow), 0)
     local fuel = num("stage-fuel")
-    g:text(64, y + 18, "Endurance  " .. (flow > 1e-4 and minutes(fuel / flow) or "--"), 0)
+    local stage_flow = self.stage_flow or 0
+    g:text(64, y + 18, "Endurance  " .. (stage_flow > 1e-4 and minutes(fuel / stage_flow) or "--"), 0)
 
     y = y + 50
     g:colour(255, 240, 140)

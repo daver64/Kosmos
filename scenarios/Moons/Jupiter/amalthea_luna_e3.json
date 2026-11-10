@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Amalthea",
+  "description": "A fictional Luna E3 probe in a circular orbit around Amalthea. This very close orbit is approximate and strongly affected by the parent planet; it may not remain stable.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Amalthea",
+      "orbit": {
+        "altitude_km": 5,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

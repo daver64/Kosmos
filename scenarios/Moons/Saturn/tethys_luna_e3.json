@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Tethys",
+  "description": "A fictional Luna E3 probe in a circular orbit around Tethys.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Tethys",
+      "orbit": {
+        "altitude_km": 100,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

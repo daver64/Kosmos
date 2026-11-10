@@ -583,7 +583,7 @@ namespace kosmos
             return "engines are firing";
         const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
         const double top = atmosphere_top(planet);
-        if (telemetry_.altitude < top + 1000.0)
+        if (top > 0.0 && telemetry_.altitude < top + 1000.0)
             return "inside the atmosphere";
         // An orbit that will dip back into the air may still be warped; Sim::step slows the clock as the air gets close.
         return {};

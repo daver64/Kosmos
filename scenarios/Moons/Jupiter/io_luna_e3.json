@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Io",
+  "description": "A fictional Luna E3 probe in a circular orbit around Io.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Io",
+      "orbit": {
+        "altitude_km": 150,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 #include "app_state.h"
+#include "stellar_light.h"
 
 namespace kosmos::app
 {
@@ -230,7 +231,8 @@ namespace kosmos::app
         environment.time = clock;
         environment.planet = near_earth;
         environment.planet_radius = static_cast<float>(earth_body->radius);
-        environment.sun_intensity = 20.0f;
+        environment.sun_intensity = 20.0f * kosmos::stellar_light_scale(
+            universe_ref->stellar_luminosity, glm::length(eye_world - universe_ref->position(0)));
         environment.haze_scale = 0.35f;
         environment.ground_albedo = {0.1f, 0.25f, 0.12f};
         environment.fog_enabled = near_earth;

@@ -1,0 +1,17 @@
+{
+  "active": 0,
+  "description": "A fictional Luna E3 probe in a circular orbit around Europa.",
+  "name": "Luna E3 at Europa",
+  "ships": [
+    {
+      "body": "Europa",
+      "orbit": {
+        "altitude_km": 150,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/europa_luna_e3-1794318062388399369-0.png"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Luna E3 at Callisto",
+  "description": "A fictional Luna E3 probe in a circular orbit around Callisto.",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "Luna E3",
+      "body": "Callisto",
+      "orbit": {
+        "altitude_km": 200,
+        "inclination": 0,
+        "phase": 0
+      }
+    }
+  ]
+}

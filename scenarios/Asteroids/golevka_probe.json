@@ -1,0 +1,6 @@
+{
+ "name": "Luna E3 at Golevka",
+ "description": "A fictional Luna E3 probe in a circular orbit around asteroid Golevka. Gravity and the irregular surface are simplified.",
+ "active": 0,
+ "ships": [{"ship": "Luna E3", "body": "Golevka", "orbit": {"altitude_km": 1, "inclination": 0, "phase": 0}}]
+}

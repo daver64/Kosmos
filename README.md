@@ -38,6 +38,8 @@ If you encounter a problem, please [open a GitHub issue](https://github.com/dave
 - **Extend the simulator:** write Lua scripts and MFDs, or connect external programs using the KosmosLink SDK.
 - **Try multiplayer:** up to four players can see one another as ghost ships; this is not a shared collision or docking simulation.
 
+Sunlight becomes visually dimmer farther from the system's star, with an exposure-compressed inverse-square curve so distant worlds remain visible. This is a rendering approximation; solar power uses the physical inverse-square flux.
+
 ## Documentation and development
 
 This README also serves as the technical reference for developers. The detailed build instructions, source layout, tests, command-line options and subsystem notes are retained below.
@@ -497,6 +499,10 @@ File ▸ Set time to T-5:00 before burn moves the clock to just before the burn 
 
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
+The **Asteroids** folder has fictional Luna E3 probe orbits around the shipped NASA asteroid shapes; **NASA ▸ Gateway and Shuttle-A at the Moon** starts a Shuttle-A docked to Gateway in a fictional low lunar orbit, not Gateway's planned halo orbit. Small-body gravity and collision are spherical approximations despite the visible shapes, and asteroid positions are approximate two-body extrapolations.
+
+The **Planets** and **Moons** folders contain fictional Luna E3 orbital starts for every planet and moon in the Sol system; moons are grouped by their parent, including asteroid moons. The very close Phobos and Amalthea starts are particularly approximate and may not remain stable under their parent planet's gravity.
+
 Save scenario and the launcher's Resume last scenario retain the current date, ship trajectories and attitudes, stages, propellant, gear, animations and system reserves. Earth-communications attitude hold is resumed; other active autopilots and burns, debris and some transient state such as the local cabin gas distribution are not. Docking is saved as one link per later-listed ship; more complex docking networks can lose links.
 
 An undocked orbiting scenario ship can set `"point_at": "Earth"` beside its `orbit` to initially aim its nose at a named body. This cannot be combined with a saved exact `state` or portal placement. To keep tracking, also set `"/controls/sas": "earth-communications"` in the scenario's `set` object for the active ship.
@@ -526,6 +532,8 @@ High-warp Keplerian rails suspend nonspherical gravity, as do time skips; the HU
 System authors can specify `gravity_model` as a path relative to the system JSON, and optionally `gravity_frame` with pole right ascension/declination (`ra`, `dec`), prime-meridian angle `w0` and rotation `rate` in degrees/day, with optional secular `ra_rate` and `dec_rate` in degrees/century. Otherwise the field follows the body's existing spin frame. A model takes precedence over dimensionless `gravity_j2` and `gravity_reference_radius` in metres; both J2 fields default to zero.
 
 ## Bases
+
+The Moon has an **Apollo 11 landing site** base (`apollo11`) near the fictional Tranquility outpost. It places NASA's 30 km terrain model at the historic coordinates with its 60-fold vertical exaggeration removed. The surrounding terrain and placement are approximate; it is a terrain site, not a reconstruction of the lander.
 
 **Active buildings.** A base object of type `building` places an addon building: a fixed ship (`"class": "building"` in a ship file listed under `"buildings"` in `addon.json`) with its own power, tanks, pressure vessels and 2D panel. Walk to its `door` on foot and press Enter to go inside, Enter again to leave. Gale Crater on Mars has a habitat, a power plant, a comms mast and an ISRU plant. Panel controls without artwork can be `label`, `readout`, `gauge` or `lamp`; components can be `isru` or `comms` and can have `wear_hours`. Press C inside to cycle chase, 2D panel and a clickable 3D interface board; `layout.image` gives the panel a background bitmap. `--enter-building TEXT` starts inside one; add `--hold ID` (for example `--hold tricorder`) to start with a pack item selected.
 
