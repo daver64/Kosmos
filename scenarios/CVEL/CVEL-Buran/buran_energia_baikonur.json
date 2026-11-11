@@ -1,6 +1,6 @@
 {
   "active": 0,
-  "description": "The Buran orbiter on its Energia launcher on the pad at Baikonur Cosmodrome. Press P for the launcher autopilot; undock the orbiter (Ctrl+D) after the core burns out, then fly it home as a spaceplane.",
+  "description": "Buran on Energia at Baikonur, carrying a Centaur G, Fregat and Luna E3 in its cargo bay. Press P for the launcher autopilot; while controlling Energia, undock Buran (Ctrl+D) after the core burns out. Switch to Buran, open the bay doors and stage to release Centaur, then stage each upper vessel to release its payload.",
   "name": "CVEL: Buran on Energia, Baikonur",
   "ships": [
     {
@@ -18,6 +18,42 @@
         "to": 0
       },
       "ship": "CVEL Buran",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 2,
+        "port": 2,
+        "to": 1
+      },
+      "ship": "CVEL Centaur G",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 2
+      },
+      "ship": "CVEL Fregat",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 3
+      },
+      "ship": "Luna E3",
       "surface": {
         "base": "baikonur"
       }

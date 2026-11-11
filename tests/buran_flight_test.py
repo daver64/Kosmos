@@ -15,6 +15,8 @@ ADDON = ROOT / "addons/cvel-buran"
 SCENARIO = ROOT / "scenarios/CVEL/CVEL-Buran/buran_energia_baikonur.json"
 
 spec = json.loads((ADDON / "ship.json").read_text())
+energia = json.loads((ADDON / "energia.json").read_text())
+assert [stage["propellant"] for stage in energia["stages"]] == [1718200, 701800]
 part = spec["stages"][0]["parts"][0]
 single_sided = set(part["single_sided"])
 assert single_sided == {f"group{i}" for i in range(27, 39)}
@@ -55,6 +57,18 @@ with tempfile.TemporaryDirectory() as directory:
                   "--set", "/selftest/energia-autopilot=true"])
     assert "Energia autopilot selftest ok" in output, output
     scenario = json.loads(SCENARIO.read_text())
+    assert [entry["ship"] for entry in scenario["ships"]] == [
+        "CVEL Energia", "CVEL Buran", "CVEL Centaur G", "CVEL Fregat", "Luna E3"
+    ]
+    orbital = json.loads(json.dumps(scenario))
+    for entry in orbital["ships"]:
+        entry.pop("surface", None)
+        entry["orbit"] = {"altitude_km": 400, "inclination": 51.6}
+    path = temp / "buran-payload.json"
+    path.write_text(json.dumps(orbital))
+    output = run(["--scenario-file", str(path), "--selftest", "1",
+                  "--set", "/selftest/buran-payload=true"])
+    assert "Buran payload selftest ok" in output, output
     scenario["active"] = 1
     path = temp / "buran-docked.json"
     path.write_text(json.dumps(scenario))

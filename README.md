@@ -517,6 +517,8 @@ File ▸ Set time to T-5:00 before burn moves the clock to just before the burn 
 
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
+**CVEL: Buran on Energia, Baikonur** carries a Centaur G, Fregat and Luna E3 in Buran's bay. The CVEL Energia's booster and core propellant loads are increased by 10% for this payload, rather than representing the historical loads. After the launcher's core burn, press Ctrl+D while controlling Energia to detach Buran without releasing its cargo. Switch to Buran, open the bay doors and stage to release Centaur upward; stage Centaur and Fregat in turn to release the next vessel. Ctrl+D undocks all links of the active vessel, so do not use it on Buran while the payload is attached.
+
 The **Asteroids** folder has fictional Luna E3 probe orbits around the shipped NASA asteroid shapes; **NASA ▸ Gateway and Shuttle-A at the Moon** starts a Shuttle-A docked to Gateway in a fictional low lunar orbit, not Gateway's planned halo orbit. Small-body gravity and collision are spherical approximations despite the visible shapes, and asteroid positions are approximate two-body extrapolations.
 
 The **Planets** and **Moons** folders contain fictional Luna E3 orbital starts for every planet and moon in the Sol system; moons are grouped by their parent, including asteroid moons. The very close Phobos and Amalthea starts are particularly approximate and may not remain stable under their parent planet's gravity.

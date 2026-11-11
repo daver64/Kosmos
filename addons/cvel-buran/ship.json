@@ -25,7 +25,8 @@
  "damping": [0.8, 1.0, 0.8],
  "ports": [
   {"name": "Payload bay", "position": [0, 2.44, -10.44], "direction": [0, 1, 0], "up": [0, 0, -1]},
-  {"name": "Launcher cradle", "position": [0, -3, 0], "direction": [0, -1, 0], "up": [0, 0, -1]}
+  {"name": "Launcher cradle", "position": [0, -3, 0], "direction": [0, -1, 0], "up": [0, 0, -1]},
+  {"name": "Upper-stage cradle", "position": [0, -0.8, 1.25], "direction": [0, 1, 0], "up": [0, 0, -1]}
  ],
  "systems": [
   {"type": "battery", "name": "Batteries", "capacity_wh": 30000, "max_w": 8000},

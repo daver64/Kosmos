@@ -2596,6 +2596,54 @@ namespace kosmos
             std::puts("Rover rollover selftest ok");
             return 0;
         }
+        if (sim.props.get_bool("/selftest/buran-payload"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Buran payload selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || sim.ship_count() < 5 || ship->spec().name != "CVEL Energia" ||
+                sim.ship(1)->spec().name != "CVEL Buran" || sim.ship(2)->spec().name != "CVEL Centaur G" ||
+                sim.ship(3)->spec().name != "CVEL Fregat" || sim.ship(4)->spec().name != "Luna E3")
+                return fail("expected Energia, Buran, Centaur, Fregat and Luna E3");
+            sim.step(0.01);
+            if (sim.nav.dock_links().size() != 4)
+                return fail("initial payload stack not docked");
+            Ship *buran = sim.ship(1);
+            const sl::dmat3 inverse = glm::transpose(buran->body().rotation());
+            for (int i = 2; i <= 4; ++i)
+            {
+                const sl::dvec3 local = inverse * (sim.ship(i)->origin() - buran->origin());
+                const sl::dvec3 expected(0.0, 1.3, i == 2 ? -3.5 : i == 3 ? -4.3 : -5.97);
+                if (glm::length(local - expected) > 0.02 ||
+                    glm::length(inverse * sim.ship(i)->body().rotation()[2] - sl::dvec3(0, 0, 1)) > 1e-5)
+                    return fail("payload is not aligned in the bay");
+            }
+            sim.props.set_bool("/dock/undock", true);
+            sim.step(0.01);
+            if (sim.nav.docked(0) || sim.nav.dock_links().size() != 3)
+                return fail("launcher separation released the payload");
+            sim.activate(1);
+            sim.step(0.01);
+            const sl::dvec3 bay_up = buran->body().rotation() * sl::dvec3(0, 1, 0);
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.01);
+            if (sim.active_ship() != sim.ship(2) || sim.nav.dock_links().size() != 2 ||
+                !sim.nav.docked(3) || !sim.nav.docked(4))
+                return fail("Buran did not release Centaur with its payload");
+            if (glm::dot(sim.ship(2)->body().velocity - buran->body().velocity, bay_up) < 0.4)
+                return fail("payload did not separate upward from the bay");
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.01);
+            if (sim.active_ship() != sim.ship(3) || sim.nav.dock_links().size() != 1)
+                return fail("Centaur did not release Fregat");
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.01);
+            if (sim.active_ship() != sim.ship(4) || !sim.nav.dock_links().empty())
+                return fail("Fregat did not release Luna");
+            std::puts("Buran payload selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/centaur-handoff"))
         {
             const auto fail = [](const char *message) {

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify an engine plume is visible and rendered in a bounded batch."""
 
+import json
 import os
 import re
 import subprocess
@@ -12,6 +13,13 @@ from PIL import Image
 
 root = Path(__file__).resolve().parents[1]
 binary = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "build/kosmos"
+
+spec = json.loads((root / "addons/cvel-fregat/ship.json").read_text())
+engine = spec["stages"][0]["engines"][0]
+assert engine["fuel"] == "hypergolic"
+# Full-throttle vacuum dimensions before particle spreading, using the hypergolic style.
+assert 1.0 <= engine["plume"] * 0.8 * 1.6 <= 2.0
+assert 0.2 <= engine["plume_width"] * 0.85 * 4.3 <= 0.5
 
 with tempfile.TemporaryDirectory() as home:
     temp = Path(home)
