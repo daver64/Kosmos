@@ -9,6 +9,38 @@
 
 int main()
 {
+    using namespace std::chrono_literals;
+    using clock = std::chrono::steady_clock;
+    const auto start = clock::time_point{} + 10s;
+    kosmos::ReliefFallbackState state;
+    state.update(true, true, start);
+    assert(state.fallback && !state.held);
+    state.update(false, true, start + 1s);
+    state.update(false, true, start + 2s);
+    assert(!state.fallback && state.relief_was_ready);
+    state.update(true, true, start + 3s);
+    assert(state.fallback && state.held);
+    state.update(false, true, start + 10s);
+    assert(state.fallback && state.held);
+    state.update(false, false, start + 11s);
+    assert(state.fallback);
+    state.update(false, true, start + 12s);
+    assert(state.fallback && state.held);
+    state.update(false, false, start + 13s);
+    state.update(false, false, start + 14s);
+    assert(!state.fallback && !state.held);
+    state.update(true, false, start + 15s);
+    state.update(false, false, start + 16s);
+    state.update(true, false, start + 17s);
+    state.update(false, false, start + 18s);
+    assert(state.fallback);
+    state.update(false, false, start + 19s);
+    assert(!state.fallback);
+    assert(kosmos::hold_relief_fallback(1000.0, 500.0));
+    assert(!kosmos::hold_relief_fallback(1000.1, 500.0));
+    assert(!kosmos::hold_relief_fallback(1000.0, 500.1));
+    assert(kosmos::hold_relief_fallback(std::numeric_limits<double>::quiet_NaN(), 0.0));
+
     kosmos::Base base;
     base.direction = glm::dvec3(0.0, 1.0, 0.0);
     base.height = 10.0;

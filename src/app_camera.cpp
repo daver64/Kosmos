@@ -995,6 +995,13 @@ namespace kosmos::app
                 const sl::FrameStats render_stats = sl::get_frame_stats();
                 std::fprintf(stderr, "[perf] 3D draws %u, instanced draws %u, instances %u\n",
                              render_stats.mesh_draws, render_stats.instanced_draws, render_stats.instances);
+                for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
+                    if (bt->body == soi && (bt->body != earth_id ? bt->active : near_earth && !earth_as_sphere))
+                    {
+                        const sl::TerrainStats stats = bt->terrain->stats();
+                        std::fprintf(stderr, "[perf] Terrain cache: selected %d, resident %d, pending %d, deepest %d\n",
+                                     stats.visible_chunks, stats.resident_chunks, stats.pending_chunks, stats.deepest_level);
+                    }
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                 if ((earth_as_sphere || (options.orbital_relief_ground && near_earth)) &&
                     vis.earth_relief_tiles && props_ref->get_bool("/sim/settings/gfx-earth-relief"))
@@ -1053,6 +1060,10 @@ namespace kosmos::app
     {
         kosmos::Universe &universe = *universe_ref;
         update_earth_sphere_visibility();
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        if (earth_as_sphere || !near_earth)
+            body_terrains[0]->relief_ground_fallback = {};
+#endif
         for (const std::unique_ptr<BodyTerrain> &bt : body_terrains)
         {
             const sl::FlightBody &fb = *universe.world.body(bt->body);
@@ -1087,6 +1098,8 @@ namespace kosmos::app
             const bool has_image = std::find(vis.surface_textured.begin(), vis.surface_textured.end(), bt.body) != vis.surface_textured.end();
             bt.active = terrain_visible(glm::length(bt.eye_rel) - b.radius, b.radius, has_image, bt.orbital_relief);
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+            if (!bt.active)
+                bt.relief_ground_fallback = {};
             if (bt.body == soi && (!bt.active || options.orbital_relief_ground) && !bt.relief_attempted)
             {
                 bt.relief_attempted = true;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app.h"
+#include "orbital_relief_guard.h"
 
 #include <string>
 
@@ -41,8 +42,7 @@ extern bool detail_disabled;
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
         std::unique_ptr<sl::PlanetTiles> relief_tiles;
         bool relief_attempted = false;
-        bool relief_ground_fallback = false;
-        std::chrono::steady_clock::time_point relief_ground_ready_since{};
+        kosmos::ReliefFallbackState relief_ground_fallback;
 #endif
         sl::dvec3 eye_rel{0.0};
         // Trees, houses, rocks and outposts scattered over the ground; declared after the terrain so it is freed first.

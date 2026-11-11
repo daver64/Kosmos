@@ -1319,6 +1319,7 @@ namespace kosmos
                                    "  Installed Orbiter Mars elevation shapes the terrain in low and medium orbit as well as near the ground.\n"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                                    "  Orbiter relief near the ground is off by default; enable it in launcher Options or with --orbital-relief-ground.\n"
+                                   "  If ground relief disagrees with collision terrain, a fallback can remain in use while a nearby ship is low and slow.\n"
 #endif
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
                                    "  Microdetail uses assets in import/orbiter or --orbiter-microtexture-root PATH; --no-detail disables it.\n"

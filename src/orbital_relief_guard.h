@@ -3,12 +3,59 @@
 #include "flight.h"
 
 #include <cmath>
+#include <chrono>
 #include <string>
 
 namespace kosmos
 {
     inline constexpr double relief_near_surface_height_m = 250.0;
     inline constexpr double relief_vessel_camera_range_m = 10000.0;
+    inline constexpr double relief_fallback_hold_height_m = 1000.0;
+    inline constexpr double relief_fallback_hold_speed_mps = 500.0;
+
+    inline bool hold_relief_fallback(double altitude, double surface_speed)
+    {
+        return !std::isfinite(altitude) || !std::isfinite(surface_speed) ||
+               (altitude <= relief_fallback_hold_height_m && surface_speed <= relief_fallback_hold_speed_mps);
+    }
+
+    struct ReliefFallbackState
+    {
+        bool fallback = false;
+        bool held = false;
+        bool relief_was_ready = false;
+        std::chrono::steady_clock::time_point ready_since{};
+
+        void update(bool mismatch, bool hold, std::chrono::steady_clock::time_point now)
+        {
+            if (mismatch)
+            {
+                if (relief_was_ready && hold)
+                    held = true;
+                fallback = true;
+                ready_since = {};
+                return;
+            }
+            if (fallback)
+            {
+                if (held && hold)
+                {
+                    ready_since = {};
+                    return;
+                }
+                if (ready_since == std::chrono::steady_clock::time_point{})
+                    ready_since = now;
+                else if (now - ready_since >= std::chrono::seconds(1))
+                {
+                    fallback = false;
+                    held = false;
+                    ready_since = {};
+                }
+            }
+            if (!fallback)
+                relief_was_ready = true;
+        }
+    };
 
     inline bool relief_vessel_near_camera(const glm::dvec3 &origin, const sl::FlightBody &vessel,
                                           const glm::dvec3 &eye, double range)

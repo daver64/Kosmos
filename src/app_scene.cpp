@@ -679,29 +679,29 @@ namespace kosmos::app
                                                                      check_height, fallback_reason))
                     fallback = true;
             }
-            if (fallback)
+            bool hold_fallback = false;
+            for (int s = 0; s < sim.ship_count(); ++s)
             {
-                ground_guard->relief_ground_ready_since = {};
-                if (!ground_guard->relief_ground_fallback)
-                {
-                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain: %s\n",
-                                 universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str());
-                    ground_guard->relief_ground_fallback = true;
-                }
+                const Ship &vessel = *sim.ship(s);
+                const kosmos::Telemetry &telemetry = vessel.telemetry();
+                if (telemetry.soi == body &&
+                    kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m) &&
+                    kosmos::hold_relief_fallback(telemetry.altitude, telemetry.surface_speed))
+                    hold_fallback = true;
             }
-            else if (ground_guard->relief_ground_fallback)
+            auto &state = ground_guard->relief_ground_fallback;
+            const bool was_fallback = state.fallback;
+            state.update(fallback, hold_fallback, std::chrono::steady_clock::now());
+            if (!was_fallback && state.fallback)
+                std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain: %s%s\n",
+                             universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str(),
+                             state.held ? " (held while near the surface)" : "");
+            else if (was_fallback && !state.fallback)
             {
-                const auto now = std::chrono::steady_clock::now();
-                if (ground_guard->relief_ground_ready_since == std::chrono::steady_clock::time_point{})
-                    ground_guard->relief_ground_ready_since = now;
-                else if (now - ground_guard->relief_ground_ready_since >= std::chrono::seconds(1))
-                {
-                    std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: nearby surface heights agree; using relief tiles\n",
-                                 universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str());
-                    ground_guard->relief_ground_fallback = false;
-                }
+                std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: nearby surface heights agree; using relief tiles\n",
+                             universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str());
             }
-            if (ground_guard->relief_ground_fallback)
+            if (state.fallback)
                 return false;
         }
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
