@@ -42,6 +42,7 @@ namespace kosmos
     {
     public:
         Sim();
+        PerformanceMetrics performance;
 
         /** Time warp factors selectable with /sim/warp-index. Above max_physics_warp ships must be on rails. */
         static constexpr int warp_levels = 11;

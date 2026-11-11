@@ -1,8 +1,136 @@
 #include "app_state.h"
+#include "process_memory.h"
 #include "ui_slider.h"
+
+#include <chrono>
+#include <optional>
 
 namespace kosmos::app
 {
+    void App::draw_performance_metrics_window()
+    {
+        if (!windows.performance_metrics_window)
+            return;
+
+        ImGui::SetNextWindowBgAlpha(0.9f);
+        if (ImGui::Begin("Performance metrics", &windows.performance_metrics_window, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            const auto stats = sim.performance.summary();
+            ImGui::Text("Recent frames: %zu / %zu", stats.frames, PerformanceMetrics::window);
+            if (stats.frames)
+                ImGui::Text("Frame: %.2f ms avg, %.2f ms worst (%.1f FPS avg)",
+                            stats.frame_average, stats.frame_maximum, 1000.0 / stats.frame_average);
+            else
+                ImGui::TextUnformatted("Frame: collecting samples");
+            ImGui::TextUnformatted("Main-thread elapsed ms/frame (average / worst):");
+            const auto row = [&](const char *name, PerfSection section)
+            {
+                const auto i = static_cast<std::size_t>(section);
+                ImGui::Text("%-24s %7.3f / %7.3f  (%zu calls)", name, stats.average[i], stats.maximum[i], stats.calls[i]);
+            };
+            row("Simulation and controls", PerfSection::simulation);
+            row("  Physics (nested)", PerfSection::physics);
+            row("  Vessel Lua update", PerfSection::vessel_lua);
+            row("Instruments", PerfSection::instruments);
+            row("Terrain update", PerfSection::terrain);
+            row("Scene submission", PerfSection::scene);
+            row("HUD", PerfSection::hud);
+            row("GUI construction", PerfSection::gui);
+            row("Present and pacing", PerfSection::present);
+            row("MFD Lua init", PerfSection::mfd_init);
+            row("MFD Lua button", PerfSection::mfd_button);
+            row("MFD Lua update", PerfSection::mfd_update);
+            row("MFD Lua draw", PerfSection::mfd_draw);
+            ImGui::TextUnformatted("MFD callbacks overlap other sections; timings must not be summed.");
+            ImGui::TextUnformatted("Lua loading and console execution are not included.");
+
+            static std::chrono::steady_clock::time_point sampled{};
+            static std::optional<double> resident;
+            const auto now = std::chrono::steady_clock::now();
+            if (sampled == std::chrono::steady_clock::time_point{} || now - sampled >= std::chrono::seconds(1))
+            {
+                resident = process_resident_mib();
+                sampled = now;
+            }
+            if (resident)
+                ImGui::Text("Process resident / working set: %.1f MiB (%.1f s old)", *resident,
+                            std::chrono::duration<double>(now - sampled).count());
+            else
+                ImGui::TextUnformatted("Process resident / working set: unavailable");
+
+            const sl::FrameStats render = sl::get_frame_stats();
+            ImGui::Text("Last completed render frame %llu: draws %u, instanced %u, instances %u",
+                        static_cast<unsigned long long>(render.frame_number), render.mesh_draws, render.instanced_draws, render.instances);
+            ImGui::TextUnformatted("Terrain stats: last update/draw (may be an instrument view).");
+            for (const auto &bt : body_terrains)
+                if (bt->body == soi && bt->terrain)
+                {
+                    const sl::TerrainStats terrain = bt->terrain->stats();
+                    ImGui::Text("%s: selected %d, resident %d, pending %d, depth %d",
+                                universe_ref->bodies[static_cast<std::size_t>(soi)].name.c_str(),
+                                terrain.visible_chunks, terrain.resident_chunks, terrain.pending_chunks, terrain.deepest_level);
+#ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+                    const sl::PlanetTiles *tiles = bt->body == earth_id ? vis.earth_relief_tiles.get() : bt->relief_tiles.get();
+                    if (tiles)
+                    {
+                        const sl::PlanetTilesStats relief = tiles->stats();
+                        ImGui::Text("Relief: patches %d / cap %d, meshes %d, jobs %d",
+                                    relief.patches, relief.max_relief_patches, relief.meshes, relief.mesh_jobs);
+                        ImGui::Text("Textures: %d resident, %d loading, %d failed; fallback %s%s",
+                                    relief.tiles_loaded, relief.tiles_loading, relief.tiles_failed,
+                                    bt->relief_ground_fallback.fallback ? "yes" : "no",
+                                    bt->relief_ground_fallback.held ? " (held)" : "");
+                    }
+#endif
+                }
+            ImGui::TextUnformatted("Terrain workers run asynchronously; update time excludes worker CPU.");
+            const auto gpu_stats = sim.performance.gpu_summary();
+            const sl::GpuDiagnostics gpu_status = sl::get_gpu_diagnostics(false);
+            ImGui::Separator();
+            ImGui::Text("GPU: %s", sl::graphics_backend_name().c_str());
+            if (gpu_stats.samples)
+            {
+                const std::uint64_t age = render.frame_number >= gpu_stats.frame ? render.frame_number - gpu_stats.frame : 0;
+                if (age > PerformanceMetrics::window)
+                    ImGui::TextUnformatted("GPU timing: no recent completed sample");
+                ImGui::Text("GPU elapsed: %.3f ms avg / %.3f ms worst (%zu samples)",
+                            gpu_stats.average, gpu_stats.maximum, gpu_stats.samples);
+                ImGui::Text("Latest: %.3f ms, frame %llu (%llu frames old)", gpu_stats.latest,
+                            static_cast<unsigned long long>(gpu_stats.frame), static_cast<unsigned long long>(age));
+            }
+            else
+                ImGui::Text("GPU elapsed: %s", gpu_status.timing_supported ? "collecting samples" : "unavailable");
+            ImGui::TextUnformatted("GPU elapsed includes time between GPU frame markers, not utilization.");
+            static sl::GpuDiagnostics gpu_memory;
+            static std::chrono::steady_clock::time_point gpu_memory_sampled{};
+            if (gpu_memory_sampled == std::chrono::steady_clock::time_point{} ||
+                now - gpu_memory_sampled >= std::chrono::seconds(1))
+            {
+                gpu_memory = sl::get_gpu_diagnostics(true);
+                gpu_memory_sampled = now;
+            }
+            constexpr double mib = 1024.0 * 1024.0;
+            if (gpu_memory.memory_valid)
+                ImGui::Text("GPU %s usage estimate: %.1f MiB",
+                            gpu_memory.memory_process_scope ? "process" : "adapter",
+                            gpu_memory.memory_usage_bytes / mib);
+            if (gpu_memory.memory_budget_valid)
+                ImGui::Text("GPU %s budget: %.1f MiB",
+                            gpu_memory.memory_process_scope ? "process" : "adapter",
+                            gpu_memory.memory_budget_bytes / mib);
+            if (gpu_memory.memory_total_valid)
+                ImGui::Text("GPU memory pool total: %.1f MiB", gpu_memory.memory_total_bytes / mib);
+            if (gpu_memory.memory_free_valid)
+                ImGui::Text("GPU adapter available: %.1f MiB", gpu_memory.memory_free_bytes / mib);
+            if (!gpu_memory.memory_valid && !gpu_memory.memory_budget_valid &&
+                !gpu_memory.memory_total_valid && !gpu_memory.memory_free_valid)
+                ImGui::TextUnformatted("GPU memory: unavailable");
+            else
+                ImGui::Text("GPU memory sample: %.1f s old", std::chrono::duration<double>(now - gpu_memory_sampled).count());
+        }
+        ImGui::End();
+    }
+
     void App::draw_systems_window()
     {
         if (windows.systems_window)

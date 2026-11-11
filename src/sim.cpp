@@ -112,6 +112,7 @@ namespace kosmos
         lua.initialise([this](const std::string &text) { log(text); });
         sl::bind_property_tree(lua, props);
         mfd.init(lua, props);
+        mfd.performance = &performance;
         nav.init(props);
         weather.init(root_, user_dir(), props);
         scan_addons();
@@ -726,6 +727,7 @@ namespace kosmos
         update_airlock(frame);
         if (script_loaded_)
         {
+            PerfScope timing(performance, PerfSection::vessel_lua);
             // Scripts see simulated seconds, so a ramp or a timer keeps its pace under time warp.
             const sl::LuaScriptResult result = lua.emit("update", static_cast<float>(frame * std::max(current_warp_, 1.0)));
             if (!result.success)
@@ -871,7 +873,10 @@ namespace kosmos
             if (!ships_[i]->spec().building())
                 ships_[i]->hold_for_warp((ground_hold && warp > 100.0) ||
                                          (!ground_hold && warp > phys_limit && parked_for_warp(i)));
-        universe.world.step(frame * warp);
+        {
+            PerfScope timing(performance, PerfSection::physics);
+            universe.world.step(frame * warp);
+        }
         nav.couple(universe, ships_, active_, frame * warp);
 
         for (const std::unique_ptr<Ship> &ship : ships_)

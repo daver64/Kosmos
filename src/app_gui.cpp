@@ -15,6 +15,7 @@ namespace kosmos::app
             draw_link_ui();
             draw_settings_window();
             draw_performance_window();
+            draw_performance_metrics_window();
             draw_icbm_window();
             menu_bar.draw_windows(sim, menu_actions);
             draw_part_window();

@@ -1058,6 +1058,7 @@ namespace kosmos::app
     // Which terrain and sphere are drawn.
     void App::update_terrains()
     {
+        PerfScope timing(sim.performance, PerfSection::terrain);
         kosmos::Universe &universe = *universe_ref;
         update_earth_sphere_visibility();
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF

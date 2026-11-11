@@ -201,6 +201,7 @@ namespace kosmos::app
         bool camera_window{};
         bool settings_window{};
         bool performance_window{};
+        bool performance_metrics_window{};
         bool icbm_window{};
         bool property_window{};
         bool lua_window{};
@@ -636,6 +637,7 @@ namespace kosmos::app
     void settings_clutter();
     void settings_worlds();
     void draw_performance_window();
+    void draw_performance_metrics_window();
     void draw_icbm_window();
     bool ui_mouse_down() const;
         void ui_drag(int id, bool inside, bool down, bool pressed, bool consumed, float &offset_x, float &offset_y);

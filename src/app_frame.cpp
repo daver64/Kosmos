@@ -375,6 +375,18 @@ namespace kosmos::app
 
     bool App::run_frame()
     {
+        sim.performance.set_enabled(windows.performance_metrics_window);
+        sl::set_gpu_diagnostics_enabled(windows.performance_metrics_window);
+        sim.performance.begin_frame();
+        if (sim.performance.enabled())
+        {
+            const sl::GpuDiagnostics gpu = sl::get_gpu_diagnostics(false);
+            const auto render_frame = sl::get_frame_stats().frame_number;
+            if (gpu.timing_valid && gpu.frame_number <= render_frame &&
+                render_frame - gpu.frame_number <= PerformanceMetrics::window)
+                sim.performance.add_gpu_sample(gpu.frame_number, gpu.elapsed_ms);
+            sl::gpu_diagnostics_begin_frame(render_frame + 1);
+        }
         Watchdog::stage("begin_frame"); // WATCHDOG
         if (!begin_frame())
             return false;
@@ -389,7 +401,10 @@ namespace kosmos::app
         Watchdog::stage("update_link"); // WATCHDOG
         update_link();
         Watchdog::stage("advance_time"); // WATCHDOG
-        advance_time();
+        {
+            PerfScope timing(sim.performance, PerfSection::simulation);
+            advance_time();
+        }
         const Ship *map_ship = sim.active_ship();
         const int map_body = map_ship ? map_ship->telemetry().soi : -1;
         sl::Bitmap *map_bitmap = map_body >= 0 && static_cast<std::size_t>(map_body) < vis.body_textures.size() ?
@@ -419,7 +434,10 @@ namespace kosmos::app
         }
         sim.mfd.set_live_bitmap("map-surface", map_bitmap);
         Watchdog::stage("instruments"); // WATCHDOG
-        update_instruments();
+        {
+            PerfScope timing(sim.performance, PerfSection::instruments);
+            update_instruments();
+        }
         Watchdog::stage("place_camera"); // WATCHDOG
         place_camera();
         update_flight_recording();
@@ -428,7 +446,10 @@ namespace kosmos::app
         if (loading.quit_requested)
             return false;
         Watchdog::stage("draw_world"); // WATCHDOG
-        draw_world();
+        {
+            PerfScope timing(sim.performance, PerfSection::scene);
+            draw_world();
+        }
         Watchdog::stage("draw_overlays"); // WATCHDOG
         draw_overlays();
         Watchdog::stage("draw_link_3d"); // WATCHDOG
@@ -438,11 +459,21 @@ namespace kosmos::app
         if (sl::gui_available())
             sl::gui_new_frame();
         Watchdog::stage("draw_hud"); // WATCHDOG
-        draw_hud();
+        {
+            PerfScope timing(sim.performance, PerfSection::hud);
+            draw_hud();
+        }
         Watchdog::stage("draw_gui"); // WATCHDOG
-        draw_gui();
+        {
+            PerfScope timing(sim.performance, PerfSection::gui);
+            draw_gui();
+        }
         Watchdog::stage("present"); // WATCHDOG
-        present();
+        {
+            PerfScope timing(sim.performance, PerfSection::present);
+            present();
+        }
+        sim.performance.end_frame();
         Watchdog::frame_done(universe_ref->time(), props_ref->get_int("/sim/warp-index")); // WATCHDOG
         return true;
     }

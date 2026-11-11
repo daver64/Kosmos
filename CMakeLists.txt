@@ -91,6 +91,7 @@ add_executable(kosmos
     src/app_draw_hud.cpp
     src/app_gui.cpp
     src/app_windows.cpp
+    src/process_memory.cpp
     src/app_scene.cpp
     src/app_instruments.cpp
     src/command_line.cpp
@@ -259,6 +260,13 @@ add_executable(orbital_relief_guard_test EXCLUDE_FROM_ALL tests/orbital_relief_g
 target_link_libraries(orbital_relief_guard_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(orbital_relief_guard_test PRIVATE src)
 target_compile_definitions(orbital_relief_guard_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
+add_executable(performance_metrics_test EXCLUDE_FROM_ALL tests/performance_metrics_test.cpp src/process_memory.cpp)
+target_include_directories(performance_metrics_test PRIVATE src)
+
+add_executable(gpu_diagnostics_test EXCLUDE_FROM_ALL tests/gpu_diagnostics_test.cpp)
+target_link_libraries(gpu_diagnostics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_compile_definitions(gpu_diagnostics_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 add_executable(weather_test EXCLUDE_FROM_ALL tests/weather_test.cpp src/weather.cpp)
 target_link_libraries(weather_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

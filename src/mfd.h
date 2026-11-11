@@ -1,5 +1,7 @@
 #pragma once
 
+#include "performance_metrics.h"
+
 #include "draw.h"
 #include "lua_runtime.h"
 #include "proptree.h"
@@ -81,6 +83,7 @@ namespace kosmos
     {
     public:
         MfdSystem() = default;
+        PerformanceMetrics *performance = nullptr;
         void init(sl::LuaRuntime &lua, sl::PropertyTree &props);
         /** Load a mode script from an addon folder; returns false and sets error on failure. */
         bool register_mode(const std::string &addon, const std::string &id, const std::string &path, std::string &error, const std::string &domain = "any", const std::vector<std::string> &ships = {}, const std::string &short_name = "", const std::string &name = "");
