@@ -17,6 +17,7 @@ namespace kosmos
             std::string body;
             int width = 0;
             std::string path; // the cache file the job will write
+            int attempts = 0;
         };
 
         ~WorldTextureJobs() { cancel(); }

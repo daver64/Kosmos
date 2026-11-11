@@ -79,6 +79,12 @@ namespace kosmos::app
         // The world stops while the next system loads; show a short hyperspace effect so the window never closes.
         const int target_system = quantum.jump_to;
         quantum.jump_to = -1;
+        if (target_system < 0 || target_system >= sim.galaxy.size())
+        {
+            quantum.status = "Invalid quantum-jump destination.";
+            std::fprintf(stderr, "kosmos: quantum jump destination %d is outside the galaxy\n", target_system);
+            return true;
+        }
         const std::string target_name = sim.galaxy.star(target_system).name;
         // change_system deletes every ship, so the flown ship's name and state are taken now.
         const std::string flown_name = ship ? ship->spec().name : std::string();
@@ -483,7 +489,7 @@ namespace kosmos::app
         kosmos::Ship *portal = portal_ship(sim);
         if (!portal || !ship)
             quantum.status = "No portal in this system.";
-        else if (star < 0 || star == sim.system_index())
+        else if (star < 0 || star >= sim.galaxy.size() || star == sim.system_index())
             quantum.status = "Choose another star.";
         else if (sim.galaxy.distance_ly(sim.system_index(), star) > 50.0)
             quantum.status = "That star is out of the portal's 50 light year range.";

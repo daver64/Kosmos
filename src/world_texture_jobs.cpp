@@ -20,6 +20,7 @@ namespace kosmos
     namespace
     {
         constexpr std::size_t max_running = 2;
+        constexpr int max_attempts = 3;
 
         std::string own_executable()
         {
@@ -97,25 +98,39 @@ namespace kosmos
         for (std::size_t i = 0; i < running_.size();)
         {
             bool done = false;
+            bool success = false;
 #ifdef _WIN32
             done = WaitForSingleObject(reinterpret_cast<HANDLE>(running_[i].handle), 0) == WAIT_OBJECT_0;
             if (done)
+            {
+                DWORD code = 1;
+                success = GetExitCodeProcess(reinterpret_cast<HANDLE>(running_[i].handle), &code) && code == 0;
                 CloseHandle(reinterpret_cast<HANDLE>(running_[i].handle));
+            }
 #else
             int status = 0;
-            done = waitpid(static_cast<pid_t>(running_[i].handle), &status, WNOHANG) != 0;
+            const pid_t result = waitpid(static_cast<pid_t>(running_[i].handle), &status, WNOHANG);
+            done = result != 0;
+            success = result > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0;
 #endif
             if (!done)
             {
                 ++i;
                 continue;
             }
-            finished.push_back(running_[i].job);
+            Job job = running_[i].job;
             running_.erase(running_.begin() + static_cast<std::ptrdiff_t>(i));
+            if (success)
+                finished.push_back(std::move(job));
+            else if (job.attempts + 1 < max_attempts)
+            {
+                ++job.attempts;
+                queue_.push_back(std::move(job));
+            }
         }
         while (running_.size() < max_running && !queue_.empty())
         {
-            const Job job = queue_.front();
+            Job job = queue_.front();
             queue_.pop_front();
             std::error_code ec;
             if (std::filesystem::exists(job.path, ec))
@@ -123,6 +138,11 @@ namespace kosmos
             long long handle = 0;
             if (launch(job, handle))
                 running_.push_back({job, handle});
+            else if (job.attempts + 1 < max_attempts)
+            {
+                ++job.attempts;
+                queue_.push_back(std::move(job));
+            }
         }
         return finished;
     }

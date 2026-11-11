@@ -121,14 +121,16 @@ namespace kosmos
 
     bool Sim::change_system(int system, std::string &error)
     {
-        clear_ships();
-        const std::size_t old_count = universe.bodies.size();
         const int index = std::clamp(system, 0, galaxy.size() - 1);
         Universe fresh;
         fresh.epoch_override = start_epoch_jd;
         if (index == 0 ? !fresh.load(root_ + "/data/sol.json", error) : !fresh.load_text(galaxy.system_json(index), galaxy.star(index).name, error))
             return false;
         fresh.stellar_luminosity = galaxy.star(index).luminosity;
+
+        // Do not destroy the current flight until the replacement system has loaded successfully.
+        const std::size_t old_count = universe.bodies.size();
+        clear_ships();
         universe = std::move(fresh);
         system_ = index;
         universe.world.integrator = sl::FlightIntegrator::rk4;
