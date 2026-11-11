@@ -453,6 +453,7 @@ namespace kosmos
                     e.isp = je.value("isp", e.isp);
                     e.isp_sl = je.value("isp_sl", e.isp_sl);
                     e.plume = je.value("plume", e.plume);
+                    e.plume_offset = vec3(je.value("plume_offset", nlohmann::json()), e.plume_offset);
                     e.plume_width = je.value("plume_width", e.plume_width);
                     e.plume_glow = je.value("plume_glow", e.plume_glow);
                     e.plume_density = std::max(0.1, je.value("plume_density", e.plume_density));

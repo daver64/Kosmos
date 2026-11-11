@@ -169,6 +169,8 @@ namespace kosmos::app
                 const float length = static_cast<float>(plume) * st.length * level * (1.0f + 0.6f * static_cast<float>(expansion)) * (hydrogen_plume ? 1.0f - 0.5f * crisp : 1.0f);
                 const float width = static_cast<float>((1.1 + 3.2 * expansion) * (0.5 + 0.5 * t.level)) * st.width * wide * (hydrogen_plume ? 1.0f - 0.45f * tight : 1.0f);
                 const glm::vec3 dir = glm::vec3(-t.direction);
+                const glm::vec3 origin = glm::vec3(t.position + ship.com_offset() +
+                                                   (i < engines.size() ? engines[i]->plume_offset : sl::dvec3(0.0)));
                 glm::vec3 side1 = std::fabs(dir.x) < 0.9f ? glm::cross(dir, glm::vec3(1, 0, 0)) : glm::cross(dir, glm::vec3(0, 1, 0));
                 side1 = glm::normalize(side1);
                 const glm::vec3 side2 = glm::cross(dir, side1);
@@ -183,7 +185,7 @@ namespace kosmos::app
                     const float speed = length / (0.62f * st.life) * (0.8f + 0.4f * random01());
                     const glm::vec3 radial = side1 * std::cos(angle) + side2 * std::sin(angle);
                     Particle p;
-                    p.position = glm::vec3(t.position + ship.com_offset()) + radial * (0.25f * width * random01());
+                    p.position = origin + radial * (0.25f * width * random01());
                     p.velocity = dir * speed + radial * (spread * speed);
                     p.age = random01() * dt;
                     if (hydrogen_plume)
@@ -203,7 +205,7 @@ namespace kosmos::app
                     for (int k = 0; k < 5; ++k)
                     {
                         const float fall = 1.0f - 0.16f * static_cast<float>(k);
-                        diamonds.push_back({glm::vec3(t.position + ship.com_offset()) + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall * crisp, static_cast<std::uint8_t>(kind)});
+                        diamonds.push_back({origin + dir * (gap * (0.7f + static_cast<float>(k))), dir, width * 0.42f * fall * (0.95f + 0.1f * random01()), level * fall * crisp, static_cast<std::uint8_t>(kind)});
                     }
                 }
             }

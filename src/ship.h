@@ -37,6 +37,8 @@ namespace kosmos
         double isp_sl = 0.0;
         /** Visual plume length in metres. */
         double plume = 10.0;
+        /** Visual-only displacement from the thruster position, in the ship frame. */
+        sl::dvec3 plume_offset{0.0, 0.0, 0.0};
         /** Scales the plume's width and brightness; 1 is the default for its fuel. */
         double plume_width = 1.0;
         double plume_glow = 1.0;

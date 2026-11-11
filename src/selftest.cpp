@@ -3869,8 +3869,8 @@ namespace kosmos
             {
                 next_report = sim.universe.time() + report_every;
                 if (ship->spec().aircraft())
-                    std::printf("t=%5.0f ias=%5.1f alt=%6.1f vs=%5.1f pitch=%5.1f roll=%5.1f aoa=%5.1f slip=%5.1f hdg=%5.1f landed=%d fuel=%4.0f gear=%.2f%s\n", sim.universe.time(), tm.surface_speed,
-                                tm.altitude, tm.vertical_speed, tm.pitch, tm.roll, tm.alpha, tm.sideslip, tm.heading, tm.landed ? 1 : 0, tm.stage_fuel, ship->gear_position(), ship->crashed() ? " CRASHED" : "");
+                    std::printf("t=%5.0f ias=%5.1f alt=%6.1f vs=%5.1f pitch=%5.1f roll=%5.1f aoa=%5.1f slip=%5.1f hdg=%5.1f landed=%d fuel=%4.0f gear=%.2f hover=%.2f%s\n", sim.universe.time(), tm.surface_speed,
+                                tm.altitude, tm.vertical_speed, tm.pitch, tm.roll, tm.alpha, tm.sideslip, tm.heading, tm.landed ? 1 : 0, tm.stage_fuel, ship->gear_position(), sim.props.get_double("/controls/hover"), ship->crashed() ? " CRASHED" : "");
                 if (ship->spec().aircraft() && sim.props.get_bool("/nav/nav[0]/valid"))
                     std::printf("   nav0: loc %.2f gs %.2f dist %.0f\n", sim.props.get_double("/nav/nav[0]/ils/localizer"), sim.props.get_double("/nav/nav[0]/ils/glideslope"), sim.props.get_double("/nav/nav[0]/distance"));
                 if (!ship->spec().aircraft())

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check both Deltaglider ascent profiles lift off promptly and fade hover."""
+"""Check hover-assisted ascent and unaided ground-roll takeoffs."""
 
 import json
 import os
@@ -49,3 +49,31 @@ with tempfile.TemporaryDirectory() as home:
                for t, altitude, pitch in manual), output
     assert "crashed 0" in output, output
     print("Deltaglider: manual elevator response passed")
+
+    scenario = json.loads((root / "scenarios/CVEL/CVEL-Deltaglider/deltaglider_chippenham.json").read_text())
+    ground_sample = re.compile(
+        r"t=\s*([\d.]+) ias=\s*([\d.]+) alt=\s*([-\d.]+) vs=\s*([-\d.]+)"
+        r" pitch=\s*([-\d.]+).*?landed=(\d).*?hover=([\d.]+)"
+    )
+    env["KOSMOS_SELFTEST_DT"] = "0.05"
+    for name in ("CVEL Deltaglider", "CVEL Deltaglider (Nuclear)"):
+        scenario["ships"][0]["ship"] = name
+        scenario_path = Path(home) / "takeoff.json"
+        scenario_path.write_text(json.dumps(scenario))
+        result = subprocess.run(
+            [str(binary), "--scenario-file", str(scenario_path), "--set", "/controls/hover=0",
+             "--selftest-throttle", "1", "--selftest", "30"],
+            cwd=root, env=env, capture_output=True, text=True, timeout=120, check=True,
+        )
+        output = result.stdout + result.stderr
+        samples = [tuple(map(float, match)) for match in ground_sample.findall(result.stdout)]
+        assert samples and all(hover == 0 for *_, hover in samples), output
+        liftoff = next((s for s in samples if not s[5] and s[2] > 0.5 and s[3] > 0), None)
+        assert liftoff and liftoff[0] <= 16 and liftoff[1] <= 180, output
+        distance = sum((a[1] + b[1]) * (b[0] - a[0]) / 2
+                       for a, b in zip(samples, samples[1:]) if b[0] <= liftoff[0])
+        assert distance < 1480, output
+        assert any(t <= 24 and altitude > 100 and vertical > 0 and not landed
+                   for t, speed, altitude, vertical, pitch, landed, hover in samples), output
+        assert "crashed 0" in output, output
+        print(f"{name}: no-hover liftoff at {liftoff[1]:.1f} m/s, {liftoff[0]:.0f} s, ~{distance:.0f} m")

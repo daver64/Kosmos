@@ -114,6 +114,9 @@ int main()
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         ShipSpec nuclear_spec;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-saturn-mlv1/ship_nerva.json", nuclear_spec, error));
+        for (const StageSpec &stage : nuclear_spec.stages)
+            for (const EngineSpec &engine : stage.engines)
+                assert(engine.plume_offset == sl::dvec3(0.0));
         ShipSpec hydrogen_spec = nuclear_spec;
         for (StageSpec &stage : hydrogen_spec.stages)
             for (EngineSpec &engine : stage.engines)
@@ -183,6 +186,45 @@ int main()
             nuclear_fx.update(nuclear_ship, vacuum, 2.0f, true);
             assert(nuclear_fx.particles.empty() && nuclear_fx.diamonds.empty());
             nuclear_ship.body().thrusters[engine_index].level = 1.0;
+        }
+    }
+    {
+        using kosmos::app::ExhaustFx;
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        for (const char *file : {"/addons/cvel-deltaglider/ship.json", "/addons/cvel-deltaglider-nuclear/ship.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+            ShipSpec zero = spec;
+            for (EngineSpec &engine : zero.stages[0].engines)
+                engine.plume_offset = sl::dvec3(0.0);
+            Ship ship(universe, spec), unshifted(universe, zero);
+            const auto &engines = spec.stages[0].engines;
+            assert(engines.size() == 5);
+            const double model_y = spec.stages[0].parts[0].offset.y;
+            for (std::size_t i = 0; i < engines.size(); ++i)
+            {
+                const EngineSpec &engine = engines[i];
+                const sl::dvec3 expected = i < 2
+                    ? sl::dvec3(engine.position.x, model_y, 8.04)
+                    : sl::dvec3(engine.position.x, model_y + (i == 2 ? -1.5 : -1.3), engine.position.z);
+                assert(glm::length(engine.position + engine.plume_offset - expected) < 1e-8);
+                assert(ship.body().thrusters[i].position == unshifted.body().thrusters[i].position);
+                ship.body().thrusters[i].level = unshifted.body().thrusters[i].level = 1.0;
+                ExhaustFx shifted_fx, zero_fx;
+                shifted_fx.update(ship, 1.0, 0.1f, true);
+                zero_fx.update(unshifted, 1.0, 0.1f, true);
+                assert(!shifted_fx.particles.empty() && shifted_fx.particles.size() == zero_fx.particles.size());
+                assert(!shifted_fx.diamonds.empty() && shifted_fx.diamonds.size() == zero_fx.diamonds.size());
+                const glm::vec3 offset(engine.plume_offset);
+                for (std::size_t j = 0; j < shifted_fx.particles.size(); ++j)
+                    assert(glm::length(shifted_fx.particles[j].position - zero_fx.particles[j].position - offset) < 1e-5f);
+                for (std::size_t j = 0; j < shifted_fx.diamonds.size(); ++j)
+                    assert(glm::length(shifted_fx.diamonds[j].position - zero_fx.diamonds[j].position - offset) < 1e-5f);
+                ship.body().thrusters[i].level = unshifted.body().thrusters[i].level = 0.0;
+            }
         }
     }
     {
