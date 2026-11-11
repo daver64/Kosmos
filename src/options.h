@@ -49,7 +49,7 @@ namespace kosmos::app
         int orbital_relief_patches = 0;
         int orbital_relief_meshes = 0;
         int orbital_relief_textures = 0;
-        bool orbital_relief_ground = true;
+        bool orbital_relief_ground = false;
         std::string orbiter_microtexture_root;
         bool camera_window = false;
         bool settings_window = false;

@@ -1002,12 +1002,12 @@ namespace kosmos::app
                     const sl::PlanetTilesStats stats = vis.earth_relief_tiles->stats();
                     std::fprintf(stderr, "[perf] Orbiter relief: patches %d, colour level %d, geometry level %d; "
                                  "parent imagery %d patches/max %d levels, undersampled %d; textures %d loaded/%d loading/%d failed; "
-                                 "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d\n",
+                                 "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d; patch cap %d\n",
                                  stats.patches, stats.deepest_level, stats.deepest_geometry_level,
                                  stats.patches_using_parent, stats.max_colour_levels_up, stats.undersampled_patches,
                                  stats.tiles_loaded, stats.tiles_loading, stats.tiles_failed, stats.meshes, stats.mesh_jobs,
                                  static_cast<int>(stats.relief_limited), static_cast<int>(stats.texture_limited),
-                                 static_cast<int>(stats.failure_limited));
+                                 static_cast<int>(stats.failure_limited), stats.max_relief_patches);
                 }
                 for (std::size_t k = 1; k < body_terrains.size(); ++k)
                     if (body_terrains[k]->body == soi &&
@@ -1017,12 +1017,12 @@ namespace kosmos::app
                         const kosmos::Body &body = universe_ref->bodies[static_cast<std::size_t>(soi)];
                         std::fprintf(stderr, "[perf] %s Orbiter relief: patches %d, colour level %d, geometry level %d; "
                                      "parent imagery %d patches/max %d levels, undersampled %d; textures %d loaded/%d loading/%d failed; "
-                                     "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d\n",
+                                     "meshes %d/%d jobs; limits relief=%d texture=%d failure=%d; patch cap %d\n",
                                      body.name.c_str(), stats.patches, stats.deepest_level, stats.deepest_geometry_level,
                                      stats.patches_using_parent, stats.max_colour_levels_up, stats.undersampled_patches,
                                      stats.tiles_loaded, stats.tiles_loading, stats.tiles_failed, stats.meshes, stats.mesh_jobs,
                                      static_cast<int>(stats.relief_limited), static_cast<int>(stats.texture_limited),
-                                     static_cast<int>(stats.failure_limited));
+                                     static_cast<int>(stats.failure_limited), stats.max_relief_patches);
                     }
 #endif
                 clutter_perf = ClutterPerf();

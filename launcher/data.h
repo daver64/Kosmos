@@ -52,6 +52,7 @@ namespace launcher
     {
         std::string backend = "auto"; // auto, gl, vulkan, d3d12
         bool fullscreen = false;
+        bool orbital_relief_ground = false;
         int max_texture = 0;   // 0 = Kosmos default
         int world_texture = 0; // 0 = automatic
         std::string extra_args, last_scenario, legacy_orbiter_textures;

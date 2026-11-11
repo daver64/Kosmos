@@ -427,6 +427,17 @@ namespace kosmos
                 stage.z = js.value("z", 0.0);
                 stage.length = js.value("length", stage.length);
                 stage.radius = js.value("radius", stage.radius);
+                if (js.contains("rcs_visual"))
+                {
+                    const auto &visual = js.at("rcs_visual");
+                    StageSpec::RcsVisual rcs{visual.at("front_z").get<double>(), visual.at("rear_z").get<double>(),
+                                              visual.at("front_radius").get<double>(), visual.at("rear_radius").get<double>()};
+                    if (!std::isfinite(rcs.front_z) || !std::isfinite(rcs.rear_z) ||
+                        !std::isfinite(rcs.front_radius) || !std::isfinite(rcs.rear_radius) ||
+                        rcs.front_z >= rcs.rear_z || rcs.front_radius <= 0.0 || rcs.rear_radius <= 0.0)
+                        throw std::runtime_error("rcs_visual requires finite front_z < rear_z and positive radii");
+                    stage.rcs_visual = rcs;
+                }
                 stage.separation_speed = js.value("separation_speed", stage.separation_speed);
                 stage.with_next = js.value("with_next", false);
                 stage.ignite_with_previous = js.value("ignite_with_previous", false);
@@ -610,6 +621,9 @@ namespace kosmos
             {
                 spec.stages.push_back(read_stage(js));
             }
+            if (std::count_if(spec.stages.begin(), spec.stages.end(),
+                              [](const StageSpec &stage) { return stage.rcs_visual.has_value(); }) > 1)
+                throw std::runtime_error("only one stage may define rcs_visual");
             std::vector<std::string> stage_names;
             for (const StageSpec &st : spec.stages)
                 stage_names.push_back(st.name);

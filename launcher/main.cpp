@@ -1563,6 +1563,8 @@ namespace
             for (const char *b : {"Automatic", "OpenGL", "Vulkan", "Direct3D 12 (Windows)"})
                 backend_->Append(b);
             fullscreen_ = new wxCheckBox(page, wxID_ANY, "Start full screen");
+            ground_relief_ = new wxCheckBox(page, wxID_ANY, "Orbiter relief near the ground (slower)");
+            ground_relief_->SetToolTip("Uses relief tiles near the surface on supported bodies. This overrides conflicting ground-relief flags in Extra options.");
             max_texture_ = new wxChoice(page, wxID_ANY);
             for (const char *t : {"Default", "2048", "4096", "8192", "16384"})
                 max_texture_->Append(t);
@@ -1578,6 +1580,7 @@ namespace
             };
             row("Graphics backend", backend_);
             row("", fullscreen_);
+            row("", ground_relief_);
             row("Largest texture", max_texture_);
             row("Invented-world texture", world_texture_);
             row("Extra options", extra_);
@@ -1599,6 +1602,7 @@ namespace
             max_texture_->Bind(wxEVT_CHOICE, sync);
             world_texture_->Bind(wxEVT_CHOICE, sync);
             fullscreen_->Bind(wxEVT_CHECKBOX, sync);
+            ground_relief_->Bind(wxEVT_CHECKBOX, sync);
             extra_->Bind(wxEVT_TEXT, sync);
         }
 
@@ -1613,6 +1617,7 @@ namespace
             loading_ = true;
             backend_->SetSelection(profile_.backend == "gl" ? 1 : profile_.backend == "vulkan" ? 2 : profile_.backend == "d3d12" ? 3 : 0);
             fullscreen_->SetValue(profile_.fullscreen);
+            ground_relief_->SetValue(profile_.orbital_relief_ground);
             max_texture_->SetSelection(texture_index(profile_.max_texture));
             world_texture_->SetSelection(texture_index(profile_.world_texture));
             extra_->SetValue(W(profile_.extra_args));
@@ -1627,6 +1632,7 @@ namespace
             static const char *names[] = {"auto", "gl", "vulkan", "d3d12"};
             profile_.backend = names[std::max(0, backend_->GetSelection())];
             profile_.fullscreen = fullscreen_->GetValue();
+            profile_.orbital_relief_ground = ground_relief_->GetValue();
             profile_.max_texture = texture_value(max_texture_->GetSelection());
             profile_.world_texture = texture_value(world_texture_->GetSelection());
             profile_.extra_args = U(extra_->GetValue());
@@ -2147,7 +2153,7 @@ namespace
         wxListBox *pack_list_ = nullptr;
         wxGauge *pack_gauge_ = nullptr, *update_gauge_ = nullptr;
         wxChoice *backend_ = nullptr, *max_texture_ = nullptr, *world_texture_ = nullptr, *log_choice_ = nullptr;
-        wxCheckBox *fullscreen_ = nullptr, *gfx_clouds_ = nullptr, *gfx_relief_ = nullptr, *weather_ = nullptr, *weather_live_ = nullptr, *weather_rain_ = nullptr;
+        wxCheckBox *fullscreen_ = nullptr, *ground_relief_ = nullptr, *gfx_clouds_ = nullptr, *gfx_relief_ = nullptr, *weather_ = nullptr, *weather_live_ = nullptr, *weather_rain_ = nullptr;
         wxChoice *weather_preset_ = nullptr;
         wxTextCtrl *weather_metar_ = nullptr;
         wxChoice *gfx_style_ = nullptr, *gfx_terrain_ = nullptr;

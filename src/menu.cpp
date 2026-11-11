@@ -1318,7 +1318,7 @@ namespace kosmos
                                    "  Atmospheres have haze (Earth, Mars, Venus, Titan, gas giants); airless worlds shade like the real Moon; Earth has night-side city lights and sharp tiled clouds (data/textures-hires/earth_clouds)\n"
                                    "  Installed Orbiter Mars elevation shapes the terrain in low and medium orbit as well as near the ground.\n"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
-                                   "  Orbiter relief is the default when assets are available; --no-orbital-relief-ground restores old ground terrain.\n"
+                                   "  Orbiter relief near the ground is off by default; enable it in launcher Options or with --orbital-relief-ground.\n"
 #endif
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
                                    "  Microdetail uses assets in import/orbiter or --orbiter-microtexture-root PATH; --no-detail disables it.\n"

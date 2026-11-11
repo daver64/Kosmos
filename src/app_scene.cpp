@@ -475,6 +475,15 @@ namespace kosmos::app
         const glm::dmat4 view_projection =
             glm::dmat4(camera.projection_matrix(static_cast<float>(view.aspect))) *
             glm::dmat4(camera.view_matrix()) * model;
+        constexpr int ground_patch_limit = 512;
+        const int patch_limit = ground_guard && (options.orbital_relief_patches == 0 ||
+                                                  options.orbital_relief_patches > ground_patch_limit)
+                                    ? ground_patch_limit : options.orbital_relief_patches;
+        if (!tiles.set_max_relief_patches(patch_limit))
+        {
+            std::fprintf(stderr, "[kosmos] Orbiter relief patch limit: %s\n", sl::last_error().c_str());
+            return false;
+        }
         tiles.update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
         if (ground_guard)
         {

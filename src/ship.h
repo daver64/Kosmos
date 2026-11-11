@@ -8,6 +8,7 @@
 #include "universe.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -123,6 +124,10 @@ namespace kosmos
     /** One separable section of a ship. Stages are listed from the bottom of the stack, which is jettisoned first. */
     struct StageSpec
     {
+        struct RcsVisual
+        {
+            double front_z, rear_z, front_radius, rear_radius;
+        };
         std::string name;
         double dry_mass = 1000.0;
         double propellant = 0.0;
@@ -131,6 +136,8 @@ namespace kosmos
         /** Centre, length and radius for the inertia estimate and for debris. */
         double z = 0.0, length = 1.0, radius = 1.0;
         std::vector<EngineSpec> engines;
+        /** Optional visual-only RCS locations; the puffs leave when this stage separates. */
+        std::optional<RcsVisual> rcs_visual;
         std::vector<PartSpec> parts;
         /** Landing gear contact points in the ship frame; they leave with the stage. */
         std::vector<sl::dvec3> gear;

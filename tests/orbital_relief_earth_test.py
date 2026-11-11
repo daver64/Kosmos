@@ -34,6 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", help="experimental Kosmos executable")
     parser.add_argument("--vulkan", action="store_true", help="test Vulkan using an available SDL display")
+    parser.add_argument("--quick", action="store_true", help="test ground-relief defaults and overrides only")
     args = parser.parse_args()
     binary = Path(args.binary).resolve()
     graphics = ["--vulkan"] if args.vulkan else []
@@ -47,31 +48,36 @@ def main():
         env = dict(os.environ, HOME=directory, XDG_CONFIG_HOME=str(temp / "config"),
                    SDL_VIDEODRIVER=video_driver, SDL_AUDIODRIVER="dummy", LP_NUM_THREADS="1")
         images = {}
-        for ground, enabled in ((False, True), (True, True), (False, False), (True, False)):
-            shot = temp / f"earth-{ground}-{enabled}.png"
+        for mode, enabled in (("default", True), ("off", True), ("on", True),
+                              ("default", False), ("on", False)):
+            shot = temp / f"earth-{mode}-{enabled}.png"
             command = [str(binary), *graphics, "--root", str(ROOT), "--scenario", "dragonfly_orbit",
                        "--cam-planet", "1.0001", "--cam-phase", "0", "--hide-info", "--no-clutter",
                        "--no-clouds", "--date", "2024-06-21 15:00:00", "--gen-threads", "1", "--orbital-relief-patches", "24",
                        "--orbital-relief-meshes", "96", "--orbital-relief-textures", "32",
                        "--set", f"/sim/settings/gfx-earth-relief={'true' if enabled else 'false'}",
                        "--perf", "--shot", str(shot), "--shot-at", "8"]
-            if ground:
-                command.append("--orbital-relief-ground")
+            if mode != "default":
+                command.append("--orbital-relief-ground" if mode == "on" else "--no-orbital-relief-ground")
             result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=100)
             output = result.stdout + result.stderr
             assert result.returncode == 0 and shot.is_file(), output
-            if ground and enabled:
+            if mode == "on" and enabled:
                 assert re.search(r"\[perf\] Orbiter relief: patches [1-9]\d*", output), output
             else:
                 assert not re.search(r"\[perf\] Orbiter relief: patches [1-9]\d*", output), output
             with Image.open(shot) as image:
-                images[ground, enabled] = image.convert("RGB").resize((64, 36))
-                assert max(ImageStat.Stat(images[ground, enabled]).mean) > 5, output
-        difference = ImageStat.Stat(ImageChops.difference(images[False, True], images[True, True])).mean
+                images[mode, enabled] = image.convert("RGB").resize((64, 36))
+                assert max(ImageStat.Stat(images[mode, enabled]).mean) > 5, output
+        difference = ImageStat.Stat(ImageChops.difference(images["default", True], images["on", True])).mean
         assert max(difference) > 1, difference
-        fallback_difference = ImageStat.Stat(ImageChops.difference(images[False, False], images[True, False])).mean
+        fallback_difference = ImageStat.Stat(ImageChops.difference(images["default", False], images["on", False])).mean
         assert max(fallback_difference) < 3, fallback_difference
+        disabled_difference = ImageStat.Stat(ImageChops.difference(images["default", True], images["off", True])).mean
+        assert max(disabled_difference) < 3, disabled_difference
         print(f"Earth ground relief and toggle fallback ok, RGB difference {difference}")
+        if args.quick:
+            return
 
         shot = temp / "earth-no-tiles.png"
         command = [str(binary), *graphics, "--root", str(ROOT), "--scenario", "dragonfly_orbit",
@@ -85,7 +91,7 @@ def main():
         assert "Earth Orbiter relief budgets:" not in output, output
         with Image.open(shot) as image:
             no_tiles = image.convert("RGB").resize((64, 36))
-        fallback_difference = ImageStat.Stat(ImageChops.difference(images[False, True], no_tiles)).mean
+        fallback_difference = ImageStat.Stat(ImageChops.difference(images["default", True], no_tiles)).mean
         assert max(fallback_difference) < 3, fallback_difference
         print("Earth no-tiles ground fallback ok")
 

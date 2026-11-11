@@ -140,9 +140,10 @@
    "z": -30.8,
    "length": 8,
    "radius": 1.4,
+   "rcs_visual": {"front_z": -29.15, "rear_z": -26.95, "front_radius": 1.1, "rear_radius": 1.35},
    "separation_speed": 0.5,
    "engines": [
-    { "position": [0, 0, -26.86], "direction": [0, 0, -1], "thrust": 3924, "isp": 305, "plume": 3, "plume_width": 0.5, "plume_glow": 0.8, "plume_density": 1, "type": "rocket", "fuel": "hypergolic" }
+    { "position": [0, 0, -26.86], "direction": [0, 0, -1], "thrust": 3924, "isp": 305, "plume": 1.2, "plume_width": 0.05, "plume_glow": 0.8, "plume_density": 1, "type": "rocket", "fuel": "hypergolic" }
    ],
    "parts": [
     { "model": "models/soyuz.obj", "offset": [0, 0, -29.5], "animations": "tma_animations.json" }

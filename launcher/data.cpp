@@ -682,6 +682,7 @@ namespace launcher
             return p;
         p.backend = j.value("backend", p.backend);
         p.fullscreen = j.value("fullscreen", p.fullscreen);
+        p.orbital_relief_ground = j.value("orbital_relief_ground", p.orbital_relief_ground);
         p.max_texture = j.value("max_texture", p.max_texture);
         p.world_texture = j.value("world_texture", p.world_texture);
         p.extra_args = j.value("extra_args", p.extra_args);
@@ -701,6 +702,7 @@ namespace launcher
         nlohmann::json j;
         j["backend"] = p.backend;
         j["fullscreen"] = p.fullscreen;
+        j["orbital_relief_ground"] = p.orbital_relief_ground;
         j["max_texture"] = p.max_texture;
         j["world_texture"] = p.world_texture;
         j["extra_args"] = p.extra_args;
@@ -780,6 +782,7 @@ namespace launcher
             args.insert(args.end(), {"--world-texture", std::to_string(p.world_texture)});
         for (const std::string &a : split_arguments(p.extra_args))
             args.push_back(a);
+        args.push_back(p.orbital_relief_ground ? "--orbital-relief-ground" : "--no-orbital-relief-ground");
         return args;
     }
 

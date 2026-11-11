@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app.h"
+#include "rcs_visual.h"
 
 namespace kosmos::app
 {
@@ -72,7 +73,7 @@ namespace kosmos::app
         std::vector<Diamond> diamonds;
         const kosmos::Ship *owner = nullptr;
         std::uint32_t seed = 1;
-        float carry_main = 0.0f, carry_rcs[7] = {};
+        float carry_main = 0.0f, carry_rcs[9] = {};
 
         float random01()
         {
@@ -223,7 +224,7 @@ namespace kosmos::app
             int slot = 0;
             auto jet = [&](const glm::vec3 &position, const glm::vec3 &push, float amount)
             {
-                float &carry = carry_rcs[slot++ % 7];
+                float &carry = carry_rcs[slot++ % 9];
                 carry += 110.0f * amount * dt;
                 for (; carry >= 1.0f; carry -= 1.0f)
                 {
@@ -241,9 +242,17 @@ namespace kosmos::app
             // The jets sit at the ends of the stage envelope; a ship whose hull does not reach there turns them off with "rcs_effects": false.
             const bool puffs = ship.spec().rcs_effects;
             const glm::vec3 shove = glm::vec3(ship.rcs_push());
+            const glm::vec3 torque = puffs ? glm::vec3(ship.rcs_torque()) : glm::vec3(0.0f);
+            const auto [custom_layout, layout] = rcs_visual_layout(all_stages, ship.active_stage());
+            if (custom_layout)
+            {
+                if (puffs && layout)
+                    for (const RcsVisualJet &j : rcs_visual_jets(*layout, shove, torque))
+                        jet(j.position, j.push, j.amount);
+                return;
+            }
             if (puffs && glm::length(shove) > 0.01f)
                 jet(glm::vec3(0.0f, 0.0f, centre) - shove * static_cast<float>(radius), shove, 1.0f);
-            const glm::vec3 torque = puffs ? glm::vec3(ship.rcs_torque()) : glm::vec3(0.0f);
             const glm::vec3 arms[3][2] = {{{0, 0, centre + arm}, {0, 0, centre - arm}}, {{0, 0, centre + arm}, {0, 0, centre - arm}}, {{static_cast<float>(radius), 0, centre}, {-static_cast<float>(radius), 0, centre}}};
             for (int axis = 0; axis < 3; ++axis)
             {

@@ -54,6 +54,29 @@ int main(int argc, char **argv)
         check_github_catalogue(fs::temp_directory_path());
         return failures ? 1 : 0;
     }
+    if (argc == 3 && std::string(argv[1]) == "--ground-relief-profile-test")
+    {
+        std::error_code ec;
+        if (!fs::equivalent(user_dir(), fs::path(argv[2]) / "kosmos", ec) ||
+            !fs::is_regular_file(user_dir() / "ground-relief-test-marker"))
+        {
+            std::fprintf(stderr, "Ground relief profile test requires an isolated, marked config directory\n");
+            return 1;
+        }
+        Profile profile = load_profile();
+        CHECK(!profile.orbital_relief_ground);
+        CHECK(profile.extra_args == "--no-orbital-relief-ground");
+        profile.orbital_relief_ground = true;
+        CHECK(save_profile(profile));
+        profile = load_profile();
+        CHECK(profile.orbital_relief_ground);
+        CHECK(profile.extra_args == "--no-orbital-relief-ground");
+        CHECK(build_arguments(profile, "").back() == "--orbital-relief-ground");
+        profile.orbital_relief_ground = false;
+        CHECK(save_profile(profile));
+        CHECK(!load_profile().orbital_relief_ground);
+        return failures ? 1 : 0;
+    }
     {
         const fs::path dir = fs::temp_directory_path() /
             ("kosmos-pack-queue-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -95,9 +118,19 @@ int main(int argc, char **argv)
     p.legacy_orbiter_textures = "/opt/Orbiter/Textures";
     const auto cmd = build_arguments(p, "02_earth_orbit");
     const std::vector<std::string> want = {"--scenario", "02_earth_orbit", "--vulkan", "--fullscreen", "--max-texture", "4096",
-                                           "--hide-info"};
+                                           "--hide-info", "--no-orbital-relief-ground"};
     CHECK(cmd == want);
-    CHECK(build_arguments(Profile(), "").empty());
+    CHECK(build_arguments(Profile(), "") == std::vector<std::string>({"--no-orbital-relief-ground"}));
+    p.orbital_relief_ground = true;
+    p.extra_args = "--no-orbital-relief-ground";
+    const auto enabled = build_arguments(p, "");
+    CHECK(enabled.size() >= 2 && enabled[enabled.size() - 2] == "--no-orbital-relief-ground" &&
+          enabled.back() == "--orbital-relief-ground");
+    p.orbital_relief_ground = false;
+    p.extra_args = "--orbital-relief-ground";
+    const auto disabled = build_arguments(p, "");
+    CHECK(disabled.size() >= 2 && disabled[disabled.size() - 2] == "--orbital-relief-ground" &&
+          disabled.back() == "--no-orbital-relief-ground");
 
     {
         const fs::path f = launcher::fs::temp_directory_path() / "launcher_sha_test.bin";

@@ -58,47 +58,6 @@ if(KOSMOS_SIMLIB_DIR)
 else()
     find_package(simlib CONFIG REQUIRED)
     set(KOSMOS_SIMLIB_LIBS simlib::simlib simlib::imgui simlib::lua sol2)
-    if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
-        include(CheckCXXSourceCompiles)
-        include(CMakePushCheckState)
-        cmake_push_check_state(RESET)
-        set(CMAKE_REQUIRED_LIBRARIES simlib::simlib)
-        unset(KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION CACHE)
-        check_cxx_source_compiles("
-            #include <planet_tiles.h>
-            int main(int argc, char **argv) {
-                if (argc > 1) {
-                    double height;
-                    auto *tiles = reinterpret_cast<sl::PlanetTiles *>(argv[1]);
-                    return tiles->drawn_elevation(glm::dvec3(1.0, 0.0, 0.0), height);
-                }
-                return 0;
-            }" KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION)
-        cmake_pop_check_state()
-        if(NOT KOSMOS_INSTALLED_SIMLIB_HAS_DRAWN_ELEVATION)
-            message(FATAL_ERROR "Orbiter relief requires an installed simlib with PlanetTiles::drawn_elevation; rebuild and install the revision in SIMLIB_COMMIT.")
-        endif()
-        if(KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL)
-            cmake_push_check_state(RESET)
-            set(CMAKE_REQUIRED_LIBRARIES simlib::simlib)
-            unset(KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL CACHE)
-            check_cxx_source_compiles("
-                #include <planet_tiles.h>
-                int main(int argc, char **argv) {
-                    if (argc > 1) {
-                        auto *tiles = reinterpret_cast<sl::PlanetTiles *>(argv[1]);
-                        sl::Material material;
-                        sl::PlanetTiles::MicrodetailMapper mapper;
-                        return tiles->draw_relative_microdetail(glm::dmat4(1.0), material, mapper);
-                    }
-                    return 0;
-                }" KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL)
-            cmake_pop_check_state()
-            if(NOT KOSMOS_INSTALLED_SIMLIB_HAS_PLANET_MICRODETAIL)
-                message(FATAL_ERROR "Experimental Orbiter microdetail requires a simlib with PlanetTiles::draw_relative_microdetail.")
-            endif()
-        endif()
-    endif()
 endif()
 
 # ---- kosmos -------------------------------------------------------------------------------------------------------
@@ -285,6 +244,11 @@ add_executable(camera_dynamics_test EXCLUDE_FROM_ALL tests/camera_dynamics_test.
 target_link_libraries(camera_dynamics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(camera_dynamics_test PRIVATE src)
 target_compile_definitions(camera_dynamics_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(rcs_visual_test EXCLUDE_FROM_ALL tests/rcs_visual_test.cpp)
+target_link_libraries(rcs_visual_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(rcs_visual_test PRIVATE src)
+target_compile_definitions(rcs_visual_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
 add_executable(landing_plane_test EXCLUDE_FROM_ALL tests/landing_plane_test.cpp src/landing_plane.cpp src/landing_descent.cpp)
 target_link_libraries(landing_plane_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
