@@ -4,6 +4,13 @@
 
 namespace kosmos
 {
+    /** Re-express an orbit camera's offset in a new orthonormal horizon frame. */
+    void reframe_orbit_camera(const sl::dvec3 &old_up, const sl::dvec3 &old_east,
+                              const sl::dvec3 &new_up, const sl::dvec3 &new_east,
+                              double &yaw, double &pitch, double &roll);
+    sl::dvec3 orbit_camera_view_up(const sl::dvec3 &up, const sl::dvec3 &east,
+                                   const sl::dvec3 &forward, double roll);
+
     /** How a ship's cockpit eye moves on its springs: the `cockpit.head_motion` block of ship.json. */
     struct HeadMotion
     {

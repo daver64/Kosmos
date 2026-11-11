@@ -1,3 +1,7 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include "camera_dynamics.h"
 
 #include <cassert>
@@ -9,6 +13,36 @@ using kosmos::HeadMotion;
 
 int main()
 {
+    const auto offset = [](const sl::dvec3 &up, const sl::dvec3 &east, double yaw, double pitch) {
+        return (east * std::sin(yaw) + glm::cross(up, east) * std::cos(yaw)) * std::cos(pitch) +
+               up * std::sin(pitch);
+    };
+    const sl::dvec3 earth_up(1, 0, 0), earth_east(0, 0, -1);
+    const sl::dvec3 sun_up(0, 0, 1), sun_east(1, 0, 0);
+    for (double yaw : {-2.4, 0.0, 1.2})
+        for (double pitch : {-1.49, 0.0, 1.49})
+            for (double initial_roll : {-1.3, 0.0, 2.0})
+            {
+                double y = yaw, p = pitch, roll = initial_roll;
+                const sl::dvec3 original = offset(earth_up, earth_east, y, p);
+                const sl::dvec3 original_up = kosmos::orbit_camera_view_up(earth_up, earth_east, -original, roll);
+                kosmos::reframe_orbit_camera(earth_up, earth_east, sun_up, sun_east, y, p, roll);
+                assert(glm::length(offset(sun_up, sun_east, y, p) - original) < 1e-12);
+                assert(glm::length(kosmos::orbit_camera_view_up(sun_up, sun_east, -original, roll) - original_up) < 1e-12);
+                kosmos::reframe_orbit_camera(sun_up, sun_east, earth_up, earth_east, y, p, roll);
+                assert(glm::length(offset(earth_up, earth_east, y, p) - original) < 1e-12);
+                assert(glm::length(kosmos::orbit_camera_view_up(earth_up, earth_east, -original, roll) - original_up) < 1e-12);
+            }
+    {
+        double yaw = 0.0, pitch = 0.0, roll = 0.0;
+        const sl::dvec3 original = offset(earth_up, earth_east, yaw, pitch);
+        const sl::dvec3 original_up = kosmos::orbit_camera_view_up(earth_up, earth_east, -original, roll);
+        const sl::dvec3 pole_up = original, pole_east(1, 0, 0);
+        kosmos::reframe_orbit_camera(earth_up, earth_east, pole_up, pole_east, yaw, pitch, roll);
+        assert(glm::length(offset(pole_up, pole_east, yaw, pitch) - original) < 1e-12);
+        assert(glm::length(kosmos::orbit_camera_view_up(pole_up, pole_east, -original, roll) - original_up) < 1e-12);
+    }
+
     HeadMotion m;
     m.max_offset = 10.0; // out of the way, to test the linear model
 

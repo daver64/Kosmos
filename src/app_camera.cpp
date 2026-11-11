@@ -519,7 +519,9 @@ namespace kosmos::app
             {
                 // Dragging swings the chase camera around the ship, which stays centred.
                 rig.cam_yaw -= static_cast<float>(dx) * 0.006f;
-                rig.cam_pitch = std::clamp(rig.cam_pitch + static_cast<float>(dy) * 0.006f, -1.5f, 1.5f);
+                // An SOI reframe can put the camera beyond the normal pitch limit; let it move back without snapping.
+                rig.cam_pitch = std::clamp(rig.cam_pitch + static_cast<float>(dy) * 0.006f,
+                                           std::min(-1.5f, rig.cam_pitch), std::max(1.5f, rig.cam_pitch));
             }
             rig.cam_distance = std::clamp(rig.cam_distance * zoom_in * zoom_out, 8.0, 3.0e9);
         }
@@ -588,7 +590,6 @@ namespace kosmos::app
         govern_time_warp();
         poll_blender_edit();
         const double time_before_step = step_simulation();
-        update_flight_recording();
         update_camera_dynamics(universe.time() - time_before_step);
         collide_ground_vehicles();
         for (int i = 0; i < sim.ship_count(); ++i)
@@ -619,6 +620,28 @@ namespace kosmos::app
             // instead, and ease back to the compass east only where it is well defined.
             sl::dvec3 &carried_east = memory.carried_east;
             int &carried_soi = memory.carried_soi;
+            if (memory.camera_system != sim.system_index())
+            {
+                carried_soi = -1;
+                carried_east = sl::dvec3(0.0);
+                rig.orbit_roll = 0.0;
+                memory.camera_system = sim.system_index();
+            }
+            if (!options.cam_sunward && !options.cam_antisun && options.cam_planet <= 0.0 &&
+                carried_soi >= 0 && carried_soi != tm.soi &&
+                glm::length(memory.camera_frame_up) > 0.5 && glm::length(carried_east) > 0.5)
+            {
+                double yaw = rig.cam_yaw;
+                const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(memory.tilt_clock * 0.5);
+                double pitch = rig.cam_pitch + tilt;
+                kosmos::reframe_orbit_camera(memory.camera_frame_up, carried_east, up, east, yaw, pitch, rig.orbit_roll);
+                rig.cam_yaw = static_cast<float>(yaw);
+                rig.cam_pitch = static_cast<float>(pitch - tilt);
+                if (options.perf)
+                    std::fprintf(stderr, "[perf] orbit camera SOI %s -> %s\n",
+                                 universe_ref->bodies[static_cast<std::size_t>(carried_soi)].name.c_str(),
+                                 universe_ref->bodies[static_cast<std::size_t>(tm.soi)].name.c_str());
+            }
             if (carried_soi != tm.soi || glm::length(carried_east) < 0.5)
                 carried_east = east;
             carried_soi = tm.soi;
@@ -630,6 +653,7 @@ namespace kosmos::app
             carried_east = glm::length(blended) > 1e-6 ? glm::normalize(blended) : e;
             east = carried_east;
             north = glm::cross(up, east);
+            memory.camera_frame_up = up;
         }
     }
 
@@ -881,6 +905,11 @@ namespace kosmos::app
             kosmos::base_camera_pose(universe, bs, bc, &fb.position, eye_world, look, up);
             ship_rel = glm::vec3(look * 1000.0);
             view_fov = bc.fov;
+        }
+        else if (!options.cam_sunward && !options.cam_antisun && options.cam_planet <= 0.0)
+        {
+            const sl::dvec3 forward = glm::normalize(sl::dvec3(ship_rel));
+            up = kosmos::orbit_camera_view_up(up, east, forward, rig.orbit_roll);
         }
 
         if (rig.fov_user > 0.0)

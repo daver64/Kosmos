@@ -28,6 +28,7 @@ with tempfile.TemporaryDirectory() as home:
     assert "ok  : flight recording persists frames, controls, camera and scenario" in output, output
     data = json.loads(recording.read_text())
     assert data["format"] == "kosmos-flight-recording" and len(data["frames"]) == 2
+    assert data["frames"][0]["camera"]["roll"] == 0.6
     data["frames"][1]["elapsed"] = 0
     invalid = Path(home) / "invalid.json"
     invalid.write_text(json.dumps(data))
@@ -52,4 +53,14 @@ with tempfile.TemporaryDirectory() as home:
             cwd=ROOT, env=env, capture_output=True, text=True, timeout=120,
         )
         assert reopened.returncode == 0 and "flight playback reopen selftest: 0 failure(s)" in reopened.stdout, reopened.stdout + reopened.stderr
+        if index == 0:
+            legacy = json.loads(playback.read_text())
+            for frame in legacy["frames"]:
+                del frame["camera"]["roll"]
+            playback.write_text(json.dumps(legacy))
+            reopened = subprocess.run(
+                [str(BINARY), *args, "--selftest", "1", "--set", f"/selftest/open-flight-replay-path={playback}"],
+                cwd=ROOT, env=env, capture_output=True, text=True, timeout=120,
+            )
+            assert reopened.returncode == 0 and "flight playback reopen selftest: 0 failure(s)" in reopened.stdout, reopened.stdout + reopened.stderr
     print("flight_recording_test ok")

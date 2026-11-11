@@ -21,7 +21,7 @@ namespace kosmos
                    !frame.scenario.ships.empty() &&
                    std::isfinite(frame.throttle) && frame.throttle >= -1.0 && frame.throttle <= 1.0 &&
                    std::isfinite(frame.hover) && frame.hover >= 0.0 && frame.hover <= 1.0 &&
-                   std::isfinite(frame.camera_yaw) && std::isfinite(frame.camera_pitch) &&
+                   std::isfinite(frame.camera_yaw) && std::isfinite(frame.camera_pitch) && std::isfinite(frame.camera_roll) &&
                    std::isfinite(frame.camera_distance) && frame.camera_distance >= 0.0;
         }
 
@@ -79,7 +79,7 @@ namespace kosmos
                 {"elapsed", frame.elapsed}, {"scenario", nlohmann::json::parse(scenario_to_json(frame.scenario))},
                 {"throttle", frame.throttle}, {"hover", frame.hover},
                 {"axes", frame.axes}, {"sas", frame.sas},
-                {"camera", {{"yaw", frame.camera_yaw}, {"pitch", frame.camera_pitch}, {"distance", frame.camera_distance},
+                {"camera", {{"yaw", frame.camera_yaw}, {"pitch", frame.camera_pitch}, {"roll", frame.camera_roll}, {"distance", frame.camera_distance},
                             {"cockpit", frame.cockpit}, {"cockpit3d", frame.cockpit3d}}}});
         }
         const std::string text = root.dump();
@@ -145,6 +145,7 @@ namespace kosmos
                 const auto &camera = item.at("camera");
                 frame.camera_yaw = camera.at("yaw").get<double>();
                 frame.camera_pitch = camera.at("pitch").get<double>();
+                frame.camera_roll = camera.value("roll", 0.0);
                 frame.camera_distance = camera.at("distance").get<double>();
                 frame.cockpit = camera.at("cockpit").get<bool>();
                 frame.cockpit3d = camera.at("cockpit3d").get<bool>();

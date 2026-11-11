@@ -17,7 +17,7 @@ namespace kosmos
         double throttle = 0.0, hover = 0.0;
         std::array<double, 8> axes{};
         std::string sas = "stability";
-        double camera_yaw = 0.0, camera_pitch = 0.0, camera_distance = 0.0;
+        double camera_yaw = 0.0, camera_pitch = 0.0, camera_roll = 0.0, camera_distance = 0.0;
         bool cockpit = false, cockpit3d = false;
     };
 

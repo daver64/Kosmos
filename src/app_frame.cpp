@@ -422,6 +422,7 @@ namespace kosmos::app
         update_instruments();
         Watchdog::stage("place_camera"); // WATCHDOG
         place_camera();
+        update_flight_recording();
         Watchdog::stage("prepare_scene"); // WATCHDOG
         prepare_scene();
         if (loading.quit_requested)

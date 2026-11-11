@@ -247,6 +247,7 @@ namespace kosmos
             first.sas = "retrograde";
             first.camera_yaw = 0.3;
             first.camera_pitch = -0.2;
+            first.camera_roll = 0.6;
             first.camera_distance = 42.0;
             first.cockpit = true;
             recorded.frames.push_back(first);
@@ -265,7 +266,7 @@ namespace kosmos
             check(opened && loaded.frames.size() == 2 && loaded.frames[1].elapsed == 1.0 &&
                       loaded.frames[0].throttle == 0.25 && loaded.frames[0].hover == 0.5 &&
                       loaded.frames[0].axes[0] == -0.75 && loaded.frames[0].sas == "retrograde" &&
-                      loaded.frames[0].cockpit && loaded.frames[1].camera_distance == 100.0 &&
+                      loaded.frames[0].cockpit && loaded.frames[0].camera_roll == 0.6 && loaded.frames[1].camera_distance == 100.0 &&
                       scenario_to_json(loaded.frames[0].scenario) == scenario_to_json(recorded.frames[0].scenario),
                   "flight recording persists frames, controls, camera and scenario");
             recorded.frames[1].elapsed = 0.0;
@@ -332,6 +333,59 @@ namespace kosmos
             approach_case(mars_radius, "body", mars_radius, "Alt 0 m", "body approach at reference radius");
             approach_case(200000, "ship", mars_radius, "Dist 200.0 km", "ship approach remains separation");
             approach_case(200000, "body", 0, "Ctr 200.0 km (no radius)", "missing body radius is explicit");
+
+            sol::protected_function button = table["button"];
+            sol::protected_function draw = table["draw"];
+            const auto press = [&](int index) {
+                sim.lua.execute("");
+                sol::protected_function_result result = button(table, index);
+                if (!result.valid())
+                {
+                    const sol::error error = result;
+                    std::fprintf(stderr, "orbitcomp clipping selftest: button: %s\n", error.what());
+                    return false;
+                }
+                return true;
+            };
+            const auto inside = [](float x) { return std::isfinite(x) && x >= -0.01f && x <= mfd_size + 0.01f; };
+            const auto plot_inside = [&](int expect_planet) {
+                MfdCanvas canvas;
+                sim.lua.execute("");
+                sol::protected_function_result result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+                if (!result.valid())
+                {
+                    const sol::error error = result;
+                    std::fprintf(stderr, "orbitcomp clipping selftest: draw: %s\n", error.what());
+                    return false;
+                }
+                bool planet_visible = false;
+                for (const MfdCommand &c : canvas.commands)
+                {
+                    if ((c.kind == MfdCommand::Kind::line || c.kind == MfdCommand::Kind::circle) &&
+                        c.colour.red == 60 && c.colour.green == 110 && c.colour.blue == 255)
+                        planet_visible = true;
+                    if (c.kind == MfdCommand::Kind::line &&
+                        (!inside(c.a) || !inside(c.b) || !inside(c.c) || !inside(c.d)))
+                        return false;
+                    if ((c.kind == MfdCommand::Kind::circle || c.kind == MfdCommand::Kind::disc) &&
+                        (!inside(c.a - c.c) || !inside(c.a + c.c) ||
+                         !inside(c.b - c.c) || !inside(c.b + c.c)))
+                        return false;
+                }
+                return expect_planet < 0 || planet_visible == (expect_planet == 1);
+            };
+            bool buttons_ok = press(1) && press(9);
+            check(buttons_ok && plot_inside(1), "OrbitComp fitted plot stays on the MFD");
+            for (int i = 0; i < 10 && buttons_ok; ++i)
+            {
+                buttons_ok = press(7);
+                const int expect_planet = i == 1 ? 1 : i == 9 ? 0 : -1;
+                check(buttons_ok && plot_inside(expect_planet), "OrbitComp zoomed plot stays on the MFD");
+            }
+            buttons_ok = buttons_ok && press(2);
+            check(buttons_ok && plot_inside(-1), "OrbitComp zoomed manoeuvre plot stays on the MFD");
+            buttons_ok = buttons_ok && press(1) && press(9);
+            check(buttons_ok, "OrbitComp plot reset");
         }
         for (const char *id : {"radar-altimeter", "orbit", "surface"})
         {

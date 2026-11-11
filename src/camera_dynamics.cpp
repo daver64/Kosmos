@@ -5,6 +5,37 @@
 
 namespace kosmos
 {
+    sl::dvec3 orbit_camera_view_up(const sl::dvec3 &up, const sl::dvec3 &east,
+                                   const sl::dvec3 &forward, double roll)
+    {
+        sl::dvec3 vertical = up - forward * glm::dot(up, forward);
+        if (glm::length(vertical) < 1.0e-9)
+            vertical = east - forward * glm::dot(east, forward);
+        vertical = glm::normalize(vertical);
+        return vertical * std::cos(roll) + glm::cross(forward, vertical) * std::sin(roll);
+    }
+
+    void reframe_orbit_camera(const sl::dvec3 &old_up, const sl::dvec3 &old_east,
+                              const sl::dvec3 &new_up, const sl::dvec3 &new_east,
+                              double &yaw, double &pitch, double &roll)
+    {
+        const sl::dvec3 old_north = glm::cross(old_up, old_east);
+        const sl::dvec3 offset = (old_east * std::sin(yaw) + old_north * std::cos(yaw)) * std::cos(pitch) +
+                                 old_up * std::sin(pitch);
+        const sl::dvec3 forward = -offset;
+        const sl::dvec3 old_view_up = orbit_camera_view_up(old_up, old_east, forward, roll);
+        const sl::dvec3 new_view_up = orbit_camera_view_up(new_up, new_east, forward, 0.0);
+        roll = std::atan2(glm::dot(forward, glm::cross(new_view_up, old_view_up)),
+                          glm::dot(new_view_up, old_view_up));
+        const sl::dvec3 new_north = glm::cross(new_up, new_east);
+        const double vertical = std::clamp(glm::dot(offset, new_up), -1.0, 1.0);
+        const double east = glm::dot(offset, new_east);
+        const double north = glm::dot(offset, new_north);
+        pitch = std::atan2(vertical, std::hypot(east, north));
+        if (std::hypot(east, north) > 1.0e-12)
+            yaw = std::atan2(east, north);
+    }
+
     namespace
     {
         // Washout time constant for sustained acceleration, in seconds.

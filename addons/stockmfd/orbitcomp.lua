@@ -558,6 +558,36 @@ local function scan(f, ot, nd)
   return res
 end
 
+local function clipped_line(g, x1, y1, x2, y2)
+  local dx, dy = x2 - x1, y2 - y1
+  local lo, hi = 0, 1
+  local function clip(p, q)
+    if p == 0 then return q >= 0 end
+    local t = q / p
+    if p < 0 then lo = math.max(lo, t) else hi = math.min(hi, t) end
+    return lo <= hi
+  end
+  if clip(-dx, x1) and clip(dx, 400 - x1) and clip(-dy, y1) and clip(dy, 400 - y1) then
+    g:line(x1 + lo * dx, y1 + lo * dy, x1 + hi * dx, y1 + hi * dy)
+  end
+end
+
+local function clipped_circle(g, cx, cy, r)
+  if cx - r >= 0 and cx + r <= 400 and cy - r >= 0 and cy + r <= 400 then
+    g:circle(cx, cy, r)
+    return
+  end
+  local far_x, far_y = math.max(math.abs(cx), math.abs(400 - cx)), math.max(math.abs(cy), math.abs(400 - cy))
+  if r > math.sqrt(far_x * far_x + far_y * far_y) then return end
+  local px, py = cx + r, cy
+  for i = 1, 256 do
+    local angle = TAU * i / 256
+    local x, y = cx + r * math.cos(angle), cy + r * math.sin(angle)
+    clipped_line(g, px, py, x, y)
+    px, py = x, y
+  end
+end
+
 -- Draw an orbit as a polyline around (cx, cy); `axes` give the plane to project onto.
 local function draw_orbit(g, o, P, Q, cx, cy, scale, limit)
   local lo, hi = 0, TAU
@@ -569,7 +599,7 @@ local function draw_orbit(g, o, P, Q, cx, cy, scale, limit)
     if r > 0 and r < limit then
       local pos = add(mul(o.P, r * math.cos(t)), mul(o.Q, r * math.sin(t)))
       local x, y = cx + dot(pos, P) * scale, cy - dot(pos, Q) * scale
-      if px then g:line(px, py, x, y) end
+      if px then clipped_line(g, px, py, x, y) end
       px, py = x, y
     else
       px = nil
@@ -639,13 +669,15 @@ local function draw_orb(g, f, ot, tr)
   local limit = 125 / scale * 1.5
   local P, Q = o.P, o.Q
   g:colour(60, 110, 255)
-  g:circle(cx, cy, math.max(body_r * scale, 3))
+  clipped_circle(g, cx, cy, math.max(body_r * scale, 3))
   g:colour(120, 255, 140)
   draw_orbit(g, o, P, Q, cx, cy, scale, limit)
   g:colour(255, 200, 80)
-  g:circle(cx + o.rp * scale, cy, 4)
-  g:text(cx + o.rp * scale + 8, cy - 8, "Pe", 0)
-  if o.bound then
+  if cx + o.rp * scale + 4 <= 400 then
+    g:circle(cx + o.rp * scale, cy, 4)
+    g:text(cx + o.rp * scale + 8, cy - 8, "Pe", 0)
+  end
+  if o.bound and cx - o.ra * scale - 4 >= 0 then
     g:circle(cx - o.ra * scale, cy, 4)
     g:text(cx - o.ra * scale - 8, cy - 8, "Ap", 2)
   end
@@ -842,7 +874,7 @@ local function draw_man(g, f, ot, tr)
   local scale = 80 / math.max(extent, body_r * 1.05) * zoom
   local limit = 80 / scale * 1.5
   g:colour(60, 110, 255)
-  g:circle(cx, cy, math.max(body_r * scale, 3))
+  clipped_circle(g, cx, cy, math.max(body_r * scale, 3))
   g:colour(70, 150, 90)
   draw_orbit(g, o, o.P, o.Q, cx, cy, scale, limit)
   if a and nd.dv > 0 then

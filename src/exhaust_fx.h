@@ -267,6 +267,15 @@ namespace kosmos::app
             glow.fog = false;
             glow.blend = sl::MaterialBlend::additive;
             glow.cull = sl::CullMode::none;
+            std::vector<sl::InstanceData3D> instances;
+            instances.reserve(2 * (particles.size() + diamonds.size()));
+            const auto append = [&](const glm::mat4 &model, sl::Colour tint)
+            {
+                sl::InstanceData3D instance;
+                instance.model = model;
+                instance.tint = tint;
+                instances.push_back(instance);
+            };
             for (const Particle &p : particles)
             {
                 const float age = p.age / p.life;
@@ -281,13 +290,13 @@ namespace kosmos::app
                     base *= glm::mat4(glm::vec4(side, 0.0f), glm::vec4(glm::cross(axis, side), 0.0f), glm::vec4(axis, 0.0f), glm::vec4(0, 0, 0, 1));
                     base = glm::scale(base, glm::vec3(1.0f, 1.0f, p.stretch));
                 }
-                glow.tint = st.glow;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * p.bright * fade * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size * 2.6f)), glow);
-                glow.tint = age < 0.35f ? st.core : st.tail;
+                sl::Colour tint = st.glow;
+                tint.alpha = static_cast<std::uint8_t>(std::clamp(st.halo * p.bright * fade * 255.0f, 0.0f, 255.0f));
+                append(base * glm::scale(glm::mat4(1.0f), glm::vec3(size * 2.6f)), tint);
+                tint = age < 0.35f ? st.core : st.tail;
                 const float body = p.body * p.bright;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(body * fade * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(size)), glow);
+                tint.alpha = static_cast<std::uint8_t>(std::clamp(body * fade * 255.0f, 0.0f, 255.0f));
+                append(base * glm::scale(glm::mat4(1.0f), glm::vec3(size)), tint);
             }
             for (const Diamond &d : diamonds)
             {
@@ -297,12 +306,26 @@ namespace kosmos::app
                 const glm::mat4 frame(glm::vec4(side1, 0.0f), glm::vec4(glm::cross(d.axis, side1), 0.0f), glm::vec4(d.axis, 0.0f), glm::vec4(d.position, 1.0f));
                 const glm::mat4 base = hull * frame;
                 // Stretched along the flow so each knot reads as a diamond.
-                glow.tint = st.glow;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(0.30f * d.strength * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.5f, d.size * 1.5f, d.size * 3.2f)), glow);
-                glow.tint = st.core;
-                glow.tint.alpha = static_cast<std::uint8_t>(std::clamp(1.0f * d.strength * 255.0f, 0.0f, 255.0f));
-                sl::draw_mesh(glow_mesh, base * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.0f, d.size * 1.0f, d.size * 2.6f)), glow);
+                sl::Colour tint = st.glow;
+                tint.alpha = static_cast<std::uint8_t>(std::clamp(0.30f * d.strength * 255.0f, 0.0f, 255.0f));
+                append(base * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.5f, d.size * 1.5f, d.size * 3.2f)), tint);
+                tint = st.core;
+                tint.alpha = static_cast<std::uint8_t>(std::clamp(1.0f * d.strength * 255.0f, 0.0f, 255.0f));
+                append(base * glm::scale(glm::mat4(1.0f), glm::vec3(d.size * 1.0f, d.size * 1.0f, d.size * 2.6f)), tint);
+            }
+            if (!instances.empty() && !sl::draw_mesh_instanced(glow_mesh, instances, glow))
+            {
+                static bool reported = false;
+                if (!reported)
+                {
+                    std::fprintf(stderr, "[kosmos] exhaust instancing unavailable: %s; using individual draws\n", sl::last_error().c_str());
+                    reported = true;
+                }
+                for (const sl::InstanceData3D &instance : instances)
+                {
+                    glow.tint = instance.tint;
+                    sl::draw_mesh(glow_mesh, instance.model, glow);
+                }
             }
         }
     };

@@ -95,7 +95,9 @@ namespace kosmos::app
         double eva_report_at = 0.0;
         bool trigger_was_down = false, primary_was = false, secondary_was = false;
         sl::dvec3 carried_east{0.0};
+        sl::dvec3 camera_frame_up{0.0};
         int carried_soi = -1;
+        int camera_system = -1;
         double tilt_clock = 0.0;
         bool cues_seen = false, was_landed = false, was_crashed = false, was_docked = false, was_alarm = false;
         int was_stage = 0;
@@ -276,6 +278,7 @@ namespace kosmos::app
         const Ship * eye_ship{};
         float cam_yaw{};
         float cam_pitch{};
+        double orbit_roll{};
         double cam_distance{};
         float free_yaw{};
         float free_pitch{};

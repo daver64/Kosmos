@@ -55,6 +55,7 @@ namespace kosmos::app
         sample.sas = sim.props.get_string("/controls/sas", "stability");
         sample.camera_yaw = rig.cam_yaw;
         sample.camera_pitch = rig.cam_pitch;
+        sample.camera_roll = rig.orbit_roll;
         sample.camera_distance = rig.cam_distance;
         sample.cockpit = cockpit_view;
         sample.cockpit3d = cockpit3d;
@@ -181,7 +182,9 @@ namespace kosmos::app
         cockpit3d = sample.cockpit3d;
         rig.cam_yaw = static_cast<float>(sample.camera_yaw);
         rig.cam_pitch = static_cast<float>(sample.camera_pitch);
+        rig.orbit_roll = sample.camera_roll;
         rig.cam_distance = sample.camera_distance;
+        memory.carried_soi = -1;
         flight_replay.frame = index;
     }
 
@@ -292,6 +295,7 @@ namespace kosmos::app
             std::filesystem::remove(recovered_path, cleanup_error);
         check(!cleanup_error, "recovered recording test file removed");
         rig.cam_distance = 42.0;
+        rig.orbit_roll = 0.7;
         sim.props.set_double("/controls/throttle", 0.0);
         const sl::dvec3 first_position = ship->body().position -
                                          sim.universe.position(ship->telemetry().soi);
@@ -300,6 +304,7 @@ namespace kosmos::app
         for (int i = 0; i < 20; ++i)
             sim.step(0.1);
         rig.cam_distance = 73.0;
+        rig.orbit_roll = -0.4;
         sim.props.set_double("/controls/pitch", 0.3);
         update_flight_recording();
         const sl::dvec3 last_position = ship->body().position -
@@ -334,7 +339,7 @@ namespace kosmos::app
             flight_replay.paused = false;
             frame = 3.0;
             update_flight_playback();
-            check(flight_replay.paused && flight_replay.frame == 1 && rig.cam_distance == 73.0 &&
+            check(flight_replay.paused && flight_replay.frame == 1 && rig.cam_distance == 73.0 && rig.orbit_roll == -0.4 &&
                       std::abs(sim.props.get_double("/controls/pitch") - 0.3) < 1e-9 &&
                       glm::length(ship->body().position - sim.universe.position(ship->telemetry().soi) - last_position) < 0.01 &&
                       std::abs(sim.universe.julian_date() - last_jd) < 1e-9 &&
@@ -342,7 +347,7 @@ namespace kosmos::app
                       sim.nav.dock_links().size() == links,
                   "playback advances vessel, clock, fuel, docks and camera");
             show_flight_frame(0);
-            check(flight_replay.frame == 0 &&
+            check(flight_replay.frame == 0 && rig.orbit_roll == 0.7 &&
                       glm::length(ship->body().position - sim.universe.position(ship->telemetry().soi) - first_position) < 0.01,
                   "playback rewinds to initial state");
             stop_flight_playback();
@@ -391,7 +396,8 @@ namespace kosmos::app
         const double jd = last.scenario.epoch_jd;
         show_flight_frame(flight_replay.recording.frames.size() - 1);
         const sl::dvec3 r = ship->body().position - sim.universe.position(ship->telemetry().soi);
-        const bool ok = glm::length(r - sl::dvec3(position[0], position[1], position[2])) < 0.01 &&
+        const bool ok = rig.orbit_roll == last.camera_roll &&
+                        glm::length(r - sl::dvec3(position[0], position[1], position[2])) < 0.01 &&
                         std::abs(sim.universe.julian_date() - jd) < 1e-9;
         std::printf("flight playback reopen selftest: %d failure(s)\n", ok ? 0 : 1);
         stop_flight_playback();

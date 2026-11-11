@@ -1683,6 +1683,9 @@ namespace kosmos::app
                 const glm::vec3 where = origin_rel + pf.position;
                 blob(where, pf.size * (1.0f + 1.5f * age) * 2.2f, sl::Colour{255, mix8(200, 70, cool), mix8(120, 25, cool), 255}, 0.3f * pf.bright * fade * k * 1.2f);
                 blob(where, pf.size * (1.0f + age), sl::Colour{255, mix8(245, 140, cool), mix8(215, 60, cool), 255}, 0.5f * pf.bright * fade * k * (1.0f - cool * 0.6f));
+            }
+            blob(lead_rel, look.cap * 1.8f, sl::Colour{255, mix8(110, 190, h), mix8(40, 110, h), 255}, 0.55f * k);
+            blob(lead_rel, look.cap * 0.9f, sl::Colour{255, 235, mix8(150, 215, h), 255}, 0.7f * k);
         }
         if (!blobs.empty() && !sl::draw_mesh_instanced(vis.quad, blobs, glow))
         {
@@ -1698,9 +1701,6 @@ namespace kosmos::app
                 sl::draw_mesh(vis.quad, instance.model, glow);
             }
         }
-            blob(lead_rel, look.cap * 1.8f, sl::Colour{255, mix8(110, 190, h), mix8(40, 110, h), 255}, 0.55f * k);
-            blob(lead_rel, look.cap * 0.9f, sl::Colour{255, 235, mix8(150, 215, h), 255}, 0.7f * k);
-                    }
     }
 
     void App::scene_exhaust_and_held()
