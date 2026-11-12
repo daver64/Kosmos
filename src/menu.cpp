@@ -1311,6 +1311,7 @@ namespace kosmos
                                    "  K                release the next store   Shift+K   release the special store\n"
                                    "Animations\n"
                                    "  View > Animations lists the ship's hatches, doors and other moving parts; click one to open or close it. Soyuz solar arrays must be deployed to generate power.\n"
+                                   "  Ares ascent stows its legs above 100 m; autoland deploys them. These autopilots override manual leg commands while active.\n"
 "Instruments\n"
 "  Probes with cameras, radar or a spectrometer have an INST MFD: switch the instrument LOAD on in Systems, point it with AZ/EL, SHOOT saves a picture or spectrum, GALLERY browses them\n"
 "  Luna E3 RTG is a fictional radioisotope-powered variant for missions beyond Earth's orbit; the original uses solar cells.\n"
