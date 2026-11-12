@@ -101,7 +101,7 @@
           "isp": 327,
           "isp_sl": 270,
           "plume": 1.5,
-          "plume_width": 0.12,
+          "plume_width": 0.10,
           "plume_glow": 1.0,
           "plume_density": 1,
           "type": "rocket",
