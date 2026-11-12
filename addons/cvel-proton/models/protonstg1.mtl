@@ -1,38 +1,63 @@
 newmtl Material6
-Kd 0.804 0.804 0.804
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg1_Material6_albedo.png
+map_Bump textures/protonstg1_Material6_normal.png
 
 newmtl Material5_protnozzle
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/protnozzle.png
+Pm 0.730
+Pr 0.560
+map_Kd textures/protonstg1_Material5_protnozzle_albedo.png
+map_Bump textures/protonstg1_Material5_protnozzle_normal.png
 
 newmtl Material4
-Kd 0.561 0.561 0.561
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg1_Material4_albedo.png
+map_Bump textures/protonstg1_Material4_normal.png
 
 newmtl Material3_strproton
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/strproton.png
+Pm 0.480
+Pr 0.660
+map_Kd textures/protonstg1_Material3_strproton_albedo.png
+map_Bump textures/protonstg1_Material3_strproton_normal.png
 
 newmtl Material2_protoncover
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/protoncover.png
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg1_Material2_protoncover_albedo.png
+map_Bump textures/protonstg1_Material2_protoncover_normal.png
 
 newmtl Material0
-Kd 0.122 0.122 0.122
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg1_Material0_albedo.png
+map_Bump textures/protonstg1_Material0_normal.png
 
 newmtl Material1
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg1_Material1_albedo.png
+map_Bump textures/protonstg1_Material1_normal.png
 

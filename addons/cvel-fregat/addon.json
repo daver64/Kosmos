@@ -3,7 +3,7 @@
   "name": "CVEL Fregat",
   "version": "0.1",
   "author": "Dave Rowbotham (CVEL)",
-  "description": "Fregat restartable upper stage with a payload port, as flown on Soyuz and Proton. Converted from the CVEL Orbiter add-on (code and meshes D. Henderson, LGPL). Mass, propellant, thrust and isp from the original; the Orbiter add-on's attitude thrusters are modelled as RCS.",
+  "description": "Fregat restartable upper stage with a payload port, as flown on Soyuz and Proton. New approximate visual model by Dave Rowbotham; mass, propellant, thrust and isp are from the CVEL Orbiter add-on (D. Henderson, LGPL). Its attitude thrusters are modelled as RCS.",
   "ships": [
     "ship.json"
   ]

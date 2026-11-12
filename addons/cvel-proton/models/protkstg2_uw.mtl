@@ -1,30 +1,54 @@
 newmtl Engiencoating
-Kd 0.906 0.886 0.667
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.780
+Pr 0.430
+map_Kd textures/protkstg2_uw_Engiencoating_albedo.png
+map_Bump textures/protkstg2_uw_Engiencoating_normal.png
 
 newmtl EngineInside
-Kd 0.133 0.133 0.133
+Kd 1.000 1.000 1.000
 Ks 0.624 0.251 0.075
 Ke 0.000 0.000 0.000
+Pm 0.730
+Pr 0.560
+map_Kd textures/protkstg2_uw_EngineInside_albedo.png
+map_Bump textures/protkstg2_uw_EngineInside_normal.png
 
 newmtl GreenishStuff
-Kd 0.176 0.537 0.412
+Kd 1.000 1.000 1.000
 Ks 0.439 0.757 0.816
 Ke 0.000 0.000 0.000
+Pm 0.100
+Pr 0.700
+map_Kd textures/protkstg2_uw_GreenishStuff_albedo.png
+map_Bump textures/protkstg2_uw_GreenishStuff_normal.png
 
 newmtl HullPaint_ProtonStage2
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protkstg2_uw_HullPaint_ProtonStage2_albedo.png
+map_Bump textures/protkstg2_uw_HullPaint_ProtonStage2_normal.png
 
 newmtl PlainMetal
-Kd 0.878 0.878 0.878
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.780
+Pr 0.430
+map_Kd textures/protkstg2_uw_PlainMetal_albedo.png
+map_Bump textures/protkstg2_uw_PlainMetal_normal.png
 
 newmtl White
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protkstg2_uw_White_albedo.png
+map_Bump textures/protkstg2_uw_White_normal.png
 

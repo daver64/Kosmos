@@ -1,39 +1,40 @@
 {
- "name": "CVEL: Proton-K, Baikonur",
- "description": "CVEL Proton-K with a split payload fairing, a Fregat upper stage and a Luna E3 probe on the pad at Baikonur.",
- "date": "2003-05-18 06:00:00",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Proton-K",
-   "body": "Earth",
-   "surface": {
-    "base": "baikonur"
-   }
-  },
-  {
-   "ship": "CVEL Fregat",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 0,
-    "own_port": 0
-   },
-   "surface": {
-    "base": "baikonur"
-   }
-  },
-  {
-   "ship": "Luna E3",
-   "body": "Earth",
-   "dock": {
-    "to": 1,
-    "port": 1,
-    "own_port": 0
-   },
-   "surface": {
-    "base": "baikonur"
-   }
-  }
- ]
+  "active": 0,
+  "date": "2003-05-18 06:00:00",
+  "description": "CVEL Proton-K with a split payload fairing, a Fregat upper stage and a Luna E3 probe on the pad at Baikonur.",
+  "name": "CVEL: Proton-K, Baikonur",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Proton-K",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 0
+      },
+      "ship": "CVEL Fregat",
+      "surface": {
+        "base": "baikonur"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 1
+      },
+      "ship": "Luna E3",
+      "surface": {
+        "base": "baikonur"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/proton_k_baikonur-1794472263441021141-0.png"
 }

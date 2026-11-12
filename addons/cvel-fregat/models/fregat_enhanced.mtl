@@ -1,0 +1,79 @@
+newmtl Tank_Titanium
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.82
+Pr 0.42
+map_Kd Tank_Titanium_albedo.png
+map_Bump Tank_Titanium_normal.png
+
+newmtl Tank_Welds
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.86
+Pr 0.46
+map_Kd Tank_Welds_albedo.png
+map_Bump Tank_Welds_normal.png
+
+newmtl Structural_Alloy
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.87
+Pr 0.5
+map_Kd Structural_Alloy_albedo.png
+map_Bump Structural_Alloy_normal.png
+
+newmtl Thermal_Blanket
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.12
+Pr 0.84
+map_Kd Thermal_Blanket_albedo.png
+map_Bump Thermal_Blanket_normal.png
+
+newmtl Engine_Bell
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.88
+Pr 0.4
+map_Kd Engine_Bell_albedo.png
+map_Bump Engine_Bell_normal.png
+
+newmtl Engine_Interior
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.82
+Pr 0.62
+map_Kd Engine_Interior_albedo.png
+map_Bump Engine_Interior_normal.png
+
+newmtl Pipework
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.8
+Pr 0.46
+map_Kd Pipework_albedo.png
+map_Bump Pipework_normal.png
+
+newmtl Avionics
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.2
+Pr 0.73
+map_Kd Avionics_albedo.png
+map_Bump Avionics_normal.png
+
+newmtl Insulation_Black
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.04
+Pr 0.9
+map_Kd Insulation_Black_albedo.png
+map_Bump Insulation_Black_normal.png
+
+newmtl Markings
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Pm 0.03
+Pr 0.79
+map_Kd Markings_albedo.png
+map_Bump Markings_normal.png

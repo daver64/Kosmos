@@ -1,37 +1,63 @@
 newmtl stage01black6
-Kd 0.000 0.000 0.000
+Kd 1.000 1.000 1.000
 Ks 0.553 0.553 0.553
 Ke 0.000 0.000 0.000
+Pm 0.730
+Pr 0.560
+map_Kd textures/protonstg3_stage01black6_albedo.png
+map_Bump textures/protonstg3_stage01black6_normal.png
 
 newmtl material050
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_material050_albedo.png
+map_Bump textures/protonstg3_material050_normal.png
 
 newmtl material041
-Kd 0.518 0.518 0.518
+Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_material041_albedo.png
+map_Bump textures/protonstg3_material041_normal.png
 
 newmtl material014
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_material014_albedo.png
+map_Bump textures/protonstg3_material014_normal.png
 
 newmtl material023_protoncover
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/protoncover.png
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_material023_protoncover_albedo.png
+map_Bump textures/protonstg3_material023_protoncover_normal.png
 
 newmtl material032_Proton3rd
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
-map_Kd textures/Proton3rd.png
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_material032_Proton3rd_albedo.png
+map_Bump textures/protonstg3_material032_Proton3rd_normal.png
 
 newmtl stage01white5
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
+Pm 0.030
+Pr 0.770
+map_Kd textures/protonstg3_stage01white5_albedo.png
+map_Bump textures/protonstg3_stage01white5_normal.png
 
