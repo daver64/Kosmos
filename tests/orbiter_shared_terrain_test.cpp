@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <memory>
+#include <string>
 #include <utility>
 
 namespace
@@ -44,6 +45,39 @@ int main()
     auto mesh = std::make_shared<kosmos::MeshSource>(natural, radius, std::vector<kosmos::MeshSource::Placed>{placed});
     assert(mesh->height_on_sphere(-origin, radius) == 10.0);
     assert(mesh->height_on_sphere_lod(-origin, radius, 20.0) == 30.0);
+
+    {
+        std::vector<kosmos::Base> bases;
+        std::string error;
+        const std::string root = KOSMOS_TEST_ROOT;
+        assert(kosmos::load_bases(root + "/data/bases/outposts.json", bases, error));
+        const auto gale = std::find_if(bases.begin(), bases.end(), [](const kosmos::Base &base) { return base.id == "gale"; });
+        assert(gale != bases.end() && gale->terrain_meshes.size() == 1);
+        auto spec = gale->terrain_meshes.front();
+        auto crater = std::make_shared<kosmos::MeshGrid>();
+        assert(kosmos::load_mesh_grid(spec, root + "/data/" + spec.file, "", *crater, error));
+        kosmos::Base base = *gale;
+        base.direction = origin;
+        base.pole = forward;
+        const auto placement = kosmos::MeshSource::place(base, radius, spec, crater, 400.0 + spec.y);
+        kosmos::MeshSource blended(natural, radius, {placement});
+        spec.blend = 0.0;
+        kosmos::MeshSource unblended(natural, radius, {kosmos::MeshSource::place(base, radius, spec, crater, 400.0 + spec.y)});
+        const double half_width = 0.5 * (crater->width - 1) * crater->cell;
+        const double half_height = 0.5 * (crater->height - 1) * crater->cell;
+        const auto direction = [&](double u, double v)
+        {
+            return glm::normalize(origin + (placement.right * (placement.x + u) + placement.forward * (placement.z + v)) / radius);
+        };
+        for (double along : {-1000.0, 0.0, 1000.0})
+            for (const auto &point : {std::pair<double, double>{-half_width + 300.0, along},
+                                      {half_width - 300.0, along}, {along, -half_height + 300.0},
+                                      {along, half_height - 300.0}})
+                assert(std::fabs(blended.height_on_sphere(direction(point.first, point.second), radius) - 10.0) < 100.0);
+        const auto centre = direction(0.0, 0.0);
+        assert(unblended.height_on_sphere(centre, radius) > 200.0);
+        assert(std::fabs(blended.height_on_sphere(centre, radius) - unblended.height_on_sphere(centre, radius)) < 1e-5);
+    }
 
     // Averaging nodes moves each mip sample to the centre of its source footprint.
     for (const auto &dimensions : {std::pair<int, int>{5, 5}, {6, 8}, {7, 5}, {5, 6}})

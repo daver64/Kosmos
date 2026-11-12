@@ -208,6 +208,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Cla
     target_link_options(orbiter_shared_terrain_test PRIVATE -Wl,--gc-sections)
     target_link_libraries(orbiter_shared_terrain_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
     target_include_directories(orbiter_shared_terrain_test PRIVATE src)
+    target_compile_definitions(orbiter_shared_terrain_test PRIVATE KOSMOS_TEST_ROOT="${CMAKE_SOURCE_DIR}")
     if(KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF)
         add_executable(orbiter_relief_colour_test EXCLUDE_FROM_ALL tests/orbiter_relief_colour_test.cpp src/terrain_mesh.cpp src/planet_data.cpp)
         target_compile_options(orbiter_relief_colour_test PRIVATE -ffunction-sections -fdata-sections)
