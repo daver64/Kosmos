@@ -340,8 +340,10 @@ int main()
         assert(nav.dock_links().size() == 3);
         const sl::dvec3 origin = fleet[0]->origin();
         assert(std::abs((fleet[1]->origin() - origin).z + 19.2) < 1e-6);
-        assert(std::abs((fleet[2]->origin() - origin).z + 20.0) < 1e-6);
-        assert(std::abs((fleet[3]->origin() - origin).z + 21.67) < 1e-6);
+        const double fregat_z = -19.2 + centaur.ports[1].position.z - fregat.ports[0].position.z;
+        const double probe_z = fregat_z + fregat.ports[1].position.z - probe.ports[0].position.z;
+        assert(std::abs((fleet[2]->origin() - origin).z - fregat_z) < 1e-6);
+        assert(std::abs((fleet[3]->origin() - origin).z - probe_z) < 1e-6);
         const double payload_mass = fleet[1]->body().mass() + fleet[2]->body().mass() + fleet[3]->body().mass();
         const double full_mass = fleet[0]->body().mass();
         assert(fleet[0]->stage_once() && fleet[0]->active_stage() == 3);

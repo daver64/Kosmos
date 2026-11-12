@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check both Deltaglider variants' cockpit artwork."""
+"""Check Deltaglider model references and both variants' cockpit artwork."""
 
 import json
 import struct
@@ -31,6 +31,20 @@ for script in ("dg_aoa.lua", "dg_slip.lua", "dg_slope.lua"):
     assert 'g:image("panel/panel1.png"' in text, script
 
 vc = root / "addons/cvel-deltaglider/models"
+counts = [0, 0, 0]
+for line_number, line in enumerate((vc / "deltaglider.obj").open(), 1):
+    fields = line.split()
+    if not fields:
+        continue
+    if fields[0] in ("v", "vt", "vn"):
+        counts[("v", "vt", "vn").index(fields[0])] += 1
+    elif fields[0] == "f":
+        for corner in fields[1:]:
+            for index, value in enumerate(corner.split("/")):
+                if value:
+                    ref = int(value)
+                    assert 0 < ref <= counts[index] or -counts[index] <= ref < 0, (line_number, corner)
+
 material = (vc / "deltaglider_vc.mtl").read_text().splitlines()
 for texture in ("dgmk4_2", "dgmk4_3", "dgmk4_4", "dgip_01", "dgip_03", "dgip_04", "dgip_05", "dg_vc4", "noise1"):
     path = f"textures/orbiter-vc/{texture}.png"

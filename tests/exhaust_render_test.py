@@ -21,6 +21,7 @@ part = spec["stages"][0]["parts"][0]
 model = root / "addons/cvel-fregat" / part["model"]
 vertices, uvs, engine_points = [], [], []
 materials, active_material = set(), ""
+tanks = []
 
 
 def ship_point(point):
@@ -48,12 +49,18 @@ for line in model.read_text().splitlines():
     elif fields[0] == "usemtl":
         active_material = fields[1]
         materials.add(active_material)
+        if active_material == "Tank_Titanium":
+            tanks.append([])
     elif fields[0] == "f":
+        face_points = []
         for token in fields[1:]:
             indices = token.split("/")
             assert 0 < int(indices[0]) <= len(vertices) and len(indices) > 1 and 0 < int(indices[1]) <= len(uvs)
+            face_points.append(vertices[int(indices[0]) - 1])
             if active_material == "Engine_Interior":
                 engine_points.append(vertices[int(indices[0]) - 1])
+        if active_material == "Tank_Titanium":
+            tanks[-1].append(face_points)
 
 defined_materials = set()
 for line in material_file.read_text().splitlines():
@@ -66,6 +73,20 @@ for line in material_file.read_text().splitlines():
         with Image.open(material_file.parent / fields[-1]) as texture:
             texture.verify()
 assert materials <= defined_materials and engine_points
+assert tanks
+for tank in tanks:
+    points = [p for face in tank for p in face]
+    center = [(min(p[i] for p in points) + max(p[i] for p in points)) / 2 for i in range(3)]
+    outward = 0
+    for a, b, c in tank:
+        u = [b[i] - a[i] for i in range(3)]
+        v = [c[i] - a[i] for i in range(3)]
+        normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        centroid = [(a[i] + b[i] + c[i]) / 3 - center[i] for i in range(3)]
+        facing = sum(normal[i] * centroid[i] for i in range(3))
+        assert facing >= -1e-10
+        outward += facing > 1e-10
+    assert outward
 assert abs(max(p[2] for p in engine_points) - engine["position"][2]) < 0.02
 assert all(min(p[i] for p in engine_points) <= engine["position"][i] <= max(p[i] for p in engine_points)
            for i in (0, 1))

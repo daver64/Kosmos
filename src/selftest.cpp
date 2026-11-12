@@ -2634,10 +2634,13 @@ namespace kosmos
                 return fail("initial payload stack not docked");
             Ship *buran = sim.ship(1);
             const sl::dmat3 inverse = glm::transpose(buran->body().rotation());
+            const double centaur_z = -3.5;
+            const double fregat_z = centaur_z + sim.ship(2)->spec().ports[1].position.z - sim.ship(3)->spec().ports[0].position.z;
+            const double probe_z = fregat_z + sim.ship(3)->spec().ports[1].position.z - sim.ship(4)->spec().ports[0].position.z;
             for (int i = 2; i <= 4; ++i)
             {
                 const sl::dvec3 local = inverse * (sim.ship(i)->origin() - buran->origin());
-                const sl::dvec3 expected(0.0, 1.3, i == 2 ? -3.5 : i == 3 ? -4.3 : -5.97);
+                const sl::dvec3 expected(0.0, 1.3, i == 2 ? centaur_z : i == 3 ? fregat_z : probe_z);
                 if (glm::length(local - expected) > 0.02 ||
                     glm::length(inverse * sim.ship(i)->body().rotation()[2] - sl::dvec3(0, 0, 1)) > 1e-5)
                     return fail("payload is not aligned in the bay");

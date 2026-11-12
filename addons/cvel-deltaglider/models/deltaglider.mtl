@@ -59,52 +59,68 @@ Ke 0.000 0.000 0.000
 map_Kd textures/DGPILOT1.png
 
 newmtl glider1_2_B_DG_DGMK4_2
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.973 0.949 0.886
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_2.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_1_DG_DGMK4_1
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_1.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_1_A_DG_DGMK4_1
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.863 0.914 0.937
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_1.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_1_B_DG_DGMK4_1
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.973 0.949 0.886
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_1.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_1_M_DG_DGMK4_1
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.271 0.271 0.271
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_1.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_2_DG_DGMK4_2
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 1.000 1.000 1.000
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_2.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_2_A_DG_DGMK4_2
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.863 0.914 0.937
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_2.png
+Pm 0.03
+Pr 0.85
 
 newmtl glider4_2_M_DG_DGMK4_2
-Kd 1.000 1.000 1.000
+Kd 1 1 1
 Ks 0.271 0.271 0.271
 Ke 0.000 0.000 0.000
 map_Kd textures/DGMK4_2.png
+Pm 0.03
+Pr 0.85
 
 newmtl gliderID1_DG_IDPANEL1
 Kd 1.000 1.000 1.000
