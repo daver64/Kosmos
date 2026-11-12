@@ -1,0 +1,16 @@
+{
+  "active": 0,
+  "date": "1970-06-01 06:00:00",
+  "description": "CVELN1 three-stage cargo launcher on the pad at Baikonur.",
+  "name": "CVELN1, Baikonur",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVELN1",
+      "surface": {
+        "base": "baikonur"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/cveln1_baikonur-1794470649383484650-0.png"
+}

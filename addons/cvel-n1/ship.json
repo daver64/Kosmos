@@ -1,0 +1,1042 @@
+{
+  "name": "CVELN1",
+  "class": "launcher",
+  "script": "@launcher.lua",
+  "description": "N1-inspired three-stage cargo launcher. Split fairing and escape tower are an approximation.",
+  "torque_accel": 0.12,
+  "max_rate": 0.25,
+  "rcs_thrust": 0,
+  "drag_area": 90,
+  "camera_distance": 140,
+  "camera_target": [
+    0,
+    0,
+    -52
+  ],
+  "ports": [
+    {
+      "name": "Payload",
+      "position": [
+        0,
+        0,
+        -62.3
+      ],
+      "direction": [
+        0,
+        0,
+        -1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "stage": 4
+    }
+  ],
+  "payload_bays": [
+    {
+      "name": "Cargo shroud",
+      "shape": "cylinder",
+      "radius": 2.7,
+      "length": 20,
+      "port": "Payload"
+    }
+  ],
+  "stages": [
+    {
+      "name": "Block A",
+      "dry_mass": 180800,
+      "propellant": 1750000,
+      "z": -15.05,
+      "length": 30.1,
+      "radius": 8.44,
+      "separation_speed": 2,
+      "engines": [
+        {
+          "position": [
+            6.35,
+            0.0,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            6.13363,
+            1.6435,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            5.49926,
+            3.175,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            4.49013,
+            4.49013,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            3.175,
+            5.49926,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.6435,
+            6.13363,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            0.0,
+            6.35,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -1.6435,
+            6.13363,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -3.175,
+            5.49926,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -4.49013,
+            4.49013,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -5.49926,
+            3.175,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -6.13363,
+            1.6435,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -6.35,
+            0.0,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -6.13363,
+            -1.6435,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -5.49926,
+            -3.175,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -4.49013,
+            -4.49013,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -3.175,
+            -5.49926,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -1.6435,
+            -6.13363,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -0.0,
+            -6.35,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.6435,
+            -6.13363,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            3.175,
+            -5.49926,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            4.49013,
+            -4.49013,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            5.49926,
+            -3.175,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            6.13363,
+            -1.6435,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            2.42487,
+            1.4,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            0.0,
+            2.8,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -2.42487,
+            1.4,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -2.42487,
+            -1.4,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -0.0,
+            -2.8,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            2.42487,
+            -1.4,
+            -0.02
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 297,
+          "plume": 85,
+          "plume_width": 1.05,
+          "plume_glow": 0.8,
+          "plume_density": 3.5,
+          "type": "rocket",
+          "fuel": "kerosene"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/block_a.obj"
+        }
+      ],
+      "gear": [
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          -6,
+          0,
+          0
+        ],
+        [
+          0,
+          6,
+          0
+        ],
+        [
+          0,
+          -6,
+          0
+        ]
+      ]
+    },
+    {
+      "name": "Block B",
+      "dry_mass": 52200,
+      "propellant": 505000,
+      "z": -40.35,
+      "length": 20.5,
+      "radius": 5.15,
+      "separation_speed": 2,
+      "engines": [
+        {
+          "position": [
+            2.54067,
+            1.05238,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.05238,
+            2.54067,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -1.05238,
+            2.54067,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -2.54067,
+            1.05238,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -2.54067,
+            -1.05238,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -1.05238,
+            -2.54067,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.05238,
+            -2.54067,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            2.54067,
+            -1.05238,
+            -28.2
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 1672000,
+          "isp": 330,
+          "isp_sl": 280,
+          "plume": 35,
+          "plume_width": 0.8,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/block_b.obj"
+        }
+      ]
+    },
+    {
+      "name": "Shroud left",
+      "dry_mass": 2500,
+      "propellant": 0,
+      "z": -81,
+      "length": 43.2,
+      "radius": 3.05,
+      "separation_speed": 2,
+      "separation_dir": [
+        -1,
+        0,
+        -0.15
+      ],
+      "with_next": true,
+      "engines": [],
+      "parts": [
+        {
+          "model": "models/shroud_left.obj"
+        }
+      ]
+    },
+    {
+      "name": "Shroud right",
+      "dry_mass": 2500,
+      "propellant": 0,
+      "z": -81,
+      "length": 43.2,
+      "radius": 3.05,
+      "separation_speed": 2,
+      "separation_dir": [
+        1,
+        0,
+        -0.15
+      ],
+      "with_next": false,
+      "engines": [],
+      "parts": [
+        {
+          "model": "models/shroud_right.obj"
+        }
+      ]
+    },
+    {
+      "name": "Block V",
+      "dry_mass": 13700,
+      "propellant": 175000,
+      "z": -56.15,
+      "length": 11.1,
+      "radius": 3.65,
+      "separation_speed": 2,
+      "engines": [
+        {
+          "position": [
+            -1.35,
+            -1.35,
+            -48.6
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 400000,
+          "isp": 350,
+          "isp_sl": 280,
+          "plume": 17,
+          "plume_width": 0.65,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            -1.35,
+            1.35,
+            -48.6
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 400000,
+          "isp": 350,
+          "isp_sl": 280,
+          "plume": 17,
+          "plume_width": 0.65,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.35,
+            -1.35,
+            -48.6
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 400000,
+          "isp": 350,
+          "isp_sl": 280,
+          "plume": 17,
+          "plume_width": 0.65,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        },
+        {
+          "position": [
+            1.35,
+            1.35,
+            -48.6
+          ],
+          "direction": [
+            0,
+            0,
+            -1
+          ],
+          "thrust": 400000,
+          "isp": 350,
+          "isp_sl": 280,
+          "plume": 17,
+          "plume_width": 0.65,
+          "plume_glow": 0.6,
+          "plume_density": 0.7,
+          "type": "rocket",
+          "fuel": "kerosene"
+        }
+      ],
+      "parts": [
+        {
+          "model": "models/block_v.obj"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+# N1 Kosmos PBR material pass; values are artistic starting points.
+# Original geometry and UVs unchanged.
+
+newmtl hull
+Kd 0.72 0.73 0.72
+Pm 0.04
+Pr 0.76
+Ke 0 0 0
+
+newmtl detail
+Kd 0.47 0.48 0.47
+Pm 0.35
+Pr 0.57
+Ke 0 0 0
+
+newmtl truss
+Kd 0.32 0.33 0.32
+Pm 0.70
+Pr 0.50
+Ke 0 0 0
+
+newmtl engine
+Kd 0.31 0.3 0.28
+Pm 0.80
+Pr 0.42
+Ke 0 0 0
+
+newmtl engine_dark
+Kd 0.1 0.1 0.1
+Pm 0.50
+Pr 0.70
+Ke 0 0 0
+
+newmtl interior
+Kd 0.38 0.38 0.36
+Pm 0.20
+Pr 0.70
+Ke 0 0 0
+
+newmtl tower
+Kd 0.76 0.76 0.74
+Pm 0.08
+Pr 0.72
+Ke 0 0 0
+
+newmtl textured
+Kd 1 1 1
+Pm 0.12
+Pr 0.70
+Ke 0 0 0
+map_Kd n1tex.png
+map_Bump n1_normal.png

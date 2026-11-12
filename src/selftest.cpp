@@ -2144,6 +2144,29 @@ namespace kosmos
             std::puts("Buran docked gear selftest ok");
             return 0;
         }
+        if (sim.props.get_bool("/selftest/cveln1-staging"))
+        {
+            if (!ship || ship->spec().name != "CVELN1" || !sim.nav.docked(sim.active_index()) ||
+                ship->active_stage() != 0 || !ship->stage_once() || ship->active_stage() != 1 ||
+                !ship->stage_once() || ship->active_stage() != 2 || !ship->stage_once() ||
+                ship->active_stage() != 4 || ship->debris().size() != 4 || !ship->port_attached(0))
+            {
+                std::fprintf(stderr, "CVELN1 staging selftest: stage or payload attachment failed\n");
+                return 1;
+            }
+            const auto &debris = ship->debris();
+            const sl::FlightBody *left = sim.universe.world.body(debris[2].body);
+            const sl::FlightBody *right = sim.universe.world.body(debris[3].body);
+            if (debris[2].stage != 2 || debris[3].stage != 3 || !left || !right ||
+                glm::dot(right->velocity - left->velocity, ship->body().direction_to_world(sl::dvec3(1, 0, 0))) <= 0.0 ||
+                !sim.nav.docked(sim.active_index()))
+            {
+                std::fprintf(stderr, "CVELN1 staging selftest: shroud debris did not separate outwards\n");
+                return 1;
+            }
+            std::puts("CVELN1 staging selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/energia-autopilot"))
         {
             if (!ship || ship->spec().name != "CVEL Energia" || ship->active_stage() != 0)

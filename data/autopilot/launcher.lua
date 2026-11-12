@@ -15,6 +15,8 @@ local R_EARTH = 6.371e6
 -- below 1; max_pitch caps how far it will pitch up to resist sinking.
 -- inert_after, inert: after leaving that stage, this many engineless stages are jettisoned straight away.
 -- last: the last stage the autopilot burns (a capsule or payload stage after it is left for the pilot).
+-- actual_periapsis: estimate the circularisation burn using the actual sub-surface periapsis.
+-- precise_orbit: require periapsis within 5 km of target rather than ending on a wider circularity tolerance.
 local vehicles = {
   ["CVEL Soyuz-FG"] = { kick_speed = 35, kick = 88, closed_alt = 45000, mid_pitch = 35, climb = 250, gain = 0.2, last = 5, inert_after = 1, inert = 3 },
   ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
@@ -25,6 +27,7 @@ local vehicles = {
   ["CVEL Saturn V MLV3"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 2 },
   ["CVEL Saturn V-23L"] = { kick_speed = 50, kick = 87, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Proton-K"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
+  ["CVELN1"] = { kick_speed = 30, kick = 86, closed_alt = 45000, mid_pitch = 25, climb = 300, lofted = true, max_pitch = 30, last = 4, inert_after = 1, inert = 1, actual_periapsis = true, precise_orbit = true },
   ["CVEL Titan I"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3, inert_after = 0, inert = 1 },
   ["CVEL Titan II"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3, inert_after = 0, inert = 1 },
   ["CVEL Titan IIIB"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 0, inert = 1 },
@@ -177,7 +180,7 @@ function update(dt)
     props.set("/controls/throttle", 0.0)
     props.set("/controls/sas", "prograde")
     local ra = R_EARTH + apoapsis
-    local rp = R_EARTH + math.max(periapsis, 0.0)
+    local rp = config.actual_periapsis and math.max(R_EARTH + periapsis, 1.0) or R_EARTH + math.max(periapsis, 0.0)
     local dv = math.sqrt(MU_EARTH / ra) - apoapsis_speed(ra, rp)
     -- Half the burn before the apoapsis and half after, at the acceleration the remaining stage gives.
     local burn_time = dv / math.max(get("twr") * 9.81, 1.0)
@@ -195,7 +198,7 @@ function update(dt)
   elseif phase == "circularise" then
     props.set("/controls/sas", "prograde")
     props.set("/controls/throttle", 1.0)
-    if periapsis >= target - 5000.0 or (periapsis > 100000.0 and apoapsis - periapsis < 15000.0) then
+    if periapsis >= target - 5000.0 or (not config.precise_orbit and periapsis > 100000.0 and apoapsis - periapsis < 15000.0) then
       finish("In orbit")
     elseif get("stage-fuel") < 1.0 then
       finish("Out of propellant")

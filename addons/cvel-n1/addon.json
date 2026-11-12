@@ -1,0 +1,7 @@
+{
+  "id": "cvel-n1",
+  "name": "CVELN1",
+  "version": "0.1",
+  "description": "N1-inspired three-stage heavy cargo launcher with a split shroud.",
+  "ships": ["ship.json"]
+}

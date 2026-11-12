@@ -148,7 +148,7 @@ The keys below are the defaults. View > Keyboard rebinds the configurable action
 | Ctrl+C | Start or stop video recording |
 | Ctrl+Esc | Quit the simulator (fixed shortcut) |
 | Ctrl+Q | Quit the simulator (default configurable shortcut) |
-| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel and the CVEL Soyuz-FG, Energia and Energia-M, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
+| P | Autopilot (aircraft: hold heading, altitude and thrust; rockets: ascent, for the Kestrel, CVELN1 and the CVEL Soyuz-FG, Energia and Energia-M, Delta IV Heavy, Atlas III, Proton-K, the Titans and the Saturn V, V-23L and MLV3). The Autopilot menu has an Aircraft and a Spacecraft window; P also cancels an active autoland, timed burn or ship-specific ascent |
 | R / T | Time warp down / up; up to 50x with engines firing in vacuum (Shift+R restarts the scenario) |
 | `,` | Wheel brakes |
 | Ctrl+M (or Tab) | Orrery map (F: focus, `-` `=` zoom, right-drag rotate) |
@@ -233,6 +233,14 @@ High time warp remains limited while another live vessel is flying in an atmosph
 | `--life-support off\|warn\|fatal` | What failing life support does to a crew: nothing, alarms only (default), or the crew dies and the flight ends. A scenario's `life_support` key overrides it |
 | `--hud MODE` | Start with the head-up display in `orbit`, `surface` or `docking` mode (`H` cycles, `Alt+H` changes colour; shown in cockpit views only). Aircraft offer only the `surface` HUD unless the cockpit lists others in `"hud_modes"` |
 | `--version` | Print the Kosmos version and exit |
+
+### CVELN1
+
+**CVELN1, Baikonur** is an N1-inspired three-stage cargo launcher. Its own meshes depict Blocks A, B and V, open interstage trusses, 30/8/4 engine clusters and a split shroud with an escape tower. The drawing is a side view: the unseen details, cargo shroud, tower and payload bay are approximations, not a reconstruction of a particular historical mission. The scenario starts empty; the payload bay is estimated at 2.7 m radius and 20 m long.
+
+Press P for the shared launcher ascent autopilot (default 200 km, heading 090). It stages Block A, Block B, both shroud halves together, then burns Block V and circularises. Manually, press Space once for each of those three separations; on the last stage Space releases the docked payload. The autopilot has been tested from Baikonur with a 95,000 kg docked test payload, not with every payload or launch site. Monitor the ascent and take over if needed.
+
+The drawing supplies the approximate 30.1/20.5/11.1 m stage lengths and 1,750/505/175 tonne propellant loads. Dry masses of 180.8/52.2/13.7 tonnes and representative engine performance follow the [Block A](https://russianspaceweb.com/n1_a.html), [Block B](https://russianspaceweb.com/n1_b.html) and [Block V](https://russianspaceweb.com/n1_v.html) descriptions; the 5 tonne shroud, drag and bay dimensions are estimates. This combines sources and is not an exact model of a single N1 variant. Regenerate the original meshes and ship specification with `python3 scripts/make-cveln1.py`; `python3 tests/cveln1_test.py build/kosmos` checks staging and the loaded ascent.
 
 ### Ship-specific ascent MFDs
 
