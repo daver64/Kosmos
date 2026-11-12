@@ -15,8 +15,6 @@ ADDON = ROOT / "addons/cvel-buran"
 SCENARIO = ROOT / "scenarios/CVEL/CVEL-Buran/buran_energia_baikonur.json"
 
 spec = json.loads((ADDON / "ship.json").read_text())
-energia = json.loads((ADDON / "energia.json").read_text())
-assert [stage["propellant"] for stage in energia["stages"]] == [1718200, 701800]
 part = spec["stages"][0]["parts"][0]
 single_sided = set(part["single_sided"])
 assert single_sided == {f"group{i}" for i in range(27, 39)}

@@ -18,8 +18,17 @@ rtg = json.loads((root / "addons/probe/ship_rtg.json").read_text())
 assert [item["type"] for item in solar["systems"]].count("solar") == 1
 assert [item["type"] for item in rtg["systems"]].count("rtg") == 1
 assert not any(item["type"] == "solar" for item in rtg["systems"])
-assert [item for item in solar["systems"] if item["type"] != "solar"] == [
-    item for item in rtg["systems"] if item["type"] != "rtg"
+solar_loads = [item for item in solar["systems"] if item["type"] == "load"]
+rtg_loads = [item for item in rtg["systems"] if item["type"] == "load"]
+assert all(not item.get("enabled", True) for item in solar_loads)
+assert {item["name"] for item in rtg_loads if item.get("enabled", True)} == {
+    "Command receiver", "Radio transmitters and telemetry", "Thermal control fans",
+    "Gyro units and Sun sensors", "Cosmic ray and micrometeoroid counters"
+}
+assert [{key: value for key, value in item.items() if key != "enabled"}
+        for item in solar["systems"] if item["type"] != "solar"] == [
+    {key: value for key, value in item.items() if key != "enabled"}
+    for item in rtg["systems"] if item["type"] != "rtg"
 ]
 solar["systems"] = rtg["systems"]
 solar["name"] = rtg["name"]
