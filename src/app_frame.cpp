@@ -254,13 +254,24 @@ namespace kosmos::app
         if (thumbnail_requested && sl::time_ms() >= screenshot_due_ms)
         {
             thumbnail_requested = false;
-            std::string image, problem;
+            std::string image, problem, capture_error;
             if (kosmos::save_scenario_thumbnail(thumbnail_scenario_path,
-                                               [](const std::string &path) { return sl::save_bitmap(sl::screen, path); },
+                                               [&capture_error](const std::string &path) {
+                                                   if (!sl::acquire_bitmap(sl::screen))
+                                                   {
+                                                       capture_error = "Cannot read the screen pixels";
+                                                       return false;
+                                                   }
+                                                   return kosmos::write_thumbnail_png(path, sl::screen->pixels,
+                                                                                      sl::screen->width, sl::screen->height,
+                                                                                      capture_error);
+                                               },
                                                image, problem))
                 sim.log("Saved scenario thumbnail " + image);
             else
             {
+                if (!capture_error.empty())
+                    problem += ": " + capture_error;
                 std::fprintf(stderr, "kosmos: %s\n", problem.c_str());
                 sim.log(problem);
             }

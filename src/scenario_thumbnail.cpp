@@ -9,8 +9,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <system_error>
 #include <vector>
+
+#include <png.h>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -97,6 +100,46 @@ namespace kosmos
             }
             return true;
         }
+    }
+
+    bool write_thumbnail_png(const std::string &path, const std::vector<std::uint8_t> &pixels,
+                             int width, int height, std::string &error)
+    {
+        error.clear();
+        if (width <= 0 || height <= 0 ||
+            static_cast<std::size_t>(width) > std::numeric_limits<std::size_t>::max() / 4 / static_cast<std::size_t>(height) ||
+            pixels.size() != static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4)
+        {
+            error = "Invalid thumbnail pixel buffer";
+            return false;
+        }
+        const fs::path file_path = fs::u8path(path);
+#ifdef _WIN32
+        FILE *file = _wfopen(file_path.c_str(), L"wb");
+#else
+        FILE *file = std::fopen(file_path.c_str(), "wb");
+#endif
+        if (!file)
+        {
+            error = "Cannot open thumbnail " + path;
+            return false;
+        }
+        png_image image{};
+        image.version = PNG_IMAGE_VERSION;
+        image.width = static_cast<png_uint_32>(width);
+        image.height = static_cast<png_uint_32>(height);
+        image.format = PNG_FORMAT_RGBA;
+        const bool written = png_image_write_to_stdio(&image, file, 0, pixels.data(), 0, nullptr) != 0;
+        if (!written)
+            error = "Cannot encode thumbnail " + path + ": " + image.message;
+        png_image_free(&image);
+        if (std::fclose(file) != 0)
+        {
+            if (error.empty())
+                error = "Cannot finish writing thumbnail " + path;
+            return false;
+        }
+        return written;
     }
 
     bool save_scenario_thumbnail(const std::string &scenario_path,

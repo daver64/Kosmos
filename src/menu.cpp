@@ -1337,7 +1337,7 @@ namespace kosmos
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
                                    " Autoland offers untargeted Mars descent, local targets, or experimental orbital base landing for Ares, Shuttle-A and Soyuz TMA. Soyuz shows deorbit and estimated 120 km entry countdowns and aims for chute deployment near a base, not touchdown. Monitor and take over; time skips are blocked.\n"
                                    " File > Record flight saves sampled states; Open flight recording plays snapshots. Video recording is separate.\n"
-                                   " Tools > Scenario thumbnail captures the view for the active saved scenario, replacing its previous generated thumbnail; the launcher refreshes automatically.\n"
+                                   " Tools > Scenario thumbnail captures a compressed PNG for the active saved scenario, replacing its previous generated thumbnail; the launcher refreshes automatically.\n"
                                    " F3 offers optional harmonic gravity for Mercury, Venus, Earth, Moon, Mars, Ceres and Vesta; rails and time skips suspend it, and predictions stay approximate.\n"
                                    " Autopilot > Spacecraft > earth-communications points the active ship's nose at Earth in physics flight, not on rails.\n"
                                    "  Orbit MFD Orb is planet-centred speed; RADALT estimates clearance and samples a constant-speed terrain track, not obstacles or braking.\n"

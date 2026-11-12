@@ -21,6 +21,7 @@ python3 "$SRC/tests/release_web_test.py"
 python3 "$SRC/tests/github_release_test.py"
 python3 "$SRC/tests/page_report_test.py"
 python3 "$SRC/tests/scenario_addons_test.py"
+python3 "$SRC/tests/make_thumbs_test.py"
 python3 "$SRC/tests/station_assets_test.py"
 python3 "$SRC/tools/msh_import.py" --selftest
 python3 "$SRC/tests/deltaglider_panel_assets_test.py"
@@ -31,7 +32,7 @@ python3 "$SRC/tests/ares_legs_test.py"
 python3 "$SRC/tests/proton_exhaust_test.py"
 python3 "$SRC/tests/soyuz_exhaust_test.py"
 python3 "$SRC/tests/vessel_ascent_limits_test.py"
-nice cmake --build "$OUT" -j "$JOBS" --target kosmos performance_metrics_test systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test rcs_visual_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
+nice cmake --build "$OUT" -j "$JOBS" --target kosmos scenario_thumbnail_test performance_metrics_test systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test rcs_visual_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
 python3 "$SRC/tests/deltaglider_takeoff_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/buran_flight_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/exhaust_render_test.py" "$OUT/kosmos"
@@ -79,7 +80,7 @@ echo "== finite landing plane burns (Ares on Mars and Moon)"
 ./kosmos --ship "Ares Spider" --orbit-body Moon --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=tranquility --set /selftest/landing-plane-burn=true
 ./kosmos --ship "CVEL Shuttle-A" --orbit-body Earth --orbit-alt 200 --selftest 1 --set /selftest/landing-plane=true --set /selftest/landing-plane-base=kourou --set /selftest/landing-plane-burn=true
 
-for t in performance_metrics_test systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test rcs_visual_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
+for t in scenario_thumbnail_test performance_metrics_test systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test keybindings_test camera_dynamics_test rcs_visual_test landing_plane_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test; do
     echo "== $t"
     ./$t
 done

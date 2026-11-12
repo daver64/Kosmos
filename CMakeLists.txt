@@ -141,7 +141,8 @@ add_executable(kosmos
     src/interior.cpp
     src/interior_runtime.cpp
     src/TextEditor.cpp)
-target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS})
+find_package(PNG REQUIRED)
+target_link_libraries(kosmos PRIVATE ${KOSMOS_SIMLIB_LIBS} PNG::PNG)
 # Live weather downloads: WinHTTP on Windows (always present), libcurl where it is installed, otherwise live weather is off.
 find_package(Threads REQUIRED)
 target_link_libraries(kosmos PRIVATE Threads::Threads)
@@ -186,6 +187,7 @@ target_compile_definitions(systems_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAI
 
 add_executable(scenario_thumbnail_test EXCLUDE_FROM_ALL tests/scenario_thumbnail_test.cpp src/scenario_thumbnail.cpp)
 target_include_directories(scenario_thumbnail_test PRIVATE src ${KOSMOS_JSON_INCLUDE})
+target_link_libraries(scenario_thumbnail_test PRIVATE PNG::PNG)
 target_compile_features(scenario_thumbnail_test PRIVATE cxx_std_17)
 
 add_executable(orbiter_tree_lookup_test EXCLUDE_FROM_ALL tests/orbiter_tree_lookup_test.cpp src/planet_data.cpp)
@@ -226,7 +228,6 @@ add_executable(plasma_look_test EXCLUDE_FROM_ALL tests/plasma_look_test.cpp)
 target_include_directories(plasma_look_test PRIVATE src)
 
 # PNG texture check with libpng, as the game loads them: cmake --build build --target png_check && build/png_check [--fix] [PATH...]
-find_package(PNG QUIET)
 if(PNG_FOUND)
     add_executable(png_check EXCLUDE_FROM_ALL tests/png_check.cpp)
     target_link_libraries(png_check PRIVATE PNG::PNG ${KOSMOS_SIMLIB_LIBS})
