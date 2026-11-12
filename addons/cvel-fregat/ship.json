@@ -1,5 +1,6 @@
 {
   "name": "CVEL Fregat",
+  "description": "Fregat upper stage. Electrical loads start off to conserve the battery during interplanetary cruise; solar charging and propulsion remain available. Enable guidance, telemetry, heaters and attitude thruster drivers in the Systems MFD or Ship systems window when needed.",
   "class": "tug",
  "payload_bays": [
   {"name": "Payload adapter", "shape": "cylinder", "radius": 1.4, "length": 3, "port": "Payload"}
@@ -31,11 +32,12 @@
       "type": "load",
       "name": "Guidance computer",
       "watts": 90,
-      "priority": 0
+      "priority": 0,
+      "enabled": false
     },
-    {"type": "load", "name": "Telemetry and radio", "watts": 50, "priority": 0},
-    {"type": "load", "name": "Tank heaters and pressurisation", "watts": 35, "priority": 1},
-    {"type": "load", "name": "Attitude thruster drivers", "watts": 25, "priority": 1}
+    {"type": "load", "name": "Telemetry and radio", "watts": 50, "priority": 0, "enabled": false},
+    {"type": "load", "name": "Tank heaters and pressurisation", "watts": 35, "priority": 1, "enabled": false},
+    {"type": "load", "name": "Attitude thruster drivers", "watts": 25, "priority": 1, "enabled": false}
   ],
   "ports": [
     {
