@@ -176,4 +176,44 @@ int main()
     vessel.gear[0].position.x = std::numeric_limits<double>::infinity();
     assert(!kosmos::check_relief_gear_contacts(vessel, centre, world_to_tile, radius, centre, 10000.0, flat, check, reason));
     assert(reason == "ship gear position is invalid");
+
+    std::vector<sl::ClutterObstacle> objects(2);
+    objects[0].position = {-1000.0, 0.0, 0.0};
+    objects[0].radius = 1.0;
+    objects[0].height = 2.0;
+    objects[1].position = {1008.0, 0.0, 0.0};
+    objects[1].radius = 1.0;
+    objects[1].height = 2.0;
+    glm::dmat4 projection(1.0);
+    projection[3][0] = -0.5;
+    int clutter_checks = 0;
+    const auto clutter_mismatch = [&](const glm::dvec3 &direction, double height, const char *where)
+    {
+        ++clutter_checks;
+        assert(glm::length(direction - glm::dvec3(1.0, 0.0, 0.0)) < 1e-10);
+        assert(std::fabs(height - 8.0) < 1e-10 && std::string(where) == "clutter");
+        return false;
+    };
+    assert(!kosmos::check_relief_clutter(objects, glm::dquat(1.0, 0.0, 0.0, 0.0), radius, projection,
+                                          clutter_mismatch, reason));
+    assert(clutter_checks == 1);
+    const auto clutter_match = [&](const glm::dvec3 &, double, const char *) { ++clutter_checks; return true; };
+    clutter_checks = 0;
+    assert(kosmos::check_relief_clutter(objects, glm::dquat(1.0, 0.0, 0.0, 0.0), radius, projection,
+                                         clutter_match, reason));
+    assert(clutter_checks == 1);
+    objects.pop_back();
+    clutter_checks = 0;
+    assert(kosmos::check_relief_clutter(objects, glm::dquat(1.0, 0.0, 0.0, 0.0), radius, projection,
+                                         clutter_mismatch, reason));
+    assert(clutter_checks == 0);
+    objects[0].radius = 600.0;
+    const auto visible_edge = [&](const glm::dvec3 &, double, const char *) { ++clutter_checks; return false; };
+    assert(!kosmos::check_relief_clutter(objects, glm::dquat(1.0, 0.0, 0.0, 0.0), radius, projection,
+                                          visible_edge, reason));
+    assert(clutter_checks == 1);
+    objects[0].height = std::numeric_limits<double>::quiet_NaN();
+    assert(!kosmos::check_relief_clutter(objects, glm::dquat(1.0, 0.0, 0.0, 0.0), radius, projection,
+                                          visible_edge, reason));
+    assert(reason == "clutter: invalid position or dimensions");
 }

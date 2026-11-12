@@ -14,6 +14,34 @@ from PIL import Image, ImageChops, ImageStat
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def check_gale_clutter(binary, temp, env, backend="gl"):
+    images = {}
+    for mode in ("terrain", "relief"):
+        config = temp / f"clutter-{backend}-{mode}"
+        settings = config / "kosmos" / "settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"gfx-clutter": True, "gfx-clutter-density": 173,
+                                        "gfx-clutter-radius": 195, "gfx-terrain-detail": 0}))
+        shot = temp / f"clutter-{backend}-{mode}.png"
+        command = [str(binary), f"--{backend}", "--root", str(ROOT), "--scenario", "ares_spider_gale_crater",
+                   "--orbital-relief-ground" if mode == "relief" else "--no-orbital-relief-ground",
+                   "--cam-pitch", "0.03", "--cam-distance", "45", "--hide-info", "--no-clouds",
+                   "--gen-threads", "1", "--perf", "--shot", str(shot), "--shot-at", "20"]
+        result = subprocess.run(command, cwd=ROOT, env=dict(env, XDG_CONFIG_HOME=str(config)),
+                                capture_output=True, text=True, timeout=180)
+        output = result.stdout + result.stderr
+        assert result.returncode == 0 and shot.is_file(), output
+        draws = re.findall(r"clutter CPU: update [\d.]+ ms, draw ([\d.]+) ms", output)
+        assert any(float(value) > 0.0 for value in draws), output
+        if mode == "relief":
+            assert re.search(r"Mars Orbiter relief: patches [1-9]\d*", output), output
+        with Image.open(shot) as image:
+            images[mode] = image.convert("RGB").crop((0, 160, 1280, 700))
+    difference = ImageStat.Stat(ImageChops.difference(images["terrain"], images["relief"])).mean
+    assert max(difference) < 2.0, f"Mars clutter did not fall back to the grounded terrain: {difference}"
+    print(f"Mars clutter ground alignment ({backend}): {difference}")
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("usage: orbital_relief_mars_test.py EXPERIMENTAL_KOSMOS")
@@ -95,6 +123,8 @@ def main():
             lander = list(image.convert("RGB").resize((1280, 720)).crop((560, 210, 720, 330)).getdata())
         assert sum(min(pixel) > 80 for pixel in lander) / len(lander) > 0.3, output
         print("Mars Gale Crater ground safeguard and visible lander ok")
+
+        check_gale_clutter(binary, temp, env)
 
         scenario = temp / "instrument-mars.json"
         scenario.write_text(json.dumps({

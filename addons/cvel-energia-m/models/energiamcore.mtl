@@ -2,10 +2,15 @@ newmtl Blackish
 Kd 0.200 0.200 0.200
 Ks 0.200 0.200 0.200
 Ke 0.000 0.000 0.000
+Pm 0.28
+Pr 0.76
 
 newmtl Hull_cvel_energiam_EnerM
 Kd 1.000 1.000 1.000
-Ks 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
 Ke 0.000 0.000 0.000
 map_Kd textures/EnerM.png
+Pm 0.03
+Pr 0.82
+map_Bump textures/EnerM_normal.png
 

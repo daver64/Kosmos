@@ -1320,6 +1320,7 @@ namespace kosmos
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
                                    "  Orbiter relief near the ground is off by default; enable it in launcher Options or with --orbital-relief-ground.\n"
                                    "  If ground relief disagrees with collision terrain, a fallback can remain in use while a nearby ship is low and slow.\n"
+                                   "  The fallback also prevents solid clutter from floating above mismatched relief.\n"
 #endif
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
                                    "  Microdetail uses assets in import/orbiter or --orbiter-microtexture-root PATH; --no-detail disables it.\n"

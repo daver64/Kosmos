@@ -1,11 +1,16 @@
 newmtl Hull_cvel_energiam_EnerM
 Kd 1.000 1.000 1.000
-Ks 1.000 1.000 1.000
+Ks 0.100 0.100 0.100
 Ke 0.000 0.000 0.000
 map_Kd textures/EnerM.png
+Pm 0.03
+Pr 0.82
+map_Bump textures/EnerM_normal.png
 
 newmtl Standoff
 Kd 0.533 0.514 0.259
 Ks 0.000 0.000 0.000
 Ke 0.000 0.000 0.000
+Pm 0.65
+Pr 0.55
 

@@ -1,56 +1,98 @@
 newmtl Black
-Kd 0.000 0.000 0.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.080
+Pr 0.830
+map_Kd textures/Black_albedo.png
+map_Bump textures/Black_normal.png
 
 newmtl GoldFoil
-Kd 0.518 0.518 0.518
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.720
+Pr 0.460
+map_Kd textures/GoldFoil_albedo.png
+map_Bump textures/GoldFoil_normal.png
 
 newmtl SilverFoil
-Kd 1.000 1.000 1.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.770
+Pr 0.380
+map_Kd textures/SilverFoil_albedo.png
+map_Bump textures/SilverFoil_normal.png
 
 newmtl copper
-Kd 0.710 0.494 0.118
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.860
+Pr 0.420
+map_Kd textures/copper_albedo.png
+map_Bump textures/copper_normal.png
 
 newmtl j2engred
-Kd 1.000 0.000 0.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.550
+Pr 0.620
+map_Kd textures/j2engred_albedo.png
+map_Bump textures/j2engred_normal.png
 
 newmtl s2inter_SPIDER
-Kd 1.000 1.000 1.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.100
+Pr 0.780
 map_Kd textures/SPIDER.png
+map_Bump textures/SPIDER_normal.png
 
 newmtl stage01black
-Kd 0.000 0.000 0.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.080
+Pr 0.880
+map_Kd textures/stage01black_albedo.png
+map_Bump textures/stage01black_normal.png
 
 newmtl stage01white
-Kd 1.000 1.000 1.000
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.040
+Pr 0.790
+map_Kd textures/stage01white_albedo.png
+map_Bump textures/stage01white_normal.png
 
 newmtl steeldark
-Kd 0.329 0.329 0.329
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.820
+Pr 0.490
+map_Kd textures/steeldark_albedo.png
+map_Bump textures/steeldark_normal.png
 
 newmtl steellight
-Kd 0.627 0.627 0.627
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.800
+Pr 0.420
+map_Kd textures/steellight_albedo.png
+map_Bump textures/steellight_normal.png
 
 newmtl steellight1
-Kd 0.627 0.627 0.627
-Ks 1.000 1.000 1.000
-Ke 0.000 0.000 0.000
-
+Ka 0.2 0.2 0.2
+Kd 1 1 1
+Ks 0.2 0.2 0.2
+Pm 0.780
+Pr 0.480
+map_Kd textures/steellight1_albedo.png
+map_Bump textures/steellight1_normal.png

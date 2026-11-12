@@ -496,7 +496,7 @@ namespace kosmos::app
                 const glm::dvec3 body_direction(-direction.x, direction.y, -direction.z);
                 return source->height_on_sphere(ground_guard->frame.orientation * body_direction, radius);
             };
-            const auto check_height = [&](const glm::dvec3 &direction, double expected, const char *where)
+            const auto check_height = [&](const glm::dvec3 &direction, double expected, const char *where, double tolerance = 1.0)
             {
                 double drawn = 0.0;
                 if (!std::isfinite(expected))
@@ -509,7 +509,7 @@ namespace kosmos::app
                     fallback_reason = std::string(where) + ": " + sl::last_error();
                     return false;
                 }
-                if (std::fabs(drawn * radius - expected) > 1.0)
+                if (std::fabs(drawn * radius - expected) > tolerance)
                 {
                     fallback_reason = std::string(where) + ": drawn height differs from collision by " +
                                       std::to_string(drawn * radius - expected) + " metres";
@@ -678,6 +678,18 @@ namespace kosmos::app
                                                                      glm::inverse(tile_frame), radius, eye_world, kosmos::relief_vessel_camera_range_m, collision_height_at,
                                                                      check_height, fallback_reason))
                     fallback = true;
+            }
+            if (!fallback && ground_guard->clutter_live && ground_guard->clutter)
+            {
+                // Clutter is anchored to collision terrain, not to the relief renderer's current LOD.
+                std::vector<sl::ClutterObstacle> objects;
+                ground_guard->clutter->obstacles(-relative, std::numeric_limits<double>::infinity(), objects);
+                const auto check_clutter_height = [&](const glm::dvec3 &direction, double expected, const char *where)
+                {
+                    return check_height(direction, expected, where, 0.15);
+                };
+                fallback = !kosmos::check_relief_clutter(objects, glm::inverse(tile_frame), radius,
+                                                         view_projection, check_clutter_height, fallback_reason);
             }
             bool hold_fallback = false;
             for (int s = 0; s < sim.ship_count(); ++s)

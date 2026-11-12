@@ -1,0 +1,1 @@
+Energia-M decal pass v2. Only textures/EnerM.png changed. Other OBJ, MTL and normal map are identical to previous working package. Fairing panels get repeated red Energia identification symbols and markings; boosters receive small Cyrillic Energia lettering. Decals are artistic and UV placement should be verified in Kosmos.\n

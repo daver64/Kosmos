@@ -1,10 +1,12 @@
 #pragma once
 
 #include "flight.h"
+#include "clutter.h"
 
 #include <cmath>
 #include <chrono>
 #include <string>
+#include <vector>
 
 namespace kosmos
 {
@@ -71,6 +73,41 @@ namespace kosmos
                 return true;
         }
         return false;
+    }
+
+    template <class CheckHeight>
+    bool check_relief_clutter(const std::vector<sl::ClutterObstacle> &objects, const glm::dquat &world_to_tile,
+                              double radius, const glm::dmat4 &view_projection, CheckHeight &&check_height,
+                              std::string &reason)
+    {
+        for (const sl::ClutterObstacle &object : objects)
+        {
+            const double distance = glm::length(object.position);
+            if (!std::isfinite(distance) || distance < 1.0 || !std::isfinite(object.radius) ||
+                !std::isfinite(object.height) || object.radius < 0.0 || object.height < 0.0)
+            {
+                reason = "clutter: invalid position or dimensions";
+                return false;
+            }
+            const glm::dvec3 direction = world_to_tile * (object.position / distance);
+            const double extent = (object.radius + object.height) / radius;
+            const glm::dvec4 clip = view_projection * glm::dvec4(direction * ((distance + object.height * 0.5) / radius), 1.0);
+            bool outside = false;
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                for (double sign : {-1.0, 1.0})
+                {
+                    const glm::dvec3 plane(view_projection[0][3] + sign * view_projection[0][axis],
+                                            view_projection[1][3] + sign * view_projection[1][axis],
+                                            view_projection[2][3] + sign * view_projection[2][axis]);
+                    if (clip.w + sign * clip[axis] < -extent * glm::length(plane))
+                        outside = true;
+                }
+            }
+            if (!outside && !check_height(direction, distance - radius, "clutter"))
+                return false;
+        }
+        return true;
     }
 
     template <class CollisionHeight, class CheckHeight>
