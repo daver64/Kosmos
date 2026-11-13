@@ -2,6 +2,7 @@
 // plane changes) and read off the delta-v ledger against the ship's stage budget. Missions save as Kosmos scenarios; a leg can be pushed to the running game
 // as a manoeuvre node over KosmosLink. The planning maths is in core/ and has no GTK in it (tests/missioncore_test.cpp).
 #include "bodies.h"
+#include "../../gtk_schema.h"
 #include "budget.h"
 #include "gl_view.h"
 #include "mission.h"
@@ -1393,6 +1394,7 @@ int main(int argc, char **argv)
             argv[kept++] = argv[i];
     }
     argc = kept;
+    kosmos_gtk_schemas("kosmosmission");
     GtkApplication *a = gtk_application_new("org.kosmos.mission", app_flags);
     g_signal_connect(a, "activate", G_CALLBACK(activate), nullptr);
     const int status = g_application_run(G_APPLICATION(a), argc, argv);

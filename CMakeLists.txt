@@ -236,7 +236,7 @@ if(PNG_FOUND)
 endif()
 
 # ShipEdit's document model (no GTK): cmake --build build --target shipedit_model_test && build/shipedit_model_test
-add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/mesh.cpp)
+add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/mesh.cpp src/part_kit.cpp)
 target_include_directories(shipedit_model_test PRIVATE sdk/shipedit/src)
 target_link_libraries(shipedit_model_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_compile_features(shipedit_model_test PRIVATE cxx_std_17)
@@ -359,6 +359,13 @@ if(KOSMOS_BUILD_LAUNCHER)
     endif()
 endif()
 
+function(kosmos_expose_tool tool)
+    add_custom_command(TARGET ${tool} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_SOURCE_DIR}/addons/${tool}/bin"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:${tool}>" "${CMAKE_SOURCE_DIR}/addons/${tool}/bin/$<TARGET_FILE_NAME:${tool}>"
+        VERBATIM)
+endfunction()
+
 # KosmosMap is a plain GTK 3 program in addons/kosmosmap, built on Linux when GTK 3 and zlib are present.
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig QUIET)
@@ -366,7 +373,7 @@ if(UNIX AND NOT APPLE)
         pkg_check_modules(KOSMOSMAP_GTK QUIET gtk+-3.0 gdk-pixbuf-2.0)
         find_package(ZLIB QUIET)
         if(KOSMOSMAP_GTK_FOUND AND ZLIB_FOUND)
-            set(KOSMOSMAP_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosmap/bin" CACHE PATH "" FORCE)
+            set(KOSMOSMAP_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
             add_subdirectory(sdk/kosmosmap)
             list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosmap)
         else()
@@ -389,17 +396,17 @@ target_compile_features(missioncore_test PRIVATE cxx_std_17)
 target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
-    set(SHIPEDIT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/shipedit/bin" CACHE PATH "" FORCE)
+    set(SHIPEDIT_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
     set(SHIPEDIT_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/shipedit)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS shipedit)
     # KosmosCAD (sdk/kosmoscad), the 3D modeller ShipEdit launches, needs GTK 3 and OpenGL 3.2.
-    set(KOSMOSCAD_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmoscad/bin" CACHE PATH "" FORCE)
+    set(KOSMOSCAD_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
     set(KOSMOSCAD_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/kosmoscad)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmoscad)
     # KosmosMission (sdk/kosmosmission), the mission planner, needs GTK 3 and OpenGL 3.2 too (Linux only for now).
-    set(KOSMOSMISSION_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosmission/bin" CACHE PATH "" FORCE)
+    set(KOSMOSMISSION_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
     set(KOSMOSMISSION_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/kosmosmission)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosmission)
@@ -408,7 +415,7 @@ endif()
 if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     find_package(CURL QUIET)
     if(CURL_FOUND)
-        set(KOSMOSAV_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/kosmosav/bin" CACHE PATH "" FORCE)
+        set(KOSMOSAV_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
         add_subdirectory(kav/client)
         list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS kosmosav)
     else()
@@ -417,7 +424,7 @@ if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
 endif()
 # planetbake, the world texture baker, sits next to KosmosMap in addons/planetbake/bin (Linux and Windows). It needs zlib, glm and
 # FastNoiseLite but not simlib; it gets a preview window where GTK 3 is found (Linux; the Windows one comes from scripts/build-win-tools.sh).
-set(PLANETBAKE_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/addons/planetbake/bin" CACHE PATH "" FORCE)
+set(PLANETBAKE_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
 # build-windows.sh builds the GTK window versions of both programs first (scripts/build-win-tools.sh) and passes KOSMOS_PREBUILT_WIN_TOOLS,
 # so the Windows build neither replaces planetbake.exe with the command line one nor needs GTK in CMake.
 option(KOSMOS_PREBUILT_WIN_TOOLS "Windows: ship the planetbake.exe, kosmosmap.exe and kosmosav.exe already built into addons" OFF)
@@ -428,6 +435,12 @@ if(TARGET planetbake)
     list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS planetbake)
 else()
     message(STATUS "planetbake will not be built (needs zlib, glm and FastNoiseLite.h)")
+endif()
+set(KOSMOS_PACKAGE_TOOL_FILES)
+if(WIN32 AND KOSMOS_PREBUILT_WIN_TOOLS)
+    foreach(_tool kosmosmap kosmosav shipedit kosmoscad kosmosmission planetbake)
+        list(APPEND KOSMOS_PACKAGE_TOOL_FILES "${CMAKE_SOURCE_DIR}/addons/${_tool}/bin/${_tool}.exe")
+    endforeach()
 endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/orbiter-defaults(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
@@ -447,6 +460,6 @@ endif()
 # it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${KOSMOS_VERSION}-${CMAKE_SYSTEM_NAME}
     ASSETS data scenarios addons assets
-    EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt"
+    EXTRA_FILES README.md "${CMAKE_BINARY_DIR}/VERSION.txt" ${KOSMOS_PACKAGE_TOOL_FILES}
     EXTRA_TARGETS ${KOSMOS_PACKAGE_EXTRA_TARGETS}
     EXCLUDE ${KOSMOS_PACKAGE_EXCLUDE})

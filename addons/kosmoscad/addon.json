@@ -4,7 +4,8 @@
   "version": "0.1",
   "native": {
     "run": {
-      "linux": "bin/kosmoscad"
+      "linux": "bin/kosmoscad",
+      "windows": "bin/kosmoscad.exe"
     },
     "capabilities": [],
     "autostart": false,

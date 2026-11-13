@@ -60,3 +60,6 @@ if(PkgConfig_FOUND AND NOT PLANETBAKE_NO_GUI AND UNIX AND NOT CMAKE_CROSSCOMPILI
     endif()
 endif()
 set_target_properties(planetbake PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PLANETBAKE_OUTPUT_DIR})
+if(COMMAND kosmos_expose_tool)
+    kosmos_expose_tool(planetbake)
+endif()

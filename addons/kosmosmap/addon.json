@@ -4,7 +4,8 @@
   "version": "0.1",
   "native": {
     "run": {
-      "linux": "bin/kosmosmap"
+      "linux": "bin/kosmosmap",
+      "windows": "bin/kosmosmap.exe"
     },
     "capabilities": [
       "read"

@@ -1,10 +1,13 @@
 #include <ctime>
 #include "model.h"
+#include "../../../src/part_kit.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
+#include <sstream>
 #include <set>
 
 namespace shipedit
@@ -54,11 +57,208 @@ namespace shipedit
                     part["z"] = part.value("z", 0.0) + dz;
             }
             for (json &engine : stage["engines"])
-                if (engine.contains("position"))
-                    shift_z(engine["position"], dz);
+            {
+                if (!engine.contains("position"))
+                    engine["position"] = json::array({0.0, 0.0, 0.0});
+                shift_z(engine["position"], dz);
+            }
             for (json &gear : stage["gear"])
                 shift_z(gear, dz);
+            if (stage.contains("rcs_visual") && stage["rcs_visual"].is_object())
+                for (const char *key : {"front_z", "rear_z"})
+                    if (stage["rcs_visual"].contains(key) && stage["rcs_visual"][key].is_number())
+                        stage["rcs_visual"][key] = stage["rcs_visual"][key].get<double>() + dz;
         }
+
+        bool under(const fs::path &file, const fs::path &base, fs::path &relative)
+        {
+            std::error_code ec;
+            const fs::path canonical = fs::canonical(file, ec);
+            if (ec)
+                return false;
+            relative = canonical.lexically_relative(base);
+            return !relative.empty() && !relative.is_absolute() && *relative.begin() != "..";
+        }
+
+        struct StageAssets
+        {
+            fs::path root;
+            std::string prefix;
+            std::map<std::string, fs::path> files;
+            std::string warning;
+
+            bool add(const fs::path &source, std::string &relative, std::string &error, bool required = true)
+            {
+                std::error_code ec;
+                if (!fs::is_regular_file(source, ec))
+                {
+                    if (required)
+                    {
+                        error = "Missing stage asset: " + source.string();
+                        return false;
+                    }
+                    warning += "\nMissing optional model asset: " + source.string();
+                    return true;
+                }
+                fs::path rel;
+                if (!under(source, root, rel))
+                {
+                    error = "Stage asset is outside the Kosmos tree: " + source.string();
+                    return false;
+                }
+                relative = (fs::path(prefix) / rel).generic_string();
+                const fs::path canonical = fs::canonical(source, ec);
+                if (ec)
+                {
+                    error = "Cannot resolve stage asset " + source.string() + ": " + ec.message();
+                    return false;
+                }
+                files[relative] = canonical;
+                return true;
+            }
+
+            bool model(const fs::path &source, std::string &relative, std::string &error)
+            {
+                if (!add(source, relative, error))
+                    return false;
+                if (source.extension() == ".obj" || source.extension() == ".OBJ")
+                {
+                    std::ifstream obj(source);
+                    if (!obj)
+                    {
+                        error = "Cannot read model: " + source.string();
+                        return false;
+                    }
+                    std::string line;
+                    while (std::getline(obj, line))
+                    {
+                        std::istringstream words(line);
+                        std::string key, name;
+                        if (!(words >> key) || key != "mtllib")
+                            continue;
+                        std::getline(words >> std::ws, name);
+                        if (!name.empty() && name.back() == '\r')
+                            name.pop_back();
+                        if (name.empty())
+                            continue;
+                        if (fs::path(name).is_absolute())
+                        {
+                            error = "The model uses an absolute material path: " + name;
+                            return false;
+                        }
+                        const fs::path mtl = source.parent_path() / name;
+                        std::string ignored;
+                        if (!add(mtl, ignored, error, false))
+                            return false;
+                        if (ignored.empty())
+                            continue;
+                        std::ifstream material(mtl);
+                        if (!material)
+                        {
+                            error = "Cannot read material: " + mtl.string();
+                            return false;
+                        }
+                        while (std::getline(material, line))
+                        {
+                            std::istringstream fields(line);
+                            std::string type, token, last;
+                            fields >> type;
+                            if (type != "map_Kd" && type != "norm" && type != "map_Bump" && type != "map_bump" && type != "bump")
+                                continue;
+                            while (fields >> token)
+                                last = token;
+                            if (!last.empty() && fs::path(last).is_absolute())
+                            {
+                                error = "The model uses an absolute texture path: " + last;
+                                return false;
+                            }
+                            if (!last.empty() && !add(source.parent_path() / last, ignored, error, false))
+                                return false;
+                        }
+                        if (material.bad())
+                        {
+                            error = "Cannot read material: " + mtl.string();
+                            return false;
+                        }
+                    }
+                    if (obj.bad())
+                    {
+                        error = "Cannot read model: " + source.string();
+                        return false;
+                    }
+                }
+                else if (source.extension() == ".glb" || source.extension() == ".GLB")
+                {
+                    std::error_code ec;
+                    std::ifstream in(source, std::ios::binary);
+                    unsigned char header[20]{};
+                    if (!in.read(reinterpret_cast<char *>(header), sizeof header) ||
+                        std::string(reinterpret_cast<char *>(header), 4) != "glTF")
+                    {
+                        error = "Invalid GLB: " + source.string();
+                        return false;
+                    }
+                    const std::uint32_t length = std::uint32_t(header[12]) | (std::uint32_t(header[13]) << 8) |
+                                                 (std::uint32_t(header[14]) << 16) | (std::uint32_t(header[15]) << 24);
+                    const auto size = fs::file_size(source, ec);
+                    if (ec || size < sizeof header || std::string(reinterpret_cast<char *>(header + 16), 4) != "JSON" ||
+                        length > size - sizeof header)
+                    {
+                        error = "Invalid GLB JSON chunk: " + source.string();
+                        return false;
+                    }
+                    std::string text(length, '\0');
+                    if (!in.read(text.data(), length))
+                    {
+                        error = "Cannot read GLB JSON: " + source.string();
+                        return false;
+                    }
+                    const json gltf = json::parse(text, nullptr, false);
+                    if (!gltf.is_object())
+                    {
+                        error = "Invalid GLB JSON: " + source.string();
+                        return false;
+                    }
+                    for (const char *key : {"buffers", "images"})
+                    {
+                        if (!gltf.contains(key))
+                            continue;
+                        if (!gltf[key].is_array())
+                        {
+                            error = "Invalid GLB " + std::string(key) + ": " + source.string();
+                            return false;
+                        }
+                        for (const json &item : gltf[key])
+                            if (item.is_object() && item.contains("uri") && item["uri"].is_string())
+                            {
+                                const std::string uri = item["uri"].get<std::string>();
+                                if (uri.rfind("data:", 0) == 0)
+                                    continue;
+                                std::string decoded;
+                                for (std::size_t i = 0; i < uri.size(); ++i)
+                                {
+                                    if (uri[i] == '%' && i + 2 < uri.size() && std::isxdigit(static_cast<unsigned char>(uri[i + 1])) && std::isxdigit(static_cast<unsigned char>(uri[i + 2])))
+                                    {
+                                        decoded += static_cast<char>(std::stoi(uri.substr(i + 1, 2), nullptr, 16));
+                                        i += 2;
+                                    }
+                                    else
+                                        decoded += uri[i];
+                                }
+                                std::string ignored;
+                                if (fs::path(decoded).is_absolute())
+                                {
+                                    error = "The GLB uses an absolute asset path: " + uri;
+                                    return false;
+                                }
+                                if (!add(source.parent_path() / decoded, ignored, error))
+                                    return false;
+                            }
+                    }
+                }
+                return true;
+            }
+        };
 
         json blank_stage(const std::string &name)
         {
@@ -88,6 +288,14 @@ namespace shipedit
         {
             const std::string group = engine.value("group", std::string("main"));
             return group == "main";
+        }
+
+        bool has_ship_equipment(const json &root)
+        {
+            for (const char *key : {"script", "systems", "vessels", "ports", "lights", "cockpit", "cameras", "surfaces", "wheels", "instruments", "weapons", "hardpoints", "payload_bays", "parachutes"})
+                if (root.contains(key) && !root[key].empty())
+                    return true;
+            return false;
         }
 
         void copy_model_companions(const fs::path &from, const fs::path &to_dir)
@@ -229,7 +437,7 @@ namespace shipedit
 
     void Document::checkpoint()
     {
-        undo_.push_back(root_);
+        undo_.push_back({root_, pending_});
         if (undo_.size() > undo_limit)
             undo_.erase(undo_.begin());
         redo_.clear();
@@ -240,8 +448,9 @@ namespace shipedit
     {
         if (undo_.empty())
             return false;
-        redo_.push_back(root_);
-        root_ = std::move(undo_.back());
+        redo_.push_back({root_, pending_});
+        root_ = std::move(undo_.back().root);
+        pending_ = std::move(undo_.back().pending);
         undo_.pop_back();
         dirty_ = true;
         return true;
@@ -251,8 +460,9 @@ namespace shipedit
     {
         if (redo_.empty())
             return false;
-        undo_.push_back(root_);
-        root_ = std::move(redo_.back());
+        undo_.push_back({root_, pending_});
+        root_ = std::move(redo_.back().root);
+        pending_ = std::move(redo_.back().pending);
         redo_.pop_back();
         dirty_ = true;
         return true;
@@ -303,6 +513,163 @@ namespace shipedit
             return false;
         checkpoint();
         std::swap(list[static_cast<std::size_t>(index)], list[static_cast<std::size_t>(to)]);
+        return true;
+    }
+
+    bool Document::arrange_stage(int from, int to, std::string &error)
+    {
+        const int count = stage_count();
+        if (from < 0 || from >= count || to < 0 || to >= count)
+        {
+            error = "Invalid stage position.";
+            return false;
+        }
+        if (from == to)
+            return true;
+        if (has_ship_equipment(root_))
+        {
+            error = "Moving stages would change ship-wide equipment or stage references. Use the Structure tab to edit this ship.";
+            return false;
+        }
+        const double tail = stages()[0].value("z", 0.0) + stages()[0].value("length", 4.0) * 0.5;
+        checkpoint();
+        json &list = stages();
+        json moving = list[static_cast<std::size_t>(from)];
+        list.erase(static_cast<std::size_t>(from));
+        list.insert(list.begin() + to, std::move(moving));
+        double cursor = tail;
+        for (int i = 0; i < count; ++i)
+        {
+            const double length = list[static_cast<std::size_t>(i)].value("length", 4.0);
+            set_stage_z(i, cursor - length * 0.5, true);
+            cursor -= length;
+        }
+        return true;
+    }
+
+    bool Document::expanded_root(json &out, std::string &error) const
+    {
+        try
+        {
+            nlohmann::json expanded = nlohmann::json::parse(root_.dump());
+            if (!kosmos::expand_part_kits(expanded, source_dir_, error))
+                return false;
+            out = json::parse(expanded.dump());
+            return true;
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            error = "Invalid part-kit data: " + std::string(e.what());
+            return false;
+        }
+    }
+
+    bool Document::import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning, bool overlap_previous)
+    {
+        inserted = -1;
+        error.clear();
+        warning.clear();
+        if (!source.has_source())
+        {
+            error = "The source stage must come from an addon.";
+            return false;
+        }
+        json expanded;
+        if (!source.expanded_root(expanded, error))
+            return false;
+        if (!expanded.contains("stages") || !expanded["stages"].is_array() ||
+            index < 0 || index >= static_cast<int>(expanded["stages"].size()))
+        {
+            error = "The selected source stage no longer exists.";
+            return false;
+        }
+        json stage = expanded["stages"][static_cast<std::size_t>(index)];
+        if (!stage.is_object())
+        {
+            error = "The selected source stage is not an object.";
+            return false;
+        }
+        const int count = stage_count();
+        if (position == -1)
+            position = count;
+        if (position < 0 || position > count)
+        {
+            error = "Invalid insertion position.";
+            return false;
+        }
+        if (position < count && has_ship_equipment(root_))
+        {
+            error = "Inserting between existing stages would move ship-wide equipment or change stage references. Add at the nose end instead, or start a new rocket.";
+            return false;
+        }
+        std::error_code ec;
+        StageAssets assets;
+        assets.root = fs::canonical(source.source_dir().parent_path().parent_path(), ec);
+        if (ec)
+        {
+            error = "Cannot locate the source Kosmos tree: " + ec.message();
+            return false;
+        }
+        for (int n = 1;; ++n)
+        {
+            assets.prefix = "stage-assets-" + std::to_string(n);
+            const std::string prefix = assets.prefix + "/";
+            const auto it = pending_.lower_bound(prefix);
+            if ((!has_source() || !fs::exists(source_dir_ / assets.prefix)) &&
+                (it == pending_.end() || it->first.compare(0, prefix.size(), prefix) != 0))
+                break;
+        }
+        if (stage.contains("parts") && stage["parts"].is_array())
+            for (json &part : stage["parts"])
+            {
+                if (!part.is_object())
+                    continue;
+                for (const char *key : {"model", "animations"})
+                {
+                    if (!part.contains(key) || !part[key].is_string() || part[key].get<std::string>().empty())
+                        continue;
+                    const fs::path file = source.source_dir() / part[key].get<std::string>();
+                    std::string relative;
+                    const bool ok = std::string(key) == "model" ? assets.model(file, relative, error) : assets.add(file, relative, error);
+                    if (!ok)
+                        return false;
+                    part[key] = relative;
+                }
+            }
+        const json &list = stages();
+        double z = 0.0;
+        if (!list.empty() && position == 0)
+        {
+            const json &first = list.front();
+            z = first.value("z", 0.0) + first.value("length", 4.0) * 0.5 + stage.value("length", 4.0) * 0.5;
+        }
+        else if (position > 0)
+        {
+            const json &previous = list[static_cast<std::size_t>(position - 1)];
+            z = previous.value("z", 0.0) + (overlap_previous ? 1.0 : -1.0) * previous.value("length", 4.0) * 0.5 - stage.value("length", 4.0) * 0.5;
+        }
+        const double dz = z - stage.value("z", 0.0);
+        stage["z"] = z;
+        shift_contents(stage, dz);
+        checkpoint();
+        if (position > 0 && position < count)
+        {
+            const json &next = stages()[static_cast<std::size_t>(position)];
+            double nose = z - stage.value("length", 4.0) * 0.5;
+            if (overlap_previous)
+            {
+                const json &previous = stages()[static_cast<std::size_t>(position - 1)];
+                nose = std::min(nose, previous.value("z", 0.0) - previous.value("length", 4.0) * 0.5);
+            }
+            const double next_z = nose - next.value("length", 4.0) * 0.5;
+            const double shift = next_z - next.value("z", 0.0);
+            for (int i = position; i < count; ++i)
+                set_stage_z(i, stages()[static_cast<std::size_t>(i)].value("z", 0.0) + shift, true);
+        }
+        stages().insert(stages().begin() + position, std::move(stage));
+        pending_.insert(assets.files.begin(), assets.files.end());
+        inserted = position;
+        warning = assets.warning;
         return true;
     }
 
@@ -565,7 +932,8 @@ namespace shipedit
                 error = "copying " + source.string() + " failed: " + ec.message();
                 return false;
             }
-            copy_model_companions(source, target.parent_path());
+            if (relative.rfind("stage-assets-", 0) != 0)
+                copy_model_companions(source, target.parent_path());
         }
 
         std::ofstream ship_out(dest / ship_file);
@@ -641,7 +1009,8 @@ namespace shipedit
                     error = "copying " + from.string() + " failed: " + ec.message();
                     return false;
                 }
-                copy_model_companions(from, target.parent_path());
+                if (relative.rfind("stage-assets-", 0) != 0)
+                    copy_model_companions(from, target.parent_path());
             }
         }
         pending_.clear();

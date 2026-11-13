@@ -11,6 +11,7 @@ __pycache__/
 !/addons/*/models/**/*.png
 !/addons/cvel-deltaglider/panel/panel1.png
 !/addons/cvel-deltaglider/panel/panel2.png
+addons/frankenrocket001
 !/scenarios/**/thumbs/*.png
 imgui.ini
 kosmos-*.png

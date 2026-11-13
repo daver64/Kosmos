@@ -2,6 +2,7 @@
 // (it needs only the read capability), tells the KosmosAV server where the pilot is, shows the job board and reports deliveries.
 // One worker thread owns the Agent and the game link; the GTK thread only reads snapshots and queues requests.
 #include "agent.h"
+#include "../../../sdk/gtk_schema.h"
 
 #include <kosmos_link.hpp>
 
@@ -491,6 +492,7 @@ int main(int argc, char **argv)
         if (!std::strcmp(argv[i], "--server")) app.cfg.server = argv[i + 1];
         else if (!std::strcmp(argv[i], "--key")) app.cfg.key = argv[i + 1];
     }
+    kosmos_gtk_schemas("kosmosav");
     gtk_init(&argc, &argv);
     app.agent = std::make_unique<Agent>(app.cfg, &app.game);
     build_window(app);

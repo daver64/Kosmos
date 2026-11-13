@@ -88,7 +88,10 @@ namespace kosmos::app
         if (std::isdigit(static_cast<unsigned char>(a[0][0])))
             o.ship_index = std::atoi(a[0]);
         else
+        {
             o.ship_name = a[0];
+            o.ship_name_explicit = true;
+        }
         return true;
     }
 

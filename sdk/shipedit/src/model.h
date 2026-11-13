@@ -76,6 +76,12 @@ namespace shipedit
         void remove_stage(int index);
         int duplicate_stage(int index); // the copy goes right after the original
         bool move_stage(int index, int delta);
+        /** Reorder and repack a simple rocket, without modifying ship-wide equipment. */
+        bool arrange_stage(int from, int to, std::string &error);
+        /** Import a stage at the given staging position; -1 appends at the nose end. */
+        bool import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning, bool overlap_previous = false);
+        /** Expand part-kit stages for the stage palette without changing the editable source document. */
+        bool expanded_root(json &out, std::string &error) const;
         /** Moves a stage along Z and, with `with_contents`, its parts, engines and gear too. */
         void set_stage_z(int index, double z, bool with_contents);
         /** Stage 0 stays where it is; each later stage is stacked against the one before it, contents moving with it. */
@@ -112,7 +118,12 @@ namespace shipedit
         std::string source_ship_file_, source_addon_id_, source_ship_name_;
         std::map<std::string, fs::path> pending_;
         fs::file_time_type loaded_time_{};
-        std::vector<json> undo_, redo_;
+        struct Snapshot
+        {
+            json root;
+            std::map<std::string, fs::path> pending;
+        };
+        std::vector<Snapshot> undo_, redo_;
         bool dirty_ = false;
     };
 

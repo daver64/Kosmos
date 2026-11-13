@@ -19,7 +19,7 @@ VER=$(head -n 1 "$SRC/VERSION" | tr -d '[:space:]')
 
 rm -rf "$OUT/sdk-stage"
 mkdir -p "$STAGE" "$OUT"
-cp -r "$SRC/sdk/include" "$SRC/sdk/src" "$SRC/sdk/examples" "$SRC/sdk/template" "$SRC/sdk/kosmosmap" "$SRC/sdk/planetbake" "$SRC/sdk/tools" "$SRC/sdk/docs" "$SRC/sdk/CMakeLists.txt" "$STAGE/"
+cp -r "$SRC/sdk/include" "$SRC/sdk/src" "$SRC/sdk/examples" "$SRC/sdk/template" "$SRC/sdk/kosmosmap" "$SRC/sdk/planetbake" "$SRC/sdk/tools" "$SRC/sdk/docs" "$SRC/sdk/CMakeLists.txt" "$SRC/sdk/gtk_schema.h" "$STAGE/"
 rm -rf "$STAGE/template/bin" "$STAGE/kosmosmap/bin" "$STAGE/examples/__pycache__" "$STAGE/tools/__pycache__"
 cp "$STAGE/docs/MANUAL.md" "$STAGE/README.md"
 rm -rf "$STAGE/planetbake/bin"

@@ -4,6 +4,7 @@
 // shipedit [--root DIR] [--addon ID] [--ship NAME] [--shot FILE [--yaw D] [--pitch D] [--size WxH]]
 // --shot draws the preview to a PNG without opening a window.
 #include "model.h"
+#include "../../gtk_schema.h"
 #include <epoxy/gl.h>
 #include "gl_preview.h"
 #include "preview.h"
@@ -35,6 +36,7 @@ namespace
         fs::path root, addons_dir;
         std::vector<AddonInfo> addons;
         Document doc;
+        Document library_doc;
         MeshCache meshes;
         Selection sel;
         PreviewView view;
@@ -44,10 +46,14 @@ namespace
         GlPreview gl;
         bool use_gl = false; // the ship's surfaces are drawn by the GL widget under the overlay; otherwise cairo draws everything
         GtkWidget *stats_label = nullptr, *problems_label = nullptr, *undo_btn = nullptr, *redo_btn = nullptr, *with_contents = nullptr, *launch_btn = nullptr, *save_btn = nullptr;
+        GtkWidget *library_addon = nullptr, *library_ship = nullptr, *library_list = nullptr, *arrange_toggle = nullptr, *overlap_toggle = nullptr;
         GtkTreeStore *store = nullptr;
         bool building = false;
         double drag_x = 0, drag_y = 0;
         int drag_button = 0;
+        int drag_stage = -1;
+        double stage_drag_start_y = 0, stage_drag_y = 0;
+        bool stage_dragged = false;
     };
 
     App *app = nullptr;
@@ -555,7 +561,9 @@ namespace
             title = "Stage";
             fields = {{Field::Text, "name", "Name"},       {Field::Num, "dry_mass", "Dry mass kg"},   {Field::Num, "propellant", "Propellant kg"}, {Field::Num, "fuel_start", "Starting fuel (0-1)"}, {Field::Num, "z", "Z position m"},
                       {Field::Num, "length", "Length m"},  {Field::Num, "radius", "Radius m"},        {Field::Num, "separation_speed", "Separation speed"},
-                      {Field::Vec3, "separation_dir", "Separation dir"}};
+                      {Field::Vec3, "separation_dir", "Separation dir"},
+                      {Field::Bool, "with_next", "Separate with next stage"},
+                      {Field::Bool, "ignite_with_previous", "Ignite with previous stage"}};
             break;
         case Selection::part:
             if (n->contains("model"))
@@ -865,11 +873,11 @@ namespace
 
     void do_launch()
     {
-        for (const fs::path &exe : {app->root / "build" / "kosmos", app->root / "kosmos"})
+        for (const fs::path &exe : {app->root / "build" / "kosmos", app->root / "build-win" / "kosmos.exe", app->root / "kosmos", app->root / "kosmos.exe"})
             if (fs::exists(exe))
             {
                 const std::string exe_s = exe.string(), dir_s = exe.parent_path().string();
-                gchar *argv[] = {const_cast<gchar *>(exe_s.c_str()), const_cast<gchar *>("--ship"), const_cast<gchar *>(app->last_saved_ship.c_str()), const_cast<gchar *>("--orbit"), nullptr};
+                gchar *argv[] = {const_cast<gchar *>(exe_s.c_str()), const_cast<gchar *>("--ship"), const_cast<gchar *>(app->last_saved_ship.c_str()), nullptr};
                 GError *err = nullptr;
                 if (!g_spawn_async(dir_s.c_str(), argv, nullptr, G_SPAWN_DEFAULT, nullptr, nullptr, nullptr, &err))
                 {
@@ -889,7 +897,8 @@ namespace
             message("Save the ship as an addon first; KosmosCAD edits its ship.json.", GTK_MESSAGE_ERROR);
             return;
         }
-        for (const fs::path &exe : {app->root / "addons" / "kosmoscad" / "bin" / "kosmoscad"})
+        for (const fs::path &exe : {app->root / "addons" / "kosmoscad" / "bin" / "kosmoscad", app->root / "addons" / "kosmoscad" / "bin" / "kosmoscad.exe",
+                                    app->root / "kosmoscad", app->root / "kosmoscad.exe"})
             if (!exe.empty() && fs::exists(exe))
             {
                 const std::string exe_s = exe.string(), ship_s = ship.string();
@@ -907,7 +916,16 @@ namespace
 
     gboolean draw_cb(GtkWidget *w, cairo_t *cr, gpointer)
     {
-        draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w), app->doc, app->sel, app->view, app->meshes, !app->use_gl);
+        draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w), app->doc, app->sel, app->view, app->meshes, !app->use_gl, true,
+                     app->arrange_toggle && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(app->arrange_toggle)));
+        if (app->drag_stage >= 0 && app->stage_dragged)
+        {
+            cairo_set_source_rgba(cr, 1.0, 0.8, 0.25, 0.9);
+            cairo_set_line_width(cr, 2.0);
+            cairo_move_to(cr, 0, app->stage_drag_y);
+            cairo_line_to(cr, gtk_widget_get_allocated_width(w), app->stage_drag_y);
+            cairo_stroke(cr);
+        }
         return FALSE;
     }
 
@@ -962,6 +980,156 @@ namespace
         return b;
     }
 
+    struct StageTile
+    {
+        Document preview;
+        MeshCache meshes;
+        PreviewView view;
+        int index = 0;
+    };
+
+    bool add_library_stage(int index, int position = -1)
+    {
+        int inserted = -1;
+        std::string error, warning;
+        if (!app->doc.import_stage(app->library_doc, index, position, inserted, error, warning,
+                                   gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(app->overlap_toggle))))
+        {
+            message("Could not add the stage: " + error, GTK_MESSAGE_ERROR);
+            return false;
+        }
+        app->meshes.clear();
+        structure_changed({Selection::stage_node, inserted, -1});
+        if (!warning.empty())
+            message("The stage was added, but some source assets are missing:" + warning, GTK_MESSAGE_WARNING);
+        return true;
+    }
+
+    int stage_drop_position(GtkWidget *widget, double y)
+    {
+        const auto geo = prepare_geometry(app->doc, app->view, app->meshes);
+        if (!geo)
+            return 0;
+        const Projection p = projection(*geo, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget), app->view);
+        const double vertical = p.cy * p.sp;
+        if (std::abs(vertical) < 0.15)
+            return -1;
+        int position = 0;
+        for (const json &stage : app->doc.root()["stages"])
+        {
+            const double centre = p.cyc + (stage.value("z", 0.0) - p.centre_z) * vertical * p.scale;
+            if ((y - centre) * vertical < 0)
+                ++position;
+            else
+                break;
+        }
+        return position;
+    }
+
+    int stage_at(GtkWidget *widget, double x, double y)
+    {
+        const auto geo = prepare_geometry(app->doc, app->view, app->meshes);
+        if (!geo)
+            return -1;
+        const Projection p = projection(*geo, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget), app->view);
+        const double vertical = p.cy * p.sp;
+        if (std::abs(vertical) < 0.15)
+            return -1;
+        int i = 0;
+        for (const json &stage : app->doc.root()["stages"])
+        {
+            const double centre = p.cyc + (stage.value("z", 0.0) - p.centre_z) * vertical * p.scale;
+            const double half = std::max(5.0, stage.value("length", 1.0) * std::abs(vertical) * p.scale * 0.5);
+            const double width = std::max(10.0, stage.value("radius", 1.0) * p.scale);
+            if (std::abs(y - centre) <= half && std::abs(x - p.cx) <= width)
+                return i;
+            ++i;
+        }
+        return -1;
+    }
+
+    void populate_stage_library()
+    {
+        GList *children = gtk_container_get_children(GTK_CONTAINER(app->library_list));
+        for (GList *p = children; p; p = p->next)
+            gtk_widget_destroy(GTK_WIDGET(p->data));
+        g_list_free(children);
+        const int addon_index = gtk_combo_box_get_active(GTK_COMBO_BOX(app->library_addon));
+        gchar *ship = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(app->library_ship));
+        if (addon_index < 0 || !ship)
+        {
+            g_free(ship);
+            return;
+        }
+        std::string error;
+        const bool ok = app->library_doc.load(app->addons[static_cast<std::size_t>(addon_index)], ship, error);
+        g_free(ship);
+        if (!ok)
+        {
+            message("Could not open the stage library: " + error, GTK_MESSAGE_ERROR);
+            return;
+        }
+        json expanded;
+        if (!app->library_doc.expanded_root(expanded, error))
+        {
+            message("Could not expand the source ship's stages: " + error, GTK_MESSAGE_ERROR);
+            return;
+        }
+        const json stages = expanded.value("stages", json::array());
+        for (std::size_t i = 0; i < stages.size(); ++i)
+        {
+            auto *tile = new StageTile;
+            tile->index = static_cast<int>(i);
+            tile->preview = app->library_doc;
+            tile->preview.root()["stages"] = json::array({stages[i]});
+            tile->view.yaw = 0;
+            tile->view.pitch = 1.57079632679;
+            tile->view.triangle_budget = 15000;
+            GtkWidget *b = gtk_button_new();
+            g_object_set_data_full(G_OBJECT(b), "stage-tile", tile, +[](gpointer data) { delete static_cast<StageTile *>(data); });
+            GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+            GtkWidget *image = gtk_drawing_area_new();
+            gtk_widget_set_size_request(image, 150, 100);
+            g_signal_connect(image, "draw", CB(+[](GtkWidget *w, cairo_t *cr, gpointer data) -> gboolean {
+                                 auto *t = static_cast<StageTile *>(data);
+                                 draw_preview(cr, gtk_widget_get_allocated_width(w), gtk_widget_get_allocated_height(w),
+                                              t->preview, {}, t->view, t->meshes, true, false);
+                                 return FALSE;
+                             }), tile);
+            gtk_box_pack_start(GTK_BOX(box), image, FALSE, FALSE, 0);
+            const std::string name = std::to_string(i + 1) + ". " + stages[i].value("name", std::string("Stage"));
+            GtkWidget *label = gtk_label_new(name.c_str());
+            gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+            gtk_label_set_max_width_chars(GTK_LABEL(label), 24);
+            gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
+            gtk_container_add(GTK_CONTAINER(b), box);
+            gtk_widget_set_tooltip_text(b, "Drag to a position on the rocket, or click to add at the nose end.");
+            g_signal_connect(b, "clicked", CB(+[](GtkWidget *, gpointer data) {
+                                 add_library_stage(static_cast<StageTile *>(data)->index);
+                             }), tile);
+            GtkTargetEntry target[] = {{const_cast<gchar *>("application/x-kosmos-stage"), GTK_TARGET_SAME_APP, 0}};
+            gtk_drag_source_set(b, GDK_BUTTON1_MASK, target, 1, GDK_ACTION_COPY);
+            g_signal_connect(b, "drag-data-get", CB(+[](GtkWidget *, GdkDragContext *, GtkSelectionData *selection, guint, guint, gpointer data) {
+                                 const std::string value = std::to_string(static_cast<StageTile *>(data)->index);
+                                 gtk_selection_data_set(selection, gdk_atom_intern_static_string("application/x-kosmos-stage"), 8,
+                                                        reinterpret_cast<const guchar *>(value.data()), static_cast<gint>(value.size()));
+                             }), tile);
+            gtk_box_pack_start(GTK_BOX(app->library_list), b, FALSE, FALSE, 0);
+        }
+        gtk_widget_show_all(app->library_list);
+    }
+
+    void fill_library_ships()
+    {
+        gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(app->library_ship));
+        const int index = gtk_combo_box_get_active(GTK_COMBO_BOX(app->library_addon));
+        if (index < 0)
+            return;
+        for (const std::string &ship : app->addons[static_cast<std::size_t>(index)].ships)
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->library_ship), ship.c_str());
+        gtk_combo_box_set_active(GTK_COMBO_BOX(app->library_ship), 0);
+    }
+
     void build_window()
     {
         app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -999,11 +1167,23 @@ namespace
                                app->meshes.clear();
                                structure_changed({Selection::ship, -1, -1});
                            }), FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), gtk_separator_new(GTK_ORIENTATION_VERTICAL), FALSE, FALSE, 6);
+        gtk_box_pack_start(GTK_BOX(bar), button("New rocket", [] {
+                               app->doc.make_blank("New Rocket");
+                               app->doc.stages().clear();
+                               app->last_saved_ship.clear();
+                               app->meshes.clear();
+                               app->view.yaw = 0;
+                               app->view.pitch = 1.57079632679;
+                               gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(app->arrange_toggle), TRUE);
+                               structure_changed({Selection::ship, -1, -1});
+                           }), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), bar, FALSE, FALSE, 0);
+        GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+        gtk_container_set_border_width(GTK_CONTAINER(actions), 4);
         app->save_btn = button("Save", [] { do_save(); });
         gtk_widget_set_tooltip_text(app->save_btn, "Write the changes into the addon this ship was loaded from. The whole addon is backed up first.");
-        gtk_box_pack_start(GTK_BOX(bar), app->save_btn, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), button("Save as new addon...", [] { do_save_as(); }), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(actions), app->save_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(actions), button("Save as new addon...", [] { do_save_as(); }), FALSE, FALSE, 0);
         app->undo_btn = button("Undo", [] {
             if (app->doc.undo())
                 structure_changed(app->sel);
@@ -1013,14 +1193,14 @@ namespace
                 structure_changed(app->sel);
         });
         app->launch_btn = button("Launch in Kosmos", [] { do_launch(); });
-        gtk_widget_set_tooltip_text(app->launch_btn, "Available after saving: starts Kosmos with the saved ship");
-        gtk_box_pack_start(GTK_BOX(bar), app->undo_btn, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), app->redo_btn, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), app->launch_btn, FALSE, FALSE, 0);
+        gtk_widget_set_tooltip_text(app->launch_btn, "Available after saving: starts the saved ship on the Chippenham pad");
+        gtk_box_pack_start(GTK_BOX(actions), app->undo_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(actions), app->redo_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(actions), app->launch_btn, FALSE, FALSE, 0);
         GtkWidget *cad_btn = button("Model in KosmosCAD", [] { do_cad(); });
         gtk_widget_set_tooltip_text(cad_btn, "Open this ship's ship.json in KosmosCAD, the 3D modeller. Reload the ship here afterwards.");
-        gtk_box_pack_start(GTK_BOX(bar), cad_btn, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), bar, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(actions), cad_btn, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), actions, FALSE, FALSE, 0);
 
         GtkWidget *paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
         gtk_box_pack_start(GTK_BOX(vbox), paned, TRUE, TRUE, 0);
@@ -1094,8 +1274,33 @@ namespace
         app->with_contents = gtk_check_button_new_with_label("Moving a stage's Z moves its parts, engines and gear");
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(app->with_contents), TRUE);
         gtk_box_pack_start(GTK_BOX(left), app->with_contents, FALSE, FALSE, 0);
-        gtk_widget_set_size_request(left, 300, -1);
-        gtk_paned_pack1(GTK_PANED(paned), left, FALSE, FALSE);
+        GtkWidget *library = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+        app->library_addon = gtk_combo_box_text_new();
+        app->library_ship = gtk_combo_box_text_new();
+        for (const AddonInfo &a : app->addons)
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(app->library_addon), (a.name.empty() ? a.id : a.name).c_str());
+        gtk_box_pack_start(GTK_BOX(library), gtk_label_new("Source addon"), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(library), app->library_addon, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(library), gtk_label_new("Source ship"), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(library), app->library_ship, FALSE, FALSE, 0);
+        GtkWidget *hint = gtk_label_new("Drag a stage onto the rocket, or click to add at the nose.\nShip-wide scripts and systems are not imported.");
+        gtk_label_set_line_wrap(GTK_LABEL(hint), TRUE);
+        gtk_box_pack_start(GTK_BOX(library), hint, FALSE, FALSE, 4);
+        app->overlap_toggle = gtk_check_button_new_with_label("Overlap previous stage");
+        gtk_widget_set_tooltip_text(app->overlap_toggle, "Align the tails of the new and previous stages, for example to place a core alongside strap-on boosters. Check staging flags in Structure.");
+        gtk_box_pack_start(GTK_BOX(library), app->overlap_toggle, FALSE, FALSE, 0);
+        app->library_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
+        GtkWidget *library_scroll = gtk_scrolled_window_new(nullptr, nullptr);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(library_scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_container_add(GTK_CONTAINER(library_scroll), app->library_list);
+        gtk_box_pack_start(GTK_BOX(library), library_scroll, TRUE, TRUE, 0);
+        on_signal(app->library_addon, "changed", [] { fill_library_ships(); });
+        on_signal(app->library_ship, "changed", [] { populate_stage_library(); });
+        GtkWidget *tabs = gtk_notebook_new();
+        gtk_notebook_append_page(GTK_NOTEBOOK(tabs), library, gtk_label_new("Stage library"));
+        gtk_notebook_append_page(GTK_NOTEBOOK(tabs), left, gtk_label_new("Structure"));
+        gtk_widget_set_size_request(tabs, 300, -1);
+        gtk_paned_pack1(GTK_PANED(paned), tabs, FALSE, FALSE);
 
         // Centre and right
         GtkWidget *inner = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
@@ -1105,8 +1310,49 @@ namespace
         gtk_widget_set_size_request(app->area, 400, 300);
         gtk_widget_add_events(app->area, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK | GDK_SCROLL_MASK);
         g_signal_connect(app->area, "draw", CB(draw_cb), nullptr);
+        GtkTargetEntry stage_target[] = {{const_cast<gchar *>("application/x-kosmos-stage"), GTK_TARGET_SAME_APP, 0}};
+        gtk_drag_dest_set(app->area, GTK_DEST_DEFAULT_ALL, stage_target, 1, GDK_ACTION_COPY);
+        g_signal_connect(app->area, "drag-data-received", CB(+[](GtkWidget *widget, GdkDragContext *context, gint, gint y, GtkSelectionData *selection, guint, guint time, gpointer) {
+                             const guchar *data = gtk_selection_data_get_data(selection);
+                             const int length = gtk_selection_data_get_length(selection);
+                             if (!data || length <= 0)
+                             {
+                                 gtk_drag_finish(context, FALSE, FALSE, time);
+                                 return;
+                             }
+                             const std::string text(reinterpret_cast<const char *>(data), static_cast<std::size_t>(length));
+                             char *end = nullptr;
+                             const long index = std::strtol(text.c_str(), &end, 10);
+                             if (!end || *end != '\0' || index < 0 || index >= app->library_doc.stage_count())
+                             {
+                                 gtk_drag_finish(context, FALSE, FALSE, time);
+                                 return;
+                             }
+                             const int position = stage_drop_position(widget, y);
+                             if (position < 0)
+                             {
+                                 message("Choose Top or Bottom view to place a stage by height.", GTK_MESSAGE_WARNING);
+                                 gtk_drag_finish(context, FALSE, FALSE, time);
+                                 return;
+                             }
+                             const bool ok = add_library_stage(static_cast<int>(index), position);
+                             gtk_drag_finish(context, ok, FALSE, time);
+                         }), nullptr);
         // Left drag orbits, middle or right drag (or Shift+left) pans, Ctrl+left drag or the wheel zooms toward the pointer.
         g_signal_connect(app->area, "button-press-event", CB(+[](GtkWidget *, GdkEventButton *e, gpointer) -> gboolean {
+                             if (e->button == 1 && !(e->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) &&
+                                 gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(app->arrange_toggle)))
+                             {
+                                 const int stage = stage_at(app->area, e->x, e->y);
+                                 if (stage >= 0)
+                                 {
+                                     app->drag_stage = stage;
+                                     app->stage_drag_start_y = app->stage_drag_y = e->y;
+                                     app->stage_dragged = false;
+                                     select_in_tree({Selection::stage_node, stage, -1});
+                                     return TRUE;
+                                 }
+                             }
                              app->drag_x = e->x;
                              app->drag_y = e->y;
                              app->drag_button = static_cast<int>(e->button);
@@ -1115,6 +1361,13 @@ namespace
                          }),
                          nullptr);
         g_signal_connect(app->area, "motion-notify-event", CB(+[](GtkWidget *w, GdkEventMotion *e, gpointer) -> gboolean {
+                             if (app->drag_stage >= 0)
+                             {
+                                 app->stage_drag_y = e->y;
+                                 app->stage_dragged = app->stage_dragged || std::abs(e->y - app->stage_drag_start_y) > 5.0;
+                                 redraw_preview();
+                                 return TRUE;
+                             }
                              if (app->drag_button == 0)
                                  return TRUE;
                              const double dx = e->x - app->drag_x, dy = e->y - app->drag_y;
@@ -1137,7 +1390,27 @@ namespace
                              return TRUE;
                          }),
                          nullptr);
-        g_signal_connect(app->area, "button-release-event", CB(+[](GtkWidget *w, GdkEventButton *, gpointer) -> gboolean {
+        g_signal_connect(app->area, "button-release-event", CB(+[](GtkWidget *w, GdkEventButton *e, gpointer) -> gboolean {
+                             if (app->drag_stage >= 0)
+                             {
+                                 const int from = app->drag_stage;
+                                 const bool dragged = app->stage_dragged;
+                                 app->drag_stage = -1;
+                                 app->stage_dragged = false;
+                                 if (dragged)
+                                 {
+                                     int to = stage_drop_position(w, e->y);
+                                     if (to > from)
+                                         --to;
+                                     std::string error;
+                                     if (to < 0 || !app->doc.arrange_stage(from, to, error))
+                                         message(error.empty() ? "Choose Top or Bottom view to arrange stages." : error, GTK_MESSAGE_WARNING);
+                                     else
+                                         structure_changed({Selection::stage_node, to, -1});
+                                 }
+                                 redraw_preview();
+                                 return TRUE;
+                             }
                              app->drag_button = 0;
                              app->view.interactive = false;
                              redraw_preview();
@@ -1170,6 +1443,17 @@ namespace
                                   {"Top", "From above, nose up the screen", 0.0, hp},            {"Bottom", "From below", 0.0, -hp},
                                   {"Iso", "Three-quarter view", 1.25, 0.45}};
         gtk_box_pack_start(GTK_BOX(views), gtk_label_new("View"), FALSE, FALSE, 4);
+        app->arrange_toggle = gtk_toggle_button_new_with_label("Move stages");
+        gtk_widget_set_tooltip_text(app->arrange_toggle, "Drag a stage in the preview to reorder and repack the stack. Turn off to orbit with the left mouse button.");
+        on_signal(app->arrange_toggle, "toggled", [] {
+            if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(app->arrange_toggle)))
+            {
+                app->view.yaw = 0;
+                app->view.pitch = 1.57079632679;
+                redraw_preview();
+            }
+        });
+        gtk_box_pack_start(GTK_BOX(actions), app->arrange_toggle, FALSE, FALSE, 0);
         for (const Preset &p : presets)
         {
             GtkWidget *b = button(p.label, [p] {
@@ -1239,12 +1523,21 @@ namespace
         if (const char *e = std::getenv("KOSMOS_ROOT"))
             return e;
         std::error_code ec;
-        fs::path exe = fs::weakly_canonical(argv0, ec);
-        if (!ec)
+        fs::path program = argv0;
+        if (!program.has_parent_path())
         {
-            fs::path r = exe.parent_path().parent_path().parent_path().parent_path(); // root/addons/shipedit/bin/shipedit
-            if (fs::exists(r / "addons"))
-                return r;
+            gchar *found = g_find_program_in_path(argv0);
+            if (found)
+            {
+                program = found;
+                g_free(found);
+            }
+        }
+        fs::path exe = fs::weakly_canonical(program, ec).parent_path();
+        for (int i = 0; !ec && i < 6 && !exe.empty(); ++i, exe = exe.parent_path())
+        {
+            if (fs::is_directory(exe / "addons") && fs::is_directory(exe / "data"))
+                return exe;
         }
         return fs::current_path();
     }
@@ -1313,6 +1606,7 @@ int main(int argc, char **argv)
     if (!shot_file.empty())
         return shot(shot_file, addon_arg, ship_arg, yaw, pitch, w, h);
 
+    kosmos_gtk_schemas("shipedit");
     gtk_init(&argc, &argv);
     build_window();
     gtk_widget_show_all(state.window);
@@ -1328,8 +1622,14 @@ int main(int argc, char **argv)
             if (ships[i] == ship_arg)
                 gtk_combo_box_set_active(GTK_COMBO_BOX(state.ship_combo), static_cast<int>(i));
     }
-    state.doc.make_blank("New Ship");
+    state.doc.make_blank("New Rocket");
+    state.doc.stages().clear();
+    state.view.yaw = 0;
+    state.view.pitch = 1.57079632679;
     structure_changed({Selection::ship, -1, -1});
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(state.arrange_toggle), TRUE);
+    if (!state.addons.empty())
+        gtk_combo_box_set_active(GTK_COMBO_BOX(state.library_addon), pick);
     if (!addon_arg.empty())
         load_selected();
     gtk_main();

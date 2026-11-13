@@ -91,5 +91,5 @@ namespace shipedit
     Projection projection(const Geometry &geo, int width, int height, const PreviewView &view);
 
     /** Draws the preview; with `solids` false only the overlay (stage outlines, engines, labels) goes on, over a GL-drawn ship. */
-    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes, bool solids = true);
+    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes, bool solids = true, bool annotations = true, bool arranging = false);
 } // namespace shipedit

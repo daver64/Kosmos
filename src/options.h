@@ -96,6 +96,7 @@ namespace kosmos::app
         std::string mfd_left, mfd_right;
         int ship_index = 0;
         std::string ship_name = "Kestrel";
+        bool ship_name_explicit = false;
         std::string scenario;
         std::string target;
         std::vector<std::string> sets; // --set path=value, applied once the scenario is loaded

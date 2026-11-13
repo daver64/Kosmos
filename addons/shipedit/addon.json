@@ -4,7 +4,8 @@
   "version": "0.1",
   "native": {
     "run": {
-      "linux": "bin/shipedit"
+      "linux": "bin/shipedit",
+      "windows": "bin/shipedit.exe"
     },
     "capabilities": [],
     "autostart": false,

@@ -286,7 +286,7 @@ namespace kosmos::app
     int App::init_start_date()
     {
         // With no scenario or start flags, load the "default" scenario (scenarios/default.json, overridable from ~/.config/kosmos/scenarios).
-        if (options.scenario.empty() && options.selftest <= 0.0 && !options.orbit_start && options.orbit_body.empty() && options.ship_name == "Kestrel" && sim.find_scenario("default"))
+        if (options.scenario.empty() && options.selftest <= 0.0 && !options.orbit_start && options.orbit_body.empty() && !options.ship_name_explicit && options.ship_name == "Kestrel" && sim.find_scenario("default"))
             options.scenario = "default";
         // The start date shapes the planets' positions and the home planet's orientation, which the terrain bakes in, so it is set before the terrain is built.
         {

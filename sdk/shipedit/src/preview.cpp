@@ -263,7 +263,7 @@ namespace shipedit
         return p;
     }
 
-    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes, bool solids)
+    void draw_preview(cairo_t *cr, int width, int height, const Document &doc, const Selection &sel, const PreviewView &view, MeshCache &meshes, bool solids, bool annotations, bool arranging)
     {
         if (solids)
         {
@@ -353,6 +353,9 @@ namespace shipedit
         cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
         }
 
+        if (!annotations)
+            return;
+
         auto line3 = [&](V3 a, V3 b) {
             double ax, ay, bx, by;
             cam.screen(cam.view(a), ax, ay);
@@ -414,6 +417,7 @@ namespace shipedit
         double nx, ny;
         cam.screen(cam.view({0, 0, zmin - extent * 0.08}), nx, ny);
         text(cr, nx - 14, ny - 6, "nose", 0.9, 0.9, 0.6);
-        text(cr, 12, height - 10, "Drag: orbit   Middle/right or Shift+drag: pan   Wheel: zoom   Ctrl+drag: zoom", 0.55, 0.6, 0.7);
+        text(cr, 12, height - 10, arranging ? "Drag a stage to move it   Middle/right or Shift+drag: pan   Wheel: zoom" :
+                                             "Drag: orbit   Middle/right or Shift+drag: pan   Wheel: zoom   Ctrl+drag: zoom", 0.55, 0.6, 0.7);
     }
 } // namespace shipedit

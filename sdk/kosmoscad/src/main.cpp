@@ -2,6 +2,7 @@
 //   kosmoscad [ship.json | scene.kmodel] [--shot FILE [--size WxH] [--select-face N] [--mode object|vertex|edge|face] [--uv] [--textured]]
 // --shot draws the views to a PNG and exits.
 #include "editor.h"
+#include "../../gtk_schema.h"
 #include "gl_view.h"
 #include "image.h"
 #include "mesh_io.h"
@@ -2156,6 +2157,7 @@ namespace
 
 int main(int argc, char **argv)
 {
+    kosmos_gtk_schemas("kosmoscad");
     gtk_init(&argc, &argv);
     App app;
     A = &app;

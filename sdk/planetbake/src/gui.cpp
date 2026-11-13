@@ -2,6 +2,7 @@
 
 #ifdef PLANETBAKE_GTK
 
+#include "../../gtk_schema.h"
 #include <gtk/gtk.h>
 
 #include <atomic>
@@ -820,19 +821,7 @@ namespace
 
 int run_gui(const planetbake::Job &initial, const std::string &pack_dir)
 {
-#ifdef _WIN32
-    {
-        // The SDK ships the compiled GSettings schemas GTK's file chooser needs in <program folder>/../share/glib-2.0/schemas.
-        char exe[MAX_PATH] = {};
-        if (GetModuleFileNameA(nullptr, exe, MAX_PATH) > 0)
-        {
-            std::string dir = exe;
-            for (int up = 0; up < 2; ++up)
-                dir.erase(std::min(dir.size(), dir.find_last_of("\\/")));
-            g_setenv("GSETTINGS_SCHEMA_DIR", (dir + "\\share\\glib-2.0\\schemas").c_str(), FALSE);
-        }
-    }
-#endif
+    kosmos_gtk_schemas("planetbake");
     Ui state;
     ui = &state;
     state.job = initial;

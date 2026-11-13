@@ -127,6 +127,152 @@ int main()
     check(fs::exists(written / "models" / "sat5stg1.obj"), "the queued model was copied in");
     check(!doc.save_as(tmp, "test-stack", "x", false, written, error), "an existing folder is refused");
 
+    // Imported stages carry their models, material and animation files into a separate namespace.
+    const AddonInfo *saturn = find_addon(addons, "cvel-saturn-v");
+    const AddonInfo *soyuz = find_addon(addons, "cvel-soyuz");
+    const AddonInfo *kitdemo = find_addon(addons, "kitdemo");
+    Document rocket, source;
+    rocket.make_blank("Imported rocket");
+    rocket.stages().clear();
+    int imported = -1;
+    std::string warning;
+    check(saturn && source.load(*saturn, "ship.json", error), "Saturn V stage source loads");
+    check(rocket.import_stage(source, 0, -1, imported, error, warning) && imported == 0, "Saturn first stage imports: " + error);
+    check(rocket.stages()[0]["z"] == 0.0 && !rocket.pending_copies().empty(), "first imported stage is centred and assets are queued");
+    const auto first_files = rocket.pending_copies();
+    check(rocket.undo() && rocket.stage_count() == 0 && rocket.pending_copies().empty(), "undo removes the imported stage and queued assets");
+    check(rocket.redo() && rocket.stage_count() == 1 && rocket.pending_copies() == first_files, "redo restores the stage and queued assets");
+    check(soyuz && source.load(*soyuz, "fg.json", error), "Soyuz stage source loads");
+    Document parallel_rocket;
+    parallel_rocket.make_blank("Parallel stages");
+    parallel_rocket.stages().clear();
+    check(parallel_rocket.import_stage(source, 0, -1, imported, error, warning) &&
+              parallel_rocket.import_stage(source, 1, -1, imported, error, warning, true),
+          "strap-on boosters and core can be imported in parallel");
+    check(std::abs(parallel_rocket.stages()[0]["z"].get<double>() + parallel_rocket.stages()[0]["length"].get<double>() * 0.5 -
+                   parallel_rocket.stages()[1]["z"].get<double>() - parallel_rocket.stages()[1]["length"].get<double>() * 0.5) < 1e-8,
+          "overlapping stages have aligned tails");
+    check(parallel_rocket.undo() &&
+              parallel_rocket.import_stage(source, 2, -1, imported, error, warning) &&
+              parallel_rocket.import_stage(source, 1, 1, imported, error, warning, true),
+          "an overlapping stage can be inserted under an existing upper stage");
+    check(std::abs(parallel_rocket.stages()[1]["z"].get<double>() - parallel_rocket.stages()[1]["length"].get<double>() * 0.5 -
+                   parallel_rocket.stages()[2]["z"].get<double>() - parallel_rocket.stages()[2]["length"].get<double>() * 0.5) < 1e-8,
+          "upper stage moves clear of the overlapping core");
+    check(rocket.import_stage(source, 6, -1, imported, error, warning) && imported == 1, "animated Soyuz stage imports: " + error);
+    const json &soyuz_stage = rocket.stages()[1];
+    check(soyuz_stage.contains("rcs_visual") &&
+              std::abs(soyuz_stage["rcs_visual"]["front_z"].get<double>() -
+                       (source.stages()[6]["rcs_visual"]["front_z"].get<double>() +
+                        soyuz_stage["z"].get<double>() - source.stages()[6]["z"].get<double>())) < 1e-8,
+          "RCS visual moves with the imported stage");
+    check(rocket.save_as(tmp / "imports", "imported-rocket", "Imported rocket", false, written, error), "imported rocket saves: " + error);
+    const fs::path first_model = written / rocket.stages()[0]["parts"][0]["model"].get<std::string>();
+    check(fs::exists(first_model) && fs::exists(first_model.parent_path() / "sat5stg1.mtl") &&
+              fs::exists(first_model.parent_path() / "textures" / "S1C.png"),
+          "imported OBJ, referenced MTL and texture are saved");
+    const fs::path animation = written / soyuz_stage["parts"][0]["animations"].get<std::string>();
+    check(fs::exists(animation), "imported animation is saved");
+    check(kitdemo && source.load(*kitdemo, "ship.json", error) &&
+              rocket.import_stage(source, 0, -1, imported, error, warning) && !rocket.stages()[2].contains("kits"),
+          "part-kit stages expand when imported: " + error);
+    const double old_top_z = rocket.stages()[1]["z"].get<double>();
+    json expanded_kit;
+    check(source.expanded_root(expanded_kit, error), "kit stage expands for placement");
+    const double expanded_length = expanded_kit["stages"][0]["length"].get<double>();
+    check(rocket.import_stage(source, 0, 1, imported, error, warning) && imported == 1,
+          "a stage can be dropped between stages: " + error);
+    check(std::abs(rocket.stages()[2]["z"].get<double>() - (old_top_z - expanded_length)) < 1e-8,
+          "insertion moves the upper stages to make room");
+    check(rocket.undo() && rocket.stage_count() == 3 && rocket.stages()[1]["z"] == old_top_z,
+          "undo restores the stack after insertion");
+    const std::string first_name = rocket.stages()[0]["name"].get<std::string>();
+    const std::string last_name = rocket.stages()[2]["name"].get<std::string>();
+    check(rocket.arrange_stage(2, 0, error) && rocket.stages()[0]["name"] == last_name && rocket.stages()[1]["name"] == first_name,
+          "dragging a stage reorders the stack");
+    check(rocket.undo() && rocket.stages()[0]["name"] == first_name && rocket.stages()[2]["name"] == last_name,
+          "undo restores a rearranged stack");
+    Document existing;
+    check(existing.load(*soyuz, "fg.json", error) &&
+              !existing.import_stage(source, 0, 1, imported, error, warning) && existing.stage_count() == 7,
+          "insertion refuses to invalidate a ship's stage-dependent equipment");
+    check(!existing.arrange_stage(0, 1, error), "arranging refuses a ship with stage-dependent equipment");
+    Document parachute_ship = rocket;
+    parachute_ship.root()["parachutes"] = json::array({{{"position", json::array({0, 0, 1})}}});
+    check(!parachute_ship.arrange_stage(0, 1, error), "arranging refuses a ship with positioned parachutes");
+    const fs::path fixture = tmp / "fixture" / "addons" / "asset-source";
+    fs::create_directories(fixture / "models" / "materials");
+    fs::create_directories(fixture / "models" / "textures");
+    std::ofstream(fixture / "ship.json") << R"({"name":"Asset source","stages":[{"name":"One","z":5,"length":2,"radius":1,"parts":[{"model":"models/body.obj"}],"engines":[{"thrust":1}]}]})";
+    std::ofstream(fixture / "models" / "body.obj") << "mtllib materials/custom.mtl\n";
+    std::ofstream(fixture / "models" / "materials" / "custom.mtl") << "newmtl a\nmap_Kd textures/colour.png\nnorm textures/missing.png\n";
+    std::ofstream(fixture / "models" / "textures" / "colour.png") << "texture";
+    AddonInfo synthetic{"asset-source", "Asset source", fixture, {"ship.json"}};
+    Document synthetic_source, synthetic_rocket;
+    synthetic_rocket.make_blank("Asset test");
+    synthetic_rocket.stages().clear();
+    check(synthetic_source.load(synthetic, "ship.json", error) &&
+              synthetic_rocket.import_stage(synthetic_source, 0, -1, imported, error, warning) &&
+              warning.find("missing.png") != std::string::npos,
+          "nonstandard MTL dependencies are found and missing textures are reported");
+    check(synthetic_rocket.stages()[0]["engines"][0]["position"][2] == -5.0,
+          "an engine with an implicit position moves with its stage");
+    check(synthetic_rocket.save_as(tmp / "imports", "asset-test", "Asset test", false, written, error) &&
+              fs::exists(written / "stage-assets-1/addons/asset-source/models/materials/custom.mtl") &&
+              fs::exists(written / "stage-assets-1/addons/asset-source/models/textures/colour.png"),
+          "custom material and texture paths survive export");
+    synthetic_source.stages()[0]["parts"][0]["model"] = "models/missing.obj";
+    const int before_failure = synthetic_rocket.stage_count();
+    const auto files_before_failure = synthetic_rocket.pending_copies();
+    check(!synthetic_rocket.import_stage(synthetic_source, 0, -1, imported, error, warning) &&
+              synthetic_rocket.stage_count() == before_failure && synthetic_rocket.pending_copies() == files_before_failure,
+          "a missing model fails without changing the stack or queued assets");
+    {
+        std::string gltf = R"({"images":[{"uri":"textures/a%20b.png"}]})";
+        while (gltf.size() % 4)
+            gltf += ' ';
+        std::ofstream glb(fixture / "models" / "body.glb", std::ios::binary);
+        auto u32 = [&](unsigned value) {
+            for (int i = 0; i < 4; ++i)
+                glb.put(static_cast<char>((value >> (i * 8)) & 255));
+        };
+        glb.write("glTF", 4);
+        u32(2);
+        u32(static_cast<unsigned>(20 + gltf.size()));
+        u32(static_cast<unsigned>(gltf.size()));
+        glb.write("JSON", 4);
+        glb.write(gltf.data(), static_cast<std::streamsize>(gltf.size()));
+    }
+    std::ofstream(fixture / "models" / "textures" / "a b.png") << "texture";
+    synthetic_source.stages()[0]["parts"][0]["model"] = "models/body.glb";
+    check(synthetic_rocket.import_stage(synthetic_source, 0, -1, imported, error, warning) &&
+              synthetic_rocket.save_as(tmp / "imports", "glb-test", "GLB test", false, written, error) &&
+              fs::exists(written / "stage-assets-2/addons/asset-source/models/textures/a b.png"),
+          "external GLB image URIs are copied and decoded");
+    std::ofstream(fixture / "models" / "absolute.obj") << "mtllib " << (fixture / "models" / "materials" / "custom.mtl").string() << "\n";
+    synthetic_source.stages()[0]["parts"][0]["model"] = "models/absolute.obj";
+    const int before_absolute = synthetic_rocket.stage_count();
+    const auto files_before_absolute = synthetic_rocket.pending_copies();
+    check(!synthetic_rocket.import_stage(synthetic_source, 0, -1, imported, error, warning) &&
+              error.find("absolute material path") != std::string::npos &&
+              synthetic_rocket.stage_count() == before_absolute && synthetic_rocket.pending_copies() == files_before_absolute,
+          "absolute embedded paths are rejected without changing the rocket");
+    for (const AddonInfo &addon : addons)
+        for (const std::string &file : addon.ships)
+        {
+            Document library;
+            if (!library.load(addon, file, error))
+                continue;
+            for (int i = 0; i < library.stage_count(); ++i)
+            {
+                Document destination;
+                destination.make_blank("Library check");
+                destination.stages().clear();
+                if (!destination.import_stage(library, i, -1, imported, error, warning))
+                    check(false, addon.id + "/" + file + " stage " + std::to_string(i + 1) + ": " + error);
+            }
+        }
+
     const std::vector<AddonInfo> reread = scan_addons(tmp);
     check(reread.size() == 1 && reread[0].id == "test-stack" && reread[0].name == "Test Stack Addon", "the new addon is found");
     Document back;

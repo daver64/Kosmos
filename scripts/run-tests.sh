@@ -51,6 +51,7 @@ export XDG_CONFIG_HOME="$HOME/.config"
 trap 'rm -rf "$HOME"' EXIT
 
 python3 "$SRC/tests/scenario_start_test.py" "$PWD/kosmos"
+python3 "$SRC/tests/ship_start_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/planet_moon_scenarios_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/warp_atmosphere_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/nasa_assets_test.py" "$PWD/kosmos"
