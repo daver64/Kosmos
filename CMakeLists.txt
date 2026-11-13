@@ -60,6 +60,13 @@ else()
     set(KOSMOS_SIMLIB_LIBS simlib::simlib simlib::imgui simlib::lua sol2)
 endif()
 
+# The launcher and standalone tools/tests use simlib's bundled JSON header without linking simlib.
+if(TARGET simlib)
+    get_target_property(KOSMOS_JSON_INCLUDE simlib INTERFACE_INCLUDE_DIRECTORIES)
+else()
+    get_target_property(KOSMOS_JSON_INCLUDE simlib::simlib INTERFACE_INCLUDE_DIRECTORIES)
+endif()
+
 # ---- kosmos -------------------------------------------------------------------------------------------------------
 add_executable(kosmos
     src/kosmos.cpp
@@ -306,13 +313,7 @@ target_compile_definitions(link_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_H
 # A separate wxWidgets program (no simlib) that picks a scenario and options and starts kosmos; see launcher/main.cpp.
 # Needs wxWidgets (Linux: libwxgtk3.2-dev; Windows: vcpkg wxwidgets). Without it the launcher is simply skipped.
 option(KOSMOS_BUILD_LAUNCHER "Build the kosmos-launcher front end" ON)
-set(KOSMOS_JSON_INCLUDE "")
 set(KOSMOS_PACKAGE_EXTRA_TARGETS "")
-if(TARGET simlib)
-    get_target_property(KOSMOS_JSON_INCLUDE simlib INTERFACE_INCLUDE_DIRECTORIES)
-else()
-    get_target_property(KOSMOS_JSON_INCLUDE simlib::simlib INTERFACE_INCLUDE_DIRECTORIES)
-endif()
 add_library(launcher_data STATIC EXCLUDE_FROM_ALL launcher/data.cpp)
 target_include_directories(launcher_data PUBLIC launcher PRIVATE ${KOSMOS_JSON_INCLUDE})
 add_executable(launcher_test EXCLUDE_FROM_ALL launcher/launcher_test.cpp)
