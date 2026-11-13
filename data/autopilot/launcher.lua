@@ -48,6 +48,8 @@ local presses = 0
 local next_press = 0.0
 local config = default
 local pitch_cmd = 90.0
+local generic = false
+local resume_phase = "gravity-turn"
 
 local function get(name) return props.get("/ships/ship[" .. props.get("/sim/active-ship") .. "]/" .. name) end
 
@@ -83,7 +85,27 @@ function update(dt)
     return
   end
   if phase == "off" then
-    config = vehicles[get("class")] or default
+    generic = get("launcher-ascent/enabled")
+    if generic then
+      config = {
+        kick_speed = get("launcher-ascent/kick-speed"),
+        kick = get("launcher-ascent/kick-pitch"),
+        closed_alt = get("launcher-ascent/turn-end-km") * 1000.0,
+        mid_pitch = get("launcher-ascent/turn-end-pitch"),
+        climb = get("launcher-ascent/climb-speed"),
+        last = get("launcher-ascent/last-powered-stage"),
+        actual_periapsis = true,
+        precise_orbit = true,
+      }
+      if get("soi") ~= "Earth" or get("crashed") or get("altitude") > 1000 or
+         get("speed") > 20 or get("stage") > config.last or get("main-max-thrust") <= 0 or
+         get("stage-fuel") <= 0 then
+        finish("Ascent not started: requires a fuelled rocket at rest on Earth")
+        return
+      end
+    else
+      config = vehicles[get("class")] or default
+    end
     pitch_cmd = 90.0
     set_phase("liftoff", "Liftoff")
   end
@@ -97,6 +119,7 @@ function update(dt)
   local apoapsis = get("orbit/apoapsis")
   local periapsis = get("orbit/periapsis")
   local stage = get("stage")
+  local fuel_limit = generic and math.max(0.01, math.min(50.0, get("stage-fuel-capacity") * 0.001)) or 50.0
 
   if phase == "liftoff" then
     props.set("/controls/throttle", 1.0)
@@ -105,6 +128,13 @@ function update(dt)
     props.set("/controls/target-heading", heading)
     if vertical > config.kick_speed then
       set_phase("kick", "Pitch kick")
+    elseif generic and get("stage-fuel") < fuel_limit then
+      if stage < config.last then
+        resume_phase = "liftoff"
+        set_phase("staging", "Staging")
+      else
+        finish("Out of propellant")
+      end
     end
 
   elseif phase == "kick" then
@@ -115,6 +145,13 @@ function update(dt)
     local flight_path = math.deg(math.atan(vertical, horizontal))
     if flight_path < config.kick - 0.5 or phase_time > 15.0 then
       set_phase("gravity-turn", "Gravity turn")
+    elseif generic and get("stage-fuel") < fuel_limit then
+      if stage < config.last then
+        resume_phase = "kick"
+        set_phase("staging", "Staging")
+      else
+        finish("Out of propellant")
+      end
     end
 
   elseif phase == "gravity-turn" then
@@ -141,16 +178,17 @@ function update(dt)
         steer(math.max(math.min((config.gain or 0.4) * (wanted - vertical), 85.0), -10.0), dt)
       end
       props.set("/autopilot/status", last and "Upper stage burn" or "Powered ascent")
-      if last and apoapsis >= target then
+      if (last or generic) and apoapsis >= target then
         props.set("/controls/throttle", 0.0)
         set_phase("coast", "Coasting to apoapsis")
       end
     end
-    if get("stage-fuel") < 50.0 then
+    if phase == "gravity-turn" and get("stage-fuel") < fuel_limit then
       if stage < config.last then
         if get("parallel-next-stage") then
           props.set("/controls/stage", true)
         else
+          resume_phase = "gravity-turn"
           set_phase("staging", "Staging")
         end
       elseif apoapsis < target then
@@ -173,7 +211,7 @@ function update(dt)
     end
     if stage_sent and presses == 0 and phase_time > next_press + 1.4 then
       props.set("/controls/throttle", 1.0)
-      set_phase("gravity-turn", "Powered ascent")
+      set_phase(generic and resume_phase or "gravity-turn", "Powered ascent")
     end
 
   elseif phase == "coast" then
@@ -200,8 +238,13 @@ function update(dt)
     props.set("/controls/throttle", 1.0)
     if periapsis >= target - 5000.0 or (not config.precise_orbit and periapsis > 100000.0 and apoapsis - periapsis < 15000.0) then
       finish("In orbit")
-    elseif get("stage-fuel") < 1.0 then
-      finish("Out of propellant")
+    elseif get("stage-fuel") < (generic and fuel_limit or 1.0) then
+      if generic and stage < config.last then
+        resume_phase = "circularise"
+        set_phase("staging", "Staging")
+      else
+        finish("Out of propellant")
+      end
     end
   end
 end

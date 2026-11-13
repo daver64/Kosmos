@@ -222,7 +222,7 @@ namespace kosmos::app
                 radius = first_stage ? st.radius : std::max(radius, st.radius);
                 first_stage = false;
             }
-            const float arm = static_cast<float>(std::max(1.5, 0.5 * (top - bottom))), centre = static_cast<float>(0.5 * (top + bottom));
+            const float arm = static_cast<float>(std::max(0.001, 0.5 * (top - bottom))), centre = static_cast<float>(0.5 * (top + bottom));
             int slot = 0;
             auto jet = [&](const glm::vec3 &position, const glm::vec3 &push, float amount)
             {

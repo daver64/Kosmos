@@ -292,7 +292,12 @@ namespace shipedit
 
         bool has_ship_equipment(const json &root)
         {
-            for (const char *key : {"script", "systems", "vessels", "ports", "lights", "cockpit", "cameras", "surfaces", "wheels", "instruments", "weapons", "hardpoints", "payload_bays", "parachutes"})
+            if (root.contains("script") && !root["script"].empty() && root["script"] != "@launcher.lua")
+                return true;
+            if (root.contains("cockpit") && !root["cockpit"].empty() &&
+                root["cockpit"] != json::object({{"mfds", true}}))
+                return true;
+            for (const char *key : {"systems", "vessels", "ports", "lights", "cameras", "surfaces", "wheels", "instruments", "weapons", "hardpoints", "payload_bays", "parachutes"})
                 if (root.contains(key) && !root[key].empty())
                     return true;
             return false;
@@ -424,6 +429,17 @@ namespace shipedit
         undo_.clear();
         redo_.clear();
         dirty_ = false;
+    }
+
+    void Document::make_rocket(const std::string &name)
+    {
+        make_blank(name);
+        root_["script"] = "@launcher.lua";
+        root_["cockpit"] = {{"mfds", true}};
+        root_["launcher_ascent"] = {{"kick_speed", 50.0}, {"kick_pitch", 85.0},
+                                    {"turn_end_km", 45.0}, {"turn_end_pitch", 35.0},
+                                    {"climb_speed", 150.0}};
+        root_["stages"] = json::array();
     }
 
     json &Document::stages()

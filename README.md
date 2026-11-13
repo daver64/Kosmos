@@ -512,7 +512,7 @@ The RADALT MFD warns when the current vertical descent rate would reach the esti
 
 In the chase view, dragging with the mouse orbits the ship (the ship stays centred); the camera is kept above the terrain.
 
-**C** cycles chase, 2D cockpit, 3D cockpit and then your own cameras, which include a built-in orbiting **External** camera that always looks at the ship. **View > Camera editor** (or the button in F2) makes more: *orbit* cameras circle a ship, planet or moon (right-drag swings, `[` `]` zoom, optional spin), and *mounted* cameras sit at an offset on a ship or body and face a direction or look at another ship or body. They are saved in `~/.config/kosmos/cameras.json`. `--user-camera N` starts through the Nth one and `--camera-editor` opens the editor.
+**C** cycles chase, 2D cockpit, 3D cockpit and then your own cameras, which include a built-in orbiting **External** camera that always looks at the ship. **View > Camera editor** (or the button in F2) makes more: *orbit* cameras circle a ship, planet or moon (right-drag swings, `[` `]` zoom, optional spin), and *mounted* cameras sit at an offset on a ship or body and face a direction or look at another ship or body. Ship orbit cameras follow the remaining vessel after staging, using its camera target if specified or its centre of mass otherwise. They are saved in `~/.config/kosmos/cameras.json`. `--user-camera N` starts through the Nth one and `--camera-editor` opens the editor.
 
 ### Window and full screen
 

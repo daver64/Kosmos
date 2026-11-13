@@ -421,6 +421,65 @@ int main()
         std::string error;
         assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
         ShipSpec spec;
+        spec.name = "Staging camera and RCS";
+        spec.stages.resize(3);
+        spec.stages[0].dry_mass = 1000.0;
+        spec.stages[0].propellant = 0.0;
+        spec.stages[0].length = 10.0;
+        spec.stages[0].z = 0.0;
+        spec.stages[1].dry_mass = 200.0;
+        spec.stages[1].propellant = 0.0;
+        spec.stages[1].length = 3.0;
+        spec.stages[1].radius = 0.8;
+        spec.stages[1].z = -6.5;
+        spec.stages[2].dry_mass = 100.0;
+        spec.stages[2].propellant = 0.0;
+        spec.stages[2].length = 1.8;
+        spec.stages[2].radius = 0.8;
+        spec.stages[2].z = -8.9;
+        Ship rocket(universe, spec);
+        const int earth = universe.find("Earth");
+        assert(earth >= 0);
+        rocket.body().position = universe.position(earth) + sl::dvec3(0.0, universe.bodies[earth].radius + 200000.0, 0.0);
+        const sl::dvec3 original_origin = rocket.origin();
+        assert(rocket.stage_once());
+        assert(glm::length(rocket.origin() - original_origin) < 1e-6);
+        assert(std::fabs(rocket.body().mass() - 300.0) < 1e-9);
+        assert(glm::length(rocket.orbit_camera_focus() - rocket.body().position) < 1e-9);
+        assert(rocket.stage_once());
+        assert(glm::length(rocket.origin() - original_origin) < 1e-6);
+        assert(std::fabs(rocket.com_offset().z + 8.9) < 1e-9);
+        assert(std::fabs(rocket.body().mass() - 100.0) < 1e-9);
+        assert(std::fabs(rocket.body().inertia().x - 43.0) < 1e-9);
+        assert(glm::length(rocket.orbit_camera_focus() - rocket.body().position) < 1e-9);
+        Controls controls;
+        controls.sas = "off";
+        controls.pitch = 1.0;
+        rocket.apply_controls(controls, 0.1);
+        kosmos::app::ExhaustFx fx;
+        fx.update(rocket, 1.0, 0.1f, true);
+        assert(!fx.particles.empty());
+        for (const auto &particle : fx.particles)
+        {
+            assert(particle.kind == kosmos::app::ExhaustFx::rcs);
+            assert(particle.position.z >= -9.8f - 1e-5f && particle.position.z <= -8.0f + 1e-5f);
+        }
+        universe.world.step(0.1);
+        assert(std::fabs(rocket.body().angular_velocity.x) > 0.001);
+
+        spec.has_camera_target = true;
+        spec.camera_target = {1.0, 2.0, 3.0};
+        Ship targeted(universe, spec);
+        targeted.body().position = original_origin;
+        assert(targeted.stage_once());
+        assert(glm::length(targeted.orbit_camera_focus() -
+                           (targeted.origin() + targeted.body().direction_to_world(targeted.camera_focus()))) < 1e-9);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec spec;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-atlas/ship.json", spec, error));
         Ship rocket(universe, spec);
         const int earth = universe.find("Earth");

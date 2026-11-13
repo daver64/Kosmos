@@ -49,6 +49,8 @@ namespace shipedit
         bool load(const AddonInfo &addon, const std::string &ship_file, std::string &error);
         /** A blank one-stage ship with no source addon. */
         void make_blank(const std::string &name);
+        /** A new empty rocket with the shared launcher autopilot and orbital MFDs. */
+        void make_rocket(const std::string &name);
 
         bool has_source() const { return !source_dir_.empty(); }
         const fs::path &source_dir() const { return source_dir_; }

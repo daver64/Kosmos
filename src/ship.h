@@ -339,6 +339,12 @@ namespace kosmos
         /** The ship.json this was read from, so the part editor can write a converted part back. */
         std::string source_file;
         std::string script;
+        struct LauncherAscent
+        {
+            double kick_speed = 50.0, kick_pitch = 85.0, turn_end_km = 45.0, turn_end_pitch = 35.0, climb_speed = 150.0;
+            int last_powered_stage = -1;
+        };
+        std::optional<LauncherAscent> launcher_ascent;
         /** A looping engine sound (path inside the ship folder) that replaces the generic engine voice while this ship is flown. */
         std::string engine_sound;
         Cockpit cockpit;
@@ -654,6 +660,11 @@ namespace kosmos
         bool port_attached(int index) const { return spec_.ports[static_cast<std::size_t>(index)].stage >= active_stage_; }
         /** The camera's focus in the ship frame: `camera_target` moved along the axis by however far the middle of the stages still attached has shifted from the middle of the full stack. */
         sl::dvec3 camera_focus() const;
+        /** World-space orbit-camera focus, falling back to the current centre of mass. */
+        sl::dvec3 orbit_camera_focus() const
+        {
+            return spec_.has_camera_target ? origin() + body().direction_to_world(camera_focus()) : body().position;
+        }
         /** Landing gear extension: 0 retracted to 1 down and locked (always 1 without retractable gear). */
         double gear_position() const { return gear_position_; }
         void set_gear_position(double p) { gear_position_ = std::clamp(p, 0.0, 1.0); }

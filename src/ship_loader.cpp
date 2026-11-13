@@ -296,6 +296,25 @@ namespace kosmos
 
         void read_ship_options(const nlohmann::json &json, ShipSpec &spec)
         {
+            if (json.contains("launcher_ascent"))
+            {
+                const auto &j = json.at("launcher_ascent");
+                if (!j.is_object())
+                    throw std::runtime_error("launcher_ascent must be an object");
+                ShipSpec::LauncherAscent a;
+                a.kick_speed = j.value("kick_speed", a.kick_speed);
+                a.kick_pitch = j.value("kick_pitch", a.kick_pitch);
+                a.turn_end_km = j.value("turn_end_km", a.turn_end_km);
+                a.turn_end_pitch = j.value("turn_end_pitch", a.turn_end_pitch);
+                a.climb_speed = j.value("climb_speed", a.climb_speed);
+                if (!std::isfinite(a.kick_speed) || a.kick_speed <= 0.0 ||
+                    !std::isfinite(a.kick_pitch) || a.kick_pitch < 0.0 || a.kick_pitch > 90.0 ||
+                    !std::isfinite(a.turn_end_km) || a.turn_end_km <= 0.0 ||
+                    !std::isfinite(a.turn_end_pitch) || a.turn_end_pitch < 0.0 || a.turn_end_pitch > a.kick_pitch ||
+                    !std::isfinite(a.climb_speed) || a.climb_speed <= 0.0)
+                    throw std::runtime_error("invalid launcher_ascent settings");
+                spec.launcher_ascent = a;
+            }
             spec.camera_distance = json.value("camera_distance", spec.camera_distance);
             if (json.contains("camera_target"))
             {
@@ -622,6 +641,14 @@ namespace kosmos
             {
                 spec.stages.push_back(read_stage(js));
             }
+            if (spec.launcher_ascent)
+                for (std::size_t i = 0; i < spec.stages.size(); ++i)
+                    if (spec.stages[i].propellant > 0.0 &&
+                        std::any_of(spec.stages[i].engines.begin(), spec.stages[i].engines.end(), [](const EngineSpec &e) {
+                            return e.thrust > 0.0 && e.isp > 0.0 && !e.hover && !e.pod &&
+                                   e.rcs_groups.empty() && !e.air_breathing && e.type != EngineType::hyperjump;
+                        }))
+                        spec.launcher_ascent->last_powered_stage = static_cast<int>(i);
             if (std::count_if(spec.stages.begin(), spec.stages.end(),
                               [](const StageSpec &stage) { return stage.rcs_visual.has_value(); }) > 1)
                 throw std::runtime_error("only one stage may define rcs_visual");

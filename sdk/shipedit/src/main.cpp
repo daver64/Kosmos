@@ -243,6 +243,28 @@ namespace
         json *n = cur();
         if (!n)
             return;
+        const char *member = std::strchr(key, '.');
+        if (member && app->sel.kind == Selection::ship)
+        {
+            const std::string group(key, member);
+            const char *child = member + 1;
+            if (n->contains(group) && !(*n)[group].is_object())
+            {
+                message(group + " must be an object before editing its settings.", GTK_MESSAGE_ERROR);
+                return;
+            }
+            if (erase && (!n->contains(group) || !(*n)[group].contains(child)))
+                return;
+            if (!erase && n->contains(group) && (*n)[group].contains(child) && (*n)[group][child] == value)
+                return;
+            app->doc.checkpoint();
+            if (erase)
+                (*n)[group].erase(child);
+            else
+                (*n)[group][child] = value;
+            value_changed();
+            return;
+        }
         if (erase)
         {
             if (!n->contains(key))
@@ -290,12 +312,20 @@ namespace
         // selection first and then the old entry loses focus, which would otherwise write its text into the new node.
         const Selection at = app->sel;
         auto here = [at] { return app->sel.kind == at.kind && app->sel.stage == at.stage && app->sel.item == at.item; };
-        const json *cv = is_vec_node ? n : (n->contains(key) ? &(*n)[key] : nullptr);
+        const json *values = n;
+        std::string field_key = key;
+        if (const std::size_t dot = key.find('.'); dot != std::string::npos && app->sel.kind == Selection::ship)
+        {
+            const std::string group = key.substr(0, dot);
+            values = n->contains(group) && (*n)[group].is_object() ? &(*n)[group] : nullptr;
+            field_key = key.substr(dot + 1);
+        }
+        const json *cv = is_vec_node ? n : (values && values->contains(field_key) ? &(*values)[field_key] : nullptr);
 
         if (f.kind == Field::Bool)
         {
             GtkWidget *c = gtk_check_button_new();
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c), cv && cv->is_boolean() && cv->get<bool>());
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c), cv && cv->is_boolean() ? cv->get<bool>() : key == "cockpit.mfds" && values);
             on_signal(c, "toggled", [c, key] { commit_value(key.c_str(), gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(c)) != 0, false); });
             gtk_grid_attach(GTK_GRID(grid), c, 1, row, 1, 1);
         }
@@ -556,6 +586,13 @@ namespace
                       {Field::Num, "rcs_thrust", "RCS thrust N"},
                       {Field::Bool, "retractable_gear", "Retractable gear"},
                       {Field::Num, "gear_time", "Gear time s"}};
+            fields.push_back({Field::Choice, "script", "Autopilot script", {"@launcher.lua"}});
+            fields.push_back({Field::Bool, "cockpit.mfds", "Cockpit MFDs"});
+            fields.push_back({Field::Num, "launcher_ascent.kick_speed", "Turn start speed m/s"});
+            fields.push_back({Field::Num, "launcher_ascent.kick_pitch", "Initial pitch deg"});
+            fields.push_back({Field::Num, "launcher_ascent.turn_end_km", "Turn end altitude km"});
+            fields.push_back({Field::Num, "launcher_ascent.turn_end_pitch", "Pitch at turn end deg"});
+            fields.push_back({Field::Num, "launcher_ascent.climb_speed", "Climb speed m/s"});
             break;
         case Selection::stage_node:
             title = "Stage";
@@ -1168,8 +1205,7 @@ namespace
                                structure_changed({Selection::ship, -1, -1});
                            }), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(bar), button("New rocket", [] {
-                               app->doc.make_blank("New Rocket");
-                               app->doc.stages().clear();
+                               app->doc.make_rocket("New Rocket");
                                app->last_saved_ship.clear();
                                app->meshes.clear();
                                app->view.yaw = 0;
@@ -1622,8 +1658,7 @@ int main(int argc, char **argv)
             if (ships[i] == ship_arg)
                 gtk_combo_box_set_active(GTK_COMBO_BOX(state.ship_combo), static_cast<int>(i));
     }
-    state.doc.make_blank("New Rocket");
-    state.doc.stages().clear();
+    state.doc.make_rocket("New Rocket");
     state.view.yaw = 0;
     state.view.pitch = 1.57079632679;
     structure_changed({Selection::ship, -1, -1});

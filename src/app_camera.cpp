@@ -674,7 +674,7 @@ namespace kosmos::app
         if (options.cam_antisun)
             offset_dir = glm::normalize(glm::normalize(fb.position - universe.position(0)) + east * std::sin(yaw_d) * 0.9 + up * std::sin(pitch_d) * 0.9);
         // A tall ship can name the point the external camera frames, such as the capsule at the top of a Saturn V.
-        sl::dvec3 focus = ship->spec().has_camera_target ? ship->origin() + fb.direction_to_world(ship->camera_focus()) : fb.position;
+        sl::dvec3 focus = ship->orbit_camera_focus();
         // A released warhead takes the camera; the ship carries on its own way.
         double seconds_to_burst = 1.0e9;
         const bool following = !in_cockpit && !in_interior && !map_mode && arsenal.follow_target(universe, ship, focus, seconds_to_burst);
@@ -783,7 +783,7 @@ namespace kosmos::app
                 return ship_anchor(*ship);
             };
             const Anchor host = anchor(uc.attach, uc.attach_name);
-            // The point of a ship a camera frames: its `camera_target` when it names one, else its origin.
+            // Frame the same point as the standard external orbit camera.
             auto focus_of = [&](const int kind, const std::string &name, const Anchor &a)
             {
                 Ship *sh = ship;
@@ -791,9 +791,9 @@ namespace kosmos::app
                     for (int si = 0; si < sim.ship_count(); ++si)
                         if (sim.ship(si)->name == name)
                             sh = sim.ship(si);
-                if (!a.ship || !sh || !sh->spec().has_camera_target)
+                if (!a.ship || !sh)
                     return a.position;
-                return a.position + sh->body().direction_to_world(sh->camera_focus());
+                return sh->orbit_camera_focus();
             };
             view_fov = uc.fov;
             if (uc.orbit)

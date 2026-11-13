@@ -71,6 +71,17 @@ namespace kosmos
         tree.node(base + "/stage")->tie_int([this] { return active_stage_; });
         tree.node(base + "/stage-count")->tie_int([this] { return stage_count(); });
         tree.node(base + "/parallel-next-stage")->tie_bool([this] { return burning_stage_end() > active_stage_ + 1; });
+        tree.node(base + "/launcher-ascent/enabled")->set_bool(spec_.launcher_ascent.has_value());
+        if (spec_.launcher_ascent)
+        {
+            const auto &a = *spec_.launcher_ascent;
+            tree.node(base + "/launcher-ascent/kick-speed")->set_double(a.kick_speed);
+            tree.node(base + "/launcher-ascent/kick-pitch")->set_double(a.kick_pitch);
+            tree.node(base + "/launcher-ascent/turn-end-km")->set_double(a.turn_end_km);
+            tree.node(base + "/launcher-ascent/turn-end-pitch")->set_double(a.turn_end_pitch);
+            tree.node(base + "/launcher-ascent/climb-speed")->set_double(a.climb_speed);
+            tree.node(base + "/launcher-ascent/last-powered-stage")->set_int(a.last_powered_stage);
+        }
         tree.node(base + "/crashed")->tie_bool([this] { return crashed_; });
         tree.node(base + "/landed")->tie_bool([this] { return telemetry_.landed; });
         tree.node(base + "/on-rails")->tie_bool([this] { return on_rails(); });
