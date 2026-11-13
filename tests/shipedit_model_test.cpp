@@ -132,6 +132,17 @@ int main()
     const AddonInfo *soyuz = find_addon(addons, "cvel-soyuz");
     const AddonInfo *kitdemo = find_addon(addons, "kitdemo");
     Document rocket, source;
+    Document new_rocket;
+    new_rocket.make_rocket("New rocket");
+    check(new_rocket.stage_count() == 0 && new_rocket.root()["script"] == "@launcher.lua" &&
+              new_rocket.root()["cockpit"]["mfds"] == true &&
+              new_rocket.root()["cockpit"]["external_mfds"] == true &&
+              new_rocket.root()["launcher_ascent"]["turn_end_km"] == 45.0,
+          "new rockets have the shared ascent profile and cockpit MFDs");
+    new_rocket.add_stage();
+    new_rocket.add_stage();
+    check(new_rocket.arrange_stage(0, 1, error), "default rocket equipment permits stage rearrangement: " + error);
+    check(new_rocket.undo() && new_rocket.redo(), "rocket stage rearrangement remains undoable");
     rocket.make_blank("Imported rocket");
     rocket.stages().clear();
     int imported = -1;

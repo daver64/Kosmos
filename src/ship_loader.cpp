@@ -69,6 +69,7 @@ namespace kosmos
                 spec.cockpit.pitch = jc.value("pitch", 0.0);
                 spec.cockpit.fov = jc.value("fov", 0.0);
                 spec.cockpit.mfds = jc.value("mfds", true);
+                spec.cockpit.external_mfds = jc.value("external_mfds", false);
                 spec.cockpit.vc_model = jc.value("vc_model", "");
                 spec.cockpit.vc_mfd_flip = jc.value("vc_mfd_flip", false);
                 spec.cockpit.vc_cabin_lighting = jc.value("vc_cabin_lighting", false);

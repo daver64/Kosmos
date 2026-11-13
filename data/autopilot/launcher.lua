@@ -121,6 +121,16 @@ function update(dt)
   local stage = get("stage")
   local fuel_limit = generic and math.max(0.01, math.min(50.0, get("stage-fuel-capacity") * 0.001)) or 50.0
 
+  if generic and phase == "gravity-turn" and get("main-max-thrust") <= 0 then
+    if stage < config.last then
+      resume_phase = "gravity-turn"
+      set_phase("staging", "Staging")
+    else
+      finish("Out of propellant or no main engine")
+    end
+    return
+  end
+
   if phase == "liftoff" then
     props.set("/controls/throttle", 1.0)
     props.set("/controls/sas", "attitude")

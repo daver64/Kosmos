@@ -207,7 +207,11 @@ namespace kosmos::app
         {"--bake-lazy", 0, on(&Options::bake_lazy)},
         {"--bake-estimate", 0, on(&Options::bake_estimate)},
         {"--list-scenarios", 0, on(&Options::list_scenarios)},
-        {"--mfd", 1, whole(&Options::mfd_display)},
+        {"--mfd", 1, [](Options &o, char **a) {
+            o.mfd_display = std::atoi(a[0]);
+            o.mfd_display_explicit = true;
+            return true;
+        }},
         {"--mfd-left", 1, text(&Options::mfd_left)},
         {"--mfd-right", 1, text(&Options::mfd_right)},
         {"--map-scale", 1, real(&Options::map_scale)},

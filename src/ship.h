@@ -204,6 +204,8 @@ namespace kosmos
         std::vector<Instrument> panel;
         /** Draw the dashboard with two MFDs (default modes orbit and surface) below the instrument row. */
         bool mfds = true;
+        /** Start with framed MFD overlays in external view unless the scenario or command line overrides them. */
+        bool external_mfds = false;
         std::string mfd_left = "orbit", mfd_right = "surface";
         /** A virtual cockpit mesh (OBJ, relative to the ship file) drawn around the eye in the 3D cockpit, in the hull's frame. */
         std::string vc_model;

@@ -93,6 +93,7 @@ namespace kosmos::app
         bool cockpit = false;
         bool cockpit3d = false;
         int mfd_display = 0; // 0 off, 1 panels, 2 heads-up
+        bool mfd_display_explicit = false;
         std::string mfd_left, mfd_right;
         int ship_index = 0;
         std::string ship_name = "Kestrel";

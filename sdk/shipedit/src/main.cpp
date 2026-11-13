@@ -253,6 +253,33 @@ namespace
                 message(group + " must be an object before editing its settings.", GTK_MESSAGE_ERROR);
                 return;
             }
+            if (group == "launcher_ascent" && !erase)
+            {
+                const double number = value.is_number() ? value.get<double>() : 0.0;
+                if (!std::isfinite(number) ||
+                    ((std::strcmp(child, "kick_speed") == 0 || std::strcmp(child, "turn_end_km") == 0 ||
+                      std::strcmp(child, "climb_speed") == 0) && number <= 0.0) ||
+                    ((std::strcmp(child, "kick_pitch") == 0 || std::strcmp(child, "turn_end_pitch") == 0) &&
+                     (number < 0.0 || number > 90.0)))
+                {
+                    message("Turn speed, altitude and climb speed must be positive; pitch must be 0 to 90 degrees.", GTK_MESSAGE_ERROR);
+                    return;
+                }
+                const json &settings = n->contains(group) ? (*n)[group] : json::object();
+                if ((settings.contains("kick_pitch") && !settings["kick_pitch"].is_number()) ||
+                    (settings.contains("turn_end_pitch") && !settings["turn_end_pitch"].is_number()))
+                {
+                    message("The existing gravity-turn pitch settings must be numbers.", GTK_MESSAGE_ERROR);
+                    return;
+                }
+                const double kick = std::strcmp(child, "kick_pitch") == 0 ? number : settings.value("kick_pitch", 85.0);
+                const double end = std::strcmp(child, "turn_end_pitch") == 0 ? number : settings.value("turn_end_pitch", 35.0);
+                if (end > kick)
+                {
+                    message("Pitch at turn end cannot exceed the initial pitch.", GTK_MESSAGE_ERROR);
+                    return;
+                }
+            }
             if (erase && (!n->contains(group) || !(*n)[group].contains(child)))
                 return;
             if (!erase && n->contains(group) && (*n)[group].contains(child) && (*n)[group][child] == value)
@@ -284,6 +311,9 @@ namespace
             }
             app->doc.checkpoint();
             (*n)[key] = value;
+            if (app->sel.kind == Selection::ship && std::strcmp(key, "script") == 0 &&
+                value == "@launcher.lua" && !n->contains("launcher_ascent"))
+                (*n)["launcher_ascent"] = json::object();
         }
         if (std::strcmp(key, "model") == 0)
             app->meshes.clear();
@@ -477,7 +507,11 @@ namespace
                 }
                 double v;
                 if (!parse_num(t.c_str(), v))
+                {
+                    if (key.rfind("launcher_ascent.", 0) == 0)
+                        message("Enter a number for the gravity-turn setting.", GTK_MESSAGE_ERROR);
                     return;
+                }
                 if (kind == Field::Int)
                     commit_value(key.c_str(), static_cast<long long>(v), false);
                 else
@@ -588,6 +622,7 @@ namespace
                       {Field::Num, "gear_time", "Gear time s"}};
             fields.push_back({Field::Choice, "script", "Autopilot script", {"@launcher.lua"}});
             fields.push_back({Field::Bool, "cockpit.mfds", "Cockpit MFDs"});
+            fields.push_back({Field::Bool, "cockpit.external_mfds", "External MFDs at start"});
             fields.push_back({Field::Num, "launcher_ascent.kick_speed", "Turn start speed m/s"});
             fields.push_back({Field::Num, "launcher_ascent.kick_pitch", "Initial pitch deg"});
             fields.push_back({Field::Num, "launcher_ascent.turn_end_km", "Turn end altitude km"});

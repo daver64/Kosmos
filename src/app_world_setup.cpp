@@ -638,7 +638,7 @@ namespace kosmos::app
         if (!options.target.empty())
             sim.props.set_string("/sim/target", options.target);
         apply_sets(sim.props, options.sets);
-        mfd_display = options.mfd_display;
+        mfd_display = options.mfd_display_explicit ? options.mfd_display : (ship->spec().cockpit.external_mfds ? 1 : 0);
     return keep_going;
     }
 } // namespace kosmos::app
