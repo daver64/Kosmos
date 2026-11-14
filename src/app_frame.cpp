@@ -25,7 +25,7 @@ namespace kosmos::app
         gfx_style = options.render_style >= 0 ? options.render_style : sim.props.get_int("/sim/settings/gfx-style");
         gfx_clouds = sim.props.get_bool("/sim/settings/gfx-clouds") && gfx_style == 0;
         sl::set_render_style_3d(static_cast<sl::RenderStyle3D>(gfx_style));
-        if (const int fps = sim.props.get_int("/sim/settings/gfx-max-fps"); fps != applied_fps)
+        if (const int fps = options.capture_dir.empty() ? sim.props.get_int("/sim/settings/gfx-max-fps") : 0; fps != applied_fps)
         {
             sl::set_fps(fps);
             applied_fps = fps;
@@ -61,6 +61,8 @@ namespace kosmos::app
         if (fade > 0)
             sl::rectfill(sl::screen, 0, 0, screen_w, screen_h, {static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade), static_cast<std::uint8_t>(fade)});
         sl::gprintf_center(screen_h / 2 - 8, {200, 220, 255}, "Quantum jump to %s", target_name.c_str());
+        if (!options.capture_dir.empty())
+            capture_frame();
         sl::show_video_bitmap();
         sl::end_frame();
     }
@@ -91,6 +93,8 @@ namespace kosmos::app
         const ShipCarryState carry_state = ship ? ship->carry_state() : ShipCarryState{};
         const std::uint32_t begin = sl::time_ms();
         draw_warp_frame(0.0f, target_name);
+        if (!running)
+            return true;
         if (netplay.joined())
             netplay.leave();
         vis.clear_parts();
@@ -130,8 +134,18 @@ namespace kosmos::app
         exhaust_fx = ExhaustFx();
         gview.refresh(sim.galaxy, sim.system_index());
         // Hold the effect for at least a couple of seconds, fading to black before the new sky appears.
-        for (std::uint32_t t = sl::time_ms() - begin; t < 2500; t = sl::time_ms() - begin)
-            draw_warp_frame(static_cast<float>(t) / 2500.0f, target_name);
+        if (!options.capture_dir.empty())
+        {
+            const int transition_frames = std::max(1, options.capture_fps * 5 / 2);
+            for (int i = 1; i < transition_frames && running; ++i)
+            {
+                clock += 1.0 / options.capture_fps;
+                draw_warp_frame(static_cast<float>(i) / transition_frames, target_name);
+            }
+        }
+        else
+            for (std::uint32_t t = sl::time_ms() - begin; t < 2500; t = sl::time_ms() - begin)
+                draw_warp_frame(static_cast<float>(t) / 2500.0f, target_name);
         last_time = sl::time_ms();
         return true;
     }
@@ -212,7 +226,8 @@ namespace kosmos::app
             options.test_jump = -1;
         }
         const std::uint32_t now = sl::time_ms();
-        frame = std::clamp(static_cast<double>(now - last_time) * 0.001, 0.001, 0.1);
+        frame = options.capture_dir.empty() ? std::clamp(static_cast<double>(now - last_time) * 0.001, 0.001, 0.1)
+                                            : 1.0 / options.capture_fps;
         last_time = now;
         clock += frame;
         smooth_frame += (frame - smooth_frame) * 0.1;
@@ -229,6 +244,29 @@ namespace kosmos::app
         event = sl::Event();
     }
 
+    void App::capture_frame()
+    {
+        if (options.capture_warmup > 0)
+        {
+            --options.capture_warmup;
+            return;
+        }
+        char name[32];
+        std::snprintf(name, sizeof(name), "frame-%06d.png", captured_frames);
+        const std::filesystem::path path = std::filesystem::path(options.capture_dir) / name;
+        std::error_code ec;
+        const bool exists = std::filesystem::exists(path, ec);
+        if (exists || ec || !sl::save_bitmap(sl::screen, path.string()))
+        {
+            const std::string reason = exists ? "already exists" : ec ? ec.message() : "save failed";
+            std::fprintf(stderr, "kosmos: cannot capture frame %s: %s\n", path.string().c_str(), reason.c_str());
+            capture_failed = true;
+            running = false;
+        }
+        else if (++captured_frames >= options.capture_count)
+            running = false;
+    }
+
     // Screenshots, video capture and the buffer swap.
     void App::present()
     {
@@ -236,6 +274,8 @@ namespace kosmos::app
             menu_bar.draw(sim, menu_windows, menu_actions);
         sl::gui_render();
 
+        if (!options.capture_dir.empty())
+            capture_frame();
         if (!options.shot.empty() && !shot_saved && clock >= options.shot_at)
         {
             sl::save_bitmap(sl::screen, options.shot);
@@ -305,7 +345,7 @@ namespace kosmos::app
         netplay.lobby_disconnect();
         // The launcher's "Resume" starts this scenario: the ships where they were left, with the one you were flying active.
         if (!kosmos::Sim::user_dir().empty() && (sim.ship_count() > 0 || flight_replay.original_valid) &&
-            options.selftest <= 0.0 && options.shot.empty())
+            options.selftest <= 0.0 && options.shot.empty() && options.capture_dir.empty())
         {
             kosmos::Scenario last = flight_replay.original_valid ?
                                          flight_replay.original : kosmos::capture_scenario(sim, "Last session");
@@ -314,7 +354,7 @@ namespace kosmos::app
                 std::fprintf(stderr, "kosmos: %s\n", problem.c_str());
         }
         // A recorded run may force sound on (--set), which must not overwrite the player's own settings.
-        if (options.record_seconds <= 0.0)
+        if (options.record_seconds <= 0.0 && options.capture_dir.empty())
             settings_save(sim.props);
         sl::gui_shutdown();
         lightning.release();
@@ -385,9 +425,14 @@ namespace kosmos::app
         while (running)
             if (!run_frame())
                 break;
+        if (!options.capture_dir.empty() && captured_frames != options.capture_count)
+        {
+            std::fprintf(stderr, "kosmos: captured %d of %d requested frames\n", captured_frames, options.capture_count);
+            capture_failed = true;
+        }
         loading.end();
         shutdown();
-        return 0;
+        return capture_failed ? 1 : 0;
     }
 
     bool App::run_frame()
@@ -406,6 +451,8 @@ namespace kosmos::app
         }
         Watchdog::stage("begin_frame"); // WATCHDOG
         if (!begin_frame())
+            return false;
+        if (!running)
             return false;
         Watchdog::stage("apply_settings"); // WATCHDOG
         apply_settings();

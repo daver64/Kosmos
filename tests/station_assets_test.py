@@ -32,7 +32,7 @@ for model in sorted(models):
                 normals.append(tuple(map(float, line.split()[1:4])))
             elif line.startswith("f "):
                 faces += 1
-                if model.name == "mir.obj":
+                if model.name in {"iss.obj", "mir.obj"}:
                     for corner in line.split()[1:]:
                         indices = corner.split("/")
                         if len(indices) > 2 and indices[2]:

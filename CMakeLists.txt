@@ -93,6 +93,7 @@ add_executable(kosmos
     src/app_frame.cpp
     src/app_input.cpp
     src/app_camera.cpp
+    src/cinematic_camera.cpp
     src/app_flight_replay.cpp
     src/app_draw_world.cpp
     src/app_draw_hud.cpp
@@ -254,6 +255,10 @@ add_executable(camera_dynamics_test EXCLUDE_FROM_ALL tests/camera_dynamics_test.
 target_link_libraries(camera_dynamics_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(camera_dynamics_test PRIVATE src)
 target_compile_definitions(camera_dynamics_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED> KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(cinematic_camera_test EXCLUDE_FROM_ALL tests/cinematic_camera_test.cpp src/cinematic_camera.cpp)
+target_include_directories(cinematic_camera_test PRIVATE src ${KOSMOS_JSON_INCLUDE})
+target_compile_features(cinematic_camera_test PRIVATE cxx_std_17)
 
 add_executable(rcs_visual_test EXCLUDE_FROM_ALL tests/rcs_visual_test.cpp)
 target_link_libraries(rcs_visual_test PRIVATE ${KOSMOS_SIMLIB_LIBS})

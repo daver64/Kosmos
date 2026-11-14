@@ -414,8 +414,8 @@ namespace kosmos::app
     {
         const sl::dvec3 here = flown->body().position;
         const int soi = sim.universe.soi_body(here);
-        const int sun = sim.universe.find("Sun");
-        if (soi < 0 || sun < 0)
+        const int sun = 0;
+        if (soi <= 0 || sim.universe.bodies.empty())
             return;
         const sl::FlightBody &planet = *sim.universe.world.body(soi);
         const sl::dvec3 r = here - planet.position, s = sim.universe.world.body(sun)->position - planet.position;

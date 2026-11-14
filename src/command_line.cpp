@@ -95,6 +95,33 @@ namespace kosmos::app
         return true;
     }
 
+    bool capture_frames(Options &o, char **a)
+    {
+        int values[4]{};
+        for (int i = 0; i < 4; ++i)
+        {
+            const char *end = a[i + 1] + std::strlen(a[i + 1]);
+            const auto result = std::from_chars(a[i + 1], end, values[i]);
+            if (result.ec != std::errc{} || result.ptr != end)
+            {
+                std::fprintf(stderr, "kosmos: --capture-frames requires DIR FPS COUNT WIDTH HEIGHT\n");
+                return false;
+            }
+        }
+        if (!*a[0] || values[0] < 1 || values[0] > 120 || values[1] < 1 || values[1] > 999999 ||
+            values[2] < 320 || values[2] > 7680 || values[3] < 180 || values[3] > 4320)
+        {
+            std::fprintf(stderr, "kosmos: invalid --capture-frames directory, fps, frame count or dimensions\n");
+            return false;
+        }
+        o.capture_dir = a[0];
+        o.capture_fps = values[0];
+        o.capture_count = values[1];
+        o.capture_width = values[2];
+        o.capture_height = values[3];
+        return true;
+    }
+
     // Kept in time order, so an earlier event given later on the command line is not held up.
     bool set_at(Options &o, char **a)
     {
@@ -192,6 +219,18 @@ namespace kosmos::app
         {"--shot-stages", 1, whole(&Options::shot_stages)},
         {"--shot-throttle", 1, real(&Options::shot_throttle)},
         {"--shot", 1, text(&Options::shot)},
+        {"--capture-frames", 5, capture_frames},
+        {"--capture-camera", 1, text(&Options::capture_camera)},
+        {"--capture-warmup", 1, [](Options &o, char **a) {
+            const char *end = a[0] + std::strlen(a[0]);
+            const auto result = std::from_chars(a[0], end, o.capture_warmup);
+            if (result.ec != std::errc{} || result.ptr != end || o.capture_warmup < 0 || o.capture_warmup > 999999)
+            {
+                std::fprintf(stderr, "kosmos: --capture-warmup requires a non-negative frame count\n");
+                return false;
+            }
+            return true;
+        }},
         {"--record", 1, real(&Options::record_seconds)},
         {"--shot-at", 1, real(&Options::shot_at)},
         {"--auto-stage", 0, on(&Options::auto_stage)},
@@ -311,6 +350,21 @@ namespace kosmos::app
             return -1;
         if (i + it->second.arity >= argc)
         {
+            if (!std::strcmp(argv[i], "--capture-frames"))
+            {
+                std::fprintf(stderr, "kosmos: --capture-frames requires DIR FPS COUNT WIDTH HEIGHT\n");
+                return 1;
+            }
+            if (!std::strcmp(argv[i], "--capture-warmup"))
+            {
+                std::fprintf(stderr, "kosmos: --capture-warmup requires a frame count\n");
+                return 1;
+            }
+            if (!std::strcmp(argv[i], "--capture-camera"))
+            {
+                std::fprintf(stderr, "kosmos: --capture-camera requires a timeline file\n");
+                return 1;
+            }
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
             if (std::strncmp(argv[i], "--orbital-relief-", 17) == 0)
             {
@@ -352,6 +406,26 @@ namespace kosmos::app
                 return 1;
             if (applied < 0)
                 backend_args.push_back(argv[i]);
+        }
+        if (!options.capture_dir.empty() && (!options.shot.empty() || options.record_seconds > 0.0 ||
+                                             options.selftest > 0.0 || options.fullscreen))
+        {
+            std::fprintf(stderr, "kosmos: --capture-frames cannot be combined with --shot, --record, --selftest or --fullscreen\n");
+            return 1;
+        }
+        if (options.capture_dir.empty() && options.capture_warmup > 0)
+        {
+            std::fprintf(stderr, "kosmos: --capture-warmup requires --capture-frames\n");
+            return 1;
+        }
+        if (!options.capture_camera.empty() && (options.capture_dir.empty() || options.cam_planet > 0.0 ||
+                                                 options.cam_sunward || options.cam_antisun || options.cockpit ||
+                                                 options.cam_spin != 0.0 || options.cam_dolly != 0.0 ||
+                                                 options.cam_tilt != 0.0 || options.user_camera >= 0 ||
+                                                 !options.view_base.empty() || options.map || options.galaxy_view))
+        {
+            std::fprintf(stderr, "kosmos: --capture-camera requires frame capture and the external ship camera\n");
+            return 1;
         }
         return keep_going;
     }

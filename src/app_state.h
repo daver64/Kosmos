@@ -42,6 +42,7 @@
 #include "selftest.h"
 #include "engine_sound.h"
 #include "flight_recording.h"
+#include "cinematic_camera.h"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
 #include "orbiter_microtexture.h"
 #endif
@@ -373,6 +374,10 @@ namespace kosmos::app
         std::uint32_t last_frame_stamp{};
         bool running{};
         bool shot_saved{};
+        int captured_frames{};
+        bool capture_failed{};
+        std::vector<CinematicCameraKey> capture_camera_keys;
+        void capture_frame();
         bool map_mode{};
         MapView map;
         GalaxyView gview;

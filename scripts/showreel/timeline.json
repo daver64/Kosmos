@@ -1,0 +1,108 @@
+{
+  "fps": 30,
+  "shots": [
+    {
+      "id": "kennedy-wide", "seconds": 7, "date": "1969-07-16 13:27:00",
+      "title": "EVERY JOURNEY BEGINS SOMEWHERE", "fade_in": true,
+      "args": ["--scenario", "apollo11_saturn_v_t_minus_5"],
+      "camera": [
+        {"time": 0, "yaw": 80, "pitch": 10, "distance": 310, "fov": 48},
+        {"time": 7, "yaw": 96, "pitch": 8, "distance": 240, "fov": 48}
+      ]
+    },
+    {
+      "id": "kennedy-close", "seconds": 5, "date": "1969-07-16 13:27:00",
+      "args": ["--scenario", "apollo11_saturn_v_t_minus_5"],
+      "camera": [
+        {"time": 0, "yaw": 116, "pitch": 1, "distance": 180, "fov": 45},
+        {"time": 5, "yaw": 126, "pitch": 3, "distance": 165, "fov": 45}
+      ]
+    },
+    {
+      "id": "liftoff", "seconds": 16, "date": "1969-07-16 13:27:00",
+      "title": "REAL PHYSICS. REAL CHALLENGES.", "fade_in": true,
+      "args": ["--scenario", "apollo11_saturn_v_t_minus_5", "--auto-stage", "--launch-at", "1.5"],
+      "camera": [
+        {"time": 0, "yaw": 105, "pitch": 4, "distance": 225, "fov": 48},
+        {"time": 16, "yaw": 117, "pitch": 7, "distance": 260, "fov": 48}
+      ]
+    },
+    {
+      "id": "earth-orbit", "seconds": 7,
+      "title": "A SOLAR SYSTEM WITHOUT BOUNDARIES", "fade_in": true,
+      "args": ["--ship", "CVEL Delta IV Heavy", "--orbit", "--alone", "--orbit-alt", "400", "--sunlit", "--sun-angle", "60"],
+      "camera": [
+        {"time": 0, "yaw": 245, "pitch": 18, "distance": 115, "fov": 45},
+        {"time": 7, "yaw": 260, "pitch": 12, "distance": 100, "fov": 45}
+      ]
+    },
+    {
+      "id": "cockpit", "seconds": 4,
+      "args": ["--ship", "CVEL Deltaglider", "--orbit", "--alone", "--orbit-alt", "400", "--sunlit", "--sun-angle", "60", "--cockpit"]
+    },
+    {
+      "id": "dragonfly", "seconds": 4,
+      "args": ["--scenario", "dragonfly_orbit", "--sunlit", "--sun-angle", "55", "--ambient", "0.6"],
+      "camera": [
+        {"time": 0, "yaw": 255, "pitch": 12, "distance": 30, "fov": 45},
+        {"time": 4, "yaw": 267, "pitch": 16, "distance": 27, "fov": 45}
+      ]
+    },
+    {
+      "id": "moon", "seconds": 7,
+      "title": "EXPLORE WORLDS BEYOND OUR OWN", "fade_in": true,
+      "args": ["--ship", "CVEL Shuttle-A", "--orbit", "--alone", "--orbit-body", "Moon", "--orbit-alt", "100", "--sunlit", "--sun-angle", "50"],
+      "camera": [
+        {"time": 0, "yaw": 225, "pitch": 18, "distance": 90, "fov": 50},
+        {"time": 7, "yaw": 240, "pitch": 12, "distance": 80, "fov": 50}
+      ]
+    },
+    {
+      "id": "mars", "seconds": 7, "date": "2024-01-01 10:00:00",
+      "args": ["--scenario", "ares_spider_gale_crater"],
+      "camera": [
+        {"time": 0, "yaw": 95, "pitch": 8, "distance": 48, "fov": 50},
+        {"time": 7, "yaw": 115, "pitch": 10, "distance": 42, "fov": 50}
+      ]
+    },
+    {
+      "id": "galaxy-map", "seconds": 3, "fade_in": true,
+      "args": ["--scenario-file", "scripts/showreel/portal.json", "--galaxy-map"]
+    },
+    {
+      "id": "portal", "seconds": 3,
+      "title": "THOUSANDS OF STARS. COUNTLESS DESTINATIONS.",
+      "args": ["--scenario-file", "scripts/showreel/portal.json", "--ambient", "0.8", "--test-dial", "7"],
+      "camera": [
+        {"time": 0, "yaw": 235, "pitch": 10, "distance": 100, "fov": 50},
+        {"time": 3, "yaw": 247, "pitch": 12, "distance": 90, "fov": 50}
+      ]
+    },
+    {
+      "id": "quantum", "seconds": 8, "warmup": 0,
+      "args": ["--scenario-file", "scripts/showreel/portal.json", "--ambient", "0.8", "--test-jump", "7"],
+      "camera": [
+        {"time": 0, "yaw": 235, "pitch": 10, "distance": 100, "fov": 50},
+        {"time": 8, "yaw": 250, "pitch": 12, "distance": 95, "fov": 50}
+      ]
+    },
+    {
+      "id": "thalassa", "seconds": 4, "warmup": 8,
+      "args": ["--system", "Tau Ceti", "--ship", "CVEL Shuttle-AQ", "--orbit", "--alone", "--orbit-body", "Thalassa", "--orbit-alt", "400", "--sunlit", "--sun-angle", "0", "--ambient", "0.8"],
+      "camera": [
+        {"time": 0, "yaw": 235, "pitch": 12, "distance": 100, "fov": 50},
+        {"time": 4, "yaw": 245, "pitch": 18, "distance": 95, "fov": 50}
+      ]
+    },
+    {
+      "id": "iss", "seconds": 9, "fade_in": true,
+      "args": ["--scenario-file", "scripts/showreel/iss.json", "--sunlit", "--sun-angle", "60",
+               "--set-at", "1.1", "/controls/rcs-z=0.3", "--set-at", "7", "/controls/rcs-z=0"],
+      "camera": [
+        {"time": 0, "yaw": 240, "pitch": 10, "distance": 205, "fov": 50},
+        {"time": 9, "yaw": 246, "pitch": 14, "distance": 205, "fov": 50}
+      ]
+    },
+    {"id": "end-card", "seconds": 6, "card": true}
+  ]
+}

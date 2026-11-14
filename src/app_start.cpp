@@ -206,6 +206,11 @@ namespace kosmos::app
         backend_args = std::vector<char *>{argv[0]};
         if (const int code = parse_command_line(argc, argv, options, backend_args); code != keep_going)
             return code;
+        if (!options.capture_camera.empty() && !load_cinematic_camera(options.capture_camera, capture_camera_keys, error))
+        {
+            std::fprintf(stderr, "kosmos: %s\n", error.c_str());
+            return 1;
+        }
         if (!options.system_name.empty())
         {
             char *end = nullptr;
@@ -375,6 +380,20 @@ namespace kosmos::app
     int App::init_window()
     {
         sl::set_text_panel_style({true});
+        if (!options.capture_dir.empty())
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(options.capture_dir, ec);
+            const bool directory = !ec && std::filesystem::is_directory(options.capture_dir, ec);
+            if (ec || !directory)
+            {
+                std::fprintf(stderr, "kosmos: cannot create frame directory %s: %s\n",
+                             options.capture_dir.c_str(), ec ? ec.message().c_str() : "not a directory");
+                return 1;
+            }
+            screen_w = options.capture_width;
+            screen_h = options.capture_height;
+        }
         if (!sl::configure_graphics_backend_from_args(static_cast<int>(backend_args.size()), backend_args.data()))
             return -1;
         if (!sl::set_gfx_mode(sl::GFX_AUTODETECT_WINDOWED, screen_w, screen_h))
@@ -385,13 +404,19 @@ namespace kosmos::app
         sl::set_window_title("Kosmos");
         {
             bool want_fullscreen = options.fullscreen;
-            if (!options.scenario.empty())
+            if (options.capture_dir.empty() && !options.scenario.empty())
                 if (const kosmos::Scenario *sc = sim.find_scenario(options.scenario))
                     want_fullscreen = want_fullscreen || sc->fullscreen;
             if (want_fullscreen)
                 sl::set_fullscreen(true);
             screen_w = sl::screen_width();
             screen_h = sl::screen_height();
+            if (!options.capture_dir.empty() && (screen_w != options.capture_width || screen_h != options.capture_height))
+            {
+                std::fprintf(stderr, "kosmos: requested capture size %dx%d, got %dx%d\n",
+                             options.capture_width, options.capture_height, screen_w, screen_h);
+                return -1;
+            }
         }
     return keep_going;
     }

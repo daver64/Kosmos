@@ -72,6 +72,9 @@ namespace kosmos::app
         std::string enter_building; // --enter-building TEXT: start inside the first building whose name contains TEXT
         std::string shot;
         double shot_at = 10.0;
+        std::string capture_dir;
+        std::string capture_camera;
+        int capture_fps = 0, capture_count = 0, capture_width = 0, capture_height = 0, capture_warmup = 0;
         double record_seconds = 0.0; // --record SECONDS: record a video from the start, then quit
         double shot_time = 0.0;
         double earth_turn = 0.0;

@@ -1,0 +1,12 @@
+{
+  "name": "Showreel: Shuttle-AQ at the Sol portal",
+  "date": "2024-06-21 15:00:00",
+  "active": 0,
+  "ships": [
+    {
+      "ship": "CVEL Shuttle-AQ",
+      "body": "Sun",
+      "orbit": { "altitude_km": 1000000, "portal_m": 1000 }
+    }
+  ]
+}

@@ -661,10 +661,21 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
     sl::FlightBody &fb = *fb_ref;
-        if (options.cam_spin != 0.0)
-            rig.cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
-        if (options.cam_dolly != 0.0)
-            rig.cam_distance = std::clamp(rig.cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
+        if (!capture_camera_keys.empty())
+        {
+            const auto pose = cinematic_camera_at(capture_camera_keys, static_cast<double>(captured_frames) / options.capture_fps);
+            rig.cam_yaw = static_cast<float>(glm::radians(pose.yaw));
+            rig.cam_pitch = static_cast<float>(glm::radians(pose.pitch));
+            rig.cam_distance = pose.distance;
+            options.cam_fov = pose.fov;
+        }
+        else
+        {
+            if (options.cam_spin != 0.0)
+                rig.cam_yaw += static_cast<float>(options.cam_spin * 3.14159265358979 / 180.0 * frame);
+            if (options.cam_dolly != 0.0)
+                rig.cam_distance = std::clamp(rig.cam_distance + options.cam_dolly * frame, 8.0, 3.0e9);
+        }
         memory.tilt_clock += frame;
         const double tilt = options.cam_tilt * 3.14159265358979 / 180.0 * std::sin(memory.tilt_clock * 0.5);
         const double yaw_d = rig.cam_yaw, pitch_d = rig.cam_pitch + tilt;

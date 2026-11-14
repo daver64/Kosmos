@@ -209,6 +209,7 @@ High time warp remains limited while another live vessel is flying in an atmosph
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot (`scripts/make-gallery.sh` uses it to make the web gallery's JPEGs; `scripts/make-promo.sh` records the showreel) |
+| `--capture-frames DIR FPS COUNT WIDTH HEIGHT`, `--capture-warmup FRAMES`, `--capture-camera FILE` | Opt-in fixed-step PNG capture and ship-tracking keyframes; see the [showreel workflow](scripts/showreel/README.md) |
 | `--alone` | With `--orbit`, leave out the other addon ships that normally share the orbit |
 | `--cam-tilt DEG` | Nod the chase camera up and down by up to DEG degrees (for video) |
 | `--cam-dolly M` | Move the chase camera away from the ship at M metres per second (negative moves in), for video |
