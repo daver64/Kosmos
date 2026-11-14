@@ -1,6 +1,7 @@
 #undef NDEBUG
 #include "blast_sound.h"
 #include "audio.h"
+#include "engine_sound.h"
 #include "lightning.h"
 #include "weapon_sound.h"
 
@@ -37,6 +38,20 @@ namespace
 
 int main()
 {
+    int a, b;
+    kosmos::DockingCueTracker<int> docking;
+    using Cue = kosmos::DockingCue;
+    assert(docking.observe(&a, false, false) == Cue::none);
+    assert(docking.observe(&a, true, false) == Cue::docking);
+    assert(docking.observe(&b, false, false) == Cue::none);
+    assert(docking.observe(&b, false, false) == Cue::none);
+    assert(docking.observe(&a, true, false) == Cue::none);
+    assert(docking.observe(&a, false, false) == Cue::undocking);
+    assert(docking.observe(&a, true, false) == Cue::docking);
+    assert(docking.observe(&b, false, true) == Cue::undocking);
+    kosmos::DockingCueTracker<int> initially_docked;
+    assert(initially_docked.observe(&a, true, false) == Cue::none);
+
     for (int kind = 0; kind < 2; ++kind)
     {
         const auto wav = kosmos::make_blast_wav(kind);

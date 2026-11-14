@@ -326,6 +326,7 @@ namespace kosmos::app
         if (ship != targets.mfd_ship || ship->spec().name != targets.mfd_ship_id)
         {
             const bool staging = sim.consume_stage_handoff(targets.mfd_ship, ship);
+            memory.cue_stage_handoff = staging;
             std::vector<MfdUnit> previous;
             if (staging)
                 for (int side = 0; side < 2 && side < sim.mfd.unit_count(); ++side)

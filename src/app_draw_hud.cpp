@@ -251,7 +251,6 @@ namespace kosmos::app
 
     void App::update_sound()
     {
-    sl::PropertyTree &props = *props_ref;
     const kosmos::Telemetry &tm = *tm_ref;
     sl::FlightBody &fb = *fb_ref;
         // Sound.
@@ -273,8 +272,10 @@ namespace kosmos::app
         cabin_ambience_tick();
         {
             // Event cues: one-shots on the edge of a state change. The first frame only records the state.
-            const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = props.get_bool("/dock/docked");
+            const bool landed_now = tm.landed, crashed_now = ship->crashed(), docked_now = sim.nav.docked(sim.active_index());
             const bool alarm_now = ship->systems() && !ship->systems()->alarms().empty();
+            const kosmos::DockingCue docking_cue = memory.docking_cue.observe(ship, docked_now, memory.cue_stage_handoff);
+            memory.cue_stage_handoff = false;
             // Landing and docking state settle over the first moments after a start, so cues wait a couple of seconds.
             if (!memory.cues_seen)
                 memory.cues_from = sl::time_ms() / 1000.0 + 2.0;
@@ -284,8 +285,8 @@ namespace kosmos::app
                     sound.play("crash", 255);
                 else if (landed_now && !memory.was_landed && !crashed_now)
                     sound.play("touchdown", 220);
-                if (docked_now != memory.was_docked)
-                    sound.play(docked_now ? "docking" : "undocking", 200);
+                if (docking_cue != kosmos::DockingCue::none)
+                    sound.play(docking_cue == kosmos::DockingCue::docking ? "docking" : "undocking", 200);
                 if (ship->active_stage() != memory.was_stage)
                     sound.play("thump", 230);
                 if (alarm_now && (!memory.was_alarm || sl::time_ms() / 1000.0 > memory.alarm_next))
@@ -297,7 +298,6 @@ namespace kosmos::app
             memory.cues_seen = true;
             memory.was_landed = landed_now;
             memory.was_crashed = crashed_now;
-            memory.was_docked = docked_now;
             memory.was_alarm = alarm_now;
             memory.was_stage = ship->active_stage();
         }

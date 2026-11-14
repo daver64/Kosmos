@@ -8,6 +8,25 @@
 
 namespace kosmos
 {
+    enum class DockingCue { none, docking, undocking };
+
+    template <typename Vessel>
+    class DockingCueTracker
+    {
+    public:
+        DockingCue observe(const Vessel *vessel, bool docked, bool stage_handoff)
+        {
+            const bool changed = previous_ && (previous_ == vessel || stage_handoff) && docked_ != docked;
+            previous_ = vessel;
+            docked_ = docked;
+            return changed ? (docked ? DockingCue::docking : DockingCue::undocking) : DockingCue::none;
+        }
+
+    private:
+        const Vessel *previous_ = nullptr;
+        bool docked_ = false;
+    };
+
     /**
      * The ship's looping engine, thruster and wind voices plus the one-shot effects from data/sounds (XRSound, MIT).
      * A missing effect file just means silence for that event; the engine voices fall back to synthesised sound.

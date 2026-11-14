@@ -97,6 +97,7 @@
    "parts": [
     {
      "model": "models/iss.obj",
+     "single_sided": ["ISS_paired"],
      "offset": [
       0,
       0,

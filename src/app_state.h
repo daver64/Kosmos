@@ -100,7 +100,9 @@ namespace kosmos::app
         int carried_soi = -1;
         int camera_system = -1;
         double tilt_clock = 0.0;
-        bool cues_seen = false, was_landed = false, was_crashed = false, was_docked = false, was_alarm = false;
+        bool cues_seen = false, was_landed = false, was_crashed = false, was_alarm = false;
+        kosmos::DockingCueTracker<Ship> docking_cue;
+        bool cue_stage_handoff = false;
         int was_stage = 0;
         double alarm_next = 0.0, cues_from = 0.0;
         std::string weather_seen;
