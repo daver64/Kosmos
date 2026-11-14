@@ -203,13 +203,13 @@ High time warp remains limited while another live vessel is flying in an atmosph
 | `--stars` | Print the 20 nearest stars and exit |
 | `--galaxy-map` | Start in the galaxy map |
 | `--orbit`, `--orbit-body B`, `--orbit-alt KM` | Start in orbit (`--orbit-alt` also lifts a scenario's circular orbits) |
-| `--sunlit`, `--sun-angle DEG` | Start on the Sun side of the planet; with `--sun-angle`, DEG round from there (about 70 gives a planet two thirds lit) |
+| `--sunlit`, `--sun-angle DEG` | Start on the star-facing side of the planet, including in other star systems; with `--sun-angle`, DEG round from there (about 70 gives a planet two thirds lit) |
 | `--max-texture N` | Largest body texture accepted (default 16384; halved until the GPU accepts it) |
 | `--gl`, `--vulkan`, `--d3d12` | Choose the graphics backend (D3D12 is Windows only). Vulkan prefers a discrete GPU (`SIMLIB_VULKAN_DEVICE_TYPE=discrete\|integrated\|any` overrides); the chosen GPU is printed at startup |
 | `--user-camera N`, `--camera-editor` | Start looking through the Nth user camera, or open the Camera editor (View menu) |
 | `--selftest SECS`, `--autopilot` | Headless test run |
 | `--shot FILE`, `--shot-at SECS` | Save a screenshot (`scripts/make-gallery.sh` uses it to make the web gallery's JPEGs; `scripts/make-promo.sh` records the showreel) |
-| `--capture-frames DIR FPS COUNT WIDTH HEIGHT`, `--capture-warmup FRAMES`, `--capture-camera FILE` | Opt-in fixed-step PNG capture and ship-tracking keyframes; see the [showreel workflow](scripts/showreel/README.md) |
+| `--capture-frames DIR FPS COUNT WIDTH HEIGHT`, `--capture-warmup FRAMES`, `--capture-camera FILE` | Opt-in fixed-step PNG capture and ship-tracking keyframes, without audio; see the source tree's [showreel workflow](scripts/showreel/README.md) |
 | `--alone` | With `--orbit`, leave out the other addon ships that normally share the orbit |
 | `--cam-tilt DEG` | Nod the chase camera up and down by up to DEG degrees (for video) |
 | `--cam-dolly M` | Move the chase camera away from the ship at M metres per second (negative moves in), for video |

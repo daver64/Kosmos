@@ -34,6 +34,22 @@ kosmos --capture-frames DIR FPS COUNT WIDTH HEIGHT \
        --capture-warmup FRAMES --capture-camera camera.json [other options]
 ```
 
+For direct use, `camera.json` is a non-empty array of keys, for example:
+
+```json
+[
+  {"time": 0, "yaw": 40, "pitch": 10, "distance": 80, "fov": 50},
+  {"time": 5, "yaw": 70, "pitch": 15, "distance": 90, "fov": 45}
+]
+```
+
+Times are non-negative and strictly increasing. Pitch is limited to -89..89
+degrees, distance to 8..3e9 metres, and field of view to 10..120 degrees.
+Yaw takes the shortest path between keys. Capture accepts 1..120 fps, 1..999999
+frames, widths of 320..7680 and heights of 180..4320. It cannot be combined
+with `--shot`, `--record`, `--selftest` or `--fullscreen`; camera keyframes
+require the external ship camera rather than a cockpit, map or other camera.
+
 It saves numbered PNGs, fails rather than overwriting them, and advances the
 presentation clock by one frame at a time. Warm-up frames run the simulation
 but are not saved. Quantum transition frames are captured as part of the same
