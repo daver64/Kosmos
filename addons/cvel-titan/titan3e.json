@@ -16,6 +16,10 @@
   0,
   10
  ],
+ "cockpit": {
+  "external_mfds": true,
+  "mfds": false
+ },
  "systems": [
   {
    "type": "battery",

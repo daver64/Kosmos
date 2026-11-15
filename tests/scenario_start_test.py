@@ -12,6 +12,8 @@ BINARY = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "build/kos
 GALE = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_gale_crater.json"
 ORBIT = ROOT / "scenarios/CVEL/CVEL-Ares/ares_spider_mars_orbit.json"
 SALYUT = ROOT / "scenarios/CVEL/CVEL-Salyut/salyut_earth_orbit.json"
+TITAN_IIIE = ROOT / "scenarios/CVEL/CVEL-Titan/titan3e_kennedy.json"
+TITAN_IVA = ROOT / "scenarios/CVEL/CVEL-Titan/titan4a_kennedy.json"
 
 
 def run(*args):
@@ -44,6 +46,13 @@ def main():
     }
     result = run("--scenario", "salyut_earth_orbit")
     assert result.returncode == 0 and "soi Earth" in result.stdout, result.stdout + result.stderr
+
+    result = run(
+        "--scenario-file", str(TITAN_IIIE),
+        "--set", "/selftest/titan-pad-reload=true",
+        "--set", f"/selftest/titan-pad-reload-file={TITAN_IVA}",
+    )
+    assert result.returncode == 0 and "Titan pad reload selftest ok" in result.stdout, result.stdout + result.stderr
 
     result = run("--scenario", "missing-scenario-regression-test")
     assert result.returncode != 0 and 'scenario "missing-scenario-regression-test" not found' in result.stderr, result.stderr

@@ -405,6 +405,23 @@ namespace kosmos::app
         for (std::size_t entry_index = 0; entry_index < sc.ships.size(); ++entry_index)
             if (sc.ships[entry_index].portal_m > 0.0 && spawned[entry_index] >= 0)
                 place_at_portal(sim, *sim.ship(spawned[entry_index]), sc.ships[entry_index].portal_m, 0.0, false);
+        for (std::size_t entry_index = 0; entry_index < sc.ships.size(); ++entry_index)
+        {
+            const kosmos::ScenarioShip &entry = sc.ships[entry_index];
+            if (!entry.landed || entry.altitude > 0.0 || entry.portal_m > 0.0 || entry.dock_to >= 0 || spawned[entry_index] < 0)
+                continue;
+            Ship *placed = sim.ship(spawned[entry_index]);
+            if (placed->spec().ground() || placed->spec().building())
+                continue;
+            const int body = sim.universe.find(entry.body);
+            for (const kosmos::Base &base : sim.bases)
+                if (entry.base == base.id && sim.universe.find(base.body) == body &&
+                    (entry.runway < 0 || entry.runway >= static_cast<int>(base.runways.size())))
+                {
+                    placed->hold_scenario_landed();
+                    break;
+                }
+        }
         apply_scenario_settings(sim, sc);
         return sim.active_ship();
     }

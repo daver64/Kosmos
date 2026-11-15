@@ -71,7 +71,8 @@ namespace kosmos
         health_ = 1.0;
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
-        pinned_ = resting_ = false;
+        pinned_ = resting_ = warp_pinned_ = false;
+        b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
 
@@ -97,7 +98,8 @@ namespace kosmos
         health_ = 1.0;
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
-        pinned_ = resting_ = false;
+        pinned_ = resting_ = warp_pinned_ = false;
+        b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
 
@@ -122,7 +124,8 @@ namespace kosmos
         health_ = 1.0;
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
-        pinned_ = resting_ = false;
+        pinned_ = resting_ = warp_pinned_ = false;
+        b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
 
@@ -168,7 +171,8 @@ namespace kosmos
         health_ = 1.0;
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
-        pinned_ = resting_ = false;
+        pinned_ = resting_ = warp_pinned_ = false;
+        b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
 
@@ -296,7 +300,8 @@ namespace kosmos
         health_ = 1.0;
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
-        pinned_ = resting_ = false;
+        pinned_ = resting_ = warp_pinned_ = false;
+        b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
 } // namespace kosmos

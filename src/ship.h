@@ -728,6 +728,8 @@ namespace kosmos
         /** Place into a circular equatorial-ish orbit of the given altitude. */
         /** Fly level at `altitude` metres above `ground_height`, heading in degrees, at `speed` m/s through the air. */
         void place_airborne(int body, const sl::dvec3 &direction, double heading_degrees, double ground_height, double altitude, double speed);
+        /** Hold a scenario-placed landed ship at its exact surface position until it produces thrust. */
+        void hold_scenario_landed();
         /** Put the ship at a position and velocity relative to the centre of body `body` (world axes), e.g. beside another player. */
         void place_relative(int body, const sl::dvec3 &position, const sl::dvec3 &velocity, const sl::dquat &orientation);
                 void place_in_orbit(int body, double altitude, double inclination_degrees, double phase_degrees = 0.0);
@@ -860,7 +862,7 @@ namespace kosmos
         double engine_value(const std::string &role, const std::string &what) const;
         void resolve_landing();
         void expire_debris(double dt);
-        bool resting_ = false; // an orbital-only ship that has touched down gently and sits on the surface
+        bool resting_ = false; // a ship held to the surface after a gentle touchdown or scenario placement
         double approach_speed_ = 0.0; // surface speed the frame before touchdown
         double gear_k_ = 0.0;
         double gear_position_ = 1.0;

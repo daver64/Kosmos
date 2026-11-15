@@ -76,4 +76,24 @@ with tempfile.TemporaryDirectory() as home:
             samples = [image.getpixel((x + dx, y)) == (22, 24, 30)
                        for x in (24, 916) for dx, y in ((3, 370), (336, 370), (3, 700))]
             assert all(samples) if expected else not any(samples), (name, samples, result.stdout + result.stderr)
+
+    titans = sorted((root / "addons" / "cvel-titan").glob("titan*.json"))
+    assert titans and all(
+        json.loads(path.read_text()).get("cockpit") ==
+        {"external_mfds": True, "mfds": False}
+        for path in titans
+    ), [path.name for path in titans]
+    shot = temp / "titan-mfd.png"
+    result = subprocess.run(
+        [str(binary), "--root", str(root), "--ship", "CVEL Titan IVA", "--orbit",
+         "--hide-info", "--no-clutter", "--no-tiles", "--no-clouds", "--gen-threads", "1",
+         "--shot", str(shot), "--shot-at", "2"],
+        cwd=root, env=env, capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode == 0 and shot.is_file(), result.stdout + result.stderr
+    with Image.open(shot) as source:
+        image = source.convert("RGB")
+        samples = [image.getpixel((x + dx, y)) == (22, 24, 30)
+                   for x in (24, 916) for dx, y in ((3, 370), (336, 370), (3, 700))]
+        assert all(samples), ("Titan default MFD overlays", samples, result.stdout + result.stderr)
     print("mfd_overlay_layout_test ok")

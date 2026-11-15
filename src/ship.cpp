@@ -624,6 +624,12 @@ namespace kosmos
         hold_pinned();
     }
 
+    void Ship::hold_scenario_landed()
+    {
+        resting_ = true;
+        pin_to_ground();
+    }
+
     void Ship::hold_for_warp(bool on)
     {
         if (on && !pinned_ && !crashed_ && !on_rails() && telemetry_.landed)

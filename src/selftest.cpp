@@ -1678,6 +1678,70 @@ namespace kosmos
 
     int run_selftest(Sim &sim, Ship *ship, const SelftestOptions &options)
     {
+        if (sim.props.get_bool("/selftest/titan-pad-reload"))
+        {
+            const std::string path = sim.props.get_string("/selftest/titan-pad-reload-file");
+            Scenario next;
+            std::string error;
+            if (path.empty() || !load_scenario(path, next, error))
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: %s\n", path.empty() ? "missing scenario path" : error.c_str());
+                return 1;
+            }
+            Ship *previous = sim.active_ship();
+            const int earth = sim.universe.find("Earth");
+            if (!previous || earth < 0 || previous->spec().name.rfind("CVEL Titan", 0) != 0 ||
+                next.active < 0 || next.active >= static_cast<int>(next.ships.size()) ||
+                !next.ships[static_cast<std::size_t>(next.active)].landed ||
+                next.ships[static_cast<std::size_t>(next.active)].body != "Earth")
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: invalid starting flight\n");
+                return 1;
+            }
+            const sl::dvec3 up = glm::normalize(previous->body().position - sim.universe.position(earth));
+            previous->body().velocity += up * 100.0;
+
+            Ship *reloaded = app::apply_scenario(sim, next, app::TerrainSet{});
+            if (!reloaded)
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: scenario failed to load\n");
+                return 1;
+            }
+            const sl::FlightBody &planet = *sim.universe.world.body(earth);
+            const sl::dvec3 surface_velocity = planet.velocity +
+                glm::cross(planet.spin_axis * sim.universe.bodies[static_cast<std::size_t>(earth)].spin,
+                           reloaded->body().position - planet.position);
+            if (glm::length(reloaded->body().velocity - surface_velocity) > 1e-6)
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: previous flight velocity was retained\n");
+                return 1;
+            }
+            const double initial_altitude = reloaded->telemetry().altitude;
+            double highest_altitude = initial_altitude;
+            double lowest_altitude = initial_altitude;
+            for (int i = 0; i < 60; ++i)
+            {
+                sim.step(0.05);
+                highest_altitude = std::max(highest_altitude, reloaded->telemetry().altitude);
+                lowest_altitude = std::min(lowest_altitude, reloaded->telemetry().altitude);
+            }
+            if (highest_altitude - initial_altitude > 2.0 || initial_altitude - lowest_altitude > 2.0)
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: ship left the pad by +%.2f/-%.2f m\n",
+                             highest_altitude - initial_altitude, initial_altitude - lowest_altitude);
+                return 1;
+            }
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 60; ++i)
+                sim.step(0.05);
+            if (reloaded->telemetry().altitude < initial_altitude + 10.0)
+            {
+                std::fprintf(stderr, "Titan pad reload selftest: ship did not launch after throttle\n");
+                return 1;
+            }
+            std::puts("Titan pad reload selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/soyuz-autoland"))
         {
             if (!ship || ship->spec().name != "CVEL Soyuz TMA")
