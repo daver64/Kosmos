@@ -757,6 +757,8 @@ namespace kosmos
         void set_surface_grip(double factor);
 
         void apply_controls(const Controls &controls, double dt);
+        /** Approximate accumulated main-engine delta-v in world coordinates, sampled before each physics step. */
+        void record_engine_delta_v(double dt);
         /** Refresh telemetry and handle impacts and debris after the world has stepped. */
         void after_step(double dt);
         /** Re-entry heat of the vehicle (see ThermalState); the spec's `thermal` block must be on. */
@@ -819,6 +821,7 @@ namespace kosmos
         bool crashed_ = false;
         double health_ = 1.0;
         double rcs_fuel_ = 0.0, rcs_flow_ = 0.0, fuel_flow_ = 0.0;
+        sl::dvec3 engine_delta_v_{0.0};
     public:
         static constexpr int track_points = 160;
     private:

@@ -877,6 +877,8 @@ namespace kosmos
                                          (!ground_hold && warp > phys_limit && parked_for_warp(i)));
         {
             PerfScope timing(performance, PerfSection::physics);
+            for (const std::unique_ptr<Ship> &ship : ships_)
+                ship->record_engine_delta_v(frame * warp);
             universe.world.step(frame * warp);
         }
         nav.couple(universe, ships_, active_, frame * warp);

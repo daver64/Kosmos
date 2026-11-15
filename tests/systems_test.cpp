@@ -8,6 +8,7 @@
 #include "terrain.h"
 #include "exhaust_fx.h"
 #include "stellar_light.h"
+#include "night_lights.h"
 
 #include <sol/sol.hpp>
 
@@ -74,6 +75,16 @@ int main()
         lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
         lua["root"] = KOSMOS_ROOT;
         lua.script_file(std::string(KOSMOS_ROOT) + "/tests/systems_mfd_test.lua");
+        lua.script_file(std::string(KOSMOS_ROOT) + "/tests/orbitcomp_node_test.lua");
+    }
+    {
+        std::uint8_t artifact[] = {2, 4, 45, 255}, city[] = {100, 80, 60, 255}, white[] = {80, 80, 90, 255};
+        app::remove_blue_night_artifact(artifact);
+        app::remove_blue_night_artifact(city);
+        app::remove_blue_night_artifact(white);
+        assert(artifact[0] == 0 && artifact[1] == 0 && artifact[2] == 0 && artifact[3] == 255);
+        assert(city[0] == 100 && city[1] == 80 && city[2] == 60);
+        assert(white[0] == 80 && white[1] == 80 && white[2] == 90);
     }
     {
         const auto load_haze = [](const nlohmann::json &atmosphere, bool valid, double expected)
@@ -651,6 +662,21 @@ int main()
             assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-soyuz/" + file, spec, error));
             Ship ship(universe, spec);
             assert(ship.systems());
+            {
+                sl::PropertyTree engine_props;
+                Ship engine_test(universe, spec);
+                engine_test.body().position = earth_position + toward_sun * 10000000.0;
+                engine_test.publish(engine_props, "/engine-test");
+                engine_test.body().thrusters[0].level = 1.0;
+                const sl::Thruster &thruster = engine_test.body().thrusters[0];
+                const sl::dvec3 expected = engine_test.body().direction_to_world(glm::normalize(thruster.direction)) *
+                                           (sl::thruster_output(engine_test.body(), thruster, 0.0) / engine_test.body().mass());
+                engine_test.record_engine_delta_v(1.0);
+                const sl::dvec3 actual(engine_props.get_double("/engine-test/engine-delta-v/x"),
+                                       engine_props.get_double("/engine-test/engine-delta-v/y"),
+                                       engine_props.get_double("/engine-test/engine-delta-v/z"));
+                assert(glm::length(actual - expected) < 1e-9);
+            }
             assert(ship.animation_position(0) == 0.0);
             ship.systems()->set_battery_fraction(0.5);
             const auto solar_output = [&ship] {

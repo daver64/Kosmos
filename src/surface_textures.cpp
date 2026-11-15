@@ -1,5 +1,6 @@
 #include "surface_textures.h"
 #include "loading_screen.h"
+#include "night_lights.h"
 
 namespace kosmos::app
 {
@@ -97,6 +98,14 @@ namespace kosmos::app
             if (bitmap)
                 sl::destroy_bitmap(bitmap);
             return load_optional_texture(path, max_size);
+        }
+        // The imported Earth lights contain blue terrain-like patches, not city lights.
+        for (int y = 0; y < bitmap->height; ++y)
+        {
+            if (loading.started && y % 32 == 0)
+                loading.pump();
+            for (int x = 0; x < bitmap->width; ++x)
+                remove_blue_night_artifact(&bitmap->pixels[(static_cast<std::size_t>(y) * bitmap->width + x) * 4]);
         }
         const int factor = std::max(1, bitmap->width / std::max(1, std::min(max_size, 4096)));
         if (factor > 1)

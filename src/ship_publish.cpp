@@ -127,6 +127,9 @@ namespace kosmos
         num("flight-path", [this] { return telemetry_.flight_path; });
         num("mass", [this] { return telemetry_.mass; });
         num("thrust", [this] { return telemetry_.thrust; });
+        num("engine-delta-v/x", [this] { return engine_delta_v_.x; });
+        num("engine-delta-v/y", [this] { return engine_delta_v_.y; });
+        num("engine-delta-v/z", [this] { return engine_delta_v_.z; });
         num("twr", [this] { return telemetry_.twr; });
         num("max-thrust", [this] { return telemetry_.max_thrust; });
         num("main-max-thrust", [this] { return main_max_thrust(); });

@@ -662,6 +662,34 @@ namespace kosmos
         b.angular_velocity = sl::dvec3(0.0);
     }
 
+    void Ship::record_engine_delta_v(double dt)
+    {
+        const sl::FlightBody &b = body();
+        if (dt <= 0.0 || b.mode != sl::FlightBodyMode::dynamic || b.mass() <= 0.0)
+            return;
+        bool firing = false;
+        for (std::size_t i = 0; i < b.thrusters.size(); ++i)
+            if (!thruster_rcs_[i] && !thruster_hover_[i] && thruster_pod_[i] < 0 && b.thrusters[i].level > 0.0)
+            {
+                firing = true;
+                break;
+            }
+        if (!firing)
+            return;
+        const double density = universe_.world.air_density_at(b.position);
+        sl::dvec3 force(0.0);
+        for (std::size_t i = 0; i < b.thrusters.size(); ++i)
+        {
+            if (thruster_rcs_[i] || thruster_hover_[i] || thruster_pod_[i] >= 0)
+                continue;
+            const sl::Thruster &t = b.thrusters[i];
+            const double length = glm::length(t.direction);
+            if (length > 1e-9)
+                force += t.direction * (sl::thruster_output(b, t, density) / length);
+        }
+        engine_delta_v_ += b.direction_to_world(force) * (dt / b.mass());
+    }
+
     void Ship::after_step(double dt)
     {
         if (warp_pinned_)

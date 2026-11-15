@@ -488,16 +488,34 @@ local FIELDS = { "Pro", "Rad", "Nrm", "Time" }
 local DV_STEPS = { 0.1, 1, 10, 100, 1000 }
 local TIME_STEPS = { 1, 10, 60, 600, 3600 }
 local page, zoom, step = 1, 1.0, 3
-local node = { mode = 1, time = 600, dv = { 0, 0, 0 }, field = 1 }
+local node = { mode = 1, at = nil, dv = { 0, 0, 0 }, field = 1, ship = nil, baseline = nil }
 local frame_count, scan_cache = 0, nil
+
+local function engine_delta_v()
+  return { ship("engine-delta-v/x") or 0, ship("engine-delta-v/y") or 0, ship("engine-delta-v/z") or 0 }
+end
+
+local function reset_node_progress()
+  node.ship = props.get("/sim/active-ship")
+  node.baseline = engine_delta_v()
+  node.intended = nil
+end
+
+local function node_time()
+  return math.max((node.at or props.get("/sim/time")) - props.get("/sim/time"), 0)
+end
 
 -- Where the node is in the ship's orbit and the state just after the burn.
 local function compute_node(f, ot)
   local o = f.o
   local nu_n, t_n
   local mode = NODE_MODES[node.mode]
-  if mode == "T+" then
-    t_n = math.max(node.time, 0)
+  local delivered = node.baseline and sub(engine_delta_v(), node.baseline) or {0, 0, 0}
+  local started = node.intended ~= nil or (len(delivered) > 0.5 and len(node.dv) > 0)
+  if started then
+    t_n, nu_n = 0, o.nu
+  elseif mode == "T+" then
+    t_n = node_time()
     nu_n = advance(o, o.nu, t_n)
     if not o.bound and nu_n > max_nu(o) then return nil end
   elseif mode == "Pe" then
@@ -523,11 +541,16 @@ local function compute_node(f, ot)
   local pro = unit(vn)
   local nrm = unit(cross(rn, vn))
   local rad = cross(pro, nrm)
-  local dvv = add(add(mul(pro, node.dv[1]), mul(rad, node.dv[2])), mul(nrm, node.dv[3]))
+  local planned = add(add(mul(pro, node.dv[1]), mul(rad, node.dv[2])), mul(nrm, node.dv[3]))
+  if started then
+    node.intended = node.intended or planned
+    planned = node.intended
+  end
+  local dvv = sub(planned, delivered)
   local after = make_orbit(rn, add(vn, dvv), f.mu)
   local dv = len(dvv)
   local mass, thrust = ship("mass"), ship("main-max-thrust")
-  return { t = t_n, nu = nu_n, r = rn, v = vn, dvv = dvv, dv = dv, after = after,
+  return { t = t_n, nu = nu_n, r = rn, v = vn, dvv = dvv, dv = dv, after = after, started = started,
            burn = (thrust and thrust > 0 and mass) and dv * mass / thrust or nil }
 end
 
@@ -814,12 +837,12 @@ local function draw_man(g, f, ot, tr)
   local nd = compute_node(f, ot)
   local mode = NODE_MODES[node.mode]
   g:colour(120, 255, 140)
-  g:text(LX, 34, "Node " .. mode .. (nd and ("   in " .. fmt_time(nd.t)) or "   no such point"), 0)
+  g:text(LX, 34, "Node " .. mode .. (nd and (nd.started and "   burn started" or ("   in " .. fmt_time(nd.t))) or "   no such point"), 0)
   local rows = { "Pro", "Rad", "Nrm", "Time" }
   for i = 1, 4 do
     local text
     if i < 4 then text = string.format("%s %+9.1f m/s", rows[i], node.dv[i])
-    elseif mode == "T+" then text = string.format("Time %+7.0f s", node.time)
+    elseif mode == "T+" then text = string.format("Time %+7.0f s", node_time())
     else text = "Time (at " .. mode .. ")" end
     if node.field == i then g:colour(255, 240, 140) else g:colour(120, 255, 140) end
     g:text(LX, 34 + i * 17, (node.field == i and ">" or " ") .. text, 0)
@@ -828,13 +851,16 @@ local function draw_man(g, f, ot, tr)
   local step_text = node.field == 4 and (TIME_STEPS[step] .. " s") or (DV_STEPS[step] .. " m/s")
   g:text(240, 51, "Step " .. step_text, 0)
   if not nd then return end
-  g:text(240, 68, string.format("dV %.1f m/s", nd.dv), 0)
+  g:text(240, 68, string.format("%s %.1f m/s", nd.started and "Left" or "dV", nd.dv), 0)
   g:text(240, 85, nd.burn and ("Burn " .. fmt_time(nd.burn)) or "Burn --", 0)
-  if nd.burn then
+  if nd.started then
     g:colour(255, 200, 80)
-    g:text(240, 102, "Ignite T-" .. fmt_time(nd.t - nd.burn / 2), 0)
+    g:text(240, 102, "Impulse estimate", 0)
+  elseif nd.burn then
+    g:colour(255, 200, 80)
+    local ignition = nd.t - nd.burn / 2
+    g:text(240, 102, ignition >= 0 and ("Ignite in " .. fmt_time(ignition)) or ("Ignition " .. fmt_time(-ignition) .. " ago"), 0)
     if nd.dv > 0 then publish_burn(nd.t, nd.burn, "manoeuvre node") end
-    burn_left_line(g, 240, 119, nd.dv)
   end
   local a = nd.after
   g:colour(120, 255, 140)
@@ -1592,9 +1618,10 @@ local function apply_script()
   scan_cache = nil
   page = clamp(math.floor(p), 1, 4)
   node.mode = clamp(math.floor(tonumber(props.get("/orbitcomp/node-mode")) or 1), 1, #NODE_MODES)
-  node.time = tonumber(props.get("/orbitcomp/time")) or node.time
+  node.at = props.get("/sim/time") + math.max(tonumber(props.get("/orbitcomp/time")) or node_time(), 0)
   node.dv = { tonumber(props.get("/orbitcomp/prograde")) or 0, tonumber(props.get("/orbitcomp/radial")) or 0,
               tonumber(props.get("/orbitcomp/normal")) or 0 }
+  reset_node_progress()
   -- The fast ejection can be set the same way: /orbitcomp/fast (1-3), /orbitcomp/flight-days and /orbitcomp/depart-days.
   local fm = tonumber(props.get("/orbitcomp/fast"))
   if fm and fm > 0 then
@@ -1612,6 +1639,12 @@ end
 function M.draw(self, g, w, h)
   frame_count = frame_count + 1
   props.set("/plan/orbitcomp/stamp", -1)
+  if node.ship ~= props.get("/sim/active-ship") then
+    node.mode, node.dv, node.at = 1, {0, 0, 0}, props.get("/sim/time") + 600
+    reset_node_progress()
+  elseif not node.at then
+    node.at = props.get("/sim/time") + 600
+  end
   track_burn()
   apply_script()
   local f = ship("landed") and nil or ship_frame()
@@ -1664,15 +1697,16 @@ function M.button(self, i)
     elseif i == 8 then sgn = 1
     elseif i == 9 then sgn = -1
     elseif i == 10 then step = step % #DV_STEPS + 1
-    elseif i == 11 then node.mode = node.mode % #NODE_MODES + 1
-    elseif i == 12 then node.dv = { 0, 0, 0 }; node.time = 600 end
+    elseif i == 11 then node.mode = node.mode % #NODE_MODES + 1; reset_node_progress()
+    elseif i == 12 then node.dv = { 0, 0, 0 }; node.at = props.get("/sim/time") + 600; reset_node_progress() end
     if sgn ~= 0 then
       if node.field == 4 then
-        node.time = math.max(0, node.time + sgn * TIME_STEPS[step])
+        node.at = props.get("/sim/time") + math.max(0, node_time() + sgn * TIME_STEPS[step])
         node.mode = 1
       else
         node.dv[node.field] = node.dv[node.field] + sgn * DV_STEPS[step]
       end
+      reset_node_progress()
     end
   elseif i >= 10 and fast_ok then
     if i == 10 then
@@ -1708,18 +1742,19 @@ function M.button(self, i)
     node.mode = 1
     node.field = 1
     if p.kind == "lambert" then
-      node.time = math.max(p.wait or 0, 0)
+      node.at = props.get("/sim/time") + math.max(p.wait or 0, 0)
       node.dv = { p.components[1], p.components[2], p.components[3] }
     elseif p.kind == "hohmann" then
-      node.time = math.max(p.wait or 0, 0)
+      node.at = props.get("/sim/time") + math.max(p.wait or 0, 0)
       node.dv = { p.dv1, 0, 0 }
     elseif p.kind == "return" then
-      node.time = math.max(p.t_burn or 0, 0)
+      node.at = props.get("/sim/time") + math.max(p.t_burn or 0, 0)
       node.dv = { p.dv, 0, 0 }
     else
-      node.time = math.max(p.t_burn or 0, 0)
+      node.at = props.get("/sim/time") + math.max(p.t_burn or 0, 0)
       node.dv = { p.dv, 0, 0 }
     end
+    reset_node_progress()
     page = 2
   end
 end

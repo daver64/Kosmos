@@ -1619,13 +1619,36 @@ namespace kosmos
         double transfer_coast = tof;
         if (finite_burn)
         {
+            const sol::table components = plan->get<sol::table>("components");
+            sim.props.set_double("/orbitcomp/page", 2);
+            sim.props.set_double("/orbitcomp/time", 0);
+            sim.props.set_double("/orbitcomp/prograde", components.get<double>(1));
+            sim.props.set_double("/orbitcomp/radial", components.get<double>(2));
+            sim.props.set_double("/orbitcomp/normal", components.get<double>(3));
+            canvas.commands.clear();
+            result = draw(table, std::ref(canvas), mfd_size, mfd_size);
+            check(result.valid(), "initialise MAN for finite burn");
+            const auto man_left = [&]() {
+                canvas.commands.clear();
+                sim.lua.execute("");
+                sol::protected_function_result drawn = draw(table, std::ref(canvas), mfd_size, mfd_size);
+                if (!drawn.valid())
+                    return -1.0;
+                for (const MfdCommand &command : canvas.commands)
+                {
+                    double left;
+                    if (command.kind == MfdCommand::Kind::text && std::sscanf(command.text.c_str(), "Left %lf m/s", &left) == 1)
+                        return left;
+                }
+                return -1.0;
+            };
             const sl::dvec3 direction = glm::normalize(delta_v);
             const sl::dvec3 up = std::abs(direction.y) < 0.9 ? sl::dvec3(0, 1, 0) : sl::dvec3(1, 0, 0);
             ship->body().orientation = glm::quatLookAt(direction, up);
             ship->body().angular_velocity = sl::dvec3(0.0);
             sim.props.set_string("/controls/sas", "attitude");
             const double initial_fuel = ship->telemetry().stage_fuel;
-            double delivered = 0.0, burn_elapsed = 0.0;
+            double delivered = 0.0, burn_elapsed = 0.0, halfway_left = -1.0, halfway_delivered = 0.0;
             const double dt = 0.05;
             while (delivered < dv && burn_elapsed < finite_duration * 2.0 + 1.0)
             {
@@ -1638,8 +1661,14 @@ namespace kosmos
                 sim.step(dt);
                 delivered += ship->telemetry().thrust / ship->telemetry().mass * dt;
                 burn_elapsed += dt;
+                if (halfway_left < 0.0 && delivered >= dv * 0.5)
+                {
+                    halfway_left = man_left();
+                    halfway_delivered = delivered;
+                }
             }
             sim.props.set_double("/controls/throttle", 0.0);
+            const double final_left = man_left();
             transfer_coast -= burn_elapsed - finite_duration / 2.0;
             std::printf("finite burn: %.2f s, delivered %.3f m/s, fuel used %.3f kg, final alignment %.5f, angular rate %.5f\n",
                         burn_elapsed, delivered, initial_fuel - ship->telemetry().stage_fuel,
@@ -1647,6 +1676,11 @@ namespace kosmos
                         glm::length(ship->body().angular_velocity));
             check(std::abs(delivered - dv) < 0.1 && ship->telemetry().stage_fuel < initial_fuel,
                   "real engine delivers planned delta-v");
+            std::printf("MAN remaining: halfway %.1f m/s (%.1f delivered), final %.1f m/s\n",
+                        halfway_left, halfway_delivered, final_left);
+            check(halfway_left >= 0.0 && std::abs(halfway_left - (dv - halfway_delivered)) < dv * 0.1 + 2.0 &&
+                      final_left >= 0.0 && final_left < dv * 0.2 + 2.0,
+                  "MAN tracks a real finite burn without reapplying its full delta-v");
         }
         else
         {
