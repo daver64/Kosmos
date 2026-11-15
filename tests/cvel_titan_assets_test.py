@@ -29,10 +29,28 @@ for path in titans:
     assert cockpit["external_mfds"] is False, (path.name, cockpit)
 
 iiic = json.loads((addon / "titan3c.json").read_text())
-core_engines = iiic["stages"][1]["engines"]
-assert all(engine["plume_width"] == 0.25 and engine["plume_density"] == 1.0 for engine in core_engines)
-stage_2_engines = iiic["stages"][4]["engines"]
-assert all(engine["plume_width"] == 0.25 and engine["plume_density"] == 1.0 for engine in stage_2_engines)
+iiid = json.loads((addon / "titan3d.json").read_text())
+for stage_index in (1, 4):
+    iiic_engines = iiic["stages"][stage_index]["engines"]
+    reference_engines = iiid["stages"][stage_index]["engines"]
+    assert len(iiic_engines) == len(reference_engines)
+    assert all(
+        engine["plume_width"] == reference["plume_width"]
+        and engine["plume_density"] == reference["plume_density"]
+        for engine, reference in zip(iiic_engines, reference_engines)
+    )
+
+titan34d = json.loads((addon / "titan34d.json").read_text())
+core = next(stage for stage in titan34d["stages"] if stage["name"] == "Stage 1")
+stage_2 = next(stage for stage in titan34d["stages"] if stage["name"] == "Stage 2")
+assert all(
+    engine["plume_width"] == 0.9 and engine["plume_offset"] == [0, 0, 0.3]
+    for engine in core["engines"]
+)
+assert all(
+    engine["plume_width"] == 0.72 and engine["plume_offset"] == [0, 0, 0.3]
+    for engine in stage_2["engines"]
+)
 
 for filename in ("titan3e.json", "titan4a.json"):
     ship = json.loads((addon / filename).read_text())
