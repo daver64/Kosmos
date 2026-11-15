@@ -48,7 +48,7 @@ local tanks = { { "oxygen", "O2", 30 }, { "nitrogen", "N2", 80 }, { "water", "H2
 local M
 M = {
   name = "Systems",
-  buttons = { "LEAK5", "LOADS", "", "", "", "", "", "", "", "", "", "" },
+  buttons = { "LOADS", "", "", "", "", "", "", "", "", "", "", "" },
   draw = function(self, g, w, h)
     local forced = props.get("/systems-mfd/page")
     if forced then self.page = tonumber(forced) or self.page end
@@ -66,8 +66,18 @@ M = {
     g:text(64, 40, string.format("BUS  %s", sys("bus/powered") and "POWERED" or "BROWN-OUT"), 0)
     g:colour(200, 210, 220)
     g:text(64, 56, string.format("Supply %.0f W  Demand %.0f W", supply, demand), 0)
-    bar(g, 100, 68, 150, num("battery/percent") / 100, "BATT", string.format("%.0f%%", num("battery/percent")))
-    local y = 98
+    local solar, has_solar = 0, false
+    for i = 0, num("component-count") - 1 do
+      local c = "component[" .. i .. "]/"
+      if sys(c .. "type") == "solar" and sys(c .. "alive") then
+        has_solar = true
+        solar = solar + num(c .. "output-w")
+      end
+    end
+    local offset = has_solar and 16 or 0
+    if has_solar then g:text(64, 72, string.format("Solar %.0f W", solar), 0) end
+    bar(g, 100, 68 + offset, 150, num("battery/percent") / 100, "BATT", string.format("%.0f%%", num("battery/percent")))
+    local y = 98 + offset
     local left = endurance()
     if left then
       g:colour(200, 210, 220)
@@ -140,7 +150,7 @@ M = {
     g:text(w / 2, h - 12, string.format("%d / %d", self.cur, #list), 1)
   end,
   set_buttons = function(self)
-    local b = self.page == 2 and { "SYS", "UP", "DOWN", "TOGGLE", "SHED", "ALL ON" } or { "LEAK5", "LOADS", "", "", "", "" }
+    local b = self.page == 2 and { "SYS", "UP", "DOWN", "TOGGLE", "SHED", "ALL ON" } or { "LOADS", "", "", "", "", "" }
     for i = 1, 6 do M.buttons[i] = b[i] end
   end,
   init = function(self)
@@ -163,10 +173,7 @@ M = {
       end
       return
     end
-    if i == 2 then self.page = 2; return end
-    if i == 1 and num("vessel-count") > 0 then
-      props.set("/ships/ship[" .. props.get("/sim/active-ship") .. "]/systems/vessel[0]/breach-cm2", 5)
-    end
+    if i == 1 then self.page = 2 end
   end,
 }
 

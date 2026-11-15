@@ -991,6 +991,7 @@ namespace kosmos
             tree.node(base + "/" + cb + "name")->tie_string([this, i] { return components_[i].name; });
             tree.node(base + "/" + cb + "enabled")->tie_double([this, i] { return components_[i].enabled ? 1.0 : 0.0; }, [this, i](double v) { components_[i].enabled = v > 0.5; });
             tree.node(base + "/" + cb + "type")->tie_string([this, i] { return components_[i].type; });
+            tree.node(base + "/" + cb + "alive")->tie_bool([this, i] { return components_[i].alive; });
             tree.node(base + "/" + cb + "watts")->tie_double([this, i] { return components_[i].watts; });
             tree.node(base + "/" + cb + "priority")->tie_double([this, i] { return static_cast<double>(components_[i].priority); });
             tree.node(base + "/" + cb + "powered")->tie_double([this, i] { return components_[i].enabled && components_[i].powered && components_[i].wear < 1.0 ? 1.0 : 0.0; });

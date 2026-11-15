@@ -183,7 +183,7 @@ namespace kosmos::app
                             std::snprintf(label, sizeof label, "%s tank %.2f / %.0f kg", c.gas.c_str(), c.amount, c.capacity);
                             ImGui::ProgressBar(static_cast<float>(c.amount / c.capacity), ImVec2(260.0f, 0.0f), label);
                         }
-                        else if (c.output_w > 0.0)
+                        else if (c.type == "solar" || c.output_w > 0.0)
                             ImGui::Text("%s  %.0f W", c.name.c_str(), c.output_w);
                         else if ((c.type == "load" || c.type == "drive_motor") && c.watts > 0.0)
                         {
@@ -198,7 +198,6 @@ namespace kosmos::app
                         else if ((c.type == "load" || c.type == "scrubber" || c.type == "regulator") && c.enabled)
                             ImGui::TextColored(c.powered ? ImVec4(0.7f, 1.0f, 0.7f, 1.0f) : ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "%s  %.0f W %s", c.name.c_str(), c.watts, c.powered ? "" : "(shed)");
                     }
-                    int &selected_vessel = memory.selected_vessel, &slice_y = memory.slice_y, &slice_gas = memory.slice_gas;
                     for (int vi = 0; vi < sys->vessel_count(); ++vi)
                     {
                         const kosmos::Systems::Vessel &v = sys->vessels()[static_cast<std::size_t>(vi)];
@@ -215,39 +214,7 @@ namespace kosmos::app
                         ImGui::SameLine();
                         if (ImGui::SmallButton("Crew +"))
                             sys->set_crew(vi, v.spec.crew + 1);
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("Open 5 cm2 leak"))
-                            sys->breach(vi, 5.0);
-                        ImGui::SameLine();
-                        if (ImGui::SmallButton("Show gas grid"))
-                            selected_vessel = vi;
                         ImGui::PopID();
-                    }
-                    if (selected_vessel < sys->vessel_count() && sys->vessels()[static_cast<std::size_t>(selected_vessel)].alive)
-                    {
-                        ImGui::SeparatorText("Cabin gas grid");
-                        ui::slider_int("Height", &slice_y, 1, 10);
-                        ImGui::RadioButton("O2", &slice_gas, 0);
-                        ImGui::SameLine();
-                        ImGui::RadioButton("N2", &slice_gas, 1);
-                        ImGui::SameLine();
-                        ImGui::RadioButton("CO2", &slice_gas, 2);
-                        const kosmos::Systems::Vessel &v = sys->vessels()[static_cast<std::size_t>(selected_vessel)];
-                        // Colour each cell by its density relative to the well-mixed value; CO2 pockets stand out.
-                        const float mixed = static_cast<float>((slice_gas == 0 ? v.o2 : slice_gas == 1 ? v.n2 : v.co2) / 1000.0);
-                        const ImVec2 origin = ImGui::GetCursorScreenPos();
-                        const float cell = 14.0f;
-                        ImDrawList *draw = ImGui::GetWindowDrawList();
-                        for (int z = 0; z < 12; ++z)
-                            for (int x = 0; x < 12; ++x)
-                            {
-                                const float d = mixed > 0.0f ? sys->grid_cell(selected_vessel, x, slice_y, z, slice_gas) / mixed : 0.0f;
-                                const float t = std::min(d / 2.0f, 1.0f);
-                                const bool hull = x == 0 || z == 0 || x == 11 || z == 11;
-                                const ImU32 colour = hull ? IM_COL32(70, 70, 80, 255) : IM_COL32(static_cast<int>(40 + 215 * t), static_cast<int>(60 + 120 * (1.0f - std::abs(t * 2.0f - 1.0f))), static_cast<int>(220 - 190 * t), 255);
-                                draw->AddRectFilled(ImVec2(origin.x + x * cell, origin.y + z * cell), ImVec2(origin.x + (x + 1) * cell - 1.0f, origin.y + (z + 1) * cell - 1.0f), colour);
-                            }
-                        ImGui::Dummy(ImVec2(12 * cell, 12 * cell));
                     }
                 }
             }

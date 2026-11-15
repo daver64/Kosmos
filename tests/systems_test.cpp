@@ -9,6 +9,8 @@
 #include "exhaust_fx.h"
 #include "stellar_light.h"
 
+#include <sol/sol.hpp>
+
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -67,6 +69,12 @@ namespace
 
 int main()
 {
+    {
+        sol::state lua;
+        lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
+        lua["root"] = KOSMOS_ROOT;
+        lua.script_file(std::string(KOSMOS_ROOT) + "/tests/systems_mfd_test.lua");
+    }
     {
         const auto load_haze = [](const nlohmann::json &atmosphere, bool valid, double expected)
         {
@@ -643,6 +651,8 @@ int main()
             assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/cvel-soyuz/" + file, spec, error));
             Ship ship(universe, spec);
             assert(ship.systems());
+            assert(ship.animation_position(0) == 0.0);
+            ship.systems()->set_battery_fraction(0.5);
             const auto solar_output = [&ship] {
                 for (const SystemComponent &component : ship.systems()->components())
                     if (component.type == "solar")
@@ -720,9 +730,13 @@ int main()
                 stepped.apply_controls(controls, 91.0);
                 stepped.after_step(91.0);
                 assert(std::abs(warped.systems()->battery_wh() - stepped.systems()->battery_wh()) < 1e-6);
+                sl::PropertyTree props;
+                warped.systems()->publish(props, "/systems");
+                assert(props.get_bool("/systems/component[0]/alive"));
                 assert(warped.stage_once());
                 warped.after_step(1.0);
                 assert(warped.systems()->components()[0].output_w == 0.0);
+                assert(!props.get_bool("/systems/component[0]/alive"));
             }
         }
     }

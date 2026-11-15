@@ -107,7 +107,6 @@ namespace kosmos::app
         double alarm_next = 0.0, cues_from = 0.0;
         std::string weather_seen;
         std::chrono::steady_clock::time_point weather_until{};
-        int selected_vessel = 0, slice_y = 5, slice_gas = 0;
         char metar[256] = "";
         bool metar_loaded = false;
         LinkWatch link_watch;
