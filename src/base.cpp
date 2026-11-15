@@ -733,7 +733,7 @@ namespace kosmos
 
     namespace
     {
-        // The pads are drawn with a fixed thickness; ships rest on top of it, so the ground is raised to just under its surface.
+        // Deck height of generated pads, used to place ships on the pad surface.
         bool pad_extent(const BaseObject &o, double &reach, double &deck)
         {
             if (o.type == "launch_pad")
@@ -895,22 +895,6 @@ namespace kosmos
             runway_ends(rw, false, x0, z0, x1, z1);
             const double margin = 0.5 * rw.width + 30.0;
             sites.push_back({base_point(base, radius, x0, z0), base_point(base, radius, x1, z1), base.height, margin, 150.0});
-        }
-        if (base.pad_deck != 0.0)
-        {
-            const sl::dvec3 p = base_point(base, radius, base.pad_x, base.pad_z);
-            sites.push_back({p, p, base.height + base.pad_deck, 15.0, 1.5});
-        }
-        for (const BaseObject &o : base.objects)
-        {
-            double reach, deck;
-            if (!pad_extent(o, reach, deck))
-                continue;
-            for (int i = 0; i < std::max(o.count, 1); ++i)
-            {
-                const sl::dvec3 p = base_point(base, radius, o.x + o.step_x * i, o.z + o.step_z * i);
-                sites.push_back({p, p, base.height + deck, reach, 1.5});
-            }
         }
         return sites;
     }

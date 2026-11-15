@@ -5,7 +5,7 @@
   {"name": "Payload shroud", "shape": "cylinder", "radius": 1.5, "length": 8, "port": "Payload"}
  ],
  "script": "@launcher.lua",
- "description": "Titan IIIC: two UA1205 solid motors, the Titan 34 core and a Transtage. The solid motors burn first and the core lights after they are jettisoned; the fairing halves go after stage 1.",
+ "description": "Titan IIIC: two UA1205 solid motors, the Titan 34 core and a Transtage. The core and solid motors ignite together; the fairing halves go after stage 1.",
  "torque_accel": 0.15,
  "max_rate": 0.3,
  "rcs_thrust": 0,
@@ -18,7 +18,7 @@
  ],
  "cockpit": {
   "external_mfds": false,
-  "mfds": false
+  "mfds": true
  },
  "systems": [
   {
@@ -92,9 +92,9 @@
      "isp": 263,
      "isp_sl": 238,
      "plume": 35,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 3,
+     "plume_width": 0.65,
+     "plume_glow": 1.0,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "solid"
     },
@@ -113,9 +113,9 @@
      "isp": 263,
      "isp_sl": 238,
      "plume": 35,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 3,
+     "plume_width": 0.65,
+     "plume_glow": 1.0,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "solid"
     }
@@ -163,6 +163,7 @@
   },
   {
    "name": "Stage 1",
+   "ignite_with_previous": true,
    "dry_mass": 4443,
    "propellant": 113423,
    "z": 29.36,
@@ -185,9 +186,9 @@
      "isp": 296,
      "isp_sl": 258,
      "plume": 20,
-     "plume_width": 1.0,
+     "plume_width": 0.25,
      "plume_glow": 1.0,
-     "plume_density": 1.5,
+     "plume_density": 1.0,
      "type": "rocket",
      "fuel": "hypergolic"
     },
@@ -206,9 +207,9 @@
      "isp": 296,
      "isp_sl": 258,
      "plume": 20,
-     "plume_width": 1.0,
+     "plume_width": 0.25,
      "plume_glow": 1.0,
-     "plume_density": 1.5,
+     "plume_density": 1.0,
      "type": "rocket",
      "fuel": "hypergolic"
     }
@@ -307,9 +308,9 @@
      "isp": 316,
      "isp_sl": 160,
      "plume": 8,
-     "plume_width": 0.8,
+     "plume_width": 0.25,
      "plume_glow": 1.0,
-     "plume_density": 1.5,
+     "plume_density": 1.0,
      "type": "rocket",
      "fuel": "hypergolic"
     }

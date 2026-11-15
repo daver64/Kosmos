@@ -92,9 +92,9 @@
      "isp": 263,
      "isp_sl": 238,
      "plume": 35,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 3,
+     "plume_width": 0.65,
+     "plume_glow": 1.0,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "solid"
     },
@@ -113,9 +113,9 @@
      "isp": 263,
      "isp_sl": 238,
      "plume": 35,
-     "plume_width": 1.2,
-     "plume_glow": 1.4,
-     "plume_density": 3,
+     "plume_width": 0.65,
+     "plume_glow": 1.0,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "solid"
     }
@@ -163,6 +163,7 @@
   },
   {
    "name": "Stage 1",
+   "ignite_with_previous": true,
    "dry_mass": 6900,
    "propellant": 133035,
    "z": 29.36,

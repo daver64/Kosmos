@@ -101,7 +101,7 @@ namespace kosmos
         double elevation = 0.0;     // metres above the datum, used when the body has no terrain of its own
         std::vector<BaseNavaid> navaids;
         std::vector<Runway> runways;
-        double pad_x = 0.0, pad_z = 0.0, pad_heading = 0.0, pad_deck = 0.0; // where a landed ship stands, in the base frame
+        double pad_x = 0.0, pad_z = 0.0, pad_heading = 0.0, pad_deck = 0.0; // pad location and deck height above the base surface
         std::vector<BaseObject> objects;
         std::vector<LightSpec> lights;
         std::vector<BaseCamera> cameras;

@@ -28,6 +28,25 @@ int main()
 {
     constexpr double radius = 6371000.0;
     const glm::dvec3 origin(1.0, 0.0, 0.0), right(0.0, 0.0, 1.0), forward(0.0, 1.0, 0.0);
+    {
+        kosmos::Base base;
+        base.direction = origin;
+        base.pole = forward;
+        base.height = 3.0;
+        base.pad_deck = 8.7;
+        const auto sites = kosmos::flatten_sites(base, radius);
+        assert(sites.size() == 1 && sites[0].height == base.height);
+        assert(kosmos::base_pad_deck(base) == 8.7);
+
+        base.pad_deck = 0.0;
+        kosmos::BaseObject pad;
+        pad.type = "launch_pad";
+        pad.size = 50.0;
+        base.objects.push_back(pad);
+        const auto generated_pad_sites = kosmos::flatten_sites(base, radius);
+        assert(generated_pad_sites.size() == 1 && generated_pad_sites[0].height == base.height);
+        assert(std::fabs(kosmos::base_pad_deck(base) - 1.46) < 1e-9);
+    }
     auto grid = std::make_shared<kosmos::MeshGrid>();
     grid->width = grid->height = 5;
     grid->cell = 10.0;
