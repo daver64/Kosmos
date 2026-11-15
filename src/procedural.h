@@ -5,6 +5,7 @@
 namespace kosmos
 {
     // Procedural textures and meshes for stars, nebulae, sky, clouds, rain and rings: pure generators with no state.
+    inline constexpr double ground_cloud_wind_scale = 0.35;
 
     sl::Bitmap *make_glow_texture(int size = 256);
     /** A re-entry wake: across is x (64 px), along is y (head at the top, tail at the bottom), colour white-yellow through orange to dark red, soft edges and fine streaks along the flow. */

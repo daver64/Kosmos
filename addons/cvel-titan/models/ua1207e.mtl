@@ -1,8 +1,11 @@
 newmtl Hull_UA1207
 Kd 1.000 1.000 1.000
 Ks 0.412 0.412 0.412
+Pm 0.03
+Pr 0.82
 Ke 0.000 0.000 0.000
 map_Kd textures/UA1207.png
+map_Bump textures/UA1207_normal.png
 
 newmtl Red
 Kd 0.851 0.102 0.102

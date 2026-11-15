@@ -75,9 +75,9 @@
    "engines": [
     {
      "position": [
-      -5.4,
-      0,
-      26.3
+      -5.449,
+      0.021,
+      26.859
      ],
      "direction": [
       0,
@@ -87,18 +87,18 @@
      "thrust": 3370000,
      "isp": 420,
      "isp_sl": 365,
-     "plume": 60,
-     "plume_width": 2.4,
+     "plume": 45,
+     "plume_width": 1.0,
      "plume_glow": 0.8,
-     "plume_density": 3,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "hydrogen"
     },
     {
      "position": [
-      5.4,
-      0,
-      26.3
+      5.446,
+      -0.029,
+      26.859
      ],
      "direction": [
       0,
@@ -108,18 +108,18 @@
      "thrust": 3370000,
      "isp": 420,
      "isp_sl": 365,
-     "plume": 60,
-     "plume_width": 2.4,
+     "plume": 45,
+     "plume_width": 1.0,
      "plume_glow": 0.8,
-     "plume_density": 3,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "hydrogen"
     },
     {
      "position": [
-      0,
-      0,
-      26.3
+      0.007,
+      0.007,
+      26.835
      ],
      "direction": [
       0,
@@ -129,10 +129,10 @@
      "thrust": 3370000,
      "isp": 420,
      "isp_sl": 365,
-     "plume": 60,
-     "plume_width": 2.4,
+     "plume": 45,
+     "plume_width": 1.0,
      "plume_glow": 0.8,
-     "plume_density": 3,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "hydrogen"
     }
@@ -189,9 +189,9 @@
    "engines": [
     {
      "position": [
-      0,
-      0,
-      26.3
+      0.007,
+      0.007,
+      26.835
      ],
      "direction": [
       0,
@@ -201,10 +201,10 @@
      "thrust": 3370000,
      "isp": 420,
      "isp_sl": 365,
-     "plume": 60,
-     "plume_width": 2.4,
+     "plume": 45,
+     "plume_width": 1.0,
      "plume_glow": 0.8,
-     "plume_density": 3,
+     "plume_density": 2,
      "type": "rocket",
      "fuel": "hydrogen"
     }
@@ -282,9 +282,9 @@
    "engines": [
     {
      "position": [
-      0,
-      0,
-      -17.08
+      0.0094,
+      0.1336,
+      -21.0554
      ],
      "direction": [
       0,
@@ -293,8 +293,8 @@
      ],
      "thrust": 210088.0,
      "isp": 463.8,
-     "plume": 7.0,
-     "plume_width": 0.4,
+     "plume": 6.0,
+     "plume_width": 0.3,
      "plume_glow": 1.2,
      "plume_density": 1,
      "type": "rocket",

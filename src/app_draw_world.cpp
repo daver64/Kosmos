@@ -274,7 +274,8 @@ namespace kosmos::app
             layer.altitude = static_cast<float>(ground + base);
             layer.thickness = static_cast<float>(std::max(100.0, top - base));
             layer.coverage = static_cast<float>(std::clamp(cover * visible, 0.0, 1.0));
-            layer.wind = glm::vec2(static_cast<float>(wind_e), static_cast<float>(wind_n));
+            const double wind_scale = i == 0 ? ground_cloud_wind_scale : 1.0;
+            layer.wind = glm::vec2(static_cast<float>(wind_e * wind_scale), static_cast<float>(wind_n * wind_scale));
             layer.volumetric = style == 2 && (type == 0 || type == 1 || type == 5);
             (i == 0 ? environment.clouds : environment.more_clouds[i - 1]) = layer;
             if (layer.enabled && agl > base - 100.0 && agl < top + 100.0)

@@ -1,23 +1,34 @@
 newmtl Dome_MOLSide
 Kd 1.000 1.000 1.000
 Ks 0.282 0.282 0.282
+Pm 0.35
+Pr 0.72
 Ke 0.000 0.000 0.000
 map_Kd textures/MOLSide.png
+map_Bump textures/MOLSide_normal.png
 
 newmtl material05_TITAN4stg1
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
+Pm 0.03
+Pr 0.82
 Ke 0.000 0.000 0.000
 map_Kd textures/TITAN4stg1.png
+map_Bump textures/TITAN4stg1_normal.png
 
 newmtl material06_Transtag
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
+Pm 0.10
+Pr 0.78
 Ke 0.000 0.000 0.000
 map_Kd textures/Transtag.png
+map_Bump textures/Transtag_normal.png
 
 newmtl steellight
 Kd 0.282 0.282 0.282
 Ks 1.000 1.000 1.000
+Pm 0.78
+Pr 0.45
 Ke 0.000 0.000 0.000
 

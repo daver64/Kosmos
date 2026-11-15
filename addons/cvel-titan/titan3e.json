@@ -17,7 +17,7 @@
   10
  ],
  "cockpit": {
-  "external_mfds": true,
+  "external_mfds": false,
   "mfds": false
  },
  "systems": [
@@ -369,19 +369,39 @@
    "engines": [
     {
      "position": [
-      0,
-      0,
-      4.66
+      -0.008,
+      0.608,
+      4.655
      ],
      "direction": [
       0,
       0,
       -1
      ],
-     "thrust": 73428,
+     "thrust": 36714,
      "isp": 444,
      "plume": 4,
-     "plume_width": 0.5,
+     "plume_width": 0.25,
+     "plume_glow": 1.0,
+     "plume_density": 1.5,
+     "type": "rocket",
+     "fuel": "hydrogen"
+    },
+    {
+     "position": [
+      -0.008,
+      -0.608,
+      4.655
+     ],
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "thrust": 36714,
+     "isp": 444,
+     "plume": 4,
+     "plume_width": 0.25,
      "plume_glow": 1.0,
      "plume_density": 1.5,
      "type": "rocket",

@@ -11,8 +11,11 @@ Ke 0.000 0.000 0.000
 newmtl Nozzles_SSMEC
 Kd 1.000 1.000 1.000
 Ks 0.420 0.420 0.420
+Pm 0.78
+Pr 0.45
 Ke 0.000 0.000 0.000
 map_Kd textures/SSMEC.png
+map_Bump textures/SSMEC_normal.png
 
 newmtl Silver
 Kd 0.765 0.765 0.765

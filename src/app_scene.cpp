@@ -1422,7 +1422,8 @@ namespace kosmos::app
                 if (!vis.local_cloud)
                     vis.local_cloud = make_cloud_deck_mesh();
                 update_cloud_deck(vis.local_cloud, centre_world - eye_world, local_up, universe.orientation(wt.soi), wb.radius, layer, eye_alt, cover,
-                                  props.get_double("/environment/wind-east") * universe.time(), glm::dot(local_up, sl::dvec3(to_sun)), props.get_double("/environment/rain") > 0.1);
+                                  props.get_double("/environment/wind-east") * ground_cloud_wind_scale * universe.time(), glm::dot(local_up, sl::dvec3(to_sun)),
+                                  props.get_double("/environment/rain") > 0.1);
                 sl::Material deck;
                 deck.lit = false;
                 deck.fog = false;

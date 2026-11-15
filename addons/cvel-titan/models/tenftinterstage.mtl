@@ -1,6 +1,9 @@
 newmtl material05_MOLSide
 Kd 1.000 1.000 1.000
 Ks 0.918 0.918 0.918
+Pm 0.35
+Pr 0.72
 Ke 0.000 0.000 0.000
 map_Kd textures/MOLSide.png
+map_Bump textures/MOLSide_normal.png
 

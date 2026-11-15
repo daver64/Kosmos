@@ -17,7 +17,7 @@
   10
  ],
  "cockpit": {
-  "external_mfds": true,
+  "external_mfds": false,
   "mfds": false
  },
  "systems": [

@@ -1,8 +1,11 @@
 newmtl ___default__titan22m
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
+Pm 0.18
+Pr 0.68
 Ke 0.000 0.000 0.000
 map_Kd textures/titan22m.png
+map_Bump textures/titan22m_normal.png
 
 newmtl copper
 Kd 0.710 0.494 0.118
@@ -27,8 +30,11 @@ Ke 0.000 0.000 0.000
 newmtl material07_Titanstage2
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000
+Pm 0.03
+Pr 0.82
 Ke 0.000 0.000 0.000
 map_Kd textures/Titanstage2.png
+map_Bump textures/Titanstage2_normal.png
 
 newmtl stage01black
 Kd 0.000 0.000 0.000

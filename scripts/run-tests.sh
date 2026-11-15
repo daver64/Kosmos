@@ -24,6 +24,7 @@ python3 "$SRC/tests/scenario_addons_test.py"
 python3 "$SRC/tests/make_thumbs_test.py"
 python3 "$SRC/tests/station_assets_test.py"
 python3 "$SRC/tests/cvel_titan_fairing_test.py"
+python3 "$SRC/tests/cvel_titan_assets_test.py"
 python3 "$SRC/tools/msh_import.py" --selftest
 python3 "$SRC/tests/deltaglider_panel_assets_test.py"
 python3 "$SRC/tests/shuttle_vc_textures_test.py"

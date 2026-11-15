@@ -6,6 +6,9 @@ Ke 0.000 0.000 0.000
 newmtl Material_0_TITAN2I
 Kd 1.000 1.000 1.000
 Ks 0.898 0.898 0.898
+Pm 0.03
+Pr 0.82
 Ke 0.000 0.000 0.000
 map_Kd textures/TITAN2I.png
+map_Bump textures/TITAN2I_normal.png
 
