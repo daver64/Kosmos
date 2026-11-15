@@ -477,6 +477,8 @@ them; attitude control also substitutes for spin stabilisation.
 
 Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. Each display has an **MNU** button (the mode list, paged, with short codes on the see-through displays) and a cross button that closes it; F5 brings it back. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.
 
+The CVEL Titan launchers have Orbit and Surface cockpit MFDs. Their launch scenarios start with external MFDs off; press **F5** to show them.
+
 When staging hands control to a docked payload, the first two MFDs retain their modes and settings if those modes are available on the new vessel. An incompatible mode uses the new vessel's default instead.
 
 Modes are Lua addons. An addon.json lists them:
