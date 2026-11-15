@@ -18,7 +18,7 @@
  ],
  "cockpit": {
   "external_mfds": false,
-  "mfds": false
+  "mfds": true
  },
  "systems": [
   {
@@ -348,6 +348,14 @@
       0.0,
       0,
       9.67
+     ]
+    },
+    {
+     "model": "models/tenftinterstage.obj",
+     "offset": [
+      0,
+      0,
+      3.75
      ]
     }
    ]

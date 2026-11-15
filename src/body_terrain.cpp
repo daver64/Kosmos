@@ -251,6 +251,11 @@ namespace kosmos::app
         config.shape = sl::TerrainShape::sphere;
         config.radius = b.radius;
         config.finest_cell_size = 4.0;
+        if (home)
+        {
+            config.max_uploads_per_frame = 8;
+            config.max_uploads_per_second = 120.0;
+        }
         config.max_screen_error = std::array<double, 4>{0.5, 1.0, 2.0, 4.0}[static_cast<std::size_t>(std::clamp(sim.props.get_int("/sim/settings/gfx-terrain-detail"), 0, 3))];
         config.error_scale = 0.1;
         if (home)

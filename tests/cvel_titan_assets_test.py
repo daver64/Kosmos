@@ -21,9 +21,14 @@ for path in sorted(addon.glob("titan*.json")):
             for engine in boosters
         ), (path.name, boosters)
 
+titans = sorted(addon.glob("titan*.json"))
+assert titans
+for path in titans:
+    cockpit = json.loads(path.read_text())["cockpit"]
+    assert cockpit["mfds"] is True, (path.name, cockpit)
+    assert cockpit["external_mfds"] is False, (path.name, cockpit)
+
 iiic = json.loads((addon / "titan3c.json").read_text())
-assert iiic["cockpit"]["mfds"] is True
-assert iiic["cockpit"]["external_mfds"] is False
 core_engines = iiic["stages"][1]["engines"]
 assert all(engine["plume_width"] == 0.25 and engine["plume_density"] == 1.0 for engine in core_engines)
 stage_2_engines = iiic["stages"][4]["engines"]
@@ -49,5 +54,12 @@ for filename in ("titan3e.json", "titan4a.json"):
                 if line.startswith("map_Bump "):
                     texture = mtl.parent / line.split(maxsplit=1)[1]
                     assert texture.is_file(), (filename, mtl, texture)
+
+titan4b = json.loads((addon / "titan4b.json").read_text())
+titan4b_stage2 = next(stage for stage in titan4b["stages"] if stage["name"] == "Stage 2")
+assert any(
+    part["model"] == "models/tenftinterstage.obj" and part["offset"] == [0, 0, 3.75]
+    for part in titan4b_stage2["parts"]
+)
 
 print("cvel_titan_assets_test ok")

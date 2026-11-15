@@ -86,6 +86,8 @@ with tempfile.TemporaryDirectory() as home:
         config = json.loads(path.read_text())
         if config.get("class") == "launcher":
             assert config.get("cockpit", {}).get("external_mfds", False) is False, path
+            if len(config.get("stages", [])) > 1 and "cockpit" in config:
+                assert config["cockpit"].get("mfds", True) is True, path
     for enabled in (False, True):
         shot = temp / f"titan-mfd-{enabled}.png"
         args = ["--ship", "CVEL Titan IVA", "--orbit"]
