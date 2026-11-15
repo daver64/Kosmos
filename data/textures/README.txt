@@ -13,16 +13,25 @@ Other formats (png/jpg) are decoded to RGBA first: about 1.3 GB of RAM while loa
 If the GPU cannot take the size, a DDS drops its largest mips; other images are halved until they fit.
 Use --max-texture N to cap the size yourself.
 
-Earth: below 300 km altitude the procedural terrain is drawn (the image is not used);
-above 300 km the planet is drawn as a plain sphere with the image. Other bodies scale that distance by radius / 6371 km,
-and bodies without terrain always use the image on their sphere.
+The surface renderer depends on altitude, settings and installed data. Orbiter surface and elevation trees can provide terrain imagery and relief; when unavailable, Kosmos falls back to Celestia imagery or procedural terrain. The orbital relief renderer also requires suitable Orbiter imagery and elevation and falls back when they are unavailable.
 
 Celestia source textures live in import/celestia (hires, then medres, then lores).
 tools/celestia_import.py installs the best resolution of each supported moon/planet image here as <body>.jpg.
 
-Orbiter textures: tools/orbiter_import.py converts an Orbiter Surf.tree archive (Textures/<Planet>/Archive/Surf.tree)
-into one of these .dds files without decoding the tiles, keeping the tree's levels as the mip chain:
+Orbiter terrain is read from the launcher-managed Archive layout:
+    import/orbiter/<Body>/Archive/Surf.tree
+    import/orbiter/<Body>/Archive/Elev.tree
+Minor-body trees are under import/orbiter/MinorBodies/<Body>/Archive/.
+The launcher also installs standard Orbiter scenery under data/orbiter-defaults/.
+Its trees are in data/orbiter-defaults/earth/Earth/Archive/ and
+data/orbiter-defaults/planets/<Body>/Archive/.
+Legacy source folders and arbitrary Orbiter installations are not scanned at runtime.
+
+Optional: tools/orbiter_import.py converts an Orbiter Surf.tree archive into one
+of these .dds files without decoding the tiles, keeping the tree's levels as
+the mip chain:
     python3 tools/orbiter_import.py "C:/Orbiter" --body Earth --level 8      (8 = 16384 x 8192 with 512 px tiles; writes to data/textures-hires/)
-Only the surface layer (DXT1/DXT5 tiles) is imported; mask, cloud and elevation layers are ignored.
+This conversion is only for a whole-planet image; runtime terrain reads the
+launcher-managed Surf.tree and Elev.tree directly.
 
 Planet images: textures/planets/*.jpg are the original 2k downloads; the old procedural 8k ones were moved to textures-hires/procedural/ (not in git; regenerate with tools/gen_textures.py).
