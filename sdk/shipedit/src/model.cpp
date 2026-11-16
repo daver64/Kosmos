@@ -423,6 +423,53 @@ namespace shipedit
         return out;
     }
 
+    bool add_scenario_piggyback(json &scenario, const std::string &ship, int carrier, int carrier_port, int own_port, std::string &error)
+    {
+        error.clear();
+        if (ship.empty() || !scenario.is_object() || !scenario.contains("ships") || !scenario["ships"].is_array() ||
+            carrier < 0 || carrier >= static_cast<int>(scenario["ships"].size()) || carrier_port < 0 || own_port < 0)
+        {
+            error = "Select a ship, carrier and both attachment ports.";
+            return false;
+        }
+        const json &ships = scenario["ships"];
+        const json &parent = ships[static_cast<std::size_t>(carrier)];
+        if (!parent.is_object() ||
+            (parent.contains("body") && !parent["body"].is_string()) ||
+            ((!parent.contains("surface") || !parent["surface"].is_object()) &&
+             (!parent.contains("orbit") || !parent["orbit"].is_object())))
+        {
+            error = "The carrier has no surface or orbit placement.";
+            return false;
+        }
+        for (std::size_t i = 0; i < ships.size(); ++i)
+        {
+            if (!ships[i].is_object() || !ships[i].contains("dock") || !ships[i]["dock"].is_object())
+                continue;
+            const json &dock = ships[i]["dock"];
+            for (const char *key : {"to", "port", "own_port"})
+                if (dock.contains(key) && !dock[key].is_number_integer())
+                {
+                    error = "An existing docking link has an invalid port or ship index.";
+                    return false;
+                }
+            if ((static_cast<int>(i) == carrier && dock.value("own_port", -1) == carrier_port) ||
+                (dock.value("to", -1) == carrier && dock.value("port", -1) == carrier_port))
+            {
+                error = "That carrier port is already in use.";
+                return false;
+            }
+        }
+        json vessel = {{"ship", ship}, {"body", parent.value("body", std::string("Earth"))}};
+        if (parent.contains("surface") && parent["surface"].is_object())
+            vessel["surface"] = parent["surface"];
+        else
+            vessel["orbit"] = parent["orbit"];
+        vessel["dock"] = {{"to", carrier}, {"port", carrier_port}, {"own_port", own_port}};
+        scenario["ships"].push_back(std::move(vessel));
+        return true;
+    }
+
     std::vector<AddonInfo> scan_addons(const fs::path &addons_dir)
     {
         std::vector<AddonInfo> result;
@@ -974,6 +1021,51 @@ namespace shipedit
         {
             problems.push_back("The ship has no stages.");
             return problems;
+        }
+        if (root_.contains("ports"))
+        {
+            if (!root_["ports"].is_array())
+                problems.push_back("Ports must be an array.");
+            else
+                for (std::size_t i = 0; i < root_["ports"].size(); ++i)
+                {
+                    const json &port = root_["ports"][i];
+                    const std::string label = "Port " + std::to_string(i + 1);
+                    if (!port.is_object())
+                    {
+                        problems.push_back(label + " must be an object.");
+                        continue;
+                    }
+                    auto vector = [&](const char *key, const json &fallback, double (&out)[3]) {
+                        const json &v = port.contains(key) ? port[key] : fallback;
+                        if (!v.is_array() || v.size() != 3)
+                            return false;
+                        for (int k = 0; k < 3; ++k)
+                        {
+                            if (!v[static_cast<std::size_t>(k)].is_number()) return false;
+                            out[k] = v[static_cast<std::size_t>(k)].get<double>();
+                            if (!std::isfinite(out[k])) return false;
+                        }
+                        return true;
+                    };
+                    double position[3], direction[3], up[3];
+                    if (!vector("position", json::array({0, 0, 0}), position) ||
+                        !vector("direction", json::array({0, 0, -1}), direction) ||
+                        !vector("up", json::array({0, 1, 0}), up))
+                        problems.push_back(label + " needs finite position, direction and up vectors.");
+                    else
+                    {
+                        const double dx = direction[1] * up[2] - direction[2] * up[1];
+                        const double dy = direction[2] * up[0] - direction[0] * up[2];
+                        const double dz = direction[0] * up[1] - direction[1] * up[0];
+                        if (dx * dx + dy * dy + dz * dz < 1e-12)
+                            problems.push_back(label + " direction and up must be nonzero and not parallel.");
+                    }
+                    if (port.contains("stage") &&
+                        (!port["stage"].is_number_integer() || port["stage"].get<int>() < -1 ||
+                         port["stage"].get<int>() >= static_cast<int>(list.size())))
+                        problems.push_back(label + " has an invalid carrying stage.");
+                }
         }
         for (std::size_t i = 0; i < list.size(); ++i)
         {

@@ -3,6 +3,7 @@
 // ShipEdit's document model: every shipped ship must round-trip untouched, edits must behave, save-as must produce a loadable copy.
 #include "model.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -31,6 +32,38 @@ namespace
 
 int main()
 {
+    {
+        std::string error;
+        json scenario = {{"name", "Piggyback test"}, {"custom", 7},
+                         {"ships", json::array({{{"ship", "CVEL Energia"}, {"body", "Earth"}, {"surface", {{"base", "baikonur"}}}}})}};
+        check(add_scenario_piggyback(scenario, "CVEL Buran", 0, 0, 1, error) &&
+                  scenario["ships"][1]["dock"] == json({{"to", 0}, {"port", 0}, {"own_port", 1}}) &&
+                  scenario["ships"][1]["surface"]["base"] == "baikonur" && scenario["custom"] == 7,
+              "piggyback scenario uses the carrier placement and selected ports");
+        const json before = scenario;
+        check(!add_scenario_piggyback(scenario, "Another ship", 0, 0, 0, error) &&
+                  !error.empty() && scenario == before,
+              "piggyback rejects an occupied carrier port without changing the scenario");
+        check(add_scenario_piggyback(scenario, "Payload", 1, 0, 0, error) &&
+                  scenario["ships"][2]["dock"]["to"] == 1,
+              "piggyback permits a nested attachment on an unused port");
+        const json nested = scenario;
+        check(!add_scenario_piggyback(scenario, "Invalid", 3, 0, 0, error) &&
+                  !error.empty() && scenario == nested,
+              "piggyback rejects invalid carrier indices");
+        json orbit = {{"ships", json::array({{{"ship", "Carrier"}, {"body", "Mars"},
+                                               {"orbit", {{"altitude_km", 250}, {"inclination", 20}}}}})}};
+        check(add_scenario_piggyback(orbit, "Passenger", 0, 0, 0, error) &&
+                  orbit["ships"][1]["body"] == "Mars" && orbit["ships"][1]["orbit"]["altitude_km"] == 250,
+              "piggyback retains an orbital carrier placement");
+        Document port_ship;
+        port_ship.make_blank("Port test");
+        port_ship.root()["ports"] = json::array({{{"direction", {0, 1, 0}}, {"up", {0, 1, 0}}, {"stage", 99}}});
+        const auto problems = port_ship.validate();
+        check(std::any_of(problems.begin(), problems.end(), [](const std::string &p) { return p.find("not parallel") != std::string::npos; }) &&
+                  std::any_of(problems.begin(), problems.end(), [](const std::string &p) { return p.find("invalid carrying stage") != std::string::npos; }),
+              "attachment validation reports invalid orientation and carrying stage");
+    }
     const fs::path root = KOSMOS_ROOT;
     const std::vector<AddonInfo> addons = scan_addons(root / "addons");
     check(addons.size() > 10, "addons are found");

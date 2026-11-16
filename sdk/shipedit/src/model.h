@@ -23,6 +23,8 @@ namespace shipedit
 
     /** Every folder under `addons_dir` with an addon.json that lists at least one ship, sorted by folder name. */
     std::vector<AddonInfo> scan_addons(const fs::path &addons_dir);
+    /** Add a docked vessel using an earlier scenario ship's fallback placement. */
+    bool add_scenario_piggyback(json &scenario, const std::string &ship, int carrier, int carrier_port, int own_port, std::string &error);
 
     struct StageStats
     {

@@ -4,6 +4,7 @@
 // shipedit [--gl|--vulkan] [--root DIR] [--addon ID] [--ship NAME] [--shot FILE [--yaw D] [--pitch D] [--size WxH]]
 // --shot draws the preview to a PNG without opening a window.
 #include "model.h"
+#include "scenario_page.h"
 #include "../../gtk_schema.h"
 #include <epoxy/gl.h>
 #include "gl_preview.h"
@@ -39,6 +40,7 @@ namespace
         std::vector<AddonInfo> addons;
         Document doc;
         Document library_doc;
+        ScenarioPage *scenario = nullptr;
         MeshCache meshes;
         Selection sel;
         PreviewView view;
@@ -109,6 +111,13 @@ namespace
         json &root = app->doc.root();
         if (s.kind == Selection::ship)
             return &root;
+        if (s.kind == Selection::port)
+        {
+            if (!root.contains("ports") || !root["ports"].is_array() || s.item < 0 ||
+                s.item >= static_cast<int>(root["ports"].size()))
+                return nullptr;
+            return &root["ports"][static_cast<std::size_t>(s.item)];
+        }
         if (s.stage < 0 || s.stage >= app->doc.stage_count())
             return nullptr;
         json &st = root["stages"][static_cast<std::size_t>(s.stage)];
@@ -172,6 +181,11 @@ namespace
             return it;
         };
         GtkTreeIter ship = add(nullptr, "Ship: " + app->doc.name(), Selection::ship, -1, -1);
+        const json ports = app->doc.root().value("ports", json::array());
+        if (ports.is_array())
+            for (std::size_t i = 0; i < ports.size(); ++i)
+                if (ports[i].is_object())
+                    add(&ship, "Port " + ports[i].value("name", std::string("Port")), Selection::port, -1, static_cast<int>(i));
         const json &stages = app->doc.root().contains("stages") ? app->doc.root()["stages"] : json::array();
         for (std::size_t s = 0; s < stages.size(); ++s)
         {
@@ -253,6 +267,7 @@ namespace
                 case Selection::stage_node: label = std::to_string(app->sel.stage + 1) + "  " + n->value("name", std::string("Stage")); break;
                 case Selection::part: label = part_label(*n); break;
                 case Selection::engine: label = "Engine " + n->value("type", std::string("rocket")) + " " + fmt(n->value("thrust", 0.0) / 1000.0) + " kN"; break;
+                case Selection::port: label = "Port " + n->value("name", std::string("Port")); break;
                 default: label = "Gear " + std::to_string(app->sel.item + 1); break;
                 }
                 gtk_tree_store_set(app->store, &it, COL_LABEL, label.c_str(), -1);
@@ -690,6 +705,13 @@ namespace
                       {Field::Bool, "air_breathing", "Air breathing"},
                       {Field::Bool, "afterburner", "Afterburner"}};
             break;
+        case Selection::port:
+            title = "Docking / attachment port";
+            fields = {{Field::Text, "name", "Name"}, {Field::Vec3, "position", "Position"},
+                      {Field::Vec3, "direction", "Outward direction"}, {Field::Vec3, "up", "Up direction"},
+                      {Field::Int, "stage", "Attached stage (0-based; -1 automatic)"},
+                      {Field::Num, "frequency", "IDS frequency MHz"}};
+            break;
         default:
             title = "Gear";
             fields = {{Field::Vec3, "", "Position"}};
@@ -786,6 +808,19 @@ namespace
         if (s.kind == Selection::stage_node)
         {
             app->doc.remove_stage(s.stage);
+            structure_changed({Selection::ship, -1, -1});
+            return;
+        }
+        if (s.kind == Selection::port)
+        {
+            GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING,
+                                                   GTK_BUTTONS_YES_NO, "Remove this port? Its index and later port indices may be used by saved scenarios.");
+            const int response = gtk_dialog_run(GTK_DIALOG(d));
+            gtk_widget_destroy(d);
+            if (response != GTK_RESPONSE_YES)
+                return;
+            app->doc.checkpoint();
+            app->doc.root()["ports"].erase(static_cast<std::size_t>(s.item));
             structure_changed({Selection::ship, -1, -1});
             return;
         }
@@ -1322,18 +1357,25 @@ namespace
         app->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_default_size(GTK_WINDOW(app->window), 1360, 820);
         g_signal_connect(app->window, "delete-event", CB(+[](GtkWidget *, GdkEvent *, gpointer) -> gboolean {
-                             if (!app->doc.dirty())
-                                 return FALSE;
-                             GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO, "Discard the changes that are not saved?");
-                             const int r = gtk_dialog_run(GTK_DIALOG(d));
-                             gtk_widget_destroy(d);
-                             return r == GTK_RESPONSE_YES ? FALSE : TRUE;
+                             if (app->doc.dirty())
+                             {
+                                 GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO, "Discard the ship changes that are not saved?");
+                                 const int r = gtk_dialog_run(GTK_DIALOG(d));
+                                 gtk_widget_destroy(d);
+                                 if (r != GTK_RESPONSE_YES)
+                                     return TRUE;
+                             }
+                             return app->scenario && !scenario_page_can_close(app->scenario);
                          }),
                          nullptr);
         g_signal_connect(app->window, "destroy", CB(gtk_main_quit), nullptr);
 
+        GtkWidget *pages = gtk_notebook_new();
+        gtk_container_add(GTK_CONTAINER(app->window), pages);
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        gtk_container_add(GTK_CONTAINER(app->window), vbox);
+        gtk_notebook_append_page(GTK_NOTEBOOK(pages), vbox, gtk_label_new("ShipEdit"));
+        app->scenario = create_scenario_page(GTK_WINDOW(app->window), app->root);
+        gtk_notebook_append_page(GTK_NOTEBOOK(pages), scenario_page_widget(app->scenario), gtk_label_new("Scenario"));
 
         // Toolbar
         GtkWidget *bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
@@ -1448,6 +1490,20 @@ namespace
                                structure_changed({Selection::gear, st, static_cast<int>(app->doc.root()["stages"][static_cast<std::size_t>(st)]["gear"].size()) - 1});
                            }), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row2), button("Delete", [] { do_delete(); }), TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(row2), button("+ Port", [] {
+                               json &root = app->doc.root();
+                               if (root.contains("ports") && !root["ports"].is_array())
+                               {
+                                   message("The ship's ports are not an array; correct the raw JSON first.", GTK_MESSAGE_ERROR);
+                                   return;
+                               }
+                               app->doc.checkpoint();
+                               if (!root.contains("ports"))
+                                   root["ports"] = json::array();
+                               root["ports"].push_back({{"name", "Attachment"}, {"position", {0, 0, 0}},
+                                                        {"direction", {0, 1, 0}}, {"up", {0, 0, -1}}, {"stage", -1}});
+                               structure_changed({Selection::port, -1, static_cast<int>(root["ports"].size()) - 1});
+                           }), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row2), button("Duplicate", [] { do_duplicate(); }), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row2), button("Up", [] { do_move(-1); }), TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row2), button("Down", [] { do_move(1); }), TRUE, TRUE, 0);
@@ -1862,5 +1918,6 @@ int main(int argc, char **argv)
     if (!addon_arg.empty())
         load_selected();
     gtk_main();
+    destroy_scenario_page(state.scenario);
     return 0;
 }

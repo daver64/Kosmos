@@ -48,7 +48,7 @@ namespace shipedit
     /** What is selected in the tree, so the preview can highlight it. */
     struct Selection
     {
-        enum Kind { none, ship, stage_node, part, engine, gear } kind = none;
+        enum Kind { none, ship, stage_node, part, engine, gear, port } kind = none;
         int stage = -1, item = -1;
     };
 
