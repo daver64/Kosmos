@@ -1,27 +1,28 @@
 {
- "name": "CVEL: Titan II, Kennedy",
- "description": "CVEL Titan II on the pad at Kennedy with a Luna E3 probe as payload. Press P for the launcher autopilot.",
- "date": "1965-03-23 14:00:00",
- "active": 0,
- "ships": [
-  {
-   "ship": "CVEL Titan II",
-   "body": "Earth",
-   "surface": {
-    "base": "kennedy"
-   }
-  },
-  {
-   "ship": "Luna E3",
-   "body": "Earth",
-   "dock": {
-    "to": 0,
-    "port": 0,
-    "own_port": 0
-   },
-   "surface": {
-    "base": "kennedy"
-   }
-  }
- ]
+  "active": 0,
+  "date": "1965-03-23 14:00:00",
+  "description": "CVEL Titan II on the pad at Kennedy with a Luna E3 probe as payload. Press P for the launcher autopilot.",
+  "name": "CVEL: Titan II, Kennedy",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Titan II",
+      "surface": {
+        "base": "kennedy"
+      }
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 0,
+        "to": 0
+      },
+      "ship": "Luna E3",
+      "surface": {
+        "base": "kennedy"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/titan2_kennedy-1794829205985845557-0.png"
 }

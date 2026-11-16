@@ -31,6 +31,16 @@ for path in titans:
 
 iiic = json.loads((addon / "titan3c.json").read_text())
 iiid = json.loads((addon / "titan3d.json").read_text())
+titan2 = json.loads((addon / "titan2.json").read_text())
+for name in ("Stage 1", "Stage 2"):
+    engines = next(stage for stage in titan2["stages"] if stage["name"] == name)["engines"]
+    reference = next(stage for stage in iiid["stages"] if stage["name"] == name)["engines"]
+    assert len(engines) == len(reference)
+    assert all(
+        0.0 < engine["plume"] <= ref["plume"] * 0.65
+        and 0.0 < engine["plume_width"] <= ref["plume_width"] * 0.6
+        for engine, ref in zip(engines, reference)
+    ), (name, engines)
 for stage_index in (1, 4):
     iiic_engines = iiic["stages"][stage_index]["engines"]
     reference_engines = iiid["stages"][stage_index]["engines"]

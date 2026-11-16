@@ -7,6 +7,7 @@
 #include "gl_view.h"
 #include "mission.h"
 #include "transfer.h"
+#include "../../tool_vulkan.h"
 
 #include "json.hpp"
 #include "kosmos_link.hpp"
@@ -15,6 +16,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -76,10 +79,18 @@ namespace
         float zoom = 1.0f;
         std::unique_ptr<kosmos::Link> link;
         kmview::Renderer renderer;
+        toolvk::Renderer vk_renderer;
+        std::vector<toolvk::Vertex> vk_vertices;
+        std::vector<toolvk::Draw> vk_draws;
+        std::vector<unsigned char> vk_pixels;
         kmview::Scene scene;
         bool gl_ready = false;
+        bool use_vk = false;
+        bool vk_drawn = false;
+        std::string renderer_arg;
 
         GtkWidget *window, *gl, *status, *info, *tree, *budget_label;
+        GtkWidget *view_stack = nullptr, *gl_widget = nullptr, *vk_widget = nullptr;
         GtkWidget *start_body, *start_base, *start_alt, *start_inc, *ship_combo, *payload, *margin;
         GtkWidget *pl_ship, *pl_count, *pl_bay, *pl_tree, *fit_label, *pl_powered, *stack_label;
         std::vector<ShipSpec> pending_stack; // bottom to top, being built for Add stack
@@ -90,6 +101,19 @@ namespace
     };
 
     App app;
+
+    void warn_renderer(const std::string &text)
+    {
+        std::fprintf(stderr, "kosmosmission: %s\n", text.c_str());
+        g_idle_add(+[](gpointer data) -> gboolean {
+            std::unique_ptr<std::string> message(static_cast<std::string *>(data));
+            GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(app.window), GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                       GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "%s", message->c_str());
+            g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+            gtk_widget_show(dialog);
+            return G_SOURCE_REMOVE;
+        }, new std::string(text));
+    }
 
     double entry_number(GtkWidget *e, double fallback)
     {
@@ -1040,14 +1064,20 @@ namespace
     {
         gtk_gl_area_make_current(GTK_GL_AREA(w));
         if (gtk_gl_area_get_error(GTK_GL_AREA(w)))
+        {
+            warn_renderer("OpenGL initialization failed; the mission view cannot be displayed.");
             return;
+        }
         app.gl_ready = app.renderer.init();
+        if (!app.gl_ready)
+            warn_renderer("OpenGL shader initialization failed; the mission view cannot be displayed.");
     }
 
     void on_unrealize(GtkWidget *w, gpointer)
     {
         gtk_gl_area_make_current(GTK_GL_AREA(w));
-        app.renderer.release();
+        if (!gtk_gl_area_get_error(GTK_GL_AREA(w)))
+            app.renderer.release();
         app.gl_ready = false;
     }
 
@@ -1062,6 +1092,80 @@ namespace
             s.scale_y *= std::min(1.0f, static_cast<float>(w) / h);
         }
         app.renderer.draw(s, w, h);
+        return TRUE;
+    }
+
+    gboolean on_vk_draw(GtkWidget *widget, cairo_t *cr, gpointer)
+    {
+        const int scale = gtk_widget_get_scale_factor(widget);
+        const int w = gtk_widget_get_allocated_width(widget) * scale, h = gtk_widget_get_allocated_height(widget) * scale;
+        if (w <= 0 || h <= 0)
+            return TRUE;
+        kmview::Scene scene = app.scene;
+        if (!app.show_porkchop)
+        {
+            scene.scale_x *= std::min(1.0f, static_cast<float>(h) / w);
+            scene.scale_y *= std::min(1.0f, static_cast<float>(w) / h);
+        }
+        auto &vertices = app.vk_vertices;
+        vertices.clear();
+        vertices.reserve(scene.tris.size() + scene.lines.size());
+        auto append = [&](const std::vector<kmview::Vertex> &source) {
+            for (const auto &v : source)
+                vertices.push_back({(v.x + scene.offset_x) * scene.scale_x, -(v.y + scene.offset_y) * scene.scale_y,
+                                    0.5f, v.r, v.g, v.b});
+        };
+        append(scene.tris);
+        append(scene.lines);
+        auto &draws = app.vk_draws;
+        draws.clear();
+        if (!scene.tris.empty())
+            draws.push_back({0, static_cast<uint32_t>(scene.tris.size()), false, false});
+        if (!scene.lines.empty())
+            draws.push_back({static_cast<uint32_t>(scene.tris.size()), static_cast<uint32_t>(scene.lines.size()), true, false});
+        const float clear[] = {0.04f, 0.05f, 0.08f, 1.0f};
+        auto &pixels = app.vk_pixels;
+        std::string error;
+        if (!app.vk_renderer.draw(vertices, draws, w, h, clear, pixels, error))
+        {
+            app.use_vk = false;
+            app.vk_drawn = false;
+            gtk_window_set_title(GTK_WINDOW(app.window), "KosmosMission");
+            app.gl = app.gl_widget;
+            gtk_widget_show(app.gl_widget);
+            gtk_stack_set_visible_child(GTK_STACK(app.view_stack), app.gl_widget);
+            gtk_widget_hide(app.vk_widget);
+            warn_renderer("Vulkan rendering failed: " + error + ". Switching to OpenGL.");
+            gtk_widget_queue_draw(app.gl_widget);
+            return TRUE;
+        }
+        cairo_surface_t *surface = cairo_image_surface_create_for_data(pixels.data(), CAIRO_FORMAT_ARGB32, w, h, w * 4);
+        if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+        {
+            const std::string why = cairo_status_to_string(cairo_surface_status(surface));
+            cairo_surface_destroy(surface);
+            app.use_vk = false;
+            app.vk_drawn = false;
+            gtk_window_set_title(GTK_WINDOW(app.window), "KosmosMission");
+            app.gl = app.gl_widget;
+            gtk_widget_show(app.gl_widget);
+            gtk_stack_set_visible_child(GTK_STACK(app.view_stack), app.gl_widget);
+            gtk_widget_hide(app.vk_widget);
+            warn_renderer("Vulkan presentation failed: " + why + ". Switching to OpenGL.");
+            gtk_widget_queue_draw(app.gl_widget);
+            return TRUE;
+        }
+        cairo_surface_set_device_scale(surface, scale, scale);
+        cairo_save(cr);
+        cairo_set_source_surface(cr, surface, 0, 0);
+        cairo_paint(cr);
+        cairo_restore(cr);
+        cairo_surface_destroy(surface);
+        if (!app.vk_drawn)
+        {
+            app.vk_drawn = true;
+            gtk_window_set_title(GTK_WINDOW(app.window), "KosmosMission [Vulkan]");
+        }
         return TRUE;
     }
 
@@ -1312,16 +1416,43 @@ namespace
         gtk_box_pack_start(GTK_BOX(main_box), right, TRUE, TRUE, 0);
         app.view_toggle = gtk_check_button_new_with_label("Porkchop (departure vs flight time, colour = total dV)");
         gtk_box_pack_start(GTK_BOX(right), app.view_toggle, FALSE, FALSE, 0);
-        app.gl = gtk_gl_area_new();
-        gtk_gl_area_set_required_version(GTK_GL_AREA(app.gl), 3, 2);
-        gtk_gl_area_set_has_depth_buffer(GTK_GL_AREA(app.gl), FALSE);
-        gtk_widget_add_events(app.gl, GDK_SCROLL_MASK);
-        gtk_widget_set_size_request(app.gl, 600, 420);
-        g_signal_connect(app.gl, "realize", G_CALLBACK(on_realize), nullptr);
-        g_signal_connect(app.gl, "unrealize", G_CALLBACK(on_unrealize), nullptr);
-        g_signal_connect(app.gl, "render", G_CALLBACK(on_render), nullptr);
-        g_signal_connect(app.gl, "scroll-event", G_CALLBACK(on_scroll), nullptr);
-        gtk_box_pack_start(GTK_BOX(right), app.gl, TRUE, TRUE, 0);
+        app.view_stack = gtk_stack_new();
+        app.gl_widget = gtk_gl_area_new();
+        gtk_gl_area_set_required_version(GTK_GL_AREA(app.gl_widget), 3, 2);
+        gtk_gl_area_set_has_depth_buffer(GTK_GL_AREA(app.gl_widget), FALSE);
+        gtk_widget_add_events(app.gl_widget, GDK_SCROLL_MASK);
+        g_signal_connect(app.gl_widget, "realize", G_CALLBACK(on_realize), nullptr);
+        g_signal_connect(app.gl_widget, "unrealize", G_CALLBACK(on_unrealize), nullptr);
+        g_signal_connect(app.gl_widget, "render", G_CALLBACK(on_render), nullptr);
+        g_signal_connect(app.gl_widget, "scroll-event", G_CALLBACK(on_scroll), nullptr);
+        gtk_stack_add_named(GTK_STACK(app.view_stack), app.gl_widget, "opengl");
+        app.vk_widget = gtk_drawing_area_new();
+        gtk_widget_add_events(app.vk_widget, GDK_SCROLL_MASK);
+        g_signal_connect(app.vk_widget, "draw", G_CALLBACK(on_vk_draw), nullptr);
+        g_signal_connect(app.vk_widget, "scroll-event", G_CALLBACK(on_scroll), nullptr);
+        gtk_stack_add_named(GTK_STACK(app.view_stack), app.vk_widget, "vulkan");
+        const char *renderer = app.renderer_arg.empty() ? std::getenv("KOSMOS_TOOL_RENDERER") : app.renderer_arg.c_str();
+        if (renderer)
+        {
+            if (std::strcmp(renderer, "vulkan") == 0)
+            {
+                std::string error;
+                app.use_vk = app.vk_renderer.init(error);
+                if (!app.use_vk)
+                    warn_renderer("Vulkan initialization failed: " + error + ". Using OpenGL.");
+            }
+            else if (std::strcmp(renderer, "opengl") != 0)
+                warn_renderer(std::string("Unknown KOSMOS_TOOL_RENDERER value '") + renderer + "'. Using OpenGL.");
+        }
+        app.gl = app.use_vk ? app.vk_widget : app.gl_widget;
+        if (app.use_vk)
+            gtk_widget_set_no_show_all(app.gl_widget, TRUE);
+        else
+            gtk_widget_set_no_show_all(app.vk_widget, TRUE);
+        gtk_widget_show(app.gl);
+        gtk_widget_set_size_request(app.view_stack, 600, 420);
+        gtk_stack_set_visible_child(GTK_STACK(app.view_stack), app.gl);
+        gtk_box_pack_start(GTK_BOX(right), app.view_stack, TRUE, TRUE, 0);
         app.info = gtk_label_new("Add a leg to begin.");
         gtk_label_set_xalign(GTK_LABEL(app.info), 0);
         gtk_box_pack_start(GTK_BOX(right), app.info, FALSE, FALSE, 0);
@@ -1390,10 +1521,13 @@ int main(int argc, char **argv)
             g_demo = true;
         else if (arg == "--shot" && i + 1 < argc)
             g_shot = argv[++i];
+        else if (arg == "--gl" || arg == "--vulkan")
+            app.renderer_arg = arg == "--gl" ? "opengl" : "vulkan";
         else
             argv[kept++] = argv[i];
     }
     argc = kept;
+    argv[argc] = nullptr;
     kosmos_gtk_schemas("kosmosmission");
     GtkApplication *a = gtk_application_new("org.kosmos.mission", app_flags);
     g_signal_connect(a, "activate", G_CALLBACK(activate), nullptr);

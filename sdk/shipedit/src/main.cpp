@@ -1,16 +1,18 @@
 // ShipEdit: a GTK 3 editor for Kosmos ships and rocket stacks. It edits a ship.json (every key it does not show is kept as it was).
 // Save writes it back into its addon after backing the addon up to shipedit-backups/; Save as new addon writes a separate copy.
 //
-// shipedit [--root DIR] [--addon ID] [--ship NAME] [--shot FILE [--yaw D] [--pitch D] [--size WxH]]
+// shipedit [--gl|--vulkan] [--root DIR] [--addon ID] [--ship NAME] [--shot FILE [--yaw D] [--pitch D] [--size WxH]]
 // --shot draws the preview to a PNG without opening a window.
 #include "model.h"
 #include "../../gtk_schema.h"
 #include <epoxy/gl.h>
 #include "gl_preview.h"
 #include "preview.h"
+#include "../../tool_vulkan.h"
 
 #include <gtk/gtk.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -41,10 +43,18 @@ namespace
         Selection sel;
         PreviewView view;
         std::string last_saved_ship;
+        std::string renderer_arg;
 
         GtkWidget *window = nullptr, *addon_combo = nullptr, *ship_combo = nullptr, *tree_view = nullptr, *area = nullptr, *form_box = nullptr, *gl_area = nullptr;
         GlPreview gl;
+        toolvk::Renderer vk;
+        std::vector<toolvk::Vertex> vk_vertices;
+        std::vector<toolvk::Draw> vk_draws;
+        std::vector<unsigned char> vk_pixels;
         bool use_gl = false; // the ship's surfaces are drawn by the GL widget under the overlay; otherwise cairo draws everything
+        bool use_vk = false;
+        bool vk_drawn = false;
+        GtkWidget *preview_stack = nullptr, *vk_area = nullptr;
         GtkWidget *stats_label = nullptr, *problems_label = nullptr, *undo_btn = nullptr, *redo_btn = nullptr, *with_contents = nullptr, *launch_btn = nullptr, *save_btn = nullptr;
         GtkWidget *library_addon = nullptr, *library_ship = nullptr, *library_list = nullptr, *arrange_toggle = nullptr, *overlap_toggle = nullptr;
         GtkTreeStore *store = nullptr;
@@ -78,6 +88,19 @@ namespace
         GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_MODAL, type, GTK_BUTTONS_OK, "%s", text.c_str());
         gtk_dialog_run(GTK_DIALOG(d));
         gtk_widget_destroy(d);
+    }
+
+    void renderer_warning(const std::string &text)
+    {
+        std::fprintf(stderr, "shipedit: %s\n", text.c_str());
+        g_idle_add(+[](gpointer data) -> gboolean {
+            std::unique_ptr<std::string> text(static_cast<std::string *>(data));
+            GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(app->window), GTK_DIALOG_DESTROY_WITH_PARENT,
+                                                       GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "%s", text->c_str());
+            g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+            gtk_widget_show(dialog);
+            return G_SOURCE_REMOVE;
+        }, new std::string(text));
     }
 
     // ---- the node the selection points at ----------------------------------------------------------------------------------------
@@ -183,7 +206,8 @@ namespace
 
     void update_title()
     {
-        const std::string t = "ShipEdit - " + app->doc.name() + (app->doc.dirty() ? " *" : "") + (app->doc.has_source() ? "  (" + app->doc.source_addon_id() + ")" : "");
+        const std::string t = "ShipEdit - " + app->doc.name() + (app->doc.dirty() ? " *" : "") +
+                              (app->doc.has_source() ? "  (" + app->doc.source_addon_id() + ")" : "") + (app->vk_drawn ? " [Vulkan]" : "");
         gtk_window_set_title(GTK_WINDOW(app->window), t.c_str());
     }
 
@@ -1034,14 +1058,105 @@ namespace
         gtk_gl_area_make_current(GTK_GL_AREA(w));
         if (!gtk_gl_area_get_error(GTK_GL_AREA(w)))
             app->gl.release();
-        app->use_gl = false;
+        if (!app->use_vk)
+            app->use_gl = false;
+    }
+
+    gboolean vk_draw_cb(GtkWidget *widget, cairo_t *cr, gpointer)
+    {
+        const int width = gtk_widget_get_allocated_width(widget), height = gtk_widget_get_allocated_height(widget);
+        const int scale = gtk_widget_get_scale_factor(widget);
+        if (width <= 0 || height <= 0)
+            return TRUE;
+        auto &vertices = app->vk_vertices;
+        vertices = {
+            {-1, -1, 0.999f, 0.05f, 0.06f, 0.09f}, {1, -1, 0.999f, 0.05f, 0.06f, 0.09f}, {1, 1, 0.999f, 0.10f, 0.12f, 0.16f},
+            {-1, -1, 0.999f, 0.05f, 0.06f, 0.09f}, {1, 1, 0.999f, 0.10f, 0.12f, 0.16f}, {-1, 1, 0.999f, 0.10f, 0.12f, 0.16f}};
+        auto &draws = app->vk_draws;
+        draws = {{0, 6, false, false}};
+        if (const auto geo = prepare_geometry(app->doc, app->view, app->meshes))
+        {
+            const Projection pj = projection(*geo, width, height, app->view);
+            vertices.reserve(6 + geo->triangles * 3);
+            for (const Item &item : geo->items)
+            {
+                const auto first = static_cast<uint32_t>(vertices.size());
+                const bool stage_selected = app->sel.stage == item.stage;
+                const float brightness = app->sel.kind == Selection::none || stage_selected ? 1.0f : 0.55f;
+                const float lift = app->sel.kind == Selection::part && stage_selected && app->sel.item == item.part ? 0.25f : 0.0f;
+                for (std::size_t i = 0; i < item.soup.p.size(); ++i)
+                {
+                    const V3 &p = item.soup.p[i];
+                    const double z = p.z - pj.centre_z;
+                    const double x1 = p.x * pj.cy + z * pj.sy;
+                    const double z1 = -p.x * pj.sy + z * pj.cy;
+                    const double y = p.y * pj.cp - z1 * pj.sp;
+                    const double depth = p.y * pj.sp + z1 * pj.cp;
+                    const double light = item.light[i / 3];
+                    vertices.push_back({static_cast<float>((pj.cx + x1 * pj.scale) * 2.0 / width - 1.0),
+                                        static_cast<float>((pj.cyc - y * pj.scale) * 2.0 / height - 1.0),
+                                        static_cast<float>(0.5 - depth / (2.0 * pj.depth_range)),
+                                        static_cast<float>(std::min(1.0, item.soup.r * light * brightness + lift * 0.6)),
+                                        static_cast<float>(std::min(1.0, item.soup.g * light * brightness + lift * 0.45)),
+                                        static_cast<float>(std::min(1.0, item.soup.b * light * brightness))});
+                }
+                if (vertices.size() > first)
+                    draws.push_back({first, static_cast<uint32_t>(vertices.size() - first), false, true});
+            }
+        }
+        const float clear[] = {0.07f, 0.08f, 0.12f, 1.0f};
+        auto &pixels = app->vk_pixels;
+        std::string error;
+        if (!app->vk.draw(vertices, draws, width * scale, height * scale, clear, pixels, error))
+        {
+            app->use_vk = false;
+            app->vk_drawn = false;
+            app->use_gl = false;
+            gtk_widget_show(app->gl_area);
+            gtk_stack_set_visible_child(GTK_STACK(app->preview_stack), app->gl_area);
+            gtk_widget_hide(app->vk_area);
+            gtk_widget_queue_draw(app->area);
+            update_title();
+            renderer_warning("Vulkan rendering failed: " + error + ". Switching to OpenGL.");
+            return TRUE;
+        }
+        cairo_surface_t *surface = cairo_image_surface_create_for_data(pixels.data(), CAIRO_FORMAT_ARGB32, width * scale, height * scale, width * scale * 4);
+        if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS)
+        {
+            const std::string why = cairo_status_to_string(cairo_surface_status(surface));
+            cairo_surface_destroy(surface);
+            app->use_vk = false;
+            app->vk_drawn = false;
+            app->use_gl = false;
+            gtk_widget_show(app->gl_area);
+            gtk_stack_set_visible_child(GTK_STACK(app->preview_stack), app->gl_area);
+            gtk_widget_hide(app->vk_area);
+            gtk_widget_queue_draw(app->area);
+            update_title();
+            renderer_warning("Vulkan presentation failed: " + why + ". Switching to OpenGL.");
+            return TRUE;
+        }
+        cairo_surface_set_device_scale(surface, scale, scale);
+        cairo_save(cr);
+        cairo_set_source_surface(cr, surface, 0, 0);
+        cairo_paint(cr);
+        cairo_restore(cr);
+        cairo_surface_destroy(surface);
+        if (!app->vk_drawn)
+        {
+            app->vk_drawn = true;
+            update_title();
+        }
+        return TRUE;
     }
 
     // Both layers change together: the overlay is cairo, the surfaces are GL.
     void redraw_preview()
     {
         gtk_widget_queue_draw(app->area);
-        if (app->use_gl)
+        if (app->use_vk)
+            gtk_widget_queue_draw(app->vk_area);
+        else if (app->use_gl)
             gtk_gl_area_queue_render(GTK_GL_AREA(app->gl_area));
     }
 
@@ -1545,7 +1660,29 @@ namespace
         gtk_box_pack_start(GTK_BOX(centre), views, FALSE, FALSE, 0);
         // The GL widget draws the ship; the transparent cairo area over it draws the outlines and labels and takes the mouse.
         GtkWidget *overlay = gtk_overlay_new();
-        if (!std::getenv("SHIPEDIT_SOFTWARE"))
+        const char *renderer = app->renderer_arg.empty() ? std::getenv("KOSMOS_TOOL_RENDERER") : app->renderer_arg.c_str();
+        const bool want_vk = renderer && std::strcmp(renderer, "vulkan") == 0;
+        const bool software = std::getenv("SHIPEDIT_SOFTWARE") != nullptr;
+        if (renderer && std::strcmp(renderer, "vulkan") != 0 && std::strcmp(renderer, "opengl") != 0)
+            renderer_warning(std::string("Unknown KOSMOS_TOOL_RENDERER value '") + renderer + "'. Using the default renderer.");
+        if (want_vk && software)
+            renderer_warning("SHIPEDIT_SOFTWARE overrides the Vulkan request; using the software preview.");
+        else if (want_vk)
+        {
+            std::string error;
+            app->use_vk = app->vk.init(error);
+            if (!app->use_vk)
+                renderer_warning("Vulkan initialization failed: " + error + ". Using OpenGL.");
+            else
+            {
+                app->use_gl = true;
+                app->view.thin_when_dragging = false;
+                app->view.triangle_budget = 4000000;
+                if (!app->vk.has_msaa())
+                    renderer_warning("Vulkan 4x antialiasing is unavailable on this device; the preview will use single-sample rendering.");
+            }
+        }
+        if (!software)
         {
             app->gl_area = gtk_gl_area_new();
             gtk_gl_area_set_required_version(GTK_GL_AREA(app->gl_area), 3, 2);
@@ -1554,7 +1691,18 @@ namespace
             g_signal_connect(app->gl_area, "render", CB(gl_render_cb), nullptr);
             g_signal_connect(app->gl_area, "realize", CB(gl_realize_cb), nullptr);
             g_signal_connect(app->gl_area, "unrealize", CB(gl_unrealize_cb), nullptr);
-            gtk_container_add(GTK_CONTAINER(overlay), app->gl_area);
+            app->vk_area = gtk_drawing_area_new();
+            g_signal_connect(app->vk_area, "draw", CB(vk_draw_cb), nullptr);
+            app->preview_stack = gtk_stack_new();
+            gtk_stack_add_named(GTK_STACK(app->preview_stack), app->gl_area, "opengl");
+            gtk_stack_add_named(GTK_STACK(app->preview_stack), app->vk_area, "vulkan");
+            if (app->use_vk)
+                gtk_widget_set_no_show_all(app->gl_area, TRUE);
+            else
+                gtk_widget_set_no_show_all(app->vk_area, TRUE);
+            gtk_widget_show(app->use_vk ? app->vk_area : app->gl_area);
+            gtk_stack_set_visible_child(GTK_STACK(app->preview_stack), app->use_vk ? app->vk_area : app->gl_area);
+            gtk_container_add(GTK_CONTAINER(overlay), app->preview_stack);
             gtk_overlay_add_overlay(GTK_OVERLAY(overlay), app->area);
         }
         else
@@ -1669,7 +1817,18 @@ int main(int argc, char **argv)
             pitch = std::atof(argv[++i]) * 3.14159265 / 180.0;
         else if (a == "--size" && more)
             std::sscanf(argv[++i], "%dx%d", &w, &h);
+        else if (a == "--gl" || a == "--vulkan")
+        {
+            state.renderer_arg = a == "--gl" ? "opengl" : "vulkan";
+            argv[i] = nullptr;
+        }
     }
+    int kept = 1;
+    for (int i = 1; i < argc; ++i)
+        if (argv[i])
+            argv[kept++] = argv[i];
+    argc = kept;
+    argv[argc] = nullptr;
     state.root = detect_root(argv[0], root_arg);
     state.addons_dir = state.root / "addons";
     state.addons = scan_addons(state.addons_dir);

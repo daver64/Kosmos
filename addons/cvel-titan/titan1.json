@@ -164,7 +164,7 @@
    "name": "Fairing segment",
    "dry_mass": 150,
    "propellant": 0,
-   "z": -2.0,
+   "z": -1.08,
    "length": 9,
    "radius": 1.25,
    "separation_speed": 3.0,
@@ -180,7 +180,7 @@
      "offset": [
       0,
       0,
-      0
+      0.92
      ]
     }
    ],
@@ -190,7 +190,7 @@
    "name": "Fairing segment",
    "dry_mass": 150,
    "propellant": 0,
-   "z": -2.0,
+   "z": -1.08,
    "length": 9,
    "radius": 1.25,
    "separation_speed": 3.0,
@@ -206,7 +206,7 @@
      "offset": [
       0,
       0,
-      0
+      0.92
      ]
     }
    ]

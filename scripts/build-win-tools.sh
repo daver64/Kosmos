@@ -3,7 +3,8 @@
 # addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe and addons/shipedit/bin/shipedit.exe and addons/kosmoscad/bin/kosmoscad.exe and addons/kosmosmission/bin/kosmosmission.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
 # Usage: build-win-tools.sh
 # Needs mingw-w64 and GTK 3 in vcpkg's x64-mingw-posix tree (see README, "Windows GTK"), plus the overlays in ~/mingw-triplets.
-# Overrides (env): VCPKG_MINGW (default ~/vcpkg-mingw), MINGW_PKGCONFIG_EXTRA (default ~/mingw-triplets/pkgconfig), FASTNOISE_DIR, GLM_INCLUDE_DIR
+# Overrides (env): VCPKG_MINGW (default ~/vcpkg-mingw), MINGW_PKGCONFIG_EXTRA (default ~/mingw-triplets/pkgconfig), FASTNOISE_DIR, GLM_INCLUDE_DIR,
+#                  KOSMOS_TOOL_VULKAN (auto, 0 or 1)
 # Exits 1 without touching anything when GTK is missing, so build-windows.sh can fall back to the command line planetbake.
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
@@ -22,9 +23,22 @@ if ! command -v "$WINCXX" > /dev/null 2>&1 || [ ! -f "$WINGTK/lib/libgtk-3.a" ] 
 fi
 CFLAGS=$(pc --cflags gtk+-3.0 gdk-pixbuf-2.0)
 LIBS=$(pc --static --libs gtk+-3.0 gdk-pixbuf-2.0 | sed 's/-lgcc_s//g')
+TOOL_VULKAN=${KOSMOS_TOOL_VULKAN:-auto}
+case "$TOOL_VULKAN" in
+    auto) if [ -f "$WINGTK/include/vulkan/vulkan.h" ]; then TOOL_VULKAN=1; else TOOL_VULKAN=0; fi ;;
+    0|1) ;;
+    *) echo "KOSMOS_TOOL_VULKAN must be auto, 0, or 1" >&2; exit 1 ;;
+esac
+if [ "$TOOL_VULKAN" = 1 ] && [ ! -f "$WINGTK/include/vulkan/vulkan.h" ]; then
+    echo "KOSMOS_TOOL_VULKAN=1 requires Vulkan headers in $WINGTK/include" >&2
+    exit 1
+fi
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 export WINCXX WINCC CFLAGS TMP SRC WINGTK VER FASTNOISE_DIR
+VKFLAGS=
+if [ "$TOOL_VULKAN" = 1 ]; then VKFLAGS=-DKOSMOS_TOOL_VULKAN; fi
+"$WINCXX" -std=c++17 -O2 $CFLAGS -I"$WINGTK/include" $VKFLAGS -c "$SRC/sdk/tool_vulkan.cpp" -o "$TMP/tool_vulkan.o"
 
 schemas() {
     mkdir -p "$1/share/glib-2.0/schemas"
@@ -63,7 +77,7 @@ printf '%s\n' main model mesh preview gl_preview | xargs -P 4 -I{} sh -c \
     '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$SE"'/src" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$SE"'/src/{}.cpp" -o "$TMP/se/{}.o"'
 "$WINCXX" -std=c++17 -O2 -I"$JSON_INCLUDE" -c "$SRC/src/part_kit.cpp" -o "$TMP/se/part_kit.o"
 mkdir -p "$SRC/addons/shipedit/bin"
-"$WINCXX" -static -mwindows -o "$SRC/addons/shipedit/bin/shipedit.exe" "$TMP"/se/*.o $LIBS
+"$WINCXX" -static -mwindows -o "$SRC/addons/shipedit/bin/shipedit.exe" "$TMP"/se/*.o "$TMP/tool_vulkan.o" $LIBS
 schemas "$SRC/addons/shipedit"
 
 # KosmosCAD (no simlib; only the json header; OpenGL through GTK's libepoxy).
@@ -82,7 +96,7 @@ printf '%s\n' src/main src/gl_view core/orbit core/bodies core/transfer core/bud
     '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$KMS"'/src" -I"'"$KMS"'/core" -I"$SRC/sdk/include" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$KMS"'/{}.cpp" -o "$TMP/kms/$(basename {}).o"'
 "$WINCC" -O2 -I"$SRC/sdk/include" -c "$SRC/sdk/src/kosmos_link.c" -o "$TMP/kms/kosmos_link.o"
 mkdir -p "$SRC/addons/kosmosmission/bin"
-"$WINCXX" -static -mwindows -o "$SRC/addons/kosmosmission/bin/kosmosmission.exe" "$TMP"/kms/*.o $LIBS -lws2_32
+"$WINCXX" -static -mwindows -o "$SRC/addons/kosmosmission/bin/kosmosmission.exe" "$TMP"/kms/*.o "$TMP/tool_vulkan.o" $LIBS -lws2_32
 schemas "$SRC/addons/kosmosmission"
 
 # KosmosAV (WinHTTP, no libcurl).
