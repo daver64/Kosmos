@@ -71,11 +71,14 @@ with tempfile.TemporaryDirectory() as directory:
     def planet_view(strength, radius, label):
         atmosphere["close_orbit_haze"] = strength
         (data / "sol.json").write_text(json.dumps(solar_system))
-        shot = temp / f"{label}.png"
+        frames = temp / label
+        shot = frames / "frame-000000.png"
+        # Compare the same simulated frame rather than wall-clock-timed screenshots.
         command = [str(BINARY), "--root", str(root), "--scenario-file", str(scenarios["Venus"]),
                    "--date", "2024-06-21 15:00:00", "--cam-planet", str(radius),
                    "--cam-phase", "0", "--hide-info", "--no-clutter", "--no-clouds",
-                   "--gen-threads", "1", "--shot", str(shot), "--shot-at", "2"]
+                   "--gen-threads", "1", "--capture-warmup", "20",
+                   "--capture-frames", str(frames), "10", "1", "1280", "720"]
         result = subprocess.run(command, cwd=root, env=env, capture_output=True, text=True, timeout=120)
         assert result.returncode == 0 and shot.is_file(), result.stdout + result.stderr
         with Image.open(shot) as image:
