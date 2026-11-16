@@ -1,12 +1,26 @@
 {
   "active": 0,
-  "description": "A fictional Luna E3 RTG probe in a circular orbit around Jupiter.",
-  "name": "Luna E3 RTG at Jupiter",
+  "description": "A fictional Luna E3 RTG probe on a Fregat upper stage in a 1,000 km Jupiter orbit. Hold retrograde (]) and burn to lower periapsis into the atmosphere, then press Space to release the probe. The probe is not specially rated for Jupiter's pressure or heat.",
+  "name": "Luna E3 RTG and Fregat at Jupiter",
   "ships": [
     {
       "body": "Jupiter",
       "orbit": {
-        "altitude_km": 12000,
+        "altitude_km": 1000,
+        "inclination": 0,
+        "phase": 0
+      },
+      "ship": "CVEL Fregat"
+    },
+    {
+      "body": "Jupiter",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 0
+      },
+      "orbit": {
+        "altitude_km": 1000,
         "inclination": 0,
         "phase": 0
       },

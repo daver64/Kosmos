@@ -57,11 +57,18 @@ scenarios = {}
 for folder, kind in (("Planets", "planet"), ("Moons", "moon")):
     for path in (root / "scenarios" / folder).rglob("*.json"):
         scenario = json.loads(path.read_text())
-        assert len(scenario["ships"]) == 1 and scenario["active"] == 0, path
+        assert scenario["active"] == 0, path
         ship = scenario["ships"][0]
         name = ship["body"]
         assert name in expected and bodies[name]["kind"] == kind, path
-        assert name not in scenarios and ship["ship"] == expected_probe(name), path
+        assert name not in scenarios, path
+        if path.stem == "jupiter_luna_e3":
+            assert name == "Jupiter" and len(scenario["ships"]) == 2, path
+            probe = scenario["ships"][1]
+            assert ship["ship"] == "CVEL Fregat" and probe["ship"] == expected_probe(name), path
+            assert probe["body"] == name and probe["dock"] == {"own_port": 0, "port": 1, "to": 0}, path
+        else:
+            assert len(scenario["ships"]) == 1 and ship["ship"] == expected_probe(name), path
         assert ship["orbit"]["altitude_km"] > 0, path
         if kind == "moon":
             assert path.parent.name == bodies[name]["parent"], path
@@ -80,6 +87,13 @@ with tempfile.TemporaryDirectory() as home:
     for name, path in scenarios.items():
         group = "Planets" if bodies[name]["kind"] == "planet" else "Moons/" + bodies[name]["parent"]
         assert any(line.startswith(path.stem) and group in line for line in listing.stdout.splitlines()), (path, group)
+        if name == "Jupiter":
+            entry = subprocess.run(
+                [str(binary), "--root", str(root), "--scenario", path.stem, "--selftest", "1",
+                 "--set", "/selftest/jupiter-entry-stack=true"],
+                cwd=root, env=env, capture_output=True, text=True, timeout=120,
+            )
+            assert entry.returncode == 0 and "Jupiter entry stack selftest ok" in entry.stdout, entry.stdout + entry.stderr
         result = subprocess.run(
             [str(binary), "--root", str(root), "--scenario", path.stem, "--selftest", "10"],
             cwd=root, env=env, capture_output=True, text=True, timeout=120,

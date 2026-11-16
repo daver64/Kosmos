@@ -546,6 +546,8 @@ The **Asteroids** folder has fictional Luna E3 probe orbits around the shipped N
 
 The **Planets** and **Moons** folders contain fictional Luna E3 orbital starts for every planet and moon in the Sol system; moons are grouped by their parent, including asteroid moons. The very close Phobos and Amalthea starts are particularly approximate and may not remain stable under their parent planet's gravity.
 
+The Jupiter start places Luna E3 RTG on a Fregat in a 1,000 km orbit for atmospheric entry testing. Hold retrograde (`]`), burn to lower periapsis into the atmosphere, then press Space to release the probe. The probe is not specially rated for Jupiter's pressure or heat.
+
 The fictional **Luna E3 RTG** replaces the solar cells with a 100 W radioisotope generator and retains the original model and instruments. It is used in scenarios at bodies with heliocentric semimajor axes beyond Earth's, including the asteroid scenarios; Mercury, Venus, Earth and the Moon retain the solar-powered original. Some asteroid orbits cross Earth's orbit, but their larger semimajor axes make the RTG useful over the whole orbit. The solar-powered probe starts with its electrical loads off to conserve battery power; switch on the required loads in the Systems MFD or F1 window.
 
 Save scenario and the launcher's Resume last scenario retain the current date, ship trajectories and attitudes, stages, propellant, gear, animations and system reserves. Earth-communications attitude hold is resumed; other active autopilots and burns, debris and some transient state such as the local cabin gas distribution are not. Docking is saved as one link per later-listed ship; more complex docking networks can lose links.

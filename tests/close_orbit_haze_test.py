@@ -30,7 +30,7 @@ with tempfile.TemporaryDirectory() as directory:
                XDG_CACHE_HOME=str(temp / "cache"), SDL_VIDEODRIVER="offscreen",
                SDL_AUDIODRIVER="dummy", LP_NUM_THREADS="4")
     scenarios = {}
-    for name, altitude in (("Venus", 400), ("Jupiter", 2000), ("Saturn", 2000)):
+    for name, altitude in (("Venus", 400), ("Jupiter", 1000), ("Saturn", 2000)):
         scenario = json.loads((ROOT / "scenarios/Planets" / (name.lower() + "_luna_e3.json")).read_text())
         scenario["ships"][0]["orbit"]["altitude_km"] = altitude
         scenarios[name] = temp / (name.lower() + ".json")

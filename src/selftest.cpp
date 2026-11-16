@@ -2284,6 +2284,50 @@ namespace kosmos
                         ok ? 0 : 1, crossing_blocked, long_safe_skip, safe_skip, missed_by_endpoints, encounter_blocked, warp_slows, exposure_blocked, descended);
             return ok ? 0 : 1;
         }
+        if (sim.props.get_bool("/selftest/jupiter-entry-stack"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Jupiter entry stack selftest: %s\n", message);
+                return 1;
+            };
+            const int jupiter = sim.universe.find("Jupiter");
+            if (!ship || ship->spec().name != "CVEL Fregat" || jupiter < 0 || sim.ship_count() < 2 ||
+                sim.ship(1)->spec().name != "Luna E3 RTG" || ship->telemetry().soi != jupiter)
+                return fail("expected Fregat and Luna E3 RTG at Jupiter");
+            sim.step(0.05);
+            if (sim.nav.dock_links().size() != 1 || !sim.nav.docked(0) ||
+                std::fabs(ship->telemetry().altitude - 1000000.0) > 100.0)
+                return fail("stack is not docked in the intended orbit");
+            sl::dvec3 a, ad, au, b, bd, bu;
+            ship->port_world(1, a, ad, au);
+            sim.ship(1)->port_world(0, b, bd, bu);
+            if (glm::length(a - b) > 0.1 || glm::dot(ad, bd) > -0.99)
+                return fail("payload ports are not aligned");
+            sim.props.set_string("/controls/sas", "retrograde");
+            bool aligned = false;
+            for (int i = 0; i < 1200 && !aligned; ++i)
+            {
+                sim.step(0.05);
+                const sl::dvec3 orbital = ship->body().velocity - sim.universe.world.body(jupiter)->velocity;
+                aligned = glm::dot(ship->body().direction_to_world({0, 0, -1}), -glm::normalize(orbital)) > 0.995;
+            }
+            if (!aligned)
+                return fail("Fregat cannot align retrograde with the probe attached");
+            const double fuel = ship->body().tanks[0].mass;
+            sim.props.set_double("/controls/throttle", 1.0);
+            for (int i = 0; i < 1600 && ship->telemetry().periapsis > 200000.0; ++i)
+                sim.step(0.05);
+            sim.props.set_double("/controls/throttle", 0.0);
+            if (ship->telemetry().periapsis > 200000.0 || ship->body().tanks[0].mass >= fuel ||
+                !sim.nav.docked(0) || ship->health() <= 0.0)
+                return fail("Fregat could not lower periapsis into the atmosphere");
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.05);
+            if (sim.active_ship() != sim.ship(1) || sim.nav.docked(1) || sim.ship(1)->telemetry().periapsis > 270000.0)
+                return fail("stage did not release the probe onto the entry trajectory");
+            std::puts("Jupiter entry stack selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/warp-atmosphere"))
         {
             const bool expected_rails = sim.props.get_bool("/selftest/expect-rails");
