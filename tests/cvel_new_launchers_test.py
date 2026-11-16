@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the imported launchers' ascent, staging and flight."""
 
+import json
 import os
 import re
 import subprocess
@@ -27,6 +28,15 @@ with tempfile.TemporaryDirectory() as directory:
     for scenario, duration, status, stage in CASES:
         if len(sys.argv) > 2 and scenario not in sys.argv[2:]:
             continue
+        if scenario == "shuttle2010_kennedy":
+            addon = ROOT / "addons/cvel-shuttle2010"
+            orbiter = json.loads((addon / "ship.json").read_text())["stages"][0]["engines"]
+            stack = json.loads((addon / "stack.json").read_text())["stages"]
+            for stack_stage in stack[1:]:
+                assert len(stack_stage["engines"]) == len(orbiter) == 3
+                for attached, separated in zip(stack_stage["engines"], orbiter):
+                    assert attached["fuel"] == separated["fuel"] == "hydrogen"
+                    assert all(attached[key] == separated[key] for key in ("type", "plume", "plume_width"))
         result = subprocess.run(
             [str(BINARY), "--root", str(ROOT), "--scenario", scenario, "--no-clutter",
              "--no-tiles", "--no-clouds", "--gen-threads", "1", "--selftest", duration,

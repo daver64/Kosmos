@@ -520,8 +520,9 @@ concept mesh and an Atlantis-derived tank and boosters. The docked shuttle is a
 separate vessel; the stack simulates its main engines during ascent. After
 cutoff, undock with **Ctrl+D** and switch to the shuttle for orbital flight.
 Its mass, propulsion and aerodynamic characteristics are gameplay
-approximations, and its landing gear has no animated model. Ascent guidance
-is approximate; monitor the flight and correct the orbit if needed.
+approximations, and its landing gear has no animated model. Maintain airspeed
+for aerodynamic control during an unpowered glide. Ascent guidance is
+approximate; monitor the flight and correct the orbit if needed.
 
 ## MFDs (multi-function displays)
 
