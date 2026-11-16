@@ -160,6 +160,10 @@ int main()
     check(parallel_rocket.import_stage(source, 0, -1, imported, error, warning) &&
               parallel_rocket.import_stage(source, 1, -1, imported, error, warning, true),
           "strap-on boosters and core can be imported in parallel");
+    check(parallel_rocket.stages()[1].value("ignite_with_previous", false) &&
+              parallel_rocket.stages()[0]["engines"].size() == 4 &&
+              parallel_rocket.stages()[1]["engines"].size() == 1,
+          "overlap ignites the core and removes the duplicated Soyuz core engine");
     check(std::abs(parallel_rocket.stages()[0]["z"].get<double>() + parallel_rocket.stages()[0]["length"].get<double>() * 0.5 -
                    parallel_rocket.stages()[1]["z"].get<double>() - parallel_rocket.stages()[1]["length"].get<double>() * 0.5) < 1e-8,
           "overlapping stages have aligned tails");
@@ -170,6 +174,62 @@ int main()
     check(std::abs(parallel_rocket.stages()[1]["z"].get<double>() - parallel_rocket.stages()[1]["length"].get<double>() * 0.5 -
                    parallel_rocket.stages()[2]["z"].get<double>() - parallel_rocket.stages()[2]["length"].get<double>() * 0.5) < 1e-8,
           "upper stage moves clear of the overlapping core");
+    const AddonInfo *delta = find_addon(addons, "cvel-delta-iv");
+    Document delta_source, core_first;
+    core_first.make_rocket("Core first");
+    check(delta && delta_source.load(*delta, "ship.json", error) &&
+              core_first.import_stage(delta_source, 1, -1, imported, error, warning) &&
+              core_first.import_stage(delta_source, 0, -1, imported, error, warning, true) && imported == 0,
+          "radial boosters added after the core are placed first");
+    check(core_first.stages()[0].value("radial_parts", false) &&
+              core_first.stages()[0]["engines"].size() == 2 &&
+              core_first.stages()[1]["engines"].size() == 1 &&
+              core_first.stages()[1].value("ignite_with_previous", false),
+          "Delta boosters and core use separate engines and tanks while burning together");
+    Document different_engine = delta_source, different_rocket;
+    different_engine.stages()[0]["engines"][2]["direction"] = json::array({0, 0.1, -1});
+    different_engine.stages()[0]["with_next"] = true;
+    different_rocket.make_rocket("Different engine");
+    check(different_rocket.import_stage(delta_source, 1, -1, imported, error, warning) &&
+              different_rocket.import_stage(different_engine, 0, -1, imported, error, warning, true) &&
+              different_rocket.stages()[0]["engines"].size() == 3 &&
+              !different_rocket.stages()[0].value("with_next", false) &&
+              warning.find("simultaneous separation") != std::string::npos,
+          "differently directed engines are retained and boosters do not jettison the core");
+    Document boosters_first;
+    boosters_first.make_rocket("Boosters first");
+    check(boosters_first.import_stage(different_engine, 0, -1, imported, error, warning) &&
+              boosters_first.import_stage(delta_source, 0, -1, imported, error, warning, true) &&
+              boosters_first.stages()[0].value("with_next", false) &&
+              boosters_first.import_stage(delta_source, 1, -1, imported, error, warning, true) &&
+              boosters_first.stages()[0].value("with_next", false) &&
+              !boosters_first.stages()[1].value("with_next", false) &&
+              boosters_first.stages()[0]["engines"].size() == 3 &&
+              boosters_first.stages()[1]["engines"].size() == 2,
+          "overlapping booster groups can separate together without jettisoning the core");
+    check(core_first.import_stage(delta_source, 0, -1, imported, error, warning, true) && imported == 1 &&
+              core_first.stages()[1].value("ignite_with_previous", false) &&
+              core_first.stages()[2].value("ignite_with_previous", false),
+          "additional booster stages join the parallel ignition chain");
+    check(core_first.undo() && core_first.stage_count() == 2 &&
+              core_first.stages()[1].value("ignite_with_previous", false),
+          "undo restores the booster and core staging");
+    Document protected_rocket = core_first;
+    protected_rocket.root()["ports"] = json::array({{{"name", "Payload"}, {"stage", 1}}});
+    const auto protected_before = protected_rocket.root();
+    check(!protected_rocket.import_stage(delta_source, 0, -1, imported, error, warning, true) &&
+              protected_rocket.root() == protected_before,
+          "automatic booster reordering refuses stage-dependent equipment");
+    Document separate_stages;
+    separate_stages.make_rocket("Sequential stages");
+    const AddonInfo *titan = find_addon(addons, "cvel-titan");
+    Document titan_source;
+    check(titan && titan_source.load(*titan, "titan3e.json", error) &&
+              separate_stages.import_stage(titan_source, 0, -1, imported, error, warning) &&
+              separate_stages.import_stage(titan_source, 1, -1, imported, error, warning) &&
+              !separate_stages.stages()[1].value("ignite_with_previous", false) &&
+              warning.find("ignition link was cleared") != std::string::npos,
+          "non-overlapping imports do not inherit an unrelated ignition link");
     check(rocket.import_stage(source, 6, -1, imported, error, warning) && imported == 1, "animated Soyuz stage imports: " + error);
     const json &soyuz_stage = rocket.stages()[1];
     check(soyuz_stage.contains("rcs_visual") &&

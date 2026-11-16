@@ -290,6 +290,73 @@ namespace shipedit
             return group == "main";
         }
 
+        bool powered_stage(const json &stage)
+        {
+            if (stage.value("propellant", 0.0) <= 0.0 || !stage.contains("engines") || !stage["engines"].is_array())
+                return false;
+            return std::any_of(stage["engines"].begin(), stage["engines"].end(), [](const json &engine) {
+                return engine.is_object() && main_group(engine) && engine_thrust(engine) > 0.0;
+            });
+        }
+
+        bool radial_stage(const json &stage)
+        {
+            return stage.value("radial_parts", false) || stage.value("radial_pair", false);
+        }
+
+        int remove_duplicate_core_engines(json &boosters, const json &core)
+        {
+            if (!boosters.contains("engines") || !boosters["engines"].is_array() ||
+                !core.contains("engines") || !core["engines"].is_array())
+                return 0;
+            auto &engines = boosters["engines"];
+            const auto &core_engines = core["engines"];
+            std::vector<bool> matched(core_engines.size(), false);
+            int removed = 0;
+            for (auto it = engines.begin(); it != engines.end();)
+            {
+                bool duplicate = false;
+                if (it->is_object() && main_group(*it) && it->contains("position") && (*it)["position"].is_array() &&
+                    (*it)["position"].size() >= 3)
+                {
+                    for (std::size_t i = 0; i < core_engines.size() && !duplicate; ++i)
+                    {
+                        const json &other = core_engines[i];
+                        if (matched[i] || !other.is_object() || !main_group(other) || !other.contains("position") ||
+                            !other["position"].is_array() || other["position"].size() < 3)
+                            continue;
+                        const json &a = (*it)["position"], &b = other["position"];
+                        if (!a[0].is_number() || !a[1].is_number() || !a[2].is_number() ||
+                            !b[0].is_number() || !b[1].is_number() || !b[2].is_number())
+                            continue;
+                        const double thrust = engine_thrust(*it), other_thrust = engine_thrust(other);
+                        if (thrust <= 0.0 || std::abs(thrust - other_thrust) > std::max(thrust, other_thrust) * 0.001 ||
+                            it->value("type", std::string("rocket")) != other.value("type", std::string("rocket")) ||
+                            it->value("fuel", std::string()) != other.value("fuel", std::string()) ||
+                            it->value("air_breathing", false) != other.value("air_breathing", false) ||
+                            it->value("direction", json::array({0, 0, -1})) != other.value("direction", json::array({0, 0, -1})) ||
+                            std::abs(it->value("isp", 300.0) - other.value("isp", 300.0)) > 0.1 ||
+                            std::abs(it->value("isp_sl", 0.0) - other.value("isp_sl", 0.0)) > 0.1)
+                            continue;
+                        if (std::hypot(a[0].get<double>() - b[0].get<double>(), a[1].get<double>() - b[1].get<double>()) <= 0.02 &&
+                            std::abs(a[2].get<double>() - b[2].get<double>()) <= 0.5)
+                        {
+                            matched[i] = true;
+                            duplicate = true;
+                        }
+                    }
+                }
+                if (duplicate)
+                {
+                    it = engines.erase(it);
+                    ++removed;
+                }
+                else
+                    ++it;
+            }
+            return removed;
+        }
+
         bool has_ship_equipment(const json &root)
         {
             if (root.contains("script") && !root["script"].empty() && root["script"] != "@launcher.lua")
@@ -623,6 +690,15 @@ namespace shipedit
             error = "Inserting between existing stages would move ship-wide equipment or change stage references. Add at the nose end instead, or start a new rocket.";
             return false;
         }
+        const bool parallel = overlap_previous && position > 0 &&
+                              powered_stage(stages()[static_cast<std::size_t>(position - 1)]) && powered_stage(stage);
+        const bool booster_first = parallel && radial_stage(stage) &&
+                                   !radial_stage(stages()[static_cast<std::size_t>(position - 1)]);
+        if (booster_first && has_ship_equipment(root_))
+        {
+            error = "Adding these boosters before the core would change ship-wide equipment or stage references. Start a new rocket or edit the staging manually.";
+            return false;
+        }
         std::error_code ec;
         StageAssets assets;
         assets.root = fs::canonical(source.source_dir().parent_path().parent_path(), ec);
@@ -687,10 +763,52 @@ namespace shipedit
             for (int i = position; i < count; ++i)
                 set_stage_z(i, stages()[static_cast<std::size_t>(i)].value("z", 0.0) + shift, true);
         }
+        int duplicate_engines = 0;
+        bool detached_separation = false;
+        const bool detached_ignition = !parallel && stage.value("ignite_with_previous", false);
+        if (detached_ignition)
+            stage.erase("ignite_with_previous");
+        if (parallel)
+        {
+            json &previous = stages()[static_cast<std::size_t>(position - 1)];
+            if (booster_first)
+            {
+                stage["ignite_with_previous"] = previous.value("ignite_with_previous", false);
+                previous["ignite_with_previous"] = true;
+                detached_separation = stage.value("with_next", false);
+                stage.erase("with_next");
+                duplicate_engines = remove_duplicate_core_engines(stage, previous);
+                --position;
+            }
+            else
+            {
+                stage["ignite_with_previous"] = true;
+                if (radial_stage(previous) && !radial_stage(stage))
+                {
+                    detached_separation = previous.value("with_next", false);
+                    previous.erase("with_next");
+                    for (int i = position - 1; i >= 0; --i)
+                    {
+                        json &booster = stages()[static_cast<std::size_t>(i)];
+                        if (!radial_stage(booster))
+                            break;
+                        duplicate_engines += remove_duplicate_core_engines(booster, stage);
+                        if (!booster.value("ignite_with_previous", false))
+                            break;
+                    }
+                }
+            }
+        }
         stages().insert(stages().begin() + position, std::move(stage));
         pending_.insert(assets.files.begin(), assets.files.end());
         inserted = position;
         warning = assets.warning;
+        if (detached_ignition)
+            warning += "\nThe source's previous-stage ignition link was cleared; use Overlap previous stage to ignite stages together.";
+        if (duplicate_engines)
+            warning += "\nRemoved " + std::to_string(duplicate_engines) + " duplicate core engine(s) from the booster stage.";
+        if (detached_separation)
+            warning += "\nCleared simultaneous separation between the overlapping stages so the continuing stage is not jettisoned.";
         return true;
     }
 

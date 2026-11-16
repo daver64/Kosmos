@@ -1188,7 +1188,7 @@ namespace
         app->meshes.clear();
         structure_changed({Selection::stage_node, inserted, -1});
         if (!warning.empty())
-            message("The stage was added, but some source assets are missing:" + warning, GTK_MESSAGE_WARNING);
+            message("The stage was added with notes:" + warning, GTK_MESSAGE_WARNING);
         return true;
     }
 
@@ -1473,7 +1473,7 @@ namespace
         gtk_label_set_line_wrap(GTK_LABEL(hint), TRUE);
         gtk_box_pack_start(GTK_BOX(library), hint, FALSE, FALSE, 4);
         app->overlap_toggle = gtk_check_button_new_with_label("Overlap previous stage");
-        gtk_widget_set_tooltip_text(app->overlap_toggle, "Align the tails of the new and previous stages, for example to place a core alongside strap-on boosters. Check staging flags in Structure.");
+        gtk_widget_set_tooltip_text(app->overlap_toggle, "Align tails and ignite overlapping powered stages together. Radial boosters are placed before the core for separation.");
         gtk_box_pack_start(GTK_BOX(library), app->overlap_toggle, FALSE, FALSE, 0);
         app->library_list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
         GtkWidget *library_scroll = gtk_scrolled_window_new(nullptr, nullptr);

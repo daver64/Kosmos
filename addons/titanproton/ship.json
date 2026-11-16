@@ -1,0 +1,316 @@
+{
+ "name": "TitanProton",
+ "class": "rocket",
+ "torque_accel": 0.3,
+ "max_rate": 0.6,
+ "rcs_thrust": 500.0,
+ "drag_area": 2.0,
+ "camera_distance": 12.0,
+ "stages": [
+  {
+   "dry_mass": 53520,
+   "engines": [
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hydrogen",
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 45,
+     "plume_density": 2,
+     "plume_glow": 0.8,
+     "plume_width": 1.0,
+     "position": [
+      -5.449,
+      0.021,
+      26.859
+     ],
+     "thrust": 3370000,
+     "type": "rocket"
+    },
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hydrogen",
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 45,
+     "plume_density": 2,
+     "plume_glow": 0.8,
+     "plume_width": 1.0,
+     "position": [
+      5.446,
+      -0.029,
+      26.859
+     ],
+     "thrust": 3370000,
+     "type": "rocket"
+    }
+   ],
+   "gear": [
+    [
+     -8,
+     0,
+     30.0
+    ],
+    [
+     8,
+     0,
+     30.0
+    ],
+    [
+     0,
+     4,
+     30.0
+    ],
+    [
+     0,
+     -4,
+     30.0
+    ]
+   ],
+   "length": 52,
+   "name": "Common booster cores",
+   "parts": [
+    {
+     "model": "stage-assets-2/addons/cvel-delta-iv/models/deltaivbooster_1.obj",
+     "offset": [
+      -4.54,
+      0,
+      0.0
+     ]
+    },
+    {
+     "model": "stage-assets-2/addons/cvel-delta-iv/models/deltaivbooster_2.obj",
+     "offset": [
+      4.54,
+      0,
+      0.0
+     ]
+    }
+   ],
+   "propellant": 399280,
+   "radial_parts": true,
+   "radius": 3.5,
+   "separation_speed": 3.0,
+   "z": 0.0
+  },
+  {
+   "dry_mass": 26760,
+   "engines": [
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hydrogen",
+     "isp": 420,
+     "isp_sl": 365,
+     "plume": 45,
+     "plume_density": 2,
+     "plume_glow": 0.8,
+     "plume_width": 1.0,
+     "position": [
+      0.007,
+      0.007,
+      26.835
+     ],
+     "thrust": 3370000,
+     "type": "rocket"
+    }
+   ],
+   "length": 52,
+   "name": "Core booster",
+   "parts": [
+    {
+     "model": "stage-assets-1/addons/cvel-delta-iv/models/deltaivstg1.obj",
+     "offset": [
+      0,
+      0,
+      0.0
+     ]
+    }
+   ],
+   "propellant": 199640,
+   "radius": 2.9,
+   "separation_speed": 2.0,
+   "ignite_with_previous": true,
+   "z": 0.0,
+   "gear": null
+  },
+  {
+   "dry_mass": 11715,
+   "engines": [
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hypergolic",
+     "isp": 327,
+     "plume": 7,
+     "plume_density": 0.8,
+     "plume_glow": 0.7,
+     "plume_width": 0.35,
+     "position": [
+      0,
+      1.2,
+      -25.85
+     ],
+     "thrust": 600000,
+     "type": "rocket"
+    },
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hypergolic",
+     "isp": 327,
+     "plume": 7,
+     "plume_density": 0.8,
+     "plume_glow": 0.7,
+     "plume_width": 0.35,
+     "position": [
+      1.2,
+      0,
+      -25.85
+     ],
+     "thrust": 600000,
+     "type": "rocket"
+    },
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hypergolic",
+     "isp": 327,
+     "plume": 7,
+     "plume_density": 0.8,
+     "plume_glow": 0.7,
+     "plume_width": 0.35,
+     "position": [
+      0,
+      -1.2,
+      -25.85
+     ],
+     "thrust": 600000,
+     "type": "rocket"
+    },
+    {
+     "direction": [
+      0,
+      0,
+      -1
+     ],
+     "fuel": "hypergolic",
+     "isp": 327,
+     "plume": 7,
+     "plume_density": 0.8,
+     "plume_glow": 0.7,
+     "plume_width": 0.35,
+     "position": [
+      -1.2,
+      0,
+      -25.85
+     ],
+     "thrust": 600000,
+     "type": "rocket"
+    }
+   ],
+   "length": 18,
+   "name": "Proton second stage",
+   "parts": [
+    {
+     "model": "stage-assets-3/addons/cvel-proton/models/protkstg2_uw.obj",
+     "offset": [
+      0,
+      0,
+      -35.0
+     ]
+    }
+   ],
+   "propellant": 156113,
+   "radius": 2.9,
+   "separation_speed": 2.0,
+   "z": -35.0,
+   "gear": null
+  },
+  {
+   "dry_mass": 600,
+   "engines": [],
+   "length": 15,
+   "name": "Payload fairing half",
+   "parts": [
+    {
+     "model": "stage-assets-4/addons/cvel-proton/models/protonplfleft.obj",
+     "offset": [
+      0,
+      0,
+      -44.0
+     ]
+    }
+   ],
+   "propellant": 0,
+   "radius": 2.2,
+   "separation_dir": [
+    -1,
+    0,
+    -0.2
+   ],
+   "separation_speed": 2.5,
+   "with_next": true,
+   "z": -51.5,
+   "gear": null
+  },
+  {
+   "dry_mass": 600,
+   "engines": [],
+   "length": 15,
+   "name": "Payload fairing half",
+   "parts": [
+    {
+     "model": "stage-assets-5/addons/cvel-proton/models/protonplfright.obj",
+     "offset": [
+      0,
+      0,
+      -44.0
+     ]
+    }
+   ],
+   "propellant": 0,
+   "radius": 2.2,
+   "separation_dir": [
+    1,
+    0,
+    -0.2
+   ],
+   "separation_speed": 2.5,
+   "z": -51.5,
+   "gear": null
+  }
+ ],
+ "script": "@launcher.lua",
+ "cockpit": {
+  "mfds": true,
+  "external_mfds": true
+ },
+ "launcher_ascent": {
+  "kick_speed": 50.0,
+  "kick_pitch": 85.0,
+  "turn_end_km": 45.0,
+  "turn_end_pitch": 35.0,
+  "climb_speed": 150.0
+ }
+}

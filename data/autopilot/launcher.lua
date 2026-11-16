@@ -62,6 +62,15 @@ local function set_phase(name, status)
   props.set("/autopilot/status", status)
 end
 
+local function stage_or_resume(resume)
+  if get("parallel-next-stage") then
+    props.set("/controls/stage", true)
+  else
+    resume_phase = resume
+    set_phase("staging", "Staging")
+  end
+end
+
 local function steer(pitch, dt)
   local step = PITCH_RATE * dt
   pitch_cmd = pitch_cmd + math.max(-step, math.min(step, pitch - pitch_cmd))
@@ -142,8 +151,7 @@ function update(dt)
       set_phase("kick", "Pitch kick")
     elseif generic and get("stage-fuel") < fuel_limit then
       if stage < config.last then
-        resume_phase = "liftoff"
-        set_phase("staging", "Staging")
+        stage_or_resume("liftoff")
       else
         finish("Out of propellant")
       end
@@ -159,8 +167,7 @@ function update(dt)
       set_phase("gravity-turn", "Gravity turn")
     elseif generic and get("stage-fuel") < fuel_limit then
       if stage < config.last then
-        resume_phase = "kick"
-        set_phase("staging", "Staging")
+        stage_or_resume("kick")
       else
         finish("Out of propellant")
       end
@@ -201,12 +208,7 @@ function update(dt)
     end
     if phase == "gravity-turn" and get("stage-fuel") < fuel_limit then
       if stage < config.last then
-        if get("parallel-next-stage") then
-          props.set("/controls/stage", true)
-        else
-          resume_phase = "gravity-turn"
-          set_phase("staging", "Staging")
-        end
+        stage_or_resume("gravity-turn")
       elseif apoapsis < target then
         finish("Out of propellant")
       end
@@ -256,8 +258,7 @@ function update(dt)
       finish("In orbit")
     elseif get("stage-fuel") < (generic and fuel_limit or 1.0) then
       if generic and stage < config.last then
-        resume_phase = "circularise"
-        set_phase("staging", "Staging")
+        stage_or_resume("circularise")
       else
         finish("Out of propellant")
       end
