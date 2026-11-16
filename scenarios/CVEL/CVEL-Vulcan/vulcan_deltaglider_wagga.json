@@ -1,0 +1,27 @@
+{
+  "active": 0,
+  "date": "2024-06-21 01:00:00",
+  "description": "CVEL Vulcan and Nuclear Deltaglider parked separately on the Wagga Wagga Spaceport runway.",
+  "name": "CVEL: Vulcan and Deltaglider, Wagga Wagga",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Vulcan",
+      "surface": {
+        "along": 650,
+        "base": "wagga",
+        "runway": 0
+      }
+    },
+    {
+      "body": "Earth",
+      "ship": "CVEL Deltaglider (Nuclear)",
+      "surface": {
+        "along": 770,
+        "base": "wagga",
+        "runway": 0
+      }
+    }
+  ],
+  "thumbnail": "thumbs/vulcan_deltaglider_wagga-1794828102845110931-0.png"
+}

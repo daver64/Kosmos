@@ -71,6 +71,7 @@ namespace kosmos
         health_ = 1.0;
         environment_ = EnvironmentState{};
         environment_failure_.clear();
+        environment_status_ = "OK";
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
@@ -100,6 +101,7 @@ namespace kosmos
         health_ = 1.0;
         environment_ = EnvironmentState{};
         environment_failure_.clear();
+        environment_status_ = "OK";
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
@@ -128,6 +130,7 @@ namespace kosmos
         health_ = 1.0;
         environment_ = EnvironmentState{};
         environment_failure_.clear();
+        environment_status_ = "OK";
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
@@ -177,6 +180,7 @@ namespace kosmos
         health_ = 1.0;
         environment_ = EnvironmentState{};
         environment_failure_.clear();
+        environment_status_ = "OK";
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
@@ -308,6 +312,7 @@ namespace kosmos
         health_ = 1.0;
         environment_ = EnvironmentState{};
         environment_failure_.clear();
+        environment_status_ = "OK";
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;

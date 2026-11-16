@@ -15,11 +15,13 @@ local R_EARTH = 6.371e6
 -- below 1; max_pitch caps how far it will pitch up to resist sinking.
 -- inert_after, inert: after leaving that stage, this many engineless stages are jettisoned straight away.
 -- last: the last stage the autopilot burns (a capsule or payload stage after it is left for the pilot).
+-- coast_margin: maximum periapsis deficit before coasting, for a long, low-thrust upper-stage burn.
+-- apo_guard: reduce climb before upper-stage separation if apoapsis approaches the target.
 -- actual_periapsis: estimate the circularisation burn using the actual sub-surface periapsis.
 -- precise_orbit: require periapsis within 5 km of target rather than ending on a wider circularity tolerance.
 local vehicles = {
   ["CVEL Soyuz-FG"] = { kick_speed = 35, kick = 88, closed_alt = 45000, mid_pitch = 35, climb = 250, gain = 0.2, last = 5, inert_after = 1, inert = 3 },
-  ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 4, inert_after = 1, inert = 1 },
+  ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 400, lofted = true, max_pitch = 40, apo_guard = true, coast_margin = 700000, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Energia"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },
   ["CVEL Energia-M"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 3 },
@@ -177,6 +179,9 @@ function update(dt)
     else
       -- Steer to hold a vertical speed that falls to zero as the orbit rises to the target altitude.
       local wanted = math.max(math.min((target - altitude) * 0.012, config.climb), -20.0)
+      if config.apo_guard and not last and apoapsis >= target * 0.9 then
+        wanted = math.min(wanted, 0.0)
+      end
       if config.lofted then
         local r = R_EARTH + altitude
         local horizontal = math.sqrt(math.max(speed * speed - vertical * vertical, 0.0))
@@ -188,7 +193,8 @@ function update(dt)
         steer(math.max(math.min((config.gain or 0.4) * (wanted - vertical), 85.0), -10.0), dt)
       end
       props.set("/autopilot/status", last and "Upper stage burn" or "Powered ascent")
-      if (last or generic) and apoapsis >= target then
+      if (last or generic) and apoapsis >= target and
+         (not config.coast_margin or periapsis >= target - config.coast_margin) then
         props.set("/controls/throttle", 0.0)
         set_phase("coast", "Coasting to apoapsis")
       end

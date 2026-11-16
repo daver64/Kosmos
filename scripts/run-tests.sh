@@ -143,6 +143,7 @@ if [ "$extended" -eq 1 ]; then
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/vessel_ascent_test.py" "$PWD/kosmos" --cargo
     python3 "$SRC/tests/atlas_autopilot_test.py" "$PWD/kosmos"
+    python3 "$SRC/tests/delta_iv_autopilot_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/cveln1_test.py" "$PWD/kosmos"
     python3 "$SRC/tests/shipedit_ascent_test.py" "$PWD/kosmos"
 fi

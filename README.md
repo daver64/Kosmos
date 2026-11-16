@@ -486,6 +486,8 @@ Performance and guidance remain approximate. References include
 [Delta IV Heavy](https://www.ulalaunch.com/docs/default-source/rockets/delta-iv-heavy-cutaway.pdf?sfvrsn=eeef4919_10),
 [Titan UA1206](https://astronautix.com/u/ua1206.html) and
 [Buran orbital engines](https://www.buran-energia.com/bourane-buran/bourane-consti-moteur.php).
+With the bundled Delta IV Heavy payloads, the ascent autopilot's 200 km target
+can leave a noticeably elliptical orbit; circularise manually if required.
 
 ## MFDs (multi-function displays)
 
@@ -554,6 +556,8 @@ File ▸ Set time to T-5:00 before burn moves the clock to just before the burn 
 
 Scenarios can sit in sub-folders; each folder becomes a submenu under File ▸ Open scenario (a leading `NN_` sets the order and is hidden, `_` shows as a space, e.g. `01_Earth/`). The menu re-reads the folders, so edits made outside Kosmos appear without a restart.
 
+**CVEL: Vulcan and Deltaglider, Wagga Wagga** starts the two aircraft parked separately on the spaceport runway. Press V to switch between them.
+
 **CVEL: Buran on Energia, Baikonur** carries a Centaur G, Fregat and Luna E3 in Buran's bay. The CVEL Energia's booster and core propellant loads are increased for this payload, rather than representing the historical loads. After the launcher's core burn, press Ctrl+D while controlling Energia to detach Buran without releasing its cargo. Switch to Buran, open the bay doors and stage to release Centaur upward; stage Centaur and Fregat in turn to release the next vessel. Ctrl+D undocks all links of the active vessel, so do not use it on Buran while the payload is attached.
 
 The **Asteroids** folder has fictional Luna E3 probe orbits around the shipped NASA asteroid shapes; **NASA ▸ Gateway and Shuttle-A at the Moon** starts a Shuttle-A docked to Gateway in a fictional low lunar orbit, not Gateway's planned halo orbit. Small-body gravity and collision are spherical approximations despite the visible shapes, and asteroid positions are approximate two-body extrapolations.
@@ -604,7 +608,7 @@ The Moon has an **Apollo 11 landing site** base (`apollo11`) near the fictional 
 
 Solar power depends on star luminosity, distance, panel facing and planetary or lunar eclipse. Soyuz TMA and FG arrays start stowed and must be deployed with **View > Animations > Panels and antennae**. The Ship systems window lists solar sources and the Systems MFD shows their combined output, even at 0 W when stowed, turned away from the star or in shadow. Salyut's arrays start deployed and can be folded with **View > Animations > Solar arrays**; they generate power only when nearly fully deployed.
 
-**Extreme atmospheres.** Ships take damage from external overpressure and sustained environmental heat, separately from optional high-speed re-entry heating. F1 shows outside pressure and temperature, vehicle temperature and status; the HUD warns of limits and failures. Defaults are 100,000 Pa overpressure, 350 K vehicle temperature and a 3,600 s dense-air heat-soak constant; these are gameplay approximations, not historical ratings. A ship's `environment` block can override `max_overpressure_pa`, `max_temperature_k` and `heat_time_constant_s` with positive finite values. Overpressure is outside pressure minus the lowest live cabin pressure, or 101,325 Pa if there is no cabin. Heat state and failure cause are saved. Time skips are blocked during hazardous exposure or when the predicted rails trajectory approaches an atmosphere or enters another atmospheric body's sphere of influence; high warp slows for such approaches. The check is conservative and may refuse a skip it cannot verify.
+**Extreme atmospheres.** Ships take damage from external overpressure and sustained environmental heat, separately from optional high-speed re-entry heating. F1 shows outside pressure and temperature, vehicle temperature and status; the HUD warns of limits and identifies fatal pressure as **VESSEL LOST - IMPLOSION** and fatal ambient or entry heating as **VESSEL LOST - OVERHEAT**. An airborne wreck continues to fall. Defaults are 100,000 Pa overpressure, 350 K vehicle temperature and a 3,600 s dense-air heat-soak constant; these are gameplay approximations, not historical ratings. A ship's `environment` block can override `max_overpressure_pa`, `max_temperature_k` and `heat_time_constant_s` with positive finite values. Overpressure is outside pressure minus the lowest live cabin pressure, or 101,325 Pa if there is no cabin. Heat state and failure cause are saved. Time skips are blocked during hazardous exposure or when the predicted rails trajectory approaches an atmosphere or enters another atmospheric body's sphere of influence; high warp slows for such approaches. The check is conservative and may refuse a skip it cannot verify.
 
 Venus has an approximate 92 bar, 735 K surface profile. Jupiter and other gas/ice giants have no landable surface: altitude is relative to the model radius and probes can descend below it. Their approximate profiles use a nominal 1 bar reference and extend to about 250 km below it; Jupiter's existing mean radius is not a measured 1 bar radius. **BELOW MODEL** indicates unsupported depths, where synthetic values prevent numerical failures but are not physical predictions. Atmospheric chemistry, corrosion and radiation are not modelled.
 

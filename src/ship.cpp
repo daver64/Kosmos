@@ -224,6 +224,7 @@ namespace kosmos
         mission_time_ = std::max(0.0, state.mission_time);
         environment_.temperature = state.environment_temperature;
         environment_failure_ = state.environment_failure;
+        environment_status_ = environment_failure_.empty() ? "OK" : environment_failure_;
         if (systems_ && state.has_systems)
             systems_->restore(state.systems);
         recentre();
@@ -378,6 +379,17 @@ namespace kosmos
         }
         else if (!solid && on_rails())
             go_dynamic();
+    }
+
+    const char *Ship::environment_loss_reason() const
+    {
+        if (health_ > 0.0)
+            return nullptr;
+        if (environment_failure_ == "PRESSURE FAILURE")
+            return "IMPLOSION";
+        if (environment_failure_ == "HEAT FAILURE")
+            return "OVERHEAT";
+        return nullptr;
     }
 
     void Ship::set_attached_mass(double kilograms)

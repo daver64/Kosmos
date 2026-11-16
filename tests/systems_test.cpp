@@ -75,6 +75,7 @@ int main()
         lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);
         lua["root"] = KOSMOS_ROOT;
         lua.script_file(std::string(KOSMOS_ROOT) + "/tests/systems_mfd_test.lua");
+        lua.script_file(std::string(KOSMOS_ROOT) + "/tests/engine_mfd_test.lua");
         lua.script_file(std::string(KOSMOS_ROOT) + "/tests/orbitcomp_node_test.lua");
     }
     {
@@ -1371,6 +1372,7 @@ int main()
         place(earth_ship, earth, 100.0);
         earth_ship.after_step(3600.0);
         assert(earth_ship.health() == 1.0);
+        assert(earth_ship.environment_loss_reason() == nullptr);
 
         Ship venus_ship(universe, ordinary);
         place(venus_ship, venus, 100.0);
@@ -1408,12 +1410,47 @@ int main()
         weak_probe.after_step(60.0);
         assert(weak_probe.health() == 0.0 && !weak_probe.crashed());
         assert(weak_probe.body().mode == sl::FlightBodyMode::dynamic);
+        assert(std::string(weak_probe.environment_loss_reason()) == "IMPLOSION");
         const ShipCarryState failed = weak_probe.carry_state();
         assert(failed.environment_failure == "PRESSURE FAILURE");
         Ship failed_resume(universe, ordinary);
         place(failed_resume, jupiter, -100000.0);
         failed_resume.restore_carry_state(failed);
         assert(failed_resume.carry_state().environment_failure == "PRESSURE FAILURE");
+        assert(std::string(failed_resume.environment_loss_reason()) == "IMPLOSION");
+        failed_resume.publish(tree, "/failed");
+        assert(tree.get_string("/failed/environment/status") == "PRESSURE FAILURE");
+        place(failed_resume, earth, 100.0);
+        assert(failed_resume.environment_loss_reason() == nullptr);
+        assert(tree.get_string("/failed/environment/status") == "OK");
+        failed_resume.unpublish();
+
+        ShipSpec heat_only = rated;
+        heat_only.environment.max_temperature = 300.0;
+        heat_only.environment.heat_time_constant = 1.0;
+        Ship hot_probe(universe, heat_only);
+        place(hot_probe, venus, 100.0);
+        hot_probe.after_step(1000.0);
+        assert(hot_probe.health() == 0.0);
+        assert(std::string(hot_probe.environment_loss_reason()) == "OVERHEAT");
+
+        ShipSpec entry = rated;
+        entry.thermal.enabled = true;
+        entry.thermal.heat_capacity = 1000.0;
+        entry.thermal.emissivity = 0.0;
+        entry.thermal.max_temp = 400.0;
+        entry.thermal.bare_max_temp = 400.0;
+        Ship entry_probe(universe, entry);
+        place(entry_probe, earth, 60000.0);
+        entry_probe.body().velocity = universe.world.air_velocity_at(entry_probe.body().position) + sl::dvec3(0.0, 9000.0, 0.0);
+        entry_probe.after_step(10.0);
+        assert(entry_probe.health() == 0.0 && !entry_probe.crashed());
+        assert(std::string(entry_probe.environment_loss_reason()) == "OVERHEAT");
+        assert(entry_probe.carry_state().environment_failure == "HEAT FAILURE");
+        Ship entry_resume(universe, entry);
+        place(entry_resume, earth, 60000.0);
+        entry_resume.restore_carry_state(entry_probe.carry_state());
+        assert(std::string(entry_resume.environment_loss_reason()) == "OVERHEAT");
     }
     {
         Universe universe;

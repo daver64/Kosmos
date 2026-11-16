@@ -21,7 +21,7 @@ namespace kosmos
     /**
      * The look of re-entry plasma from the stagnation heat flux (W/m^2) and the shape of the vehicle: `radius` is its body radius and
      * `nose_radius` the radius of its nose or heat shield, in metres. A small slim warhead leaves a thin faint streak; a big blunt
-     * vehicle wears a broad glowing ball with a short fat wake; the middle sizes fall in between.
+     * vehicle wears a broad glowing sheath with a long wake; the middle sizes fall in between.
      */
     inline PlasmaLook plasma_look(double flux, double radius, double nose_radius)
     {
@@ -41,7 +41,7 @@ namespace kosmos
         // A very large vessel's sheath hugs the hull instead of growing in step with it.
         const double sheath = radius > 3.0 ? 3.0 + 0.3 * (radius - 3.0) : radius;
         look.width = static_cast<float>(sheath * (1.3 + 1.5 * mass));
-        look.length = static_cast<float>(radius * (32.0 + 88.0 * (1.0 - mass)) * (0.35 + 0.65 * glow));
+        look.length = static_cast<float>(radius * (96.0 + 264.0 * (1.0 - mass)) * (0.35 + 0.65 * glow));
         look.cap = static_cast<float>(sheath * (0.8 + 1.2 * mass) * (0.5 + 0.5 * glow));
         return look;
     }

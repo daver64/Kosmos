@@ -681,6 +681,8 @@ namespace kosmos
         bool crashed() const { return crashed_; }
         /** 1 undamaged down to 0 destroyed. */
         double health() const { return health_; }
+        /** Atmospheric loss cause, or null while the vessel has not been lost to pressure or heat. */
+        const char *environment_loss_reason() const;
         /** Take damage (0 to 1 of the whole ship); at 0 the ship is destroyed as if it had crashed. */
         void damage(double amount);
         /** The shield's charge, 0 up to the spec's capacity. */
@@ -853,6 +855,7 @@ namespace kosmos
         void step_instruments(double dt, const sl::dvec3 &sun_local, bool sunlit);
         void step_reentry(double dt);
         void step_environmental_exposure(double dt);
+        void record_environment_failure(const char *failure);
         void step_parachutes(double dt, const sl::dvec3 &air_velocity, double rho);
         ThermalState thermal_;
         EnvironmentState environment_;

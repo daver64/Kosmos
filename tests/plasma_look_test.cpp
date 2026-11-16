@@ -19,6 +19,7 @@ int main()
     assert(warhead.brilliance < capsule.brilliance && capsule.brilliance < shuttle.brilliance);
     assert(warhead.width < capsule.width && capsule.width < shuttle.width);
     assert(warhead.brilliance < 0.3f && shuttle.brilliance > 0.5f);
+    assert(warhead.length > 60.0f && capsule.length > 150.0f && shuttle.length > 400.0f);
     // The warhead's wake is a long streak compared with its width; the big ball is not.
     assert(warhead.length / warhead.width > shuttle.length / shuttle.width);
 

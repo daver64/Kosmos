@@ -93,6 +93,13 @@ namespace kosmos
         }
     }
 
+    void Ship::record_environment_failure(const char *failure)
+    {
+        environment_failure_ = failure;
+        environment_status_ = failure;
+        std::fprintf(stderr, "[kosmos] %s: %s\n", name.c_str(), failure);
+    }
+
     void Ship::step_environmental_exposure(double dt)
     {
         if (telemetry_.soi < 0)
@@ -106,7 +113,7 @@ namespace kosmos
         const sl::AtmosphereSample sample = pb.atmosphere.sample(altitude);
         if (sample.status == sl::AtmosphereSampleStatus::below_profile)
         {
-            environment_status_ = "BELOW MODEL";
+            environment_status_ = environment_failure_.empty() ? "BELOW MODEL" : environment_failure_;
             environment_hazard_ = true;
             return;
         }
@@ -141,10 +148,7 @@ namespace kosmos
         const double before = health_;
         damage(exposure.pressure + exposure.heat);
         if (before > 0.0 && health_ <= 0.0)
-        {
-            environment_failure_ = exposure.pressure >= exposure.heat ? "PRESSURE FAILURE" : "HEAT FAILURE";
-            std::fprintf(stderr, "[kosmos] %s: %s\n", name.c_str(), environment_failure_.c_str());
-        }
+            record_environment_failure(exposure.pressure >= exposure.heat ? "PRESSURE FAILURE" : "HEAT FAILURE");
         if (!environment_failure_.empty())
             environment_status_ = environment_failure_;
     }
@@ -190,7 +194,12 @@ namespace kosmos
             const double windward = speed > 1.0 ? glm::dot(spec_.thermal.shield_axis, local / speed) : 1.0;
             const double rate = step_thermal(spec_.thermal, thermal_, rho, speed, windward, ambient_temperature_, dt);
             if (rate > 0.0)
+            {
+                const double before = health_;
                 damage(rate * dt);
+                if (before > 0.0 && health_ <= 0.0)
+                    record_environment_failure("HEAT FAILURE");
+            }
         }
         step_parachutes(dt, air, rho);
     }

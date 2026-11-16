@@ -1333,7 +1333,7 @@ namespace kosmos
                                    "  Keypad 7 / Insert: fire primary / secondary weapons (ships that carry them)\n"
                                    "  Delete parachute deploy   Shift+Delete cut chutes\n"
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
-                                   "  F1 shows external pressure and temperature; pressure and sustained heat can destroy a ship. Gas giants have no ground; BELOW MODEL warns that deeper atmospheric values are not physical predictions.\n"
+                                   "  F1 shows external pressure and temperature; fatal pressure or heat displays VESSEL LOST - IMPLOSION or OVERHEAT. Gas giants have no ground; BELOW MODEL warns that deeper atmospheric values are not physical predictions.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
                                    "  View > Performance metrics: session-only frame, CPU, GPU, memory and terrain diagnostics; nested times overlap.\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"

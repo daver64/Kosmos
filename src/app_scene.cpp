@@ -1687,7 +1687,7 @@ namespace kosmos::app
                 blobs.push_back(instance);
             };
             // Puffs are shed across the nose and stream back, so they trace the wake; each is a soft white-yellow core fading through orange to red.
-            const float life = 0.9f, stream = wake / life;
+            const float life = 1.8f, stream = wake / life;
             const auto rnd = [&]()
             {
                 plasma.plasma_seed = plasma.plasma_seed * 1664525u + 1013904223u;

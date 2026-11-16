@@ -20,11 +20,9 @@ end
 return {
   name = "Engine",
   buttons = {},
-  init = function(self) self.peak = 0; self.flow = 0 end,
+  init = function(self) self.flow = 0 end,
 
   update = function(self)
-    local fuel = num("stage-fuel")
-    self.peak = math.max(self.peak or 0, fuel)
     self.flow = num("fuel-flow")
   end,
 
@@ -33,11 +31,12 @@ return {
     g:text(w / 2, 20, "ENGINE MANAGEMENT", 1)
     local throttle = props.get("/controls/throttle") or 0
     local thrust, max = num("thrust"), num("max-thrust")
-    local fuel, peak = num("stage-fuel"), math.max(self.peak or 0, 1)
+    local fuel, capacity = num("stage-fuel"), num("stage-fuel-capacity")
+    local fuel_fraction = capacity > 0 and fuel / capacity or 0
     local flow = self.flow or 0
     bar(g, 100, 54, 190, throttle, "THR", string.format("%.0f%%", throttle * 100))
     bar(g, 100, 84, 190, max > 0 and thrust / max or 0, "THRUST", string.format("%.1f kN", thrust / 1000))
-    bar(g, 100, 114, 190, fuel / peak, "FUEL", string.format("%.0f kg", fuel), fuel / peak < 0.15 and 255 or 120, fuel / peak < 0.15 and 90 or 255, 140)
+    bar(g, 100, 114, 190, fuel_fraction, "FUEL", string.format("%.0f kg", fuel), fuel_fraction < 0.15 and 255 or 120, fuel_fraction < 0.15 and 90 or 255, 140)
     g:colour(200, 210, 220)
     g:text(64, 160, string.format("Flow       %.2f kg/s  (%.0f kg/h)", flow, flow * 3600), 0)
     local endurance = flow > 1e-4 and fuel / flow or nil
