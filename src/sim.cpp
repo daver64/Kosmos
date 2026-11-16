@@ -11,12 +11,125 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 
 namespace kosmos
 {
     namespace
     {
         const double warp_table[Sim::warp_levels] = {1, 2, 3, 4, 5, 10, 50, 100, 1000, 10000, 100000};
+
+        double orbit_speed_bound(double mu, const sl::OrbitElements &orbit)
+        {
+            const double periapsis = orbit.periapsis();
+            if (!(mu > 0.0) || !(periapsis > 0.0) || orbit.semi_major_axis == 0.0)
+                return std::numeric_limits<double>::infinity();
+            const double speed_squared = mu * (2.0 / periapsis - 1.0 / orbit.semi_major_axis);
+            return speed_squared > 0.0 && std::isfinite(speed_squared)
+                       ? std::sqrt(speed_squared) : std::numeric_limits<double>::infinity();
+        }
+
+        sl::dvec3 body_position_at(const Universe &universe, int id, double time)
+        {
+            const sl::FlightBody &body = *universe.world.body(id);
+            if (body.mode != sl::FlightBodyMode::rails || body.rails_parent < 0)
+                return body.position + body.velocity * (time - universe.time());
+            const sl::FlightBody &parent = *universe.world.body(body.rails_parent);
+            return body_position_at(universe, body.rails_parent, time) +
+                   sl::state_from_orbit(parent.gm, body.rails_orbit, time - body.rails_epoch).position;
+        }
+
+        double body_speed_bound(const Universe &universe, int id)
+        {
+            const sl::FlightBody &body = *universe.world.body(id);
+            if (body.mode != sl::FlightBodyMode::rails || body.rails_parent < 0)
+                return body.mode == sl::FlightBodyMode::kinematic ? glm::length(body.velocity) : std::numeric_limits<double>::infinity();
+            return body_speed_bound(universe, body.rails_parent) +
+                   orbit_speed_bound(universe.world.body(body.rails_parent)->gm, body.rails_orbit);
+        }
+
+        bool skip_avoids_atmospheres(const Universe &universe, const Ship &ship, double seconds, std::string &why)
+        {
+            const sl::FlightBody &vessel = ship.body();
+            const int parent = ship.on_rails() ? vessel.rails_parent : ship.telemetry().soi;
+            if (parent < 0 || parent >= static_cast<int>(universe.bodies.size()))
+            {
+                why = "cannot determine the time-skip orbit";
+                return false;
+            }
+            sl::OrbitElements orbit;
+            double epoch = universe.time();
+            if (ship.on_rails())
+            {
+                orbit = vessel.rails_orbit;
+                epoch = vessel.rails_epoch;
+            }
+            else if (!universe.world.orbit_of(ship.body_id(), parent, orbit))
+            {
+                why = "cannot calculate the time-skip orbit";
+                return false;
+            }
+            const double mu = universe.world.body(parent)->gm;
+            const double vessel_speed = body_speed_bound(universe, parent) + orbit_speed_bound(mu, orbit);
+            const auto position = [&](double elapsed)
+            {
+                const double t = universe.time() + elapsed;
+                return body_position_at(universe, parent, t) + sl::state_from_orbit(mu, orbit, t - epoch).position;
+            };
+            const sl::dvec3 start = vessel.position;
+            for (std::size_t i = 0; i < universe.bodies.size(); ++i)
+            {
+                const Body &body = universe.bodies[i];
+                if (body.atmosphere_density <= 0.0)
+                    continue;
+                double limit = body.radius + body.atmosphere_scale_height * 10.0 + 1000.0;
+                if (!body.atmosphere_profile.empty())
+                    limit = std::max(limit, body.radius + body.atmosphere_profile.back().altitude + 1000.0);
+                if (static_cast<int>(i) == parent && orbit.periapsis() > limit)
+                    continue;
+                const double initial_distance = glm::length(start - universe.position(static_cast<int>(i)));
+                if (static_cast<int>(i) != parent && initial_distance > body.soi)
+                    limit = std::max(limit, body.soi);
+                const double speed = vessel_speed + body_speed_bound(universe, static_cast<int>(i));
+                if (!std::isfinite(speed))
+                {
+                    why = "cannot bound the time-skip trajectory near " + body.name;
+                    return false;
+                }
+                std::vector<std::pair<double, double>> intervals{{0.0, seconds}};
+                int checks = 0;
+                while (!intervals.empty())
+                {
+                    const auto [begin, end] = intervals.back();
+                    intervals.pop_back();
+                    if (++checks > 8192)
+                    {
+                        why = "cannot safely verify the time-skip trajectory near " + body.name;
+                        return false;
+                    }
+                    const double middle = begin + (end - begin) * 0.5;
+                    const double distance = glm::length(position(middle) -
+                        body_position_at(universe, static_cast<int>(i), universe.time() + middle));
+                    if (!std::isfinite(distance) || distance <= limit)
+                    {
+                        why = "trajectory approaches " + body.name + "'s atmosphere or sphere of influence";
+                        return false;
+                    }
+                    // The speed bound proves every point in this interval stays outside the limit.
+                    if (distance - speed * ((end - begin) * 0.5) <= limit)
+                    {
+                        if (middle == begin || middle == end)
+                        {
+                            why = "cannot safely verify the time-skip trajectory near " + body.name;
+                            return false;
+                        }
+                        intervals.emplace_back(begin, middle);
+                        intervals.emplace_back(middle, end);
+                    }
+                }
+            }
+            return true;
+        }
     }
 
     double Sim::warp_factor(int index)
@@ -820,6 +933,22 @@ namespace kosmos
                 --index;
             props.set_int("/sim/warp-index", index);
         }
+        std::string approach_warning;
+        while (warp_factor(index) > phys_limit && !ground_hold)
+        {
+            std::string why;
+            for (std::size_t i = 0; i < ships_.size() && why.empty(); ++i)
+                if (!ships_[i]->spec().building() && !ships_[i]->crashed() && !parked_for_warp(i))
+                    skip_avoids_atmospheres(universe, *ships_[i], frame * warp_factor(index), why);
+            if (why.empty())
+                break;
+            if (approach_warning.empty())
+                approach_warning = why;
+            --index;
+            props.set_int("/sim/warp-index", index);
+        }
+        if (!approach_warning.empty())
+            log("Time warp reduced: " + approach_warning);
         const double warp = warp_factor(index);
         current_warp_ = warp;
 
@@ -1066,6 +1195,11 @@ namespace kosmos
             why = "Cancel the active autopilot before skipping time";
             return false;
         }
+        if (!std::isfinite(seconds))
+        {
+            why = "Invalid time skip";
+            return false;
+        }
         if (seconds <= 0.0)
         {
             why = "Already within the lead time of the burn";
@@ -1089,34 +1223,42 @@ namespace kosmos
                 why = ship.spec().name + ": time skip unavailable during environmental exposure";
                 return false;
             }
-            if (!ship.spec().building() && !ship.crashed() && !parked_for_warp(i))
+            if (ship.spec().building() || ship.crashed() || parked_for_warp(i))
+                continue;
+            if (!ship.on_rails())
             {
-                const int soi = ship.telemetry().soi;
-                const Body &planet = universe.bodies[static_cast<std::size_t>(soi)];
-                sl::OrbitElements orbit;
-                if (planet.atmosphere_density > 0.0 && universe.world.orbit_of(ship.body_id(), soi, orbit) &&
-                    orbit.periapsis() <= planet.radius + planet.atmosphere_scale_height * 10.0 + 1000.0)
+                const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
+                if (!b.empty())
                 {
-                    why = ship.spec().name + ": time skip unavailable for an atmosphere-crossing orbit";
+                    why = (static_cast<int>(i) == active_ ? std::string() : ship.spec().name + ": ") + b;
                     return false;
                 }
             }
-            if (ship.spec().building() || ship.crashed() || ship.on_rails() || parked_for_warp(i))
-                continue;
-            const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
-            if (!b.empty())
+            const int soi = ship.telemetry().soi;
+            const Body &planet = universe.bodies[static_cast<std::size_t>(soi)];
+            sl::OrbitElements orbit;
+            if (planet.atmosphere_density > 0.0 && universe.world.orbit_of(ship.body_id(), soi, orbit) &&
+                orbit.periapsis() <= planet.radius + planet.atmosphere_scale_height * 10.0 + 1000.0)
             {
-                why = (static_cast<int>(i) == active_ ? std::string() : ship.spec().name + ": ") + b;
+                why = ship.spec().name + ": time skip unavailable for an atmosphere-crossing orbit";
+                return false;
+            }
+            std::string trajectory_error;
+            if (!skip_avoids_atmospheres(universe, ship, seconds, trajectory_error))
+            {
+                why = ship.spec().name + ": " + trajectory_error;
                 return false;
             }
         }
         std::vector<bool> was_dynamic(ships_.size(), false);
         std::vector<bool> release_hold(ships_.size(), false);
+        std::vector<bool> was_parked(ships_.size(), false);
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
             Ship &ship = *ships_[i];
             was_dynamic[i] = !ship.on_rails();
-            if (parked_for_warp(i))
+            was_parked[i] = parked_for_warp(i);
+            if (was_parked[i])
             {
                 release_hold[i] = !ship.warp_held();
                 ship.hold_for_warp(true);
@@ -1134,7 +1276,7 @@ namespace kosmos
         {
             Ship &ship = *ships_[i];
             ship.after_step(0.0);
-            if (!ship.spec().building() && parked_for_warp(i))
+            if (was_parked[i])
                 ship.advance_environment(seconds);
             if (ship.on_rails() && ship.body().rails_parent != ship.telemetry().soi)
             {

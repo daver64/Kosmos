@@ -1334,6 +1334,14 @@ namespace kosmos
               "RCS, gear and mission time preserved");
         check(std::abs(actual.environment_temperature - expected.environment_temperature) < 1e-8,
               "environmental heat state preserved");
+        Scenario failed = saved;
+        auto failed_state = std::make_shared<ShipCarryState>(*failed.ships[static_cast<std::size_t>(failed.active)].carry_state);
+        failed_state->environment_failure = "HEAT FAILURE";
+        failed.ships[static_cast<std::size_t>(failed.active)].carry_state = failed_state;
+        Scenario failed_parsed;
+        check(parse_scenario(scenario_to_json(failed), "failed-save-test.json", failed_parsed, error) &&
+              failed_parsed.ships[static_cast<std::size_t>(failed_parsed.active)].carry_state->environment_failure == "HEAT FAILURE",
+              "environmental failure cause serialized");
         check(glm::length(restored->body().position - position) < 0.01 &&
               glm::length(restored->body().velocity - velocity) < 0.001,
               "position and velocity preserved");
@@ -2215,6 +2223,66 @@ namespace kosmos
                 return fail("wreck did not retain its ground pin after warp hold ended");
             std::puts("Parked warp selftest ok");
             return 0;
+        }
+        if (sim.props.get_bool("/selftest/environment-skip"))
+        {
+            std::string why;
+            const int earth = sim.universe.find("Earth"), venus = sim.universe.find("Venus"), jupiter = sim.universe.find("Jupiter");
+            const int sun = sim.universe.find("Sun");
+            if (!ship || earth < 0 || venus < 0 || jupiter < 0 || sun < 0)
+                return 1;
+            const Body &earth_body = sim.universe.bodies[static_cast<std::size_t>(earth)];
+            const double r = earth_body.radius + 200000.0;
+            ship->place_relative(earth, sl::dvec3(r, 0, 0), sl::dvec3(0, 0, std::sqrt(earth_body.gm / r) * 0.8), sl::dquat(1, 0, 0, 0));
+            const bool crossing_blocked = !sim.skip_time(3600.0, why) && why.find("atmosphere-crossing orbit") != std::string::npos;
+            ship->place_in_orbit(earth, 200000.0, 0.0);
+            const bool long_safe_skip = sim.skip_time(86400.0, why);
+            const auto approach_earth = [&]()
+            {
+                const sl::FlightBody &primary = *sim.universe.world.body(sun);
+                const sl::FlightBody &target = *sim.universe.world.body(earth);
+                ship->place_relative(sun, target.position - primary.position + sl::dvec3(earth_body.soi * 2.0, 0, 0),
+                                     target.velocity - primary.velocity + sl::dvec3(-150000.0, 0, 0), sl::dquat(1, 0, 0, 0));
+            };
+            approach_earth();
+            const bool safe_skip = ship->telemetry().soi == sun && sim.skip_time(60.0, why);
+            approach_earth();
+            sl::OrbitElements approach;
+            const sl::FlightBody &primary = *sim.universe.world.body(sun);
+            const sl::FlightBody &target = *sim.universe.world.body(earth);
+            const double encounter_time = 2.0 * earth_body.soi / 150000.0;
+            const bool valid_approach = sim.universe.world.orbit_of(ship->body_id(), sun, approach);
+            const auto separation = [&](double elapsed)
+            {
+                const sl::dvec3 vessel = sl::state_from_orbit(primary.gm, approach, elapsed).position;
+                const sl::dvec3 planet_pos = sl::state_from_orbit(primary.gm, target.rails_orbit,
+                    sim.universe.time() + elapsed - target.rails_epoch).position;
+                return glm::length(vessel - planet_pos);
+            };
+            const bool missed_by_endpoints = valid_approach && separation(0.0) > earth_body.soi &&
+                separation(encounter_time) < earth_body.radius && separation(30000.0) > earth_body.soi;
+            const bool encounter_blocked = ship->telemetry().soi == sun && !sim.skip_time(30000.0, why) &&
+                                           why.find("Earth") != std::string::npos;
+            sim.props.set_int("/sim/warp-index", 10);
+            sim.step(0.3);
+            const bool warp_slows = sim.current_warp() < 100000.0 && ship->telemetry().soi == sun;
+            sim.props.set_int("/sim/warp-index", 0);
+            const Body &venus_body = sim.universe.bodies[static_cast<std::size_t>(venus)];
+            ship->place_relative(venus, sl::dvec3(venus_body.radius + 100.0, 0, 0), sl::dvec3(0), sl::dquat(1, 0, 0, 0));
+            const bool exposure_blocked = !sim.skip_time(60.0, why) && why.find("environmental exposure") != std::string::npos;
+            const Body &giant = sim.universe.bodies[static_cast<std::size_t>(jupiter)];
+            const sl::FlightBody &planet = *sim.universe.world.body(jupiter);
+            const sl::dvec3 offset(giant.radius + 10.0, 0, 0);
+            ship->place_relative(jupiter, offset, glm::cross(planet.spin_axis * giant.spin, offset) + sl::dvec3(-20.0, 0, 0),
+                                 sl::dquat(1, 0, 0, 0));
+            sim.step(1.0);
+            const bool descended = ship->telemetry().soi == jupiter && ship->telemetry().altitude < 0.0 &&
+                                   !ship->telemetry().landed && !ship->crashed() && ship->health() > 0.0;
+            const bool ok = crossing_blocked && long_safe_skip && safe_skip && missed_by_endpoints && encounter_blocked &&
+                            warp_slows && exposure_blocked && descended;
+            std::printf("environment selftest: %d failure(s) (crossing %d, long skip %d, safe skip %d, flyby %d, encounter %d, warp %d, exposure %d, descent %d)\n",
+                        ok ? 0 : 1, crossing_blocked, long_safe_skip, safe_skip, missed_by_endpoints, encounter_blocked, warp_slows, exposure_blocked, descended);
+            return ok ? 0 : 1;
         }
         if (sim.props.get_bool("/selftest/warp-atmosphere"))
         {

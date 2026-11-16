@@ -113,6 +113,14 @@ int main()
         load_haze({{"close_orbit_haze", nullptr}}, false, 0.0);
     }
     {
+        const nlohmann::json system = {{"bodies", {{{"name", "Test"}, {"kind", "star"}, {"radius", 1000000.0}, {"gm", 1.0e14},
+            {"atmosphere", {{"profile", {{0.0, 1.0, 100000.0, 300.0}, {1000.0, 2.0, 90000.0, 290.0}}}}}}}}};
+        Universe universe;
+        std::string error;
+        assert(!universe.load_text(system.dump(), "invalid-profile.json", error));
+        assert(error.find("profile") != std::string::npos);
+    }
+    {
         constexpr double au = 149597870700.0;
         const float earth = stellar_light_scale(1.0, au);
         const float jupiter = stellar_light_scale(1.0, 5.2 * au);
@@ -1330,6 +1338,29 @@ int main()
         rated.environment.max_temperature = 1000.0;
         const int earth = universe.find("Earth"), venus = universe.find("Venus"), jupiter = universe.find("Jupiter");
         assert(earth >= 0 && venus >= 0 && jupiter >= 0);
+        const auto &venus_atmosphere = universe.world.body(venus)->atmosphere;
+        const auto venus_surface = venus_atmosphere.sample(0.0);
+        assert(std::fabs(venus_surface.pressure - 9200000.0) < 1.0 && std::fabs(venus_surface.temperature - 735.0) < 0.01);
+        const auto &giant_atmosphere = universe.world.body(jupiter)->atmosphere;
+        const auto giant_reference = giant_atmosphere.sample(0.0);
+        const auto giant_deep = giant_atmosphere.sample(-250000.0);
+        assert(!universe.bodies[static_cast<std::size_t>(jupiter)].solid_surface);
+        assert(std::fabs(giant_reference.pressure - 100000.0) < 1.0 && std::fabs(giant_deep.pressure - 10000000.0) < 1.0);
+        for (const int body : {venus, jupiter})
+        {
+            const auto &atmosphere = universe.world.body(body)->atmosphere;
+            const auto &points = atmosphere.profile();
+            for (std::size_t i = 1; i + 1 < points.size(); ++i)
+            {
+                const auto below = atmosphere.sample(points[i].altitude - 0.01);
+                const auto above = atmosphere.sample(points[i].altitude + 0.01);
+                assert(std::isfinite(below.density) && std::isfinite(above.pressure) && std::isfinite(above.temperature));
+                assert(below.density > above.density && below.pressure > above.pressure);
+                assert(std::fabs(below.density - above.density) < points[i].density * 1e-4);
+                assert(std::fabs(below.pressure - above.pressure) < points[i].pressure * 1e-4);
+                assert(std::fabs(below.temperature - above.temperature) < points[i].temperature * 1e-4);
+            }
+        }
         const auto place = [&](Ship &ship, int planet, double altitude)
         {
             ship.place_relative(planet, sl::dvec3(universe.bodies[static_cast<std::size_t>(planet)].radius + altitude, 0, 0),

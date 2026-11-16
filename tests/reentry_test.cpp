@@ -127,6 +127,9 @@ int main()
     warhead.enabled = true;
     warhead.nose_radius = 0.05;
     assert(stagnation_flux(1e-3, 6000.0, warhead.nose_radius) > 9.0 * stagnation_flux(1e-3, 6000.0, 4.7));
+    ThermalState warm_skin;
+    step_thermal(tiles, warm_skin, 65.0, 0.0, 1.0, 735.0, 1.0);
+    assert(warm_skin.temp > 288.0 && warm_skin.temp < 735.0);
 
     // The restoring moment points toward the trim attitude: flow dead ahead of the axis pitches the nose toward the trim direction.
     HypersonicSpec trim;

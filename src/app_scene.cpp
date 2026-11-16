@@ -20,7 +20,8 @@ namespace kosmos::app
     {
     kosmos::Universe &universe = *universe_ref;
     const kosmos::Telemetry &tm = *tm_ref;
-        if ((near_earth || local_sky) && gfx_style == 0)
+        const bool inside_giant = local_sky && !universe.bodies[static_cast<std::size_t>(tm.soi)].solid_surface && eye_soi_altitude < 0.0;
+        if ((near_earth || local_sky) && !inside_giant && gfx_style == 0)
             sl::draw_sky_3d();
         light = sl::Light3D();
         light.direction = environment.sun_direction;
@@ -144,6 +145,19 @@ namespace kosmos::app
     const kosmos::Telemetry &tm = *tm_ref;
         // Where the sky and the stars sit: inside the far plane, and beyond the near plane even when that is pushed out by a distant nearest body.
         backdrop = std::clamp(std::min(camera.far_plane * 0.05, camera.near_plane * 1.0e5), camera.near_plane * 1.5, camera.far_plane * 0.9);
+        const kosmos::Body &local_body = universe.bodies[static_cast<std::size_t>(tm.soi)];
+        if (local_sky && !local_body.solid_surface && eye_soi_altitude < 0.0 && gfx_style == 0)
+        {
+            const float daylight = std::clamp(glm::dot(environment.up, environment.sun_direction) * 0.5f + 0.5f, 0.08f, 1.0f);
+            sl::Material cloud;
+            cloud.lit = false;
+            cloud.fog = false;
+            cloud.cull = sl::CullMode::none;
+            cloud.tint = {static_cast<std::uint8_t>(local_body.atmosphere_colour[0] * daylight * 100.0f),
+                          static_cast<std::uint8_t>(local_body.atmosphere_colour[1] * daylight * 100.0f),
+                          static_cast<std::uint8_t>(local_body.atmosphere_colour[2] * daylight * 100.0f), 255};
+            sl::draw_mesh(vis.sphere, glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(backdrop))), cloud);
+        }
         // Every star is a real sphere at its true angular size, placed inside the far plane without changing how big it looks.
         place_star = [&](std::size_t i) -> StarPlace
         {
