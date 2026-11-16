@@ -27,6 +27,13 @@ def pack(data=b"scenery", url=None):
             "url": url or release.BASE + "latest/download/earth.tar.gz"}
 
 
+def kosmos_pack(data=b"kosmos scenery"):
+    return {"id": "kosmos-hires-maps", "file": "kosmos-hires-maps.tar.gz",
+            "marker": "data/kosmos-hires/maps/.complete", "remove": "data/kosmos-hires/maps",
+            "size": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+            "url": release.BASE + "download/v0.51/kosmos-hires-maps.tar.gz"}
+
+
 class FakeGitHub:
     def __init__(self):
         self.tag = "v0.51"
@@ -185,7 +192,23 @@ class ReleaseTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             release.validate_catalogue({"packs": [bad]})
 
-    def run_publish(self, corrupt=False):
+    def test_keeps_published_kosmos_pack_when_custom_catalogue_omits_it(self):
+        previous = {"packs": [pack(), kosmos_pack()]}
+        current = {"packs": [pack()]}
+        with tempfile.TemporaryDirectory() as temp, patch.object(release, "run") as run:
+            result, uploads = release.include_kosmos_hires(previous, current, [], Path(temp), "v0.52")
+        self.assertEqual(result["packs"], [pack(), kosmos_pack()])
+        self.assertEqual(uploads, [])
+        run.assert_not_called()
+
+    def test_rejects_invalid_kosmos_pack_paths(self):
+        invalid = kosmos_pack()
+        invalid["marker"] = "data/other/.complete"
+        invalid["remove"] = "data/other"
+        with tempfile.TemporaryDirectory() as temp, self.assertRaisesRegex(ValueError, "Invalid Kosmos hi-res"):
+            release.include_kosmos_hires({"packs": []}, {"packs": [invalid]}, [], Path(temp), "v0.52")
+
+    def run_publish(self, corrupt=False, missing_source=False):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "VERSION").write_text("0.52\n")
@@ -230,6 +253,16 @@ class ReleaseTest(unittest.TestCase):
 
             def run(args, **kwargs):
                 commands.append(args)
+                if Path(args[1]).name == "pack-kosmos-hires.py":
+                    if missing_source:
+                        raise ValueError("Missing or empty source file")
+                    output = Path(args[-1])
+                    output.mkdir()
+                    data = b"kosmos scenery"
+                    (output / "kosmos-hires-maps.tar.gz").write_bytes(data)
+                    catalogue = json.loads(Path(args[-2]).read_text())
+                    catalogue["packs"].append(kosmos_pack(data))
+                    (output / "packs.json").write_text(json.dumps(catalogue))
                 if args[:2] == ["git", "rev-parse"]:
                     return "a" * 40
                 if args[:2] == ["git", "-C"] and "rev-parse" in args:
@@ -240,7 +273,12 @@ class ReleaseTest(unittest.TestCase):
             with patch.object(release, "ROOT", root), patch.object(release, "run", run), \
                     patch.object(release, "GitHub", return_value=fake), \
                     patch.dict("os.environ", {"KOSMOS_SIMLIB_DIR": str(simlib)}):
-                if corrupt:
+                if missing_source:
+                    with self.assertRaisesRegex(ValueError, "Missing or empty source"):
+                        release.publish(args)
+                    self.assertFalse(any(c[:2] == ("release", "create") for c in fake.commands))
+                    self.assertEqual((root / "VERSION").read_text(), "0.52\n")
+                elif corrupt:
                     with self.assertRaisesRegex(ValueError, "verification"):
                         release.publish(args)
                     self.assertEqual((root / "VERSION").read_text(), "0.52\n")
@@ -250,7 +288,9 @@ class ReleaseTest(unittest.TestCase):
                     self.assertEqual((root / "VERSION").read_text(), "0.53\n")
                     catalogue = json.loads(fake.contents["v0.52"]["packs.json"])
                     self.assertEqual(catalogue["packs"][0]["url"], release.BASE + "download/v0.51/earth.tar.gz")
+                    self.assertEqual(catalogue["packs"][1]["url"], release.BASE + "download/v0.52/kosmos-hires-maps.tar.gz")
                     self.assertNotIn("earth.tar.gz", fake.contents["v0.52"])
+                    self.assertEqual(fake.contents["v0.52"]["kosmos-hires-maps.tar.gz"], b"kosmos scenery")
                     self.assertTrue(any(c[:2] == ("release", "edit") for c in fake.commands))
                     self.assertTrue(any("run-tests.sh" in str(c) for c in commands))
 
@@ -259,6 +299,9 @@ class ReleaseTest(unittest.TestCase):
 
     def test_verification_failure_keeps_draft(self):
         self.run_publish(corrupt=True)
+
+    def test_missing_kosmos_source_stops_before_creating_draft(self):
+        self.run_publish(missing_source=True)
 
 
 if __name__ == "__main__":

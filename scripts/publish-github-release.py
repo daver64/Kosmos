@@ -167,6 +167,38 @@ def prepare_catalogue(previous, pack_dir, tag):
     return current, uploads
 
 
+def include_kosmos_hires(previous, catalogue, uploads, work, tag):
+    ident = "kosmos-hires-maps"
+    filename = "kosmos-hires-maps.tar.gz"
+    marker = "data/kosmos-hires/maps/.complete"
+    remove = "data/kosmos-hires/maps"
+    pack = next((p for p in catalogue["packs"] if p["id"] == ident), None)
+    if pack is None:
+        pack = next((p for p in previous["packs"] if p["id"] == ident), None)
+        if pack is not None:
+            catalogue["packs"].append(dict(pack))
+        else:
+            source = ROOT / "import/celestia/hires"
+            base = work / "kosmos-base-packs.json"
+            output = work / "kosmos-hires"
+            base.write_text(json.dumps(catalogue))
+            print("Preparing the non-commercial Kosmos hi-res Earth pack.", flush=True)
+            run([sys.executable, ROOT / "scripts/pack-kosmos-hires.py", source, base, output])
+            catalogue = validate_catalogue(json.loads((output / "packs.json").read_text()))
+            pack = next((p for p in catalogue["packs"] if p["id"] == ident), None)
+            if pack is None:
+                raise ValueError("Generated scenery catalogue is missing the Kosmos hi-res pack")
+            archive = output / filename
+            if not archive.is_file() or archive.stat().st_size != pack["size"] or digest(archive) != pack["sha256"]:
+                raise ValueError(f"Generated Kosmos hi-res archive does not match catalogue: {archive}")
+            pack["url"] = BASE + "download/" + tag + "/" + filename
+            uploads.append(archive)
+    pack = next(p for p in catalogue["packs"] if p["id"] == ident)
+    if (pack["file"] != filename or pack["marker"] != marker or pack.get("remove") != remove):
+        raise ValueError("Invalid Kosmos hi-res pack paths in scenery catalogue")
+    return validate_catalogue(catalogue), uploads
+
+
 def verify_assets(github, tag, files, release, directory):
     assets = {asset["name"]: asset for asset in release["assets"]}
     for path in files:
@@ -274,6 +306,7 @@ def publish(args):
         work = Path(temp)
         previous = previous_catalogue(github, latest, work)
         catalogue, scenery = prepare_catalogue(previous, args.packs_dir, tag)
+        catalogue, scenery = include_kosmos_hires(previous, catalogue, scenery, work, tag)
         env = dict(os.environ, JOBS="4")
         env.pop("INCREMENTAL", None)
         env.pop("OUT", None)

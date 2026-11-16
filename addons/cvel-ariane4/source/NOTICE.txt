@@ -3,3 +3,4 @@ See Ariane4beta1.txt for the original attribution and licensing information.
 The project owner confirmed permission to convert the Ariane 4 meshes for this
 addon. The MSH meshes and DDS textures were converted to OBJ/MTL and PNG for
 Kosmos using tools/msh_import.py.
+The converted fairing vertex normals were reversed to match the face winding.

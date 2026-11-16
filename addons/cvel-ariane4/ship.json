@@ -12,10 +12,10 @@
   {
    "name":"Liquid boosters","dry_mass":17972,"propellant":157116,"z":4,"length":16.4,"radius":4.3,"radial_parts":true,"separation_speed":2.5,
    "engines":[
-    {"position":[-2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[-2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"}
+    {"position":[-2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":40,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":40,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":40,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[-2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":40,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"}
    ],
    "gear":[[3,3,12.5],[-3,3,12.5],[3,-3,12.5],[-3,-3,12.5]],
    "parts":[
@@ -28,23 +28,23 @@
   {
    "name":"First stage","ignite_with_previous":true,"dry_mass":17900,"propellant":228000,"z":0,"length":23.6,"radius":2.7,"separation_speed":2,
    "engines":[
-    {"position":[0,1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[0,-1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
-    {"position":[-1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"}
+    {"position":[0,1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":45,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":45,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[0,-1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":45,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"},
+    {"position":[-1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":45,"plume_width":1,"plume_density":4,"type":"rocket","fuel":"hypergolic"}
    ],
    "parts":[{"model":"models/stage1.obj"},{"model":"models/sep12.obj","offset":[0,0,-13.62]}]
   },
   {
    "name":"Second stage","dry_mass":3625,"propellant":33505,"z":-17.4,"length":10.4,"radius":1.4,"separation_speed":2,"with_next":true,
-   "engines":[{"position":[0,0,-12],"direction":[0,0,-1],"thrust":778120,"isp":296,"plume":12,"plume_width":0.65,"type":"rocket","fuel":"hypergolic"}],
+   "engines":[{"position":[0,0,-12],"direction":[0,0,-1],"thrust":778120,"isp":296,"plume":20,"plume_width":0.75,"plume_density":2,"type":"rocket","fuel":"hypergolic"}],
    "parts":[{"model":"models/stage2.obj","offset":[0,0,-17.4]},{"model":"models/sep23.obj","offset":[0,0,-23.95]}]
   },
   {"name":"Fairing left","dry_mass":250,"propellant":0,"z":-38.2,"length":11.6,"radius":1.8,"separation_speed":2,"separation_dir":[-1,0,0],"with_next":true,"parts":[{"model":"models/fairing_2.obj","offset":[-0.85,0,-38.2]}]},
   {"name":"Fairing right","dry_mass":250,"propellant":0,"z":-38.2,"length":11.6,"radius":1.8,"separation_speed":2,"separation_dir":[1,0,0],"parts":[{"model":"models/fairing_1.obj","offset":[0.85,0,-38.2]}]},
   {
    "name":"Third stage","dry_mass":1570,"propellant":10740,"z":-28.05,"length":9.4,"radius":1.8,
-   "engines":[{"position":[0,0,-23],"direction":[0,0,-1],"thrust":61910,"isp":446.1,"plume":6,"plume_width":0.5,"type":"rocket","fuel":"hydrogen"}],
+   "engines":[{"position":[0,0,-23],"direction":[0,0,-1],"thrust":61910,"isp":446.1,"plume":9,"plume_width":0.5,"plume_density":2,"type":"rocket","fuel":"hydrogen"}],
    "parts":[{"model":"models/stage3.obj","offset":[0,0,-28.05]}]
   }
  ]

@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory() as directory:
                SDL_AUDIODRIVER="dummy", LP_NUM_THREADS="4")
     for scenario, duration, status, stage in (
         ("atlas_iias_kennedy", "650", "In orbit", 5),
-        ("ariane_44l_kennedy", "1400", "In orbit", 5),
+        ("ariane_44l_kourou", "1400", "In orbit", 5),
         ("atlantis_kennedy", "540", "Out of propellant", 2),
     ):
         result = subprocess.run(

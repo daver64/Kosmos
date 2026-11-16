@@ -1,6 +1,15 @@
 {
- "name":"CVEL: Atlas IIAS, Kennedy",
- "description":"CVEL Atlas IIAS on the pad at Kennedy. Press P for the launcher ascent autopilot.",
- "active":0,
- "ships":[{"ship":"CVEL Atlas IIAS","body":"Earth","surface":{"base":"kennedy"}}]
+  "active": 0,
+  "description": "CVEL Atlas IIAS on the pad at Kennedy. Press P for the launcher ascent autopilot.",
+  "name": "CVEL: Atlas IIAS, Kennedy",
+  "ships": [
+    {
+      "body": "Earth",
+      "ship": "CVEL Atlas IIAS",
+      "surface": {
+        "base": "kennedy"
+      }
+    }
+  ],
+  "thumbnail": "thumbs/atlas_iias_kennedy-1794839939939872515-0.png"
 }
