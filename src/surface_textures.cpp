@@ -179,10 +179,10 @@ namespace kosmos::app
         return {};
     }
 
-    // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
+    // User overrides take precedence over the optional managed pack and bundled textures.
     std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions)
     {
-        for (const char *directory : {"/data/textures-hires/", "/data/textures/"})
+        for (const char *directory : {"/data/textures-hires/", "/data/kosmos-hires/maps/", "/data/textures/"})
         {
             const std::string path = find_texture_in_directory(root, directory, name, extensions);
             if (!path.empty())
@@ -202,6 +202,16 @@ namespace kosmos::app
             if (entry.path().extension() == ".ctx")
                 return entry.path().string();
         return directory;
+    }
+
+    std::string find_managed_earth_tiles(const std::string &root, const kosmos::Body &body)
+    {
+        if (body.name != "Earth" || !body.texture.empty() ||
+            !std::filesystem::is_regular_file(root + "/data/kosmos-hires/maps/.complete") ||
+            !find_texture_in_directory(root, "/data/textures-hires/", "earth", {".dds", ".png", ".jpg", ".jpeg"}).empty() ||
+            !find_texture_in_directory(root, "/data/textures-hires/", "earth_normal", {".dds", ".png", ".jpg", ".jpeg"}).empty())
+            return {};
+        return find_tile_source(root + "/data/kosmos-hires/maps/earth");
     }
 
     std::string find_image_in_folder(const std::string &directory, const std::string &prefer)
@@ -299,6 +309,9 @@ namespace kosmos::app
         const std::string override = find_texture_in_directory(root, "/data/textures-hires/", lower, {".dds", ".png", ".jpg", ".jpeg"});
         if (!override.empty())
             return override;
+        const std::string managed = find_texture_in_directory(root, "/data/kosmos-hires/maps/", lower, {".dds", ".png", ".jpg", ".jpeg"});
+        if (!managed.empty())
+            return managed;
         const std::string celestia = find_image_in_folder(root + "/import/celestia/hires/" + lower, lower);
         if (!celestia.empty())
             return celestia;

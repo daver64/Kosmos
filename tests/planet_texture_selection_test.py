@@ -7,6 +7,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from PIL import Image
+
 root = Path(__file__).resolve().parents[1]
 binary = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root / "build/kosmos"
 
@@ -19,7 +21,7 @@ with tempfile.TemporaryDirectory() as directory:
     data = fixture / "data"
     data.mkdir()
     for entry in (root / "data").iterdir():
-        if entry.name not in ("textures", "textures-hires"):
+        if entry.name not in ("textures", "textures-hires", "kosmos-hires"):
             (data / entry.name).symlink_to(entry, target_is_directory=entry.is_dir())
     textures = data / "textures"
     textures.mkdir()
@@ -50,4 +52,48 @@ with tempfile.TemporaryDirectory() as directory:
     output = render("override")
     assert f"surface texture {hires / 'venus.jpg'}: 2048x1024" in output, output
     assert f"surface texture {textures / 'venus.jpg'}:" not in output, output
-print("planet texture selection: shipped maps and hi-res override passed")
+
+    managed = data / "kosmos-hires/maps"
+    managed.mkdir(parents=True)
+    for body in ("earth", "moon", "mars", "venus"):
+        (managed / (body + ".jpg")).symlink_to(root / "data/textures/planets" / (body + ".jpg"))
+    (managed / "earth_normal.jpg").symlink_to(root / "data/textures/planets/earth.jpg")
+    (managed / "earth_lights.jpg").symlink_to(root / "data/textures/planets/earth.jpg")
+    Image.new("RGBA", (16, 8), (200, 200, 200, 255)).save(managed / "earth_clouds.dds")
+    output = render("managed")
+    for body in ("earth", "moon", "mars"):
+        assert f"surface texture {managed / (body + '.jpg')}:" in output, output
+    assert f"surface texture {managed / 'earth_normal.jpg'}:" in output, output
+    assert f"surface texture {managed / 'earth_clouds.dds'}:" in output, output
+    assert f"Earth night lights: {managed / 'earth_lights.jpg'}" in output, output
+    assert f"surface texture {hires / 'venus.jpg'}:" in output, output
+    assert f"surface texture {managed / 'venus.jpg'}:" not in output, output
+
+    (hires / "earth_normal.jpg").symlink_to(root / "data/textures/planets/earth.jpg")
+    (hires / "earth_lights.jpg").symlink_to(root / "data/textures/planets/earth.jpg")
+    Image.new("RGBA", (16, 8), (150, 150, 150, 255)).save(hires / "earth_clouds.dds")
+    output = render("managed-with-overrides")
+    assert f"surface texture {hires / 'earth_normal.jpg'}:" in output, output
+    assert f"Earth night lights: {hires / 'earth_lights.jpg'}" in output, output
+    assert f"surface texture {hires / 'earth_clouds.dds'}:" in output, output
+    assert f"surface texture {managed / 'earth_normal.jpg'}:" not in output, output
+
+    (hires / "earth_normal.jpg").unlink()
+    tiles = managed / "earth"
+    (tiles / "tiles/level0").mkdir(parents=True)
+    (tiles / "tiles.ctx").write_text('VirtualTexture { ImageDirectory "tiles" BaseSplit 0 TileSize 16 TileType "dds" }\n')
+    for column in range(2):
+        Image.new("RGBA", (16, 16), (40, 100, 160, 255)).save(tiles / f"tiles/level0/tx_{column}_0.dds")
+    output = render("incomplete-managed-tiles")
+    assert f"Earth tiles: colour={tiles / 'tiles.ctx'}" not in output, output
+    (managed / ".complete").touch()
+    output = render("managed-tiles")
+    assert f"Earth tiles: colour={tiles / 'tiles.ctx'}" in output, output
+    assert f"Earth terrain imagery candidate: {tiles / 'tiles.ctx'}" in output, output
+
+    (hires / "earth.jpg").symlink_to(root / "data/textures/planets/earth.jpg")
+    output = render("managed-tiles-with-override")
+    assert f"Earth tiles: colour={tiles / 'tiles.ctx'}" not in output, output
+    assert f"Earth terrain imagery candidate: {tiles / 'tiles.ctx'}" not in output, output
+    assert f"surface texture {hires / 'earth.jpg'}:" in output, output
+print("planet texture selection: shipped, managed and user overrides passed")

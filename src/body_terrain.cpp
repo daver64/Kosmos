@@ -301,7 +301,9 @@ namespace kosmos::app
         for (char &c : lower_name)
             c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         std::vector<std::shared_ptr<kosmos::CelestiaImagery>> surface_imagery;
-        const std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
+        std::string celestia_tiles = find_tile_source(sim.root() + "/import/celestia/hires/" + lower_name);
+        if (celestia_tiles.empty())
+            celestia_tiles = find_managed_earth_tiles(sim.root(), b);
         const std::string surface_image = find_surface_image(sim.root(), b);
         std::vector<std::string> surface_paths;
         const bool generated_ground = b.style.use_generated_ground(b.real_world);

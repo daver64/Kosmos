@@ -1,0 +1,18 @@
+Kosmos high-resolution Earth imagery
+
+The Earth surface tiles are Jestr's Earth Mark II virtual texture, based
+largely on NASA Blue Marble imagery. Original tiles and the source readme
+are included unchanged. Source: Celestia Motherlode, 32K Earth Mark II:
+http://www.celestiamotherlode.net/addon/addon_61.html
+
+The Celestia Motherlode states that files on the site are freely
+distributable for non-commercial use, subject to the source creator's
+terms: http://www.celestiamotherlode.net/legal.html
+The Earth Mark II listing does not specify a more precise licence. This
+pack is therefore distributed for non-commercial use only.
+
+The Earth normal-map tiles are by Harald Schmidt, based on NASA Blue Marble
+topography by Reto Stockli, NASA Goddard Space Flight Center. The original
+tiles and readme are included unchanged. Celestia Motherlode identifies
+this normal map as public domain:
+https://www.celestiamotherlode.net/addon/addon_488.html

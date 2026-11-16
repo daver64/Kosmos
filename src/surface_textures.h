@@ -20,11 +20,13 @@ namespace kosmos::app
     std::string find_texture_in_directory(const std::string &root, const std::string &directory, const std::string &name,
                                           std::initializer_list<const char *> extensions);
 
-    // A texture by name: data/textures-hires/ (optional, not in the repository) wins over the default set in data/textures/.
+    // A texture by name: user overrides, then the managed hi-res pack, then bundled textures.
     std::string find_texture_file(const std::string &root, const std::string &name, std::initializer_list<const char *> extensions);
 
     // The first .ctx in a Celestia virtual-texture folder, or the folder itself when it has none. Empty if the folder is missing.
     std::string find_tile_source(const std::string &directory);
+
+    std::string find_managed_earth_tiles(const std::string &root, const kosmos::Body &body);
 
     std::string find_image_in_folder(const std::string &directory, const std::string &prefer = {});
 

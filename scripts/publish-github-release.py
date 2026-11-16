@@ -154,12 +154,14 @@ def prepare_catalogue(previous, pack_dir, tag):
     uploads = []
     for pack in current["packs"]:
         path = pack_dir / pack["file"]
-        if not path.is_file() or path.stat().st_size != pack["size"] or digest(path) != pack["sha256"]:
-            raise ValueError(f"Local scenery archive does not match catalogue: {path}")
         existing = old.get(pack["file"])
         if existing and existing["sha256"] == pack["sha256"] and existing["size"] == pack["size"]:
+            if path.exists() and (not path.is_file() or path.stat().st_size != pack["size"] or digest(path) != pack["sha256"]):
+                raise ValueError(f"Local scenery archive does not match catalogue: {path}")
             pack["url"] = existing["url"]
         else:
+            if not path.is_file() or path.stat().st_size != pack["size"] or digest(path) != pack["sha256"]:
+                raise ValueError(f"Local scenery archive does not match catalogue: {path}")
             pack["url"] = BASE + "download/" + tag + "/" + pack["file"]
             uploads.append(path)
     return current, uploads

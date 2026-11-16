@@ -164,6 +164,9 @@ class ReleaseTest(unittest.TestCase):
             result, uploads = release.prepare_catalogue(previous, directory, "v0.52")
             self.assertEqual(uploads, [])
             self.assertEqual(result["packs"][0]["url"], previous["packs"][0]["url"])
+            (directory / "earth.tar.gz").write_bytes(b"bad")
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                release.prepare_catalogue(previous, directory, "v0.52")
             (directory / "earth.tar.gz").write_bytes(b"new")
             (directory / "packs.json").write_text(json.dumps({"packs": [pack(b"new")]}))
             result, uploads = release.prepare_catalogue(previous, directory, "v0.52")

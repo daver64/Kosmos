@@ -1,0 +1,5 @@
+CVE-Lite Atlantis was adapted by David Henderson from Martin Schweiger's
+Orbiter Atlantis. See CVELAtlantis.txt for the original addon documentation.
+The Atlantis, external tank and SRB meshes and textures were converted from
+the Orbiter source checkout using tools/msh_import.py. See ORBITER-LICENSE.txt
+for Martin Schweiger's copyright and the Orbiter MIT licence.

@@ -1,3 +1,4 @@
+# Converted from Alex Hohlov's Atlas II Orbiter meshes and textures on 2026-11-16 using tools/msh_import.py (MSH to OBJ/MTL and DDS to PNG); see source/AtlasII.txt and source/The Artistic License.txt.
 newmtl material01
 Kd 1.000 1.000 1.000
 Ks 1.000 1.000 1.000

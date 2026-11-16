@@ -1030,7 +1030,7 @@ namespace
             const bool ok = i != wxNOT_FOUND;
             const bool queued = ok && std::find(pack_queue_.begin(), pack_queue_.end(), packs_[i].id) != pack_queue_.end();
             pack_install_->SetLabel(busy_ || !pack_queue_.empty() ? "Add to queue" : "Download and install");
-            pack_install_->Enable(queue_available_ && ok && !queued && !(packs_[i].installed && (packs_[i].tree || packs_[i].minor_bodies || packs_[i].id.rfind("orbiter-default-", 0) == 0)));
+            pack_install_->Enable(queue_available_ && ok && !queued && !(packs_[i].installed && (packs_[i].tree || packs_[i].minor_bodies || packs_[i].id.rfind("orbiter-default-", 0) == 0 || packs_[i].id == "kosmos-hires-maps")));
             pack_dequeue_->Enable(queue_available_ && queued && packs_[i].id != active_pack_);
             pack_pause_->SetLabel(pack_paused_ ? "Resume downloads" : "Pause downloads");
             pack_pause_->Enable(queue_available_ && !pack_queue_.empty() && !pack_cancelling_);
@@ -1086,7 +1086,7 @@ namespace
                 return;
             }
             const PackInfo pack = *found;
-            if (pack.installed && (pack.tree || pack.minor_bodies || pack.id.rfind("orbiter-default-", 0) == 0))
+            if (pack.installed && (pack.tree || pack.minor_bodies || pack.id.rfind("orbiter-default-", 0) == 0 || pack.id == "kosmos-hires-maps"))
             {
                 auto next = pack_queue_;
                 next.erase(next.begin());
@@ -1117,7 +1117,8 @@ namespace
             DownloadArchive(pack.file, pack.sha256, root_, pack_gauge_, [this, pack](bool ok, const std::string &msg)
                             {
                                 std::string error = msg;
-                                if (!ok && !pack_cancelling_ && pack_phase_ == PackPhase::install && pack.id.rfind("orbiter-default-", 0) == 0)
+                                if (!ok && !pack_cancelling_ && pack_phase_ == PackPhase::install &&
+                                    (pack.id.rfind("orbiter-default-", 0) == 0 || pack.id == "kosmos-hires-maps"))
                                 {
                                     std::error_code ec;
                                     fs::remove(root_ / pack.marker, ec);

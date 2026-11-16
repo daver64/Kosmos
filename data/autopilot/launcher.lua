@@ -212,7 +212,7 @@ function update(dt)
     if phase == "gravity-turn" and get("stage-fuel") < fuel_limit then
       if stage < config.last then
         stage_or_resume("gravity-turn")
-      elseif apoapsis < target then
+      elseif apoapsis < target or config.coast_margin then
         finish("Out of propellant")
       end
     end

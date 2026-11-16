@@ -37,6 +37,8 @@ namespace kosmos::app
                 std::string lower = body.name;
                 std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
                 path = find_texture_in_directory(root, "/data/textures-hires/", lower + "_clouds", {".dds", ".png"});
+                if (path.empty())
+                    path = find_texture_in_directory(root, "/data/kosmos-hires/maps/", lower + "_clouds", {".dds", ".png"});
             }
             if (path.empty())
                 return nullptr;
@@ -299,6 +301,9 @@ namespace kosmos::app
                 std::string celestia_normal = find_texture_in_directory(sim.root(), "/data/textures-hires/", lower + "_normal",
                                                                          {".dds", ".png", ".jpg", ".jpeg"});
                 if (celestia_normal.empty())
+                    celestia_normal = find_texture_in_directory(sim.root(), "/data/kosmos-hires/maps/", lower + "_normal",
+                                                                 {".dds", ".png", ".jpg", ".jpeg"});
+                if (celestia_normal.empty())
                     celestia_normal = find_image_in_folder(sim.root() + "/import/celestia/hires/" + lower + "_normal");
                 if (celestia_normal.empty())
                     celestia_normal = find_texture_in_directory(sim.root(), "/data/textures/", lower + "_normal",
@@ -420,6 +425,12 @@ namespace kosmos::app
                         tiles.specular = find_tile_source(hires + "earth_specular");
                         if (!options.no_relief)
                             tiles.normal = find_tile_source(hires + "earth_normal/textures/medres/earth-normals-hs-32k");
+                        if (tiles.colour.empty())
+                        {
+                            tiles.colour = find_managed_earth_tiles(sim.root(), sim.universe.bodies[static_cast<std::size_t>(home_body)]);
+                            if (!tiles.colour.empty() && !options.no_relief && tiles.normal.empty())
+                                tiles.normal = find_tile_source(sim.root() + "/data/kosmos-hires/maps/normal");
+                        }
                         if (tiles.colour.empty() && sim.universe.bodies[static_cast<std::size_t>(home_body)].name == "Earth")
                         {
                             const std::string defaults = sim.root() + "/data/orbiter-defaults/earth/";

@@ -7,7 +7,7 @@ Keep source data separate from the images Kosmos loads at runtime:
 | Celestia texture collections and virtual-tile packs | `import/celestia/` | `data/textures/` for bundled defaults, `data/textures-hires/` for optional single-image overrides |
 | Orbiter archives and `Surf.tree` data | `import/orbiter/` | `data/textures-hires/` for optional converted maps |
 
-The repository and release contain low-resolution runtime fallback textures. Large Celestia and Orbiter source packs and high-resolution output overrides are not shipped. The `import/celestia/hires/` source directory, `import/orbiter/` and `data/textures-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages.
+The repository and game release contain low-resolution runtime fallback textures. Large Celestia and Orbiter source packs, high-resolution output overrides and separately managed maps are not included. The `import/celestia/hires/` source directory, `import/orbiter/`, `data/textures-hires/` and `data/kosmos-hires/` are git-ignored; the source-only `import/celestia/moons/` tree is excluded from release packages.
 
 ## Celestia
 
@@ -18,7 +18,7 @@ python3 tools/celestia_import.py --list
 python3 tools/celestia_import.py
 ```
 
-Use `--out data/textures-hires` to install optional high-resolution overrides instead. The game searches `data/textures-hires/` before Celestia's `import/celestia/hires/<body>/` folder, then falls back to `data/textures/`.
+Use `--out data/textures-hires` to install optional high-resolution overrides instead. The game searches `data/textures-hires/`, then any managed maps in `data/kosmos-hires/maps/`, then Celestia's `import/celestia/hires/<body>/` folder, followed by `data/textures/` and `data/textures/planets/`. An explicit body texture takes precedence.
 
 ### Organizing moon sources
 

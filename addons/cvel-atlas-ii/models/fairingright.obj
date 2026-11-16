@@ -1,3 +1,4 @@
+# Converted from Alex Hohlov's Atlas II Orbiter meshes and textures on 2026-11-16 using tools/msh_import.py (MSH to OBJ/MTL and DDS to PNG); see source/AtlasII.txt and source/The Artistic License.txt.
 # converted from an Orbiter .msh by msh_import.py
 mtllib fairingright.mtl
 o group0

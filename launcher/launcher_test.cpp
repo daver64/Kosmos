@@ -44,6 +44,14 @@ static void check_github_catalogue(const launcher::fs::path &root)
         CHECK(github[0].url == "https://github.com/daver64/Kosmos/releases/latest/download/earth.tar.gz");
         CHECK(github[1].url == "https://github.com/daver64/Kosmos/releases/download/v0.51/earth.tar.gz");
     }
+    const auto managed = launcher::parse_packs(R"({"packs":[
+      {"id":"kosmos-hires-maps","file":"kosmos-hires-maps.tar.gz","marker":"data/kosmos-hires/maps/.complete","remove":"data/kosmos-hires/maps","sha256":"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad","url":"https://github.com/daver64/Kosmos/releases/latest/download/kosmos-hires-maps.tar.gz"}]})", root);
+    CHECK(managed.size() == 1);
+    if (managed.size() == 1)
+    {
+        CHECK(managed[0].marker == "data/kosmos-hires/maps/.complete");
+        CHECK(managed[0].remove == "data/kosmos-hires/maps");
+    }
 }
 
 int main(int argc, char **argv)

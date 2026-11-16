@@ -1,0 +1,5 @@
+Atlas II meshes by Alex Hohlov; CVEL Atlas II programming by Dave Rowbotham.
+See AtlasII.txt and The Artistic License.txt for the original credits and terms.
+On 2026-11-16, the Atlas II MSH meshes and DDS textures were converted to
+OBJ/MTL and PNG for Kosmos using tools/msh_import.py. The ship definition
+approximates the source launcher's staging and propulsion.

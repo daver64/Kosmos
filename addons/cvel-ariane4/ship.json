@@ -4,7 +4,7 @@
  "description":"Ariane 44L with four liquid strap-on boosters and three core stages.",
  "script":"@launcher.lua",
  "torque_accel":0.2,"max_rate":0.3,"rcs_thrust":0,"drag_area":18,
- "camera_distance":80,"camera_target":[0,0,-10],
+ "camera_distance":105,"camera_target":[0,0,-15],
  "ports":[{"name":"Payload","position":[0,0,-32.8],"direction":[0,0,-1],"up":[0,1,0],"stage":5}],
  "payload_bays":[{"name":"Fairing","shape":"cylinder","radius":1.7,"length":9,"port":"Payload"}],
  "systems":[{"type":"battery","name":"Batteries","capacity_wh":4000,"max_w":2000},{"type":"load","name":"Avionics","watts":200,"priority":0}],

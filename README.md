@@ -309,7 +309,7 @@ It requires Python 3 with the `markdown` module, `gh`, `rsync`, passwordless SSH
 
 If publication succeeds but a later step fails, inspect GitHub and run `scripts/turnkey.sh --resume <published-version>`. Resume verifies the published tag, release notes, and archive checksums, then finishes the version bump and website deployment without rebuilding or replacing assets. A failed draft must be inspected and resolved separately before a fresh attempt. `python3 scripts/publish-github-release.py` remains available for publishing without the website workflow.
 
-The script carries forward the previous release's `packs.json`, pinning unchanged scenery archives to the releases that already host them; it does not re-upload them. For changed scenery, first generate a catalogue and archives with `scripts/pack-orbiter-defaults.py`, then pass `--packs-dir OUTPUT_DIR`. Each local archive is checked against its catalogue and compared by SHA-256; byte-identical archives are reused, while changed archives are uploaded. Regenerating an archive can change its bytes even if its underlying scenery is unchanged, so omit `--packs-dir` when there are no scenery updates. The latest release's `SHA256SUMS.txt` covers assets uploaded to that release, while reused packs retain their original release checksums. The launcher's high-resolution Orbiter tree downloads use the Orbiter mirror directly, not GitHub release assets. Launchers through 0.51 do not accept version-pinned scenery URLs; update the launcher before installing standard packs from the new catalogue. Already installed scenery is unaffected.
+The script carries forward the previous release's `packs.json`, pinning unchanged scenery archives to the releases that already host them; it does not re-upload them. For changed scenery, first generate a catalogue and archives with `scripts/pack-orbiter-defaults.py`, then pass `--packs-dir OUTPUT_DIR`. New or changed archives must be present locally and match their catalogue; unchanged archives can be omitted and are reused after checking the previous published catalogue. Regenerating an archive can change its bytes even if its underlying scenery is unchanged, so omit `--packs-dir` when there are no scenery updates. The latest release's `SHA256SUMS.txt` covers assets uploaded to that release, while reused packs retain their original release checksums. The launcher's high-resolution Orbiter tree downloads use the Orbiter mirror directly, not GitHub release assets. Launchers through 0.51 do not accept version-pinned scenery URLs; update the launcher before installing standard packs from the new catalogue. Already installed scenery is unaffected.
 
 The GitHub CLI must be on `PATH` or supplied with `--gh /path/to/gh`. Failures after draft creation leave the draft for inspection; do not overwrite or replace published assets blindly. The website deployment does not copy release downloads.
 
@@ -368,7 +368,7 @@ Per world. A system has 5 to 20 bodies and the galaxy has 24,409 stars, so bake 
 
 ## Textures
 
-`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it, so high-resolution maps never touch the repository; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
+`data/textures/<body>.{dds,png,jpg}` (equirectangular) is the default surface image of a body, built from Celestia's maps so a fresh checkout works. A file of the same name in `data/textures-hires/` (git-ignored) overrides it and any launcher-managed map in `data/kosmos-hires/maps/`; `tools/gen_textures.py` generates test maps up to 16384x8192 as BC1 DDS there. `tools/orbiter_import.py` turns an Orbiter `.tree` into such a map (Earth, Mercury, Titan, Io, Europa, Enceladus, Phobos, Vesta, clouds); `tools/orbiter_tiles.py` unpacks a tree into a tile pyramid, which is how the high-resolution Earth clouds (`data/textures-hires/earth_clouds/`) are streamed.
 Earth's cloud shell remains visible from high orbit and beyond when clouds are enabled.
 DDS files are uploaded to the GPU still block-compressed (`sl::load_dds`), with the mip chain the generator bakes in: a 16k Earth is about 90 MB of VRAM and a few hundred MB of total process memory, instead of ~1.5 GB for PNGs.
 Earth transitions between its terrain mesh and tiled planetary imagery according to altitude and available assets. With Orbiter terrain relief enabled, installed imagery and elevation supply the orbital relief view; the existing renderer remains the fallback when the required assets are unavailable.
@@ -408,6 +408,8 @@ Closing during a download pauses it; the queue reopens paused and
 partial files resume when supported by the server (otherwise the download
 restarts). Verification and installation must finish before the launcher closes.
 Other Orbiter high-resolution datasets are not yet offered by the launcher.
+
+A separate Kosmos hi-res pack contains Jestr's original Celestia Earth colour tiles (levels 0-4, up to 32K) and Harald Schmidt's original normal tiles. The Celestia Motherlode states that its files are freely distributable for non-commercial use; the pack is **non-commercial only** and retains source notices. The existing Earth, Moon and Mars DDS files and Earth clouds and night lights are Orbiter 2016-derived and are not included. To prepare the pack, download the latest release's `packs.json` and run `python3 scripts/pack-kosmos-hires.py import/celestia/hires packs.json OUTPUT_DIR`; the original Earth and normal tile sets must be installed locally. The builder checks for missing tiles, preserves the existing catalogue entries and enforces GitHub's asset size limit. Publish with `--packs-dir OUTPUT_DIR`; unchanged packs need not be downloaded again. The current published catalogue does not yet contain this pack. Once published, it installs under `data/kosmos-hires/maps/`, and removal leaves `data/textures-hires/` overrides untouched. Explicit Earth textures, user-installed Earth images or normals and Celestia source tiles take precedence; `--no-tiles` disables the managed tiles in the orbital view.
 See `data/textures/README.txt` and the developers manual.
 
 ## Property tree
@@ -507,8 +509,11 @@ directory. Ariane's Kennedy start is fictional. Atlas groups its Castors into
 one simultaneous separation and approximates its shared sustainer propellant
 as separate stage tanks. Atlantis rides a launch-stack vessel whose tank stage
 simulates the shuttle main engines; after cutoff, undock with **Ctrl+D** and
-switch to Atlantis for OMS and flight. The shuttle's original animated systems
-are not reproduced. Launcher guidance is approximate; monitor and take over.
+switch to Atlantis for OMS and flight. Its tank propellant is split between
+the booster and post-booster phases to approximate the change in engine cant;
+unused propellant in the first portion is discarded with the boosters. The
+shuttle's original animated systems are not reproduced. Guidance is
+approximate; Atlantis needs an OMS burn to reach orbit after main-engine cutoff.
 
 ## MFDs (multi-function displays)
 

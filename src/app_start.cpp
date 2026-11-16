@@ -479,6 +479,8 @@ namespace kosmos::app
         // Orbiter's Earth cloud and night-light layers, when imported with tools/orbiter_import.py.
         std::string clouds_path = find_texture_in_directory(sim.root(), "/data/textures-hires/", "earth_clouds", {".dds"});
         if (clouds_path.empty())
+            clouds_path = find_texture_in_directory(sim.root(), "/data/kosmos-hires/maps/", "earth_clouds", {".dds"});
+        if (clouds_path.empty())
             clouds_path = find_texture_in_directory(sim.root(), "/data/orbiter-defaults/earth/", "earth_clouds", {".dds"});
         if (clouds_path.empty())
             clouds_path = find_texture_in_directory(sim.root(), "/data/textures/", "earth_clouds", {".dds"});
@@ -488,6 +490,8 @@ namespace kosmos::app
             vis.cloud_texture = clouds;
         }
         std::string lights_path = find_texture_in_directory(sim.root(), "/data/textures-hires/", "earth_lights", {".dds", ".jpg", ".png"});
+        if (lights_path.empty())
+            lights_path = find_texture_in_directory(sim.root(), "/data/kosmos-hires/maps/", "earth_lights", {".dds", ".jpg", ".png"});
         if (lights_path.empty())
             lights_path = find_texture_in_directory(sim.root(), "/data/orbiter-defaults/earth/", "earth_lights", {".dds"});
         if (lights_path.empty())

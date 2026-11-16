@@ -2,6 +2,7 @@
 /import/
 /data/landclass/
 /data/orbiter-defaults/
+/data/kosmos-hires/
 __pycache__/
 *.swp
 *.png

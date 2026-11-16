@@ -456,7 +456,7 @@ if(WIN32 AND KOSMOS_PREBUILT_WIN_TOOLS)
         list(APPEND KOSMOS_PACKAGE_TOOL_FILES "${CMAKE_SOURCE_DIR}/addons/${_tool}/bin/${_tool}.exe")
     endforeach()
 endif()
-set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/orbiter-defaults(/|$)" "/import(/|$)"
+set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/kosmos-hires(/|$)" "/data/orbiter-defaults(/|$)" "/import(/|$)"
     "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
@@ -469,8 +469,8 @@ endif()
 # ---- distribution -------------------------------------------------------------------------------------------------
 # cmake --build build --target kosmos_package
 #   Linux:   build/package/kosmos-beta-<version>-Linux.tar.gz        Windows: build/package/kosmos-beta-<version>-Windows.zip
-# Hi-res textures (data/textures-hires, import/celestia/hires) and the 54 GB Orbiter import (import/) are left out; scripts/pack-hires.sh
-# builds the separate hi-res pack. The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
+# Hi-res textures and Orbiter imports are left out; scripts/pack-kosmos-hires.py prepares reviewed maps separately.
+# The Earth land cover ships only as the gzipped cache (scripts/pack-landclass.sh makes
 # it); the raw rasters and the unpacked cache stay out, and scripts/pack-devdata.sh bundles them for developers.
 simlib_add_package(TARGET kosmos NAME kosmos-beta-${KOSMOS_VERSION}-${CMAKE_SYSTEM_NAME}
     ASSETS data scenarios addons assets
