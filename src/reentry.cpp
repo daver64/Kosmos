@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace kosmos
 {
@@ -23,6 +24,13 @@ namespace kosmos
         {
             const double l = glm::length(v);
             return l > 1.0e-12 ? v / l : fallback;
+        }
+
+        bool valid_environment_spec(const EnvironmentSpec &spec)
+        {
+            return std::isfinite(spec.max_overpressure) && spec.max_overpressure > 0.0 &&
+                   std::isfinite(spec.max_temperature) && spec.max_temperature > 0.0 &&
+                   std::isfinite(spec.heat_time_constant) && spec.heat_time_constant > 0.0;
         }
     } // namespace
 
@@ -66,12 +74,66 @@ namespace kosmos
                 into_skin = power * spec.leak;
             }
             const double radiated = spec.emissivity * stefan_boltzmann * (std::pow(state.temp, 4.0) - std::pow(ambient, 4.0)) * area;
-            state.temp = std::max(ambient, state.temp + (into_skin - radiated) * h / capacity);
+            state.temp = std::max(0.0, state.temp + (into_skin - radiated) * h / capacity);
             state.peak_temp = std::max(state.peak_temp, state.temp);
             if (state.temp > limit)
                 damage += (state.temp - limit) / limit * 0.3 * h;
         }
         return damage / dt;
+    }
+
+    EnvironmentDamage step_environment(const EnvironmentSpec &spec, EnvironmentState &state, double density,
+                                       double pressure, double temperature, double cabin_pressure, double dt)
+    {
+        if (!valid_environment_spec(spec) || !std::isfinite(state.temperature) || state.temperature <= 0.0 ||
+            !std::isfinite(density) || density < 0.0 || !std::isfinite(pressure) || pressure < 0.0 ||
+            !std::isfinite(temperature) || temperature <= 0.0 ||
+            !std::isfinite(cabin_pressure) || cabin_pressure < 0.0 || !std::isfinite(dt) || dt < 0.0)
+            throw std::invalid_argument("invalid environmental exposure");
+
+        EnvironmentDamage damage;
+        damage.overpressure = std::max(0.0, pressure - cabin_pressure);
+        damage.pressure = std::max(0.0, damage.overpressure / spec.max_overpressure - 1.0) * dt / 30.0;
+        const double k = std::min(1.0, density / 1.225) / spec.heat_time_constant;
+        if (k == 0.0 || dt == 0.0)
+        {
+            damage.heat = std::max(0.0, state.temperature - spec.max_temperature) * dt / (spec.max_temperature * 300.0);
+            return damage;
+        }
+
+        const double initial = state.temperature;
+        state.temperature = initial + (temperature - initial) * -std::expm1(-k * dt);
+        double begin = 0.0, end = dt;
+        const double q0 = initial - spec.max_temperature, q1 = state.temperature - spec.max_temperature;
+        if (q0 <= 0.0 && q1 <= 0.0)
+            return damage;
+        if ((q0 < 0.0 && q1 > 0.0) || (q0 > 0.0 && q1 < 0.0))
+        {
+            const double crossing = -std::log((spec.max_temperature - temperature) / (initial - temperature)) / k;
+            if (q0 < 0.0) begin = crossing;
+            else end = crossing;
+        }
+        const double span = end - begin;
+        const double x = k * span;
+        const double phi = x < 1e-4 ? -x / 2.0 + x * x / 6.0 - x * x * x / 24.0 : -std::expm1(-x) / x - 1.0;
+        const double at_begin = initial + (temperature - initial) * -std::expm1(-k * begin);
+        const double integral = (at_begin - spec.max_temperature) * span +
+                                (initial - temperature) * std::exp(-k * begin) * span * phi;
+        damage.heat = std::max(0.0, integral) / (spec.max_temperature * 300.0);
+        return damage;
+    }
+
+    void read_environment(const nlohmann::json &json, EnvironmentSpec &spec)
+    {
+        if (!json.is_object())
+            throw std::invalid_argument("environment must be an object");
+        EnvironmentSpec parsed = spec;
+        parsed.max_overpressure = json.value("max_overpressure_pa", parsed.max_overpressure);
+        parsed.max_temperature = json.value("max_temperature_k", parsed.max_temperature);
+        parsed.heat_time_constant = json.value("heat_time_constant_s", parsed.heat_time_constant);
+        if (!valid_environment_spec(parsed))
+            throw std::invalid_argument("environment ratings must be finite and positive");
+        spec = parsed;
     }
 
     AeroResult hypersonic_aero(const HypersonicSpec &spec, const sl::dvec3 &velocity, double rho, const sl::dvec3 &rate, double inertia)

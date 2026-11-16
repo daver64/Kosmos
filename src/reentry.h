@@ -63,6 +63,30 @@ namespace kosmos
      */
     double step_thermal(const ThermalSpec &spec, ThermalState &state, double rho, double v, double windward, double ambient, double dt);
 
+    /** Approximate structural resistance to external static pressure and sustained ambient heat. */
+    struct EnvironmentSpec
+    {
+        double max_overpressure = 100000.0; // Pa above cabin pressure
+        double max_temperature = 350.0;     // K
+        double heat_time_constant = 3600.0; // seconds in dense air
+    };
+
+    struct EnvironmentState
+    {
+        double temperature = 293.15; // K
+    };
+
+    struct EnvironmentDamage
+    {
+        double overpressure = 0.0; // Pa above cabin pressure
+        double pressure = 0.0;     // fraction of vehicle health lost
+        double heat = 0.0;         // fraction of vehicle health lost
+    };
+
+    /** Advance heat soak and return pressure and heat damage; inputs must be finite and physically valid. */
+    EnvironmentDamage step_environment(const EnvironmentSpec &spec, EnvironmentState &state, double density,
+                                       double pressure, double temperature, double cabin_pressure, double dt);
+
     /**
      * Hypersonic aerodynamics for a blunt body or a lifting body (the "hypersonic" block). A modified Newtonian flat-plate force acts along
      * the windward axis: F = -axis * q * S * cd_max * c^2, where c is the cosine between the axis and the velocity. A capsule gets drag

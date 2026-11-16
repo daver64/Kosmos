@@ -27,6 +27,7 @@ namespace kosmos
         int parent = -1;
         double gm = 0.0;
         double radius = 1.0;
+        bool solid_surface = true;
         double gravity_j2 = 0.0;
         double gravity_reference_radius = 0.0;
         std::shared_ptr<const sl::GravityHarmonics> gravity_harmonics;
@@ -44,6 +45,9 @@ namespace kosmos
         double soi = 1.0e30;
         double atmosphere_density = 0.0;
         double atmosphere_scale_height = 8500.0;
+        double atmosphere_pressure = 0.0, atmosphere_temperature = 288.0;
+        double atmosphere_model_floor = 0.0;
+        std::vector<sl::AtmospherePoint> atmosphere_profile;
         /** Relative limb glow in close orbit, 0 to disable; does not affect atmospheric physics. */
         double close_orbit_haze = 0.0;
         float atmosphere_colour[3] = {0.5f, 0.6f, 0.9f};

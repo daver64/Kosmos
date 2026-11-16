@@ -26,6 +26,11 @@ namespace kosmos
         tree.node(base + "/thermal/peak-temp")->tie_double([this] { return thermal_.peak_temp; });
         tree.node(base + "/thermal/shield")->tie_double([this] { return std::max(thermal_.shield, 0.0); });
         tree.node(base + "/thermal/blackout")->tie_bool([this] { return thermal_.blackout; });
+        num("environment/pressure-pa", [this] { return ambient_pressure_; });
+        num("environment/temperature-k", [this] { return ambient_temperature_; });
+        num("environment/overpressure-pa", [this] { return external_overpressure_; });
+        num("environment/vehicle-temperature-k", [this] { return environment_.temperature; });
+        tree.node(base + "/environment/status")->tie_string([this] { return environment_status_; });
         tree.node(base + "/chutes/open")->tie_int([this] {
             int n = 0;
             for (const ChuteRuntime &c : chutes_)

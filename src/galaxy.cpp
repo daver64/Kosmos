@@ -347,6 +347,7 @@ namespace kosmos
             break;
         case Kind::gas:
         {
+            planet["solid_surface"] = false;
             mass_e = rng.log_uniform(15.0, 400.0);
             radius_m = earth_radius * rng.uniform(8.0, 11.5);
             const double warm = rng.uniform();
@@ -358,6 +359,7 @@ namespace kosmos
             break;
         }
         case Kind::ice:
+            planet["solid_surface"] = false;
             mass_e = rng.log_uniform(8.0, 30.0);
             radius_m = earth_radius * rng.uniform(3.4, 4.6);
             planet["colour"] = colour(90, 160 + 40 * rng.uniform(), 210);

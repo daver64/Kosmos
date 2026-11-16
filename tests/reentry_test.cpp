@@ -1,9 +1,11 @@
 #undef NDEBUG
 #include "reentry.h"
+#include "reentry_json.h"
 
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <stdexcept>
 
 using namespace kosmos;
 
@@ -153,6 +155,53 @@ int main()
     runtime.state = ChuteState::opening;
     runtime.fill = 0.5;
     assert(chute_drag_area(chute, runtime) > chute.reef_cd_area && chute_drag_area(chute, runtime) < chute.cd_area);
+
+    EnvironmentSpec environment;
+    EnvironmentSpec configured;
+    read_environment(nlohmann::json::parse(R"({"max_overpressure_pa":10000000,"max_temperature_k":760,"heat_time_constant_s":7200})"), configured);
+    assert(configured.max_overpressure == 10000000.0 && configured.max_temperature == 760.0 && configured.heat_time_constant == 7200.0);
+    bool invalid_rating = false;
+    try { read_environment(nlohmann::json::parse(R"({"max_overpressure_pa":0})"), configured); }
+    catch (const std::invalid_argument &) { invalid_rating = true; }
+    assert(invalid_rating && configured.max_overpressure == 10000000.0);
+    EnvironmentState earth;
+    EnvironmentDamage exposure = step_environment(environment, earth, 1.225, 101325.0, 293.15, 101325.0, 3600.0);
+    assert(exposure.pressure == 0.0 && exposure.heat == 0.0 && earth.temperature == 293.15);
+
+    EnvironmentState pressure_test;
+    exposure = step_environment(environment, pressure_test, 1.225, 201325.0, 293.15, 101325.0, 30.0);
+    assert(exposure.pressure == 0.0);
+    exposure = step_environment(environment, pressure_test, 1.225, 301325.0, 293.15, 101325.0, 30.0);
+    assert(std::fabs(exposure.pressure - 1.0) < 1e-12 && exposure.heat == 0.0);
+
+    EnvironmentState venus;
+    exposure = step_environment(environment, venus, 65.0, 9200000.0, 735.0, 101325.0, 3600.0);
+    assert(exposure.pressure > 1.0 && exposure.heat > 1.0);
+    EnvironmentSpec probe;
+    probe.max_overpressure = 10000000.0;
+    probe.max_temperature = 760.0;
+    EnvironmentState protected_probe;
+    exposure = step_environment(probe, protected_probe, 65.0, 9200000.0, 735.0, 101325.0, 3600.0);
+    assert(exposure.pressure == 0.0 && exposure.heat == 0.0);
+
+    EnvironmentState coarse, fine;
+    const double coarse_heat = step_environment(environment, coarse, 65.0, 101325.0, 735.0, 101325.0, 3600.0).heat;
+    double fine_heat = 0.0;
+    for (int i = 0; i < 3600; ++i)
+        fine_heat += step_environment(environment, fine, 65.0, 101325.0, 735.0, 101325.0, 1.0).heat;
+    assert(std::fabs(coarse.temperature - fine.temperature) < 1e-8);
+    assert(std::fabs(coarse_heat - fine_heat) < 1e-8);
+
+    EnvironmentState hot;
+    hot.temperature = 400.0;
+    exposure = step_environment(environment, hot, 0.0, 0.0, 300.0, 101325.0, 60.0);
+    assert(exposure.heat > 0.0 && hot.temperature == 400.0);
+    exposure = step_environment(environment, hot, 1e-12, 0.0, 300.0, 101325.0, 60.0);
+    assert(std::fabs(exposure.heat - 50.0 * 60.0 / (350.0 * 300.0)) < 1e-10);
+    bool invalid_exposure = false;
+    try { step_environment(environment, hot, -1.0, 0.0, 300.0, 101325.0, 60.0); }
+    catch (const std::invalid_argument &) { invalid_exposure = true; }
+    assert(invalid_exposure);
 
     std::printf("reentry tests passed\n");
     return 0;

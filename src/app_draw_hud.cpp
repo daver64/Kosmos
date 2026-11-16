@@ -392,6 +392,14 @@ namespace kosmos::app
                 hud_end_y = line_y;
                 sl::gprintf(16, line_y, {255, 200, 90}, "%s%s%s", netplay.status().c_str(), near_text.empty() ? "" : "   Nearest player: ", near_text.empty() ? "" : (near_text + " " + format_distance(near_d)).c_str());
             }
+            const std::string env = "/ships/ship[" + std::to_string(sim.active_index()) + "]/environment/";
+            const std::string env_status = props.get_string(env + "status");
+            if (!env_status.empty() && env_status != "OK")
+            {
+                hud_end_y += 18;
+                sl::gprintf(16, hud_end_y, {255, 100, 80}, "ENVIRONMENT: %s  %.1f kPa  %.1f C", env_status.c_str(),
+                            props.get_double(env + "pressure-pa") / 1000.0, props.get_double(env + "temperature-k") - 273.15);
+            }
             if (!map_mode && props.get_bool("/sim/settings/help-text"))
             {
                 sl::gprintf(16, hud_end_y + 24, {200, 210, 220}, "%s", "[Num+/Num*] Throttle  [Ctrl+Num+/-] +/-  [Space] Stage  [Num 2 8 1 3 4 6] Rotate  [Arrows] RCS  [Num5 [ ] ; '] Hold  [P] Autopilot");

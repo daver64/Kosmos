@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <cstdio>
 #include <fstream>
+#include <stdexcept>
 
 namespace kosmos
 {
@@ -153,6 +154,8 @@ namespace kosmos
     void Ship::copy_forecast_reentry(const Ship &source)
     {
         thermal_ = source.thermal_;
+        environment_ = source.environment_;
+        environment_failure_ = source.environment_failure_;
         chutes_ = source.chutes_;
         chutes_armed_ = source.chutes_armed_;
         aero_scaled_ = source.aero_scaled_;
@@ -174,6 +177,8 @@ namespace kosmos
         state.health = health_;
         state.shield = shield_;
         state.mission_time = mission_time_;
+        state.environment_temperature = environment_.temperature;
+        state.environment_failure = environment_failure_;
         if (systems_)
         {
             state.systems = systems_->state();
@@ -184,6 +189,9 @@ namespace kosmos
 
     void Ship::restore_carry_state(const ShipCarryState &state)
     {
+        if (!std::isfinite(state.environment_temperature) || state.environment_temperature <= 0.0 ||
+            (!state.environment_failure.empty() && state.environment_failure != "PRESSURE FAILURE" && state.environment_failure != "HEAT FAILURE"))
+            throw std::invalid_argument("invalid saved environmental state");
         sl::FlightBody &b = body();
         const int target_stage = std::clamp(state.active_stage, 0, std::max(0, stage_count() - 1));
         for (int stage = 0; stage < target_stage; ++stage)
@@ -214,6 +222,8 @@ namespace kosmos
         health_ = std::clamp(state.health, 0.0, 1.0);
         shield_ = std::clamp(state.shield, 0.0, spec_.shield.capacity);
         mission_time_ = std::max(0.0, state.mission_time);
+        environment_.temperature = state.environment_temperature;
+        environment_failure_ = state.environment_failure;
         if (systems_ && state.has_systems)
             systems_->restore(state.systems);
         recentre();
@@ -360,11 +370,14 @@ namespace kosmos
         for (sl::Thruster &t : b.thrusters)
             t.level = 0.0;
         // Something in the air is left to fall and crash by the usual rules; the ground and buildings are wrecked on the spot.
-        if (spec_.building() || telemetry_.altitude < 50.0 || b.mode != sl::FlightBodyMode::dynamic)
+        const bool solid = telemetry_.soi >= 0 && universe_.bodies[static_cast<std::size_t>(telemetry_.soi)].solid_surface;
+        if (spec_.building() || (solid && (telemetry_.altitude < 50.0 || b.mode != sl::FlightBodyMode::dynamic)))
         {
             crashed_ = true;
             pin_to_ground();
         }
+        else if (!solid && on_rails())
+            go_dynamic();
     }
 
     void Ship::set_attached_mass(double kilograms)
@@ -695,6 +708,8 @@ namespace kosmos
         if (warp_pinned_)
             hold_pinned();
         update_telemetry();
+        if (!spec_.building())
+            step_environmental_exposure(dt);
         step_systems(dt);
 
         // A building is part of the ground: held there from the first step, with no flight.
@@ -817,6 +832,8 @@ namespace kosmos
     void Ship::resolve_landing()
     {
         sl::FlightBody &b = body();
+        if (telemetry_.soi >= 0 && !universe_.bodies[static_cast<std::size_t>(telemetry_.soi)].solid_surface)
+            return;
 
         // Ships built for orbit have no landing gear: a gentle touchdown leaves them resting on the surface, a hard one wrecks them.
         double burning = 0.0;

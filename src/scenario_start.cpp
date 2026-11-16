@@ -319,6 +319,11 @@ namespace kosmos::app
                              known_ship ? "body" : "ship", known_ship ? entry.body.c_str() : entry.ship.c_str());
                 return nullptr;
             }
+            if (entry.landed && entry.altitude <= 0.0 && !sim.universe.bodies[static_cast<std::size_t>(sim.universe.find(entry.body))].solid_surface)
+            {
+                std::fprintf(stderr, "kosmos: scenario %s: %s has no solid surface\n", sc.id.c_str(), entry.body.c_str());
+                return nullptr;
+            }
             if (!entry.point_at.empty() &&
                 (sim.universe.find(entry.point_at) < 0 || entry.landed || entry.has_state ||
                  entry.dock_to >= 0 || entry.portal_m > 0.0))

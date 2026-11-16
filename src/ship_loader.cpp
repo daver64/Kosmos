@@ -245,6 +245,8 @@ namespace kosmos
             spec.rcs_thrust = json.value("rcs_thrust", 0.0);
             spec.drag_area = json.value("drag_area", spec.drag_area);
             read_thermal(json.value("thermal", nlohmann::json()), spec.thermal);
+            if (json.contains("environment"))
+                read_environment(json.at("environment"), spec.environment);
             read_hypersonic(json.value("hypersonic", nlohmann::json()), spec.hypersonic);
             read_parachutes(json.value("parachutes", nlohmann::json()), spec.parachutes);
             spec.hit_sphere = json.value("hit_sphere", spec.hit_sphere);

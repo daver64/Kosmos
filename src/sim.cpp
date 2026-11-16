@@ -1081,7 +1081,26 @@ namespace kosmos
         idle.sas = "off";
         for (std::size_t i = 0; i < ships_.size(); ++i)
         {
-            const Ship &ship = *ships_[i];
+            Ship &ship = *ships_[i];
+            if (!ship.spec().building())
+                ship.advance_environment(0.0);
+            if (!ship.spec().building() && ship.environment_blocks_time_skip())
+            {
+                why = ship.spec().name + ": time skip unavailable during environmental exposure";
+                return false;
+            }
+            if (!ship.spec().building() && !ship.crashed() && !parked_for_warp(i))
+            {
+                const int soi = ship.telemetry().soi;
+                const Body &planet = universe.bodies[static_cast<std::size_t>(soi)];
+                sl::OrbitElements orbit;
+                if (planet.atmosphere_density > 0.0 && universe.world.orbit_of(ship.body_id(), soi, orbit) &&
+                    orbit.periapsis() <= planet.radius + planet.atmosphere_scale_height * 10.0 + 1000.0)
+                {
+                    why = ship.spec().name + ": time skip unavailable for an atmosphere-crossing orbit";
+                    return false;
+                }
+            }
             if (ship.spec().building() || ship.crashed() || ship.on_rails() || parked_for_warp(i))
                 continue;
             const std::string b = ship.rails_blocker(static_cast<int>(i) == active_ ? controls : idle);
@@ -1115,6 +1134,8 @@ namespace kosmos
         {
             Ship &ship = *ships_[i];
             ship.after_step(0.0);
+            if (!ship.spec().building() && parked_for_warp(i))
+                ship.advance_environment(seconds);
             if (ship.on_rails() && ship.body().rails_parent != ship.telemetry().soi)
             {
                 ship.go_dynamic();

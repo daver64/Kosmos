@@ -1243,6 +1243,8 @@ namespace kosmos
             check(std::abs(actual.gear_position - entry.carry_state->gear_position) < 1e-8 &&
                   std::abs(actual.mission_time - entry.carry_state->mission_time) < 1e-8,
                   "startup gear and mission time");
+            check(std::abs(actual.environment_temperature - entry.carry_state->environment_temperature) < 1e-8,
+                  "startup environmental heat state");
             std::size_t expected_docks = 0;
             bool fleet_matches = true;
             for (std::size_t i = 0; i < reference.ships.size(); ++i)
@@ -1286,6 +1288,7 @@ namespace kosmos
         changed.rcs_propellant *= 0.5;
         changed.gear_position = 0.25;
         changed.mission_time = 1234.0;
+        changed.environment_temperature = 425.0;
         if (changed.has_systems && !changed.systems.components.empty())
             changed.systems.components[0].amount *= 0.5;
         ship->restore_carry_state(changed);
@@ -1329,6 +1332,8 @@ namespace kosmos
               std::abs(actual.gear_position - expected.gear_position) < 1e-8 &&
               std::abs(actual.mission_time - expected.mission_time) < 1e-8,
               "RCS, gear and mission time preserved");
+        check(std::abs(actual.environment_temperature - expected.environment_temperature) < 1e-8,
+              "environmental heat state preserved");
         check(glm::length(restored->body().position - position) < 0.01 &&
               glm::length(restored->body().velocity - velocity) < 0.001,
               "position and velocity preserved");

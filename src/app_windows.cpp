@@ -139,6 +139,12 @@ namespace kosmos::app
             ImGui::SetNextWindowBgAlpha(0.9f);
             if (ImGui::Begin("Ship systems [F1]", &windows.systems_window, ImGuiWindowFlags_AlwaysAutoResize))
             {
+                const std::string env = "/ships/ship[" + std::to_string(sim.active_index()) + "]/environment/";
+                ImGui::SeparatorText("Environment");
+                ImGui::Text("Outside %.1f kPa  %.1f C   Vehicle %.1f C", sim.props.get_double(env + "pressure-pa") / 1000.0,
+                            sim.props.get_double(env + "temperature-k") - 273.15, sim.props.get_double(env + "vehicle-temperature-k") - 273.15);
+                ImGui::Text("Overpressure %.1f / %.1f kPa  %s", sim.props.get_double(env + "overpressure-pa") / 1000.0,
+                            ship->spec().environment.max_overpressure / 1000.0, sim.props.get_string(env + "status").c_str());
                 kosmos::Systems *sys = ship->systems();
                 if (!sys)
                     ImGui::TextUnformatted("This ship has no power or life-support systems.");

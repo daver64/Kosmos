@@ -365,6 +365,7 @@ namespace kosmos
         double drag_area = 10.0;
         /** Re-entry heating, hypersonic aerodynamics and parachutes; all off unless the ship file asks for them. */
         ThermalSpec thermal;
+        EnvironmentSpec environment;
         HypersonicSpec hypersonic;
         std::vector<ParachuteSpec> parachutes;
         bool hit_sphere = false; // weapons hit a sphere of the stage radius instead of the bounding box
@@ -605,6 +606,8 @@ namespace kosmos
         std::vector<double> animation_positions;
         double health = 1.0, shield = 0.0;
         double mission_time = 0.0;
+        double environment_temperature = 293.15;
+        std::string environment_failure;
         Systems::State systems;
         bool has_systems = false;
     };
@@ -763,6 +766,8 @@ namespace kosmos
         void after_step(double dt);
         /** Re-entry heat of the vehicle (see ThermalState); the spec's `thermal` block must be on. */
         const ThermalState &thermal() const { return thermal_; }
+        bool environment_blocks_time_skip() const { return environment_hazard_; }
+        void advance_environment(double dt) { step_environmental_exposure(dt); }
         const std::vector<ChuteRuntime> &chutes() const { return chutes_; }
         /** Deploy the next parachute that is still stowed. Returns false when there is none. */
         bool deploy_parachute();
@@ -847,8 +852,13 @@ namespace kosmos
         void step_systems(double dt);
         void step_instruments(double dt, const sl::dvec3 &sun_local, bool sunlit);
         void step_reentry(double dt);
+        void step_environmental_exposure(double dt);
         void step_parachutes(double dt, const sl::dvec3 &air_velocity, double rho);
         ThermalState thermal_;
+        EnvironmentState environment_;
+        double ambient_pressure_ = 0.0, ambient_temperature_ = 288.0, external_overpressure_ = 0.0;
+        bool environment_hazard_ = false;
+        std::string environment_status_ = "OK", environment_failure_;
         std::vector<ChuteRuntime> chutes_;
         bool chutes_armed_ = false; // set once the ship has climbed above a chute's arm_altitude
         double base_drag_area_ = 0.0;

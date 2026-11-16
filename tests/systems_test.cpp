@@ -926,7 +926,8 @@ int main()
         source.set_gear_position(0.25);
         assert(source.systems());
         source.systems()->set_battery_fraction(0.3);
-        const ShipCarryState state = source.carry_state();
+        ShipCarryState state = source.carry_state();
+        state.environment_temperature = 425.0;
 
         Ship arrival(universe, spec);
         assert(arrival.systems());
@@ -936,6 +937,7 @@ int main()
         assert(arrival.body().tanks[0].mass == 0.0);
         assert(arrival.body().tanks[1].mass == 20.0);
         assert(arrival.carry_state().rcs_propellant == 12.0);
+        assert(arrival.carry_state().environment_temperature == 425.0);
         assert(arrival.gear_position() == 0.25);
     }
 
@@ -1170,7 +1172,8 @@ int main()
         {
             std::ofstream json(dir / "ship.json");
             json << R"({"name":"TagTest","stages":[{"name":"Lab","dry_mass":8000,"z":0,"length":8,"radius":1.5,
-                "parts":[{"model":"lab.obj","offset":[0,0,10]}]}],"vessels":[{"name":"Lab","pressure_kpa":90}]})";
+                "parts":[{"model":"lab.obj","offset":[0,0,10]}]}],"vessels":[{"name":"Lab","pressure_kpa":90}],
+                "environment":{"max_overpressure_pa":10000000,"max_temperature_k":760,"heat_time_constant_s":7200}})";
         }
         ShipSpec ship;
         std::string error;
@@ -1180,6 +1183,14 @@ int main()
         assert(v.from_mesh && v.crew == 2 && v.crew_at.size() == 2 && v.vents.size() == 1);
         assert(std::fabs(v.size.x - 2.4) < 1e-3 && std::fabs(v.size.z - 7.0) < 1e-3);
         assert(std::fabs(v.centre.z - 10.0) < 1e-3 && std::fabs(v.pressure_kpa - 90.0) < 1e-9);
+        assert(ship.environment.max_overpressure == 10000000.0 && ship.environment.max_temperature == 760.0 &&
+               ship.environment.heat_time_constant == 7200.0);
+        {
+            std::ofstream json(dir / "ship.json");
+            json << R"({"name":"InvalidEnvironment","stages":[],"environment":{"max_temperature_k":0}})";
+        }
+        ShipSpec invalid;
+        assert(!load_ship_spec((dir / "ship.json").string(), invalid, error) && error.find("environment") != std::string::npos);
         std::filesystem::remove_all(dir);
     }
     {
@@ -1307,6 +1318,71 @@ int main()
         assert(plan_hohmann(mu, r1, r1, 0.0).has_window == false);
         assert(plan_hohmann(0.0, r1, r2, 0.0).has_window == false);
         assert(plan_hohmann(mu, r2, r1, 0.0).dv1 < 0.0);
+    }
+    {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        ShipSpec ordinary;
+        assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", ordinary, error));
+        ShipSpec rated = ordinary;
+        rated.environment.max_overpressure = 2.0e7;
+        rated.environment.max_temperature = 1000.0;
+        const int earth = universe.find("Earth"), venus = universe.find("Venus"), jupiter = universe.find("Jupiter");
+        assert(earth >= 0 && venus >= 0 && jupiter >= 0);
+        const auto place = [&](Ship &ship, int planet, double altitude)
+        {
+            ship.place_relative(planet, sl::dvec3(universe.bodies[static_cast<std::size_t>(planet)].radius + altitude, 0, 0),
+                                sl::dvec3(0), sl::dquat(1, 0, 0, 0));
+        };
+        sl::PropertyTree tree;
+        Ship earth_ship(universe, ordinary);
+        place(earth_ship, earth, 100.0);
+        earth_ship.after_step(3600.0);
+        assert(earth_ship.health() == 1.0);
+
+        Ship venus_ship(universe, ordinary);
+        place(venus_ship, venus, 100.0);
+        venus_ship.after_step(3600.0);
+        assert(venus_ship.health() == 0.0);
+        assert(!venus_ship.carry_state().environment_failure.empty());
+        Ship venus_probe(universe, rated);
+        place(venus_probe, venus, 100.0);
+        venus_probe.after_step(1800.0);
+        const ShipCarryState saved = venus_probe.carry_state();
+        Ship resumed(universe, rated);
+        place(resumed, venus, 100.0);
+        resumed.restore_carry_state(saved);
+        venus_probe.after_step(1800.0);
+        resumed.after_step(1800.0);
+        assert(venus_probe.health() == 1.0 && resumed.health() == 1.0);
+        assert(std::fabs(venus_probe.carry_state().environment_temperature - resumed.carry_state().environment_temperature) < 1e-8);
+
+        Ship giant_probe(universe, rated);
+        giant_probe.publish(tree, "/probe");
+        place(giant_probe, jupiter, 100.0);
+        giant_probe.after_step(1.0);
+        const double above = tree.get_double("/probe/environment/pressure-pa");
+        place(giant_probe, jupiter, -10000.0);
+        giant_probe.after_step(1.0);
+        assert(!giant_probe.telemetry().landed && !giant_probe.crashed());
+        assert(giant_probe.health() == 1.0 && tree.get_double("/probe/environment/pressure-pa") > above);
+        place(giant_probe, jupiter, -260000.0);
+        giant_probe.after_step(0.0);
+        assert(tree.get_string("/probe/environment/status") == "BELOW MODEL");
+        giant_probe.unpublish();
+
+        Ship weak_probe(universe, ordinary);
+        place(weak_probe, jupiter, -100000.0);
+        weak_probe.after_step(60.0);
+        assert(weak_probe.health() == 0.0 && !weak_probe.crashed());
+        assert(weak_probe.body().mode == sl::FlightBodyMode::dynamic);
+        const ShipCarryState failed = weak_probe.carry_state();
+        assert(failed.environment_failure == "PRESSURE FAILURE");
+        Ship failed_resume(universe, ordinary);
+        place(failed_resume, jupiter, -100000.0);
+        failed_resume.restore_carry_state(failed);
+        assert(failed_resume.carry_state().environment_failure == "PRESSURE FAILURE");
     }
     {
         Universe universe;

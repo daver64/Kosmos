@@ -217,6 +217,7 @@ namespace kosmos
                 throw std::runtime_error("invalid gravity frame");
         }
         body.spin = entry.value("spin", 0.0);
+        body.solid_surface = entry.value("solid_surface", true);
         body.terrain = entry.value("terrain", "");
         if (const auto st = entry.find("style"); st != entry.end() && st->is_object())
         {
@@ -283,6 +284,54 @@ namespace kosmos
         {
             body.atmosphere_density = a->value("density", 0.0);
             body.atmosphere_scale_height = a->value("scale_height", 8500.0);
+            const double pressure = body.solid_surface ? body.atmosphere_density * 101325.0 / 1.225 : 100000.0;
+            body.atmosphere_pressure = a->value("pressure_pa", pressure);
+            const double temperature = !body.solid_surface && body.atmosphere_density > 0.0
+                                           ? body.atmosphere_pressure / (body.atmosphere_density * 3700.0) : 288.0;
+            body.atmosphere_temperature = a->value("temperature_k", temperature);
+            if (!std::isfinite(body.atmosphere_pressure) || body.atmosphere_pressure < 0.0 ||
+                !std::isfinite(body.atmosphere_temperature) || body.atmosphere_temperature <= 0.0)
+                throw std::runtime_error("invalid atmospheric pressure or temperature");
+            if (const auto profile = a->find("profile"); profile != a->end())
+            {
+                if (!profile->is_array())
+                    throw std::runtime_error("atmosphere.profile must be an array");
+                for (const auto &point : *profile)
+                {
+                    if (!point.is_array() || point.size() != 4)
+                        throw std::runtime_error("atmosphere.profile points must contain altitude, density, pressure and temperature");
+                    body.atmosphere_profile.push_back({point.at(0).get<double>(), point.at(1).get<double>(),
+                                                       point.at(2).get<double>(), point.at(3).get<double>()});
+                }
+                sl::Atmosphere checked;
+                std::string why;
+                if (!checked.set_profile(body.atmosphere_profile, why))
+                    throw std::runtime_error(why);
+                body.atmosphere_model_floor = body.atmosphere_profile.front().altitude;
+                const sl::AtmospherePoint &first = body.atmosphere_profile.front();
+                if (body.radius > 0.0 && first.altitude > -body.radius)
+                    body.atmosphere_profile.insert(body.atmosphere_profile.begin(),
+                                                   {-body.radius, first.density * 1.0e9, first.pressure * 1.0e13,
+                                                    first.temperature * 1000.0});
+            }
+            if (!body.solid_surface && body.atmosphere_profile.empty() && body.atmosphere_density > 0.0)
+            {
+                if (!(body.radius > 0.0) || !(body.atmosphere_scale_height > 0.0) || !(body.atmosphere_pressure > 0.0))
+                    throw std::runtime_error("invalid gas-giant atmosphere");
+                const double floor = -std::min(250000.0, body.radius * 0.5);
+                const double rho = body.atmosphere_density, p = body.atmosphere_pressure, t = body.atmosphere_temperature;
+                body.atmosphere_model_floor = floor;
+                body.atmosphere_profile = {
+                    {-body.radius, rho * 1.0e9, p * 1.0e13, t * 1000.0},
+                    {floor, rho * 22.5, p * 100.0, t * 4.69},
+                    {0.0, rho, p, t},
+                    {body.atmosphere_scale_height * 12.0, rho * std::exp(-12.0), p * std::exp(-12.0), t}
+                };
+                sl::Atmosphere checked;
+                std::string why;
+                if (!checked.set_profile(body.atmosphere_profile, why))
+                    throw std::runtime_error(why);
+            }
             if (const auto haze = a->find("close_orbit_haze"); haze != a->end() && !haze->is_number())
                 throw std::runtime_error("atmosphere.close_orbit_haze must be a number between 0 and 1");
             body.close_orbit_haze = a->value("close_orbit_haze", 0.0);
@@ -361,6 +410,7 @@ namespace kosmos
         sl::FlightBody *fb = world.body(id);
         fb->gm = body.gm;
         fb->radius = body.radius;
+        fb->solid_surface = body.solid_surface;
         fb->gravity_j2 = body.gravity_j2;
         fb->gravity_reference_radius = body.gravity_reference_radius;
         fb->gravity_harmonics = body.gravity_harmonics;
@@ -371,6 +421,12 @@ namespace kosmos
         fb->spin_axis = body.axis_tilt * sl::dvec3(0.0, 1.0, 0.0);
         fb->atmosphere.surface_density = body.atmosphere_density;
         fb->atmosphere.scale_height = body.atmosphere_scale_height;
+        if (!body.atmosphere_profile.empty())
+        {
+            std::string why;
+            if (!fb->atmosphere.set_profile(body.atmosphere_profile, why))
+                throw std::runtime_error("invalid atmosphere profile: " + why);
+        }
         if (body.parent < 0)
             fb->mode = sl::FlightBodyMode::kinematic;
         else

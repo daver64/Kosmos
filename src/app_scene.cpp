@@ -983,7 +983,8 @@ namespace kosmos::app
         const glm::mat4 body_frame = glm::translate(glm::mat4(1.0f), glm::vec3(rel)) * glm::rotate(glm::mat4(1.0f), static_cast<float>(b.tilt), glm::vec3(0, 0, 1));
         const glm::mat4 model = body_frame * glm::mat4_cast(glm::quat(universe.orientation(static_cast<int>(i)) * sphere_flip)) *
                                 glm::scale(glm::mat4(1.0f), glm::vec3(static_cast<float>(b.radius)));
-        draw_body_surface(i, b, rel, model, rock);
+        if (b.solid_surface || distance >= b.radius)
+            draw_body_surface(i, b, rel, model, rock);
         draw_body_layers(i, b, rel, distance, sphere_flip, body_light);
         if (vis.rings[i])
             draw_body_rings(i, b, body_frame);

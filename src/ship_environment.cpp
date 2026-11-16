@@ -56,7 +56,8 @@ namespace kosmos
                 std::fprintf(stderr, "[kosmos] %s: %s torn away at %.0f Pa\n", name.c_str(), spec.name.c_str(), q);
                 continue;
             }
-            if (spec.cut_on_landing && (telemetry_.landed || telemetry_.altitude < 1.0))
+            if (spec.cut_on_landing && universe_.bodies[static_cast<std::size_t>(telemetry_.soi)].solid_surface &&
+                (telemetry_.landed || telemetry_.altitude < 1.0))
             {
                 c.state = ChuteState::gone;
                 continue;
@@ -90,6 +91,62 @@ namespace kosmos
                 universe_.world.apply_torque(body_, b.direction_to_world(accel * b.inertia()));
             }
         }
+    }
+
+    void Ship::step_environmental_exposure(double dt)
+    {
+        if (telemetry_.soi < 0)
+            return;
+        const Body &planet = universe_.bodies[static_cast<std::size_t>(telemetry_.soi)];
+        const sl::FlightBody &pb = *universe_.world.body(telemetry_.soi);
+        const sl::dvec3 offset = body().position - pb.position;
+        double altitude = glm::length(offset) - planet.radius;
+        if (planet.solid_surface && pb.terrain)
+            altitude -= pb.terrain->height_at_direction(offset);
+        const sl::AtmosphereSample sample = pb.atmosphere.sample(altitude);
+        if (sample.status == sl::AtmosphereSampleStatus::below_profile)
+        {
+            environment_status_ = "BELOW MODEL";
+            environment_hazard_ = true;
+            return;
+        }
+        const double rho = sample.density;
+        if (sample.status == sl::AtmosphereSampleStatus::legacy)
+        {
+            ambient_pressure_ = planet.atmosphere_density > 0.0
+                                    ? planet.atmosphere_pressure * rho / planet.atmosphere_density : 0.0;
+            ambient_temperature_ = planet.atmosphere_temperature;
+        }
+        else
+        {
+            ambient_pressure_ = sample.pressure;
+            ambient_temperature_ = sample.temperature;
+        }
+        double cabin_pressure = -1.0;
+        if (systems_)
+            for (const Systems::Vessel &vessel : systems_->vessels())
+                if (vessel.alive)
+                    cabin_pressure = cabin_pressure < 0.0 ? vessel.pressure_kpa() * 1000.0
+                                                        : std::min(cabin_pressure, vessel.pressure_kpa() * 1000.0);
+        if (cabin_pressure < 0.0)
+            cabin_pressure = 101325.0;
+        const EnvironmentDamage exposure = step_environment(spec_.environment, environment_, rho, ambient_pressure_,
+                                                            ambient_temperature_, cabin_pressure, dt);
+        external_overpressure_ = exposure.overpressure;
+        const bool pressure = external_overpressure_ > spec_.environment.max_overpressure;
+        const bool heat = environment_.temperature > spec_.environment.max_temperature;
+        const bool below_model = !planet.atmosphere_profile.empty() && altitude < planet.atmosphere_model_floor;
+        environment_hazard_ = below_model || pressure || heat || (rho > 0.0 && ambient_temperature_ > spec_.environment.max_temperature);
+        environment_status_ = below_model ? "BELOW MODEL" : pressure ? "PRESSURE LIMIT" : heat ? "OVERHEATING" : "OK";
+        const double before = health_;
+        damage(exposure.pressure + exposure.heat);
+        if (before > 0.0 && health_ <= 0.0)
+        {
+            environment_failure_ = exposure.pressure >= exposure.heat ? "PRESSURE FAILURE" : "HEAT FAILURE";
+            std::fprintf(stderr, "[kosmos] %s: %s\n", name.c_str(), environment_failure_.c_str());
+        }
+        if (!environment_failure_.empty())
+            environment_status_ = environment_failure_;
     }
 
     void Ship::step_reentry(double dt)
@@ -131,7 +188,7 @@ namespace kosmos
         if (spec_.thermal.enabled)
         {
             const double windward = speed > 1.0 ? glm::dot(spec_.thermal.shield_axis, local / speed) : 1.0;
-            const double rate = step_thermal(spec_.thermal, thermal_, rho, speed, windward, 288.0, dt);
+            const double rate = step_thermal(spec_.thermal, thermal_, rho, speed, windward, ambient_temperature_, dt);
             if (rate > 0.0)
                 damage(rate * dt);
         }
@@ -184,7 +241,7 @@ namespace kosmos
             r += (k1r + 2.0 * k2r + 2.0 * k3r + k4r) * (step / 6.0);
             v += (k1v + 2.0 * k2v + 2.0 * k3v + k4v) * (step / 6.0);
             elapsed += step;
-            if (glm::length(r) <= planet.radius)
+            if (planet.solid_surface && glm::length(r) <= planet.radius)
             {
                 track_.impact = true;
                 track_.impact_time = elapsed;
@@ -223,13 +280,15 @@ namespace kosmos
             for (const sl::GearContact &g : b.gear)
                 lowest = std::max(lowest, g.position.z);
         }
-        const double origin_altitude = universe_.world.altitude_of(b.position);
+        const sl::dvec3 r = b.position - pb.position;
+        const double origin_altitude = planet.solid_surface ? universe_.world.altitude_of(b.position) : glm::length(r) - planet.radius;
         t.altitude = origin_altitude - lowest;
         t.landed = false;
         for (const sl::GearContact &g : b.gear)
             t.landed = t.landed || g.compression > 0.0;
+        if (!planet.solid_surface)
+            t.landed = false;
 
-        const sl::dvec3 r = b.position - pb.position;
         const sl::dvec3 vrel = relative_velocity();
         const sl::dvec3 up = glm::normalize(r);
         t.surface_speed = glm::length(vrel);

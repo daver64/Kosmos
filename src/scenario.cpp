@@ -6,9 +6,11 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 namespace kosmos
 {
@@ -25,6 +27,12 @@ namespace kosmos
             state.health = json.at("health").get<double>();
             state.shield = json.at("shield").get<double>();
             state.mission_time = json.value("mission_time", 0.0);
+            state.environment_temperature = json.value("environment_temperature", state.environment_temperature);
+            state.environment_failure = json.value("environment_failure", std::string());
+            if (!std::isfinite(state.environment_temperature) || state.environment_temperature <= 0.0)
+                throw std::invalid_argument("invalid saved environmental temperature");
+            if (!state.environment_failure.empty() && state.environment_failure != "PRESSURE FAILURE" && state.environment_failure != "HEAT FAILURE")
+                throw std::invalid_argument("invalid saved environmental failure");
             if (json.contains("systems"))
             {
                 state.has_systems = true;
@@ -45,7 +53,8 @@ namespace kosmos
             nlohmann::json json = {{"active_stage", state.active_stage}, {"stage_propellant", state.stage_propellant},
                 {"rcs_propellant", state.rcs_propellant}, {"gear_position", state.gear_position},
                 {"animation_positions", state.animation_positions}, {"health", state.health},
-                {"shield", state.shield}, {"mission_time", state.mission_time}};
+                {"shield", state.shield}, {"mission_time", state.mission_time},
+                {"environment_temperature", state.environment_temperature}, {"environment_failure", state.environment_failure}};
             if (state.has_systems)
             {
                 auto &systems = json["systems"];
