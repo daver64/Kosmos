@@ -515,6 +515,14 @@ unused propellant in the first portion is discarded with the boosters. The
 shuttle's original animated systems are not reproduced. Guidance is
 approximate; Atlantis needs an OMS burn to reach orbit after main-engine cutoff.
 
+**CVEL: Shuttle 2010, Kennedy** uses an original, fictional Shuttle X-2010
+concept mesh and an Atlantis-derived tank and boosters. The docked shuttle is a
+separate vessel; the stack simulates its main engines during ascent. After
+cutoff, undock with **Ctrl+D** and switch to the shuttle for orbital flight.
+Its mass, propulsion and aerodynamic characteristics are gameplay
+approximations, and its landing gear has no animated model. Ascent guidance
+is approximate; monitor the flight and correct the orbit if needed.
+
 ## MFDs (multi-function displays)
 
 Press **F5** to cycle the MFD display: off, two framed panels (bottom of the screen, clickable buttons), or heads-up (shapes and text only, no background). In the 2D cockpit the MFDs are the dashboard to start with, and F5 steps dashboard, heads-up, off. **F6/F7** cycle the left/right mode, **F8/F9** toggle power. Each display has an **MNU** button (the mode list, paged, with short codes on the see-through displays) and a cross button that closes it; F5 brings it back. `--mfd 0|1|2`, `--mfd-left ID`, `--mfd-right ID` set them at launch.

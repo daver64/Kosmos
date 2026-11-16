@@ -17,8 +17,8 @@
   {
    "name":"Shuttle main engines during booster burn","ignite_with_previous":true,"dry_mass":0,"propellant":175000,"z":-5.72,"length":47.2,"radius":4.2,
    "engines":[
-    {"position":[-1.6,6.02,23.795],"plume_offset":[0.36,-1.87,0],"direction":[0.04994,0,-0.999720],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1,"type":"rocket","fuel":"hydrogen"},
-    {"position":[1.6,6.02,23.795],"plume_offset":[-0.36,-1.87,0],"direction":[-0.04994,0,-0.999720],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1,"type":"rocket","fuel":"hydrogen"},
+    {"position":[-1.6,6.02,23.795],"plume_offset":[0.36,-1.87,0],"direction":[0.04994,0,-0.99875],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1,"type":"rocket","fuel":"hydrogen"},
+    {"position":[1.6,6.02,23.795],"plume_offset":[-0.36,-1.87,0],"direction":[-0.04994,0,-0.99875],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1,"type":"rocket","fuel":"hydrogen"},
     {"position":[0,9.42,23.295],"plume_offset":[0,-5.82,0.5],"direction":[0,-0.13,-1],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":0.85,"type":"rocket","fuel":"hydrogen"}
    ]
   },
