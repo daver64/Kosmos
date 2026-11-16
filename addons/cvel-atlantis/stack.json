@@ -1,0 +1,35 @@
+{
+ "name":"CVEL Atlantis launch stack","class":"launcher","script":"@launcher.lua",
+ "description":"Atlantis external tank and solid rocket boosters. The tank stage provides the orbiter's three main engines during ascent. After main engine cutoff, undock Atlantis and switch to it for OMS and flight.",
+ "torque_accel":0.5,"max_rate":0.4,"rcs_thrust":0,"drag_area":80,"camera_distance":130,
+ "ports":[{"name":"Orbiter cradle","position":[0,3.22,7.795],"direction":[0,1,0],"up":[0,0,-1],"stage":2}],
+ "systems":[{"type":"battery","name":"Batteries","capacity_wh":5000,"max_w":2000},{"type":"load","name":"Avionics","watts":300,"priority":0}],
+ "stages":[
+  {
+   "name":"Solid rocket boosters","dry_mass":175086,"propellant":1004252,"z":5.68,"length":45,"radius":9,"radial_parts":true,"separation_speed":2.5,"with_next":true,
+   "engines":[
+    {"position":[6.2,-1.91,27.48],"direction":[0,0.023643,-0.999720],"thrust":14739845,"isp":364.5,"isp_sl":291.6,"plume":50,"plume_width":2.5,"type":"rocket","fuel":"solid"},
+    {"position":[-6.2,-1.91,27.48],"direction":[0,0.023643,-0.999720],"thrust":14739845,"isp":364.5,"isp_sl":291.6,"plume":50,"plume_width":2.5,"type":"rocket","fuel":"solid"}
+   ],
+   "gear":[[6.2,0,27.48],[-6.2,0,27.48],[0,4,27.48],[0,-4,27.48]],
+   "parts":[{"model":"models/atlantis_srb.obj","offset":[6.2,-1.91,5.68]},{"model":"models/atlantis_srb.obj","offset":[-6.2,-1.91,5.68]}]
+  },
+  {
+   "name":"Shuttle main engines during booster burn","ignite_with_previous":true,"dry_mass":0,"propellant":175000,"z":-5.72,"length":47.2,"radius":4.2,
+   "engines":[
+    {"position":[-1.6,6.02,23.795],"direction":[0.04994,0,-0.99875],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"},
+    {"position":[1.6,6.02,23.795],"direction":[-0.04994,0,-0.99875],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"},
+    {"position":[0,9.42,23.295],"direction":[0,-0.13,-1],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"}
+   ]
+  },
+  {
+   "name":"External tank and shuttle main engines","dry_mass":35425,"propellant":544115,"z":-5.72,"length":47.2,"radius":4.2,
+   "engines":[
+    {"position":[-1.6,6.02,23.795],"direction":[0.0624,-0.1789,-0.9819],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"},
+    {"position":[1.6,6.02,23.795],"direction":[-0.0624,-0.1789,-0.9819],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"},
+    {"position":[0,9.42,23.295],"direction":[0,-0.308046,-0.951372],"thrust":2085815,"isp":453,"isp_sl":366,"plume":25,"plume_width":1.2,"type":"rocket","fuel":"hydrogen"}
+   ],
+   "parts":[{"model":"models/atlantis_tank.obj","offset":[0,-1.91,-5.72]}]
+  }
+ ]
+}

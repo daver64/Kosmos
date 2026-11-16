@@ -1,0 +1,47 @@
+newmtl default
+Kd 0.878 0.878 0.878
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl copper
+Kd 0.710 0.494 0.118
+Ks 0.996 0.878 0.400
+Ke 0.000 0.000 0.000
+
+newmtl j2engred
+Kd 1.000 0.000 0.000
+Ks 1.000 0.773 0.773
+Ke 0.000 0.000 0.000
+
+newmtl material01
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material03_AtlasBody
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/AtlasBody.png
+
+newmtl material04_Centaurcover
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/Centaurcover.png
+
+newmtl stage01black
+Kd 0.000 0.000 0.000
+Ks 0.553 0.553 0.553
+Ke 0.000 0.000 0.000
+
+newmtl steeldark
+Kd 0.329 0.329 0.329
+Ks 0.647 0.647 0.647
+Ke 0.000 0.000 0.000
+
+newmtl steellight
+Kd 0.627 0.627 0.627
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

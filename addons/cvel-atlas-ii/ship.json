@@ -1,0 +1,62 @@
+{
+ "name": "CVEL Atlas IIAS",
+ "class": "launcher",
+ "description": "Atlas IIAS with four Castor 4A boosters, a jettisonable booster engine package and a Centaur upper stage. The Castors are represented as one simultaneous group.",
+ "script": "@launcher.lua",
+ "torque_accel": 0.2,
+ "max_rate": 0.3,
+ "rcs_thrust": 0,
+ "drag_area": 12,
+ "camera_distance": 70,
+ "camera_target": [0, 0, -10],
+ "ports": [{"name": "Payload", "position": [0, 0, -23.8], "direction": [0, 0, -1], "up": [0, 1, 0], "stage": 5}],
+ "payload_bays": [{"name": "Fairing", "shape": "cylinder", "radius": 1.8, "length": 8, "port": "Payload"}],
+ "systems": [
+  {"type": "battery", "name": "Batteries", "capacity_wh": 4000, "max_w": 2000},
+  {"type": "load", "name": "Avionics", "watts": 200, "priority": 0}
+ ],
+ "stages": [
+  {
+   "name": "Castor 4A boosters", "dry_mass": 6116, "propellant": 40856, "z": 9, "length": 10.2, "radius": 2.4,
+   "radial_parts": true, "separation_speed": 2.5,
+   "engines": [
+    {"position": [-0.9,-1.5,14.1], "direction": [0,0,-1], "thrust": 478473, "isp": 266, "isp_sl": 237, "plume": 17, "plume_width": 0.6, "type": "rocket", "fuel": "solid"},
+    {"position": [0.9,1.5,14.1], "direction": [0,0,-1], "thrust": 478473, "isp": 266, "isp_sl": 237, "plume": 17, "plume_width": 0.6, "type": "rocket", "fuel": "solid"},
+    {"position": [0.9,-1.5,14.1], "direction": [0,0,-1], "thrust": 478473, "isp": 266, "isp_sl": 237, "plume": 17, "plume_width": 0.6, "type": "rocket", "fuel": "solid"},
+    {"position": [-0.9,1.5,14.1], "direction": [0,0,-1], "thrust": 478473, "isp": 266, "isp_sl": 237, "plume": 17, "plume_width": 0.6, "type": "rocket", "fuel": "solid"}
+   ],
+   "gear": [[2,0,14.1],[-2,0,14.1],[0,2,14.1],[0,-2,14.1]],
+   "parts": [
+    {"model":"models/srb1.obj","offset":[-0.9,-1.5,9]},
+    {"model":"models/srb2.obj","offset":[0.9,1.5,9]},
+    {"model":"models/srb3.obj","offset":[0.9,-1.5,9]},
+    {"model":"models/srb4.obj","offset":[-0.9,1.5,9]}
+   ]
+  },
+  {
+   "name": "Atlas booster engine package", "ignite_with_previous": true,
+   "dry_mass": 5632, "propellant": 145130, "z": 11, "length": 4.8, "radius": 2, "separation_speed": 2,
+   "engines": [
+    {"position":[-1,0,13.8],"direction":[0,0,-1],"thrust":1047217.5,"isp":299,"isp_sl":263,"plume":25,"plume_width":0.8,"type":"rocket","fuel":"kerosene"},
+    {"position":[1,0,13.8],"direction":[0,0,-1],"thrust":1047217.5,"isp":299,"isp_sl":263,"plume":25,"plume_width":0.8,"type":"rocket","fuel":"kerosene"},
+    {"position":[0,0,13.8],"direction":[0,0,-1],"thrust":386514,"isp":316,"isp_sl":220,"plume":18,"plume_width":0.5,"type":"rocket","fuel":"kerosene"}
+   ],
+   "parts":[{"model":"models/boosterpackagema-5as.obj","offset":[0,0,11]}]
+  },
+  {
+   "name":"Atlas sustainer", "dry_mass":6050, "propellant":10770, "z":0, "length":26.6, "radius":1.6, "separation_speed":2, "with_next":true,
+   "engines":[{"position":[0,0,13.8],"direction":[0,0,-1],"thrust":386514,"isp":316,"isp_sl":220,"plume":18,"plume_width":0.5,"type":"rocket","fuel":"kerosene"}],
+   "parts":[{"model":"models/stage1sustainer.obj"},{"model":"models/interstagesection.obj","offset":[0,0,-14.1]}]
+  },
+  {"name":"Fairing left","dry_mass":200,"propellant":0,"z":-28,"length":12,"radius":2.2,"separation_speed":2,"separation_dir":[-1,0,0],"with_next":true,"parts":[{"model":"models/fairingleft.obj","offset":[-1,0,-28]}]},
+  {"name":"Fairing right","dry_mass":200,"propellant":0,"z":-28,"length":12,"radius":2.2,"separation_speed":2,"separation_dir":[1,0,0],"parts":[{"model":"models/fairingright.obj","offset":[1,0,-28]}]},
+  {
+   "name":"Centaur IIA","dry_mass":2293,"propellant":16780,"z":-18.75,"length":9.6,"radius":1.6,
+   "engines":[
+    {"position":[-0.8,0,-13.95],"direction":[0,0,-1],"thrust":92537.73,"isp":449,"plume":5,"plume_width":0.4,"type":"rocket","fuel":"hydrogen"},
+    {"position":[0.8,0,-13.95],"direction":[0,0,-1],"thrust":92537.73,"isp":449,"plume":5,"plume_width":0.4,"type":"rocket","fuel":"hydrogen"}
+   ],
+   "parts":[{"model":"models/stagecentaur.obj","offset":[0,-0.1,-18.75]}]
+  }
+ ]
+}

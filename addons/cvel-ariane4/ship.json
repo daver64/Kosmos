@@ -1,0 +1,51 @@
+{
+ "name":"CVEL Ariane 44L",
+ "class":"launcher",
+ "description":"Ariane 44L with four liquid strap-on boosters and three core stages.",
+ "script":"@launcher.lua",
+ "torque_accel":0.2,"max_rate":0.3,"rcs_thrust":0,"drag_area":18,
+ "camera_distance":80,"camera_target":[0,0,-10],
+ "ports":[{"name":"Payload","position":[0,0,-32.8],"direction":[0,0,-1],"up":[0,1,0],"stage":5}],
+ "payload_bays":[{"name":"Fairing","shape":"cylinder","radius":1.7,"length":9,"port":"Payload"}],
+ "systems":[{"type":"battery","name":"Batteries","capacity_wh":4000,"max_w":2000},{"type":"load","name":"Avionics","watts":200,"priority":0}],
+ "stages":[
+  {
+   "name":"Liquid boosters","dry_mass":17972,"propellant":157116,"z":4,"length":16.4,"radius":4.3,"radial_parts":true,"separation_speed":2.5,
+   "engines":[
+    {"position":[-2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[2.5,2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[-2.5,-2.5,12.5],"direction":[0,0,-1],"thrust":672722,"isp":248,"plume":22,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"}
+   ],
+   "gear":[[3,3,12.5],[-3,3,12.5],[3,-3,12.5],[-3,-3,12.5]],
+   "parts":[
+    {"model":"models/ll_1.obj","offset":[-2.19,2.19,4]},
+    {"model":"models/l_1.obj","offset":[2.19,2.19,4]},
+    {"model":"models/ll_2.obj","offset":[2.19,-2.19,4]},
+    {"model":"models/l_2.obj","offset":[-2.19,-2.19,4]}
+   ]
+  },
+  {
+   "name":"First stage","ignite_with_previous":true,"dry_mass":17900,"propellant":228000,"z":0,"length":23.6,"radius":2.7,"separation_speed":2,
+   "engines":[
+    {"position":[0,1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[0,-1.9,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"},
+    {"position":[-1.9,0,12.2],"direction":[0,0,-1],"thrust":758803.5,"isp":278.3,"plume":25,"plume_width":0.7,"type":"rocket","fuel":"hypergolic"}
+   ],
+   "parts":[{"model":"models/stage1.obj"},{"model":"models/sep12.obj","offset":[0,0,-13.62]}]
+  },
+  {
+   "name":"Second stage","dry_mass":3625,"propellant":33505,"z":-17.4,"length":10.4,"radius":1.4,"separation_speed":2,"with_next":true,
+   "engines":[{"position":[0,0,-12],"direction":[0,0,-1],"thrust":778120,"isp":296,"plume":12,"plume_width":0.65,"type":"rocket","fuel":"hypergolic"}],
+   "parts":[{"model":"models/stage2.obj","offset":[0,0,-17.4]},{"model":"models/sep23.obj","offset":[0,0,-23.95]}]
+  },
+  {"name":"Fairing left","dry_mass":250,"propellant":0,"z":-38.2,"length":11.6,"radius":1.8,"separation_speed":2,"separation_dir":[-1,0,0],"with_next":true,"parts":[{"model":"models/fairing_2.obj","offset":[-0.85,0,-38.2]}]},
+  {"name":"Fairing right","dry_mass":250,"propellant":0,"z":-38.2,"length":11.6,"radius":1.8,"separation_speed":2,"separation_dir":[1,0,0],"parts":[{"model":"models/fairing_1.obj","offset":[0.85,0,-38.2]}]},
+  {
+   "name":"Third stage","dry_mass":1570,"propellant":10740,"z":-28.05,"length":9.4,"radius":1.8,
+   "engines":[{"position":[0,0,-23],"direction":[0,0,-1],"thrust":61910,"isp":446.1,"plume":6,"plume_width":0.5,"type":"rocket","fuel":"hydrogen"}],
+   "parts":[{"model":"models/stage3.obj","offset":[0,0,-28.05]}]
+  }
+ ]
+}

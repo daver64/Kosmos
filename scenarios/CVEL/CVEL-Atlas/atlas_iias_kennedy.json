@@ -1,0 +1,6 @@
+{
+ "name":"CVEL: Atlas IIAS, Kennedy",
+ "description":"CVEL Atlas IIAS on the pad at Kennedy. Press P for the launcher ascent autopilot.",
+ "active":0,
+ "ships":[{"ship":"CVEL Atlas IIAS","body":"Earth","surface":{"base":"kennedy"}}]
+}

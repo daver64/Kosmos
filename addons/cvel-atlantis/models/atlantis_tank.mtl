@@ -1,0 +1,31 @@
+newmtl Material0_Atlantis_TANK
+Kd 1.000 1.000 1.000
+Ks 0.698 0.698 0.698
+Ke 0.000 0.000 0.000
+map_Kd textures/TANK.png
+
+newmtl Material1
+Kd 0.012 0.012 0.012
+Ks 0.012 0.012 0.012
+Ke 0.000 0.000 0.000
+
+newmtl Material2
+Kd 0.631 0.631 0.631
+Ks 0.631 0.631 0.631
+Ke 0.000 0.000 0.000
+
+newmtl Material3
+Kd 0.973 0.867 0.580
+Ks 0.973 0.867 0.580
+Ke 0.000 0.000 0.000
+
+newmtl Material4
+Kd 1.000 0.416 0.388
+Ks 1.000 0.416 0.388
+Ke 0.000 0.000 0.000
+
+newmtl Material5
+Kd 0.898 0.898 0.898
+Ks 0.898 0.898 0.898
+Ke 0.000 0.000 0.000
+

@@ -1,0 +1,26 @@
+newmtl material01
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material09
+Kd 0.514 0.243 0.165
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material11_booster
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/booster.png
+
+newmtl material12
+Kd 0.498 0.071 0.047
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl steeldark
+Kd 0.329 0.329 0.329
+Ks 0.647 0.647 0.647
+Ke 0.000 0.000 0.000
+

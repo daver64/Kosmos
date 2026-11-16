@@ -1,0 +1,98 @@
+Ariane IV beta 1 (CVE-lite compatible)
+
+(C) 11/08/04 David Henderson et al. orbiter@aibs.org.uk
+http://projectganymede.sf.net/cve-lite/
+
+Ariane4 modules and sourcecode and CVEL-Fregat are distributed under the terms of the GNU LGPL -- http://www.gnu.org/copyleft/lesser.html
+
+The Ariane 4 meshes are copyright Vinka and approved for distribution with the Ariane 4 addon.
+
+All other meshes are released under the LGPL.
+
+
+All source available at SourceForge under ProjectGanymede's CVS repository.
+
+==========
+Thanks to:
+==========
+
+Vinka for the Ariane 4 meshes.
+McDope for the Fregat mesh.
+Dave Rowbotham for COMMON_ADDON_EX.
+
+
+===============
+ARIANE 4 beta 1
+===============
+
+Welcome to the beta programme for the new version of Ariane 4. A totally re-coded version of Vinka's excellent meshes.
+
+New features include:
+
+* support for CVE-lite -- a common vessel addon library that provides support for the GPDS standard.
+
+* mutliple instances.
+
+* six versions of Ariane 4.
+
+* up to 50 user-defined payloads and upper stages through GDPS.
+
+============
+INSTALLATION
+============
+
+Extract the .ZIP file into your orbiter directory, retaining directory structure.
+
+===
+USE
+===
+
+The default scenarios list all the six Ariane 4 variants and include a variety of payload combinations.
+
+GPDS is supported to allow the user to specify payloads please see HOWTO-GPDS.txt or http://projectganymede.sf.net/cve-lite/ for a GPDS tutorial.
+
+
+=============
+CONFIGURATION
+=============
+
+Ariane 4 reads the following lines from the scenario file:
+
+FAIRING
+
+Fairing attached or otherwise
+
+CONFIGURATION 0|1|2|3|4
+ 0: all boosters attached
+ 1: half boosters attached
+ 2: core stage
+ 3: second stage
+ 4: third stage
+
+A4TYPE 0|1|2|3|4|5
+ 0: A4    (no boosters)
+ 1: A42P  (two SRBs)
+ 2: A42L  (two LRBs)
+ 3: A44P  (four SRBs)
+ 4: A44LP (two SRBs, two LRBs)
+ 5: A44L  (four LRBs -- the daddy)
+
+Payloads are described with GPDS (see HOWTO-GPDS.txt).
+
+
+====
+KEYS
+====
+
+Press "J" to jettison stages and payloads.
+Press "CTRL-J" to prematurely jettison the fairing (it goes automatically at 100km).
+
+==========
+Good luck!
+==========
+
+David Henderson
+orbiter@aibs.org.uk
+www.aibs.org.uk/orbiter
+
+

@@ -1,0 +1,16 @@
+newmtl blanc
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+
+newmtl material00_Ariane4_esa
+Kd 1.000 1.000 1.000
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+map_Kd textures/esa.png
+
+newmtl motor
+Kd 0.365 0.365 0.365
+Ks 1.000 1.000 1.000
+Ke 0.000 0.000 0.000
+

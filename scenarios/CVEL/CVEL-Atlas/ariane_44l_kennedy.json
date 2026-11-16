@@ -1,0 +1,6 @@
+{
+ "name":"CVEL: Ariane 44L, Kennedy",
+ "description":"CVEL Ariane 44L on the pad at Kennedy. This is a fictional Kennedy start; Ariane 4 flew from Kourou. Press P for the launcher ascent autopilot.",
+ "active":0,
+ "ships":[{"ship":"CVEL Ariane 44L","body":"Earth","surface":{"base":"kennedy"}}]
+}

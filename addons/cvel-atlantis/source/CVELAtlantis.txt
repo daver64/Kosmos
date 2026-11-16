@@ -1,0 +1,19 @@
+CVE-lite Atlantis adapted from Martin Schweiger's source by D Henderson (2004)
+
+
+This is a CVE-lite alternative DLL for the default Orbiter Atlantis.
+Please see the CVE-lite homepage for more information on using GPDS to
+insert payloads, or read HOWTO-GPDS.txt.
+
+No Atlantis meshes are included in this distribution, as they are in the
+default Orbiter.
+
+CVEL-Fregat (C) D Henderson 2004, released under the LGPL.
+Free fregat mesh (C) D Henderson 2004, released under the LGPL.
+
+Press "j" to jettison stages prematurely, or jettison payloads/upperstages
+described in the scenario file using the Generic Payload Description System
+(GPDS), once in Orbiter configuration.
+
+http://projectganymede.sourceforge.net/cve-lite
+
