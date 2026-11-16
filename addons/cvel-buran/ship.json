@@ -73,8 +73,8 @@
    "length": 36,
    "radius": 5,
    "engines": [
-    {"position": [1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"},
-    {"position": [-1.6, 0, 16], "direction": [0, 0, -1], "thrust": 86328, "isp": 510, "isp_sl": 408, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "hydrogen"}
+    {"position": [1.6, 0, 16], "direction": [0, 0, -1], "thrust": 90000, "isp": 362, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "kerosene"},
+    {"position": [-1.6, 0, 16], "direction": [0, 0, -1], "thrust": 90000, "isp": 362, "plume": 10, "plume_width": 1.0, "plume_glow": 1.2, "plume_density": 1.2, "type": "rocket", "fuel": "kerosene"}
    ],
    "parts": [
     {"model": "models/buran.obj", "animations": "animations.json",

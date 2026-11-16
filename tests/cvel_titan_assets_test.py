@@ -13,6 +13,7 @@ for path in sorted(addon.glob("titan*.json")):
     boosters = stages[0].get("engines", [])
     if any(engine.get("fuel") == "solid" for engine in boosters):
         assert stages[1].get("ignite_with_previous") is True, (path.name, stages[1])
+        assert all(engine["type"] == "solid" for engine in boosters), path.name
         assert all(
             engine["plume"] == 35
             and engine["plume_width"] == 0.65
@@ -41,6 +42,11 @@ for stage_index in (1, 4):
     )
 
 titan34d = json.loads((addon / "titan34d.json").read_text())
+boosters = titan34d["stages"][0]
+assert "UA1206" in titan34d["description"]
+assert boosters["dry_mass"] == 81654 and boosters["propellant"] == 421200
+assert all(engine["thrust"] == 6226900 and engine["isp"] == 265 for engine in boosters["engines"])
+assert all(part["scale"] == [1, 1, 1.064] for part in boosters["parts"])
 core = next(stage for stage in titan34d["stages"] if stage["name"] == "Stage 1")
 stage_2 = next(stage for stage in titan34d["stages"] if stage["name"] == "Stage 2")
 assert all(
@@ -59,7 +65,8 @@ for filename in ("titan3e.json", "titan4a.json"):
     assert len(engines) == 2, (filename, engines)
     positions = [engine["position"] for engine in engines]
     assert positions == [[-0.008, 0.608, 4.655], [-0.008, -0.608, 4.655]], (filename, positions)
-    assert sum(engine["thrust"] for engine in engines) == 73428, (filename, engines)
+    expected_thrust = 66700 if filename == "titan3e.json" else 73400
+    assert all(engine["thrust"] == expected_thrust for engine in engines), (filename, engines)
     assert all(engine["plume_width"] == 0.25 for engine in engines), (filename, engines)
 
     for part in (part for stage in ship["stages"] for part in stage.get("parts", [])):

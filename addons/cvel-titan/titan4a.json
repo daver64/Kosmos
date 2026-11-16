@@ -95,7 +95,7 @@
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     },
     {
@@ -116,7 +116,7 @@
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     }
    ],
@@ -379,7 +379,7 @@
       0,
       -1
      ],
-     "thrust": 36714,
+     "thrust": 73400,
      "isp": 444,
      "plume": 4,
      "plume_width": 0.25,
@@ -399,7 +399,7 @@
       0,
       -1
      ],
-     "thrust": 36714,
+     "thrust": 73400,
      "isp": 444,
      "plume": 4,
      "plume_width": 0.25,

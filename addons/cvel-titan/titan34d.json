@@ -5,7 +5,7 @@
   {"name": "Payload shroud", "shape": "cylinder", "radius": 2.0, "length": 10, "port": "Payload"}
  ],
  "script": "@launcher.lua",
- "description": "Titan 34D: uprated core stages, two UA1205 solid motors and a Transtage upper stage.",
+ "description": "Titan 34D: uprated core stages, two UA1206 solid motors and a Transtage upper stage.",
  "torque_accel": 0.15,
  "max_rate": 0.3,
  "rcs_thrust": 0,
@@ -69,10 +69,10 @@
  "stages": [
   {
    "name": "Solid rocket motors",
-   "dry_mass": 67596,
-   "propellant": 384870,
-   "z": 27.41,
-   "length": 27,
+   "dry_mass": 81654,
+   "propellant": 421200,
+   "z": 26.56,
+   "length": 28.7,
    "radius": 4.6,
    "separation_speed": 2.0,
    "radial_parts": true,
@@ -88,14 +88,14 @@
       0,
       -1
      ],
-     "thrust": 5851410,
-     "isp": 263,
-     "isp_sl": 238,
+     "thrust": 6226900,
+     "isp": 265,
+     "isp_sl": 240,
      "plume": 35,
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     },
     {
@@ -109,14 +109,14 @@
       0,
       -1
      ],
-     "thrust": 5851410,
-     "isp": 263,
-     "isp_sl": 238,
+     "thrust": 6226900,
+     "isp": 265,
+     "isp_sl": 240,
      "plume": 35,
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     }
    ],
@@ -145,18 +145,20 @@
    "parts": [
     {
      "model": "models/ua1205w.obj",
+     "scale": [1, 1, 1.064],
      "offset": [
       3.05,
       0,
-      27.41
+      26.52
      ]
     },
     {
      "model": "models/ua1205e.obj",
+     "scale": [1, 1, 1.064],
      "offset": [
       -3.05,
       0,
-      27.41
+      26.52
      ]
     }
    ]

@@ -499,12 +499,12 @@
             0,
             -1
           ],
-          "thrust": 97900,
-          "isp": 342,
+          "thrust": 91187,
+          "isp": 314.5,
           "isp_sl": 220,
           "plume": 8,
           "type": "rocket",
-          "fuel": "hydrogen"
+          "fuel": "hypergolic"
         }
       ],
       "parts": [

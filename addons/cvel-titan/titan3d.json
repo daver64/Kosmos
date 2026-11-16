@@ -95,7 +95,7 @@
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     },
     {
@@ -116,7 +116,7 @@
      "plume_width": 0.65,
      "plume_glow": 1.0,
      "plume_density": 2,
-     "type": "rocket",
+     "type": "solid",
      "fuel": "solid"
     }
    ],

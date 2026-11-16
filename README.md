@@ -471,7 +471,21 @@ The CVEL Star 48B and Star 37FM are available as separate upper stages, with
 fictional stacked-payload scenarios in Earth orbit and on the Delta IV Heavy.
 Their masses, thrust and specific impulse follow the original CVEL addon.
 Unlike real solid motors, Kosmos currently permits throttling and restarting
-them; attitude control also substitutes for spin stabilisation.
+them and the Titan boosters; attitude control also substitutes for the Star
+stages' spin stabilisation.
+
+The Saturn V F-1, Apollo service propulsion, Delta IV Heavy upper stage,
+Titan I and Agena, Titan IIIE/IVA Centaurs, Centaur G and Buran orbital
+engines use approximately historical thrust and propellant categories. The
+Titan 34D uses UA1206 performance with a stretched UA1205 mesh as an
+approximation. Buran's synthetic hydrocarbon fuel uses the kerosene plume.
+Fuel categories select exhaust appearance; the simulation uses a single
+propellant quantity per stage rather than separate fuel and oxidizer tanks.
+Performance and guidance remain approximate. References include
+[Apollo SPS](https://www.nasa.gov/history/60-years-ago-first-test-firing-of-the-apollo-service-propulsion-system/),
+[Delta IV Heavy](https://www.ulalaunch.com/docs/default-source/rockets/delta-iv-heavy-cutaway.pdf?sfvrsn=eeef4919_10),
+[Titan UA1206](https://astronautix.com/u/ua1206.html) and
+[Buran orbital engines](https://www.buran-energia.com/bourane-buran/bourane-consti-moteur.php).
 
 ## MFDs (multi-function displays)
 
