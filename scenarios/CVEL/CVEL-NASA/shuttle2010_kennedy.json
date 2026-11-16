@@ -1,0 +1,10 @@
+{
+  "name": "CVEL: Shuttle 2010, Kennedy",
+  "description": "A fictional Shuttle 2010 piggybacked on an Atlantis-derived tank and boosters at Kennedy. Press P for ascent. The stack simulates the shuttle main engines; after cutoff, undock with Ctrl+D and switch to the shuttle for orbital flight.",
+  "active": 0,
+  "ships": [
+    {"ship": "CVEL Shuttle 2010 launch stack", "body": "Earth", "surface": {"base": "kennedy"}},
+    {"ship": "CVEL Shuttle 2010", "body": "Earth", "surface": {"base": "kennedy"},
+     "dock": {"to": 0, "port": 0, "own_port": 0}}
+  ]
+}

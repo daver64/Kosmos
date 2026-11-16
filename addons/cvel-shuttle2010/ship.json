@@ -1,0 +1,30 @@
+{
+ "name":"CVEL Shuttle 2010","class":"aircraft",
+ "description":"A fictional shuttle based on an original concept mesh. Its launch stack supplies main-engine thrust; after separation use its orbital engines and flight controls.",
+ "torque_accel":0.5,"max_rate":0.5,"rcs_thrust":7500,"rcs_propellant":600,
+ "drag_area":5,"thermal":{"nose_radius":0.7,"heat_area":100,"max_temp":1900,"bare_max_temp":1200},
+ "hypersonic":{"area":120,"length":20.05,"cd_max":1.6,"trim_deg":40},
+ "camera_distance":45,"rcs_modes":true,
+ "inertia":[100000,120000,30000],"damping":[0.8,1,0.8],
+ "ports":[{"name":"Launcher cradle","position":[0,-1.03,-6.45],"direction":[0,-1,0],"up":[0,0,-1]}],
+ "systems":[{"type":"battery","name":"Batteries","capacity_wh":15000,"max_w":4000},{"type":"load","name":"Avionics","watts":400,"priority":0}],
+ "cockpit":{"hud_modes":["orbit","surface","docking"],"eye":[0,1.3,-5],"mfds":true,"mfd_filter":"none","mfd_left":"orbit","mfd_right":"surface"},
+ "surfaces":[
+  {"control":"","position":[0,0,2],"area":110,"cl0":0.05,"cl_alpha":2.2,"cd0":0.03,"induced_drag":0.15,"stall_deg":40},
+  {"control":"aileron","position":[6,0,4],"area":10,"cl0":0,"cl_alpha":3,"cd0":0.01,"induced_drag":0.08,"stall_deg":18,"gain_deg":12},
+  {"control":"aileron","position":[-6,0,4],"area":10,"cl0":0,"cl_alpha":3,"cd0":0.01,"induced_drag":0.08,"stall_deg":18,"gain_deg":-12},
+  {"control":"elevator","position":[6,0,4],"area":10,"cl0":0,"cl_alpha":3,"cd0":0.01,"induced_drag":0.08,"stall_deg":18,"gain_deg":-12},
+  {"control":"elevator","position":[-6,0,4],"area":10,"cl0":0,"cl_alpha":3,"cd0":0.01,"induced_drag":0.08,"stall_deg":18,"gain_deg":-12},
+  {"control":"rudder","position":[0,2,7],"area":10,"cl0":0,"cl_alpha":3,"cd0":0.01,"induced_drag":0.08,"stall_deg":18,"gain_deg":15,"forward":[0,0,-1],"up":[1,0,0]}
+ ],
+ "wheels":[{"position":[0,-1.2,-5],"steer_deg":40,"rolling_resistance":0.03},{"position":[2.4,-1.2,5],"rolling_resistance":0.03},{"position":[-2.4,-1.2,5],"rolling_resistance":0.03}],
+ "stages":[{
+  "name":"Shuttle 2010 orbiter","dry_mass":30000,"propellant":6000,"z":0,"length":20.05,"radius":10.4,
+  "engines":[
+   {"position":[-1.24,-0.1,9.55],"direction":[0,0,-1],"thrust":17800,"isp":316.1,"plume":5,"plume_width":0.35,"type":"rocket","fuel":"hypergolic"},
+   {"position":[1.24,-0.1,9.55],"direction":[0,0,-1],"thrust":17800,"isp":316.1,"plume":5,"plume_width":0.35,"type":"rocket","fuel":"hypergolic"},
+   {"position":[0,-0.65,9.55],"direction":[0,0,-1],"thrust":17800,"isp":316.1,"plume":5,"plume_width":0.3,"type":"rocket","fuel":"hypergolic"}
+  ],
+  "parts":[{"model":"models/Shuttle2010.obj"}]
+ }]
+}

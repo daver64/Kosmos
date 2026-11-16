@@ -1,0 +1,70 @@
+newmtl HullWhite
+Ka 0.18 0.18 0.18
+Kd 0.79 0.8 0.78
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl WingCeramic
+Ka 0.18 0.18 0.18
+Kd 0.73 0.75 0.74
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl PanelGrey
+Ka 0.18 0.18 0.18
+Kd 0.55 0.59 0.6
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl ThermalBlack
+Ka 0.18 0.18 0.18
+Kd 0.085 0.095 0.105
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl CanopyGlass
+Ka 0.18 0.18 0.18
+Kd 0.035 0.09 0.14
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl EngineMetal
+Ka 0.18 0.18 0.18
+Kd 0.3 0.32 0.34
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl NozzleInterior
+Ka 0.18 0.18 0.18
+Kd 0.055 0.06 0.07
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl ESAAccentRed
+Ka 0.18 0.18 0.18
+Kd 0.75 0.13 0.12
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl ESAAccentBlue
+Ka 0.18 0.18 0.18
+Kd 0.09 0.28 0.52
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
+newmtl GoldDetail
+Ka 0.18 0.18 0.18
+Kd 0.74 0.59 0.25
+Ks 0.08 0.08 0.08
+Ns 24
+illum 2
+
