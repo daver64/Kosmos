@@ -373,7 +373,7 @@ function(kosmos_expose_tool tool)
 endfunction()
 
 # KosmosMap is a plain GTK 3 program in addons/kosmosmap, built on Linux when GTK 3 and zlib are present.
-if(UNIX AND NOT APPLE)
+if(UNIX)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_check_modules(KOSMOSMAP_GTK QUIET gtk+-3.0 gdk-pixbuf-2.0)
@@ -401,7 +401,7 @@ target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOS
 target_compile_features(missioncore_test PRIVATE cxx_std_17)
 target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 # ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
-if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
+if(UNIX AND KOSMOSMAP_GTK_FOUND)
     set(SHIPEDIT_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
     set(SHIPEDIT_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/shipedit)
@@ -426,7 +426,7 @@ if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
     endif()
 endif()
 # KosmosAV, the pilot's program for the KosmosAV freight network (kav/client), is a GTK 3 program too and also needs libcurl (the Windows program is built by scripts/build-win-tools.sh with WinHTTP).
-if(UNIX AND NOT APPLE AND KOSMOSMAP_GTK_FOUND)
+if(UNIX AND KOSMOSMAP_GTK_FOUND)
     find_package(CURL QUIET)
     if(CURL_FOUND)
         set(KOSMOSAV_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)

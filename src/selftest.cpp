@@ -1407,7 +1407,7 @@ namespace kosmos
         sol::table frame = result;
         sol::protected_function node_fn = hooks["compute_node"];
         sim.lua.execute("");
-        result = node_fn(frame, sol::nil);
+        result = node_fn(frame, sol::lua_nil);
         if (!result.valid())
         {
             const sol::error error = result;
