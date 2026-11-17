@@ -1,0 +1,9 @@
+{
+ "version":1,
+ "animations":[
+  {"type":"rotate","property":"bay-doors","objects":["cargodooroutR","cargodoorinR","radiatorFR","radiatorBR"],
+   "axis":[0,0,1],"center":[2.837,1.282,0],"interpolation":[[0,0],[0.1,0],[0.9,-145],[1,-145]]},
+  {"type":"rotate","property":"bay-doors","objects":["cargodooroutL","cargodoorinL","radiatorFL","radiatorBL"],
+   "axis":[0,0,1],"center":[-2.836,1.282,0],"interpolation":[[0,0],[0.1,0],[0.9,145],[1,145]]}
+ ]
+}

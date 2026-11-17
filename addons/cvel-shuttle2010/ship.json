@@ -1,7 +1,7 @@
 {
  "name":"CVEL Shuttle 2010","class":"aircraft",
  "description":"A fictional shuttle based on an original concept mesh. Its launch stack supplies main-engine thrust; after separation use its orbital engines and flight controls.",
- "torque_accel":0.5,"max_rate":0.5,"rcs_thrust":7500,"rcs_propellant":600,
+ "torque_accel":0.5,"max_rate":0.5,"rcs_thrust":7500,"rcs_propellant":600,"rcs_effects":false,
  "drag_area":5,"thermal":{"nose_radius":0.7,"heat_area":100,"max_temp":1900,"bare_max_temp":1200},
  "hypersonic":{"area":120,"length":20.05,"cd_max":1.6,"trim_deg":40},
  "camera_distance":45,"rcs_modes":true,

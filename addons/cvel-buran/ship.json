@@ -10,6 +10,7 @@
  "max_rate": 0.5,
  "rcs_thrust": 15000,
  "rcs_propellant": 1500,
+ "rcs_effects": false,
  "reverse_throttle": true,
  "drag_area": 8,
  "thermal": {"nose_radius": 1.0, "heat_area": 200, "max_temp": 1900, "bare_max_temp": 1200},

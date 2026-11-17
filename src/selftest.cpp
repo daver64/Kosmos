@@ -2834,55 +2834,66 @@ namespace kosmos
             std::puts("Rover rollover selftest ok");
             return 0;
         }
-        if (sim.props.get_bool("/selftest/buran-payload"))
+        if (sim.props.get_bool("/selftest/buran-payload") || sim.props.get_bool("/selftest/atlantis-payload"))
         {
-            const auto fail = [](const char *message) {
-                std::fprintf(stderr, "Buran payload selftest: %s\n", message);
+            const bool atlantis = sim.props.get_bool("/selftest/atlantis-payload");
+            const char *orbiter_name = atlantis ? "Atlantis" : "Buran";
+            const auto fail = [orbiter_name](const char *message) {
+                std::fprintf(stderr, "%s payload selftest: %s\n", orbiter_name, message);
                 return 1;
             };
-            if (!ship || sim.ship_count() < 5 || ship->spec().name != "CVEL Energia" ||
-                sim.ship(1)->spec().name != "CVEL Buran" || sim.ship(2)->spec().name != "CVEL Centaur G" ||
-                sim.ship(3)->spec().name != "CVEL Fregat" || sim.ship(4)->spec().name != "Luna E3")
-                return fail("expected Energia, Buran, Centaur, Fregat and Luna E3");
+            const bool has_launcher = ship && ship->spec().name == (atlantis ? "CVEL Atlantis launch stack" : "CVEL Energia");
+            const int orbiter_index = has_launcher ? 1 : 0;
+            const int centaur_index = orbiter_index + 1;
+            const int fregat_index = orbiter_index + 2;
+            const int probe_index = orbiter_index + 3;
+            if (!ship || (!has_launcher && !atlantis) || sim.ship_count() <= probe_index ||
+                sim.ship(orbiter_index)->spec().name != (atlantis ? "CVEL Atlantis" : "CVEL Buran") ||
+                sim.ship(centaur_index)->spec().name != "CVEL Centaur G" ||
+                sim.ship(fregat_index)->spec().name != "CVEL Fregat" || sim.ship(probe_index)->spec().name != "Luna E3")
+                return fail("expected orbiter, Centaur, Fregat and Luna E3, with optional launcher");
             sim.step(0.01);
-            if (sim.nav.dock_links().size() != 4)
+            if (sim.nav.dock_links().size() != (has_launcher ? 4u : 3u))
                 return fail("initial payload stack not docked");
-            Ship *buran = sim.ship(1);
-            const sl::dmat3 inverse = glm::transpose(buran->body().rotation());
+            Ship *orbiter = sim.ship(orbiter_index);
+            const sl::dmat3 inverse = glm::transpose(orbiter->body().rotation());
             const double centaur_z = -3.5;
-            const double fregat_z = centaur_z + sim.ship(2)->spec().ports[1].position.z - sim.ship(3)->spec().ports[0].position.z;
-            const double probe_z = fregat_z + sim.ship(3)->spec().ports[1].position.z - sim.ship(4)->spec().ports[0].position.z;
-            for (int i = 2; i <= 4; ++i)
+            const double fregat_z = centaur_z + sim.ship(centaur_index)->spec().ports[1].position.z - sim.ship(fregat_index)->spec().ports[0].position.z;
+            const double probe_z = fregat_z + sim.ship(fregat_index)->spec().ports[1].position.z - sim.ship(probe_index)->spec().ports[0].position.z;
+            for (int i = centaur_index; i <= probe_index; ++i)
             {
-                const sl::dvec3 local = inverse * (sim.ship(i)->origin() - buran->origin());
-                const sl::dvec3 expected(0.0, 1.3, i == 2 ? centaur_z : i == 3 ? fregat_z : probe_z);
+                const sl::dvec3 local = inverse * (sim.ship(i)->origin() - orbiter->origin());
+                const sl::dvec3 expected(0.0, 1.3, i == centaur_index ? centaur_z : i == fregat_index ? fregat_z : probe_z);
                 if (glm::length(local - expected) > 0.02 ||
                     glm::length(inverse * sim.ship(i)->body().rotation()[2] - sl::dvec3(0, 0, 1)) > 1e-5)
                     return fail("payload is not aligned in the bay");
             }
-            sim.props.set_bool("/dock/undock", true);
+            if (has_launcher)
+            {
+                sim.props.set_bool("/dock/undock", true);
+                sim.step(0.01);
+                if (sim.nav.docked(0) || sim.nav.dock_links().size() != 3)
+                    return fail("launcher separation released the payload");
+                sim.activate(orbiter_index);
+            }
             sim.step(0.01);
-            if (sim.nav.docked(0) || sim.nav.dock_links().size() != 3)
-                return fail("launcher separation released the payload");
-            sim.activate(1);
-            sim.step(0.01);
-            const sl::dvec3 bay_up = buran->body().rotation() * sl::dvec3(0, 1, 0);
+            const sl::dvec3 bay_up = orbiter->body().rotation() * sl::dvec3(0, 1, 0);
             sim.props.set_bool("/controls/stage", true);
             sim.step(0.01);
-            if (sim.active_ship() != sim.ship(2) || sim.nav.dock_links().size() != 2 ||
-                !sim.nav.docked(3) || !sim.nav.docked(4))
-                return fail("Buran did not release Centaur with its payload");
-            if (glm::dot(sim.ship(2)->body().velocity - buran->body().velocity, bay_up) < 0.4)
+            if (sim.active_ship() != sim.ship(centaur_index) || sim.nav.dock_links().size() != 2 ||
+                !sim.nav.docked(fregat_index) || !sim.nav.docked(probe_index))
+                return fail("orbiter did not release Centaur with its payload");
+            if (glm::dot(sim.ship(centaur_index)->body().velocity - orbiter->body().velocity, bay_up) < 0.4)
                 return fail("payload did not separate upward from the bay");
             sim.props.set_bool("/controls/stage", true);
             sim.step(0.01);
-            if (sim.active_ship() != sim.ship(3) || sim.nav.dock_links().size() != 1)
+            if (sim.active_ship() != sim.ship(fregat_index) || sim.nav.dock_links().size() != 1)
                 return fail("Centaur did not release Fregat");
             sim.props.set_bool("/controls/stage", true);
             sim.step(0.01);
-            if (sim.active_ship() != sim.ship(4) || !sim.nav.dock_links().empty())
+            if (sim.active_ship() != sim.ship(probe_index) || !sim.nav.dock_links().empty())
                 return fail("Fregat did not release Luna");
-            std::puts("Buran payload selftest ok");
+            std::printf("%s payload selftest ok\n", orbiter_name);
             return 0;
         }
         if (sim.props.get_bool("/selftest/centaur-handoff"))

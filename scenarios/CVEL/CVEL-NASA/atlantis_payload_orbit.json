@@ -1,0 +1,55 @@
+{
+  "active": 0,
+  "description": "Atlantis in Earth orbit with Centaur G, Fregat and Luna E3 in its bay. Open the payload bay doors and stage to release Centaur; stage each upper vessel to release its payload.",
+  "name": "CVEL: Atlantis payload deployment, Earth orbit",
+  "ships": [
+    {
+      "body": "Earth",
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5
+      },
+      "ship": "CVEL Atlantis"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 2,
+        "port": 2,
+        "to": 0
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5
+      },
+      "ship": "CVEL Centaur G"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 1
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5
+      },
+      "ship": "CVEL Fregat"
+    },
+    {
+      "body": "Earth",
+      "dock": {
+        "own_port": 0,
+        "port": 1,
+        "to": 2
+      },
+      "orbit": {
+        "altitude_km": 400,
+        "inclination": 28.5
+      },
+      "ship": "Luna E3"
+    }
+  ],
+  "thumbnail": "thumbs/atlantis_payload_orbit-1794934606535293330-0.png"
+}

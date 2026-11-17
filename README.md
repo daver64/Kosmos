@@ -508,12 +508,20 @@ Orbiter meshes; attribution and licence notices are in each addon's `source/`
 directory. Atlas groups its Castors into
 one simultaneous separation and approximates its shared sustainer propellant
 as separate stage tanks. Atlantis rides a launch-stack vessel whose tank stage
-simulates the shuttle main engines; after cutoff, undock with **Ctrl+D** and
-switch to Atlantis for OMS and flight. Its tank propellant is split between
-the booster and post-booster phases to approximate the change in engine cant;
-unused propellant in the first portion is discarded with the boosters. The
-shuttle's original animated systems are not reproduced. Guidance is
-approximate; Atlantis needs an OMS burn to reach orbit after main-engine cutoff.
+simulates the shuttle main engines. Its tank propellant is split between
+the booster and post-booster phases; unused propellant in the first portion is
+discarded with the boosters. The booster thrust and fuel and the tank fuel are
+increased above the earlier approximations. Stack and orbiter thrust are
+applied along their axes, with exhaust drawn at the engine nozzles. The
+Kennedy scenario carries Centaur G, Fregat and Luna E3 in Atlantis's bay.
+With this payload the standard ascent test reaches an approximately 195 by
+236 km orbit. Use **CVEL: Atlantis payload deployment, Earth orbit** to start
+ready for deployment. After the ascent, press **Ctrl+D while controlling the launch
+stack**, then switch to Atlantis; Ctrl+D on Atlantis would also release its
+payload. Use **View > Animations > Payload bay doors**, then stage to release
+Centaur upward; stage Centaur and Fregat in turn to release the next vessel.
+The bay doors are animated, but the shuttle's other original animated systems
+are not reproduced. Guidance and performance are approximate.
 
 **CVEL: Shuttle 2010, Kennedy** uses an original, fictional Shuttle X-2010
 concept mesh and an Atlantis-derived tank and boosters. The docked shuttle is a
@@ -523,6 +531,9 @@ Its mass, propulsion and aerodynamic characteristics are gameplay
 approximations, and its landing gear has no animated model. Maintain airspeed
 for aerodynamic control during an unpowered glide. Ascent guidance is
 approximate; monitor the flight and correct the orbit if needed.
+
+RCS remains functional on Buran, Atlantis and Shuttle 2010, but its puffs are
+invisible.
 
 ## MFDs (multi-function displays)
 

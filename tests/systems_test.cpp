@@ -1467,6 +1467,56 @@ int main()
         assert(glm::length(ship.rcs_push()) > 0.0);
     }
     {
+        Universe universe;
+        std::string error;
+        assert(universe.load(std::string(KOSMOS_ROOT) + "/data/sol.json", error));
+        const int earth = universe.find("Earth");
+        assert(earth >= 0);
+        double Controls::*translation[] = {&Controls::rcs_x, &Controls::rcs_y, &Controls::rcs_z};
+        double Controls::*rotation[] = {&Controls::pitch, &Controls::yaw, &Controls::roll};
+        for (const char *file : {"/addons/cvel-buran/ship.json", "/addons/cvel-shuttle2010/ship.json",
+                                 "/addons/cvel-atlantis/ship.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+            for (bool visible : {false, true})
+            {
+                if (visible)
+                    spec.rcs_effects = true;
+                Ship ship(universe, spec);
+                ship.body().position = universe.position(earth) + sl::dvec3(0, 0, universe.bodies[earth].radius + 400000.0);
+                ship.after_step(0.01);
+                for (int axis = 0; axis < 3; ++axis)
+                    for (double sign : {-1.0, 1.0})
+                        for (bool rotating : {false, true})
+                        {
+                            Controls controls;
+                            controls.sas = "off";
+                            controls.*(rotating ? rotation[axis] : translation[axis]) = sign;
+                            const double fuel = ship.carry_state().rcs_propellant;
+                            ship.body().force_accumulator = ship.body().torque_accumulator = sl::dvec3(0.0);
+                            ship.apply_controls(controls, 0.1);
+                            assert(ship.carry_state().rcs_propellant < fuel);
+                            assert(glm::length(rotating ? ship.body().torque_accumulator : ship.body().force_accumulator) > 0.0);
+                            app::ExhaustFx fx;
+                            fx.update(ship, 1.0, 0.1f, true);
+                            assert(visible ? !fx.particles.empty() : fx.particles.empty());
+                            for (const auto &particle : fx.particles)
+                                assert(particle.kind == app::ExhaustFx::rcs);
+                        }
+                Controls main_engine;
+                main_engine.throttle = 1.0;
+                main_engine.sas = "off";
+                ship.apply_controls(main_engine, 0.1);
+                app::ExhaustFx fx;
+                fx.update(ship, 1.0, 0.1f, true);
+                assert(!fx.particles.empty());
+                for (const auto &particle : fx.particles)
+                    assert(particle.kind != app::ExhaustFx::rcs);
+            }
+        }
+    }
+    {
         ShipSpec solar, rtg;
         std::string error;
         assert(load_ship_spec(std::string(KOSMOS_ROOT) + "/addons/probe/ship.json", solar, error));
