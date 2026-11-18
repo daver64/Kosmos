@@ -300,6 +300,29 @@ int main(int argc, char **argv)
               warning.find("ignition link was cleared") != std::string::npos,
           "non-overlapping imports do not inherit an unrelated ignition link");
     check(rocket.import_stage(source, 6, -1, imported, error, warning) && imported == 1, "animated Soyuz stage imports: " + error);
+    check(rocket.root()["animation_controls"].size() == 1 &&
+              rocket.root()["animation_controls"][0]["property"] == "panels" &&
+              rocket.root()["animation_controls"][0]["name"] == "Panels and antennae" &&
+              rocket.root()["animation_controls"][0]["duration"] == 10,
+          "the imported Soyuz stage includes its panels animation control");
+    check(rocket.undo() && !rocket.root().contains("animation_controls") &&
+              rocket.redo() && rocket.root()["animation_controls"].size() == 1,
+          "animation controls follow stage-import undo and redo");
+    Document shared = rocket;
+    check(shared.import_stage(source, 6, -1, imported, error, warning) &&
+              shared.root()["animation_controls"].size() == 1 &&
+              warning.find("different settings") == std::string::npos,
+          "matching animation controls are shared without duplication or conflict");
+    Document animated_source = source;
+    animated_source.root()["animation_controls"].push_back({{"property", "unrelated"}, {"duration", 3}});
+    Document conflict;
+    conflict.make_rocket("Animation conflict");
+    conflict.root()["animation_controls"] = json::array({{{"name", "Existing"}, {"property", "panels"}, {"duration", 5}}});
+    check(conflict.import_stage(animated_source, 6, -1, imported, error, warning) &&
+              conflict.root()["animation_controls"].size() == 1 &&
+              conflict.root()["animation_controls"][0]["duration"] == 5 &&
+              warning.find("different settings") != std::string::npos,
+          "conflicting controls are retained and reported; unrelated controls are not imported");
     const json &soyuz_stage = rocket.stages()[1];
     check(!source.stages()[6].contains("gear") && !soyuz_stage.contains("gear"),
           "importing a stage without gear does not create null gear");
@@ -315,6 +338,13 @@ int main(int argc, char **argv)
           "imported OBJ, referenced MTL and texture are saved");
     const fs::path animation = written / soyuz_stage["parts"][0]["animations"].get<std::string>();
     check(fs::exists(animation), "imported animation is saved");
+    json saved_rocket;
+    std::ifstream saved_ship(written / "ship.json");
+    if (saved_ship)
+        saved_ship >> saved_rocket;
+    check(saved_rocket.contains("animation_controls") &&
+              saved_rocket["animation_controls"][0]["property"] == "panels",
+          "the imported animation control is saved with the rocket");
     check(kitdemo && source.load(*kitdemo, "ship.json", error) &&
               rocket.import_stage(source, 0, -1, imported, error, warning) && !rocket.stages()[2].contains("kits"),
           "part-kit stages expand when imported: " + error);

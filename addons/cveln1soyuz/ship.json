@@ -9,6 +9,9 @@
  "script": "@launcher.lua",
  "cockpit": {"mfds": true, "external_mfds": true},
  "launcher_ascent": {"kick_speed": 50.0, "kick_pitch": 85.0, "turn_end_km": 45.0, "turn_end_pitch": 35.0, "climb_speed": 150.0},
+ "animation_controls": [
+  {"name": "Panels and antennae", "property": "panels", "duration": 10}
+ ],
  "stages": [
   {
    "dry_mass": 180800,

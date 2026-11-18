@@ -780,6 +780,7 @@ namespace shipedit
                 (it == pending_.end() || it->first.compare(0, prefix.size(), prefix) != 0))
                 break;
         }
+        std::set<std::string> animation_properties;
         if (stage.contains("parts") && stage["parts"].is_array())
             for (json &part : stage["parts"])
             {
@@ -794,8 +795,43 @@ namespace shipedit
                     const bool ok = std::string(key) == "model" ? assets.model(file, relative, error) : assets.add(file, relative, error);
                     if (!ok)
                         return false;
+                    if (std::string(key) == "animations" && expanded.contains("animation_controls") &&
+                        expanded["animation_controls"].is_array())
+                    {
+                        json animations;
+                        if (!read_json(file, animations, error))
+                            return false;
+                        if (animations.contains("animations") && animations["animations"].is_array())
+                            for (const json &animation : animations["animations"])
+                                if (animation.is_object() && animation.contains("property") && animation["property"].is_string())
+                                    animation_properties.insert(animation["property"].get<std::string>());
+                    }
                     part[key] = relative;
                 }
+            }
+        json controls = root_.value("animation_controls", json::array());
+        if (!animation_properties.empty() && !controls.is_array())
+        {
+            error = "Animation controls must be an array before importing an animated stage.";
+            return false;
+        }
+        std::string control_warning;
+        if (!animation_properties.empty())
+            for (const json &control : expanded["animation_controls"])
+            {
+                if (!control.is_object() || !control.contains("property") || !control["property"].is_string())
+                    continue;
+                const std::string property = control["property"].get<std::string>();
+                if (!animation_properties.count(property))
+                    continue;
+                const auto existing = std::find_if(controls.begin(), controls.end(), [&](const json &item) {
+                    return item.is_object() && item.contains("property") && item["property"].is_string() &&
+                           item["property"].get<std::string>() == property;
+                });
+                if (existing == controls.end())
+                    controls.push_back(control);
+                else if (nlohmann::json::parse(existing->dump()) != nlohmann::json::parse(control.dump()))
+                    control_warning += "\nAnimation control '" + property + "' already exists with different settings; the existing control is shared.";
             }
         const json &list = stages();
         double z = 0.0;
@@ -866,9 +902,11 @@ namespace shipedit
             }
         }
         stages().insert(stages().begin() + position, std::move(stage));
+        if (!animation_properties.empty() && !controls.empty())
+            root_["animation_controls"] = std::move(controls);
         pending_.insert(assets.files.begin(), assets.files.end());
         inserted = position;
-        warning = assets.warning;
+        warning = assets.warning + control_warning;
         if (detached_ignition)
             warning += "\nThe source's previous-stage ignition link was cleared; use Overlap previous stage to ignite stages together.";
         if (duplicate_engines)
