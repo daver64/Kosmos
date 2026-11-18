@@ -45,25 +45,28 @@ namespace shipedit
 
         void shift_contents(json &stage, double dz)
         {
-            for (json &part : stage["parts"])
-            {
-                if (part.contains("model"))
+            if (stage.contains("parts") && stage["parts"].is_array())
+                for (json &part : stage["parts"])
                 {
-                    if (!part.contains("offset"))
-                        part["offset"] = json::array({0.0, 0.0, 0.0});
-                    shift_z(part["offset"], dz);
+                    if (part.contains("model"))
+                    {
+                        if (!part.contains("offset"))
+                            part["offset"] = json::array({0.0, 0.0, 0.0});
+                        shift_z(part["offset"], dz);
+                    }
+                    else
+                        part["z"] = part.value("z", 0.0) + dz;
                 }
-                else
-                    part["z"] = part.value("z", 0.0) + dz;
-            }
-            for (json &engine : stage["engines"])
-            {
-                if (!engine.contains("position"))
-                    engine["position"] = json::array({0.0, 0.0, 0.0});
-                shift_z(engine["position"], dz);
-            }
-            for (json &gear : stage["gear"])
-                shift_z(gear, dz);
+            if (stage.contains("engines") && stage["engines"].is_array())
+                for (json &engine : stage["engines"])
+                {
+                    if (!engine.contains("position"))
+                        engine["position"] = json::array({0.0, 0.0, 0.0});
+                    shift_z(engine["position"], dz);
+                }
+            if (stage.contains("gear") && stage["gear"].is_array())
+                for (json &gear : stage["gear"])
+                    shift_z(gear, dz);
             if (stage.contains("rcs_visual") && stage["rcs_visual"].is_object())
                 for (const char *key : {"front_z", "rear_z"})
                     if (stage["rcs_visual"].contains(key) && stage["rcs_visual"][key].is_number())
@@ -272,6 +275,17 @@ namespace shipedit
             stage["engines"] = json::array();
             stage["gear"] = json::array();
             stage["parts"] = json::array();
+            return stage;
+        }
+
+        json starter_stage()
+        {
+            json stage = blank_stage("Stage 1");
+            stage["engines"].push_back({{"position", {0.0, 0.0, 2.0}}, {"direction", {0.0, 0.0, -1.0}},
+                                        {"thrust", 30000.0}, {"isp", 300.0}, {"plume", 10.0},
+                                        {"type", "rocket"}, {"fuel", "kerosene"}});
+            stage["parts"].push_back({{"prop", "stage"}, {"radius", 1.0}, {"length", 4.0},
+                                      {"z", 0.0}, {"colour", {226, 228, 232}}, {"accent", {70, 74, 84}}});
             return stage;
         }
 
@@ -539,7 +553,12 @@ namespace shipedit
         root_["rcs_thrust"] = 500.0;
         root_["drag_area"] = 2.0;
         root_["camera_distance"] = 12.0;
-        root_["stages"] = json::array({blank_stage("Stage 1")});
+        root_["script"] = "@launcher.lua";
+        root_["cockpit"] = {{"mfds", true}, {"external_mfds", true}};
+        root_["launcher_ascent"] = {{"kick_speed", 50.0}, {"kick_pitch", 85.0},
+                                    {"turn_end_km", 45.0}, {"turn_end_pitch", 35.0},
+                                    {"climb_speed", 150.0}};
+        root_["stages"] = json::array({starter_stage()});
         source_dir_.clear();
         source_ship_file_ = "ship.json";
         source_addon_id_.clear();
@@ -553,11 +572,6 @@ namespace shipedit
     void Document::make_rocket(const std::string &name)
     {
         make_blank(name);
-        root_["script"] = "@launcher.lua";
-        root_["cockpit"] = {{"mfds", true}, {"external_mfds", true}};
-        root_["launcher_ascent"] = {{"kick_speed", 50.0}, {"kick_pitch", 85.0},
-                                    {"turn_end_km", 45.0}, {"turn_end_pitch", 35.0},
-                                    {"climb_speed", 150.0}};
         root_["stages"] = json::array();
     }
 
@@ -724,9 +738,12 @@ namespace shipedit
             error = "The selected source stage is not an object.";
             return false;
         }
-        const int count = stage_count();
+        const bool replace_starter = !has_source() && stage_count() == 1 && stages()[0] == starter_stage();
+        const int count = stage_count() - (replace_starter ? 1 : 0);
         if (position == -1)
             position = count;
+        else if (replace_starter && position == 1)
+            position = 0;
         if (position < 0 || position > count)
         {
             error = "Invalid insertion position.";
@@ -782,7 +799,7 @@ namespace shipedit
             }
         const json &list = stages();
         double z = 0.0;
-        if (!list.empty() && position == 0)
+        if (count > 0 && position == 0)
         {
             const json &first = list.front();
             z = first.value("z", 0.0) + first.value("length", 4.0) * 0.5 + stage.value("length", 4.0) * 0.5;
@@ -796,6 +813,8 @@ namespace shipedit
         stage["z"] = z;
         shift_contents(stage, dz);
         checkpoint();
+        if (replace_starter)
+            stages().clear();
         if (position > 0 && position < count)
         {
             const json &next = stages()[static_cast<std::size_t>(position)];
@@ -1021,6 +1040,16 @@ namespace shipedit
         {
             problems.push_back("The ship has no stages.");
             return problems;
+        }
+        if (root_.value("class", std::string()) == "rocket")
+        {
+            bool launch_powered = powered_stage(list[0]) && list[0].value("fuel_start", 1.0) > 0.0;
+            for (std::size_t i = 1; i < list.size() && list[i].value("ignite_with_previous", false); ++i)
+                launch_powered = launch_powered || (powered_stage(list[i]) && list[i].value("fuel_start", 1.0) > 0.0);
+            if (!launch_powered)
+                problems.push_back("The launch stage has no fuelled main engine; the ship cannot lift off until staged or repaired.");
+            if (root_.value("script", std::string()).empty())
+                problems.push_back("This rocket has no autopilot script; P cannot start an ascent.");
         }
         if (root_.contains("ports"))
         {

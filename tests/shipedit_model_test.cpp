@@ -30,8 +30,15 @@ namespace
     }
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc == 2 && std::string(argv[1]) == "--starter-json")
+    {
+        Document starter;
+        starter.make_blank("ShipEdit starter flight");
+        std::puts(starter.root().dump().c_str());
+        return 0;
+    }
     {
         std::string error;
         json scenario = {{"name", "Piggyback test"}, {"custom", 7},
@@ -176,6 +183,35 @@ int main()
     new_rocket.add_stage();
     check(new_rocket.arrange_stage(0, 1, error), "default rocket equipment permits stage rearrangement: " + error);
     check(new_rocket.undo() && new_rocket.redo(), "rocket stage rearrangement remains undoable");
+    Document starter;
+    starter.make_blank("Starter");
+    check(starter.stage_count() == 1 && starter.root()["script"] == "@launcher.lua" &&
+              starter.root().contains("launcher_ascent") && starter.stages()[0]["propellant"].get<double>() > 0 &&
+              starter.stages()[0]["engines"][0]["thrust"].get<double>() > 0,
+          "new blank ships have fuel, an engine and the ascent autopilot");
+    Document unflyable = starter;
+    unflyable.root().erase("script");
+    unflyable.stages()[0]["fuel_start"] = 0;
+    const auto warnings = unflyable.validate();
+    check(std::any_of(warnings.begin(), warnings.end(), [](const std::string &p) { return p.find("no fuelled main engine") != std::string::npos; }) &&
+              std::any_of(warnings.begin(), warnings.end(), [](const std::string &p) { return p.find("no autopilot") != std::string::npos; }),
+          "validation warns when the initial tank is empty or the rocket lacks an autopilot");
+    check(saturn && source.load(*saturn, "ship.json", error), "starter stage source loads");
+    const json initial_starter = starter.root();
+    int starter_imported = -1;
+    std::string starter_warning;
+    check(starter.import_stage(source, 0, -1, starter_imported, error, starter_warning) &&
+              starter.stage_count() == 1 && starter_imported == 0 &&
+              starter.stages()[0]["name"] == source.stages()[0]["name"],
+          "first library stage replaces the untouched starter");
+    check(starter.undo() && starter.root() == initial_starter && starter.redo() && starter.stage_count() == 1,
+          "starter replacement supports undo and redo");
+    Document modified_starter;
+    modified_starter.make_blank("Modified starter");
+    modified_starter.stages()[0]["dry_mass"] = 1100;
+    check(modified_starter.import_stage(source, 0, -1, starter_imported, error, starter_warning) &&
+              modified_starter.stage_count() == 2 && modified_starter.stages()[0]["dry_mass"] == 1100,
+          "an edited starter is preserved when a stage is imported");
     rocket.make_blank("Imported rocket");
     rocket.stages().clear();
     int imported = -1;
@@ -265,6 +301,8 @@ int main()
           "non-overlapping imports do not inherit an unrelated ignition link");
     check(rocket.import_stage(source, 6, -1, imported, error, warning) && imported == 1, "animated Soyuz stage imports: " + error);
     const json &soyuz_stage = rocket.stages()[1];
+    check(!source.stages()[6].contains("gear") && !soyuz_stage.contains("gear"),
+          "importing a stage without gear does not create null gear");
     check(soyuz_stage.contains("rcs_visual") &&
               std::abs(soyuz_stage["rcs_visual"]["front_z"].get<double>() -
                        (source.stages()[6]["rcs_visual"]["front_z"].get<double>() +

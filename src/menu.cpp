@@ -1338,6 +1338,7 @@ namespace kosmos
                                    "  View > Performance metrics: session-only frame, CPU, GPU, memory and terrain diagnostics; nested times overlap.\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
                                    "  ShipEdit rockets have Orbit/Surface MFDs in cockpit and external views, and an experimental Earth-launch autopilot; set the target and heading in Autopilot > Spacecraft, then press P from rest.\n"
+                                   "  ShipEdit's New blank starts with a fuelled rocket; importing the first library stage replaces its untouched starter stage.\n"
                                    "  ShipEdit's Scenario tab can set up docked piggyback vessels; attachment ports are edited in its Structure tab. Docked orbiter engines do not power the carrier.\n"
                                    "  Buran, Atlantis and Shuttle 2010 have functional RCS with invisible puffs.\n"
                                    "  Atlantis carries Centaur, Fregat and Luna E3; the orbital payload scenario starts ready for deployment.\n"

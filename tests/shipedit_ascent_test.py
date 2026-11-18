@@ -20,6 +20,23 @@ with tempfile.TemporaryDirectory() as directory:
         (root / name).symlink_to(ROOT / name, target_is_directory=True)
     addon = root / "addons" / "test-rocket"
     addon.mkdir(parents=True)
+    starter = json.loads(subprocess.check_output([str(BINARY.parent / "shipedit_model_test"),
+                                                 "--starter-json"], text=True))
+    (addon / "ship.json").write_text(json.dumps(starter))
+    (addon / "addon.json").write_text(json.dumps({"id": "test-rocket", "ships": ["ship.json"]}))
+    env = dict(os.environ, HOME=directory, XDG_CONFIG_HOME=str(temp / "config"),
+               XDG_CACHE_HOME=str(temp / "cache"), SDL_VIDEODRIVER="offscreen",
+               SDL_AUDIODRIVER="dummy", LP_NUM_THREADS="4")
+    for controls in (["--set", "/autopilot/enabled=true"], ["--selftest-throttle", "1"]):
+        result = subprocess.run(
+            [str(BINARY), "--root", str(root), "--ship", starter["name"], "--selftest", "8", *controls],
+            cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
+        output = result.stdout + result.stderr
+        final = re.search(r"final: alt ([\d.-]+) km,.*crashed (\d+)", output)
+        assert result.returncode == 0 and final and float(final[1]) > 0.02 and final[2] == "0", output
+    if "--starter-only" in sys.argv[2:]:
+        print("shipedit starter flight test passed")
+        sys.exit(0)
     source = json.loads((ROOT / "addons/kestrel/ship.json").read_text())
     ship = {
         "name": "ShipEdit ascent test", "class": "rocket",
@@ -31,9 +48,6 @@ with tempfile.TemporaryDirectory() as directory:
     }
     (addon / "ship.json").write_text(json.dumps(ship))
     (addon / "addon.json").write_text(json.dumps({"id": "test-rocket", "ships": ["ship.json"]}))
-    env = dict(os.environ, HOME=directory, XDG_CONFIG_HOME=str(temp / "config"),
-               XDG_CACHE_HOME=str(temp / "cache"), SDL_VIDEODRIVER="offscreen",
-               SDL_AUDIODRIVER="dummy", LP_NUM_THREADS="4")
     result = subprocess.run(
         [str(BINARY), "--root", str(root), "--ship", ship["name"], "--selftest", "1200",
          "--selftest-warp", "4", "--set", "/autopilot/enabled=true"],
