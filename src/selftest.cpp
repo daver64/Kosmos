@@ -95,7 +95,8 @@ namespace kosmos
             check(shots >= 1 && shots <= 12, "pistol is rate limited");
 
             // Plasma rifle: a bolt flies, then ends on the ground.
-            if (slot_of("plasma_rifle") >= 0)
+            if (slot_of("plasma_rifle") >= 0 &&
+                glm::length(glm::cross(sim.universe.world.body(body)->spin_axis * sim.universe.world.body(body)->spin_rate, person.position)) > 1.0)
             {
                 run(1.0);
                 arsenal.select(slot_of("plasma_rifle"));
@@ -134,6 +135,94 @@ namespace kosmos
                 check(ship->telemetry().mass < mass, "payload mass falls when a bomb is released");
                 run(10.0);
                 check(arsenal.detonations() == detonations + 1, "released bomb detonates");
+            }
+
+            if (slot_of("plasma_rifle") >= 0)
+            {
+                arsenal.reset();
+                arsenal.equip_person(sim, ship);
+                arsenal.select(slot_of("plasma_rifle"));
+                const sl::FlightBody &planet = *sim.universe.world.body(body);
+                const sl::dvec3 spin = glm::cross(planet.spin_axis * planet.spin_rate, person.position);
+                const sl::dvec3 side = glm::normalize(spin);
+                const sl::dvec3 local_up = person.local_up();
+                const sl::dvec3 shot = glm::normalize(glm::cross(local_up, side));
+                aim(shot);
+                person.velocity = spin;
+                const sl::dvec3 muzzle = person.position + local_up * (Astronaut::eye_height * (1.0 - 0.35 * person.crouch) - 0.12) +
+                                         shot * 0.7 + glm::normalize(glm::cross(shot, local_up)) * 0.15;
+                const sl::dvec3 target = muzzle - spin * 0.05;
+                ship->body().orientation = glm::quat_cast(sl::dmat3(side, local_up, glm::cross(side, local_up)));
+                ship->body().position = sim.universe.position(body) + target + ship->body().orientation * ship->com_offset();
+                ship->body().velocity = planet.velocity + spin;
+                arsenal.set_spin(0.1, 0.0);
+                arsenal.use_held(ctx, true, true);
+                arsenal.update(ctx, 0.1, 0.1);
+                check(arsenal.rounds_in_flight() == 1, "a new EVA bolt does not hit a ship behind its muzzle");
+                arsenal.set_spin(0.05, 0.0);
+                arsenal.update(ctx, 0.05, 0.05);
+                check(arsenal.rounds_in_flight() == 1, "the EVA bolt continues after its launch frame");
+                for (int i = 0; i < 130; ++i)
+                    arsenal.update(ctx, 0.05, 0.05);
+                check(arsenal.rounds_in_flight() == 0, "the EVA bolt eventually reaches its range or hits");
+            }
+
+            if (ship->name == "Ordnance test craft")
+                check(sim.equipment.find("test_plasma_ray") != nullptr, "test plasma ray is available");
+            if (sim.equipment.find("test_plasma_ray"))
+            {
+                arsenal.reset();
+                arsenal.equip_person(sim, ship);
+                arsenal.give(sim, "test_plasma_ray", 1);
+                arsenal.select(slot_of("test_plasma_ray"));
+                const sl::dvec3 local_up = person.local_up();
+                const sl::dvec3 direction = glm::normalize(look - local_up * 0.08);
+                aim(direction);
+                ship->body().position = sim.universe.position(body) + person.position + look * 1000.0;
+                const sl::dvec3 eye = person.position + local_up * (Astronaut::eye_height * (1.0 - 0.35 * person.crouch));
+                const Arsenal::RayHit hit = arsenal.cast_ray(ctx, body, eye, eye + person.forward() * 250.0, nullptr);
+                check(hit.hit && !hit.on_ship, "test plasma ray reaches the ground");
+                if (hit.hit && !hit.on_ship)
+                {
+                    arsenal.set_spin(0.1, 0.0);
+                    arsenal.use_held(ctx, true, true);
+                    arsenal.update(ctx, 0.1, 0.1);
+                    const sl::dvec3 impact = sim.universe.position(body) + hit.point + glm::normalize(hit.point) * 0.1;
+                    check(arsenal.flash(sim.universe, impact) > 0.7, "instant EVA impact stays at the aimed point during planetary spin");
+                }
+            }
+            {
+                sl::FlightBody &planet = *sim.universe.world.body(body);
+                const double saved_spin = planet.spin_rate;
+                planet.spin_rate = 0.0;
+                Astronaut walker;
+                const sl::dvec3 local_up = person.local_up();
+                const sl::dvec3 forward = glm::normalize(glm::cross(local_up, sl::dvec3(0, 1, 0)));
+                walker.leave(sim.universe, body, planet.position + local_up * sim.universe.bodies[static_cast<std::size_t>(body)].radius,
+                             planet.velocity, forward, nullptr, true);
+                const sl::dvec3 start = walker.position;
+                const auto wall = [&](const sl::dvec3 &, const sl::dvec3 &to, double) {
+                    return to - forward * std::max(0.0, glm::dot(to - start, forward) - 1.0);
+                };
+                EvaInput input;
+                input.forward = 1.0;
+                for (int i = 0; i < 100; ++i)
+                    walker.step(sim.universe, nullptr, input, 0.02, wall);
+                check(walker.speed < 0.1, "EVA speed reflects stopping against a wall");
+                input.forward = -1.0;
+                for (int i = 0; i < 30; ++i)
+                    walker.step(sim.universe, nullptr, input, 0.02, wall);
+                check(walker.speed > 3.0 && glm::dot(walker.position - start, forward) < 0.5,
+                      "EVA can walk away from a wall");
+                walker.leave(sim.universe, body, planet.position + start, planet.velocity, forward, nullptr, true);
+                input.forward = 1.0;
+                input.right = 1.0;
+                for (int i = 0; i < 100; ++i)
+                    walker.step(sim.universe, nullptr, input, 0.02, wall);
+                const sl::dvec3 side = glm::normalize(glm::cross(forward, local_up));
+                check(walker.speed > 2.0 && walker.speed < 3.0 && glm::dot(walker.position - start, side) > 3.0,
+                      "EVA slides along a wall without keeping blocked velocity");
+                planet.spin_rate = saved_spin;
             }
             std::printf("arsenal selftest: %d failure(s)\n", failures);
             return failures ? 1 : 0;

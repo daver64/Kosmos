@@ -125,7 +125,7 @@ namespace kosmos
             sl::dquat orientation{1.0, 0.0, 0.0, 0.0};
             double age = 0.0;
             double fuse = 0.0;
-            bool bolt = false, stuck = false;
+            bool bolt = false, stuck = false, just_fired = false;
             const Ship *owner = nullptr;
             bool by_person = false;
             /** Blast radii and the mushroom grow with the cube root of the yield set at release; 1 is the equipment's own yield. */

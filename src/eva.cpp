@@ -211,6 +211,14 @@ namespace kosmos
                     const sl::dvec3 fixed = solids(position, next, 0.0);
                     if (glm::length(fixed - next) > 1e-9)
                     {
+                        const sl::dvec3 push = fixed - next;
+                        const sl::dvec3 flat_push = push - up * glm::dot(push, up);
+                        const double push_length = glm::length(flat_push);
+                        if (push_length > 1e-9)
+                        {
+                            const sl::dvec3 normal = flat_push / push_length;
+                            surface -= normal * std::min(0.0, glm::dot(surface, normal));
+                        }
                         const double nd = glm::length(fixed), g = ground_radius(terrain, planet.radius, fixed);
                         next = fixed / nd * g;
                     }

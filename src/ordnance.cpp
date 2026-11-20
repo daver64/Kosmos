@@ -352,21 +352,17 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             const sl::dvec3 muzzle = eye + fwd * 0.7 + right * 0.15 - up * 0.12;
             before_update_ = true;
             add_effect(universe, sl::Effect3DKind::muzzle_flash, eva.body, muzzle, spec->effect == "plasma" ? 1.6 : 1.0, aim);
-            before_update_ = false;
 
             if (spec->fire == "bolt")
             {
                 Round r;
                 r.spec = spec;
                 r.body = eva.body;
-                // The round is stepped once before it is first drawn, and that step carries it along with the turning ground. The walker has already made this frame's turn, so start the round a step behind on the ground.
                 r.velocity = eva.velocity + aim * spec->speed;
-                const sl::FlightBody *pb = universe.world.body(eva.body);
                 r.position = muzzle;
-                if (pb && spin_dt_ > 0.0)
-                    r.position -= glm::cross(pb->spin_axis * pb->spin_rate, muzzle) * spin_dt_;
                 r.bolt = true;
                 r.by_person = true;
+                r.just_fired = spin_dt_ >= 0.0;
                 rounds_.push_back(r);
             }
             else
@@ -375,6 +371,7 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
                 if (hit.kind != Hit::none)
                     impact(context, *spec, eva.body, hit.point, hit, true);
             }
+            before_update_ = false;
             return;
         }
 
@@ -391,6 +388,7 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             r.velocity = eva.velocity + fwd * 12.0 + up * 2.0;
             r.fuse = spec->fuse_time;
             r.by_person = true;
+            r.just_fired = spin_dt_ >= 0.0;
             rounds_.push_back(r);
             recoil_ = 1.0;
             if (stack.count <= 0)
@@ -960,6 +958,13 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
             const double gm = universe.bodies[static_cast<std::size_t>(r.body)].gm;
             const sl::Terrain *terrain = context.terrain ? context.terrain(r.body) : nullptr;
             const double body_radius = universe.bodies[static_cast<std::size_t>(r.body)].radius;
+            // A hand-held round is created after this frame's physics step, so it starts moving on the next step.
+            if (r.just_fired)
+            {
+                r.just_fired = false;
+                ++i;
+                continue;
+            }
             r.age += dt;
             if (r.stuck)
             {
@@ -1250,6 +1255,8 @@ sl::dvec3 Arsenal::lagged(int body, const sl::dvec3 &p, double sign) const
         have_eye_ = true;
         for (const Round &r : rounds_)
         {
+            if (r.bolt && r.by_person && r.age <= 0.0)
+                continue;
             const EquipmentSpec &spec = *r.spec;
             const sl::dvec3 rel = universe.position(r.body) + (r.bolt ? lagged(r.body, r.position, -1.0) : r.position) - eye_world;
             if (glm::length(rel) > 20000.0)

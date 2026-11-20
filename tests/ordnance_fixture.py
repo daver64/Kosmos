@@ -25,6 +25,12 @@ ship["hardpoints"] = [
 ]
 (fixture / "ship.json").write_text(json.dumps(ship))
 (fixture / "addon.json").write_text(json.dumps({"id": "ordnance-fixture", "ships": ["ship.json"]}))
+equipment = fixture / "equipment"
+equipment.mkdir()
+(equipment / "test-ray.json").write_text(json.dumps({"equipment": [{
+    "id": "test_plasma_ray", "name": "Test plasma ray", "kind": "weapon",
+    "fire": "hitscan", "effect": "plasma", "range": 250, "spread": 0, "ammo": -1
+}]}))
 scenario = {
     "name": "Ordnance test",
     "ships": [{"ship": ship["name"], "body": "Earth",
