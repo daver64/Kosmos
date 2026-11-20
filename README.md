@@ -178,6 +178,7 @@ The keys below are the defaults. View > Keyboard rebinds the configurable action
 | **N** | **Galaxy map** (Left/Right choose star, `-` `=` zoom, **Enter** jump) |
 | Arrows, PgUp/PgDn | In the cockpit view: move your head forward/back, left/right, up/down |
 | **Enter** | **Leave the ship / board a ship** within 30 m (also View > Leave ship). On foot: W A S D walk, either Shift boosts, Space jumps, Ctrl crouches, the mouse looks (press ` or hold Alt to free the pointer for the menus), arrows also look, F manoeuvring pack, Q/E roll when floating |
+| **View > Explore station interior** | From Salyut, Lunar Salyut, ISS, Mir, Wheel or Gateway controls, enter an approximate compartment. Float with W A S D and Space/Ctrl; Shift boosts, mouse or arrows look, Enter returns to station controls. External EVA remains available separately. |
 | C | Cycle cameras: chase, 2D cockpit, 3D cockpit, then your own cameras (an orbiting External camera is built in) |
 | **F2** | **Camera window**: pick any ship, cockpit, interior or base camera |
 | **F3** | **Settings window**: body/ship labels (off by default), building entrance labels (on by default), orbit line, key help, sound, volume, time warp and optional nonspherical gravity. Saved to `~/.config/kosmos/settings.json` on exit. **Edit > Performance settings** (no key) holds the graphics, weather (including the cloud style: simple deck, layers or volumetric), scenery and texture options |
@@ -249,7 +250,7 @@ High time warp remains limited while another live vessel is flying in an atmosph
 | `--cam-planet R`, `--cam-phase DEG` | Planet-only camera at R planet radii, with the given sun phase angle (for screenshots) |
 | `--show-info` | Start with the on-screen text (title, telemetry, key reminders) showing; it is hidden by default (toggle with `Ctrl+I`). The bottom warp and time line is separate (View menu) |
 | `--clean` | Like `--hide-info`, and also hides the on-foot HUD (suit panel, door markers, prompts, log lines, held item) for promotional shots |
-| `--interior-at X Z YAW PITCH` | After walking into an interior building, stand at this spot (metres in the plan, degrees) |
+| `--interior-at X Z YAW PITCH` | After entering a building or station interior, stand at this spot (metres in the plan, degrees) |
 | `--console` | Windows only: open a console window for the output when Kosmos was not started from a terminal (it is a GUI program and shows none by default) |
 | `--hide-info` | Hide the on-screen text and the orbit line and let the menu bar slide away (for screenshots); overrides `--show-info` |
 
@@ -509,7 +510,10 @@ The CVEL Atlas IIAS and Atlantis Kennedy scenarios and Ariane 44L Kourou scenari
 Orbiter meshes; attribution and licence notices are in each addon's `source/`
 directory. Atlas groups its Castors into
 one simultaneous separation and approximates its shared sustainer propellant
-as separate stage tanks. Atlantis rides a launch-stack vessel whose tank stage
+as separate stage tanks. Ariane's Kourou scenario carries Fregat and Luna E3;
+after the third-stage burn, stage to release Fregat and stage again to release
+the probe. Its loaded ascent guidance is approximate; check the resulting orbit.
+Atlantis rides a launch-stack vessel whose tank stage
 simulates the shuttle main engines. Its tank propellant is split between
 the booster and post-booster phases; unused propellant in the first portion is
 discarded with the boosters. The booster thrust and fuel and the tank fuel are

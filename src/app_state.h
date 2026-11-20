@@ -425,6 +425,7 @@ namespace kosmos::app
         void board_ship(bool force);
         void leave_eva();
         void toggle_eva();
+        void enter_station();
         ExhaustFx exhaust_fx;
         sl::Event event_discard;
         double clock{};

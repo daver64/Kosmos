@@ -55,7 +55,9 @@ namespace kosmos
         };
 
         /** Reads the "interior" object of a building's ship.json. `ground_z` is the height of the ground in an upright building's ship frame. */
-        static std::shared_ptr<Interior> parse(const nlohmann::json &json, bool upright, double ground_z, std::string &error);
+        static std::shared_ptr<Interior> parse(const nlohmann::json &json, bool upright, double ground_z, std::string &error, bool station_compartment = false);
+        /** Construct an approximate station compartment from its centre and dimensions in ship coordinates. */
+        static std::shared_ptr<Interior> station(const nlohmann::json &json, std::string &error);
 
         double cell() const { return cell_; }
         int nx() const { return nx_; }
@@ -164,6 +166,7 @@ namespace kosmos
 
         void place(const Interior &interior);
         void step(const Interior &interior, const EvaInput &input, double gravity, double dt, const InteriorState *state = nullptr);
+        void float_step(const Interior &interior, const EvaInput &input, double dt, const InteriorState *state = nullptr);
         sl::dvec3 eye() const { return position + sl::dvec3(0.0, eye_height - 0.7 * crouch, 0.0); }
         /** The way the person looks, in the interior frame. */
         sl::dvec3 forward() const;

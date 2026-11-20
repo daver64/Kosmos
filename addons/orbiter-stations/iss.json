@@ -2,6 +2,7 @@
  "name": "ISS",
  "description": "International Space Station. Dormant until a crew arrives: switch on systems and life support from the Ship systems window (F1). Stores a month of oxygen, water and CO2 sorbent for two people.",
  "class": "station",
+ "station_interior": {"center": [0.1, -4.4, 0], "size": [2.5, 3.0, 8.0], "room": "Habitat"},
  "torque_accel": 0.02,
  "max_rate": 0.2,
  "rcs_thrust": 2000,

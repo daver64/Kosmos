@@ -1,6 +1,10 @@
 {
  "name":"CVEL: Ariane 44L, Kourou",
- "description":"CVEL Ariane 44L on the pad at Kourou. Press P for the launcher ascent autopilot.",
+ "description":"CVEL Ariane 44L on the pad at Kourou with Fregat and Luna E3 under the fairing. Press P for ascent; after the third-stage burn, stage to release Fregat, then stage again to release the probe.",
  "active":0,
- "ships":[{"ship":"CVEL Ariane 44L","body":"Earth","surface":{"base":"kourou"}}]
+ "ships":[
+  {"ship":"CVEL Ariane 44L","body":"Earth","surface":{"base":"kourou"}},
+  {"ship":"CVEL Fregat","body":"Earth","surface":{"base":"kourou"},"dock":{"to":0,"port":0,"own_port":0}},
+  {"ship":"Luna E3","body":"Earth","surface":{"base":"kourou"},"dock":{"to":1,"port":1,"own_port":0}}
+ ]
 }

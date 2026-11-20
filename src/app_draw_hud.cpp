@@ -142,6 +142,12 @@ namespace kosmos::app
             double ship_distance = 0.0;
             const int near_ship = nearest_ship(ship_distance);
             const double ship_speed = near_ship >= 0 ? glm::length(sim.ship(near_ship)->body().velocity - universe.world.body(eva.body)->velocity - eva.velocity) : 0.0;
+            if (eva.building >= 0 && eva.building < sim.ship_count() && sim.ship(eva.building)->spec().kind == "station")
+            {
+                sl::gprintf_center(screen_h / 2 + 90, {120, 255, 150}, "Press Enter to return to station controls");
+                if (walk.room_kpa >= 0.0)
+                    sl::gprintf_center(screen_h / 2 + 130, {160, 210, 255}, "%s  %.0f kPa", walk.room_label.empty() ? "Room" : walk.room_label.c_str(), walk.room_kpa);
+            }
             // Mark each building's door so it can be found, and say when Enter will go in.
             const sl::dvec3 eva_eye = eva.eye_world(universe);
             for (int s = 0; s < sim.ship_count(); ++s)

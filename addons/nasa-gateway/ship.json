@@ -1,6 +1,7 @@
 {
  "name": "NASA Gateway",
  "class": "station",
+ "station_interior": {"center": [1.7, -4.7, 10.1], "size": [2.5, 3.0, 4.0], "room": "Habitat"},
  "description": "NASA's Gateway core in a fictional low lunar orbit. The station systems and Shuttle-A docking adapter are approximate.",
  "torque_accel": 0.02,
  "max_rate": 0.2,

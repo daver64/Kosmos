@@ -345,6 +345,13 @@ namespace kosmos
                     spec.interior = parsed;
                 }
             }
+            if (json.value("class", std::string()) == "station" && json.contains("station_interior"))
+            {
+                std::string error;
+                spec.interior = Interior::station(json["station_interior"], error);
+                if (!spec.interior)
+                    throw std::runtime_error("invalid station interior: " + error);
+            }
             spec.retractable_gear = json.value("retractable_gear", false);
             spec.rcs_modes = json.value("rcs_modes", false);
             spec.reverse_throttle = json.value("reverse_throttle", false);

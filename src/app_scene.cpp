@@ -1386,11 +1386,12 @@ namespace kosmos::app
             const sl::FlightBody &ob = other.body();
             const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                     glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
-            if (other.spec().interior)
+            const bool inside_station = eva.active && eva.building == s && other.spec().kind == "station";
+            if (other.spec().interior && (other.spec().kind != "station" || inside_station))
             {
         draw_ship_interior(s, other, ob, model);
             }
-            if (!((in_cockpit || in_interior) && &other == ship))
+            if (!inside_station && !((in_cockpit || in_interior) && &other == ship))
                 draw_parts(vis, other.spec(), other.active_stage(), other.stage_count() - 1, model, true, other.gear_position(), other.pod_angle(false), other.pod_angle(true), &other);
             for (const kosmos::Debris &d : other.debris())
             {

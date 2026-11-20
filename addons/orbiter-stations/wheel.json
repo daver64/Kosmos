@@ -2,6 +2,7 @@
  "name": "Wheel",
  "description": "Orbiter's wheel station, a 514 m rotating ring. Dormant until a crew arrives: switch on systems and life support from the Ship systems window (F1). Stores a month of oxygen, water and CO2 sorbent for two people.",
  "class": "station",
+ "station_interior": {"center": [0, 0, 0], "size": [4.0, 4.0, 20.0], "room": "Habitat"},
  "torque_accel": 0.02,
  "max_rate": 0.2,
  "rcs_thrust": 2000,

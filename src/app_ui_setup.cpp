@@ -202,6 +202,18 @@ namespace kosmos::app
 
     void App::leave_eva()
     {
+        if (eva.building >= 0 && eva.building < sim.ship_count() &&
+            sim.ship(eva.building)->spec().kind == "station")
+        {
+            Ship *station = sim.ship(eva.building);
+            sim.activate(eva.building);
+            ship = station;
+            eva.active = false;
+            eva.building = -1;
+            rig.cam_distance = station->spec().camera_distance;
+            sim.log("Returned to " + station->name + " controls");
+            return;
+        }
         const int door = building_at_door();
         if (eva.building >= 0 && walk.interior_panel >= 0)
         {
@@ -272,6 +284,39 @@ namespace kosmos::app
         }
         board_ship(false);
         return;
+    }
+
+    void App::enter_station()
+    {
+        if (flight_replay.playing)
+        {
+            sim.log("Stop flight playback before entering the station");
+            return;
+        }
+        if (flight_replay.capturing)
+            stop_flight_recording();
+        Ship *station = sim.active_ship();
+        if (eva.active || !station || station->spec().kind != "station" || !station->spec().interior)
+            return;
+        const int body = station->telemetry().soi;
+        if (body < 0 || body >= static_cast<int>(sim.universe.bodies.size()))
+        {
+            sim.log("Cannot enter station: no reference body");
+            return;
+        }
+        eva.suit = kosmos::Suit();
+        eva.leave(sim.universe, body, station->origin(), station->body().velocity,
+                  station->body().direction_to_world({0, 0, -1}), terrain_of(body), false);
+        eva.home_ship = sim.active_index();
+        eva.building = sim.active_index();
+        eva.pack = false;
+        walk.walker.place(*station->spec().interior);
+        walk.walker.grounded = false;
+        arsenal.equip_person(sim, station);
+        cockpit_view = cockpit3d = false;
+        rig.interior_cam = rig.base_view = rig.user_cam = -1;
+        rig.eva_look_yaw = rig.eva_look_pitch = 0.0;
+        sim.log("Inside " + station->name + ": Enter returns to station controls");
     }
 
     void App::toggle_eva()
@@ -364,6 +409,7 @@ namespace kosmos::app
         arsenal_ctx.eva = &eva;
         arsenal_ctx.terrain = [this](int body) { return terrain_of(body); };
         menu_actions.toggle_eva = [this]() { toggle_eva(); };
+        menu_actions.enter_station = [this]() { enter_station(); };
         menu_actions.key_label = [this](const char *id) { return keys.label_for(id); };
         refresh_menu_keys();
         menu_actions.on_foot = [&]() { return eva.active; };

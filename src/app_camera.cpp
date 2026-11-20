@@ -158,9 +158,13 @@ namespace kosmos::app
             {
                 const Ship &bld = *sim.ship(eva.building);
                 const kosmos::Interior &room = *bld.spec().interior;
+                const bool station = bld.spec().kind == "station";
                 const kosmos::Body &here = sim.universe.bodies[static_cast<std::size_t>(eva.body)];
                 const double g = here.gm / std::max(1.0, glm::dot(eva.position, eva.position));
-                walk.walker.step(room, in, g, frame, &bld.interior_state);
+                if (station)
+                    walk.walker.float_step(room, in, frame, &bld.interior_state);
+                else
+                    walk.walker.step(room, in, g, frame, &bld.interior_state);
                 walk.interior_panel = room.panel_in_view(walk.walker.eye(), walk.walker.forward(), 2.5);
                 {
                     const int inside_room = room.room_at(walk.walker.position + sl::dvec3(0.0, 0.1, 0.0));
@@ -171,14 +175,14 @@ namespace kosmos::app
                 // Mirror the walker into the astronaut so the camera, HUD and weapons work as outdoors.
                 const sl::FlightBody &pb = *sim.universe.world.body(eva.body);
                 auto world_dir = [&](const sl::dvec3 &d) { return bld.body().direction_to_world(room.dir_to_ship(d)); };
-                eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(walk.walker.position)) - pb.position;
+                eva.position = bld.origin() + bld.body().direction_to_world(room.to_ship(station ? walk.walker.eye() : walk.walker.position)) - pb.position;
                 eva.velocity = bld.body().velocity - pb.velocity;
                 const sl::dvec3 fwd = world_dir(walk.walker.forward());
                 const sl::dvec3 local_up = world_dir(sl::dvec3(0.0, 1.0, 0.0));
                 const sl::dvec3 right = glm::normalize(glm::cross(fwd, local_up));
                 eva.orientation = glm::normalize(glm::quat_cast(sl::dmat3(right, glm::cross(right, fwd), -fwd)));
-                eva.grounded = true;
-                eva.upright = true;
+                eva.grounded = !station;
+                eva.upright = !station;
                 eva.crouch = walk.walker.crouch;
                 eva.speed = walk.walker.speed;
                 eva.height = 0.0;

@@ -1335,6 +1335,7 @@ namespace kosmos
                                    "  Automatic parachutes arm after climbing above their arm altitude; manual deployment needs no arming.\n"
                                    "  F1 shows external pressure and temperature; fatal pressure or heat displays VESSEL LOST - IMPLOSION or OVERHEAT. Gas giants have no ground; BELOW MODEL warns that deeper atmospheric values are not physical predictions.\n"
                                    "  Cockpit controls show a tooltip on hover   F5-F9 MFDs (F5 cycles off, panels, HUD both, left, right; see the MFD Operations Manual on the website)   F10 next scenario   View > Joystick: bind sticks   View > Keyboard: rebind keys\n"
+                                   "  View > Explore station interior: float with W/A/S/D and Space/Ctrl; Enter returns to station controls.\n"
                                    "  View > Performance metrics: session-only frame, CPU, GPU, memory and terrain diagnostics; nested times overlap.\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
                                    "  ShipEdit rockets have Orbit/Surface MFDs in cockpit and external views, and an experimental Earth-launch autopilot; set the target and heading in Autopilot > Spacecraft, then press P from rest.\n"
@@ -1343,6 +1344,7 @@ namespace kosmos
                                    "  ShipEdit's Scenario tab can set up docked piggyback vessels; attachment ports are edited in its Structure tab. Docked orbiter engines do not power the carrier.\n"
                                    "  Buran, Atlantis and Shuttle 2010 have functional RCS with invisible puffs.\n"
                                    "  Atlantis carries Centaur, Fregat and Luna E3; the orbital payload scenario starts ready for deployment.\n"
+                                   "  Ariane 44L at Kourou carries Fregat and Luna E3; after the third-stage burn, stage to release each payload in turn.\n"
                                    "  Undock Atlantis while controlling the launch stack; switch to Atlantis, open View > Animations > Payload bay doors, and stage to release the payload.\n"
                                    "  CVEL Titan launchers have Orbit/Surface cockpit MFDs; launch scenarios start with external MFDs off, and F5 cycles them on.\n"
                                    " Ares, Deltaglider and Shuttle-A have experimental ship-specific ascent MFDs; set altitude and heading, START from rest, monitor and take over if needed. Passive docked payloads are allowed.\n"
@@ -2154,6 +2156,10 @@ namespace kosmos
     {
         if (actions.toggle_eva && ImGui::MenuItem(actions.on_foot && actions.on_foot() ? "Board ship / enter building" : actions.in_building && actions.in_building() ? "Leave building" : "Leave ship (EVA / walk)", "Enter"))
             actions.toggle_eva();
+        const Ship *flown = sim.active_ship();
+        if (actions.enter_station && flown && flown->spec().kind == "station" && flown->spec().interior &&
+            !(actions.on_foot && actions.on_foot()) && ImGui::MenuItem("Explore station interior"))
+            actions.enter_station();
         ImGui::Separator();
         for (MenuWindow &w : windows)
             if (w.open)

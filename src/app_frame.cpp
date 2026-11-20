@@ -178,7 +178,7 @@ namespace kosmos::app
         {
             sim.props.set_string("/sim/enter-building", "");
             for (int i = 0; i < sim.ship_count(); ++i)
-                if (sim.ship(i)->spec().building() && sim.ship(i)->name.find(options.enter_building) != std::string::npos)
+                if ((sim.ship(i)->spec().building() || sim.ship(i)->spec().kind == "station") && sim.ship(i)->name.find(options.enter_building) != std::string::npos)
                 {
                     sim.activate(i);
                     ship = sim.active_ship();
@@ -187,8 +187,13 @@ namespace kosmos::app
                     if (ship->spec().interior)
                     {
                         // A building with a walkable interior starts the player on foot inside it (step out and straight back in).
-                        toggle_eva();
-                        toggle_eva();
+                        if (ship->spec().kind == "station")
+                            enter_station();
+                        else
+                        {
+                            toggle_eva();
+                            toggle_eva();
+                        }
                         options.eva = false;
                         cockpit_view = false;
                         if (options.interior_at && eva.building >= 0)

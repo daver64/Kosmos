@@ -116,7 +116,53 @@ namespace kosmos
             }
     }
 
-    std::shared_ptr<Interior> Interior::parse(const nlohmann::json &json, bool upright, double ground_z, std::string &error)
+    std::shared_ptr<Interior> Interior::station(const nlohmann::json &json, std::string &error)
+    {
+        if (!json.is_object() || !json.contains("size") || !json["size"].is_array() || json["size"].size() != 3 ||
+            !json.contains("center") || !json["center"].is_array() || json["center"].size() != 3)
+        {
+            error = "station_interior needs center and size vectors";
+            return nullptr;
+        }
+        for (const char *key : {"size", "center"})
+            for (const auto &value : json[key])
+                if (!value.is_number() || !std::isfinite(value.get<double>()))
+                {
+                    error = "station_interior vectors must be finite numbers";
+                    return nullptr;
+                }
+        if (json.contains("room") && !json["room"].is_string())
+        {
+            error = "station_interior room must be a string";
+            return nullptr;
+        }
+        const auto size = json["size"].get<std::vector<double>>();
+        const auto center = json["center"].get<std::vector<double>>();
+        constexpr double cell = 0.5;
+        if (size[0] < 2.5 || size[1] < 3.0 || size[2] < 3.0 ||
+            size[0] > 40.0 || size[1] > 20.0 || size[2] > 100.0)
+        {
+            error = "station_interior size must be at least 2.5 x 3 x 3 m and at most 40 x 20 x 100 m";
+            return nullptr;
+        }
+        const int width = static_cast<int>(std::floor(size[0] / cell));
+        const int depth = static_cast<int>(std::floor(size[2] / cell));
+        const int height = static_cast<int>(std::floor(size[1] / cell)) - 2;
+        std::vector<std::string> rows(static_cast<std::size_t>(depth), "#" + std::string(static_cast<std::size_t>(width - 2), '.') + "#");
+        rows.front() = rows.back() = std::string(static_cast<std::size_t>(width), '#');
+        rows.back()[static_cast<std::size_t>(width / 2)] = 'A';
+        nlohmann::json layout = {
+            {"cell", cell}, {"height", height}, {"levels", {rows}},
+            {"origin", {center[0], center[1] - height * cell * 0.5 - 0.08, center[2]}},
+            {"lights", {{{"pos", {width * cell * 0.5, height * cell - 0.25, depth * cell * 0.5}},
+                          {"range", std::max(7.0, depth * cell)}}}}
+        };
+        if (json.contains("room") && json["room"].is_string())
+            layout["rooms"] = {{{"name", json["room"]}, {"at", {width / 2, depth / 2}}}};
+        return parse(layout, false, 0.0, error, true);
+    }
+
+    std::shared_ptr<Interior> Interior::parse(const nlohmann::json &json, bool upright, double ground_z, std::string &error, bool station_compartment)
     {
         if (!json.is_object() || !json.contains("levels") || !json["levels"].is_array() || json["levels"].empty())
         {
@@ -126,7 +172,7 @@ namespace kosmos
         auto in = std::make_shared<Interior>();
         ground_z = json.value("ground_z", ground_z);
         in->cell_ = std::max(0.1, json.value("cell", 0.5));
-        const int height = std::clamp(json.value("height", 6), door_cells + 1, 40);
+        const int height = std::clamp(json.value("height", 6), door_cells + (station_compartment ? 0 : 1), 40);
 
         // One plan may be given as a plain list of rows.
         std::vector<std::vector<std::string>> plans;
@@ -505,5 +551,32 @@ namespace kosmos
             }
         }
         speed = std::hypot(velocity.x, velocity.z);
+    }
+
+    void InteriorWalker::float_step(const Interior &interior, const EvaInput &input, double dt, const InteriorState *state)
+    {
+        yaw += input.yaw;
+        pitch = std::clamp(pitch + input.pitch, -1.5, 1.5);
+        crouch = 0.0;
+        const sl::dvec3 right(std::cos(yaw), 0.0, -std::sin(yaw));
+        sl::dvec3 wish = forward() * input.forward + right * input.right + sl::dvec3(0, input.up, 0);
+        const double length = glm::length(wish);
+        if (length > 1.0)
+            wish /= length;
+        const sl::dvec3 target = wish * (input.run ? 2.0 : 1.0);
+        const sl::dvec3 diff = target - velocity;
+        const double change = glm::length(diff), limit = 3.0 * dt;
+        velocity += change > limit ? diff * (limit / change) : diff;
+        for (int axis : {0, 2, 1})
+        {
+            sl::dvec3 next = position;
+            next[axis] += velocity[axis] * dt;
+            if (!interior.blocked(next, radius, 1.8, state))
+                position = next;
+            else
+                velocity[axis] = 0.0;
+        }
+        grounded = false;
+        speed = glm::length(velocity);
     }
 } // namespace kosmos

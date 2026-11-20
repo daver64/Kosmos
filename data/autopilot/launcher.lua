@@ -24,7 +24,7 @@ local vehicles = {
   ["CVEL Delta IV Heavy"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 400, lofted = true, max_pitch = 40, apo_guard = true, coast_margin = 700000, last = 4, inert_after = 1, inert = 1 },
   ["CVEL Atlas III"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 3 },
   ["CVEL Atlas IIAS"] = { kick_speed = 40, kick = 86, closed_alt = 65000, mid_pitch = 45, climb = 300, lofted = true, max_pitch = 55, coast_margin = 700000, last = 5 },
-  ["CVEL Ariane 44L"] = { kick_speed = 40, kick = 86, closed_alt = 45000, mid_pitch = 35, climb = 150, last = 5 },
+  ["CVEL Ariane 44L"] = { kick_speed = 40, kick = 86, closed_alt = 65000, mid_pitch = 45, climb = 300, lofted = true, max_pitch = 55, coast_margin = 700000, last = 5 },
   ["CVEL Atlantis launch stack"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, lofted = true, max_pitch = 40, coast_margin = 400000, last = 2 },
   ["CVEL Shuttle 2010 launch stack"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, lofted = true, max_pitch = 40, coast_margin = 400000, last = 2 },
   ["CVEL Energia"] = { kick_speed = 50, kick = 86, closed_alt = 55000, mid_pitch = 35, climb = 150, last = 1 },

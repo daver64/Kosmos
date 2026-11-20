@@ -45,3 +45,31 @@ for name in ("fairing_1.obj", "fairing_2.obj"):
             faces += 1
     assert faces, name
 print("Ariane fairing normals match their faces")
+
+# The upper-stage nose ring is double-sided, but its forward cap must only
+# have one triangulation and the ring's winding must match its normals.
+vertices, normals = [], []
+group = ""
+cap_faces = 0
+for line in (ROOT / "addons/cvel-ariane4/models/stage3.obj").read_text().splitlines():
+    fields = line.split()
+    if not fields:
+        continue
+    if fields[0] == "o":
+        group = fields[1]
+    elif fields[0] == "v":
+        vertices.append(tuple(map(float, fields[1:4])))
+    elif fields[0] == "vn":
+        normals.append(tuple(map(float, fields[1:4])))
+    elif fields[0] == "f" and group in ("group3", "group4"):
+        corners = [field.split("/") for field in fields[1:]]
+        points = [vertices[int(corner[0]) - 1] for corner in corners]
+        face_normal = cross(subtract(points[1], points[0]), subtract(points[2], points[0]))
+        for corner in corners:
+            normal = normals[int(corner[2]) - 1]
+            assert sum(x * y for x, y in zip(face_normal, normal)) > 0, (group, line)
+        if all(abs(point[2] + 3.88871) < 0.00002 for point in points):
+            assert group == "group4" and face_normal[2] < 0, line
+            cap_faces += 1
+assert cap_faces == 22
+print("Ariane third-stage nose cap and normals are consistent")

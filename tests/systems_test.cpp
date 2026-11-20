@@ -9,6 +9,7 @@
 #include "exhaust_fx.h"
 #include "stellar_light.h"
 #include "night_lights.h"
+#include "interior.h"
 
 #include <sol/sol.hpp>
 
@@ -70,6 +71,60 @@ namespace
 
 int main()
 {
+    {
+        std::string error;
+        const nlohmann::json compartment = {{"center", {1.0, 2.0, 3.0}}, {"size", {2.5, 3.0, 6.0}}, {"room", "Habitat"}};
+        auto room = Interior::station(compartment, error);
+        assert(room && room->room_count() == 1 && room->room_name(0) == "Habitat");
+        InteriorWalker walker;
+        walker.place(*room);
+        assert(!room->blocked(walker.position, walker.radius, 1.8));
+        const sl::dvec3 centre = (room->to_ship({0, -room->cell(), 0}) +
+                                  room->to_ship({room->nx() * room->cell(), room->height_m(), room->nz() * room->cell()})) * 0.5;
+        assert(glm::length(centre - sl::dvec3(1, 2, 3)) < 1e-9);
+        const sl::dvec3 start = walker.position;
+        EvaInput input;
+        input.forward = 1.0;
+        for (int i = 0; i < 100; ++i)
+            walker.float_step(*room, input, 0.1);
+        assert(walker.position.z < start.z - 2.0);
+        assert(!room->blocked(walker.position, walker.radius, 1.8));
+        input = EvaInput();
+        input.up = 1.0;
+        for (int i = 0; i < 30; ++i)
+            walker.float_step(*room, input, 0.1);
+        assert(walker.position.y > 0.05 && walker.position.y < 0.21);
+        assert(!room->blocked(walker.position, walker.radius, 1.8));
+
+        nlohmann::json invalid = compartment;
+        invalid["size"] = {2.0, 3.0, 6.0};
+        assert(!Interior::station(invalid, error) && !error.empty());
+        invalid = compartment;
+        invalid["center"] = {0, nullptr, 0};
+        assert(!Interior::station(invalid, error));
+        invalid = compartment;
+        invalid["room"] = 1;
+        assert(!Interior::station(invalid, error));
+
+        for (const char *file : {"/addons/salyut/ship.json", "/addons/salyut/lunar.json",
+                                 "/addons/nasa-gateway/ship.json", "/addons/orbiter-stations/iss.json",
+                                 "/addons/orbiter-stations/iss_nuclear.json", "/addons/orbiter-stations/mir.json",
+                                 "/addons/orbiter-stations/mir_nuclear.json", "/addons/orbiter-stations/wheel.json"})
+        {
+            ShipSpec spec;
+            assert(load_ship_spec(std::string(KOSMOS_ROOT) + file, spec, error));
+            assert(spec.interior);
+            walker.place(*spec.interior);
+            assert(!spec.interior->blocked(walker.position, walker.radius, 1.8));
+            const double initial_z = walker.position.z;
+            EvaInput forward;
+            forward.forward = 1.0;
+            for (int i = 0; i < 10; ++i)
+                walker.float_step(*spec.interior, forward, 0.1);
+            assert(walker.position.z < initial_z - 0.5);
+            assert(!spec.interior->blocked(walker.position, walker.radius, 1.8));
+        }
+    }
     {
         sol::state lua;
         lua.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string);

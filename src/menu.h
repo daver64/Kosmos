@@ -34,6 +34,7 @@ namespace kosmos
         std::function<void(const std::string &)> save_unsaved_flight_recording;
         std::function<void(const std::string &)> open_flight_recording;
         std::function<void()> toggle_eva;     // leave the ship on foot, or board the nearest one
+        std::function<void()> enter_station;
         std::function<bool()> on_foot;
         std::function<bool()> in_building;
         std::function<std::string(const char *)> key_label; // the keys bound to a keyboard action, for menu hints

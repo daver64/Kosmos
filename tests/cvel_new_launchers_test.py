@@ -29,6 +29,30 @@ with tempfile.TemporaryDirectory() as directory:
     for scenario, duration, status, stage in CASES:
         if len(sys.argv) > 2 and scenario not in sys.argv[2:]:
             continue
+        if scenario == "ariane_44l_kourou":
+            launch = json.loads((ROOT / "scenarios/CVEL/CVEL-Ariane/ariane_44l_kourou.json").read_text())
+            assert [entry["ship"] for entry in launch["ships"]] == ["CVEL Ariane 44L", "CVEL Fregat", "Luna E3"]
+            unloaded = dict(launch, ships=launch["ships"][:1])
+            unloaded_path = Path(directory) / "ariane-unloaded.json"
+            unloaded_path.write_text(json.dumps(unloaded))
+            flight = subprocess.run(
+                [str(BINARY), "--root", str(ROOT), "--scenario-file", str(unloaded_path), "--no-clutter",
+                 "--no-tiles", "--no-clouds", "--gen-threads", "1", "--selftest", "750",
+                 "--selftest-warp", "4", "--set", "/autopilot/enabled=1"],
+                cwd=ROOT, env=env, capture_output=True, text=True, timeout=240)
+            flight_output = flight.stdout + flight.stderr
+            assert flight.returncode == 0 and re.search(r"In orbit.*stage=5", flight_output), flight_output
+            for entry in launch["ships"]:
+                entry.pop("surface", None)
+                entry["orbit"] = {"altitude_km": 200}
+            orbital = Path(directory) / "ariane-payload-orbit.json"
+            orbital.write_text(json.dumps(launch))
+            handoff = subprocess.run(
+                [str(BINARY), "--root", str(ROOT), "--scenario-file", str(orbital),
+                 "--selftest", "1", "--set", "/selftest/ariane-payload=true"],
+                cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+            handoff_output = handoff.stdout + handoff.stderr
+            assert handoff.returncode == 0 and "Ariane payload selftest ok" in handoff_output, handoff_output
         if scenario == "atlantis_kennedy":
             stack = json.loads((ROOT / "addons/cvel-atlantis/stack.json").read_text())["stages"]
             boosters, initial_tank, main_tank = stack
@@ -93,6 +117,9 @@ with tempfile.TemporaryDirectory() as directory:
         if scenario in ("atlantis_kennedy", "shuttle2010_kennedy"):
             links = 4 if scenario == "atlantis_kennedy" else 1
             assert re.search(rf"docked=1\s+links={links}\b", lines[0]), output
+        if scenario == "ariane_44l_kourou":
+            periapsis = re.search(r"pe=\s*([-\d.]+)", lines[0])
+            assert re.search(r"docked=1\s+links=2\b", lines[0]) and periapsis and float(periapsis.group(1)) > 150, output
         if scenario == "atlantis_kennedy":
             periapsis = re.search(r"pe=\s*([-\d.]+)", lines[0])
             assert periapsis and float(periapsis.group(1)) > 150, output

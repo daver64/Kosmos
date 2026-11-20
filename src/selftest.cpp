@@ -2359,6 +2359,41 @@ namespace kosmos
             std::puts("Buran docked gear selftest ok");
             return 0;
         }
+        if (sim.props.get_bool("/selftest/ariane-payload"))
+        {
+            const auto fail = [](const char *message) {
+                std::fprintf(stderr, "Ariane payload selftest: %s\n", message);
+                return 1;
+            };
+            if (!ship || ship->spec().name != "CVEL Ariane 44L" || sim.ship_count() < 3 ||
+                sim.ship(1)->spec().name != "CVEL Fregat" || sim.ship(2)->spec().name != "Luna E3")
+                return fail("expected Ariane, Fregat and Luna E3");
+            sim.step(0.01);
+            if (sim.nav.dock_links().size() != 2)
+                return fail("payload stack is not docked");
+            const sl::dmat3 inverse = glm::transpose(ship->body().rotation());
+            for (int i = 1; i <= 2; ++i)
+            {
+                const sl::dvec3 local = inverse * (sim.ship(i)->origin() - ship->origin());
+                const sl::dvec3 expected(0, 0, i == 1 ? -34.37 : -36.12);
+                if (glm::length(local - expected) > 0.02 ||
+                    glm::length(inverse * sim.ship(i)->body().rotation()[2] - sl::dvec3(0, 0, 1)) > 1e-5)
+                    return fail("payload is not aligned in the fairing");
+            }
+            if (!ship->stage_once() || !ship->stage_once() || !ship->stage_once() ||
+                ship->active_stage() != 5 || !ship->port_attached(0) || sim.nav.dock_links().size() != 2)
+                return fail("staging released or lost the payload");
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.01);
+            if (sim.active_ship() != sim.ship(1) || sim.nav.dock_links().size() != 1)
+                return fail("Ariane did not release Fregat with the probe attached");
+            sim.props.set_bool("/controls/stage", true);
+            sim.step(0.01);
+            if (sim.active_ship() != sim.ship(2) || !sim.nav.dock_links().empty())
+                return fail("Fregat did not release the probe");
+            std::puts("Ariane payload selftest ok");
+            return 0;
+        }
         if (sim.props.get_bool("/selftest/cveln1-staging"))
         {
             if (!ship || ship->spec().name != "CVELN1" || !sim.nav.docked(sim.active_index()) ||
