@@ -52,7 +52,7 @@
         { "type": "control_tower", "height": 30, "x": 60, "z": -40 },
         { "type": "hangar", "width": 30, "depth": 36, "height": 12, "x": 150, "z": -20, "heading": 270 },
         { "type": "water_tower", "height": 20, "radius": 4, "x": -160, "z": 160 },
-        { "type": "radar", "height": 9, "radius": 3.5, "x": 130, "z": -90 },
+        { "type": "model", "model": "parts/nasa_dish_70m/nasa_dish_70m.glb", "x": 130, "z": -210 },
         { "type": "domed_radar", "radius": 4.5, "x": 100, "z": -90 },
         { "type": "road", "y": 0.2, "length": 300, "width": 8, "x": 0, "z": 0, "heading": 0 },
         { "type": "road", "y": 0.2, "length": 200, "width": 6, "x": 0, "z": 160, "heading": 90 },

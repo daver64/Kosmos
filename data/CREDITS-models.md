@@ -9,7 +9,7 @@ Kosmos decoded, re-oriented, scaled, decimated (to about 30 000 triangles) and r
 
 - **Kit parts:** ACRIMSAT, Gemini Agena Target Vehicle, Apollo Lunar Module, Mercury capsule (Friendship 7), Pioneer 10,
   Viking lander.
-- **Props:** Astronaut, launch gantry, habitat units 1 and 2, NASA Headquarters, Mission Control, radome, Space Exploration
+- **Props:** Astronaut, launch gantry, habitat units 1 and 2, NASA Headquarters, Mission Control, radome, 70-metre dish, Space Exploration
   Vehicle, Vehicle Assembly Building.
 - **Asteroid shapes** (`bodies/*.glb`): NASA 3D Resources models of Vesta, Bennu, Geographos, Kleopatra, Itokawa, Toutatis, Eros, Mithra, Golevka and 1996 HW1, converted with `tools/nasa_import.py`. Eros and Itokawa are reconstructed from the two halves in NASA's printable files; Vesta uses the complete A model rather than the printable halves in B.
 - **Terrain:** Gale Crater (`terrain/gale-crater.stl`, a scan of the crater and Mount Sharp from NASA's 3D Resources).

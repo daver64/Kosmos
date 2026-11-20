@@ -691,6 +691,7 @@ Object coordinates are metres in the base frame (x right of the heading, z along
 Navaids: `vtol`, `vor`, `ndb` (frequency below 1 MHz, tuned with the ADF MFD) and per-runway `ils`. A runway is drawn with markings and is levelled with the rest of the site; each `ils` entry puts a localizer and glideslope at the touchdown zone (`glide` degrees, default 3) for that landing direction. Base `cameras` appear in the F2 camera window, grouped under "Bases on <body>" for the body the flown ship is at (nearest first; tick "Bases on all bodies" for the rest); they follow the flown ship while it is nearby or above the local horizon (otherwise they look at the pad), unless `"track": false`, which uses `yaw` and `pitch` (degrees from the base heading).
 
 A scenario stands a ship on a base with `"surface": {"base": "mysite"}`, optionally with `"runway": 0`, `"reverse": true`, `"along": metres past the threshold`, and `"altitude"` / `"speed"` to start in the air. Bundled: Chippenham, Twickenham, Helsinki and Wagga Wagga.
+Each has a static NASA 70-metre dish; the reusable base model is `parts/nasa_dish_70m/nasa_dish_70m.glb`.
 
 ## Aircraft
 

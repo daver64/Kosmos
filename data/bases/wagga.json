@@ -51,7 +51,7 @@
         { "type": "hangar", "width": 40, "depth": 48, "height": 16, "x": 140, "z": 30, "heading": 270 },
         { "type": "hangar", "width": 40, "depth": 48, "height": 16, "x": 140, "z": 100, "heading": 270 },
         { "type": "spaceship", "length": 18, "x": 100, "z": -10, "heading": 20 },
-        { "type": "radar", "height": 12, "radius": 5, "x": -30, "z": -140 },
+        { "type": "model", "model": "parts/nasa_dish_70m/nasa_dish_70m.glb", "x": 0, "z": -250 },
         { "type": "domed_radar", "radius": 5, "x": 10, "z": -140 },
         { "type": "antenna_dish", "radius": 4, "x": 50, "z": -150 },
         { "type": "solar_array", "length": 14, "width": 4, "number": 6, "count": 4, "x": -80, "z": -100, "step_x": 18 },

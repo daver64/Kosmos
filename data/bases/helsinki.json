@@ -51,7 +51,7 @@
         { "type": "hangar", "width": 40, "depth": 44, "height": 15, "x": -150, "z": -40, "heading": 90 },
         { "type": "hangar", "width": 40, "depth": 44, "height": 15, "x": -150, "z": 30, "heading": 90 },
         { "type": "domed_radar", "radius": 6, "x": 40, "z": -150 },
-        { "type": "antenna_dish", "radius": 4, "x": 80, "z": -150 },
+        { "type": "model", "model": "parts/nasa_dish_70m/nasa_dish_70m.glb", "x": 100, "z": -200 },
         { "type": "solar_windmill", "length": 9, "width": 3, "x": -200, "z": 170 },
         { "type": "solar_windmill", "length": 9, "width": 3, "x": -240, "z": 170 },
         { "type": "office", "width": 22, "depth": 12, "number": 3, "x": 20, "z": -110, "colour": [190, 120, 90] },

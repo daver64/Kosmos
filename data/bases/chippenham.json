@@ -59,7 +59,7 @@
         { "type": "hangar", "width": 36, "depth": 40, "height": 14, "x": 140, "z": -60, "heading": 270 },
         { "type": "hangar", "width": 36, "depth": 40, "height": 14, "x": 140, "z": 0, "heading": 270 },
         { "type": "domed_radar", "radius": 5, "x": -40, "z": -140 },
-        { "type": "radar", "height": 10, "radius": 4, "x": 0, "z": -150 },
+        { "type": "model", "model": "parts/nasa_dish_70m/nasa_dish_70m.glb", "x": -100, "z": -220 },
         { "type": "antenna_dish", "radius": 3, "x": 40, "z": -150 },
         { "type": "office", "width": 20, "depth": 12, "number": 3, "x": 90, "z": -110 },
         { "type": "road", "y": 0.2, "length": 200, "width": 8, "x": 0, "z": -40, "heading": 90 },

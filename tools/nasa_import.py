@@ -48,6 +48,7 @@ MODELS = [
     dict(id="headquarters", src="Headquarters Building.glb", kind="prop", fit=("up", 28.0)),
     dict(id="mission_control", src="JSC Mission Control Room.glb", kind="prop", fit=("max", 40.0)),
     dict(id="radome", src="Radome.glb", kind="prop", fit=("up", 16.0)),
+    dict(id="dish_70m", src="70 meter dish.glb", kind="prop", fit=("max", 70.0)),
     dict(id="exploration_vehicle", src="Space Exploration Vehicle.glb", kind="prop", fit=("up", 3.97)),
     dict(id="vab", src="Vehicle Assembly Building (VAB).glb", kind="prop", fit=("max", 218.0)),
     dict(id="vesta", src="Asteroid 4 Vesta (A).stl", kind="body", out="data/bodies/vesta.glb", tris=20000),
