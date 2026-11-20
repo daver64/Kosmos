@@ -679,6 +679,9 @@ namespace kosmos
         double pod_angle(bool right) const { return pod_angle_[right ? 1 : 0] / 3.14159265358979; }
         int stage_count() const { return static_cast<int>(spec_.stages.size()); }
         bool crashed() const { return crashed_; }
+        /** Surface placement is remembered until the first physics step establishes contact. */
+        bool surface_attached() const { return pinned_ || surface_placed_; }
+        bool surface_resting() const { return pinned_ && resting_; }
         /** 1 undamaged down to 0 destroyed. */
         double health() const { return health_; }
         /** Atmospheric loss cause, or null while the vessel has not been lost to pressure or heat. */
@@ -845,6 +848,7 @@ namespace kosmos
         double payload_mass_ = 0.0;
         // Wrecks and resting orbital ships are fixed to the ground: position and attitude in the planet's frame, re-applied each frame.
         bool pinned_ = false;
+        bool surface_placed_ = false;
         bool warp_pinned_ = false;
         int pin_body_ = -1;
         sl::dvec3 pin_position_{0.0};

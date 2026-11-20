@@ -79,6 +79,8 @@ echo "== date-change flight restoration"
 ./kosmos --ship Kestrel --selftest 1 --set /selftest/date-change=true --set /selftest/date-ground=true
 ./kosmos --scenario salyut_earth_orbit --selftest 1 --set /selftest/date-change=true
 ./kosmos --scenario gateway_shuttle_moon --selftest 1 --set /selftest/date-change=true --set /selftest/date-docked=true
+./kosmos --scenario ariane_44l_kourou --selftest 1 --set /selftest/date-change=true --set /selftest/date-daylight=true --set /selftest/date-docked=true --set /selftest/date-launch=true
+./kosmos --scenario deltaglider_chippenham --selftest 1 --set /selftest/date-change=true --set /selftest/date-daylight=true --set /selftest/date-surface-only=true
 python3 "$SRC/tests/sync_approach_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/gui_input_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/orbital_sas_test.py" "$PWD/kosmos"

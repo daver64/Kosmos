@@ -207,6 +207,7 @@ namespace kosmos::app
         Scenario saved = capture_scenario(sim, "Date change");
         saved.weather = sim.props.get_string("/sim/weather-force");
         std::vector<std::vector<double>> gear_compression;
+        std::vector<bool> surface_fixed, surface_resting;
         for (int i = 0; i < sim.ship_count(); ++i)
         {
             const Ship &vessel = *sim.ship(i);
@@ -216,6 +217,8 @@ namespace kosmos::app
             for (const sl::GearContact &gear : vessel.body().gear)
                 compression.push_back(gear.compression);
             gear_compression.push_back(std::move(compression));
+            surface_fixed.push_back(vessel.telemetry().landed || vessel.surface_attached());
+            surface_resting.push_back(vessel.surface_resting());
         }
         const std::size_t saved_links = static_cast<std::size_t>(std::count_if(saved.ships.begin(), saved.ships.end(),
             [](const ScenarioShip &entry) { return entry.dock_to >= 0; }));
@@ -224,6 +227,24 @@ namespace kosmos::app
             error = "This docking network cannot be restored by a scenario; undock it before changing the date.";
             return false;
         }
+        bool changed;
+        do
+        {
+            changed = false;
+            for (std::size_t i = 0; i < saved.ships.size(); ++i)
+            {
+                const int leader = saved.ships[i].dock_to;
+                if (leader < 0 || surface_fixed[i] == surface_fixed[static_cast<std::size_t>(leader)])
+                    continue;
+                if (saved.ships[i].body != saved.ships[static_cast<std::size_t>(leader)].body)
+                {
+                    error = "A docked vessel has a different reference body; its state cannot be restored.";
+                    return false;
+                }
+                surface_fixed[i] = surface_fixed[static_cast<std::size_t>(leader)] = true;
+                changed = true;
+            }
+        } while (changed);
         std::vector<sl::dquat> old_frames;
         std::vector<sl::dvec3> old_spins;
         for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
@@ -237,10 +258,12 @@ namespace kosmos::app
         ship = nullptr;
         vis.clear_parts();
         Scenario shifted = saved;
-        for (ScenarioShip &entry : shifted.ships)
+        for (std::size_t i = 0; i < shifted.ships.size(); ++i)
         {
-            if (!entry.landed || !entry.has_state)
+            ScenarioShip &entry = shifted.ships[i];
+            if (!surface_fixed[i] || !entry.has_state)
                 continue;
+            entry.landed = true;
             const int body_id = sim.universe.find(entry.body);
             const sl::FlightBody &body = *sim.universe.world.body(body_id);
             const sl::dquat turn = sim.universe.orientation(body_id) * glm::inverse(old_frames[static_cast<std::size_t>(body_id)]);
@@ -266,6 +289,8 @@ namespace kosmos::app
                 for (std::size_t j = 0; j < gear_compression[i].size(); ++j)
                     vessel.body().gear[j].compression = gear_compression[i][j];
                 vessel.refresh_telemetry();
+                if (surface_resting[i])
+                    vessel.hold_scenario_landed();
             }
             return true;
         };
@@ -318,6 +343,108 @@ namespace kosmos::app
 
     int App::test_date_change()
     {
+        if (sim.props.get_bool("/selftest/date-daylight"))
+        {
+            double day = 0.0, night = 0.0;
+            if (!parse_utc_datetime("2024-03-20 16:00:00", day) ||
+                !parse_utc_datetime("2024-03-20 04:00:00", night))
+                return 1;
+            const int body_id = ship->telemetry().soi;
+            const std::size_t link_count = sim.nav.dock_links().size();
+            if (!ship->surface_attached() || body_id != sim.universe.find("Earth") ||
+                (sim.props.get_bool("/selftest/date-docked") && link_count < 2))
+            {
+                std::fprintf(stderr, "date-daylight selftest: expected a surface-placed Earth vessel and requested docks\n");
+                return 1;
+            }
+            const bool resting = ship->surface_resting();
+            std::vector<bool> linked(static_cast<std::size_t>(sim.ship_count()), false);
+            linked[static_cast<std::size_t>(sim.props.get_int("/sim/active-ship"))] = true;
+            bool changed;
+            do
+            {
+                changed = false;
+                for (const auto &link : sim.nav.dock_links())
+                {
+                    const std::size_t a = static_cast<std::size_t>(link[0]), b = static_cast<std::size_t>(link[2]);
+                    if (linked[a] != linked[b])
+                    {
+                        linked[a] = linked[b] = true;
+                        changed = true;
+                    }
+                }
+            } while (changed);
+            std::vector<std::string> names;
+            std::vector<sl::dvec3> positions;
+            for (std::size_t i = 0; i < linked.size(); ++i)
+                if (linked[i])
+                {
+                    const Ship &vessel = *sim.ship(static_cast<int>(i));
+                    names.push_back(vessel.name);
+                    positions.push_back(glm::inverse(sim.universe.orientation(body_id)) *
+                                        (vessel.body().position - sim.universe.position(body_id)));
+                }
+            const auto max_position_error = [&]() {
+                double largest = 0.0;
+                if (sim.nav.dock_links().size() != link_count ||
+                    static_cast<std::size_t>(sim.ship_count()) < positions.size() ||
+                    (resting && !ship->surface_resting()))
+                    return 1e30;
+                for (std::size_t i = 0; i < positions.size(); ++i)
+                {
+                    const Ship &vessel = *sim.ship(static_cast<int>(i));
+                    if (vessel.name != names[i])
+                        return 1e30;
+                    const sl::dvec3 local = glm::inverse(sim.universe.orientation(body_id)) *
+                                            (vessel.body().position - sim.universe.position(body_id));
+                    largest = std::max(largest, glm::length(local - positions[i]));
+                }
+                return largest;
+            };
+            std::string error;
+            const auto sun_height = [&]() {
+                const sl::dvec3 up = glm::normalize(ship->body().position - sim.universe.position(body_id));
+                const sl::dvec3 sun = glm::normalize(sim.universe.position(0) - ship->body().position);
+                return glm::dot(up, sun);
+            };
+            if (!set_date(day, error))
+            {
+                std::fprintf(stderr, "date-daylight selftest: %s\n", error.c_str());
+                return 1;
+            }
+            const double daylight = sun_height();
+            const double day_error = max_position_error();
+            if (!set_date(night, error))
+            {
+                std::fprintf(stderr, "date-daylight selftest: %s\n", error.c_str());
+                return 1;
+            }
+            const double darkness = sun_height();
+            const double night_error = max_position_error();
+            const bool sunlight_ok = sim.props.get_bool("/selftest/date-surface-only") || (daylight > 0.5 && darkness < -0.5);
+            const bool ok = sunlight_ok && day_error < 0.05 && night_error < 0.05;
+            std::printf("%s: sun elevation sin %.3f %.3f, surface errors %.3f %.3f m\n",
+                        ok ? "ok" : "FAIL", daylight, darkness, day_error, night_error);
+            if (ok && sim.props.get_bool("/selftest/date-noon-last") && !set_date(day, error))
+            {
+                std::fprintf(stderr, "date-daylight selftest: %s\n", error.c_str());
+                return 1;
+            }
+            if (ok && sim.props.get_bool("/selftest/date-launch"))
+            {
+                const double initial_radius = glm::length(ship->body().position - sim.universe.position(body_id));
+                sim.props.set_bool("/sim/paused", false);
+                sim.props.set_double("/controls/throttle", 1.0);
+                for (int i = 0; i < 100; ++i)
+                    sim.step(0.1);
+                const double rise = glm::length(ship->body().position - sim.universe.position(body_id)) - initial_radius;
+                const bool launched = rise > 10.0 && !ship->surface_resting();
+                std::printf("%s: launch after date changes, rise %.1f m\n", launched ? "ok" : "FAIL", rise);
+                if (!launched)
+                    return 1;
+            }
+            return ok ? 0 : 1;
+        }
         int failures = 0;
         const auto check = [&](bool ok, const char *description) {
             std::printf("%s: %s\n", ok ? "ok" : "FAIL", description);

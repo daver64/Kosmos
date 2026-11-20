@@ -1,19 +1,19 @@
 # macOS Build Guide (Draft)
 
-Quick reference for building Kosmos on macOS. Will be refined later.
+Experimental source-build notes for macOS. These are not a released macOS package; results and tool support may vary by machine.
 
 ---
 
 ## Homebrew packages required
 
 ```sh
-brew install cmake ninja molten-vk vulkan-loader glslang \
+brew install cmake ninja pkgconf molten-vk vulkan-loader glslang \
     sdl2 sdl2_image sdl2_mixer sdl2_ttf \
     ffmpeg libsndfile portaudio lua \
-    zlib png openexr openjpeg webp boost openssl@3
+    zlib libpng sqlite openexr openjpeg webp boost openssl@3
 ```
 
-That's it — Homebrew resolves transitive dependencies automatically. `giflib` and `libpng` are pulled in by `openjpeg`/`webp`; `xz`, `zstd`, `lz4` come via `boost`/`ffmpeg`. The only standalone packages you must list explicitly are `zlib` and `png` (not a dependency of anything else).
+Homebrew resolves transitive dependencies. For the optional GTK tools, install `gtk+3` and `libepoxy` as well; the optional launcher needs `wxwidgets`. The exact requirements depend on the targets and renderer enabled.
 
 **Key dependencies:**
 
@@ -23,43 +23,42 @@ That's it — Homebrew resolves transitive dependencies automatically. `giflib` 
 | Vulkan/MoltenVK | `molten-vk`, `vulkan-loader`, `glslang` | Vulkan rendering on macOS (MoltenVK translates Vulkan to Metal) |
 | SDL2 | `sdl2`, `sdl2_image`, `sdl2_mixer`, `sdl2_ttf` | Windowing, audio, image loading, fonts |
 | Media | `ffmpeg`, `libsndfile`, `portaudio` | Video playback, audio |
-| Images | `png`, `openexr`, `openjpeg`, `webp` | Image format support (transitive deps resolved automatically) |
-| Misc | `zlib`, `boost`, `openssl@3` | Compression, networking deps |
+| Images | `libpng`, `openexr`, `openjpeg`, `webp` | Image format support |
+| Misc | `zlib`, `sqlite`, `pkgconf`, `boost`, `openssl@3` | Compression, database, package discovery and networking dependencies |
 
 ## Building simlib first
 
-Kosmos depends on [simlib](https://github.com/kerbal-x/simlib). If you haven't built it yet:
+Kosmos depends on [simlib](https://github.com/daver64/rsimlib). Check out the commit recorded in Kosmos's `SIMLIB_COMMIT` before building it. The example installs into `~/opt` rather than a system directory:
 
 ```sh
 cd ~/Documents/Projects/rsimlib   # or wherever your simlib checkout lives
-mkdir -p build && cd build
-cmake .. -G Ninja \
+cmake -S . -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DSIMLIB_RENDERERS=gl;vulkan \
-    -DSIMLIB_VALIDATE_SHADERS=OFF \
-    -DSIMLIB_BUILD_SHADER_COMPILER=ON
-ninja -j4
-ninja install   # installs to /opt/homebrew (default Homebrew prefix)
+    -DCMAKE_INSTALL_PREFIX="$HOME/opt" \
+    -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+    '-DSIMLIB_RENDERERS=gl;vulkan' \
+    -DSIMLIB_VALIDATE_SHADERS=ON
+cmake --build build -j4
+cmake --install build
 ```
 
-**Note:** `SIMLIB_RENDERERS=gl;vulkan` enables both OpenGL fallback and Vulkan. On macOS, Vulkan uses MoltenVK under the hood — no extra config needed. The ICD JSON at `/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json` is installed automatically by the `molten-vk` Homebrew formula.
+The quoted renderer list enables OpenGL and Vulkan; shader validation must remain enabled to generate Vulkan shaders. Vulkan uses MoltenVK, which the Vulkan loader must be able to find. If CMake cannot find dependencies, check their Homebrew prefixes and loader configuration.
 
 ## Building Kosmos
 
 ```sh
-cd ~/src/projects/Kosmos          # your Kosmos checkout
-mkdir -p build && cd build
-cmake .. -G Ninja \
+cd ~/src/projects/Kosmos          # or wherever your Kosmos checkout lives
+cmake -S . -B build -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
-    -DSIMLIB_DIR=/opt/homebrew/lib/cmake/simlib  # if simlib isn't in the default CMake path
-ninja -j4
+    -DCMAKE_PREFIX_PATH="$HOME/opt;$(brew --prefix)"
+cmake --build build -j4
 ```
 
 Run from the `build/` directory:
 
 ```sh
 cd build
-./kosmos --ship Deltaglider --orbit "Low Earth Orbit"
+./kosmos --ship "CVEL Deltaglider" --orbit
 ```
 
 Useful flags: `--cockpit`, `--cockpit3d`, `--hide-info`, `--system N`, `--set /path=VALUE`.
@@ -68,25 +67,24 @@ Useful flags: `--cockpit`, `--cockpit3d`, `--hide-info`, `--system N`, `--set /p
 
 | Tool | Runs? | Notes |
 |------|-------|-------|
-| `kosmosmap` | ✅ Yes | Plain GTK, no OpenGL dependency |
-| `planetbake` | ✅ Yes | CLI tool — verified end-to-end |
-| `shipedit` | ⚠️ Partial | Compiles fine; window display fails (see known issues). **`--shot` mode works** for batch rendering. |
-| `kosmoscad` | ❌ No | GTK+GLArea doesn't work on macOS Cocoa |
-| `kosmosmission` | ❌ No | GTK+GLArea doesn't work on macOS Cocoa |
-| `kosmosav` | ⚠️ Depends | Compiles; needs KosmosAV network service |
+| `kosmosmap` | Reported working | GTK tool; requires GTK 3 and zlib |
+| `planetbake` | Reported working | CLI tool |
+| `shipedit` | Partial | Window display has failed in macOS testing; `--shot` has worked |
+| `kosmoscad`, `kosmosmission` | Limited | GTK GLArea windows have been reported blank on macOS |
+| `kosmosav` | Depends | Requires GTK, libcurl and the KosmosAV network service |
 
 ## Known issues
 
 ### GTK+GLArea blank windows (shipedit, kosmoscad, kosmosmission)
 
-GTK3's `GtkGLArea` widget has known issues with the macOS Cocoa backend via Homebrew's `gtk+3`. Windows open but are completely blank. The rendering code itself works — `shipedit --shot` produces valid PNGs using the same OpenGL/Cairo pipeline. Workarounds being considered:
+GTK3 `GtkGLArea` windows have been reported blank with Homebrew's macOS Cocoa backend. ShipEdit's headless `--shot` has produced PNGs using cairo; that does not verify its interactive OpenGL view. Workarounds being considered:
 - Environment variable to force non-GL mode
 - Accept compile-only validation for macOS SDK tools
 - Replace GTK GLArea with SDL2/GLFW for 3D viewports
 
 ### Vulkan on Apple Silicon
 
-MoltenVK's `is_portability_driver` flag in the ICD config (`/opt/homebrew/etc/vulkan/icd.d/MoltenVK_icd.json`) enables automatic Vulkan-to-Metal translation for Apple Silicon. No additional environment variables or configuration needed — the Vulkan loader finds MoltenVK automatically via the ICD mechanism.
+Vulkan uses MoltenVK's Vulkan-to-Metal translation. Loader and ICD configuration can vary with the installation and architecture.
 
 ---
 

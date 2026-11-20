@@ -717,6 +717,7 @@ namespace kosmos
 
     void Ship::after_step(double dt)
     {
+        surface_placed_ = false;
         if (warp_pinned_)
             hold_pinned();
         update_telemetry();

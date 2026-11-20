@@ -1883,6 +1883,7 @@ namespace kosmos
                 if (ImGui::Button("Use current simulation time"))
                     date_input = format_utc(sim.universe.julian_date()).substr(0, 19);
                 ImGui::TextWrapped("Rebuilds the environment and restores the flight like a saved scenario. "
+                                   "Daylight depends on your location and the UTC time. "
                                    "Debris, base-building and transient state are lost; throttle and autopilots are reset and the simulation is paused. "
                                    "Complex docking networks must be undocked first.");
                 if (ImGui::Button("Set date and time"))

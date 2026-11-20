@@ -75,6 +75,7 @@ namespace kosmos
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
+        surface_placed_ = true;
         b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
@@ -83,6 +84,7 @@ namespace kosmos
     {
         place_on_surface(body_id, direction, heading_degrees, ground_height);
         sl::FlightBody &b = body();
+        surface_placed_ = false;
         const sl::dvec3 up = glm::normalize(direction);
         b.position += up * altitude;
         b.velocity += b.direction_to_world({0.0, 0.0, -1.0}) * speed;
@@ -105,6 +107,7 @@ namespace kosmos
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
+        surface_placed_ = false;
         b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
@@ -134,6 +137,7 @@ namespace kosmos
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
+        surface_placed_ = false;
         b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
@@ -184,6 +188,7 @@ namespace kosmos
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
+        surface_placed_ = false;
         b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
@@ -316,6 +321,7 @@ namespace kosmos
         rcs_fuel_ = spec_.rcs_propellant;
         shield_ = spec_.shield.capacity;
         pinned_ = resting_ = warp_pinned_ = false;
+        surface_placed_ = false;
         b.mode = sl::FlightBodyMode::dynamic;
         update_telemetry();
     }
