@@ -1,6 +1,11 @@
 {
  "name": "CVEL Saturn V",
  "class": "launcher",
+ "rocket_builder": {"parts": [
+  {"id":"s-ic","name":"Saturn V S-IC","role":"first","stages":[{"index":0,"name":"S-IC first stage"}]},
+  {"id":"s-ii","name":"Saturn V S-II","role":"second","stages":[{"index":1,"name":"S-II second stage"}]},
+  {"id":"s-ivb","name":"Saturn V S-IVB","role":"upper","stages":[{"index":2,"name":"S-IVB third stage"}]}
+ ]},
  "script": "@launcher.lua",
  "torque_accel": 0.12,
  "max_rate": 0.25,

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <utility>
 #include "json.hpp"
 
 namespace km
@@ -23,7 +25,18 @@ namespace km
             err = "cannot open " + path;
             return false;
         }
-        nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (in.bad())
+        {
+            err = "cannot read " + path;
+            return false;
+        }
+        return parse_ship(text, path, out, err);
+    }
+
+    static bool parse_ship_json(const std::string &text, const std::string &path, ShipSpec &out, std::string &err)
+    {
+        nlohmann::json j = nlohmann::json::parse(text, nullptr, false);
         if (j.is_discarded() || !j.contains("stages") || !j["stages"].is_array() || j["stages"].empty())
         {
             err = path + " has no stages";
@@ -103,6 +116,24 @@ namespace km
                 out.bays.push_back(bay);
         }
         return true;
+    }
+
+    bool parse_ship(const std::string &text, const std::string &path, ShipSpec &out, std::string &err)
+    {
+        err.clear();
+        try
+        {
+            ShipSpec parsed;
+            if (!parse_ship_json(text, path, parsed, err))
+                return false;
+            out = std::move(parsed);
+            return true;
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            err = path + ": " + e.what();
+            return false;
+        }
     }
 
     std::vector<ShipSpec> list_ships(const std::string &root)

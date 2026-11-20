@@ -21,6 +21,7 @@ namespace kosmos
     {
         std::function<void(const Scenario &)> start_scenario; // run this scenario now
         std::function<void()> restart;
+        std::function<void()> rocket_builder;
         std::function<bool(double, std::string &)> set_date;
         std::function<void()> quit;
         std::function<void()> screenshot;

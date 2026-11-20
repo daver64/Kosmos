@@ -2,6 +2,11 @@
   "name": "CVEL Fregat",
   "description": "Fregat upper stage. Electrical loads start off to conserve the battery during interplanetary cruise; solar charging and propulsion remain available. Enable guidance, telemetry, heaters and attitude thruster drivers in the Systems MFD or Ship systems window when needed.",
   "class": "tug",
+  "rocket_builder": {
+    "parts": [
+      {"id": "fregat", "name": "Fregat", "role": "upper", "ports": ["Payload"], "stages": [{"index": 0, "name": "Fregat"}]}
+    ]
+  },
   "payload_size": {"diameter": 3.14, "length": 2.61},
  "payload_bays": [
   {"name": "Payload adapter", "shape": "cylinder", "radius": 1.4, "length": 3, "port": "Payload"}

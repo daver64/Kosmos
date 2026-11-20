@@ -2,11 +2,15 @@
 #include <fstream>
 // ShipEdit's document model: every shipped ship must round-trip untouched, edits must behave, save-as must produce a loadable copy.
 #include "model.h"
+#include "rocket_catalog.h"
+#include "rocket_assembly.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 
 using namespace shipedit;
 
@@ -32,6 +36,32 @@ namespace
 
 int main(int argc, char **argv)
 {
+    if (argc == 3 && std::string(argv[1]) == "--assembly-fixture")
+    {
+        const auto addons = scan_addons(fs::path(KOSMOS_ROOT) / "addons");
+        const AddonInfo *n1 = find_addon(addons, "cvel-n1");
+        Document source;
+        RocketAssembly stack("Rocket builder fixture");
+        std::string error, warning;
+        fs::path written;
+        const auto validate = [](const fs::path &file, std::string &problem) {
+            if (fs::is_regular_file(file))
+                return true;
+            problem = "Generated ship file is missing.";
+            return false;
+        };
+        if (!n1 || !source.load(*n1, "ship.json", error) ||
+            !stack.add(source, "block-a", -1, error, warning) ||
+            !stack.add(source, "block-b", -1, error, warning) ||
+            !stack.add(source, "block-v", -1, error, warning) ||
+            !stack.save_as(argv[2], "rocket-builder-fixture", "Rocket builder fixture", validate, written, error))
+        {
+            std::fprintf(stderr, "Cannot create assembly fixture: %s\n", error.c_str());
+            return 1;
+        }
+        std::puts(written.string().c_str());
+        return 0;
+    }
     if (argc == 2 && std::string(argv[1]) == "--starter-json")
     {
         Document starter;
@@ -75,6 +105,265 @@ int main(int argc, char **argv)
     const std::vector<AddonInfo> addons = scan_addons(root / "addons");
     check(addons.size() > 10, "addons are found");
 
+    {
+        std::string error, warning;
+        const AddonInfo *soyuz_addon = find_addon(addons, "cvel-soyuz");
+        Document soyuz;
+        RocketAssembly stack("Soyuz test");
+        check(soyuz_addon && soyuz.load(*soyuz_addon, "fg.json", error) &&
+                  stack.add(soyuz, "core", -1, error, warning) &&
+                  stack.add(soyuz, "boosters", 0, error, warning) &&
+                  stack.add(soyuz, "block-i", -1, error, warning),
+              "classified Soyuz core, boosters and Block I assemble: " + error);
+        json result;
+        check(stack.ship_json(result, error) && result["stages"].size() == 3 &&
+                  result["stages"][0]["engines"].size() == 4 &&
+                  result["stages"][1].value("ignite_with_previous", false),
+              "Soyuz boosters omit the duplicated core engine and ignite with the core");
+    }
+
+    {
+        Document catalog;
+        catalog.make_rocket("Catalog test");
+        catalog.root()["stages"] = json::array({{{"name", "Core"}}, {{"name", "Left"}}, {{"name", "Right"}}});
+        std::vector<RocketPart> parts;
+        std::string error;
+        check(rocket_parts(catalog, parts, error) && parts.empty(), "unclassified ships have no rocket parts");
+        catalog.root()["rocket_builder"]["parts"] = json::array({
+            {{"id", "core"}, {"name", "Core"}, {"role", "first"}, {"stages", json::array({{{"index", 0}, {"name", "Core"}}})}},
+            {{"id", "cover"}, {"name", "Cover"}, {"role", "fairing"}, {"anchor", {{"index", 0}, {"name", "Core"}}}, {"stages", json::array({{{"index", 1}, {"name", "Left"}}, {{"index", 2}, {"name", "Right"}}})}}
+        });
+        check(rocket_parts(catalog, parts, error) && parts.size() == 2 &&
+                  parts[0].role == RocketPartRole::first && parts[1].role == RocketPartRole::fairing &&
+                  parts[1].stages == std::vector<int>({1, 2}) && parts[1].anchor == 0,
+              "explicit catalog accepts a core and grouped fairing");
+        catalog.root()["rocket_builder"]["parts"][1]["anchor"]["name"] = "Changed";
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "changed source anchors are rejected");
+        catalog.root()["rocket_builder"]["parts"][1]["anchor"]["name"] = "Core";
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["name"] = "Changed";
+        check(!rocket_parts(catalog, parts, error) && !error.empty() && parts.size() == 2,
+              "changed source stages reject the catalog without replacing the previous result");
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["name"] = "Right";
+        catalog.root()["rocket_builder"]["parts"][0]["role"] = "unknown";
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "unknown rocket part roles are rejected");
+        catalog.root()["rocket_builder"]["parts"][0]["role"] = "first";
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["index"] = 1;
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "duplicate stage indices are rejected");
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["index"] = -1;
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "negative stage indices are rejected");
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["index"] = std::numeric_limits<std::uint64_t>::max();
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "oversized stage indices are rejected");
+        catalog.root()["rocket_builder"]["parts"][1]["stages"][1]["index"] = 2;
+        catalog.root()["ports"] = json::array({{{"name", "Cargo"}, {"stage", 0},
+                                                {"direction", {0, 0, 0}}, {"up", {0, 1, 0}}}});
+        catalog.root()["rocket_builder"]["parts"][0]["ports"] = json::array({"Cargo"});
+        check(!rocket_parts(catalog, parts, error) && error.find("Cargo") != std::string::npos,
+              "catalog rejects zero-length port directions");
+        catalog.root()["ports"][0]["direction"] = json::array({0, 1, 0});
+        check(!rocket_parts(catalog, parts, error) && error.find("not parallel") != std::string::npos,
+              "catalog rejects parallel port orientation vectors");
+        catalog.root()["ports"][0]["direction"] = json::array({1e200, 0, 0});
+        check(!rocket_parts(catalog, parts, error) && !error.empty(),
+              "catalog rejects port vectors that overflow normalisation");
+        catalog.root()["ports"][0]["direction"] = json::array({0, 1, 0});
+        catalog.root()["ports"][0]["up"] = json::array({1e-7, 2e-6, 0});
+        check(!rocket_parts(catalog, parts, error) && !error.empty(),
+              "catalog rejects ports whose up vector would be replaced by the loader");
+        catalog.root()["ports"][0]["up"] = json::array({0, 1, 0});
+        catalog.root()["ports"][0]["direction"] = json::array({0, 0, -1});
+        check(rocket_parts(catalog, parts, error), "catalog accepts a port with a usable orientation");
+        catalog.root()["class"] = "aircraft";
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "aircraft cannot supply rocket stages");
+        catalog.root()["class"] = 7;
+        check(!rocket_parts(catalog, parts, error) && !error.empty(), "malformed classes report an error");
+        using Role = RocketPartRole;
+        check(valid_rocket_roles({}, error) &&
+                  valid_rocket_roles({Role::first, Role::booster, Role::second, Role::fairing, Role::upper}, error) &&
+                  valid_rocket_roles({Role::first, Role::upper, Role::booster}, error),
+              "rocket roles allow empty drafts, mixed axial stages and independently attached boosters");
+        check(!valid_rocket_roles({Role::upper}, error) && !error.empty() &&
+                  !valid_rocket_roles({Role::upper, Role::booster}, error) && !error.empty() &&
+                  !valid_rocket_roles({Role::first, Role::upper, Role::second}, error) && !error.empty() &&
+                  !valid_rocket_roles({Role::first, Role::first}, error) && !error.empty(),
+              "rocket roles reject upper stages at the bottom, boosters alone and reversed or duplicate core stages");
+    }
+    {
+        std::string error;
+        const AddonInfo *delta_addon = find_addon(addons, "cvel-delta-iv");
+        Document delta;
+        RocketAssembly stack("Delta IV test");
+        std::string warning;
+        check(delta_addon && delta.load(*delta_addon, "ship.json", error) &&
+                  stack.add(delta, "core", -1, error, warning) &&
+                  stack.add(delta, "boosters", 0, error, warning) &&
+                  stack.add(delta, "second", -1, error, warning) &&
+                  stack.add(delta, "fairing", 2, error, warning),
+              "Delta IV core, side cores, second stage and fairing assemble: " + error);
+        json result;
+        check(stack.ship_json(result, error) && result["stages"].size() == 5 &&
+                  result["stages"][0]["engines"].size() == 2 &&
+                  result["stages"][1]["engines"].size() == 1 &&
+                  result["stages"][1].value("ignite_with_previous", false) &&
+                  result["ports"].size() == 1 && result["payload_bays"].size() == 1,
+              "Delta IV side cores ignite with one core engine and retain the payload port: " + error);
+    }
+    {
+        std::string error;
+        Document fregat, atlas, n1;
+        const AddonInfo *fregat_addon = find_addon(addons, "cvel-fregat");
+        const AddonInfo *atlas_addon = find_addon(addons, "cvel-atlas-ii");
+        const AddonInfo *n1_addon = find_addon(addons, "cvel-n1");
+        std::vector<RocketPart> parts;
+        check(fregat_addon && fregat.load(*fregat_addon, "ship.json", error) &&
+                  rocket_parts(fregat, parts, error) && parts.size() == 1 && parts[0].role == RocketPartRole::upper,
+              "Fregat is explicitly classified only as an upper stage");
+        check(atlas_addon && atlas.load(*atlas_addon, "ship.json", error) &&
+                  rocket_parts(atlas, parts, error) &&
+                  std::any_of(parts.begin(), parts.end(), [](const RocketPart &p) { return p.role == RocketPartRole::booster; }),
+              "Atlas boosters are explicitly classified as boosters");
+        check(n1_addon && n1.load(*n1_addon, "ship.json", error) &&
+                  rocket_parts(n1, parts, error) &&
+                  std::any_of(parts.begin(), parts.end(), [](const RocketPart &p) {
+                      return p.role == RocketPartRole::fairing && p.stages == std::vector<int>({2, 3});
+                  }),
+              "N1 shroud halves are classified as one fairing");
+        if (fregat_addon && atlas_addon && n1_addon)
+        {
+            RocketAssembly stack("Assembly test");
+            std::string warning;
+            check(!stack.add(fregat, "fregat", -1, error, warning) && !error.empty() &&
+                      stack.document().stage_count() == 0,
+                  "assembly refuses an upper stage as the base without changing the draft");
+            check(stack.add(n1, "block-a", -1, error, warning) &&
+                      stack.add(n1, "block-b", -1, error, warning) &&
+                      stack.add(n1, "block-v", -1, error, warning),
+                  "assembly builds an N1 axial stack: " + error);
+            json preview;
+            const json persisted = stack.document().root();
+            check(stack.preview_json(preview, error) &&
+                      fs::path(preview["stages"][0]["parts"][0]["model"].get<std::string>()).is_absolute() &&
+                      stack.document().root() == persisted,
+                  "preview resolves model assets without changing the saved document");
+            const json before_attachments = stack.document().root();
+            const double core_z = stack.document().root()["stages"][0]["z"].get<double>();
+            check(!stack.add(atlas, "castor-4a", 2, error, warning) && !error.empty() &&
+                      stack.document().root() == before_attachments,
+                  "assembly refuses boosters on an upper stage without changing the draft");
+            check(stack.add(atlas, "castor-4a", 0, error, warning) &&
+                      stack.parts()[0].stages[0] == 1 && stack.parts().back().stages[0] == 0 &&
+                      stack.document().root()["stages"][1].value("ignite_with_previous", false) &&
+                      std::abs(stack.document().root()["stages"][0]["z"].get<double>() - core_z - 9.0) < 1e-8,
+                  "boosters attach to the first stage in separation order using source-relative placement: " + error);
+            const double upper_z = stack.document().root()["stages"][static_cast<std::size_t>(stack.parts()[2].stages[0])]["z"].get<double>();
+            check(stack.add(n1, "shroud", 2, error, warning) &&
+                      stack.parts().back().stages.size() == 2 &&
+                      std::abs(stack.document().root()["stages"][static_cast<std::size_t>(stack.parts().back().stages[0])]["z"].get<double>() - upper_z + 24.85) < 1e-8 &&
+                      stack.document().root()["stages"][static_cast<std::size_t>(stack.parts()[2].stages[0])]["z"] == upper_z,
+                  "grouped fairing preserves its source-relative position without moving the upper stage: " + error);
+            const json with_fairing = stack.document().root();
+            json generated;
+            check(stack.ship_json(generated, error) && generated["ports"].size() == 1 &&
+                      generated["ports"][0]["stage"] == stack.parts()[2].stages[0] &&
+                      generated["payload_bays"][0]["port"] == generated["ports"][0]["name"] &&
+                      std::abs(generated["ports"][0]["position"][2].get<double>() - (upper_z - 6.15)) < 1e-8,
+                  "catalogued payload ports and bays follow their carrying stage");
+            check(stack.undo() && stack.parts().size() == 4 && stack.redo() &&
+                      stack.document().root() == with_fairing && stack.parts().size() == 5,
+                  "assembly undo and redo restore grouped stages and positions");
+            check(stack.move(2, 2.5, error), "move an upper stage and its fairing: " + error);
+            json moved;
+            check(stack.ship_json(moved, error) &&
+                      std::abs(moved["ports"][0]["position"][2].get<double>() - (upper_z - 6.15 + 2.5)) < 1e-8 &&
+                      std::abs(moved["payload_bays"][0]["position"][2].get<double>() -
+                               generated["payload_bays"][0]["position"][2].get<double>() - 2.5) < 1e-8 &&
+                      std::abs(moved["stages"][static_cast<std::size_t>(stack.parts().back().stages[0])]["z"].get<double>() -
+                               (upper_z - 24.85 + 2.5)) < 1e-8 &&
+                      std::abs(moved["stages"][static_cast<std::size_t>(stack.parts()[2].stages[0])]["engines"][0]["position"][2].get<double>() -
+                               with_fairing["stages"][static_cast<std::size_t>(stack.parts()[2].stages[0])]["engines"][0]["position"][2].get<double>() - 2.5) < 1e-8,
+                  "repositioning moves engines, catalogued ports and bays, and attached fairing");
+            check(!stack.move(2, std::numeric_limits<double>::infinity(), error) &&
+                      stack.ship_json(generated, error) && generated == moved,
+                  "invalid reposition leaves the assembly unchanged");
+            check(stack.undo() && stack.document().root() == with_fairing && stack.redo() &&
+                      stack.ship_json(generated, error) && generated == moved,
+                  "repositioning supports undo and redo");
+            check(stack.remove(3, error, warning) && stack.ship_json(generated, error) &&
+                      std::abs(generated["ports"][0]["position"][2].get<double>() - (upper_z - 6.15 + 2.5)) < 1e-8,
+                  "removing another group preserves the repositioned upper stage");
+            check(stack.undo() && stack.undo() && stack.document().root() == with_fairing,
+                  "undo removal and repositioning");
+            check(!stack.remove(0, error, warning) && !error.empty() && stack.document().root() == with_fairing,
+                  "assembly refuses to remove a stage that carries an attachment");
+            check(stack.remove(1, error, warning) && stack.parts().size() == 4 &&
+                      stack.parts()[1].role == RocketPartRole::upper &&
+                      stack.parts().back().role == RocketPartRole::fairing &&
+                      stack.undo() && stack.document().root() == with_fairing,
+                  "removing an axial stage rebuilds the stack and keeps attachments undoable: " + error);
+            {
+                RocketAssembly edited("Reposition and add");
+                check(edited.add(n1, "block-a", -1, error, warning) &&
+                          edited.add(n1, "block-b", -1, error, warning) &&
+                          edited.move(1, 3.0, error) &&
+                          edited.add(n1, "block-v", -1, error, warning) &&
+                          edited.add(n1, "shroud", 2, error, warning),
+                      "add stages and a grouped fairing after repositioning: " + error);
+                json before, after;
+                const int old_fairing_stage = edited.parts().back().stages[0];
+                check(edited.ship_json(before, error) && edited.remove(1, error, warning) &&
+                          edited.ship_json(after, error) &&
+                          after["ports"][0]["position"] == before["ports"][0]["position"] &&
+                          after["payload_bays"][0]["position"] == before["payload_bays"][0]["position"] &&
+                          after["stages"][static_cast<std::size_t>(edited.parts().back().stages[0])]["z"] ==
+                              before["stages"][static_cast<std::size_t>(old_fairing_stage)]["z"] &&
+                          edited.undo() && edited.ship_json(after, error) && after == before &&
+                          edited.redo(),
+                      "removing a repositioned intermediate stage preserves later ports and fairing and supports undo/redo");
+            }
+            const fs::path save_root = fs::temp_directory_path() /
+                                       ("kosmos-assembly-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+            std::error_code cleanup_error;
+            const bool reserved = fs::create_directory(save_root, cleanup_error);
+            check(reserved && !cleanup_error, "assembly test reserves its own temporary directory");
+            if (reserved)
+            {
+            fs::path written;
+            const auto validate = [](const fs::path &file, std::string &problem) {
+                std::ifstream in(file);
+                if (!in)
+                {
+                    problem = "Missing generated ship.";
+                    return false;
+                }
+                json data;
+                in >> data;
+                return data.contains("stages") && !data["stages"].empty();
+            };
+            const auto refuse = [](const fs::path &, std::string &problem) {
+                problem = "Invalid generated ship.";
+                return false;
+            };
+            check(!stack.save_as(save_root, "bad", "Bad", refuse, written, error) &&
+                      !fs::exists(save_root / "bad") && written.empty() && !error.empty(),
+                  "failed validation does not publish an addon");
+            check(stack.save_as(save_root, "rocket", "Rocket", validate, written, error) &&
+                      fs::is_regular_file(written / "addon.json") &&
+                      fs::is_regular_file(written / "ship.json"),
+                  "validated assembly publishes a reusable addon: " + error);
+            const auto ship_path = written / "ship.json";
+            std::ifstream before_file(ship_path);
+            const std::string before_text((std::istreambuf_iterator<char>(before_file)), {});
+            check(!stack.save_as(save_root, "rocket", "Other", validate, written, error) &&
+                      !error.empty() && written.empty() && fs::is_regular_file(ship_path),
+                  "assembly refuses to overwrite an existing addon");
+            std::ifstream after_file(ship_path);
+            const std::string after_text((std::istreambuf_iterator<char>(after_file)), {});
+            check(before_text == after_text, "refused overwrite preserves the original ship");
+            fs::remove_all(save_root, cleanup_error);
+            check(!cleanup_error, "assembly test files are cleaned up");
+            }
+        }
+    }
+
     // Every shipped ship loads and writes back as the very same tree, key order included.
     int ships = 0, identical = 0;
     for (const AddonInfo &addon : addons)
@@ -90,6 +379,8 @@ int main(int argc, char **argv)
                 check(false, addon.id + "/" + file + " loads: " + error);
                 continue;
             }
+            std::vector<RocketPart> parts;
+            check(rocket_parts(doc, parts, error), addon.id + "/" + file + " rocket catalog validates: " + error);
             const json again = json::parse(doc.root().dump(1));
             std::ifstream in(addon.dir / file);
             json original;

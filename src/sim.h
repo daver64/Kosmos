@@ -158,6 +158,10 @@ namespace kosmos
 
         /** Per-user folder (~/.config/kosmos): user scenarios/ and bases/ live here and override shipped ones with the same id. */
         static std::string user_dir();
+        /** Register one saved rocket-builder addon from the user's addons folder without rescanning existing content. */
+        bool register_built_rocket(const std::string &directory, std::string &error);
+        /** Check whether a new rocket addon ID can be registered before saving it. */
+        bool validate_built_rocket_id(const std::string &id, std::string &error);
         /** Re-read the user's scenarios and bases, replacing entries with the same id. Bases are only added or replaced when not yet loaded. */
         void load_user_content();
         /** Re-read every scenario folder (bundled, addons, user), so scenario files edited outside Kosmos show up. */
@@ -179,6 +183,7 @@ namespace kosmos
     private:
         bool parked_for_warp(std::size_t index) const;
         void scan_addons();
+        void scan_user_rockets();
         std::vector<std::string> disabled_addon_ids();
         void load_addon(const std::string &folder, const std::vector<std::string> &disabled_addons, std::vector<Transmitter> &beacons);
         void publish_galaxy();

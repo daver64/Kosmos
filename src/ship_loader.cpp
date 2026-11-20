@@ -9,6 +9,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 namespace kosmos
@@ -607,14 +608,8 @@ namespace kosmos
         }
     }
 
-    bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error)
+    static bool read_ship_spec(std::istream &in, const std::string &file, ShipSpec &spec, std::string &error)
     {
-        std::ifstream in(file);
-        if (!in)
-        {
-            error = "cannot open " + file;
-            return false;
-        }
         nlohmann::json json;
         try
         {
@@ -694,5 +689,22 @@ namespace kosmos
         }
         finish_ship_spec(spec);
         return true;
+    }
+
+    bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error)
+    {
+        std::ifstream in(file);
+        if (!in)
+        {
+            error = "cannot open " + file;
+            return false;
+        }
+        return read_ship_spec(in, file, spec, error);
+    }
+
+    bool parse_ship_spec(const std::string &text, const std::string &source_file, ShipSpec &spec, std::string &error)
+    {
+        std::istringstream in(text);
+        return read_ship_spec(in, source_file, spec, error);
     }
 } // namespace kosmos

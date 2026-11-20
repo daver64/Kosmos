@@ -1,10 +1,10 @@
 #!/bin/sh
 # Cross-builds the Windows GTK 3 programs for the game package: addons/planetbake/bin/planetbake.exe and
-# addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe and addons/shipedit/bin/shipedit.exe and addons/kosmoscad/bin/kosmoscad.exe and addons/kosmosmission/bin/kosmosmission.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
+# addons/kosmosmap/bin/kosmosmap.exe and addons/kosmosav/bin/kosmosav.exe and addons/kosmoscad/bin/kosmoscad.exe and addons/kosmosmission/bin/kosmosmission.exe, each with its compiled GSettings schemas in addons/<name>/share/glib-2.0/schemas.
 # Usage: build-win-tools.sh
 # Needs mingw-w64 and GTK 3 in vcpkg's x64-mingw-posix tree (see README, "Windows GTK"), plus the overlays in ~/mingw-triplets.
 # Overrides (env): VCPKG_MINGW (default ~/vcpkg-mingw), MINGW_PKGCONFIG_EXTRA (default ~/mingw-triplets/pkgconfig), FASTNOISE_DIR, GLM_INCLUDE_DIR,
-#                  KOSMOS_TOOL_VULKAN (auto, 0 or 1)
+#                  KOSMOS_TOOL_VULKAN (auto, 0 or 1), KOSMOS_JSON_INCLUDE
 # Exits 1 without touching anything when GTK is missing, so build-windows.sh can fall back to the command line planetbake.
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
@@ -69,16 +69,7 @@ mkdir -p "$SRC/addons/kosmosmap/bin"
 "$WINCXX" -static -o "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$TMP"/km/*.o $LIBS -lws2_32
 schemas "$SRC/addons/kosmosmap"
 
-# ShipEdit (no simlib; only the json header).
-SE=$SRC/sdk/shipedit
-JSON_INCLUDE=${SHIPEDIT_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
-mkdir -p "$TMP/se"
-printf '%s\n' main model mesh preview gl_preview scenario_page | xargs -P 4 -I{} sh -c \
-    '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"'"$SE"'/src" -I"'"$JSON_INCLUDE"'" -I"$WINGTK/include" -c "'"$SE"'/src/{}.cpp" -o "$TMP/se/{}.o"'
-"$WINCXX" -std=c++17 -O2 -I"$JSON_INCLUDE" -c "$SRC/src/part_kit.cpp" -o "$TMP/se/part_kit.o"
-mkdir -p "$SRC/addons/shipedit/bin"
-"$WINCXX" -static -mwindows -o "$SRC/addons/shipedit/bin/shipedit.exe" "$TMP"/se/*.o "$TMP/tool_vulkan.o" $LIBS
-schemas "$SRC/addons/shipedit"
+JSON_INCLUDE=${KOSMOS_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
 
 # KosmosCAD (no simlib; only the json header; OpenGL through GTK's libepoxy).
 KC=$SRC/sdk/kosmoscad
@@ -108,4 +99,4 @@ printf '%s\n' main agent http | xargs -P 4 -I{} sh -c \
 mkdir -p "$SRC/addons/kosmosav/bin"
 "$WINCXX" -static -mwindows -o "$SRC/addons/kosmosav/bin/kosmosav.exe" "$TMP"/av/*.o $LIBS -lws2_32 -lwinhttp
 schemas "$SRC/addons/kosmosav"
-ls -la "$SRC/addons/kosmosav/bin/kosmosav.exe" "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$SRC/addons/shipedit/bin/shipedit.exe" "$SRC/addons/kosmoscad/bin/kosmoscad.exe" "$SRC/addons/kosmosmission/bin/kosmosmission.exe"
+ls -la "$SRC/addons/kosmosav/bin/kosmosav.exe" "$SRC/addons/planetbake/bin/planetbake.exe" "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$SRC/addons/kosmoscad/bin/kosmoscad.exe" "$SRC/addons/kosmosmission/bin/kosmosmission.exe"

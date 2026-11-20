@@ -713,11 +713,17 @@ namespace shipedit
         }
     }
 
-    bool Document::import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning, bool overlap_previous)
+    bool Document::import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning,
+                                bool overlap_previous, std::optional<double> target_z)
     {
         inserted = -1;
         error.clear();
         warning.clear();
+        if (target_z && !std::isfinite(*target_z))
+        {
+            error = "The stage position must be finite.";
+            return false;
+        }
         if (!source.has_source())
         {
             error = "The source stage must come from an addon.";
@@ -845,6 +851,8 @@ namespace shipedit
             const json &previous = list[static_cast<std::size_t>(position - 1)];
             z = previous.value("z", 0.0) + (overlap_previous ? 1.0 : -1.0) * previous.value("length", 4.0) * 0.5 - stage.value("length", 4.0) * 0.5;
         }
+        if (target_z)
+            z = *target_z;
         const double dz = z - stage.value("z", 0.0);
         stage["z"] = z;
         shift_contents(stage, dz);
@@ -1065,6 +1073,61 @@ namespace shipedit
         return out;
     }
 
+    bool valid_port_geometry(const json &port, std::string &error)
+    {
+        error.clear();
+        if (!port.is_object())
+        {
+            error = "must be an object.";
+            return false;
+        }
+        auto vector = [&](const char *key, const json &fallback, double (&out)[3]) {
+            const json &v = port.contains(key) ? port[key] : fallback;
+            if (!v.is_array() || v.size() != 3)
+                return false;
+            for (int k = 0; k < 3; ++k)
+            {
+                if (!v[static_cast<std::size_t>(k)].is_number())
+                    return false;
+                out[k] = v[static_cast<std::size_t>(k)].get<double>();
+                if (!std::isfinite(out[k]))
+                    return false;
+            }
+            return true;
+        };
+        double position[3], direction[3], up[3];
+        if (!vector("position", json::array({0, 0, 0}), position) ||
+            !vector("direction", json::array({0, 0, -1}), direction) ||
+            !vector("up", json::array({0, 1, 0}), up))
+        {
+            error = "needs finite position, direction and up vectors.";
+            return false;
+        }
+        const double direction_squared = direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2];
+        const double up_squared = up[0] * up[0] + up[1] * up[1] + up[2] * up[2];
+        if (!std::isfinite(direction_squared) || !std::isfinite(up_squared) ||
+            direction_squared < 1e-12 || up_squared < 1e-12)
+        {
+            error = "direction and up must be nonzero and not parallel.";
+            return false;
+        }
+        for (int i = 0; i < 3; ++i)
+        {
+            direction[i] /= std::sqrt(direction_squared);
+            up[i] /= std::sqrt(up_squared);
+        }
+        const double dx = direction[1] * up[2] - direction[2] * up[1];
+        const double dy = direction[2] * up[0] - direction[0] * up[2];
+        const double dz = direction[0] * up[1] - direction[1] * up[0];
+        const double sine_squared = dx * dx + dy * dy + dz * dz;
+        if (sine_squared < 1e-12 || std::sqrt(up_squared) * std::sqrt(sine_squared) <= 1e-6)
+        {
+            error = "direction and up must be nonzero and not parallel.";
+            return false;
+        }
+        return true;
+    }
+
     std::vector<std::string> Document::validate() const
     {
         std::vector<std::string> problems;
@@ -1098,35 +1161,12 @@ namespace shipedit
                 {
                     const json &port = root_["ports"][i];
                     const std::string label = "Port " + std::to_string(i + 1);
-                    if (!port.is_object())
+                    std::string error;
+                    if (!valid_port_geometry(port, error))
                     {
-                        problems.push_back(label + " must be an object.");
-                        continue;
-                    }
-                    auto vector = [&](const char *key, const json &fallback, double (&out)[3]) {
-                        const json &v = port.contains(key) ? port[key] : fallback;
-                        if (!v.is_array() || v.size() != 3)
-                            return false;
-                        for (int k = 0; k < 3; ++k)
-                        {
-                            if (!v[static_cast<std::size_t>(k)].is_number()) return false;
-                            out[k] = v[static_cast<std::size_t>(k)].get<double>();
-                            if (!std::isfinite(out[k])) return false;
-                        }
-                        return true;
-                    };
-                    double position[3], direction[3], up[3];
-                    if (!vector("position", json::array({0, 0, 0}), position) ||
-                        !vector("direction", json::array({0, 0, -1}), direction) ||
-                        !vector("up", json::array({0, 1, 0}), up))
-                        problems.push_back(label + " needs finite position, direction and up vectors.");
-                    else
-                    {
-                        const double dx = direction[1] * up[2] - direction[2] * up[1];
-                        const double dy = direction[2] * up[0] - direction[0] * up[2];
-                        const double dz = direction[0] * up[1] - direction[1] * up[0];
-                        if (dx * dx + dy * dy + dz * dz < 1e-12)
-                            problems.push_back(label + " direction and up must be nonzero and not parallel.");
+                        problems.push_back(label + " " + error);
+                        if (!port.is_object())
+                            continue;
                     }
                     if (port.contains("stage") &&
                         (!port["stage"].is_number_integer() || port["stage"].get<int>() < -1 ||
@@ -1243,6 +1283,13 @@ namespace shipedit
         }
         ship_out << root_.dump(1) << "\n";
         addon_out << addon.dump(2) << "\n";
+        ship_out.close();
+        addon_out.close();
+        if (!ship_out || !addon_out)
+        {
+            error = "cannot finish writing into " + dest.string();
+            return false;
+        }
         written_dir = dest;
         return true;
     }

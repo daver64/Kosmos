@@ -43,6 +43,7 @@
 #include "engine_sound.h"
 #include "flight_recording.h"
 #include "cinematic_camera.h"
+#include "rocket_builder.h"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
 #include "orbiter_microtexture.h"
 #endif
@@ -313,6 +314,7 @@ namespace kosmos::app
         QuantumState quantum;
         WindowFlags windows;
         PartToolState part_tool;
+        RocketBuilderState rocket_builder;
         DragState drag;
         RenderTargets targets;
         CameraRig rig;
@@ -488,6 +490,16 @@ namespace kosmos::app
         int init_systems();
         int init_ship();
         bool menu_start_scenario(const kosmos::Scenario &sc);
+        void draw_rocket_builder();
+        bool update_rocket_preview(std::string &error);
+        bool rocket_preview_pose(sl::dvec3 &position, sl::dquat &orientation) const;
+        void draw_rocket_preview();
+        bool start_rocket_builder(const Base &base, std::string &error);
+        bool attach_rocket_payload(const std::string &name, int carrier, int carrier_port, int own_port, std::string &error);
+        void update_rocket_payload_fit();
+        bool launch_built_rocket(std::string &error);
+        int test_rocket_builder();
+        bool setup_rocket_preview_test(std::string &error);
         void start_flight_recording(const std::string &path);
         void stop_flight_recording();
         void open_flight_recording(const std::string &path);

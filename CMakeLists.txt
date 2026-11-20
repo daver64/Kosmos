@@ -101,6 +101,7 @@ add_executable(kosmos
     src/app_windows.cpp
     src/process_memory.cpp
     src/app_scene.cpp
+    src/app_rocket_builder.cpp
     src/app_instruments.cpp
     src/command_line.cpp
     src/multiplayer_ui.cpp
@@ -123,6 +124,8 @@ add_executable(kosmos
     src/engine_sound.cpp
     src/systems.cpp
     src/part_kit.cpp
+    sdk/shipedit/src/model.cpp sdk/shipedit/src/rocket_catalog.cpp sdk/shipedit/src/rocket_assembly.cpp
+    sdk/kosmosmission/core/budget.cpp sdk/kosmosmission/core/payload.cpp
     src/blender_edit.cpp
     src/world_texture_jobs.cpp
     src/mfd.cpp
@@ -244,7 +247,7 @@ if(PNG_FOUND)
 endif()
 
 # ShipEdit's document model (no GTK): cmake --build build --target shipedit_model_test && build/shipedit_model_test
-add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/mesh.cpp src/part_kit.cpp)
+add_executable(shipedit_model_test EXCLUDE_FROM_ALL tests/shipedit_model_test.cpp sdk/shipedit/src/model.cpp sdk/shipedit/src/rocket_catalog.cpp sdk/shipedit/src/rocket_assembly.cpp sdk/shipedit/src/mesh.cpp src/part_kit.cpp)
 target_include_directories(shipedit_model_test PRIVATE sdk/shipedit/src)
 target_link_libraries(shipedit_model_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_compile_features(shipedit_model_test PRIVATE cxx_std_17)
@@ -400,13 +403,8 @@ add_executable(missioncore_test EXCLUDE_FROM_ALL tests/missioncore_test.cpp ${KO
 target_include_directories(missioncore_test PRIVATE sdk/kosmosmission/core ${KOSMOS_JSON_INCLUDE})
 target_compile_features(missioncore_test PRIVATE cxx_std_17)
 target_compile_definitions(missioncore_test PRIVATE KOSMOS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
-# ShipEdit, the ship and stack editor (sdk/shipedit), is a GTK 3 program too; its tests need no GTK (shipedit_model_test above).
 if(UNIX AND KOSMOSMAP_GTK_FOUND)
-    set(SHIPEDIT_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
-    set(SHIPEDIT_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
-    add_subdirectory(sdk/shipedit)
-    list(APPEND KOSMOS_PACKAGE_EXTRA_TARGETS shipedit)
-    # KosmosCAD (sdk/kosmoscad), the 3D modeller ShipEdit launches, needs GTK 3 and OpenGL 3.2.
+    # KosmosCAD (sdk/kosmoscad) needs GTK 3 and OpenGL 3.2.
     set(KOSMOSCAD_OUTPUT_DIR "${CMAKE_BINARY_DIR}" CACHE PATH "" FORCE)
     set(KOSMOSCAD_JSON_INCLUDE "${KOSMOS_JSON_INCLUDE}" CACHE PATH "" FORCE)
     add_subdirectory(sdk/kosmoscad)
@@ -452,18 +450,18 @@ else()
 endif()
 set(KOSMOS_PACKAGE_TOOL_FILES)
 if(WIN32 AND KOSMOS_PREBUILT_WIN_TOOLS)
-    foreach(_tool kosmosmap kosmosav shipedit kosmoscad kosmosmission planetbake)
+    foreach(_tool kosmosmap kosmosav kosmoscad kosmosmission planetbake)
         list(APPEND KOSMOS_PACKAGE_TOOL_FILES "${CMAKE_SOURCE_DIR}/addons/${_tool}/bin/${_tool}.exe")
     endforeach()
 endif()
 set(KOSMOS_PACKAGE_EXCLUDE "/data/textures-hires(/|$)" "/data/kosmos-hires(/|$)" "/data/orbiter-defaults(/|$)" "/import(/|$)"
-    "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)")
+    "/data/landclass/.*\\.kavlc$" "\\.blend1?$" "/addons/cvel-piper-cub/textures(/|$)" "/addons/shipedit(/|$)")
 # Both platforms build into the same source folder, so each package leaves out the other's planetbake.
 if(WIN32)
-    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/shipedit/bin/shipedit$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")
+    list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/kosmosmap/bin/kosmosmap$" "/addons/kosmosav/bin/kosmosav$" "/addons/kosmoscad/bin/kosmoscad$" "/addons/kosmosmission/bin/kosmosmission$" "/addons/planetbake/bin/planetbake$")
 else()
     list(APPEND KOSMOS_PACKAGE_EXCLUDE "/addons/planetbake/bin/planetbake\\.exe$" "/addons/kosmosmap/bin/kosmosmap\\.exe$" "/addons/kosmosav/bin/kosmosav\\.exe$"
-        "/addons/shipedit/bin/shipedit\\.exe$" "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/kosmosmission/bin/kosmosmission\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|shipedit|kosmoscad|kosmosmission)/share(/|$)")
+        "/addons/kosmoscad/bin/kosmoscad\\.exe$" "/addons/kosmosmission/bin/kosmosmission\\.exe$" "/addons/(planetbake|kosmosmap|kosmosav|kosmoscad|kosmosmission)/share(/|$)")
 endif()
 
 # ---- distribution -------------------------------------------------------------------------------------------------

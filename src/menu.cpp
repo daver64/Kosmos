@@ -1338,10 +1338,10 @@ namespace kosmos
                                    "  View > Explore station interior: float with W/A/S/D and Space/Ctrl; Enter returns to station controls.\n"
                                    "  View > Performance metrics: session-only frame, CPU, GPU, memory and terrain diagnostics; nested times overlap.\n"
                                    "  Staging to a payload keeps the first two MFDs where their modes are available on the new vessel.\n"
-                                   "  ShipEdit rockets have Orbit/Surface MFDs in cockpit and external views, and an experimental Earth-launch autopilot; set the target and heading in Autopilot > Spacecraft, then press P from rest.\n"
-                                   "  ShipEdit's New blank starts with a fuelled rocket; importing the first library stage replaces its untouched starter stage.\n"
+                                   "  Builder rockets have Orbit/Surface MFDs and an experimental Earth-launch autopilot; set target and heading in Autopilot > Spacecraft, then press P from rest.\n"
+                                   "  Tools > Rocket builder assembles classified stages at a selected base; attach payloads at named ports, then save and launch. Save your current flight before leaving it.\n"
                                    "  Imported stage animation controls are available under View > Animations; conflicting control names share the existing control.\n"
-                                   "  ShipEdit's Scenario tab can set up docked piggyback vessels; attachment ports are edited in its Structure tab. Docked orbiter engines do not power the carrier.\n"
+                                   "  Piggyback vessels use named ports and remain separate; docked orbiter engines do not power the carrier.\n"
                                    "  Buran, Atlantis and Shuttle 2010 have functional RCS with invisible puffs.\n"
                                    "  Atlantis carries Centaur, Fregat and Luna E3; the orbital payload scenario starts ready for deployment.\n"
                                    "  Ariane 44L at Kourou carries Fregat and Luna E3; after the third-stage burn, stage to release each payload in turn.\n"
@@ -2342,6 +2342,8 @@ namespace kosmos
                 if (ImGui::BeginMenu("Tools"))
                 {
                     menu_open_ = true;
+                    if (ImGui::MenuItem("Rocket builder...") && actions.rocket_builder)
+                        actions.rocket_builder();
                     ImGui::MenuItem("Scenario editor", nullptr, &scenario_editor_open);
                     ImGui::MenuItem("Base editor", nullptr, &base_editor_open);
                     ImGui::Separator();

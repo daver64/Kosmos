@@ -69,15 +69,14 @@ Useful flags: `--cockpit`, `--cockpit3d`, `--hide-info`, `--system N`, `--set /p
 |------|-------|-------|
 | `kosmosmap` | Reported working | GTK tool; requires GTK 3 and zlib |
 | `planetbake` | Reported working | CLI tool |
-| `shipedit` | Partial | Window display has failed in macOS testing; `--shot` has worked |
 | `kosmoscad`, `kosmosmission` | Limited | GTK GLArea windows have been reported blank on macOS |
 | `kosmosav` | Depends | Requires GTK, libcurl and the KosmosAV network service |
 
 ## Known issues
 
-### GTK+GLArea blank windows (shipedit, kosmoscad, kosmosmission)
+### GTK+GLArea blank windows (kosmoscad, kosmosmission)
 
-GTK3 `GtkGLArea` windows have been reported blank with Homebrew's macOS Cocoa backend. ShipEdit's headless `--shot` has produced PNGs using cairo; that does not verify its interactive OpenGL view. Workarounds being considered:
+GTK3 `GtkGLArea` windows have been reported blank with Homebrew's macOS Cocoa backend. Workarounds being considered:
 - Environment variable to force non-GL mode
 - Accept compile-only validation for macOS SDK tools
 - Replace GTK GLArea with SDL2/GLFW for 3D viewports

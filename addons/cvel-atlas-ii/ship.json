@@ -1,6 +1,11 @@
 {
  "name": "CVEL Atlas IIAS",
  "class": "launcher",
+ "rocket_builder": {"parts": [
+  {"id":"castor-4a","name":"Atlas IIAS Castor boosters","role":"booster","anchor":{"index":2,"name":"Atlas sustainer"},"stages":[{"index":0,"name":"Castor 4A boosters"}]},
+  {"id":"centaur-iia","name":"Centaur IIA","role":"upper","ports":["Payload"],"stages":[{"index":5,"name":"Centaur IIA"}]},
+  {"id":"fairing","name":"Atlas IIAS fairing","role":"fairing","anchor":{"index":5,"name":"Centaur IIA"},"stages":[{"index":3,"name":"Fairing left"},{"index":4,"name":"Fairing right"}]}
+ ]},
  "description": "Atlas IIAS with four Castor 4A boosters, a jettisonable booster engine package and a Centaur upper stage. The Castors are represented as one simultaneous group.",
  "script": "@launcher.lua",
  "torque_accel": 0.2,

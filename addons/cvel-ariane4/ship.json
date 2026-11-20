@@ -1,6 +1,13 @@
 {
  "name":"CVEL Ariane 44L",
  "class":"launcher",
+ "rocket_builder":{"parts":[
+  {"id":"boosters","name":"Ariane 4 liquid boosters","role":"booster","anchor":{"index":1,"name":"First stage"},"stages":[{"index":0,"name":"Liquid boosters"}]},
+  {"id":"first","name":"Ariane 4 first stage","role":"first","stages":[{"index":1,"name":"First stage"}]},
+  {"id":"second","name":"Ariane 4 second stage","role":"second","stages":[{"index":2,"name":"Second stage"}]},
+  {"id":"third","name":"Ariane 4 third stage","role":"upper","ports":["Payload"],"stages":[{"index":5,"name":"Third stage"}]},
+  {"id":"fairing","name":"Ariane 4 fairing","role":"fairing","anchor":{"index":5,"name":"Third stage"},"stages":[{"index":3,"name":"Fairing left"},{"index":4,"name":"Fairing right"}]}
+ ]},
  "description":"Ariane 44L with four liquid strap-on boosters and three core stages.",
  "script":"@launcher.lua",
  "torque_accel":0.2,"max_rate":0.3,"rcs_thrust":0,"drag_area":18,

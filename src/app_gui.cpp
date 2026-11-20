@@ -8,6 +8,20 @@ namespace kosmos::app
         sl::PropertyTree &props = *props_ref;
         if (sl::gui_available())
         {
+            if (props.get_bool("/selftest/rocket-preview"))
+            {
+                props.set_bool("/selftest/rocket-preview", false);
+                std::string problem;
+                if (!setup_rocket_preview_test(problem))
+                {
+                    std::fprintf(stderr, "rocket preview selftest: %s\n", problem.c_str());
+                    capture_failed = true;
+                    running = false;
+                }
+            }
+            draw_rocket_builder();
+            if (rocket_builder.active)
+                return;
             draw_systems_window();
             draw_joystick_window();
             draw_keys_window();

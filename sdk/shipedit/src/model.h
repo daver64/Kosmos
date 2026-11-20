@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,8 @@ namespace shipedit
     std::vector<AddonInfo> scan_addons(const fs::path &addons_dir);
     /** Add a docked vessel using an earlier scenario ship's fallback placement. */
     bool add_scenario_piggyback(json &scenario, const std::string &ship, int carrier, int carrier_port, int own_port, std::string &error);
+    /** Validate the position and orientation used to align an attachment port. */
+    bool valid_port_geometry(const json &port, std::string &error);
 
     struct StageStats
     {
@@ -83,7 +86,8 @@ namespace shipedit
         /** Reorder and repack a simple rocket, without modifying ship-wide equipment. */
         bool arrange_stage(int from, int to, std::string &error);
         /** Import a stage at the given staging position; -1 appends at the nose end. */
-        bool import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning, bool overlap_previous = false);
+        bool import_stage(const Document &source, int index, int position, int &inserted, std::string &error, std::string &warning,
+                          bool overlap_previous = false, std::optional<double> target_z = std::nullopt);
         /** Expand part-kit stages for the stage palette without changing the editable source document. */
         bool expanded_root(json &out, std::string &error) const;
         /** Moves a stage along Z and, with `with_contents`, its parts, engines and gear too. */

@@ -1,6 +1,10 @@
 {
  "name": "CVEL Energia",
  "class": "launcher",
+ "rocket_builder":{"parts":[
+  {"id":"boosters","name":"Energia strap-on boosters","role":"booster","anchor":{"index":1,"name":"Core stage"},"stages":[{"index":0,"name":"Strap-on boosters"}]},
+  {"id":"core","name":"Energia core","role":"first","ports":["Orbiter cradle"],"stages":[{"index":1,"name":"Core stage"}]}
+ ]},
  "payload_bays": [
   {"name": "Orbiter cradle", "shape": "box", "size": [26, 12, 40], "port": "Orbiter cradle"}
  ],

@@ -68,6 +68,11 @@ python3 "$SRC/tests/nasa_assets_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/rover_rollover_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/entrance_label_settings_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/star48_stack_test.py" "$PWD/kosmos"
+echo "== rocket builder integration and restart"
+mkdir -p "$XDG_CONFIG_HOME/kosmos"
+printf '%s\n' '{"disabled":["builder-disabled-test","cvel-atlas"]}' > "$XDG_CONFIG_HOME/kosmos/addons.json"
+./kosmos --selftest 1 --set /selftest/rocket-builder=true --set /selftest/rocket-builder-disabled-id=builder-disabled-test
+./kosmos --ship "Builder integration test rocket" --selftest 1 --selftest-throttle 1
 echo "== Energia parallel ignition and staging"
 ./kosmos --scenario buran_energia_baikonur --selftest 1 --set /selftest/energia-liftoff=true
 ./kosmos --scenario buran_energia_baikonur --selftest 1 --set /selftest/energia-autopilot=true

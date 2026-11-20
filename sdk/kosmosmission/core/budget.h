@@ -48,6 +48,8 @@ namespace km
 
     /** Reads a ship.json. Returns false and sets `err` if it cannot be read or has no stages. */
     bool load_ship(const std::string &path, ShipSpec &out, std::string &err);
+    /** Reads ship JSON already held in memory; path identifies it in diagnostics and the result. */
+    bool parse_ship(const std::string &text, const std::string &path, ShipSpec &out, std::string &err);
     /** Every addons/<id>/ship.json under `root` that has stages, sorted by name. */
     std::vector<ShipSpec> list_ships(const std::string &root);
 

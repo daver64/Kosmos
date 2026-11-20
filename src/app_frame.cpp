@@ -275,7 +275,7 @@ namespace kosmos::app
     // Screenshots, video capture and the buffer swap.
     void App::present()
     {
-        if (sl::gui_available())
+        if (sl::gui_available() && !rocket_builder.active)
             menu_bar.draw(sim, menu_windows, menu_actions);
         sl::gui_render();
 

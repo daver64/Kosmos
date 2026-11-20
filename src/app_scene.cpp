@@ -1383,6 +1383,8 @@ namespace kosmos::app
         for (int s = 0; s < sim.ship_count(); ++s)
         {
             Ship &other = *sim.ship(s);
+            if (rocket_builder.active && &other == ship)
+                continue;
             const sl::FlightBody &ob = other.body();
             const glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(other.origin() - eye_world)) *
                                     glm::mat4(glm::mat3_cast(glm::quat(ob.orientation)));
@@ -1402,6 +1404,8 @@ namespace kosmos::app
                 draw_parts(vis, other.spec(), d.stage, d.stage, dm, true, 1.0, 0.0, 0.0, nullptr, d.part);
             }
         }
+        if (rocket_builder.active)
+            draw_rocket_preview();
 
         // Other players' ships.
         for (const kosmos::Ghost &g : netplay.ghosts())

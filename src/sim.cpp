@@ -413,6 +413,7 @@ namespace kosmos
         const fs::path dir = fs::path(root_) / "addons";
         if (!fs::is_directory(dir))
         {
+            scan_user_rockets();
             load_user_content();
             nav.set_beacons(std::move(beacons));
             return;
@@ -425,6 +426,7 @@ namespace kosmos
         const std::vector<std::string> disabled_addons = disabled_addon_ids();
         for (const fs::path &folder : folders)
             load_addon(folder.string(), disabled_addons, beacons);
+        scan_user_rockets();
         load_user_content();
         nav.set_beacons(std::move(beacons));
         {
@@ -445,6 +447,143 @@ namespace kosmos
         const char *appdata = std::getenv("APPDATA");
         std::filesystem::path dir = xdg && *xdg ? std::filesystem::path(xdg) : home && *home ? std::filesystem::path(home) / ".config" : appdata ? std::filesystem::path(appdata) : std::filesystem::path();
         return dir.empty() ? std::string() : (dir / "kosmos").string();
+    }
+
+    bool Sim::validate_built_rocket_id(const std::string &id, std::string &error)
+    {
+        namespace fs = std::filesystem;
+        error.clear();
+        if (id.empty() || id.front() == '-' || id.back() == '-' || id.find("--") != std::string::npos ||
+            std::any_of(id.begin(), id.end(), [](char c) { return !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'); }))
+        {
+            error = "Invalid rocket addon id.";
+            return false;
+        }
+        std::error_code ec;
+        const bool installed = fs::exists(fs::path(root_) / "addons" / id, ec);
+        if (ec)
+        {
+            error = "Cannot check installed addons: " + ec.message();
+            return false;
+        }
+        if (installed || std::any_of(addons_.begin(), addons_.end(), [&](const Addon &addon) { return addon.id == id; }))
+        {
+            error = "An addon with id '" + id + "' already exists.";
+            return false;
+        }
+        const std::vector<std::string> disabled = disabled_addon_ids();
+        if (std::find(disabled.begin(), disabled.end(), id) != disabled.end())
+        {
+            error = "Rocket addon '" + id + "' is disabled.";
+            return false;
+        }
+        return true;
+    }
+
+    bool Sim::register_built_rocket(const std::string &directory, std::string &error)
+    {
+        namespace fs = std::filesystem;
+        error.clear();
+        const std::string user = user_dir();
+        if (user.empty())
+        {
+            error = "No user content directory is available.";
+            return false;
+        }
+        std::error_code ec;
+        const fs::path folder = fs::canonical(directory, ec);
+        if (ec)
+        {
+            error = "Cannot resolve rocket addon folder: " + ec.message();
+            return false;
+        }
+        const fs::path root = fs::canonical(fs::path(user) / "addons", ec);
+        if (ec || folder.parent_path() != root)
+        {
+            error = "Rocket addon must be directly inside the user addons directory.";
+            return false;
+        }
+        std::ifstream in(folder / "addon.json");
+        nlohmann::json manifest;
+        try
+        {
+            in >> manifest;
+        }
+        catch (const nlohmann::json::exception &e)
+        {
+            error = "Cannot read rocket addon manifest: " + std::string(e.what());
+            return false;
+        }
+        if (!manifest.is_object() || !manifest.contains("rocket_builder_generated") ||
+            manifest["rocket_builder_generated"] != true ||
+            !manifest.contains("id") || !manifest["id"].is_string() ||
+            !manifest.contains("name") || !manifest["name"].is_string() ||
+            !manifest.contains("version") || !manifest["version"].is_string() ||
+            !manifest.contains("ships") || manifest["ships"] != nlohmann::json::array({"ship.json"}))
+        {
+            error = "Invalid rocket-builder addon manifest.";
+            return false;
+        }
+        const std::string id = manifest["id"].get<std::string>();
+        if (folder.filename().string() != id)
+        {
+            error = "Invalid rocket addon id.";
+            return false;
+        }
+        if (!validate_built_rocket_id(id, error))
+            return false;
+        ShipSpec spec;
+        if (!load_ship_spec((folder / "ship.json").string(), spec, error))
+            return false;
+        if (spec.kind != "rocket" || spec.name.empty() || find_ship_spec(spec.name))
+        {
+            error = "Rocket must have a unique, nonempty ship name and class rocket.";
+            return false;
+        }
+        Addon addon;
+        addon.id = id;
+        addon.name = manifest["name"].get<std::string>();
+        addon.version = manifest["version"].get<std::string>();
+        addon.directory = folder.string();
+        spec.directory = folder.string();
+        addon.ships.push_back(std::move(spec));
+        addons_.push_back(std::move(addon));
+        return true;
+    }
+
+    void Sim::scan_user_rockets()
+    {
+        namespace fs = std::filesystem;
+        const std::string user = user_dir();
+        if (user.empty())
+            return;
+        const fs::path root = fs::path(user) / "addons";
+        std::error_code ec;
+        if (!fs::exists(root, ec))
+        {
+            if (ec)
+                log("user addons: " + ec.message());
+            return;
+        }
+        std::vector<fs::path> folders;
+        fs::directory_iterator it(root, ec), end;
+        for (; !ec && it != end; it.increment(ec))
+        {
+            const bool directory = it->is_directory(ec);
+            if (ec)
+                break;
+            if (directory && fs::exists(it->path() / "addon.json", ec))
+                folders.push_back(it->path());
+        }
+        if (ec)
+            log("user addons: " + ec.message());
+        std::sort(folders.begin(), folders.end());
+        for (const fs::path &folder : folders)
+        {
+            std::string error;
+            if (!register_built_rocket(folder.string(), error))
+                log("user addon " + folder.filename().string() + ": " + error);
+        }
     }
 
     void Sim::refresh_scenarios()

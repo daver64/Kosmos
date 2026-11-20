@@ -155,7 +155,7 @@ int main(int argc, char **argv)
     for (const auto &expected : std::vector<std::pair<std::string, std::string>>{
              {"ares", "CVEL"}, {"cvel-deltaglider", "CVEL"}, {"probe", "CVEL"}, {"salyut", "CVEL"},
              {"kosmoscad", "KosmosLink Apps"}, {"kosmosmap", "KosmosLink Apps"}, {"kosmosmission", "KosmosLink Apps"},
-             {"shipedit", "Tools"}, {"instruments", "Instruments"}, {"gale-base", "Buildings"},
+             {"instruments", "Instruments"}, {"gale-base", "Buildings"},
              {"nasa-voyager", "Ships"}, {"field-kit", "Other"}})
     {
         bool matched = false;

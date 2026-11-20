@@ -72,6 +72,20 @@ namespace
 int main()
 {
     {
+        const std::string path = std::string(KOSMOS_ROOT) + "/addons/cvel-n1/ship.json";
+        std::ifstream in(path);
+        std::ostringstream text;
+        text << in.rdbuf();
+        ShipSpec from_file, from_text;
+        std::string error;
+        assert(load_ship_spec(path, from_file, error));
+        assert(parse_ship_spec(text.str(), path, from_text, error));
+        assert(from_text.name == from_file.name && from_text.directory == from_file.directory &&
+               from_text.stages.size() == from_file.stages.size() &&
+               from_text.stages[0].parts.size() == from_file.stages[0].parts.size());
+        assert(!parse_ship_spec("{", path, from_text, error) && !error.empty());
+    }
+    {
         double jd = 0.0;
         assert(parse_utc_datetime("2024-02-29 12:34:56", jd));
         assert(std::fabs(jd - julian_from_civil(2024, 2, 29, 12 + 34.0 / 60.0 + 56.0 / 3600.0)) < 1e-9);

@@ -1,6 +1,9 @@
 {
   "name": "CVEL Star 48B",
   "class": "launcher",
+  "rocket_builder": {"parts": [
+    {"id": "star-48b", "name": "Star 48B", "role": "upper", "ports": ["Payload"], "stages": [{"index": 0, "name": "Star 48B"}]}
+  ]},
   "description": "CVEL Star 48B solid upper stage. The original addon uses attitude control in place of spin stabilisation; Kosmos also permits throttle control and restart, unlike a real solid motor.",
   "payload_bays": [
     {"name": "Payload adapter", "shape": "cylinder", "radius": 1.8, "length": 7, "port": "Payload"}

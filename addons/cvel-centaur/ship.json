@@ -1,6 +1,9 @@
 {
  "name": "CVEL Centaur G",
  "class": "launcher",
+ "rocket_builder": {"parts": [
+  {"id":"centaur-g","name":"Centaur G","role":"upper","ports":["Payload"],"stages":[{"index":0,"name":"Centaur G"}]}
+ ]},
  "payload_bays": [
   {"name": "Payload adapter", "shape": "cylinder", "radius": 2.0, "length": 8, "port": "Payload"}
  ],

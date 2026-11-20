@@ -1,6 +1,11 @@
 {
  "name": "CVEL Soyuz-FG",
  "class": "launcher",
+ "rocket_builder": {"parts": [
+  {"id": "core", "name": "Soyuz core", "role": "first", "stages": [{"index": 1, "name": "Core stage"}]},
+  {"id": "boosters", "name": "Soyuz strap-on boosters", "role": "booster", "anchor": {"index": 1, "name": "Core stage"}, "stages": [{"index": 0, "name": "Strap-on boosters"}]},
+  {"id": "block-i", "name": "Soyuz Block I", "role": "second", "stages": [{"index": 5, "name": "Block I"}]}
+ ]},
  "script": "@launcher.lua",
  "torque_accel": 0.1,
  "max_rate": 0.25,

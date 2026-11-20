@@ -872,6 +872,8 @@ namespace kosmos::app
     // The on-screen display, MFDs and messages.
     void App::draw_hud()
     {
+        if (rocket_builder.active)
+            return;
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
     const kosmos::Body &soi_body = *soi_body_ref;

@@ -1,6 +1,14 @@
 {
   "name": "CVELN1",
   "class": "launcher",
+  "rocket_builder": {
+    "parts": [
+      {"id": "block-a", "name": "N1 Block A", "role": "first", "stages": [{"index": 0, "name": "Block A"}]},
+      {"id": "block-b", "name": "N1 Block B", "role": "second", "stages": [{"index": 1, "name": "Block B"}]},
+      {"id": "block-v", "name": "N1 Block V", "role": "upper", "ports": ["Payload"], "stages": [{"index": 4, "name": "Block V"}]},
+      {"id": "shroud", "name": "N1 shroud", "role": "fairing", "anchor": {"index": 4, "name": "Block V"}, "stages": [{"index": 2, "name": "Shroud left"}, {"index": 3, "name": "Shroud right"}]}
+    ]
+  },
   "script": "@launcher.lua",
   "description": "N1-inspired three-stage cargo launcher. Split fairing and escape tower are an approximation.",
   "torque_accel": 0.12,

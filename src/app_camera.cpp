@@ -520,7 +520,15 @@ namespace kosmos::app
         }
         else
         {
-            if (dragging)
+            if (dragging && rocket_builder.active &&
+                (sl::key_down(sl::Key::left_shift) || sl::key_down(sl::Key::right_shift)))
+            {
+                const double yaw = rig.cam_yaw;
+                const sl::dvec3 camera_right = east * std::cos(yaw) - north * std::sin(yaw);
+                rocket_builder.pan += (-camera_right * static_cast<double>(dx) + up * static_cast<double>(dy)) *
+                                      (rig.cam_distance * 0.002);
+            }
+            else if (dragging)
             {
                 // Dragging swings the chase camera around the ship, which stays centred.
                 rig.cam_yaw -= static_cast<float>(dx) * 0.006f;
@@ -581,6 +589,8 @@ namespace kosmos::app
     void App::advance_time()
     {
     kosmos::Universe &universe = *universe_ref;
+        if (rocket_builder.active)
+            sim.props.set_bool("/sim/paused", true);
         if (flight_replay.playing)
         {
             update_flight_playback();
@@ -691,6 +701,22 @@ namespace kosmos::app
             offset_dir = glm::normalize(glm::normalize(fb.position - universe.position(0)) + east * std::sin(yaw_d) * 0.9 + up * std::sin(pitch_d) * 0.9);
         // A tall ship can name the point the external camera frames, such as the capsule at the top of a Saturn V.
         sl::dvec3 focus = ship->orbit_camera_focus();
+        if (rocket_builder.active && rocket_builder.preview_valid)
+        {
+            sl::dvec3 position;
+            sl::dquat orientation;
+            if (rocket_preview_pose(position, orientation))
+            {
+                double lower = 0.0, upper = 0.0;
+                for (const StageSpec &stage : rocket_builder.preview.stages)
+                {
+                    lower = std::max(lower, stage.z + stage.length * 0.5);
+                    upper = std::min(upper, stage.z - stage.length * 0.5);
+                }
+                focus = position + orientation * sl::dvec3(0.0, 0.0, 0.5 * (lower + upper));
+                focus += rocket_builder.pan;
+            }
+        }
         // A released warhead takes the camera; the ship carries on its own way.
         double seconds_to_burst = 1.0e9;
         const bool following = !in_cockpit && !in_interior && !map_mode && arsenal.follow_target(universe, ship, focus, seconds_to_burst);

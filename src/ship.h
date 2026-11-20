@@ -525,6 +525,8 @@ namespace kosmos
     };
 
     bool load_ship_spec(const std::string &file, ShipSpec &spec, std::string &error);
+    /** Parse ship JSON in memory, resolving relative resources beside source_file. */
+    bool parse_ship_spec(const std::string &text, const std::string &source_file, ShipSpec &spec, std::string &error);
 
     /** The folder holding a ship's skins: "Skins" beside the folder of its first model, which a variant ship shares with the ship it borrows the model from. Empty when it has no model. */
     std::string ship_skins_directory(const ShipSpec &spec);

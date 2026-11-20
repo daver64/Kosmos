@@ -46,7 +46,7 @@ if [ $# -eq 0 ]; then
 fi
 nice cmake --build "$OUT" $([ -z "$INCREMENTAL" ] && echo --clean-first) -j "$JOBS" --target "$@"
 if [ "$PREBUILT" = ON ]; then
-    for tool in kosmosmap kosmosav shipedit kosmoscad kosmosmission planetbake; do
+    for tool in kosmosmap kosmosav kosmoscad kosmosmission planetbake; do
         cmake -E copy_if_different "$SRC/addons/$tool/bin/$tool.exe" "$OUT/$tool.exe"
     done
 fi

@@ -180,6 +180,8 @@ namespace kosmos::app
 
     void App::on_key_down()
     {
+        if (rocket_builder.active)
+            return;
     kosmos::Universe &universe = *universe_ref;
     sl::PropertyTree &props = *props_ref;
         const auto key = event.key();
@@ -704,6 +706,8 @@ namespace kosmos::app
     // Keyboard and joystick controls.
     void App::keyboard()
     {
+        if (rocket_builder.active)
+            return;
     sl::PropertyTree &props = *props_ref;
         // Keyboard controls write the property tree; scripts and the cockpit use the same paths.
         const double throttle_rate = 0.5 * frame;

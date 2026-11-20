@@ -171,6 +171,12 @@ int main()
 
     // Payload fit: a cylinder bay takes a stack of probes beside nothing it cannot hold, and turns a long item to fit.
     {
+        ShipSpec parsed;
+        parsed.name = "unchanged";
+        CHECK(!parse_ship("{\"name\":\"Bad\",\"stages\":[{\"dry_mass\":\"invalid\"}]}", "preview", parsed, err));
+        CHECK(!err.empty() && parsed.name == "unchanged");
+        CHECK(parse_ship("{\"name\":\"Preview\",\"stages\":[{\"length\":2,\"radius\":1}],\"payload_bays\":[{\"name\":\"Bay\",\"radius\":2,\"length\":4,\"port\":\"Cargo\"}]}", "preview", parsed, err));
+        CHECK(parsed.name == "Preview" && parsed.bays.size() == 1 && parsed.bays[0].port == "Cargo");
         PayloadBay bay;
         bay.name = "Fairing";
         bay.round = true;

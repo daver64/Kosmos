@@ -337,6 +337,11 @@ namespace kosmos::app
                 return 1;
             }
             apply_sets(sim.props, options.sets);
+            if (sim.props.get_bool("/selftest/rocket-builder"))
+            {
+                ship = flown;
+                return test_rocket_builder();
+            }
             if (sim.props.get_bool("/selftest/date-change"))
             {
                 ship = flown;

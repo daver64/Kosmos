@@ -1,6 +1,12 @@
 {
   "name": "CVEL Proton-K",
   "class": "launcher",
+  "rocket_builder": {"parts": [
+    {"id":"first","name":"Proton first stage","role":"first","stages":[{"index":0,"name":"Proton first stage"}]},
+    {"id":"second","name":"Proton second stage","role":"second","stages":[{"index":1,"name":"Proton second stage"}]},
+    {"id":"third","name":"Proton third stage","role":"upper","ports":["Payload"],"stages":[{"index":4,"name":"Proton third stage"}]},
+    {"id":"fairing","name":"Proton fairing","role":"fairing","anchor":{"index":4,"name":"Proton third stage"},"stages":[{"index":2,"name":"Payload fairing half"},{"index":3,"name":"Payload fairing half"}]}
+  ]},
  "payload_bays": [
   {"name": "Fairing", "shape": "cylinder", "radius": 1.95, "length": 11, "port": "Payload"}
  ],
