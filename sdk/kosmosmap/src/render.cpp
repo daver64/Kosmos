@@ -125,8 +125,8 @@ namespace kmap
         // Slopes steepen with zoom-out so relief still reads when a pixel spans kilometres.
         const double exaggeration = std::clamp(mpp / 60.0, 1.0, 30.0);
         const double lx = -0.5, ly = 0.5, lz = 0.7, ll = std::sqrt(lx * lx + ly * ly + lz * lz);
-        const bool use_picture = view.imagery && ground.picture.ok();
         each_row(h, [&](int j) {
+            Surface::Cursor cursor;
             double lat, lon;
             for (int i = 0; i < w; ++i)
             {
@@ -137,9 +137,15 @@ namespace kmap
                 const float here = heights[g];
                 Rgb c{128, 128, 128};
                 bool shaded = !std::isnan(here);
-                if (use_picture)
+                float rgb[3];
+                const bool surface_colour = view.imagery && ground.has_surface &&
+                    ground.surface.colour(lat * rad, lon * rad, mpp, ground.radius, cursor, rgb);
+                if (surface_colour)
                 {
-                    float rgb[3];
+                    c = {rgb[0] * 255.0f, rgb[1] * 255.0f, rgb[2] * 255.0f};
+                }
+                else if (view.imagery && ground.picture.ok())
+                {
                     ground.picture.colour(lat * rad, lon * rad, rgb);
                     c = {rgb[0] * 255.0f, rgb[1] * 255.0f, rgb[2] * 255.0f};
                 }
@@ -147,7 +153,6 @@ namespace kmap
                     c = ground.home ? earth_colour(here) : world_colour(ground, here);
                 else if (ground.picture.ok())
                 {
-                    float rgb[3];
                     ground.picture.colour(lat * rad, lon * rad, rgb);
                     c = {rgb[0] * 255.0f, rgb[1] * 255.0f, rgb[2] * 255.0f};
                 }

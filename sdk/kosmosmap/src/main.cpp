@@ -1,6 +1,7 @@
 // KosmosMap: a moving map for Kosmos, in the spirit of FlightGear's Atlas. A plain GTK 3 program that talks to the game
 // over KosmosLink and reads the game's own terrain files, so it does not link simlib.
 #include "render.h"
+#include "body_catalog.h"
 #include "../../gtk_schema.h"
 
 #include <kosmos_link.hpp>
@@ -16,6 +17,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -48,7 +50,7 @@ namespace
         Rendered cache;
         std::atomic<int> generation{0};
         guint render_timer = 0;
-        GtkWidget *window = nullptr, *area = nullptr, *follow_button = nullptr, *mode_box = nullptr;
+        GtkWidget *window = nullptr, *area = nullptr, *follow_button = nullptr, *mode_box = nullptr, *body_box = nullptr;
 
         Ship flown;
         bool have_flown = false;
@@ -57,6 +59,10 @@ namespace
         std::vector<std::pair<double, double>> track;
         double facility_lat = 1e9, facility_lon = 1e9;
         gint64 facility_time = 0;
+        std::vector<kmap::BodyInfo> bodies, pending_bodies;
+        int catalog_system = -1, catalog_count = -1, catalog_next = 0;
+        gint64 catalog_check_time = 0;
+        bool catalog_loading = false, syncing_body_box = false;
 
         bool follow = true, dragging = false, connected = false, busy = false;
         double drag_x = 0, drag_y = 0, cursor_x = -1, cursor_y = -1;
@@ -66,7 +72,7 @@ namespace
     constexpr double margin_factor = 1.4;
 
     double min_ppd(const App &a) { return std::max(0.2, a.view.h / 180.0); }
-    double max_ppd(const App &a) { return a.ground->radius * rad / 2.0; } // two metres a pixel
+    double max_ppd(const App &a) { return std::max(min_ppd(a), a.ground->radius * rad / 2.0); } // two metres a pixel
 
     std::string hemisphere(double v, char positive, char negative, int width)
     {
@@ -163,15 +169,35 @@ namespace
         return false;
     }
 
+    void sync_body_box(App &a)
+    {
+        if (!a.body_box)
+            return;
+        a.syncing_body_box = true;
+        gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(a.body_box));
+        std::vector<kmap::BodyInfo> sorted = a.bodies;
+        std::sort(sorted.begin(), sorted.end(), [](const auto &x, const auto &y) { return x.name < y.name; });
+        for (const auto &body : sorted)
+        {
+            const std::string label = body.parent.empty() ? body.name : body.name + " (" + body.parent + ")";
+            gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(a.body_box), body.name.c_str(), label.c_str());
+        }
+        gtk_combo_box_set_active_id(GTK_COMBO_BOX(a.body_box), a.ground->name.c_str());
+        gtk_widget_set_sensitive(a.body_box, !sorted.empty());
+        a.syncing_body_box = false;
+    }
+
     void set_ground(App &a, const std::string &body, double radius)
     {
+        ++a.generation;
         auto g = std::make_shared<kmap::Ground>();
         g->load(a.root, body, radius);
         a.ground = g;
         a.track.clear();
+        a.others.clear();
         a.facilities.clear();
         a.facility_lat = a.facility_lon = 1e9;
-        a.view.imagery = a.view.imagery && g->picture.ok();
+        a.view.imagery = a.view.imagery && g->has_imagery();
         a.view.ppd = std::clamp(a.view.ppd, min_ppd(a), max_ppd(a));
         if (a.cache.surface)
         {
@@ -180,14 +206,20 @@ namespace
         }
         if (a.mode_box)
         {
-            gtk_widget_set_sensitive(a.mode_box, g->picture.ok());
+            gtk_widget_set_sensitive(a.mode_box, g->has_imagery());
             gtk_combo_box_set_active(GTK_COMBO_BOX(a.mode_box), a.view.imagery ? 1 : 0);
         }
         a.status = g->source;
+        sync_body_box(a);
     }
 
     double body_radius(App &a, const std::string &name)
     {
+        const auto it = std::find_if(a.bodies.begin(), a.bodies.end(), [&](const auto &body) { return body.name == name; });
+        if (it != a.bodies.end())
+            return it->radius;
+        if (!a.link)
+            return 0.0;
         const int count = static_cast<int>(a.link->get("/universe/bodies/count", 0.0));
         for (int i = 0; i < count; ++i)
         {
@@ -395,7 +427,7 @@ namespace
     {
         std::vector<std::string> lines;
         lines.push_back(a.ground->name + (a.view.imagery ? "  (imagery)" : "  (relief)"));
-        if (a.have_flown)
+        if (a.have_flown && a.flown.body == a.ground->name)
         {
             const Ship &s = a.flown;
             lines.push_back(s.name);
@@ -404,6 +436,8 @@ namespace
             std::snprintf(row, sizeof row, "Alt %.0f m   Hdg %03.0f\u00b0   %.0f kt", s.alt, std::fmod(s.heading + 360.0, 360.0), s.speed * 1.943844);
             lines.push_back(row);
         }
+        else if (a.have_flown)
+            lines.push_back("Flown ship at " + a.flown.body);
         else
             lines.push_back(a.connected ? "Waiting for a ship" : "Not connected to Kosmos: browsing only");
         if (a.cursor_x >= 0)
@@ -497,7 +531,7 @@ namespace
             if (v.ppd > 50.0)
                 text_at(cr, px + 10, py + 4, s.name, 10, 0.7, 0.95, 1.0);
         }
-        if (a.have_flown)
+        if (a.have_flown && a.flown.body == a.ground->name)
         {
             double px, py;
             v.to_pixel(a.flown.lat, a.flown.lon, px, py);
@@ -656,6 +690,11 @@ namespace
         a.follow = gtk_toggle_button_get_active(button);
         if (a.follow)
         {
+            if (a.have_flown && a.flown.body != a.ground->name)
+            {
+                set_ground(a, a.flown.body, body_radius(a, a.flown.body));
+                request_render(a, 10);
+            }
             centre_on_ship(a);
             if (cache_stale(a))
                 request_render(a, 30);
@@ -666,8 +705,29 @@ namespace
     void on_mode(GtkComboBox *box, gpointer data)
     {
         App &a = *static_cast<App *>(data);
-        a.view.imagery = gtk_combo_box_get_active(box) == 1 && a.ground->picture.ok();
+        a.view.imagery = gtk_combo_box_get_active(box) == 1 && a.ground->has_imagery();
         request_render(a, 10);
+    }
+
+    void on_body(GtkComboBox *box, gpointer data)
+    {
+        App &a = *static_cast<App *>(data);
+        if (a.syncing_body_box)
+            return;
+        const char *selected = gtk_combo_box_get_active_id(box);
+        if (!selected)
+            return;
+        const auto it = std::find_if(a.bodies.begin(), a.bodies.end(), [&](const auto &body) { return body.name == selected; });
+        if (it == a.bodies.end() || it->name == a.ground->name)
+            return;
+        const kmap::BodyInfo body = *it;
+        set_follow(a, false);
+        set_ground(a, body.name, body.radius);
+        a.view.lat = 0.0;
+        a.view.lon = 0.0;
+        a.view.ppd = std::clamp(3.0, min_ppd(a), max_ppd(a));
+        request_render(a, 10);
+        gtk_widget_queue_draw(a.area);
     }
 
     void on_zoom_in(GtkButton *, gpointer data) { auto &a = *static_cast<App *>(data); zoom_to(a, a.view.ppd * 1.5, a.view.w * 0.5, a.view.h * 0.5); }
@@ -675,6 +735,97 @@ namespace
     void on_clear(GtkButton *, gpointer data) { auto &a = *static_cast<App *>(data); a.track.clear(); gtk_widget_queue_draw(a.area); }
 
     // ---- The link to Kosmos
+
+    bool link_number(kosmos::Link &link, const std::string &path, double &out)
+    {
+        kl_value value{};
+        if (kl_get(link.raw(), path.c_str(), &value) != KL_OK)
+            return false;
+        if (value.type == KL_INT)
+            out = static_cast<double>(value.integer);
+        else if (value.type == KL_DOUBLE)
+            out = value.real;
+        else
+            return false;
+        return std::isfinite(out);
+    }
+
+    bool link_text(kosmos::Link &link, const std::string &path, std::string &out)
+    {
+        kl_value value{};
+        if (kl_get(link.raw(), path.c_str(), &value) != KL_OK || value.type != KL_STRING)
+            return false;
+        out = value.string;
+        return true;
+    }
+
+    void load_solar_bodies(App &a)
+    {
+        const std::string path = a.root + "/data/sol.json";
+        std::ifstream input(path);
+        std::string error;
+        if (!input.is_open())
+            std::fprintf(stderr, "[kosmosmap] Cannot open body list %s\n", path.c_str());
+        else if (!kmap::read_body_catalog(input, a.bodies, error))
+            std::fprintf(stderr, "[kosmosmap] Cannot load body list from %s: %s\n", path.c_str(), error.c_str());
+    }
+
+    void update_bodies(App &a)
+    {
+        const gint64 now = g_get_monotonic_time();
+        if (now - a.catalog_check_time >= 2000000)
+        {
+            a.catalog_check_time = now;
+            double system, count;
+            if (!link_number(*a.link, "/galaxy/current", system) ||
+                !link_number(*a.link, "/universe/bodies/count", count) ||
+                system < 0 || system > 1000000 || std::floor(system) != system ||
+                count < 0 || count > 100000 || std::floor(count) != count)
+            {
+                std::fprintf(stderr, "[kosmosmap] Cannot read the current system body list\n");
+                return;
+            }
+            const int new_system = static_cast<int>(system), new_count = static_cast<int>(count);
+            if (new_system != a.catalog_system || new_count != a.catalog_count)
+            {
+                if (a.catalog_system >= 0 && new_system != a.catalog_system)
+                    set_follow(a, true);
+                a.catalog_system = new_system;
+                a.catalog_count = new_count;
+                a.catalog_next = 0;
+                a.pending_bodies.clear();
+                a.bodies.clear();
+                if (new_system == 0)
+                    load_solar_bodies(a);
+                a.catalog_loading = true;
+                sync_body_box(a);
+            }
+        }
+        if (!a.catalog_loading)
+            return;
+        for (int n = 0; n < 6 && a.catalog_next < a.catalog_count; ++n)
+        {
+            const std::string path = "/universe/bodies/body[" + std::to_string(a.catalog_next) + "]/";
+            kmap::BodyInfo body;
+            if (!link_text(*a.link, path + "name", body.name) || body.name.empty() ||
+                !link_text(*a.link, path + "parent", body.parent) ||
+                !link_number(*a.link, path + "radius", body.radius) || body.radius <= 0.0)
+            {
+                std::fprintf(stderr, "[kosmosmap] Cannot read body %d; retrying the system list\n", a.catalog_next);
+                a.catalog_system = -1;
+                a.catalog_loading = false;
+                return;
+            }
+            a.pending_bodies.push_back(std::move(body));
+            ++a.catalog_next;
+        }
+        if (a.catalog_next == a.catalog_count)
+        {
+            a.bodies = std::move(a.pending_bodies);
+            a.catalog_loading = false;
+            sync_body_box(a);
+        }
+    }
 
     void update_facilities(App &a)
     {
@@ -687,7 +838,7 @@ namespace
         a.facility_time = now;
         a.facility_lat = a.view.lat;
         a.facility_lon = a.view.lon;
-        a.facilities = a.link->facilities(a.view.lat, a.view.lon, 0.0, "", 200, "");
+        a.facilities = a.link->facilities(a.view.lat, a.view.lon, 0.0, "", 200, a.ground->name);
     }
 
     gboolean on_tick(gpointer data)
@@ -700,6 +851,7 @@ namespace
             gtk_main_quit();
             return G_SOURCE_REMOVE;
         }
+        update_bodies(a);
         std::vector<kl_ship_info> ships = a.link->ships(0.0, false);
         a.others.clear();
         a.have_flown = false;
@@ -721,19 +873,18 @@ namespace
                 a.flown = s;
                 a.have_flown = true;
             }
-            else if (s.body == a.flown.body || !a.have_flown)
+            else
                 a.others.push_back(s);
         }
-        a.others.erase(std::remove_if(a.others.begin(), a.others.end(), [&](const Ship &s) { return a.have_flown && s.body != a.flown.body; }), a.others.end());
-        if (a.have_flown && a.flown.body != a.ground->name)
+        if (a.have_flown && (a.follow || a.ground->name.empty()) && a.flown.body != a.ground->name)
         {
             set_ground(a, a.flown.body, body_radius(a, a.flown.body));
             centre_on_ship(a);
             a.view.ppd = std::clamp(std::max(a.view.ppd, 40.0), min_ppd(a), max_ppd(a));
-            set_follow(a, true);
             request_render(a, 10);
         }
-        if (a.have_flown)
+        a.others.erase(std::remove_if(a.others.begin(), a.others.end(), [&](const Ship &s) { return s.body != a.ground->name; }), a.others.end());
+        if (a.have_flown && a.flown.body == a.ground->name)
         {
             if (!a.track.empty() && std::fabs(a.track.back().first - a.flown.lat) + std::fabs(a.track.back().second - a.flown.lon) > 5.0)
                 a.track.clear();
@@ -794,6 +945,12 @@ namespace
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(a.follow_button), a.follow);
         g_signal_connect(a.follow_button, "toggled", G_CALLBACK(on_follow), &a);
         gtk_header_bar_pack_start(GTK_HEADER_BAR(header), a.follow_button);
+
+        a.body_box = gtk_combo_box_text_new();
+        gtk_widget_set_tooltip_text(a.body_box, "Choose a body to browse; Follow returns to the flown ship");
+        sync_body_box(a);
+        g_signal_connect(a.body_box, "changed", G_CALLBACK(on_body), &a);
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(header), a.body_box);
 
         a.mode_box = gtk_combo_box_text_new();
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(a.mode_box), "Relief");
@@ -901,11 +1058,13 @@ int main(int argc, char **argv)
     app.view.imagery = imagery;
     if (want_link && shot.empty())
         connect_link(app);
+    if (!app.connected)
+        load_solar_bodies(app);
     if (!app.connected && body.empty())
         body = "Earth";
     if (!body.empty())
     {
-        set_ground(app, body, 0.0);
+        set_ground(app, body, body_radius(app, body));
         app.view.lat = lat;
         app.view.lon = lon;
         if (!have_position && !app.connected)
@@ -914,7 +1073,7 @@ int main(int argc, char **argv)
             app.view.ppd = app.connected ? 4.0 : 3.0;
         app.follow = app.connected && !have_position;
     }
-    app.view.imagery = imagery && app.ground->picture.ok();
+    app.view.imagery = imagery && app.ground->has_imagery();
     if (!shot.empty())
     {
         if (have_position)

@@ -20,12 +20,12 @@ namespace kmap
 
         bool open(const std::string &path, std::string &error);
         std::uint32_t find(int level, int ilat, int ilng) const;
-        bool has_data(std::uint32_t node) const { return node != none && nodes_[node].size != 0; }
-        std::uint32_t child(std::uint32_t node, int quadrant) const { return nodes_[node].child[quadrant]; }
+        bool has_data(std::uint32_t node) const { return node < nodes_.size() && nodes_[node].size != 0; }
+        std::uint32_t child(std::uint32_t node, int quadrant) const { return node < nodes_.size() ? nodes_[node].child[quadrant] : none; }
         bool read(std::uint32_t node, std::vector<std::uint8_t> &out) const;
         explicit operator bool() const { return opened_; }
 
-        /** The "Elev" archive for a body in the folders under root (any folder whose name ends in the body name). */
+        /** Find an installed or bundled Orbiter archive under the Kosmos root. */
         static std::string find_layer(const std::string &root, const std::string &body, const std::string &layer);
 
     private:
@@ -44,6 +44,32 @@ namespace kmap
         std::uint32_t root4_[2] = {none, none};
         std::int64_t data_offset_ = 0, data_length_ = 0;
         bool opened_ = false;
+    };
+
+    /** Zoom-dependent surface colours from an Orbiter Surf.tree. */
+    class Surface
+    {
+    public:
+        struct Tile
+        {
+            int width = 0, height = 0;
+            bool alpha_block = false;
+            std::vector<std::uint8_t> blocks;
+        };
+        struct Cursor
+        {
+            std::uint32_t node = Tree::none;
+            std::shared_ptr<const Tile> tile;
+        };
+
+        bool open(const std::string &path, std::string &error) { return tree_.open(path, error); }
+        bool colour(double lat, double lon, double metres_per_pixel, double radius, Cursor &cursor, float rgb[3]) const;
+
+    private:
+        std::shared_ptr<const Tile> tile(std::uint32_t node) const;
+        Tree tree_;
+        mutable std::mutex mutex_;
+        mutable std::unordered_map<std::uint32_t, std::shared_ptr<const Tile>> cache_;
     };
 
     /** Heights in metres from an Elev.tree. Each thread passes its own Cursor so tile lookups mostly skip the shared cache. */
@@ -97,7 +123,10 @@ namespace kmap
         bool home = false; // Earth: heights below zero are sea
         Elevation elevation;
         bool has_elevation = false;
+        Surface surface;
+        bool has_surface = false;
         Picture picture;
+        bool has_imagery() const { return has_surface || picture.ok(); }
         std::string source; // a line of text for the status bar
 
         /** Finds the files for a body under the Kosmos folder. */

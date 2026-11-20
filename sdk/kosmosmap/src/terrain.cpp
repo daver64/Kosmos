@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include <kosmos_surface_dds.h>
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <zlib.h>
@@ -9,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <cstdio>
 
 namespace kmap
 {
@@ -28,6 +30,7 @@ namespace kmap
         struct Hit
         {
             std::uint32_t node = Tree::none;
+            int level = 0;
             double u = 0.0, v = 0.0; // position inside the tile, 0-1, v from its north edge
         };
 
@@ -52,6 +55,7 @@ namespace kmap
                 if (tree.has_data(node))
                 {
                     best.node = node;
+                    best.level = level;
                     best.v = t_lat * rows - static_cast<double>(ilat);
                     best.u = t_lng * 2 * rows - static_cast<double>(ilng);
                 }
@@ -59,11 +63,11 @@ namespace kmap
             return best;
         }
 
-        int level_for(double radius, double metres_per_pixel)
+        int level_for(double radius, double metres_per_pixel, double samples = 256.0)
         {
             if (metres_per_pixel <= 0.0)
                 return deepest;
-            const double ratio = radius * pi / (256.0 * metres_per_pixel);
+            const double ratio = radius * pi / (samples * metres_per_pixel);
             return std::clamp(4 + static_cast<int>(std::ceil(std::log2(std::max(ratio, 1.0)))), 4, deepest);
         }
     }
@@ -96,6 +100,16 @@ namespace kmap
             error = "unexpected .tree header size in " + path;
             return false;
         }
+        file_.seekg(0, std::ios::end);
+        const auto end = file_.tellg();
+        const std::uint64_t index_bytes = static_cast<std::uint64_t>(count) * sizeof(Node);
+        if (end < 0 || index_bytes > (128u << 20) || data_offset_ < 48 + index_bytes ||
+            data_offset_ > end || data_length_ < 0 || data_length_ > end - data_offset_)
+        {
+            error = "invalid node table or data bounds in " + path;
+            return false;
+        }
+        file_.seekg(sizeof head);
         nodes_.resize(count);
         file_.read(reinterpret_cast<char *>(nodes_.data()), static_cast<std::streamsize>(count) * sizeof(Node));
         if (!file_)
@@ -114,7 +128,7 @@ namespace kmap
         if (level == 4)
             return ilat == 0 && ilng >= 0 && ilng < 2 ? root4_[ilng] : none;
         const std::uint32_t parent = find(level - 1, ilat / 2, ilng / 2);
-        return parent == none ? none : nodes_[parent].child[((ilat & 1) << 1) | (ilng & 1)];
+        return child(parent, ((ilat & 1) << 1) | (ilng & 1));
     }
 
     bool Tree::read(std::uint32_t node, std::vector<std::uint8_t> &out) const
@@ -123,6 +137,10 @@ namespace kmap
             return false;
         const std::int64_t pos = nodes_[node].pos;
         const std::int64_t end = node + 1 < nodes_.size() ? nodes_[node + 1].pos : data_length_;
+        constexpr std::size_t max_tile_bytes = 2u << 20;
+        if (pos < 0 || end < pos || end > data_length_ ||
+            static_cast<std::uint64_t>(end - pos) > max_tile_bytes || nodes_[node].size > max_tile_bytes)
+            return false;
         std::vector<std::uint8_t> packed(static_cast<std::size_t>(end - pos));
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -139,20 +157,119 @@ namespace kmap
 
     std::string Tree::find_layer(const std::string &root, const std::string &body, const std::string &layer)
     {
-        const std::string want = lower(body);
+        const fs::path name = fs::u8path(body);
+        if (body.empty() || name.has_parent_path() || name == "." || name == ".." ||
+            (layer != "Elev" && layer != "Surf"))
+            return {};
         std::error_code ec;
-        for (const fs::directory_entry &entry : fs::directory_iterator(root, ec))
+        const fs::path base = fs::u8path(root);
+        const auto find_in = [&](const fs::path &directory) -> std::string {
+            for (const fs::path &file : {directory / "Archive" / (layer + ".tree"),
+                                         directory / (layer + ".tree")})
+            {
+                if (fs::is_regular_file(file, ec))
+                    return file.string();
+                if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                    std::fprintf(stderr, "[kosmosmap] Cannot inspect %s: %s\n", file.string().c_str(), ec.message().c_str());
+                ec.clear();
+            }
+            return {};
+        };
+        const std::string want = lower(body);
+        for (const fs::path &folder : {base / "import/orbiter", base / "import/orbiter/MinorBodies",
+                                      base / "data/orbiter-defaults/earth", base / "data/orbiter-defaults/planets"})
         {
-            if (!entry.is_directory())
-                continue;
-            const std::string name = lower(entry.path().filename().string());
-            if (name.size() < want.size() || name.compare(name.size() - want.size(), want.size(), want) != 0)
-                continue;
-            const fs::path file = entry.path() / (layer + ".tree");
-            if (fs::exists(file, ec))
-                return file.string();
+            if (const std::string found = find_in(folder / name); !found.empty())
+                return found;
+            std::string legacy;
+            fs::directory_iterator entries(folder, ec), end;
+            while (!ec && entries != end)
+            {
+                const std::string candidate = lower(entries->path().filename().string());
+                if (candidate == want)
+                    if (const std::string found = find_in(entries->path()); !found.empty())
+                        return found;
+                if (folder == base / "import/orbiter" && layer == "Elev" && legacy.empty() &&
+                    candidate.size() > want.size() && candidate.compare(candidate.size() - want.size(), want.size(), want) == 0)
+                {
+                    const fs::path file = entries->path() / (layer + ".tree");
+                    if (fs::is_regular_file(file, ec))
+                        legacy = file.string();
+                    if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                        std::fprintf(stderr, "[kosmosmap] Cannot inspect %s: %s\n", file.string().c_str(), ec.message().c_str());
+                    ec.clear();
+                }
+                entries.increment(ec);
+            }
+            if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory)
+                std::fprintf(stderr, "[kosmosmap] Cannot inspect %s: %s\n", folder.string().c_str(), ec.message().c_str());
+            ec.clear();
+            if (!legacy.empty())
+                return legacy;
         }
         return {};
+    }
+
+    std::shared_ptr<const Surface::Tile> Surface::tile(std::uint32_t node) const
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto it = cache_.find(node);
+        if (it != cache_.end())
+            return it->second;
+        auto result = std::make_shared<Tile>();
+        std::vector<std::uint8_t> bytes;
+        std::size_t offset = 0;
+        if (tree_.read(node, bytes) && kosmos::surface_dds::supported(bytes, &offset, &result->alpha_block, 4u << 20))
+        {
+            std::uint32_t width, height;
+            std::memcpy(&height, bytes.data() + 12, 4);
+            std::memcpy(&width, bytes.data() + 16, 4);
+            result->width = static_cast<int>(width);
+            result->height = static_cast<int>(height);
+            const std::size_t size = static_cast<std::size_t>(width / 4) * (height / 4) * (result->alpha_block ? 16 : 8);
+            result->blocks.assign(bytes.begin() + offset, bytes.begin() + offset + size);
+        }
+        else
+            std::fprintf(stderr, "[kosmosmap] Cannot read surface tile %u; trying a parent or the global picture\n", node);
+        if (cache_.size() >= 128)
+            cache_.clear();
+        cache_[node] = result;
+        return result;
+    }
+
+    bool Surface::colour(double lat, double lon, double metres_per_pixel, double radius, Cursor &cursor, float rgb[3]) const
+    {
+        int level = level_for(radius, metres_per_pixel, 512.0);
+        while (level >= 4)
+        {
+            const Hit hit = locate(tree_, lat, lon, level);
+            if (hit.node == Tree::none)
+                return false;
+            if (cursor.node != hit.node || !cursor.tile)
+            {
+                cursor.tile = tile(hit.node);
+                cursor.node = hit.node;
+            }
+            const Tile &t = *cursor.tile;
+            if (!t.blocks.empty())
+            {
+                const double x = std::clamp(hit.u * t.width - 0.5, 0.0, t.width - 1.001);
+                const double y = std::clamp(hit.v * t.height - 0.5, 0.0, t.height - 1.001);
+                const int ix = static_cast<int>(x), iy = static_cast<int>(y);
+                const float fx = static_cast<float>(x - ix), fy = static_cast<float>(y - iy);
+                float c[4][3];
+                kosmos::surface_dds::texel(t.blocks, t.width, t.alpha_block, ix, iy, c[0]);
+                kosmos::surface_dds::texel(t.blocks, t.width, t.alpha_block, ix + 1, iy, c[1]);
+                kosmos::surface_dds::texel(t.blocks, t.width, t.alpha_block, ix, iy + 1, c[2]);
+                kosmos::surface_dds::texel(t.blocks, t.width, t.alpha_block, ix + 1, iy + 1, c[3]);
+                for (int k = 0; k < 3; ++k)
+                    rgb[k] = (c[0][k] * (1 - fx) + c[1][k] * fx) * (1 - fy) +
+                             (c[2][k] * (1 - fx) + c[3][k] * fx) * fy;
+                return true;
+            }
+            level = hit.level - 1;
+        }
+        return false;
     }
 
     std::shared_ptr<const Elevation::Tile> Elevation::tile(std::uint32_t node) const
@@ -174,10 +291,11 @@ namespace kmap
             std::memcpy(&ny, bytes.data() + 16, 4);
             std::memcpy(&result->scale, bytes.data() + 28, 8);
             std::memcpy(&result->offset, bytes.data() + 36, 8);
-            const std::size_t count = static_cast<std::size_t>(nx) * ny;
-            const std::uint8_t *data = bytes.data() + header;
-            if (type != 0 && nx >= 2 && ny >= 2)
+            if (type != 0 && nx >= 2 && ny >= 2 && nx <= 1024 && ny <= 1024 &&
+                header >= 100 && static_cast<std::size_t>(header) <= bytes.size())
             {
+                const std::size_t count = static_cast<std::size_t>(nx) * ny;
+                const std::uint8_t *data = bytes.data() + header;
                 result->samples.resize(count);
                 if (type == -16 && bytes.size() >= header + count * 2)
                 {
@@ -274,23 +392,36 @@ namespace kmap
         has_elevation = false;
         picture = Picture();
         source.clear();
-        const std::string folder = root + "/import/orbiter";
         std::string error;
-        const std::string tree = Tree::find_layer(folder, body, "Elev");
+        const std::string tree = Tree::find_layer(root, body, "Elev");
         if (!tree.empty() && elevation.open(tree, error))
         {
             has_elevation = true;
             source = "Orbiter elevation";
         }
         else if (!error.empty())
-            source = error;
+            std::fprintf(stderr, "[kosmosmap] %s\n", error.c_str());
+        error.clear();
+        const std::string surface_tree = Tree::find_layer(root, body, "Surf");
+        if (!surface_tree.empty() && surface.open(surface_tree, error))
+        {
+            has_surface = true;
+            source += std::string(source.empty() ? "" : ", ") + "Orbiter imagery";
+        }
+        else if (!error.empty())
+            std::fprintf(stderr, "[kosmosmap] %s\n", error.c_str());
         const std::string key = lower(body);
         for (const char *dir : {"/data/textures/planets/", "/data/textures/", "/import/celestia/medres/", "/import/celestia/lores/"})
             for (const char *ext : {".jpg", ".png"})
             {
                 const std::string path = root + dir + key + ext;
-                if (!picture.ok() && fs::exists(path) && picture.load(path, error))
-                    source += std::string(source.empty() ? "" : ", ") + "image " + fs::path(path).filename().string();
+                if (!picture.ok() && fs::exists(path))
+                {
+                    if (picture.load(path, error))
+                        source += std::string(source.empty() ? "" : ", ") + "image " + fs::path(path).filename().string();
+                    else
+                        std::fprintf(stderr, "[kosmosmap] Cannot load %s: %s\n", path.c_str(), error.c_str());
+                }
             }
         if (source.empty())
             source = "no terrain data for " + body;

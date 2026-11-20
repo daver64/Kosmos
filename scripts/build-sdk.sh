@@ -5,7 +5,8 @@
 # Usage: build-sdk.sh
 # Overrides (env): FASTNOISE_DIR (where FastNoiseLite.h is, default ~/opt/include),
 #                  VCPKG_MINGW (vcpkg root with x64-mingw-static zlib, default ~/vcpkg-mingw; no Windows planetbake.exe without it)
-#                  GLM_INCLUDE_DIR (folder holding glm/, default FASTNOISE_DIR; for the Windows planetbake build)
+#                  GLM_INCLUDE_DIR (folder holding glm/, default FASTNOISE_DIR; for the Windows planetbake build),
+#                  KOSMOS_JSON_INCLUDE (folder holding json.hpp; used for the KosmosMap build)
 # The build never runs more than 4 jobs at once.
 set -e
 if [ "${1:-}" = "--publish" ]; then
@@ -25,6 +26,7 @@ cp "$STAGE/docs/MANUAL.md" "$STAGE/README.md"
 rm -rf "$STAGE/planetbake/bin"
 # planetbake uses the game's own world generator, so the SDK carries a copy of it.
 FASTNOISE_DIR=${FASTNOISE_DIR:-$HOME/opt/include}
+JSON_INCLUDE=${KOSMOS_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
 mkdir -p "$STAGE/planetbake/gen"
 cp "$SRC/src/planet_gen.h" "$SRC/src/planet_gen.cpp" "$STAGE/planetbake/gen/"
 cp "$FASTNOISE_DIR/FastNoiseLite.h" "$STAGE/planetbake/gen/"
@@ -33,7 +35,7 @@ cp "$SRC/LICENSE"* "$STAGE/" 2>/dev/null || true
 
 # Prove the package builds before shipping it.
 BUILD=$(mktemp -d)
-cmake -S "$STAGE" -B "$BUILD" > /dev/null
+cmake -S "$STAGE" -B "$BUILD" -DKOSMOSMAP_JSON_INCLUDE="$JSON_INCLUDE" > /dev/null
 cmake --build "$BUILD" --parallel 4 > /dev/null
 cmake -S "$STAGE/template" -B "$BUILD/template" > /dev/null
 cmake --build "$BUILD/template" --parallel 4 > /dev/null

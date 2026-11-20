@@ -13,6 +13,7 @@ WINGTK=$VCPKG_MINGW/installed/x64-mingw-posix
 WINPC=$WINGTK/lib/pkgconfig:${MINGW_PKGCONFIG_EXTRA:-$HOME/mingw-triplets/pkgconfig}
 WINCXX=x86_64-w64-mingw32-g++-posix
 WINCC=x86_64-w64-mingw32-gcc-posix
+JSON_INCLUDE=${KOSMOS_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
 FASTNOISE_DIR=${FASTNOISE_DIR:-$HOME/opt/include}
 VER=$(cat "$SRC/VERSION" 2> /dev/null || echo 0)
 
@@ -62,14 +63,13 @@ schemas "$SRC/addons/planetbake"
 
 # KosmosMap.
 KM=$SRC/sdk/kosmosmap
-printf '%s\n' main render terrain | xargs -P 4 -I{} sh -c \
-    '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"$SRC/sdk/include" -I"$WINGTK/include" -c "'"$KM"'/src/{}.cpp" -o "$TMP/km/{}.o"'
+export JSON_INCLUDE
+printf '%s\n' main render terrain body_catalog | xargs -P 4 -I{} sh -c \
+    '"$WINCXX" -std=c++17 -O2 -D_USE_MATH_DEFINES $CFLAGS -I"$SRC/sdk/include" -I"$WINGTK/include" -I"$JSON_INCLUDE" -c "'"$KM"'/src/{}.cpp" -o "$TMP/km/{}.o"'
 "$WINCC" -O2 -I"$SRC/sdk/include" -c "$SRC/sdk/src/kosmos_link.c" -o "$TMP/km/kosmos_link.o"
 mkdir -p "$SRC/addons/kosmosmap/bin"
 "$WINCXX" -static -o "$SRC/addons/kosmosmap/bin/kosmosmap.exe" "$TMP"/km/*.o $LIBS -lws2_32
 schemas "$SRC/addons/kosmosmap"
-
-JSON_INCLUDE=${KOSMOS_JSON_INCLUDE:-$HOME/Documents/Projects/rsimlib/include}
 
 # KosmosCAD (no simlib; only the json header; OpenGL through GTK's libepoxy).
 KC=$SRC/sdk/kosmoscad

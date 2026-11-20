@@ -38,6 +38,11 @@ python3 "$SRC/tests/proton_exhaust_test.py"
 python3 "$SRC/tests/soyuz_exhaust_test.py"
 python3 "$SRC/tests/vessel_ascent_limits_test.py"
 nice cmake --build "$OUT" -j "$JOBS" --target kosmos scenario_thumbnail_test performance_metrics_test systems_test ship_lights_test orbiter_tree_lookup_test orbiter_microtexture_test orbital_relief_guard_test orbiter_zip_test reentry_test weather_test joystick_test equipment_test synth_sound_test keybindings_test camera_dynamics_test cinematic_camera_test rcs_visual_test landing_plane_test vessel_guidance_test plasma_look_test link_test shipedit_model_test kosmoscad_test missioncore_test launcher_test
+if cmake --build "$OUT" --target help | grep -q kosmosmap_terrain_test; then
+    nice cmake --build "$OUT" -j "$JOBS" --target kosmosmap_terrain_test kosmosmap_selector_test
+    "$OUT/sdk/kosmosmap/kosmosmap_terrain_test"
+    "$OUT/sdk/kosmosmap/kosmosmap_selector_test" "$SRC"
+fi
 python3 "$SRC/tests/deltaglider_takeoff_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/shuttle2010_flight_test.py" "$OUT/kosmos"
 python3 "$SRC/tests/parallel_booster_test.py" "$OUT/kosmos"
