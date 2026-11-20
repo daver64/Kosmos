@@ -521,10 +521,11 @@ namespace kosmos
     {
         const long bucket = static_cast<long>(std::floor(unix_seconds / bucket_seconds));
         fraction_ = std::clamp((unix_seconds - static_cast<double>(bucket) * bucket_seconds) / bucket_seconds, 0.0, 1.0);
-        if (bucket == bucket_)
+        if (initialized_ && bucket == bucket_)
             return;
-        const bool first = bucket_ < 0;
+        const bool first = !initialized_ || bucket != bucket_ + 1;
         bucket_ = bucket;
+        initialized_ = true;
         for (WeatherStation &s : stations_)
         {
             if (s.live)
@@ -564,7 +565,7 @@ namespace kosmos
     {
         for (WeatherStation &s : stations_)
             s.live = false;
-        bucket_ = -1;
+        initialized_ = false;
     }
 
     namespace

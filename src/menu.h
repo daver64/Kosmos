@@ -21,6 +21,7 @@ namespace kosmos
     {
         std::function<void(const Scenario &)> start_scenario; // run this scenario now
         std::function<void()> restart;
+        std::function<bool(double, std::string &)> set_date;
         std::function<void()> quit;
         std::function<void()> screenshot;
         std::function<void()> scenario_thumbnail;
@@ -154,7 +155,7 @@ namespace kosmos
         void open_base_editor() { base_editor_open = true; }
         /** Windows opened by the menus themselves; the program lists them in the View menu too. */
         bool scenario_editor_open = false, base_editor_open = false, help_open = false, about_open = false;
-        bool aircraft_autopilot_open = false, spacecraft_autopilot_open = false, transfer_windows_open = false;
+        bool aircraft_autopilot_open = false, spacecraft_autopilot_open = false, transfer_windows_open = false, date_window_open = false;
         bool keep_visible = true;
         bool visible() const { return slide_ > 0.01f; }
 
@@ -162,6 +163,7 @@ namespace kosmos
         BaseEditor base_editor;
         FileDialog dialog;
         double scenario_scan_time = -10.0;
+        std::string date_input, date_error;
         /** One level of the Open scenario menu: sub-menus for the folders under `prefix`, then its own scenarios. */
         void scenario_menu(const std::vector<Scenario> &all, const std::string &prefix, const Scenario *&chosen);
 

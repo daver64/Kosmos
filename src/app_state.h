@@ -426,6 +426,8 @@ namespace kosmos::app
         void leave_eva();
         void toggle_eva();
         void enter_station();
+        bool set_date(double epoch_jd, std::string &error);
+        int test_date_change();
         ExhaustFx exhaust_fx;
         sl::Event event_discard;
         double clock{};

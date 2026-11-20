@@ -72,6 +72,18 @@ namespace
 int main()
 {
     {
+        double jd = 0.0;
+        assert(parse_utc_datetime("2024-02-29 12:34:56", jd));
+        assert(std::fabs(jd - julian_from_civil(2024, 2, 29, 12 + 34.0 / 60.0 + 56.0 / 3600.0)) < 1e-9);
+        for (const char *invalid : {"2023-02-29 12:34:56", "2024-04-31 12:00:00",
+                                    "2024-01-01 24:00:00", "2024-01-01 00:60:00",
+                                    "2024-01-01 00:00:60", "2024-01-01", "nan",
+                                    "2024-01-01 00:00:00 UTC", "0000-01-01 00:00:00",
+                                    "2024-1-01 00:00:00", "2024-01-01  0:00:00",
+                                    "2024-01-01 +0:00:00"})
+            assert(!parse_utc_datetime(invalid, jd));
+    }
+    {
         std::string error;
         const nlohmann::json compartment = {{"center", {1.0, 2.0, 3.0}}, {"size", {2.5, 3.0, 6.0}}, {"room", "Habitat"}};
         auto room = Interior::station(compartment, error);

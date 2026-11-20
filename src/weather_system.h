@@ -37,6 +37,8 @@ namespace kosmos
 
         /** Call once a frame with the flown ship's body, position over it (degrees), altitude (m) and the simulated seconds elapsed. */
         void step(Universe &universe, sl::PropertyTree &props, int body, double latitude, double longitude, double altitude, double dt);
+        /** Reinitialise weather after an instantaneous change of date. */
+        void date_changed(const Universe &universe);
 
         /** The conditions at the flown ship from the last step (all zero when weather is off or the body has no atmosphere). */
         const Conditions &current() const { return current_; }

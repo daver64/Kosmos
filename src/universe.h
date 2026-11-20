@@ -108,6 +108,8 @@ namespace kosmos
      * Times are GMT. Returns false for anything else.
      */
     bool parse_epoch(const std::string &text, double &julian_date);
+    /** Parse a calendar date and time in UTC, in the form YYYY-MM-DD HH:MM:SS. */
+    bool parse_utc_datetime(const std::string &text, double &julian_date);
     /** "1969-07-16 13:32:00 GMT". */
     std::string format_utc(double julian_date);
     constexpr double mjd_offset = 2400000.5;

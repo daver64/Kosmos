@@ -647,6 +647,31 @@ namespace kosmos
         return true;
     }
 
+    bool parse_utc_datetime(const std::string &text, double &julian_date)
+    {
+        if (text.size() != 19 || text[4] != '-' || text[7] != '-' || text[10] != ' ' ||
+            text[13] != ':' || text[16] != ':')
+            return false;
+        for (std::size_t i = 0; i < text.size(); ++i)
+            if (i != 4 && i != 7 && i != 10 && i != 13 && i != 16 && (text[i] < '0' || text[i] > '9'))
+                return false;
+        int year, month, day, hour, minute, second, used = 0;
+        if (std::sscanf(text.c_str(), "%4d-%2d-%2d %2d:%2d:%2d%n",
+                        &year, &month, &day, &hour, &minute, &second, &used) != 6 ||
+            used != static_cast<int>(text.size()) || year < 1 || year > 9999 ||
+            month < 1 || month > 12 || day < 1 || day > 31 ||
+            hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59)
+            return false;
+        const double midnight = julian_from_civil(year, month, day);
+        int actual_year, actual_month, actual_day;
+        double hours;
+        civil_from_julian(midnight, actual_year, actual_month, actual_day, hours);
+        if (year != actual_year || month != actual_month || day != actual_day)
+            return false;
+        julian_date = midnight + (hour * 3600.0 + minute * 60.0 + second) / 86400.0;
+        return true;
+    }
+
     std::string format_utc(double jd)
     {
         const double rounded = std::round(jd * 86400.0) / 86400.0;

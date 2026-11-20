@@ -75,6 +75,10 @@ python3 "$SRC/tests/centaur_handoff_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/scenario_save_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/gravity_j2_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/flight_recording_test.py" "$PWD/kosmos"
+echo "== date-change flight restoration"
+./kosmos --ship Kestrel --selftest 1 --set /selftest/date-change=true --set /selftest/date-ground=true
+./kosmos --scenario salyut_earth_orbit --selftest 1 --set /selftest/date-change=true
+./kosmos --scenario gateway_shuttle_moon --selftest 1 --set /selftest/date-change=true --set /selftest/date-docked=true
 python3 "$SRC/tests/sync_approach_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/gui_input_test.py" "$PWD/kosmos"
 python3 "$SRC/tests/orbital_sas_test.py" "$PWD/kosmos"

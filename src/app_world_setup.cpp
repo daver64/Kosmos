@@ -1,6 +1,7 @@
 #include "app_state.h"
 #include "orbiter_tile_terrain.h"
 #include "bitmap_release.h"
+#include "link/link_server.h"
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
 #include "orbiter_relief_colour_loader.h"
 #endif
@@ -155,9 +156,13 @@ namespace kosmos::app
         std::vector<double> base_heights;
         for (const kosmos::Base &base : sim.bases)
             base_heights.push_back(base.height);
+        const double old_epoch = sim.start_epoch_jd;
         sim.start_epoch_jd = epoch_jd;
         if (!sim.change_system(sim.system_index(), message))
+        {
+            sim.start_epoch_jd = old_epoch;
             return false;
+        }
         place_worlds();
         for (std::size_t k = 0; k < sim.bases.size() && k < base_heights.size(); ++k)
             sim.bases[k].height = base_heights[k];
@@ -168,6 +173,238 @@ namespace kosmos::app
             fb->terrain = body_terrains[k]->terrain.get();
         }
         return true;
+    }
+
+    bool App::set_date(double epoch_jd, std::string &error)
+    {
+        if (!std::isfinite(epoch_jd) || epoch_jd <= 0.0)
+        {
+            error = "Invalid date.";
+            return false;
+        }
+        if (eva.active || !sim.active_ship() || sim.active_ship()->spec().building())
+        {
+            error = "Return to a ship's controls before changing the date.";
+            return false;
+        }
+        if (netplay.mode() != NetPlay::Mode::none || flight_replay.playing || flight_replay.capturing ||
+            (link_state.link_server && link_state.link_server->lockstep_active()))
+        {
+            error = "Disconnect multiplayer and stop flight recording, playback and lockstep before changing the date.";
+            return false;
+        }
+        for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            const Ship &vessel = *sim.ship(i);
+            if (!vessel.spec().building() &&
+                (vessel.telemetry().soi < 0 || vessel.telemetry().soi >= static_cast<int>(sim.universe.bodies.size())))
+            {
+                error = "A vessel has no reference body; its state cannot be restored.";
+                return false;
+            }
+        }
+        const double previous_date = sim.universe.julian_date();
+        Scenario saved = capture_scenario(sim, "Date change");
+        saved.weather = sim.props.get_string("/sim/weather-force");
+        std::vector<std::vector<double>> gear_compression;
+        for (int i = 0; i < sim.ship_count(); ++i)
+        {
+            const Ship &vessel = *sim.ship(i);
+            if (vessel.spec().building())
+                continue;
+            std::vector<double> compression;
+            for (const sl::GearContact &gear : vessel.body().gear)
+                compression.push_back(gear.compression);
+            gear_compression.push_back(std::move(compression));
+        }
+        const std::size_t saved_links = static_cast<std::size_t>(std::count_if(saved.ships.begin(), saved.ships.end(),
+            [](const ScenarioShip &entry) { return entry.dock_to >= 0; }));
+        if (saved_links != sim.nav.dock_links().size())
+        {
+            error = "This docking network cannot be restored by a scenario; undock it before changing the date.";
+            return false;
+        }
+        std::vector<sl::dquat> old_frames;
+        std::vector<sl::dvec3> old_spins;
+        for (std::size_t i = 0; i < sim.universe.bodies.size(); ++i)
+        {
+            const sl::FlightBody &body = *sim.universe.world.body(static_cast<int>(i));
+            old_frames.push_back(sim.universe.orientation(static_cast<int>(i)));
+            old_spins.push_back(body.spin_axis * body.spin_rate);
+        }
+        if (!change_date(epoch_jd, error))
+            return false;
+        ship = nullptr;
+        vis.clear_parts();
+        Scenario shifted = saved;
+        for (ScenarioShip &entry : shifted.ships)
+        {
+            if (!entry.landed || !entry.has_state)
+                continue;
+            const int body_id = sim.universe.find(entry.body);
+            const sl::FlightBody &body = *sim.universe.world.body(body_id);
+            const sl::dquat turn = sim.universe.orientation(body_id) * glm::inverse(old_frames[static_cast<std::size_t>(body_id)]);
+            const sl::dvec3 old_position(entry.state_position[0], entry.state_position[1], entry.state_position[2]);
+            const sl::dvec3 old_velocity(entry.state_velocity[0], entry.state_velocity[1], entry.state_velocity[2]);
+            const sl::dvec3 position = turn * old_position;
+            const sl::dvec3 velocity = turn * (old_velocity - glm::cross(old_spins[static_cast<std::size_t>(body_id)], old_position)) +
+                                       glm::cross(body.spin_axis * body.spin_rate, position);
+            const sl::dquat orientation = turn * sl::dquat(entry.state_orientation[0], entry.state_orientation[1],
+                                                            entry.state_orientation[2], entry.state_orientation[3]);
+            entry.state_position = {position.x, position.y, position.z};
+            entry.state_velocity = {velocity.x, velocity.y, velocity.z};
+            entry.state_orientation = {orientation.w, orientation.x, orientation.y, orientation.z};
+        }
+        const auto restore_gear = [&]() {
+            if (static_cast<std::size_t>(sim.ship_count()) < gear_compression.size())
+                return false;
+            for (std::size_t i = 0; i < gear_compression.size(); ++i)
+            {
+                Ship &vessel = *sim.ship(static_cast<int>(i));
+                if (vessel.body().gear.size() != gear_compression[i].size())
+                    return false;
+                for (std::size_t j = 0; j < gear_compression[i].size(); ++j)
+                    vessel.body().gear[j].compression = gear_compression[i][j];
+                vessel.refresh_telemetry();
+            }
+            return true;
+        };
+        ship = apply_scenario(sim, shifted, terrain_set);
+        if (!ship || !restore_gear())
+        {
+            ship = nullptr;
+            std::string restore_error;
+            if (change_date(previous_date, restore_error))
+            {
+                ship = apply_scenario(sim, saved, terrain_set);
+                if (ship && !restore_gear())
+                {
+                    restore_error = "landing gear state did not match";
+                    ship = nullptr;
+                }
+            }
+            if (!ship)
+            {
+                error = "Could not restore the flight after changing the date: " + restore_error;
+                std::fprintf(stderr, "kosmos: %s\n", error.c_str());
+                running = false;
+                return false;
+            }
+            sim.weather.date_changed(sim.universe);
+            const Telemetry &telemetry = ship->telemetry();
+            sim.weather.step(sim.universe, sim.props, telemetry.soi, telemetry.latitude, telemetry.longitude, telemetry.altitude, 0.0);
+            sim.props.set_bool("/sim/paused", true);
+            rig.cam_distance = ship->spec().camera_distance;
+            rig.interior_cam = rig.base_view = rig.user_cam = -1;
+            cockpit_view = cockpit3d = false;
+            arsenal.reset();
+            ship_weapons.reset();
+            error = "Could not restore the flight at the requested date; restored the previous date.";
+            sim.log(error);
+            return false;
+        }
+        sim.weather.date_changed(sim.universe);
+        const Telemetry &telemetry = ship->telemetry();
+        sim.weather.step(sim.universe, sim.props, telemetry.soi, telemetry.latitude, telemetry.longitude, telemetry.altitude, 0.0);
+        sim.props.set_bool("/sim/paused", true);
+        rig.cam_distance = ship->spec().camera_distance;
+        rig.interior_cam = rig.base_view = rig.user_cam = -1;
+        cockpit_view = cockpit3d = false;
+        arsenal.reset();
+        ship_weapons.reset();
+        sim.log("Date set to " + format_utc(sim.universe.julian_date()) + "; simulation paused");
+        return true;
+    }
+
+    int App::test_date_change()
+    {
+        int failures = 0;
+        const auto check = [&](bool ok, const char *description) {
+            std::printf("%s: %s\n", ok ? "ok" : "FAIL", description);
+            failures += ok ? 0 : 1;
+        };
+        const bool ground_test = sim.props.get_bool("/selftest/date-ground");
+        for (int i = 0; i < (ground_test ? 30 : 1); ++i)
+            sim.step(0.1);
+        const int body_id = ship->telemetry().soi;
+        if (body_id < 0 || body_id >= static_cast<int>(sim.universe.bodies.size()))
+        {
+            std::fprintf(stderr, "date-change selftest: ship has no reference body\n");
+            return 1;
+        }
+        const bool landed = ship->telemetry().landed;
+        if (ground_test && !landed)
+        {
+            std::fprintf(stderr, "date-change selftest: ship did not settle on the ground\n");
+            return 1;
+        }
+        const double before = sim.universe.julian_date();
+        const sl::dvec3 position = ship->body().position - sim.universe.position(body_id);
+        const sl::FlightBody &parent = *sim.universe.world.body(body_id);
+        const sl::dvec3 velocity = ship->body().velocity - parent.velocity;
+        const sl::dvec3 spin = parent.spin_axis * parent.spin_rate;
+        const sl::dquat frame_before = sim.universe.orientation(body_id);
+        const sl::dquat orientation = ship->body().orientation;
+        const sl::dvec3 earth_before = sim.system_index() == 0 ? sim.universe.position(sim.universe.find("Earth")) : sl::dvec3(0.0);
+        const double fuel = ship->telemetry().stage_fuel;
+        const std::string name = ship->name;
+        const std::size_t links = sim.nav.dock_links().size();
+        if (sim.props.get_bool("/selftest/date-docked") && links == 0)
+        {
+            std::fprintf(stderr, "date-change selftest: expected a docked vessel\n");
+            return 1;
+        }
+        sim.props.set_string("/sim/weather-force", "TEST 011200Z 00000KT CAVOK 15/10 Q1013");
+        eva.active = true;
+        std::string error;
+        check(!set_date(before + 120.0, error) && !error.empty() && sim.universe.julian_date() == before,
+              "date change is blocked on foot without changing the flight");
+        eva.active = false;
+        error.clear();
+        if (!set_date(before + 120.0, error))
+        {
+            std::fprintf(stderr, "date-change selftest: %s\n", error.c_str());
+            return 1;
+        }
+        const sl::dvec3 new_position = ship->body().position - sim.universe.position(body_id);
+        const sl::FlightBody &new_parent = *sim.universe.world.body(body_id);
+        const sl::dquat turn = sim.universe.orientation(body_id) * glm::inverse(frame_before);
+        const sl::dvec3 expected = landed ? turn * position : position;
+        const sl::dvec3 expected_velocity = landed ? turn * (velocity - glm::cross(spin, position)) +
+                                                        glm::cross(new_parent.spin_axis * new_parent.spin_rate, expected) : velocity;
+        const sl::dquat expected_orientation = landed ? turn * orientation : orientation;
+        check(std::abs(sim.universe.julian_date() - before - 120.0) < 1e-8, "requested UTC date");
+        check(glm::length(new_position - expected) < 0.05, landed ? "landed vessel remains body-fixed" : "orbit remains body-relative");
+        check(glm::length(ship->body().velocity - new_parent.velocity - expected_velocity) < 0.01 &&
+                  std::abs(std::abs(glm::dot(ship->body().orientation, expected_orientation)) - 1.0) < 1e-6,
+              "vessel velocity and orientation restored");
+        if (sim.system_index() == 0)
+            check(glm::length(sim.universe.position(sim.universe.find("Earth")) - earth_before) > 1e6,
+                  "planetary positions rebuilt");
+        check(ship->name == name && std::abs(ship->telemetry().stage_fuel - fuel) < 0.01 &&
+                  sim.nav.dock_links().size() == links,
+              "vessel fuel and docking restored");
+        check(sim.props.get_bool("/sim/paused") && sim.props.get_double("/controls/throttle") == 0.0 &&
+                  sim.props.get_string("/sim/weather-force") == "TEST 011200Z 00000KT CAVOK 15/10 Q1013" &&
+                  (!Weather::supports_body(sim.universe, body_id) ||
+                   sim.props.get_string("/environment/metar") == "TEST 011200Z 00000KT CAVOK 15/10 Q1013"),
+              "simulation paused, throttle cut and weather updated");
+        if (!sim.props.get_bool("/selftest/date-render"))
+        {
+            if (landed)
+                check(ship->telemetry().landed, "landing contact survives while paused");
+            error.clear();
+            const bool restored = set_date(before, error);
+            const sl::dvec3 roundtrip_expected = landed
+                ? sim.universe.orientation(body_id) * glm::inverse(frame_before) * position : position;
+            check(restored && std::abs(sim.universe.julian_date() - before) < 1e-8 &&
+                      glm::length(ship->body().position - sim.universe.position(body_id) - roundtrip_expected) < 0.05 &&
+                      (!landed || ship->telemetry().landed),
+                  "changing back restores the original date and vessel position");
+            if (!restored)
+                std::fprintf(stderr, "date-change selftest: %s\n", error.c_str());
+        }
+        return failures == 0 ? 0 : 1;
     }
 
     // Swaps in the best cached far-view image of every invented world at the width now chosen in the settings; the larger widths

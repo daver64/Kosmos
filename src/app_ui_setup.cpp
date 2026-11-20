@@ -410,6 +410,7 @@ namespace kosmos::app
         arsenal_ctx.terrain = [this](int body) { return terrain_of(body); };
         menu_actions.toggle_eva = [this]() { toggle_eva(); };
         menu_actions.enter_station = [this]() { enter_station(); };
+        menu_actions.set_date = [this](double date, std::string &error) { return set_date(date, error); };
         menu_actions.key_label = [this](const char *id) { return keys.label_for(id); };
         refresh_menu_keys();
         menu_actions.on_foot = [&]() { return eva.active; };
@@ -470,6 +471,8 @@ namespace kosmos::app
         // The engine's own limiter only sleeps when vsync is off, so turn it off and let simlib pace the frames.
         sl::set_vsync(false);
         applied_fps = 0;
+        if (sim.props.get_bool("/selftest/date-render") && test_date_change() != 0)
+            return 1;
     return keep_going;
     }
     bool App::menu_start_scenario(const kosmos::Scenario &sc)

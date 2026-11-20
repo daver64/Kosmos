@@ -337,6 +337,12 @@ namespace kosmos::app
                 return 1;
             }
             apply_sets(sim.props, options.sets);
+            if (sim.props.get_bool("/selftest/date-change"))
+            {
+                ship = flown;
+                earth_id = sim.universe.home_id();
+                return test_date_change();
+            }
             const std::string replay_test = sim.props.get_string("/selftest/flight-replay-path");
             if (!replay_test.empty())
             {

@@ -141,7 +141,8 @@ namespace kosmos
         std::vector<WeatherStation> stations_;
         std::vector<std::array<double, 3>> directions_;
         bool real_ = false;
-        long bucket_ = -1;
+        long bucket_ = 0;
+        bool initialized_ = false;
         double fraction_ = 1.0;
     };
 

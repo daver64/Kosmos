@@ -95,6 +95,17 @@ int main()
     const Conditions t2 = field.sample(10.0, 10.0);
     assert(std::fabs(t1.pressure - t2.pressure) < 1.5 && std::fabs(t1.wind_east - t2.wind_east) < 3.0);
     (void)t0;
+    for (double when : {1761587400.0 + 1234567.0, 1761587400.0 - 1234567.0, -300.0, -900.0})
+    {
+        field.update(when);
+        WeatherField fresh("Earth", earth, 5);
+        fresh.update(when);
+        assert(!fresh.stations()[0].line.empty());
+        const Conditions jumped = field.sample(10.0, 10.0);
+        const Conditions direct = fresh.sample(10.0, 10.0);
+        assert(std::fabs(jumped.pressure - direct.pressure) < 1e-9);
+        assert(std::fabs(jumped.wind_east - direct.wind_east) < 1e-9);
+    }
 
     // A live observation replaces a station, and clearing it brings the procedural one back.
     const std::string id = field.stations()[3].id;

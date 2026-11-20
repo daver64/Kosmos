@@ -209,6 +209,8 @@ High time warp remains limited while another live vessel is flying in an atmosph
 
 **File > Open flight recording** opens a recording from the current star system, with the recorded addons installed. Playback starts paused and offers play, pause, rewind and stop. It displays discrete snapshots, not smooth interpolation or a deterministic physics re-simulation; date, positions, fuel, basic controls and camera are restored at each sample. It has the saved-scenario limitations: autopilot state, debris, transient effects and complex docking networks are not faithfully replayed; it does not record EVA or multiplayer. Stopping restores the previous flight paused, with thrust and recorded control axes zeroed; autopilots do not resume. This is separate from video recording.
 
+**File > Set date and time** accepts a UTC date (`YYYY-MM-DD HH:MM:SS`) and rebuilds planetary positions, rotation and weather for that date. It restores the flight like a saved scenario: landed vessels stay at their surface locations, orbiting vessels keep their body-relative states, and fuel and supported docks are retained. The simulation pauses, thrust and autopilots reset, and debris, base-building state and other transient state are lost. Complex docking networks, EVA, multiplayer, flight recording/playback and lockstep must be stopped first.
+
 ## Command line
 
 | Option | Meaning |

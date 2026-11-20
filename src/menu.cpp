@@ -1358,6 +1358,7 @@ namespace kosmos
                                    "  Autopilot > Spacecraft includes timed main/hover burns; allow time for SAS alignment and monitor fuel.\n"
                                    "  View > Native addons: allow or stop external programs (the Kosmos SDK) that connect to the sim (the tools bundled with Kosmos are allowed already); KosmosMission plans multi-leg missions (ascent, transfers, delta-v budget) and can send a burn to OrbitComp\n"
                                    "  File > Set time to T-5:00 before burn: skip the clock to just before the Transfer / OrbitComp burn; File > Transfer windows: pick a departure window to a target\n"
+                                   "  File > Set date and time: rebuild the environment at a UTC date, restore the flight and pause; transient state is lost.\n"
                                    "  OrbitComp planet-to-planet windows are estimates; check the predicted encounter and correct the flight.\n"
                                    "  Move the mouse to the top of the screen for the menu bar.\n"
                                    "  Esc closes menus and windows or leaves a habitat panel; Ctrl+Esc quits.";
@@ -1366,7 +1367,7 @@ namespace kosmos
     bool MenuBar::has_open_window(const std::vector<MenuWindow> &windows) const
     {
         if (dialog.active() || scenario_editor_open || base_editor_open || help_open || about_open ||
-            aircraft_autopilot_open || spacecraft_autopilot_open || transfer_windows_open)
+            aircraft_autopilot_open || spacecraft_autopilot_open || transfer_windows_open || date_window_open)
             return true;
         return std::any_of(windows.begin(), windows.end(), [](const MenuWindow &window) {
             return window.open && *window.open;
@@ -1386,7 +1387,7 @@ namespace kosmos
             return true;
         }
         bool any = false;
-        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open, &aircraft_autopilot_open, &spacecraft_autopilot_open, &transfer_windows_open})
+        for (bool *flag : {&scenario_editor_open, &base_editor_open, &help_open, &about_open, &aircraft_autopilot_open, &spacecraft_autopilot_open, &transfer_windows_open, &date_window_open})
             if (*flag)
             {
                 *flag = false;
@@ -1871,6 +1872,32 @@ namespace kosmos
             draw_spacecraft_autopilot(sim, spacecraft_autopilot_open);
         if (transfer_windows_open)
             draw_transfer_windows(sim, actions, transfer_windows_open);
+        if (date_window_open)
+        {
+            ImGui::SetNextWindowSize(ImVec2(500.0f, 0.0f), ImGuiCond_FirstUseEver);
+            if (ImGui::Begin("Set date and time", &date_window_open, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text("Current UTC: %s", format_utc(sim.universe.julian_date()).c_str());
+                text("UTC", date_input);
+                ImGui::TextDisabled("YYYY-MM-DD HH:MM:SS");
+                if (ImGui::Button("Use current simulation time"))
+                    date_input = format_utc(sim.universe.julian_date()).substr(0, 19);
+                ImGui::TextWrapped("Rebuilds the environment and restores the flight like a saved scenario. "
+                                   "Debris, base-building and transient state are lost; throttle and autopilots are reset and the simulation is paused. "
+                                   "Complex docking networks must be undocked first.");
+                if (ImGui::Button("Set date and time"))
+                {
+                    double date = 0.0;
+                    if (!parse_utc_datetime(date_input, date))
+                        date_error = "Enter a valid UTC date and time.";
+                    else if (actions.set_date && actions.set_date(date, date_error))
+                        date_window_open = false;
+                }
+                if (!date_error.empty())
+                    ImGui::TextWrapped("%s", date_error.c_str());
+            }
+            ImGui::End();
+        }
         if (help_open)
         {
             ImGui::SetNextWindowPos(ImVec2(80.0f, 100.0f), ImGuiCond_FirstUseEver);
@@ -2103,6 +2130,12 @@ namespace kosmos
             dialog.show(FileDialog::Mode::open, "Open flight recording", user_folder("recordings"), "",
                         [&actions](const std::string &path) { actions.open_flight_recording(path); });
         ImGui::Separator();
+        if (ImGui::MenuItem("Set date and time..."))
+        {
+            date_input = format_utc(sim.universe.julian_date()).substr(0, 19);
+            date_error.clear();
+            date_window_open = true;
+        }
         file_menu_time_skip(sim, actions, transfer_windows_open);
         ImGui::Separator();
         if (ImGui::MenuItem("Restart scenario", "R") && actions.restart)

@@ -99,6 +99,7 @@ namespace kosmos
         }
         if (!field)
             field = std::make_unique<WeatherField>(b.name, params, seed);
+        field->update(unix_from_julian(universe.julian_date()));
         return (fields_[body] = std::move(field)).get();
     }
 
@@ -252,6 +253,18 @@ namespace kosmos
         props.set_double("/environment/visibility", c.visibility);
         props.set_double("/environment/temperature", c.temperature);
         props.set_double("/environment/pressure", c.pressure);
+    }
+
+    void Weather::date_changed(const Universe &universe)
+    {
+        last_body_ = -1;
+        live_applied_ = false;
+        const double now = unix_from_julian(universe.julian_date());
+        for (auto &entry : fields_)
+        {
+            entry.second->clear_live();
+            entry.second->update(now);
+        }
     }
 
     void Weather::step(Universe &universe, sl::PropertyTree &props, int body, double latitude, double longitude, double altitude, double dt)
