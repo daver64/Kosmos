@@ -1,5 +1,6 @@
 #include "sim.h"
 #include "vessel_ascent_limits.h"
+#include "vessel_guidance_profile.h"
 
 #include <algorithm>
 #include <cmath>
@@ -41,7 +42,7 @@ namespace kosmos
         if (ascent_ship_ < 0)
             return;
         ascent_ship_ = -1;
-        ascent_phase_.clear();
+        ascent_phase_ = VesselAscentPhase::inactive;
         props.set_bool("/autopilot/vessel-ascent/active", false);
         props.set_string("/autopilot/vessel-ascent/state", reason);
         props.set_string("/autopilot/status", reason);
@@ -56,7 +57,7 @@ namespace kosmos
         log(reason);
     }
 
-    void Sim::run_vessel_ascent(double dt)
+    void Sim::handle_vessel_ascent_request()
     {
         const std::string request = props.get_string("/autopilot/vessel-ascent/request");
         if (!request.empty())
@@ -67,11 +68,7 @@ namespace kosmos
             else if (ascent_ship_ < 0)
             {
                 Ship *ship = active_ship();
-                const std::string name = ship ? ship->spec().name : "";
-                const bool valid = (request == "Ares" && name == "Ares Spider") ||
-                                   (request == "Deltaglider" && (name == "CVEL Deltaglider" || name == "CVEL Deltaglider (Nuclear)")) ||
-                                   (request == "Shuttle-A" && (name == "CVEL Shuttle-A" || name == "CVEL Shuttle-A (Nuclear)" ||
-                                                               name == "CVEL Shuttle-AQ"));
+                const bool valid = ship && vessel_ascent_request_matches(vessel_guidance_profile(ship->spec().name), request);
                 const double target = props.get_double("/autopilot/vessel-ascent/target-km");
                 const double heading = props.get_double("/autopilot/vessel-ascent/heading");
                 std::string error;
@@ -103,25 +100,12 @@ namespace kosmos
                     error = "no active engine stage";
                 else
                 {
-                    bool main = false, hover = false;
-                    double liftoff_thrust = 0.0;
-                    for (const EngineSpec &engine : ship->spec().stages[static_cast<std::size_t>(ship->active_stage())].engines)
-                    {
-                        if (engine.pod || !engine.rcs_groups.empty() || engine.thrust <= 0.0 ||
-                            engine.air_breathing || engine.type == EngineType::solid || engine.type == EngineType::hyperjump)
-                            continue;
-                        if (engine.hover)
-                        {
-                            hover = true;
-                            liftoff_thrust += engine.thrust;
-                        }
-                        else
-                            main = true;
-                    }
                     const Body &body = universe.bodies[static_cast<std::size_t>(ship->telemetry().soi)];
                     const double radius = glm::length(ship->body().position - universe.world.body(ship->telemetry().soi)->position);
-                    if ((request == "Ares" && !hover) || (request == "Deltaglider" && (!main || !hover)) ||
-                        (request == "Shuttle-A" && (!main || !hover)) ||
+                    const sl::dvec3 lift_axis = request == "Ares" ? sl::dvec3(0, 0, -1) : sl::dvec3(0, 1, 0);
+                    const double liftoff_thrust = ship->ascent_available_thrust(true, lift_axis);
+                    const double orbit_thrust = ship->ascent_available_thrust(request == "Ares", sl::dvec3(0, 0, -1));
+                    if (!std::isfinite(liftoff_thrust) || !std::isfinite(orbit_thrust) || orbit_thrust <= 0.0 ||
                         (radius <= 0.0 || liftoff_thrust <= ship->telemetry().mass * body.gm / (radius * radius)))
                         error = "required engine or liftoff thrust unavailable";
                 }
@@ -142,7 +126,7 @@ namespace kosmos
                 ascent_stage_ = ship->active_stage();
                 props.set_bool("/autopilot/vessel-ascent/active", true);
                 ascent_profile_ = request;
-                ascent_phase_ = "Liftoff";
+                ascent_phase_ = VesselAscentPhase::liftoff;
                 ascent_heading_ = std::fmod(std::fmod(heading, 360.0) + 360.0, 360.0);
                 ascent_launch_heading_ = ship->telemetry().heading;
                 ascent_target_ = target * 1000.0;
@@ -154,6 +138,11 @@ namespace kosmos
                 log(request + " ascent started");
             }
         }
+    }
+
+    void Sim::run_vessel_ascent(double dt)
+    {
+        handle_vessel_ascent_request();
         if (ascent_ship_ < 0)
             return;
         const double requested_throttle = props.get_double("/controls/throttle");
@@ -225,7 +214,7 @@ namespace kosmos
         const double gravity = planet.gm / (radius * radius);
         const sl::dvec3 up = r / radius;
         const sl::dvec3 v = ship->body().velocity - planet_body->velocity;
-        if (ascent_phase_ != "Liftoff" && glm::dot(v, v) >= 2.0 * planet.gm / radius)
+        if (ascent_phase_ != VesselAscentPhase::liftoff && glm::dot(v, v) >= 2.0 * planet.gm / radius)
         {
             cancel_vessel_ascent("Ascent aborted: escape trajectory");
             return;
@@ -234,7 +223,8 @@ namespace kosmos
         const sl::dvec3 tangential = v - up * radial;
         const bool shuttle_tower_clear = ascent_profile_ != "Shuttle-A" || t.altitude > 150.0;
         double heading = shuttle_tower_clear ? ascent_heading_ : ascent_launch_heading_;
-        if ((ascent_phase_ == "Coast" || ascent_phase_ == "Circularise") && glm::length(tangential) > 1.0)
+        if ((ascent_phase_ == VesselAscentPhase::coast || ascent_phase_ == VesselAscentPhase::circularise) &&
+            glm::length(tangential) > 1.0)
         {
             sl::dvec3 east = glm::cross(planet_body->spin_axis, up);
             if (glm::length(east) > 1e-8)
@@ -246,7 +236,7 @@ namespace kosmos
         }
         props.set_double("/controls/target-heading", heading);
         double hover = 0.0, main = 0.0, pitch = ascent_pitch_;
-        if (ascent_phase_ == "Liftoff")
+        if (ascent_phase_ == VesselAscentPhase::liftoff)
         {
             if (ascent_profile_ == "Deltaglider")
             {
@@ -257,9 +247,9 @@ namespace kosmos
                 hover = 1.0;
             if ((ascent_profile_ == "Deltaglider" && t.surface_speed > 45.0) ||
                 (ascent_profile_ != "Deltaglider" && t.altitude > (ares ? 200.0 : 150.0)))
-                ascent_phase_ = "Climb";
+                ascent_phase_ = VesselAscentPhase::climb;
         }
-        if (ascent_phase_ == "Climb")
+        if (ascent_phase_ == VesselAscentPhase::climb)
         {
             const double transition_alt = ares ? 35000.0 : ascent_profile_ == "Deltaglider" ? 45000.0 : 35000.0;
             const double fraction = std::clamp(t.altitude / transition_alt, 0.0, 1.0);
@@ -275,20 +265,26 @@ namespace kosmos
                             : std::clamp(1.0 - t.altitude / 5000.0, 0.0, 1.0);
             }
             if (t.altitude > transition_alt)
-                ascent_phase_ = "Orbit burn";
+                ascent_phase_ = VesselAscentPhase::orbit_burn;
         }
-        if (ascent_phase_ == "Orbit burn")
+        if (ascent_phase_ == VesselAscentPhase::orbit_burn)
         {
             const double target_vs = std::clamp((ascent_target_ - t.altitude) * 0.003, 10.0, 220.0);
             const double horizontal = std::sqrt(std::max(0.0, glm::dot(v, v) - radial * radial));
-            const double accel = (ares ? 320000.0 : ascent_profile_ == "Deltaglider" ? 400000.0 : 2128720.0) / t.mass;
+            const double thrust = ship->ascent_available_thrust(ares, sl::dvec3(0, 0, -1));
+            if (!std::isfinite(thrust) || thrust <= 0.0)
+            {
+                cancel_vessel_ascent("Ascent aborted: orbit-burn thrust unavailable");
+                return;
+            }
+            const double accel = thrust / t.mass;
             const double vertical_accel = gravity - horizontal * horizontal / radius + 0.04 * (target_vs - t.vertical_speed);
             pitch = glm::degrees(std::asin(std::clamp(vertical_accel / accel, -0.15, 0.8)));
             if (ares) hover = 1.0; else main = 1.0;
             if (t.bound && t.apoapsis >= ascent_target_ && t.vertical_speed > 0.0)
-                ascent_phase_ = "Coast";
+                ascent_phase_ = VesselAscentPhase::coast;
         }
-        if (ascent_phase_ == "Coast")
+        if (ascent_phase_ == VesselAscentPhase::coast)
         {
             hover = main = 0.0;
             pitch = 0.0;
@@ -309,10 +305,10 @@ namespace kosmos
                     cancel_vessel_ascent("Ascent aborted: target apoapsis missed");
                     return;
                 }
-                ascent_phase_ = "Circularise";
+                ascent_phase_ = VesselAscentPhase::circularise;
             }
         }
-        if (ascent_phase_ == "Circularise")
+        if (ascent_phase_ == VesselAscentPhase::circularise)
         {
             pitch = 0.0;
             if (!t.bound || t.apoapsis > ascent_target_ + 15000.0)
@@ -338,14 +334,21 @@ namespace kosmos
                 if (ares) hover = level; else main = level;
             }
         }
-        if (!ares && (ascent_phase_ == "Climb" || ascent_phase_ == "Orbit burn"))
-            main *= std::clamp(1.0 - std::max(0.0, t.dynamic_pressure - 70000.0) / 80000.0, 0.3, 1.0);
+        apply_vessel_ascent_guidance(*ship, dt, main, hover, pitch);
+    }
+
+    void Sim::apply_vessel_ascent_guidance(Ship &ship, double dt, double main, double hover, double pitch)
+    {
+        const Telemetry &t = ship.telemetry();
+        const bool ares = ascent_profile_ == "Ares";
+        if (!ares && (ascent_phase_ == VesselAscentPhase::climb || ascent_phase_ == VesselAscentPhase::orbit_burn))
+            main *= vessel_ascent_pressure_factor(t.dynamic_pressure);
         const double change = std::max(0.0, dt) * 1.5;
         ascent_pitch_ += std::clamp(pitch - ascent_pitch_, -change, change);
         props.set_double("/controls/target-pitch", ascent_pitch_);
-        if (ship->flies_as_aircraft())
+        if (ship.flies_as_aircraft())
         {
-            const double pitch_rate = ship->body().angular_velocity.x;
+            const double pitch_rate = ship.body().angular_velocity.x;
             props.set_double("/controls/pitch", std::clamp((ascent_pitch_ - t.pitch) * 0.1 - pitch_rate * 0.5, -1.0, 1.0));
             props.set_double("/controls/roll", std::clamp(t.roll * 0.04, -0.5, 0.5));
             props.set_double("/controls/yaw", 0.0);
@@ -360,7 +363,7 @@ namespace kosmos
         props.set_double("/controls/throttle", main);
         if (ascent_profile_ == "Deltaglider")
         {
-            ascent_gimbal_ = ship->main_pitch_trim(props.get_double("/controls/gimbal-yaw"));
+            ascent_gimbal_ = ship.main_pitch_trim(props.get_double("/controls/gimbal-yaw"));
             props.set_double("/controls/gimbal-pitch", ascent_gimbal_);
         }
         ascent_hover_ = hover;
@@ -369,7 +372,8 @@ namespace kosmos
             props.set_double("/controls/gear", 0.0);
         if (ares && t.altitude > 100.0)
             props.set_double("/controls/anim/legs", 1.0);
-        props.set_string("/autopilot/vessel-ascent/state", ascent_phase_);
-        props.set_string("/autopilot/status", ascent_profile_ + " ascent: " + ascent_phase_);
+        const char *phase_name = vessel_ascent_phase_name(ascent_phase_);
+        props.set_string("/autopilot/vessel-ascent/state", phase_name);
+        props.set_string("/autopilot/status", ascent_profile_ + " ascent: " + phase_name);
     }
 }

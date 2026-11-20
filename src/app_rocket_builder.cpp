@@ -135,19 +135,9 @@ namespace kosmos::app
         double heading;
         base_pad(*it, planet.radius, dir, heading);
         const sl::dvec3 up = glm::normalize(dir);
-        const sl::dvec3 east = glm::normalize(glm::cross(pb.spin_axis, up));
-        const sl::dvec3 north = glm::cross(up, east);
-        const double turn = glm::radians(270.0 + rocket_builder.preview.pad_turn);
-        const sl::dvec3 roof = north * std::cos(turn) + east * std::sin(turn);
-        double lowest = 0.0;
-        for (const StageSpec &stage : rocket_builder.preview.stages)
-        {
-            lowest = std::max(lowest, stage.z + stage.length * 0.5);
-            for (const sl::dvec3 &gear : stage.gear)
-                lowest = std::max(lowest, gear.z);
-        }
+        const double lowest = ship_detail::rocket_lowest_point(rocket_builder.preview);
         position = pb.position + up * (planet.radius + it->height + base_pad_deck(*it) + lowest);
-        orientation = ship_detail::orientation_from(up, -roof);
+        orientation = ship_detail::rocket_pad_orientation(rocket_builder.preview, up, pb.spin_axis);
         return true;
     }
 
@@ -687,6 +677,90 @@ namespace kosmos::app
         return failures ? 1 : 0;
     }
 
+    void App::draw_rocket_builder_payloads()
+    {
+        RocketBuilderState &b = rocket_builder;
+        ImGui::Separator();
+        ImGui::TextUnformatted("Separate payload vessels");
+        std::vector<const ShipSpec *> payload_ships;
+        for (const Addon &addon : sim.addons())
+            for (const ShipSpec &spec : addon.ships)
+                if (!spec.ports.empty() && sim.find_ship_spec(spec.name) == &spec)
+                    payload_ships.push_back(&spec);
+        if (!b.preview_valid || b.preview.ports.empty())
+            ImGui::TextWrapped("Add a stage with a catalogued payload port before attaching a vessel.");
+        else if (payload_ships.empty())
+            ImGui::TextWrapped("No payload ships with attachment ports are available.");
+        else
+        {
+            b.payload_ship = std::clamp(b.payload_ship, 0, static_cast<int>(payload_ships.size()) - 1);
+            b.payload_carrier = std::clamp(b.payload_carrier, 0, static_cast<int>(b.payloads.size()));
+            const int carrier = b.payload_carrier - 1;
+            const ShipSpec *carrier_spec = carrier < 0 ? &b.preview : sim.find_ship_spec(b.payloads[static_cast<std::size_t>(carrier)].ship);
+            if (ImGui::BeginCombo("Payload ship", payload_ships[static_cast<std::size_t>(b.payload_ship)]->name.c_str()))
+            {
+                for (int i = 0; i < static_cast<int>(payload_ships.size()); ++i)
+                    if (ImGui::Selectable(payload_ships[static_cast<std::size_t>(i)]->name.c_str(), i == b.payload_ship))
+                        b.payload_ship = i, b.payload_own_port = 0;
+                ImGui::EndCombo();
+            }
+            if (ImGui::BeginCombo("Carrier", carrier < 0 ? b.name : b.payloads[static_cast<std::size_t>(carrier)].ship.c_str()))
+            {
+                if (ImGui::Selectable(b.name, b.payload_carrier == 0))
+                    b.payload_carrier = 0, b.payload_carrier_port = 0;
+                for (int i = 0; i < static_cast<int>(b.payloads.size()); ++i)
+                    if (ImGui::Selectable((b.payloads[static_cast<std::size_t>(i)].ship + "##carrier" + std::to_string(i)).c_str(), b.payload_carrier == i + 1))
+                        b.payload_carrier = i + 1, b.payload_carrier_port = 0;
+                ImGui::EndCombo();
+            }
+            const ShipSpec *payload = payload_ships[static_cast<std::size_t>(b.payload_ship)];
+            if (carrier_spec && !carrier_spec->ports.empty() && !payload->ports.empty())
+            {
+                b.payload_carrier_port = std::clamp(b.payload_carrier_port, 0, static_cast<int>(carrier_spec->ports.size()) - 1);
+                b.payload_own_port = std::clamp(b.payload_own_port, 0, static_cast<int>(payload->ports.size()) - 1);
+                if (ImGui::BeginCombo("Carrier port", carrier_spec->ports[static_cast<std::size_t>(b.payload_carrier_port)].name.c_str()))
+                {
+                    for (int i = 0; i < static_cast<int>(carrier_spec->ports.size()); ++i)
+                        if (ImGui::Selectable((carrier_spec->ports[static_cast<std::size_t>(i)].name + "##carrierport" + std::to_string(i)).c_str(), i == b.payload_carrier_port))
+                            b.payload_carrier_port = i;
+                    ImGui::EndCombo();
+                }
+                if (ImGui::BeginCombo("Payload port", payload->ports[static_cast<std::size_t>(b.payload_own_port)].name.c_str()))
+                {
+                    for (int i = 0; i < static_cast<int>(payload->ports.size()); ++i)
+                        if (ImGui::Selectable((payload->ports[static_cast<std::size_t>(i)].name + "##payloadport" + std::to_string(i)).c_str(), i == b.payload_own_port))
+                            b.payload_own_port = i;
+                    ImGui::EndCombo();
+                }
+                ImGui::BeginDisabled(b.saved);
+                if (ImGui::Button("Attach payload"))
+                {
+                    std::string problem;
+                    b.status = attach_rocket_payload(payload->name, carrier, b.payload_carrier_port, b.payload_own_port, problem)
+                                   ? "Payload attached. Its fit and collision clearance have not been verified." : problem;
+                }
+                ImGui::EndDisabled();
+            }
+            else
+                ImGui::TextWrapped("The selected carrier or payload has no attachment ports.");
+        }
+        for (std::size_t i = 0; i < b.payloads.size(); ++i)
+            ImGui::BulletText("%s (carrier %d)", b.payloads[i].ship.c_str(), b.payloads[i].carrier + 1);
+        ImGui::BeginDisabled(b.saved || b.payloads.empty());
+        if (ImGui::Button("Remove last payload"))
+        {
+            b.payloads.pop_back();
+            update_rocket_payload_fit();
+            b.status = "Payload removed.";
+        }
+        ImGui::EndDisabled();
+        if (!b.payloads.empty())
+        {
+            ImGui::TextWrapped("Payloads are separate vessels; their engines do not power the rocket.");
+            ImGui::TextWrapped("%s", b.fit_status.c_str());
+        }
+    }
+
     void App::draw_rocket_builder()
     {
         RocketBuilderState &b = rocket_builder;
@@ -891,85 +965,7 @@ namespace kosmos::app
             }
             if (!b.payloads.empty())
                 ImGui::TextWrapped("Remove payloads before changing the rocket.");
-            ImGui::Separator();
-            ImGui::TextUnformatted("Separate payload vessels");
-            std::vector<const ShipSpec *> payload_ships;
-            for (const Addon &addon : sim.addons())
-                for (const ShipSpec &spec : addon.ships)
-                    if (!spec.ports.empty() && sim.find_ship_spec(spec.name) == &spec)
-                        payload_ships.push_back(&spec);
-            if (!b.preview_valid || b.preview.ports.empty())
-                ImGui::TextWrapped("Add a stage with a catalogued payload port before attaching a vessel.");
-            else if (payload_ships.empty())
-                ImGui::TextWrapped("No payload ships with attachment ports are available.");
-            else
-            {
-                b.payload_ship = std::clamp(b.payload_ship, 0, static_cast<int>(payload_ships.size()) - 1);
-                b.payload_carrier = std::clamp(b.payload_carrier, 0, static_cast<int>(b.payloads.size()));
-                const int carrier = b.payload_carrier - 1;
-                const ShipSpec *carrier_spec = carrier < 0 ? &b.preview : sim.find_ship_spec(b.payloads[static_cast<std::size_t>(carrier)].ship);
-                if (ImGui::BeginCombo("Payload ship", payload_ships[static_cast<std::size_t>(b.payload_ship)]->name.c_str()))
-                {
-                    for (int i = 0; i < static_cast<int>(payload_ships.size()); ++i)
-                        if (ImGui::Selectable(payload_ships[static_cast<std::size_t>(i)]->name.c_str(), i == b.payload_ship))
-                            b.payload_ship = i, b.payload_own_port = 0;
-                    ImGui::EndCombo();
-                }
-                if (ImGui::BeginCombo("Carrier", carrier < 0 ? b.name : b.payloads[static_cast<std::size_t>(carrier)].ship.c_str()))
-                {
-                    if (ImGui::Selectable(b.name, b.payload_carrier == 0))
-                        b.payload_carrier = 0, b.payload_carrier_port = 0;
-                    for (int i = 0; i < static_cast<int>(b.payloads.size()); ++i)
-                        if (ImGui::Selectable((b.payloads[static_cast<std::size_t>(i)].ship + "##carrier" + std::to_string(i)).c_str(), b.payload_carrier == i + 1))
-                            b.payload_carrier = i + 1, b.payload_carrier_port = 0;
-                    ImGui::EndCombo();
-                }
-                const ShipSpec *payload = payload_ships[static_cast<std::size_t>(b.payload_ship)];
-                if (carrier_spec && !carrier_spec->ports.empty() && !payload->ports.empty())
-                {
-                    b.payload_carrier_port = std::clamp(b.payload_carrier_port, 0, static_cast<int>(carrier_spec->ports.size()) - 1);
-                    b.payload_own_port = std::clamp(b.payload_own_port, 0, static_cast<int>(payload->ports.size()) - 1);
-                    if (ImGui::BeginCombo("Carrier port", carrier_spec->ports[static_cast<std::size_t>(b.payload_carrier_port)].name.c_str()))
-                    {
-                        for (int i = 0; i < static_cast<int>(carrier_spec->ports.size()); ++i)
-                            if (ImGui::Selectable((carrier_spec->ports[static_cast<std::size_t>(i)].name + "##carrierport" + std::to_string(i)).c_str(), i == b.payload_carrier_port))
-                                b.payload_carrier_port = i;
-                        ImGui::EndCombo();
-                    }
-                    if (ImGui::BeginCombo("Payload port", payload->ports[static_cast<std::size_t>(b.payload_own_port)].name.c_str()))
-                    {
-                        for (int i = 0; i < static_cast<int>(payload->ports.size()); ++i)
-                            if (ImGui::Selectable((payload->ports[static_cast<std::size_t>(i)].name + "##payloadport" + std::to_string(i)).c_str(), i == b.payload_own_port))
-                                b.payload_own_port = i;
-                        ImGui::EndCombo();
-                    }
-                    ImGui::BeginDisabled(b.saved);
-                    if (ImGui::Button("Attach payload"))
-                    {
-                        std::string problem;
-                        b.status = attach_rocket_payload(payload->name, carrier, b.payload_carrier_port, b.payload_own_port, problem)
-                                       ? "Payload attached. Its fit and collision clearance have not been verified." : problem;
-                    }
-                    ImGui::EndDisabled();
-                }
-                else
-                    ImGui::TextWrapped("The selected carrier or payload has no attachment ports.");
-            }
-            for (std::size_t i = 0; i < b.payloads.size(); ++i)
-                ImGui::BulletText("%s (carrier %d)", b.payloads[i].ship.c_str(), b.payloads[i].carrier + 1);
-            ImGui::BeginDisabled(b.saved || b.payloads.empty());
-            if (ImGui::Button("Remove last payload"))
-            {
-                b.payloads.pop_back();
-                update_rocket_payload_fit();
-                b.status = "Payload removed.";
-            }
-            ImGui::EndDisabled();
-            if (!b.payloads.empty())
-            {
-                ImGui::TextWrapped("Payloads are separate vessels; their engines do not power the rocket.");
-                ImGui::TextWrapped("%s", b.fit_status.c_str());
-            }
+            draw_rocket_builder_payloads();
             ImGui::Separator();
             const std::string readiness = propulsion_problem(b);
             if (!readiness.empty())

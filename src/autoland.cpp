@@ -1,14 +1,69 @@
 #include "sim.h"
 #include "landing_descent.h"
+#include "vessel_guidance_profile.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <limits>
+#include <utility>
 #include <glm/gtc/quaternion.hpp>
 
 namespace kosmos
 {
+    enum class LandingPhase
+    {
+        inactive, deorbit, entry, braking, target_approach, planning_orbit,
+        waiting, checking, plane_alignment, plane_burn, powered_descent
+    };
+
+    namespace
+    {
+        constexpr std::pair<LandingPhase, const char *> landing_phases[] = {
+            {LandingPhase::inactive, ""},
+            {LandingPhase::deorbit, "Deorbit"},
+            {LandingPhase::entry, "Entry"},
+            {LandingPhase::braking, "Braking"},
+            {LandingPhase::target_approach, "Target approach"},
+            {LandingPhase::planning_orbit, "Planning orbit"},
+            {LandingPhase::waiting, "Waiting for window"},
+            {LandingPhase::checking, "Checking orbit"},
+            {LandingPhase::plane_alignment, "Plane alignment"},
+            {LandingPhase::plane_burn, "Plane burn"},
+            {LandingPhase::powered_descent, "Powered descent"},
+        };
+        const char *landing_phase_name(LandingPhase phase)
+        {
+            for (const auto &entry : landing_phases)
+                if (entry.first == phase)
+                    return entry.second;
+            return "Invalid landing phase";
+        }
+
+        LandingPhase landing_phase_from_name(const std::string &name)
+        {
+            for (const auto &entry : landing_phases)
+                if (name == entry.second)
+                    return entry.first;
+            return LandingPhase::inactive;
+        }
+    }
+
+    struct AutolandFrame
+    {
+        double frame;
+        Ship *ship;
+        const Telemetry &telemetry;
+        bool shuttle;
+        const sl::dvec3 &thrust_axis;
+        const sl::FlightBody &planet;
+        const sl::dvec3 &position, &up;
+        double radius, horizontal_speed, thrust, acceleration;
+        LandingPhase &phase;
+        sl::dvec3 &direction;
+        double &level;
+    };
+
     void Sim::cancel_autoland(const std::string &reason)
     {
         const bool active = landing_body_ >= 0 || props.get_bool("/autopilot/land/armed");
@@ -54,7 +109,7 @@ namespace kosmos
             return;
         }
         Ship *active = active_ship();
-        if (soyuz_landing_ || (active && active->spec().name == "CVEL Soyuz TMA"))
+        if (soyuz_landing_ || (active && vessel_guidance_profile(active->spec().name) == VesselGuidanceProfile::soyuz))
         {
             if (!active || active->crashed())
                 finish("Autoland aborted: no operational vessel");
@@ -62,19 +117,20 @@ namespace kosmos
                 run_soyuz_autoland(frame, *active);
             return;
         }
-        const std::string previous_phase = landing_body_ >= 0 ? props.get_string("/autopilot/land/state") : "";
+        const LandingPhase previous_phase = landing_body_ >= 0 ?
+            landing_phase_from_name(props.get_string("/autopilot/land/state")) : LandingPhase::inactive;
         const std::string sas = props.get_string("/controls/sas");
-        if ((previous_phase == "Deorbit" || previous_phase == "Entry" || previous_phase == "Braking" ||
-             previous_phase == "Target approach" || previous_phase == "Plane alignment" ||
-             previous_phase == "Plane burn" || previous_phase == "Powered descent") && sas != "attitude")
+        if ((previous_phase == LandingPhase::deorbit || previous_phase == LandingPhase::entry || previous_phase == LandingPhase::braking ||
+             previous_phase == LandingPhase::target_approach || previous_phase == LandingPhase::plane_alignment ||
+             previous_phase == LandingPhase::plane_burn || previous_phase == LandingPhase::powered_descent) && sas != "attitude")
         {
             finish("Autoland cancelled: manual SAS");
             props.set_string("/controls/sas", sas);
             return;
         }
 
-        if ((previous_phase == "Planning orbit" || previous_phase == "Waiting for window" ||
-             previous_phase == "Checking orbit") && sas != "off")
+        if ((previous_phase == LandingPhase::planning_orbit || previous_phase == LandingPhase::waiting ||
+             previous_phase == LandingPhase::checking) && sas != "off")
         {
             finish("Autoland cancelled: manual SAS");
             props.set_string("/controls/sas", sas);
@@ -92,9 +148,8 @@ namespace kosmos
             finish("Autoland aborted: body or stage changed");
             return;
         }
-        const bool shuttle = ship->spec().name == "CVEL Shuttle-A" ||
-                             ship->spec().name == "CVEL Shuttle-A (Nuclear)" ||
-                             ship->spec().name == "CVEL Shuttle-AQ";
+        const auto profile = vessel_guidance_profile(ship->spec().name);
+        const bool shuttle = profile == VesselGuidanceProfile::shuttle_a;
         const sl::dvec3 thrust_axis = shuttle ? sl::dvec3(0, 1, 0) : sl::dvec3(0, 0, -1);
         if (shuttle && !props.get_bool("/autopilot/land/targeted"))
         {
@@ -175,12 +230,12 @@ namespace kosmos
         }
         if (t.landed && t.surface_speed < 2.0)
         {
-            if (previous_phase != "Deorbit" && previous_phase != "Entry" && previous_phase != "Braking" &&
-                previous_phase != "Target approach" && props.get_bool("/autopilot/land/targeted"))
+            if (previous_phase != LandingPhase::deorbit && previous_phase != LandingPhase::entry && previous_phase != LandingPhase::braking &&
+                previous_phase != LandingPhase::target_approach && props.get_bool("/autopilot/land/targeted"))
                 finish(landing_orbital_ ? "Autoland aborted: landed before target approach" :
                                           "Autoland aborted: target landing must start airborne");
             else
-                finish(previous_phase == "Target approach" && props.get_double("/autopilot/land/distance") >
+                finish(previous_phase == LandingPhase::target_approach && props.get_double("/autopilot/land/distance") >
                            (landing_orbital_ ? 3000.0 : 50.0) ?
                            "Autoland: landed away from target" : "Autoland: landed");
             return;
@@ -193,19 +248,17 @@ namespace kosmos
         }
         props.set_double("/controls/throttle", 0.0);
         props.set_double("/controls/gear", 1.0);
-        if (ship->spec().name == "Ares Spider")
+        if (profile == VesselGuidanceProfile::ares)
             props.set_double("/controls/anim/legs", 0.0);
-        if (previous_phase != "Waiting for window" && props.get_int("/sim/warp-index") > 3)
+        if (previous_phase != LandingPhase::waiting && props.get_int("/sim/warp-index") > 3)
             props.set_int("/sim/warp-index", 3);
 
         const sl::dvec3 velocity = ship->relative_velocity();
         const sl::dvec3 horizontal = velocity - up * glm::dot(velocity, up);
         const double hspeed = glm::length(horizontal);
-        std::string phase = previous_phase;
+        LandingPhase phase = previous_phase;
         bool started_orbital_plan = false;
-        if (phase != "Deorbit" && phase != "Entry" && phase != "Braking" && phase != "Target approach" &&
-            phase != "Planning orbit" && phase != "Waiting for window" && phase != "Checking orbit" && phase != "Plane alignment" &&
-            phase != "Plane burn" && phase != "Powered descent")
+        if (phase == LandingPhase::inactive)
         {
             landing_targeted_ = props.get_bool("/autopilot/land/targeted");
             landing_orbital_ = false;
@@ -243,10 +296,10 @@ namespace kosmos
                 const double distance = radius * std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
                 if (distance <= 2000.0 && t.altitude >= 300.0 && t.altitude <= 3000.0 &&
                     hspeed <= 50.0 && std::abs(t.vertical_speed) <= 30.0)
-                    phase = "Target approach";
+                    phase = LandingPhase::target_approach;
                 else if (t.bound && t.altitude >= 50000.0 && !base_id.empty())
                 {
-                    if (!shuttle && ship->spec().name != "Ares Spider")
+                    if (!shuttle && profile != VesselGuidanceProfile::ares)
                     {
                         finish("Autoland aborted: orbital base landing requires Ares or Shuttle-A");
                         return;
@@ -294,7 +347,7 @@ namespace kosmos
                         finish("Autoland aborted: no plane-change windows with sufficient fuel");
                         return;
                     }
-                    phase = "Planning orbit";
+                    phase = LandingPhase::planning_orbit;
                     started_orbital_plan = true;
                 }
                 else
@@ -309,7 +362,7 @@ namespace kosmos
                 return;
             }
             else
-                phase = t.periapsis > -20000.0 ? "Deorbit" : "Entry";
+                phase = t.periapsis > -20000.0 ? LandingPhase::deorbit : LandingPhase::entry;
             landing_body_ = t.soi;
             landing_stage_ = ship->active_stage();
         }
@@ -318,211 +371,27 @@ namespace kosmos
             props.set_int("/sim/warp-index", 0);
             props.set_double("/controls/hover", 0.0);
             props.set_string("/controls/sas", "off");
-            props.set_string("/autopilot/land/state", phase);
-            props.set_string("/autopilot/status", "Autoland: " + phase);
+            props.set_string("/autopilot/land/state", landing_phase_name(phase));
+            props.set_string("/autopilot/status", std::string("Autoland: ") + landing_phase_name(phase));
             return;
         }
         sl::dvec3 direction = up;
         double level = 0.0;
         const double accel = thrust / t.mass;
-        const bool orbital_phase = phase == "Planning orbit" || phase == "Waiting for window" ||
-                                   phase == "Checking orbit" || phase == "Plane alignment" ||
-                                   phase == "Plane burn" || phase == "Powered descent";
+        const bool orbital_phase = phase == LandingPhase::planning_orbit || phase == LandingPhase::waiting ||
+                                   phase == LandingPhase::checking || phase == LandingPhase::plane_alignment ||
+                                   phase == LandingPhase::plane_burn || phase == LandingPhase::powered_descent;
         if (orbital_phase)
         {
-            const bool conditions_changed = props.get_bool("/sim/settings/nonspherical-gravity") ||
-                (props.get_bool("/sim/settings/weather", true) && Weather::supports_body(universe, t.soi));
-            if (conditions_changed && phase != "Plane burn" && phase != "Powered descent")
-            {
-                finish("Autoland aborted: orbital forecast conditions changed");
+            AutolandFrame context{frame, ship, t, shuttle, thrust_axis, planet, r, up,
+                                  radius, hspeed, thrust, accel, phase, direction, level};
+            if (!run_autoland_orbital(context))
                 return;
-            }
-            if (conditions_changed && !landing_forecast_changed_)
-            {
-                log("Autoland warning: forecast conditions changed during descent; monitor and take over");
-                landing_forecast_changed_ = true;
-            }
-            const double now = universe.time();
-            if (phase == "Waiting for window" || phase == "Checking orbit" || phase == "Plane alignment")
-                props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
-            if (phase == "Planning orbit" || phase == "Waiting for window" || phase == "Checking orbit" ||
-                phase == "Plane alignment")
-            {
-                sl::OrbitElements initial;
-                const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
-                if (!sl::orbit_from_state(mu, landing_plan_position_, landing_plan_velocity_, initial))
-                {
-                    finish("Autoland aborted: invalid planning orbit");
-                    return;
-                }
-                if (std::abs(t.mass - landing_checked_mass_) > std::max(10.0, landing_checked_mass_ * 0.001) ||
-                    std::abs(t.stage_fuel - landing_checked_fuel_) > 0.5)
-                {
-                    finish("Autoland aborted: vessel mass or fuel changed after forecast");
-                    return;
-                }
-                const sl::OrbitState expected = sl::state_from_orbit(mu, initial, now - landing_plan_time_);
-                const double position_error = glm::length(expected.position - r);
-                const double velocity_error = glm::length(expected.velocity - (ship->body().velocity - planet.velocity));
-                if (!std::isfinite(position_error) || !std::isfinite(velocity_error) ||
-                    position_error > 500.0 || velocity_error > 0.5)
-                {
-                    finish("Autoland aborted: orbit changed since planning");
-                    return;
-                }
-            }
-            if (phase == "Planning orbit" || phase == "Checking orbit")
-            {
-                props.set_int("/sim/warp-index", 0);
-                props.set_double("/controls/hover", 0.0);
-                props.set_string("/controls/sas", "off");
-                if (!landing_forecast_)
-                {
-                    if (phase == "Planning orbit")
-                    {
-                        while (landing_candidate_index_ < landing_candidates_.size() &&
-                               landing_plan_time_ + landing_candidates_[landing_candidate_index_].ignition_wait - now < 150.0)
-                            ++landing_candidate_index_;
-                        if (landing_candidate_index_ == landing_candidates_.size())
-                        {
-                            finish("Autoland aborted: no feasible orbital landing found");
-                            return;
-                        }
-                        landing_candidate_ = landing_candidates_[landing_candidate_index_++];
-                        props.set_int("/autopilot/land/candidate", static_cast<int>(landing_candidate_index_));
-                        landing_ignition_ = landing_plan_time_ + landing_candidate_.ignition_wait;
-                    }
-                    LandingCandidate candidate = landing_candidate_;
-                    candidate.ignition_wait = landing_ignition_ - now;
-                    landing_forecast_ = std::make_unique<LandingCandidateForecast>(
-                        universe, *ship, landing_base_, t.soi, shuttle, thrust_axis, candidate, thrust, 100.0, true);
-                }
-                if (landing_forecast_->advance(8))
-                {
-                    const LandingForecastStatus status = landing_forecast_->result().status;
-                    landing_forecast_.reset();
-                    if (status == LandingForecastStatus::unavailable_world || status == LandingForecastStatus::unavailable_wind)
-                    {
-                        finish("Autoland aborted: forecast environment unavailable");
-                        return;
-                    }
-                    if (status == LandingForecastStatus::landed &&
-                        landing_ignition_ - now >= (phase == "Planning orbit" ? 130.0 : 40.0))
-                    {
-                        phase = phase == "Planning orbit" ? "Waiting for window" : "Plane alignment";
-                        props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
-                        if (phase == "Plane alignment")
-                        {
-                            landing_checked_mass_ = t.mass;
-                            landing_checked_fuel_ = t.stage_fuel;
-                            props.set_string("/controls/sas", "attitude");
-                        }
-                    }
-                    else if (phase == "Checking orbit")
-                    {
-                        finish("Autoland aborted: landing forecast no longer feasible");
-                        return;
-                    }
-                }
-                props.set_string("/autopilot/land/state", phase);
-                props.set_string("/autopilot/status", "Autoland: " + phase);
-                return;
-            }
-            if (phase == "Waiting for window")
-            {
-                const double left = landing_ignition_ - now;
-                props.set_double("/controls/hover", 0.0);
-                props.set_string("/controls/sas", "off");
-                int index = std::clamp(props.get_int("/sim/warp-index"), 0, warp_levels - 1);
-                while (index > 0 && warp_factor(index) * std::max(frame, 0.25) > std::max(0.0, left - 130.0) * 0.25)
-                    --index;
-                props.set_int("/sim/warp-index", index);
-                if (left <= 130.0)
-                    phase = "Checking orbit";
-                props.set_string("/autopilot/land/state", phase);
-                props.set_string("/autopilot/status", "Autoland: " + phase);
-                return;
-            }
-            const double dv = glm::length(landing_candidate_.window.change.delta_v);
-            if (phase == "Plane alignment" || phase == "Plane burn")
-            {
-                const sl::dvec3 initial_velocity = landing_candidate_.window.departure_velocity;
-                direction = dv > 1e-8 ? landing_candidate_.window.change.delta_v / dv : -glm::normalize(initial_velocity);
-                const double alignment = glm::dot(ship->body().direction_to_world(thrust_axis), direction);
-                if (phase == "Plane alignment" && now >= landing_ignition_)
-                {
-                    if (now - landing_ignition_ > 1.0 || !std::isfinite(alignment) || alignment < 0.995)
-                    {
-                        finish("Autoland aborted: plane-burn alignment missed");
-                        return;
-                    }
-                    phase = "Plane burn";
-                    props.set_double("/autopilot/land/window", 0.0);
-                    landing_burn_delivered_ = 0.0;
-                    landing_last_time_ = now;
-                    landing_last_level_ = 0.0;
-                }
-                if (phase == "Plane burn")
-                {
-                    const double elapsed = std::max(0.0, now - landing_last_time_);
-                    if (landing_last_mass_ > 0.0)
-                        landing_burn_delivered_ += thrust * landing_last_level_ / landing_last_mass_ * elapsed;
-                    landing_last_time_ = now;
-                    if (landing_burn_delivered_ + 0.01 >= dv)
-                    {
-                        phase = "Powered descent";
-                        landing_descent_start_ = now;
-                        landing_last_level_ = 0.0;
-                    }
-                    else if (!std::isfinite(alignment) || alignment < 0.995 ||
-                             now > landing_ignition_ + landing_candidate_.burn.duration + 1.0)
-                    {
-                        finish("Autoland aborted: plane burn failed");
-                        return;
-                    }
-                    else
-                    {
-                        const double interval = frame * warp_factor(props.get_int("/sim/warp-index"));
-                        level = landing_plane_burn_level(dv - landing_burn_delivered_, accel, interval);
-                        landing_last_level_ = level;
-                        landing_last_mass_ = t.mass;
-                    }
-                }
-            }
-            if (phase == "Powered descent")
-            {
-                const sl::dvec3 target = surface_direction(universe, t.soi, landing_latitude_, landing_longitude_);
-                const double distance = radius * std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
-                props.set_double("/autopilot/land/distance", distance);
-                if (landing_descent_captured(distance, t.altitude, hspeed, t.vertical_speed))
-                    phase = "Target approach";
-                else
-                {
-                    if (now - landing_descent_start_ > landing_descent_timeout_seconds)
-                    {
-                        finish("Autoland aborted: powered descent timed out");
-                        return;
-                    }
-                    const Body &body = universe.bodies[static_cast<std::size_t>(t.soi)];
-                    const auto command = landing_descent_command(r, ship->body().velocity - planet.velocity, target,
-                                                                 universe.pole(t.soi), body.spin, body.gm,
-                                                                 body.radius + landing_base_.height + landing_base_.pad_deck + landing_capture_target_height_m,
-                                                                 landing_descent_remaining_seconds(now - landing_descent_start_));
-                    const double magnitude = glm::length(command.acceleration);
-                    if (!command.valid || !std::isfinite(magnitude) || magnitude < 1e-8)
-                    {
-                        finish("Autoland aborted: invalid descent guidance");
-                        return;
-                    }
-                    direction = command.acceleration / magnitude;
-                    level = std::clamp(magnitude / accel, 0.0, 1.0);
-                }
-            }
         }
-        if (phase == "Deorbit")
+        if (phase == LandingPhase::deorbit)
         {
             if (t.periapsis <= -20000.0)
-                phase = "Entry";
+                phase = LandingPhase::entry;
             else
             {
                 const sl::dvec3 orbital = ship->body().velocity - planet.velocity;
@@ -530,15 +399,15 @@ namespace kosmos
                 level = std::clamp((t.periapsis + 20000.0) / 30000.0, 0.05, 1.0);
             }
         }
-        if (phase == "Entry")
+        if (phase == LandingPhase::entry)
         {
             const double vertical_stop = t.vertical_speed * t.vertical_speed / (2.0 * std::max(accel - gravity, 0.1));
             if (t.altitude < 30000.0 || (t.vertical_speed < 0.0 && t.altitude < vertical_stop * 2.0 + 3000.0))
-                phase = "Braking";
+                phase = LandingPhase::braking;
             else
                 direction = up;
         }
-        if (phase == "Braking")
+        if (phase == LandingPhase::braking)
         {
             const double wanted_vs = -std::clamp(t.altitude * 0.025, 2.0, 350.0);
             const sl::dvec3 horizontal_accel = -horizontal * 0.08;
@@ -547,7 +416,7 @@ namespace kosmos
             direction = glm::normalize(wanted);
             level = std::clamp(glm::length(wanted) / accel, 0.0, 1.0);
         }
-        if (phase == "Target approach")
+        if (phase == LandingPhase::target_approach)
         {
             if (landing_orbital_ && !landing_forecast_changed_ &&
                 (props.get_bool("/sim/settings/nonspherical-gravity") ||
@@ -570,7 +439,220 @@ namespace kosmos
             direction = approach.direction;
             level = approach.level;
         }
-        sl::dvec3 east = glm::cross(planet.spin_axis, up);
+        apply_autoland_guidance(*ship, planet.spin_axis, up, thrust_axis, direction, level, landing_phase_name(phase));
+    }
+
+    bool Sim::run_autoland_orbital(AutolandFrame &context)
+    {
+        const double frame = context.frame;
+        Ship *ship = context.ship;
+        const Telemetry &t = context.telemetry;
+        const bool shuttle = context.shuttle;
+        const sl::dvec3 &thrust_axis = context.thrust_axis;
+        const sl::FlightBody &planet = context.planet;
+        const sl::dvec3 &r = context.position, &up = context.up;
+        const double radius = context.radius, hspeed = context.horizontal_speed;
+        const double thrust = context.thrust, accel = context.acceleration;
+        LandingPhase &phase = context.phase;
+        sl::dvec3 &direction = context.direction;
+        double &level = context.level;
+        const auto finish = [&](const std::string &message) { cancel_autoland(message); };
+        const bool conditions_changed = props.get_bool("/sim/settings/nonspherical-gravity") ||
+            (props.get_bool("/sim/settings/weather", true) && Weather::supports_body(universe, t.soi));
+        if (conditions_changed && phase != LandingPhase::plane_burn && phase != LandingPhase::powered_descent)
+        {
+            finish("Autoland aborted: orbital forecast conditions changed");
+            return false;
+        }
+        if (conditions_changed && !landing_forecast_changed_)
+        {
+            log("Autoland warning: forecast conditions changed during descent; monitor and take over");
+            landing_forecast_changed_ = true;
+        }
+        const double now = universe.time();
+        if (phase == LandingPhase::waiting || phase == LandingPhase::checking || phase == LandingPhase::plane_alignment)
+            props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
+        if (phase == LandingPhase::planning_orbit || phase == LandingPhase::waiting || phase == LandingPhase::checking ||
+            phase == LandingPhase::plane_alignment)
+        {
+            sl::OrbitElements initial;
+            const double mu = universe.bodies[static_cast<std::size_t>(t.soi)].gm;
+            if (!sl::orbit_from_state(mu, landing_plan_position_, landing_plan_velocity_, initial))
+            {
+                finish("Autoland aborted: invalid planning orbit");
+                return false;
+            }
+            if (std::abs(t.mass - landing_checked_mass_) > std::max(10.0, landing_checked_mass_ * 0.001) ||
+                std::abs(t.stage_fuel - landing_checked_fuel_) > 0.5)
+            {
+                finish("Autoland aborted: vessel mass or fuel changed after forecast");
+                return false;
+            }
+            const sl::OrbitState expected = sl::state_from_orbit(mu, initial, now - landing_plan_time_);
+            const double position_error = glm::length(expected.position - r);
+            const double velocity_error = glm::length(expected.velocity - (ship->body().velocity - planet.velocity));
+            if (!std::isfinite(position_error) || !std::isfinite(velocity_error) ||
+                position_error > 500.0 || velocity_error > 0.5)
+            {
+                finish("Autoland aborted: orbit changed since planning");
+                return false;
+            }
+        }
+        if (phase == LandingPhase::planning_orbit || phase == LandingPhase::checking)
+        {
+            props.set_int("/sim/warp-index", 0);
+            props.set_double("/controls/hover", 0.0);
+            props.set_string("/controls/sas", "off");
+            if (!landing_forecast_)
+            {
+                if (phase == LandingPhase::planning_orbit)
+                {
+                    while (landing_candidate_index_ < landing_candidates_.size() &&
+                           landing_plan_time_ + landing_candidates_[landing_candidate_index_].ignition_wait - now < 150.0)
+                        ++landing_candidate_index_;
+                    if (landing_candidate_index_ == landing_candidates_.size())
+                    {
+                        finish("Autoland aborted: no feasible orbital landing found");
+                        return false;
+                    }
+                    landing_candidate_ = landing_candidates_[landing_candidate_index_++];
+                    props.set_int("/autopilot/land/candidate", static_cast<int>(landing_candidate_index_));
+                    landing_ignition_ = landing_plan_time_ + landing_candidate_.ignition_wait;
+                }
+                LandingCandidate candidate = landing_candidate_;
+                candidate.ignition_wait = landing_ignition_ - now;
+                landing_forecast_ = std::make_unique<LandingCandidateForecast>(
+                    universe, *ship, landing_base_, t.soi, shuttle, thrust_axis, candidate, thrust, 100.0, true);
+            }
+            if (landing_forecast_->advance(8))
+            {
+                const LandingForecastStatus status = landing_forecast_->result().status;
+                landing_forecast_.reset();
+                if (status == LandingForecastStatus::unavailable_world || status == LandingForecastStatus::unavailable_wind)
+                {
+                    finish("Autoland aborted: forecast environment unavailable");
+                    return false;
+                }
+                if (status == LandingForecastStatus::landed &&
+                    landing_ignition_ - now >= (phase == LandingPhase::planning_orbit ? 130.0 : 40.0))
+                {
+                    phase = phase == LandingPhase::planning_orbit ? LandingPhase::waiting : LandingPhase::plane_alignment;
+                    props.set_double("/autopilot/land/window", std::max(0.0, landing_ignition_ - now));
+                    if (phase == LandingPhase::plane_alignment)
+                    {
+                        landing_checked_mass_ = t.mass;
+                        landing_checked_fuel_ = t.stage_fuel;
+                        props.set_string("/controls/sas", "attitude");
+                    }
+                }
+                else if (phase == LandingPhase::checking)
+                {
+                    finish("Autoland aborted: landing forecast no longer feasible");
+                    return false;
+                }
+            }
+            props.set_string("/autopilot/land/state", landing_phase_name(phase));
+            props.set_string("/autopilot/status", std::string("Autoland: ") + landing_phase_name(phase));
+            return false;
+        }
+        if (phase == LandingPhase::waiting)
+        {
+            const double left = landing_ignition_ - now;
+            props.set_double("/controls/hover", 0.0);
+            props.set_string("/controls/sas", "off");
+            int index = std::clamp(props.get_int("/sim/warp-index"), 0, warp_levels - 1);
+            while (index > 0 && warp_factor(index) * std::max(frame, 0.25) > std::max(0.0, left - 130.0) * 0.25)
+                --index;
+            props.set_int("/sim/warp-index", index);
+            if (left <= 130.0)
+                phase = LandingPhase::checking;
+            props.set_string("/autopilot/land/state", landing_phase_name(phase));
+            props.set_string("/autopilot/status", std::string("Autoland: ") + landing_phase_name(phase));
+            return false;
+        }
+        const double dv = glm::length(landing_candidate_.window.change.delta_v);
+        if (phase == LandingPhase::plane_alignment || phase == LandingPhase::plane_burn)
+        {
+            const sl::dvec3 initial_velocity = landing_candidate_.window.departure_velocity;
+            direction = dv > 1e-8 ? landing_candidate_.window.change.delta_v / dv : -glm::normalize(initial_velocity);
+            const double alignment = glm::dot(ship->body().direction_to_world(thrust_axis), direction);
+            if (phase == LandingPhase::plane_alignment && now >= landing_ignition_)
+            {
+                if (now - landing_ignition_ > 1.0 || !std::isfinite(alignment) || alignment < 0.995)
+                {
+                    finish("Autoland aborted: plane-burn alignment missed");
+                    return false;
+                }
+                phase = LandingPhase::plane_burn;
+                props.set_double("/autopilot/land/window", 0.0);
+                landing_burn_delivered_ = 0.0;
+                landing_last_time_ = now;
+                landing_last_level_ = 0.0;
+            }
+            if (phase == LandingPhase::plane_burn)
+            {
+                const double elapsed = std::max(0.0, now - landing_last_time_);
+                if (landing_last_mass_ > 0.0)
+                    landing_burn_delivered_ += thrust * landing_last_level_ / landing_last_mass_ * elapsed;
+                landing_last_time_ = now;
+                if (landing_burn_delivered_ + 0.01 >= dv)
+                {
+                    phase = LandingPhase::powered_descent;
+                    landing_descent_start_ = now;
+                    landing_last_level_ = 0.0;
+                }
+                else if (!std::isfinite(alignment) || alignment < 0.995 ||
+                         now > landing_ignition_ + landing_candidate_.burn.duration + 1.0)
+                {
+                    finish("Autoland aborted: plane burn failed");
+                    return false;
+                }
+                else
+                {
+                    const double interval = frame * warp_factor(props.get_int("/sim/warp-index"));
+                    level = landing_plane_burn_level(dv - landing_burn_delivered_, accel, interval);
+                    landing_last_level_ = level;
+                    landing_last_mass_ = t.mass;
+                }
+            }
+        }
+        if (phase == LandingPhase::powered_descent)
+        {
+            const sl::dvec3 target = surface_direction(universe, t.soi, landing_latitude_, landing_longitude_);
+            const double distance = radius * std::acos(std::clamp(glm::dot(up, target), -1.0, 1.0));
+            props.set_double("/autopilot/land/distance", distance);
+            if (landing_descent_captured(distance, t.altitude, hspeed, t.vertical_speed))
+                phase = LandingPhase::target_approach;
+            else
+            {
+                if (now - landing_descent_start_ > landing_descent_timeout_seconds)
+                {
+                    finish("Autoland aborted: powered descent timed out");
+                    return false;
+                }
+                const Body &body = universe.bodies[static_cast<std::size_t>(t.soi)];
+                const auto command = landing_descent_command(r, ship->body().velocity - planet.velocity, target,
+                                                             universe.pole(t.soi), body.spin, body.gm,
+                                                             body.radius + landing_base_.height + landing_base_.pad_deck + landing_capture_target_height_m,
+                                                             landing_descent_remaining_seconds(now - landing_descent_start_));
+                const double magnitude = glm::length(command.acceleration);
+                if (!command.valid || !std::isfinite(magnitude) || magnitude < 1e-8)
+                {
+                    finish("Autoland aborted: invalid descent guidance");
+                    return false;
+                }
+                direction = command.acceleration / magnitude;
+                level = std::clamp(magnitude / accel, 0.0, 1.0);
+            }
+        }
+        return true;
+    }
+
+    void Sim::apply_autoland_guidance(const Ship &ship, const sl::dvec3 &spin_axis, const sl::dvec3 &up,
+                                      const sl::dvec3 &thrust_axis, const sl::dvec3 &direction,
+                                      double level, const std::string &phase)
+    {
+        sl::dvec3 east = glm::cross(spin_axis, up);
         if (glm::length(east) < 1.0e-8)
             east = glm::cross(sl::dvec3(1, 0, 0), up);
         east = glm::normalize(east);
@@ -587,7 +669,7 @@ namespace kosmos
         props.set_double("/controls/target-heading", heading);
         landing_axis_ = thrust_axis;
         landing_direction_ = direction;
-        const sl::dvec3 nose = ship->body().direction_to_world(thrust_axis);
+        const sl::dvec3 nose = ship.body().direction_to_world(thrust_axis);
         if (glm::dot(nose, direction) < 0.98)
             level = 0.0;
         props.set_double("/controls/hover", level);

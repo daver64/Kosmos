@@ -12,6 +12,7 @@
 #include "scenario.h"
 #include "ship.h"
 #include "universe.h"
+#include "vessel_guidance_profile.h"
 
 #include <chrono>
 #include <functional>
@@ -22,6 +23,8 @@
 
 namespace kosmos
 {
+    struct AutolandFrame;
+
     /** Parses a UTC ignition date or MJD, rejecting invalid civil dates and times. */
     bool parse_burn_date(const std::string &text, double &jd);
 
@@ -193,9 +196,15 @@ namespace kosmos
         /** Burn autopilot: waits for the ignition time, holds prograde and burns until the apoapsis reaches the target radius (see /autopilot/burn). */
         void run_burn();
         void run_autoland(double frame);
+        bool run_autoland_orbital(AutolandFrame &context);
+        void apply_autoland_guidance(const Ship &ship, const sl::dvec3 &spin_axis, const sl::dvec3 &up,
+                                     const sl::dvec3 &thrust_axis, const sl::dvec3 &direction,
+                                     double level, const std::string &phase);
         void run_soyuz_autoland(double frame, Ship &ship);
         void run_timed_burn();
+        void handle_vessel_ascent_request();
         void run_vessel_ascent(double dt);
+        void apply_vessel_ascent_guidance(Ship &ship, double dt, double main, double hover, double pitch);
         void load_active_script();
 
         std::string root_;
@@ -218,7 +227,8 @@ namespace kosmos
         void follow_burn_plan();
         bool script_loaded_ = false;
         int ascent_ship_ = -1, ascent_body_ = -1, ascent_stage_ = -1;
-        std::string ascent_profile_, ascent_phase_;
+        std::string ascent_profile_;
+        VesselAscentPhase ascent_phase_ = VesselAscentPhase::inactive;
         double ascent_heading_ = 90.0, ascent_launch_heading_ = 90.0, ascent_target_ = 200000.0, ascent_pitch_ = 0.0, ascent_start_ = 0.0;
         double ascent_throttle_ = 0.0, ascent_hover_ = 0.0;
         double ascent_gimbal_ = 0.0, ascent_saved_gimbal_ = 0.0;

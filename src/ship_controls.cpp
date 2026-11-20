@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace kosmos
 {
@@ -335,6 +336,32 @@ namespace kosmos
     double Ship::main_max_thrust() const
     {
         return engine_value("main-left", "max-thrust") + engine_value("main-right", "max-thrust");
+    }
+
+    double Ship::ascent_available_thrust(bool hover, const sl::dvec3 &axis) const
+    {
+        if (active_stage_ < 0 || static_cast<std::size_t>(active_stage_) >= spec_.stages.size() ||
+            stage_first_thruster_.size() < static_cast<std::size_t>(active_stage_) + 2)
+            return 0.0;
+        const auto &engines = spec_.stages[static_cast<std::size_t>(active_stage_)].engines;
+        const sl::FlightBody &b = body();
+        const double density = universe_.world.air_density_at(b.position);
+        const int first = stage_first_thruster_[static_cast<std::size_t>(active_stage_)];
+        double thrust = 0.0;
+        for (std::size_t i = 0; i < engines.size(); ++i)
+        {
+            const EngineSpec &engine = engines[i];
+            if (engine.hover != hover || engine.pod || !engine.rcs_groups.empty() ||
+                engine.air_breathing || engine.type == EngineType::solid || engine.type == EngineType::hyperjump)
+                continue;
+            sl::Thruster thruster = b.thrusters[static_cast<std::size_t>(first) + i];
+            const double length = glm::length(thruster.direction);
+            if (!std::isfinite(length) || length < 1e-8)
+                return std::numeric_limits<double>::quiet_NaN();
+            thruster.level = 1.0;
+            thrust += sl::thruster_output(b, thruster, density) * glm::dot(thruster.direction / length, axis);
+        }
+        return thrust;
     }
 
     double Ship::main_pitch_trim(double yaw) const

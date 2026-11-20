@@ -491,6 +491,7 @@ namespace kosmos::app
         int init_ship();
         bool menu_start_scenario(const kosmos::Scenario &sc);
         void draw_rocket_builder();
+        void draw_rocket_builder_payloads();
         bool update_rocket_preview(std::string &error);
         bool rocket_preview_pose(sl::dvec3 &position, sl::dquat &orientation) const;
         void draw_rocket_preview();
@@ -627,6 +628,9 @@ namespace kosmos::app
         void draw_body(std::size_t i, const sl::Light3D &body_light);
         void draw_terrain_body_weather(std::size_t i, const kosmos::Body &b);
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+        bool check_orbiter_relief_ground(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative,
+                                         BodyTerrain *ground_guard, double radius, const glm::dvec3 &eye_local,
+                                         const glm::dmat4 &view_projection);
         bool draw_orbiter_relief(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative, sl::Material &material,
                                  BodyTerrain *ground_guard = nullptr);
 #endif

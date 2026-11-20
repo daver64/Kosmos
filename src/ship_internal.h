@@ -4,6 +4,9 @@
 
 #include "ship.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace kosmos::ship_detail
 {
     inline constexpr double pi = 3.14159265358979323846;
@@ -19,6 +22,29 @@ namespace kosmos::ship_detail
         x = glm::normalize(x);
         const sl::dvec3 y = glm::cross(z, x);
         return glm::normalize(glm::quat_cast(sl::dmat3(x, y, z)));
+    }
+
+    inline double rocket_lowest_point(const ShipSpec &spec)
+    {
+        double lowest = 0.0;
+        for (const StageSpec &stage : spec.stages)
+        {
+            lowest = std::max(lowest, stage.z + stage.length * 0.5);
+            for (const sl::dvec3 &gear : stage.gear)
+                lowest = std::max(lowest, gear.z);
+        }
+        return lowest;
+    }
+
+    inline sl::dquat rocket_pad_orientation(const ShipSpec &spec, const sl::dvec3 &up,
+                                            const sl::dvec3 &spin_axis)
+    {
+        const sl::dvec3 east = glm::normalize(glm::cross(spin_axis, up));
+        const sl::dvec3 north = glm::cross(up, east);
+        // The rocket's roof faces west so pitching toward it turns the nose east.
+        const double heading = (270.0 + spec.pad_turn) * pi / 180.0;
+        const sl::dvec3 roof = north * std::cos(heading) + east * std::sin(heading);
+        return orientation_from(up, -roof);
     }
 
     inline double atmosphere_top(const Body &body)

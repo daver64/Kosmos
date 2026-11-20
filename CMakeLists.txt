@@ -273,6 +273,11 @@ target_link_libraries(landing_plane_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(landing_plane_test PRIVATE src)
 target_compile_definitions(landing_plane_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
 
+add_executable(vessel_guidance_test EXCLUDE_FROM_ALL tests/vessel_guidance_test.cpp)
+target_link_libraries(vessel_guidance_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
+target_include_directories(vessel_guidance_test PRIVATE src)
+target_compile_definitions(vessel_guidance_test PRIVATE $<$<PLATFORM_ID:Windows>:SDL_MAIN_HANDLED>)
+
 add_executable(orbital_relief_guard_test EXCLUDE_FROM_ALL tests/orbital_relief_guard_test.cpp)
 target_link_libraries(orbital_relief_guard_test PRIVATE ${KOSMOS_SIMLIB_LIBS})
 target_include_directories(orbital_relief_guard_test PRIVATE src)

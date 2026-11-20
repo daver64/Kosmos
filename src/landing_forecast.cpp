@@ -4,6 +4,7 @@
 #include "landing_descent.h"
 #include "ship.h"
 #include "universe.h"
+#include "vessel_guidance_profile.h"
 
 #include <algorithm>
 #include <cmath>
@@ -161,8 +162,8 @@ namespace kosmos
             }
             const sl::dvec3 surface_v = ship.relative_velocity();
             const double hspeed = glm::length(surface_v - up * glm::dot(surface_v, up));
-            if (phase == Phase::descent && distance < 1500.0 && t.altitude > 300.0 && t.altitude < 3000.0 &&
-                hspeed < 40.0 && std::abs(t.vertical_speed) < 25.0)
+            if (phase == Phase::descent &&
+                landing_descent_captured(distance, t.altitude, hspeed, t.vertical_speed))
             {
                 result.captured = true;
                 if (!through_touchdown)
@@ -187,8 +188,8 @@ namespace kosmos
                 return;
             }
             const auto command = landing_descent_command(r, v, ground, pad.pole, body.spin, body.gm,
-                                                         body.radius + pad.height + pad.pad_deck + 2500.0,
-                                                         std::max(650.0 - (universe.time() - start_time), 60.0));
+                                                         body.radius + pad.height + pad.pad_deck + landing_capture_target_height_m,
+                                                         landing_descent_remaining_seconds(universe.time() - start_time));
             const double magnitude = glm::length(command.acceleration);
             if (!command.valid || !std::isfinite(magnitude) || magnitude < 1e-8)
                 return fail(LandingForecastStatus::invalid_guidance);
@@ -369,7 +370,7 @@ namespace kosmos
         Impl(const Universe &source, const Ship &original, double coast)
         {
             body_id = original.telemetry().soi;
-            if (original.spec().name != "CVEL Soyuz TMA" || original.active_stage() != 0 ||
+            if (vessel_guidance_profile(original.spec().name) != VesselGuidanceProfile::soyuz || original.active_stage() != 0 ||
                 original.crashed() || body_id < 0 ||
                 static_cast<std::size_t>(body_id) >= source.bodies.size() ||
                 source.bodies[static_cast<std::size_t>(body_id)].name != "Earth" ||

@@ -702,6 +702,8 @@ namespace kosmos
         void refresh_telemetry() { update_telemetry(); }
         /** Maximum available thrust controlled by the main throttle, excluding hover, pod and RCS engines. */
         double main_max_thrust() const;
+        /** Available throttleable ascent thrust projected along a ship-frame axis. */
+        double ascent_available_thrust(bool hover, const sl::dvec3 &axis) const;
         /** Main-engine pitch gimbal setting that minimises pitch torque about the current centre of mass. */
         double main_pitch_trim(double yaw) const;
         /** What the reaction-control jets did on the last update, in the ship frame: torque command (pitch, yaw, roll) and translation push, each -1..1. */

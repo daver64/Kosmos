@@ -2,6 +2,7 @@
 
 #include <imgui.h>
 #include "ui_slider.h"
+#include "vessel_guidance_profile.h"
 #include <imgui_internal.h>
 
 #include <algorithm>
@@ -1525,56 +1526,9 @@ namespace kosmos
         ImGui::End();
     }
 
-    void draw_spacecraft_autopilot(Sim &sim, bool &open)
+    static bool draw_autoland_controls(Sim &sim, Ship *ship)
     {
-        ImGui::SetNextWindowPos(ImVec2(160.0f, 140.0f), ImGuiCond_FirstUseEver);
-        if (!ImGui::Begin("Spacecraft autopilot", &open, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            ImGui::End();
-            return;
-        }
         sl::PropertyTree &p = sim.props;
-        Ship *ship = sim.active_ship();
-        if (!ship)
-        {
-            ImGui::TextUnformatted("No vessel.");
-            ImGui::End();
-            return;
-        }
-        if (ship->flies_as_aircraft())
-            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is flying as an aircraft; see Autopilot > Aircraft.", ship->name.c_str());
-
-        const bool scripted = !ship->spec().script.empty();
-        bool engaged = p.get_bool("/autopilot/enabled");
-        ImGui::TextUnformatted("Programmed flight");
-        if (scripted)
-        {
-            if (ImGui::Checkbox("Ascent autopilot engaged  [P]", &engaged))
-            {
-                if (engaged)
-                {
-                    sim.cancel_timed_burn("Timed burn cancelled: ascent engaged");
-                    sim.cancel_vessel_ascent("Ascent cancelled: another autopilot engaged");
-                }
-                p.set_bool("/autopilot/enabled", engaged);
-                if (!engaged)
-                    p.set_string("/autopilot/status", "");
-            }
-            const std::string status = p.get_string("/autopilot/status");
-            ImGui::SameLine();
-            ImGui::TextDisabled("%s", engaged && !status.empty() ? status.c_str() : "off");
-            float altitude = static_cast<float>(p.get_double("/autopilot/sc/target-altitude")), heading = static_cast<float>(p.get_double("/autopilot/sc/heading"));
-            ImGui::SetNextItemWidth(140.0f);
-            if (ImGui::InputFloat("Target orbit (km)", &altitude, 10.0f, 100.0f, "%.0f"))
-                p.set_double("/autopilot/sc/target-altitude", std::clamp(static_cast<double>(altitude), 80.0, 2000.0));
-            ImGui::SetNextItemWidth(140.0f);
-            if (ui::slider_float("Launch heading", &heading, 0.0f, 360.0f, "%.0f deg"))
-                p.set_double("/autopilot/sc/heading", heading);
-            ImGui::TextDisabled("Liftoff, gravity turn, staging, coast and circularise.");
-        }
-        else
-            ImGui::TextDisabled("%s has no programmed autopilot.", ship->name.c_str());
-
         ImGui::Separator();
         ImGui::TextUnformatted("Autoland (experimental)");
         bool landing = p.get_bool("/autopilot/land/armed");
@@ -1594,7 +1548,7 @@ namespace kosmos
         }
         const std::string landing_status = p.get_string("/autopilot/land/state");
         bool targeted = p.get_bool("/autopilot/land/targeted");
-        const bool soyuz = ship->spec().name == "CVEL Soyuz TMA";
+        const bool soyuz = vessel_guidance_profile(ship->spec().name) == VesselGuidanceProfile::soyuz;
         if (!landing_status.empty() && landing_status != "off")
             ImGui::TextWrapped("%s", landing_status.c_str());
         if (targeted && !landing)
@@ -1681,13 +1635,134 @@ namespace kosmos
                                 p.get_int("/autopilot/land/candidates"));
             }
         }
-        else if (ship->spec().name == "CVEL Soyuz TMA")
+        else if (soyuz)
             ImGui::TextDisabled("Soyuz requires Target landing and an Earth base.");
         else
             ImGui::TextDisabled("Untargeted Mars landing; start in orbit.");
-        if (ship->spec().name != "CVEL Soyuz TMA")
+        if (!soyuz)
             ImGui::TextDisabled("A selected base aims at its pad; orbital success is within 3 km of the base.");
         ImGui::TextDisabled("Forecasts are approximate; no terrain or obstacle avoidance. Monitor and take over.");
+        return landing;
+    }
+
+    static void draw_timed_burn_controls(Sim &sim, bool timed)
+    {
+        sl::PropertyTree &p = sim.props;
+        ImGui::Separator();
+        ImGui::TextUnformatted("Timed burn (ignition)");
+        static int time_mode = 0, engine_mode = 0, burn_sas = 0;
+        static double delay = 60.0, duration = 10.0, burn_throttle = 100.0;
+        static char utc[64] = "";
+        static const char *const burn_modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude"};
+        ImGui::BeginDisabled(timed);
+        ImGui::RadioButton("Countdown", &time_mode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("UTC date", &time_mode, 1);
+        ImGui::SetNextItemWidth(160.0f);
+        if (time_mode == 0)
+            ImGui::InputDouble("Ignition in (s)", &delay, 10.0, 60.0, "%.1f");
+        else
+            ImGui::InputText("Ignition UTC", utc, sizeof utc);
+        if (time_mode == 1)
+            ImGui::TextDisabled("YYYY-MM-DD HH:MM:SS UTC or MJD.");
+        ImGui::SetNextItemWidth(160.0f);
+        ImGui::InputDouble("Duration (s)", &duration, 1.0, 10.0, "%.1f");
+        ImGui::SetNextItemWidth(160.0f);
+        ImGui::InputDouble("Burn throttle (%%)", &burn_throttle, 5.0, 10.0, "%.1f");
+        ImGui::RadioButton("Main", &engine_mode, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Hover##burn", &engine_mode, 1);
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::BeginCombo("Burn attitude", burn_modes[burn_sas]))
+        {
+            for (int i = 0; i < 8; ++i)
+                if (ImGui::Selectable(burn_modes[i], i == burn_sas))
+                    burn_sas = i;
+            ImGui::EndCombo();
+        }
+        if (burn_sas == 7)
+            ImGui::TextDisabled("Uses the pitch and heading set in Attitude hold.");
+        if (ImGui::Button("Arm timed burn"))
+        {
+            double ignition_delay = delay;
+            double jd = 0.0;
+            if (time_mode == 1 && !parse_burn_date(utc, jd))
+            {
+                p.set_string("/autopilot/timed/state", "Not armed: invalid UTC date");
+                sim.log("Timed burn not armed: invalid UTC date");
+            }
+            else
+            {
+                if (time_mode == 1)
+                    ignition_delay = (jd - sim.universe.julian_date()) * 86400.0;
+                sim.arm_timed_burn(ignition_delay, duration, burn_throttle / 100.0, engine_mode == 0 ? "main" : "hover", burn_modes[burn_sas]);
+            }
+        }
+        ImGui::EndDisabled();
+        if (timed)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel timed burn"))
+                sim.cancel_timed_burn("Timed burn cancelled");
+            ImGui::Text("Remaining: %.1f s", p.get_double("/autopilot/timed/remaining"));
+        }
+        const std::string burn_state = p.get_string("/autopilot/timed/state");
+        if (!burn_state.empty())
+            ImGui::TextWrapped("%s", burn_state.c_str());
+        ImGui::TextDisabled("Warp held at 1x; allow time to align before ignition.");
+    }
+
+    void draw_spacecraft_autopilot(Sim &sim, bool &open)
+    {
+        ImGui::SetNextWindowPos(ImVec2(160.0f, 140.0f), ImGuiCond_FirstUseEver);
+        if (!ImGui::Begin("Spacecraft autopilot", &open, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::End();
+            return;
+        }
+        sl::PropertyTree &p = sim.props;
+        Ship *ship = sim.active_ship();
+        if (!ship)
+        {
+            ImGui::TextUnformatted("No vessel.");
+            ImGui::End();
+            return;
+        }
+        if (ship->flies_as_aircraft())
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s is flying as an aircraft; see Autopilot > Aircraft.", ship->name.c_str());
+
+        const bool scripted = !ship->spec().script.empty();
+        bool engaged = p.get_bool("/autopilot/enabled");
+        ImGui::TextUnformatted("Programmed flight");
+        if (scripted)
+        {
+            if (ImGui::Checkbox("Ascent autopilot engaged  [P]", &engaged))
+            {
+                if (engaged)
+                {
+                    sim.cancel_timed_burn("Timed burn cancelled: ascent engaged");
+                    sim.cancel_vessel_ascent("Ascent cancelled: another autopilot engaged");
+                }
+                p.set_bool("/autopilot/enabled", engaged);
+                if (!engaged)
+                    p.set_string("/autopilot/status", "");
+            }
+            const std::string status = p.get_string("/autopilot/status");
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", engaged && !status.empty() ? status.c_str() : "off");
+            float altitude = static_cast<float>(p.get_double("/autopilot/sc/target-altitude")), heading = static_cast<float>(p.get_double("/autopilot/sc/heading"));
+            ImGui::SetNextItemWidth(140.0f);
+            if (ImGui::InputFloat("Target orbit (km)", &altitude, 10.0f, 100.0f, "%.0f"))
+                p.set_double("/autopilot/sc/target-altitude", std::clamp(static_cast<double>(altitude), 80.0, 2000.0));
+            ImGui::SetNextItemWidth(140.0f);
+            if (ui::slider_float("Launch heading", &heading, 0.0f, 360.0f, "%.0f deg"))
+                p.set_double("/autopilot/sc/heading", heading);
+            ImGui::TextDisabled("Liftoff, gravity turn, staging, coast and circularise.");
+        }
+        else
+            ImGui::TextDisabled("%s has no programmed autopilot.", ship->name.c_str());
+
+        const bool landing = draw_autoland_controls(sim, ship);
         ImGui::Separator();
         ImGui::TextUnformatted("Attitude hold");
         const bool timed = p.get_bool("/autopilot/timed/armed");
@@ -1796,68 +1871,7 @@ namespace kosmos
         if ((engaged && scripted) || landing || timed)
             ImGui::EndDisabled();
 
-        ImGui::Separator();
-        ImGui::TextUnformatted("Timed burn (ignition)");
-        static int time_mode = 0, engine_mode = 0, burn_sas = 0;
-        static double delay = 60.0, duration = 10.0, burn_throttle = 100.0;
-        static char utc[64] = "";
-        static const char *const burn_modes[] = {"stability", "prograde", "retrograde", "radial-out", "radial-in", "normal", "antinormal", "attitude"};
-        ImGui::BeginDisabled(timed);
-        ImGui::RadioButton("Countdown", &time_mode, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("UTC date", &time_mode, 1);
-        ImGui::SetNextItemWidth(160.0f);
-        if (time_mode == 0)
-            ImGui::InputDouble("Ignition in (s)", &delay, 10.0, 60.0, "%.1f");
-        else
-            ImGui::InputText("Ignition UTC", utc, sizeof utc);
-        if (time_mode == 1)
-            ImGui::TextDisabled("YYYY-MM-DD HH:MM:SS UTC or MJD.");
-        ImGui::SetNextItemWidth(160.0f);
-        ImGui::InputDouble("Duration (s)", &duration, 1.0, 10.0, "%.1f");
-        ImGui::SetNextItemWidth(160.0f);
-        ImGui::InputDouble("Burn throttle (%%)", &burn_throttle, 5.0, 10.0, "%.1f");
-        ImGui::RadioButton("Main", &engine_mode, 0);
-        ImGui::SameLine();
-        ImGui::RadioButton("Hover##burn", &engine_mode, 1);
-        ImGui::SetNextItemWidth(160.0f);
-        if (ImGui::BeginCombo("Burn attitude", burn_modes[burn_sas]))
-        {
-            for (int i = 0; i < 8; ++i)
-                if (ImGui::Selectable(burn_modes[i], i == burn_sas))
-                    burn_sas = i;
-            ImGui::EndCombo();
-        }
-        if (burn_sas == 7)
-            ImGui::TextDisabled("Uses the pitch and heading set in Attitude hold.");
-        if (ImGui::Button("Arm timed burn"))
-        {
-            double ignition_delay = delay;
-            double jd = 0.0;
-            if (time_mode == 1 && !parse_burn_date(utc, jd))
-            {
-                p.set_string("/autopilot/timed/state", "Not armed: invalid UTC date");
-                sim.log("Timed burn not armed: invalid UTC date");
-            }
-            else
-            {
-                if (time_mode == 1)
-                    ignition_delay = (jd - sim.universe.julian_date()) * 86400.0;
-                sim.arm_timed_burn(ignition_delay, duration, burn_throttle / 100.0, engine_mode == 0 ? "main" : "hover", burn_modes[burn_sas]);
-            }
-        }
-        ImGui::EndDisabled();
-        if (timed)
-        {
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel timed burn"))
-                sim.cancel_timed_burn("Timed burn cancelled");
-            ImGui::Text("Remaining: %.1f s", p.get_double("/autopilot/timed/remaining"));
-        }
-        const std::string burn_state = p.get_string("/autopilot/timed/state");
-        if (!burn_state.empty())
-            ImGui::TextWrapped("%s", burn_state.c_str());
-        ImGui::TextDisabled("Warp held at 1x; allow time to align before ignition.");
+        draw_timed_burn_controls(sim, timed);
         ImGui::End();
     }
 

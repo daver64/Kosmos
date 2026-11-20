@@ -2,6 +2,7 @@
 #include <cctype>
 #include "sim.h"
 #include "transfer_plan.h"
+#include "vessel_guidance_profile.h"
 
 #include "json.hpp"
 
@@ -878,8 +879,7 @@ namespace kosmos
         c.target_heading = props.get_double(path_of("target-heading"));
         c.ascent_attitude = prefix == "/controls" && ascent_ship_ == active_;
         c.landing_attitude = prefix == "/controls" && props.get_bool("/autopilot/land/armed") && ship &&
-                             (ship->spec().name == "CVEL Shuttle-A" || ship->spec().name == "CVEL Shuttle-A (Nuclear)" ||
-                              ship->spec().name == "CVEL Shuttle-AQ");
+                             vessel_guidance_profile(ship->spec().name) == VesselGuidanceProfile::shuttle_a;
         c.landing_direction = landing_direction_;
         c.landing_axis = landing_axis_;
         c.parachute = props.get_int(path_of("parachute"));

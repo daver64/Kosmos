@@ -104,7 +104,11 @@ def main():
             assert any(abs((value - heading + 180) % 360 - 180) < 5 for value in headings), output
         if profile == "Deltaglider" and args[0] == "--ship":
             pressure = [(float(q), float(throttle)) for q, throttle in PRESSURE.findall(result.stdout)]
-            assert any(q > 70000 and throttle < 0.999 for q, throttle in pressure), output
+            assert pressure, output
+            assert all(abs(throttle - max(0.3, min(1.0, 1.0 - max(0.0, q - 70000) / 80000))) < 0.002
+                       for q, throttle in pressure), output
+            if not any(q > 70000 for q, _ in pressure):
+                print("Pressure limit not reached in this flight; boundary behavior is tested by vessel_guidance_test.")
         print(f"{profile} {args[-1]}: {body} orbit {achieved_pe:.1f} x {achieved_ap:.1f} km, fuel {fuel:.0f}", flush=True)
 
     if variants_only or additional_only:

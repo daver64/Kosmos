@@ -17,9 +17,7 @@ namespace kosmos
         const sl::dvec3 east = glm::normalize(glm::cross(pb.spin_axis, up));
         const sl::dvec3 north = glm::cross(up, east);
         const bool level = spec_.aircraft() || spec_.horizontal;
-        // A rocket stands with its roof to the west, so pitching up (nose toward the roof) turns it east, with the body's spin;
-        // `pad_turn` swings it round from there.
-        const double heading = (level ? heading_degrees : 270.0 + spec_.pad_turn) * pi / 180.0;
+        const double heading = heading_degrees * pi / 180.0;
         const sl::dvec3 roof = north * std::cos(heading) + east * std::sin(heading);
 
         double lowest = 0.0;
@@ -29,12 +27,7 @@ namespace kosmos
                 lowest = std::max(lowest, -g.position.y);
         }
         else
-            for (const StageSpec &st : spec_.stages)
-            {
-                lowest = std::max(lowest, st.z + st.length * 0.5);
-                for (const sl::dvec3 &g : st.gear)
-                    lowest = std::max(lowest, g.z);
-            }
+            lowest = rocket_lowest_point(spec_);
         // Gear that carries the whole ship compresses about 0.3 m, unless that is too soft to stop a tall, narrow
         // ship toppling: the springs' restoring torque must beat gravity's by a safe margin.
         const double surface_gravity = planet.gm / (planet.radius * planet.radius);
@@ -65,7 +58,7 @@ namespace kosmos
         }
         b.position = pb.position + up * (planet.radius + ground_height + lowest - compression);
         b.velocity = pb.velocity + glm::cross(pb.spin_axis * planet.spin, b.position - pb.position);
-        b.orientation = orientation_from(level ? roof : up, level ? up : -roof); // rockets lie heads-down, so the roof ends up skyward as the ascent pitches over
+        b.orientation = level ? orientation_from(roof, up) : rocket_pad_orientation(spec_, up, pb.spin_axis);
         b.angular_velocity = sl::dvec3(0.0);
         crashed_ = false;
         health_ = 1.0;

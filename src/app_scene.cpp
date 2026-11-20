@@ -478,6 +478,241 @@ namespace kosmos::app
     }
 
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_RELIEF
+    bool App::check_orbiter_relief_ground(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative,
+                                          BodyTerrain *ground_guard, double radius, const glm::dvec3 &eye_local,
+                                          const glm::dmat4 &view_projection)
+    {
+        bool fallback = false;
+        std::string fallback_reason;
+        const auto &source = ground_guard->terrain->source();
+        const glm::dquat tile_frame = kosmos::orbiter_tile_orientation(universe_ref->orientation(body));
+        const auto collision_height_at = [&](const glm::dvec3 &direction)
+        {
+            const glm::dvec3 body_direction(-direction.x, direction.y, -direction.z);
+            return source->height_on_sphere(ground_guard->frame.orientation * body_direction, radius);
+        };
+        const auto check_height = [&](const glm::dvec3 &direction, double expected, const char *where, double tolerance = 1.0)
+        {
+            double drawn = 0.0;
+            if (!std::isfinite(expected))
+            {
+                fallback_reason = std::string(where) + ": collision height is not finite";
+                return false;
+            }
+            if (!tiles.drawn_elevation(direction, drawn))
+            {
+                fallback_reason = std::string(where) + ": " + sl::last_error();
+                return false;
+            }
+            if (std::fabs(drawn * radius - expected) > tolerance)
+            {
+                fallback_reason = std::string(where) + ": drawn height differs from collision by " +
+                                  std::to_string(drawn * radius - expected) + " metres";
+                return false;
+            }
+            return true;
+        };
+        const auto check_base_site = [&](const kosmos::FlattenSite &site, const std::string &where)
+        {
+            constexpr double base_sample_camera_range_m = 250.0;
+            if (!std::isfinite(site.flat) || site.flat < 0.0 ||
+                !std::isfinite(site.a.x) || !std::isfinite(site.a.y) || !std::isfinite(site.a.z) ||
+                !std::isfinite(site.b.x) || !std::isfinite(site.b.y) || !std::isfinite(site.b.z))
+            {
+                fallback_reason = "base: invalid flattened surface";
+                return false;
+            }
+            const glm::dvec3 line = glm::cross(site.a, site.b);
+            const double line_length = glm::length(line);
+            const auto check_point = [&](const glm::dvec3 &world_direction, const char *part)
+            {
+                const glm::dvec3 sample_position = universe_ref->position(body) +
+                                                   world_direction * (radius + site.height);
+                const double camera_distance = glm::length(sample_position - eye_world);
+                if (!std::isfinite(camera_distance))
+                {
+                    fallback_reason = where + " " + part + ": surface position is invalid";
+                    return false;
+                }
+                if (camera_distance > base_sample_camera_range_m)
+                    return true;
+                const glm::dvec3 direction = glm::normalize(glm::inverse(tile_frame) * world_direction);
+                const std::string point = where + " " + part;
+                return check_height(direction, collision_height_at(direction), point.c_str());
+            };
+            if (line_length < 1e-12)
+            {
+                const glm::dvec3 centre = glm::normalize(site.a);
+                const glm::dvec3 axis = std::fabs(centre.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
+                const glm::dvec3 right = glm::normalize(glm::cross(axis, centre));
+                const glm::dvec3 forward = glm::cross(centre, right);
+                if (!check_point(centre, "centre"))
+                    return false;
+                for (int i = 0; i < 8; ++i)
+                {
+                    const double angle = 2.0 * glm::pi<double>() * i / 8.0;
+                    const glm::dvec3 tangent = right * std::cos(angle) + forward * std::sin(angle);
+                    const glm::dvec3 direction = glm::normalize(centre * std::cos(site.flat / radius) +
+                                                                tangent * std::sin(site.flat / radius));
+                    if (!check_point(direction, "edge"))
+                        return false;
+                }
+                return true;
+            }
+            const glm::dvec3 pole = line / line_length;
+            const double angle = std::acos(std::clamp(glm::dot(glm::normalize(site.a),
+                                                                glm::normalize(site.b)), -1.0, 1.0));
+            const int steps = std::clamp(static_cast<int>(std::ceil(angle * radius / 500.0)), 1, 32);
+            for (int step = 0; step <= steps; ++step)
+            {
+                const double t = static_cast<double>(step) / steps;
+                const glm::dvec3 centre = glm::normalize(site.a * (1.0 - t) + site.b * t);
+                const glm::dvec3 right = glm::normalize(glm::cross(pole, centre));
+                for (double offset : {-site.flat, 0.0, site.flat})
+                {
+                    const glm::dvec3 direction = glm::normalize(centre * std::cos(offset / radius) +
+                                                                right * std::sin(offset / radius));
+                    if (!check_point(direction, "line"))
+                        return false;
+                }
+            }
+            return true;
+        };
+        for (const kosmos::Base &base : sim.bases)
+        {
+            if (universe_ref->find(base.body) == body &&
+                kosmos::base_in_draw_range(base, universe_ref->position(body), radius, eye_world,
+                                           kosmos::base_draw_range))
+            {
+                const std::vector<kosmos::FlattenSite> sites = kosmos::flatten_sites(base, radius);
+                for (std::size_t i = 0; i < sites.size(); ++i)
+                    if (!check_base_site(sites[i], "base site " + std::to_string(i)))
+                    {
+                        fallback_reason = "base " + base.name + ": " + fallback_reason;
+                        fallback = true;
+                        break;
+                    }
+                if (fallback)
+                    break;
+            }
+        }
+        const double eye_distance = glm::length(eye_local);
+        if (!fallback && (!std::isfinite(eye_distance) || eye_distance < 1e-12))
+        {
+            fallback = true;
+            fallback_reason = "camera position is invalid";
+        }
+        else if (!fallback && (!std::isfinite(source->max_height()) ||
+                 (eye_distance - 1.0) * radius <= source->max_height() + kosmos::relief_near_surface_height_m))
+        {
+            const glm::dvec3 direction = eye_local / eye_distance;
+            const double expected = collision_height_at(direction);
+            if (!std::isfinite(expected))
+            {
+                fallback = true;
+                fallback_reason = "camera: collision height is not finite";
+            }
+            else if ((eye_distance - 1.0) * radius - expected <= kosmos::relief_near_surface_height_m)
+            {
+                // The sub-camera point is often behind a forward-looking cockpit, so only query it when visible.
+                const glm::dvec4 clip = view_projection * glm::dvec4(direction * (1.0 + expected / radius), 1.0);
+                if (clip.w > 0.0 && std::fabs(clip.x) <= clip.w && std::fabs(clip.y) <= clip.w &&
+                    clip.z >= -clip.w && clip.z <= clip.w)
+                    fallback = !check_height(direction, expected, "camera");
+            }
+        }
+        for (int s = 0; s < sim.ship_count() && !fallback; ++s)
+        {
+            const Ship &vessel = *sim.ship(s);
+            if (vessel.telemetry().soi != body ||
+                !kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m))
+                continue;
+            const double camera_distance = glm::length(vessel.origin() - eye_world);
+            if (!std::isfinite(camera_distance))
+            {
+                fallback = true;
+                fallback_reason = "ship position is invalid";
+                break;
+            }
+            if (camera_distance <= kosmos::relief_vessel_camera_range_m)
+            {
+                const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
+                const double distance = glm::length(offset);
+                if (!std::isfinite(distance) || distance < 1.0)
+                {
+                    fallback = true;
+                    fallback_reason = "ship position is invalid";
+                    break;
+                }
+                const glm::dvec3 tile_direction = glm::inverse(tile_frame) * (offset / distance);
+                const double collision_height = collision_height_at(tile_direction);
+                if (!std::isfinite(collision_height))
+                {
+                    fallback = true;
+                    fallback_reason = "collision height is not finite";
+                    break;
+                }
+                if (distance - radius - collision_height <= kosmos::relief_near_surface_height_m)
+                {
+                    const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
+                    const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
+                    const glm::dvec3 forward = glm::cross(tile_direction, right);
+                    for (const glm::dvec3 &delta : {glm::dvec3(0.0), right * (10.0 / radius), -right * (10.0 / radius),
+                                                    forward * (10.0 / radius), -forward * (10.0 / radius)})
+                    {
+                        const glm::dvec3 direction = glm::normalize(tile_direction + delta);
+                        if (!check_height(direction, collision_height_at(direction), "ship"))
+                        {
+                            fallback = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!fallback && !kosmos::check_relief_gear_contacts(vessel.body(), universe_ref->position(body),
+                                                                 glm::inverse(tile_frame), radius, eye_world, kosmos::relief_vessel_camera_range_m, collision_height_at,
+                                                                 check_height, fallback_reason))
+                fallback = true;
+        }
+        if (!fallback && ground_guard->clutter_live && ground_guard->clutter)
+        {
+            // Clutter is anchored to collision terrain, not to the relief renderer's current LOD.
+            std::vector<sl::ClutterObstacle> objects;
+            ground_guard->clutter->obstacles(-relative, std::numeric_limits<double>::infinity(), objects);
+            const auto check_clutter_height = [&](const glm::dvec3 &direction, double expected, const char *where)
+            {
+                return check_height(direction, expected, where, 0.15);
+            };
+            fallback = !kosmos::check_relief_clutter(objects, glm::inverse(tile_frame), radius,
+                                                     view_projection, check_clutter_height, fallback_reason);
+        }
+        bool hold_fallback = false;
+        for (int s = 0; s < sim.ship_count(); ++s)
+        {
+            const Ship &vessel = *sim.ship(s);
+            const kosmos::Telemetry &telemetry = vessel.telemetry();
+            if (telemetry.soi == body &&
+                kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m) &&
+                kosmos::hold_relief_fallback(telemetry.altitude, telemetry.surface_speed))
+                hold_fallback = true;
+        }
+        auto &state = ground_guard->relief_ground_fallback;
+        const bool was_fallback = state.fallback;
+        state.update(fallback, hold_fallback, std::chrono::steady_clock::now());
+        if (!was_fallback && state.fallback)
+            std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain: %s%s\n",
+                         universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str(),
+                         state.held ? " (held while near the surface)" : "");
+        else if (was_fallback && !state.fallback)
+        {
+            std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: nearby surface heights agree; using relief tiles\n",
+                         universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str());
+        }
+        if (state.fallback)
+            return false;
+        return true;
+    }
+
     bool App::draw_orbiter_relief(sl::PlanetTiles &tiles, int body, const sl::dvec3 &relative, sl::Material &material,
                                   BodyTerrain *ground_guard)
     {
@@ -499,237 +734,9 @@ namespace kosmos::app
             return false;
         }
         tiles.update_relative(eye_local, glm::radians(view_fov), static_cast<int>(view.viewport_height), &view_projection);
-        if (ground_guard)
-        {
-            bool fallback = false;
-            std::string fallback_reason;
-            const auto &source = ground_guard->terrain->source();
-            const glm::dquat tile_frame = kosmos::orbiter_tile_orientation(universe_ref->orientation(body));
-            const auto collision_height_at = [&](const glm::dvec3 &direction)
-            {
-                const glm::dvec3 body_direction(-direction.x, direction.y, -direction.z);
-                return source->height_on_sphere(ground_guard->frame.orientation * body_direction, radius);
-            };
-            const auto check_height = [&](const glm::dvec3 &direction, double expected, const char *where, double tolerance = 1.0)
-            {
-                double drawn = 0.0;
-                if (!std::isfinite(expected))
-                {
-                    fallback_reason = std::string(where) + ": collision height is not finite";
-                    return false;
-                }
-                if (!tiles.drawn_elevation(direction, drawn))
-                {
-                    fallback_reason = std::string(where) + ": " + sl::last_error();
-                    return false;
-                }
-                if (std::fabs(drawn * radius - expected) > tolerance)
-                {
-                    fallback_reason = std::string(where) + ": drawn height differs from collision by " +
-                                      std::to_string(drawn * radius - expected) + " metres";
-                    return false;
-                }
-                return true;
-            };
-            const auto check_base_site = [&](const kosmos::FlattenSite &site, const std::string &where)
-            {
-                constexpr double base_sample_camera_range_m = 250.0;
-                if (!std::isfinite(site.flat) || site.flat < 0.0 ||
-                    !std::isfinite(site.a.x) || !std::isfinite(site.a.y) || !std::isfinite(site.a.z) ||
-                    !std::isfinite(site.b.x) || !std::isfinite(site.b.y) || !std::isfinite(site.b.z))
-                {
-                    fallback_reason = "base: invalid flattened surface";
-                    return false;
-                }
-                const glm::dvec3 line = glm::cross(site.a, site.b);
-                const double line_length = glm::length(line);
-                const auto check_point = [&](const glm::dvec3 &world_direction, const char *part)
-                {
-                    const glm::dvec3 sample_position = universe_ref->position(body) +
-                                                       world_direction * (radius + site.height);
-                    const double camera_distance = glm::length(sample_position - eye_world);
-                    if (!std::isfinite(camera_distance))
-                    {
-                        fallback_reason = where + " " + part + ": surface position is invalid";
-                        return false;
-                    }
-                    if (camera_distance > base_sample_camera_range_m)
-                        return true;
-                    const glm::dvec3 direction = glm::normalize(glm::inverse(tile_frame) * world_direction);
-                    const std::string point = where + " " + part;
-                    return check_height(direction, collision_height_at(direction), point.c_str());
-                };
-                if (line_length < 1e-12)
-                {
-                    const glm::dvec3 centre = glm::normalize(site.a);
-                    const glm::dvec3 axis = std::fabs(centre.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
-                    const glm::dvec3 right = glm::normalize(glm::cross(axis, centre));
-                    const glm::dvec3 forward = glm::cross(centre, right);
-                    if (!check_point(centre, "centre"))
-                        return false;
-                    for (int i = 0; i < 8; ++i)
-                    {
-                        const double angle = 2.0 * glm::pi<double>() * i / 8.0;
-                        const glm::dvec3 tangent = right * std::cos(angle) + forward * std::sin(angle);
-                        const glm::dvec3 direction = glm::normalize(centre * std::cos(site.flat / radius) +
-                                                                    tangent * std::sin(site.flat / radius));
-                        if (!check_point(direction, "edge"))
-                            return false;
-                    }
-                    return true;
-                }
-                const glm::dvec3 pole = line / line_length;
-                const double angle = std::acos(std::clamp(glm::dot(glm::normalize(site.a),
-                                                                    glm::normalize(site.b)), -1.0, 1.0));
-                const int steps = std::clamp(static_cast<int>(std::ceil(angle * radius / 500.0)), 1, 32);
-                for (int step = 0; step <= steps; ++step)
-                {
-                    const double t = static_cast<double>(step) / steps;
-                    const glm::dvec3 centre = glm::normalize(site.a * (1.0 - t) + site.b * t);
-                    const glm::dvec3 right = glm::normalize(glm::cross(pole, centre));
-                    for (double offset : {-site.flat, 0.0, site.flat})
-                    {
-                        const glm::dvec3 direction = glm::normalize(centre * std::cos(offset / radius) +
-                                                                    right * std::sin(offset / radius));
-                        if (!check_point(direction, "line"))
-                            return false;
-                    }
-                }
-                return true;
-            };
-            for (const kosmos::Base &base : sim.bases)
-            {
-                if (universe_ref->find(base.body) == body &&
-                    kosmos::base_in_draw_range(base, universe_ref->position(body), radius, eye_world,
-                                               kosmos::base_draw_range))
-                {
-                    const std::vector<kosmos::FlattenSite> sites = kosmos::flatten_sites(base, radius);
-                    for (std::size_t i = 0; i < sites.size(); ++i)
-                        if (!check_base_site(sites[i], "base site " + std::to_string(i)))
-                        {
-                            fallback_reason = "base " + base.name + ": " + fallback_reason;
-                            fallback = true;
-                            break;
-                        }
-                    if (fallback)
-                        break;
-                }
-            }
-            const double eye_distance = glm::length(eye_local);
-            if (!fallback && (!std::isfinite(eye_distance) || eye_distance < 1e-12))
-            {
-                fallback = true;
-                fallback_reason = "camera position is invalid";
-            }
-            else if (!fallback && (!std::isfinite(source->max_height()) ||
-                     (eye_distance - 1.0) * radius <= source->max_height() + kosmos::relief_near_surface_height_m))
-            {
-                const glm::dvec3 direction = eye_local / eye_distance;
-                const double expected = collision_height_at(direction);
-                if (!std::isfinite(expected))
-                {
-                    fallback = true;
-                    fallback_reason = "camera: collision height is not finite";
-                }
-                else if ((eye_distance - 1.0) * radius - expected <= kosmos::relief_near_surface_height_m)
-                {
-                    // The sub-camera point is often behind a forward-looking cockpit, so only query it when visible.
-                    const glm::dvec4 clip = view_projection * glm::dvec4(direction * (1.0 + expected / radius), 1.0);
-                    if (clip.w > 0.0 && std::fabs(clip.x) <= clip.w && std::fabs(clip.y) <= clip.w &&
-                        clip.z >= -clip.w && clip.z <= clip.w)
-                        fallback = !check_height(direction, expected, "camera");
-                }
-            }
-            for (int s = 0; s < sim.ship_count() && !fallback; ++s)
-            {
-                const Ship &vessel = *sim.ship(s);
-                if (vessel.telemetry().soi != body ||
-                    !kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m))
-                    continue;
-                const double camera_distance = glm::length(vessel.origin() - eye_world);
-                if (!std::isfinite(camera_distance))
-                {
-                    fallback = true;
-                    fallback_reason = "ship position is invalid";
-                    break;
-                }
-                if (camera_distance <= kosmos::relief_vessel_camera_range_m)
-                {
-                    const glm::dvec3 offset = vessel.origin() - universe_ref->position(body);
-                    const double distance = glm::length(offset);
-                    if (!std::isfinite(distance) || distance < 1.0)
-                    {
-                        fallback = true;
-                        fallback_reason = "ship position is invalid";
-                        break;
-                    }
-                    const glm::dvec3 tile_direction = glm::inverse(tile_frame) * (offset / distance);
-                    const double collision_height = collision_height_at(tile_direction);
-                    if (!std::isfinite(collision_height))
-                    {
-                        fallback = true;
-                        fallback_reason = "collision height is not finite";
-                        break;
-                    }
-                    if (distance - radius - collision_height <= kosmos::relief_near_surface_height_m)
-                    {
-                        const glm::dvec3 axis = std::fabs(tile_direction.y) < 0.9 ? glm::dvec3(0, 1, 0) : glm::dvec3(1, 0, 0);
-                        const glm::dvec3 right = glm::normalize(glm::cross(axis, tile_direction));
-                        const glm::dvec3 forward = glm::cross(tile_direction, right);
-                        for (const glm::dvec3 &delta : {glm::dvec3(0.0), right * (10.0 / radius), -right * (10.0 / radius),
-                                                        forward * (10.0 / radius), -forward * (10.0 / radius)})
-                        {
-                            const glm::dvec3 direction = glm::normalize(tile_direction + delta);
-                            if (!check_height(direction, collision_height_at(direction), "ship"))
-                            {
-                                fallback = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (!fallback && !kosmos::check_relief_gear_contacts(vessel.body(), universe_ref->position(body),
-                                                                     glm::inverse(tile_frame), radius, eye_world, kosmos::relief_vessel_camera_range_m, collision_height_at,
-                                                                     check_height, fallback_reason))
-                    fallback = true;
-            }
-            if (!fallback && ground_guard->clutter_live && ground_guard->clutter)
-            {
-                // Clutter is anchored to collision terrain, not to the relief renderer's current LOD.
-                std::vector<sl::ClutterObstacle> objects;
-                ground_guard->clutter->obstacles(-relative, std::numeric_limits<double>::infinity(), objects);
-                const auto check_clutter_height = [&](const glm::dvec3 &direction, double expected, const char *where)
-                {
-                    return check_height(direction, expected, where, 0.15);
-                };
-                fallback = !kosmos::check_relief_clutter(objects, glm::inverse(tile_frame), radius,
-                                                         view_projection, check_clutter_height, fallback_reason);
-            }
-            bool hold_fallback = false;
-            for (int s = 0; s < sim.ship_count(); ++s)
-            {
-                const Ship &vessel = *sim.ship(s);
-                const kosmos::Telemetry &telemetry = vessel.telemetry();
-                if (telemetry.soi == body &&
-                    kosmos::relief_vessel_near_camera(vessel.origin(), vessel.body(), eye_world, kosmos::relief_vessel_camera_range_m) &&
-                    kosmos::hold_relief_fallback(telemetry.altitude, telemetry.surface_speed))
-                    hold_fallback = true;
-            }
-            auto &state = ground_guard->relief_ground_fallback;
-            const bool was_fallback = state.fallback;
-            state.update(fallback, hold_fallback, std::chrono::steady_clock::now());
-            if (!was_fallback && state.fallback)
-                std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: using existing terrain: %s%s\n",
-                             universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str(), fallback_reason.c_str(),
-                             state.held ? " (held while near the surface)" : "");
-            else if (was_fallback && !state.fallback)
-            {
-                std::fprintf(stderr, "[kosmos] %s Orbiter ground relief: nearby surface heights agree; using relief tiles\n",
-                             universe_ref->bodies[static_cast<std::size_t>(body)].name.c_str());
-            }
-            if (state.fallback)
-                return false;
-        }
+        if (ground_guard && !check_orbiter_relief_ground(tiles, body, relative, ground_guard, radius,
+                                                        eye_local, view_projection))
+            return false;
 #ifdef KOSMOS_EXPERIMENTAL_ORBITAL_MICRODETAIL
         double maximum_terrain_height = std::numeric_limits<double>::quiet_NaN();
         for (const auto &terrain_body : body_terrains)
