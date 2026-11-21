@@ -224,6 +224,54 @@ namespace kosmos
                       "EVA slides along a wall without keeping blocked velocity");
                 planet.spin_rate = saved_spin;
             }
+            if (sim.universe.bodies[static_cast<std::size_t>(body)].name == "Earth")
+            {
+                Base base;
+                base.body = "Earth";
+                base.latitude = 51.4585;
+                base.longitude = -2.119;
+                base.heading = 90.0;
+                base.direction = base_direction(sim.universe, body, base);
+                base.pole = sim.universe.pole(body);
+                BaseObject fence;
+                fence.type = "fence";
+                fence.length = 6.0;
+                base.objects.push_back(fence);
+                std::vector<Base> bases{base};
+                SolidScene scene;
+                scene.universe = &sim.universe;
+                scene.body = body;
+                scene.bases = &bases;
+                const double radius = sim.universe.bodies[static_cast<std::size_t>(body)].radius;
+                sim.step(0.05);
+                Base visible = base;
+                visible.direction = base_direction(sim.universe, body, visible);
+                visible.pole = sim.universe.pole(body);
+                const auto point = [&](const Base &frame, double x, double z) {
+                    return base_point(frame, radius, x, z) * radius;
+                };
+                const auto pushed = [&](const sl::dvec3 &p, double height) {
+                    return glm::length(push_out_of_solids(scene, p, p, height) - p);
+                };
+                check(pushed(point(visible, 0.0, 0.0), 0.0) > 0.1,
+                      "EVA collides with the current visible fence after the planet turns");
+                check(pushed(point(base, 0.0, 0.0), 0.0) < 0.01,
+                      "EVA does not collide with the fence's previous position");
+                check(pushed(point(visible, 0.0, 0.0), 2.0) < 0.01,
+                      "EVA can jump over the visible fence");
+                bases[0].direction = visible.direction;
+                bases[0].pole = visible.pole;
+                bases[0].objects[0].heading = 45.0;
+                const double diagonal = std::sqrt(2.0);
+                const sl::dvec3 on_fence = point(visible, -diagonal, diagonal);
+                const sl::dvec3 resolved = push_out_of_solids(scene, on_fence, on_fence, 0.0);
+                check(glm::length(resolved - on_fence) > 0.1,
+                      "EVA collides along a rotated visible fence");
+                check(pushed(resolved, 0.0) < 0.01,
+                      "EVA is pushed clear of a rotated fence");
+                check(pushed(point(visible, diagonal, diagonal), 0.0) < 0.01,
+                      "EVA does not collide beside a rotated visible fence");
+            }
             std::printf("arsenal selftest: %d failure(s)\n", failures);
             return failures ? 1 : 0;
         }

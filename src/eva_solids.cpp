@@ -208,8 +208,14 @@ namespace kosmos
             {
                 if (base.body != body_name)
                     continue;
+                // Rendering refreshes base frames later in the frame; collisions need the current planet rotation.
+                Base frame;
+                frame.body = base.body;
+                frame.heading = base.heading;
+                frame.direction = base_direction(universe, scene.body, base);
+                frame.pole = universe.pole(scene.body);
                 double x = 0.0, z = 0.0;
-                base_local_xz(universe, base, centre + to, x, z);
+                base_local_xz(universe, frame, centre + to, x, z);
                 if (std::fabs(x) > 1500.0 || std::fabs(z) > 1500.0)
                     continue;
                 double push_x = 0.0, push_z = 0.0;
@@ -227,7 +233,8 @@ namespace kosmos
                             continue;
                         const double a = o.heading * pi / 180.0, c = std::cos(a), s = std::sin(a);
                         const double px = x + push_x - ox, pz = z + push_z - oz;
-                        const double vx = (px * c + pz * s) / k, vz = (-px * s + pz * c) / k, pr = (person_radius + margin) / k;
+                        // Mesh +X points left of the object's heading, as in BaseRenderer.
+                        const double vx = (-px * c + pz * s) / k, vz = (px * s + pz * c) / k, pr = (person_radius + margin) / k;
                         if (vx <= f.min_x - pr || vx >= f.max_x + pr || vz <= f.min_z - pr || vz >= f.max_z + pr)
                             continue;
                         // Out through the nearest side.
@@ -243,13 +250,13 @@ namespace kosmos
                             dz = -out_z_min;
                         else
                             dz = out_z_max;
-                        push_x += k * (dx * c - dz * s);
+                        push_x += k * (-dx * c + dz * s);
                         push_z += k * (dx * s + dz * c);
                     }
                 }
                 if (push_x != 0.0 || push_z != 0.0)
                 {
-                    const sl::dvec3 a = base_point(base, radius, x, z), b = base_point(base, radius, x + push_x, z + push_z);
+                    const sl::dvec3 a = base_point(frame, radius, x, z), b = base_point(frame, radius, x + push_x, z + push_z);
                     to += (b - a) * radius;
                 }
             }
